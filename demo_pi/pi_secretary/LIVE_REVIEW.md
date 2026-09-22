@@ -1,10 +1,12 @@
 # OpenCode Go 真实链路复核
 
+后续界面已改为终端 TUI；本报告记录先前模型链路测试，不作为 TUI 交互验证。当前 TUI 检查见 [REVIEW.md](REVIEW.md)。
+
 ## 结果
 
 两把密钥按角色隔离：第一把仅用于主会话（及 Consciousness），第二把仅用于执行 agent。每个模型都分别作为主会话和执行者完成一套场景，再测试 DeepSeek 主会话 + Luna 执行者组合。
 
-最终 11 个场景全部通过，早期两次失败报告保留；不是反复执行同一未知操作，而是在修复代码后使用新的隔离测试数据重测。离线回归 22 项通过；独立 PostgreSQL 集成测试通过。完整索引见 [summary.json](reports/live/summary.json)。
+最终 11 个场景全部通过，早期两次失败报告保留；不是反复执行同一未知操作，而是在修复代码后使用新的隔离测试数据重测。该轮离线回归 22 项通过；独立 PostgreSQL 集成测试通过。完整索引见 [summary.json](reports/live/summary.json)。
 
 | 主会话 | 执行 agent | 场景 | 结果 | 证据 |
 |---|---|---|---|---|

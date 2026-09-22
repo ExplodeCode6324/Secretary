@@ -2,26 +2,39 @@
 
 Secretary 的可运行验证原型。模型循环直接从 `../pi_resource/packages/agent/src/agent.ts` 导入；执行端的 read/write 和 Node 文件后端也复用 Pi 源码。Secretary 自己实现输入队列、可靠提交、调度、统一授权和资料交接。
 
+完整功能入口与验证范围见 [TUI_FEATURES.md](TUI_FEATURES.md)。
+
 ## 启动与复核
 
-在 `demo_pi` 目录运行 `npm start`，打开 `http://127.0.0.1:4317`。将启动信息所指向的 `master.token` 文件内容填入页面的访问密钥框。默认运行数据保存在 `demo_pi/.demo-data`，已排除出 Git。
+在 `demo_pi` 目录运行 `npm start`，直接进入终端 TUI。默认运行数据保存在 `.demo-data`，已排除出 Git。`npm run start:live` 同样进入 TUI，并使用已配置的两组模型凭据。终端由 Master 本人操作；不再启动 HTTP 服务，也不需要浏览器或 master.token。
 
-1. 发送普通消息，检查主会话回复与持久化。
-2. 离线模式发送 `task: 整理一份测试报告`，查看任务、结果与主会话反馈。
-3. 人工登记示例程序，再在页面选择它创建任务；批准前不会启动，批准后产生真实程序输出与 `report.json`。
-4. 停止应用后重新启动，原会话、输入、任务和日志仍在。强制中断后的未知作用保持停止，不能把“重启”当成重试。
+直接输入文字向主会话发消息；`/help` 查看命令。启动菜单明确显示授权和工作决定入口，`/menu` 可随时返回。终端支持历史、方向键编辑、滚动回看；后台反馈到达时保留正在编辑的输入。
 
-`Ctrl+C` 停止应用。服务只绑定本机回环地址。主会话忙碌、暂停或整理工作记忆时，独立授权界面仍能驱动任务。
+| 操作 | 命令 |
+|---|---|
+| 会话状态与模型 | `/status` |
+| 任务列表与详情 | `/tasks`、`/show <execution-id>` |
+| 直接创建 Agent / 程序任务 | `/task <目标>`、`/program <program-id> <目标>` |
+| 查看待授权及完整请求 | `/auth`、`/approvals`、`/approval A1` |
+| 批准、拒绝、撤销已读请求 | `/approve <id>`、`/reject <id>`、`/revoke <id>` |
+| 工作决定 | `/decisions`、`/answer <id> <回答>` |
+| 取消与未知写入核验 | `/cancel <execution-id>`、`/verify <operation-id>` |
+| 整理与中断恢复 | `/compact`、`/resume` |
+| 退出 | `/quit` 或 Ctrl+C |
+
+新授权会自动展开完整卡片，显示任务、动作、资源、参数及 `/approve A1`、`/reject A1`。也可用 `/auth` 随时查看。只有完整请求展示过后才能批准；请求版本变化后需要查看更新的卡片。A1 / D1 / P1 / E1 是本次终端会话内稳定的短编号，重启后需按新卡片操作。工作决定直接显示 `/answer D1 <回答>`，回答记录保留 MASTER 来源。聊天中的“同意”不产生授权，模型输出中的命令也只作为文本显示。主会话处理期间仍可操作任务与授权。
+
+离线验证可以输入 `task: 整理一份测试报告`。退出再启动可恢复原会话、任务和日志；未知作用不会因重启而重复执行。
+
+高级入口：`/programs` 查看可选程序，`/task-json <JSON>` 提交定时、周期、材料和约束；`/operations` 查看未知操作，`/rules` 查看规则，`/history` 回看最近会话，`/world-read <subject-id>` 查询指定实体。
 
 ## 人工程序登记
 
-程序登记由 Master 执行，主会话没有登记工具。在 `demo_pi` 中可以用以下本地 CLI：
+在正在运行的 TUI 中输入 `/register-example` 登记示例程序。复制返回的 program ID，用 `/program <id> 生成一份测试报告` 创建任务，再通过授权命令批准执行。
 
-```sh
-npm run register-example
-```
+自定义登记用 `/register {"entrypoint":"程序绝对路径","name":"名称"}`；授权规则用 `/rule {"action":"动作","resource":"资源","parameters":{}}`。`/world` 查询 World Model，`/world <JSON>` 提交变更提案。模型没有这些 Master 终端命令的执行权限。
 
-CLI 读取同一 data root 的 Master key，向正在运行的本机应用登记 `pi_secretary/examples/report.mjs`，不输出密钥。程序协议为 stdin 接收 JSON，stdout 输出符合登记结果 schema 的 JSON，stderr 保存过程记录。示例程序将文件写入该 task 的 workspace。
+程序协议为 stdin 接收 JSON，stdout 输出符合登记结果 schema 的 JSON，stderr 保存过程记录。示例程序将文件写入该 task 的 workspace。
 
 本原型的程序后端运行人工登记的 Node 脚本，启动时核对登记版本与入口文件 SHA-256。授权界面展示版本、代码摘要、参数及整体执行范围；内部动作以该程序的整体执行为授权单位。`supports_resume=false`，不把程序日志当作任意现场的恢复能力。
 

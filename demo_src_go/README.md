@@ -4,11 +4,15 @@
 
 Master 的复核入口：[`REVIEW.md`](REVIEW.md)。实现选择与设计对应：[`ARCHITECTURE.md`](ARCHITECTURE.md)。
 
+对比测试报告后的修复与新证据见 [`reports/improvements-20260922/README.md`](reports/improvements-20260922/README.md)。历史对比报告保留原样。
+
 ## 在当前 Mac 启动
 
-双击 **`启动Secretary.command`**。它构建程序、启动本 demo 专用的 PostgreSQL（仅 Unix socket）、恢复同一逻辑会话并打开界面。默认地址为 `http://127.0.0.1:8787`。
+双击 **`启动Secretary.command`**，在终端打开 TUI。它构建程序、启动专用 PostgreSQL（仅 Unix socket）和本地协调后台，再连接终端界面。建议终端至少 120 列 × 36 行。没有 WebUI，也不会打开浏览器。
 
-双击 **`停止Secretary.command`** 停止本 demo 服务；保留所有状态。前台运行 `./scripts/start.sh` 时使用 Ctrl-C。数据库可单独用 `./scripts/postgres.sh stop` 停止。
+退出 TUI 后任务与调度继续运行，再次双击入口即可重连。仅后台可用 `./scripts/start-background.sh` 启动；已有后台时可直接 `./bin/secretary tui`。
+
+双击 **`停止Secretary.command`** 停止本 demo 后台；保留所有状态。在 TUI 中 Ctrl-C 打开退出确认，只退出界面。数据库可单独用 `./scripts/postgres.sh stop` 停止。
 
 本次提供的两把 OpenCode Go 密钥已经分别写入本地 `.private/runtime.env`（0600，目录 0700，Git 忽略）。示例配置和代码不含密钥。真实测试使用 `gpt-5.6-luna` 和 `https://opencode.ai/zen/go/v1/responses`；主会话/整理调用使用主会话密钥，任务调用使用任务密钥。
 
@@ -16,7 +20,25 @@ Master 的复核入口：[`REVIEW.md`](REVIEW.md)。实现选择与设计对应�
 
 > 请委派一个任务，在它自己的工作目录创建 hello.txt，内容为「Secretary Go 已启动」。验收标准是文件存在且内容正确，完成后汇报。
 
-右侧会出现具体文件、内容和执行身份。点击「批准这一次」才会写文件；普通聊天中的「同意」不会放行。完成后查看任务详情中的结果、产物引用和检查点。
+F3 审批页会显示具体文件、内容和执行身份。选择「批准这一次」并确认后才会写文件；普通聊天中的「同意」不会放行。完成后查看任务详情中的结果、产物引用和检查点。
+
+## 终端操作
+
+| 操作 | 按键 / 入口 |
+| --- | --- |
+| 主视图 | 左侧主会话与输入区，右侧 Task 看板，没有常驻导航栏 |
+| 任务详情 | Ctrl+T 聚焦右侧看板，方向键选任务，Enter 打开详情，Esc 返回主视图 |
+| 快捷切页 | F1 主会话、F2 任务、F3 审批、F4 记忆、F5 操作、F6 规则、F7 提醒、F8 日志 |
+| 切焦点 | Tab / Shift+Tab；方向键选择、Enter 打开或执行按钮 |
+| 多行输入 | Enter 换行，Ctrl+S 明确发送；粘贴不会自动发送 |
+| 查看长内容 | Tab 聚焦详情后用方向键、PgUp/PgDn；确认页同样可滚动 |
+| 任务管理 | 选计划后暂停/恢复/结束；选执行后读详情/请求取消；选普通决定后回答 |
+| 授权 | 选审批记录后用底部按钮打开固定范围确认页；Tab 到「确认」后 Enter |
+| 工作记忆 / 长期事实 | F4 查看、整理或检索；长期事实仍由 PostgreSQL 保存 |
+| 请求状态未知 | Ctrl+R 重试同一请求编号和参数；期间不另发新命令 |
+| 退出 | Ctrl-C 打开退出确认，Esc 返回；停止后台用停止入口 |
+
+轮询保留输入草稿和按 ID 选中的记录。终端只展示最近 5000 条事件内的聊天/日志，完整原文仍在后台日志。未发送草稿仅在当前 TUI 内存中保留；退出确认会提示。提交状态未知时，先留在界面重试或检查后台记录。
 
 ## 从源码安装到另一目录
 
@@ -30,7 +52,7 @@ export SECRETARY_MAIN_API_KEY='填写主会话密钥'
 export SECRETARY_TASK_API_KEY='填写任务密钥'
 export SECRETARY_PG_DSN='填写专用 PostgreSQL DSN'
 ./bin/secretary world migrate
-./bin/secretary serve
+./scripts/start.sh
 ```
 
 也可使用 `.private/runtime.env`，但不要提交该文件。只有 World Model 使用 PostgreSQL；不配置 DSN 时界面明确显示不可用，其他模块可进行离线开发。数据目录和工作目录必须固定；不要在同一数据目录启动第二个协调进程。
@@ -45,7 +67,7 @@ export SECRETARY_PG_DSN='填写专用 PostgreSQL DSN'
 - Consciousness 的 ACTIVE/QUIET/MINIMAL 事项、固定材料整理、版本 CAS、完整交互覆盖检查、未承接原文保留、容量阻塞。
 - PostgreSQL 实体/来源/登记谓词/主张/证据、支持与分歧、修正与撤回、幂等回执及 outbox→journal 恢复。
 - 任务详情刷新短期保留；待反馈/待工作不退休；退休只关闭短期入口，不删除历史。
-- 本地同源 UI、随机 Master 凭据、HttpOnly cookie、Host/Origin 校验、严格入口 DTO；持续规则是单独的人工作业入口。
+- TUI 使用本地 Master token 连接 127.0.0.1 后台 API；没有网页、浏览器登录或 cookie 授权。持续规则是单独的人工作业入口。
 
 ## 人工登记程序
 
@@ -76,3 +98,5 @@ SECRETARY_LIVE_TEST=1 SECRETARY_LIVE_REPORT="$PWD/reports/live-model.json" \
 ```
 
 `reports` 区分 `OFFLINE_RUNTIME`、PostgreSQL 集成和 `LIVE_MODEL`。这些结果不代替 Master 的 `REAL_USE` 复核，也不证明掉电恢复、任意程序的外部效果或摘要语义绝无遗漏。
+
+短记忆题显式真实模型复测：导出私密环境后运行 `python3 scripts/verify-memory.py --attempts 3 --label 自选英文标识`。每次使用独立目录，拒绝覆盖已有报告；评分在控制器侧，答案不会送给模型。该检查不并入普通离线测试。

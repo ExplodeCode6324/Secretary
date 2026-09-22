@@ -212,6 +212,9 @@ func (a *App) gate(id string) error {
 		if o == nil || o["state"] != "AUTHORIZED" {
 			return ErrWait
 		}
+		if e := a.validateDispatchIdentity(t, o); e != nil {
+			return e
+		}
 		act := d.M(o["action"])
 		if act["action"] == "file.write" {
 			actual := "ABSENT"
@@ -253,7 +256,6 @@ func (a *App) gate(id string) error {
 			}
 		}
 		o["state"] = "DISPATCHED"
-		o["owner_epoch"] = a.Store.Epoch()
 		if e := t.Save(o); e != nil {
 			return e
 		}
@@ -314,7 +316,9 @@ func (a *App) WriteFile(execution, call string, args d.R) (any, error) {
 		e = a.rootedWrite(execution, path, []byte(d.S(args["content"])))
 	}
 	if e != nil {
-		a.operationResult(id, "RESULT_UNKNOWN", "UNKNOWN", d.R{"error": e.Error()})
+		if err := a.operationResult(id, "RESULT_UNKNOWN", "UNKNOWN", d.R{"error": e.Error()}); err != nil {
+			return nil, errors.Join(e, err)
+		}
 		return nil, errors.New("RESULT_UNKNOWN file write")
 	}
 	r := d.R{"status": "SUCCEEDED", "path": path, "sha256": d.Hash([]byte(d.S(args["content"]))), "bytes": len(d.S(args["content"]))}

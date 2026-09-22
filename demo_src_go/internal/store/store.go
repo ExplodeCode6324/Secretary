@@ -251,6 +251,9 @@ func (t *Tx) List(typ string) []d.R {
 func (t *Tx) Save(r d.R) error {
 	k := key(d.S(r["record_type"]), d.S(r["id"]))
 	old := t.s.records[k]
+	if immutableRecord(d.S(r["record_type"])) && (old != nil || t.changed[k] != nil) {
+		return fmt.Errorf("immutable %s cannot be saved twice", r["record_type"])
+	}
 	next := d.Clone(r)
 	if old != nil {
 		if d.N(r["revision"]) != d.N(old["revision"]) {
@@ -459,6 +462,9 @@ func (s *Store) replay() error {
 			k := key(d.S(m["object_type"]), d.S(m["object_id"]))
 			rev := int64(0)
 			if old := s.records[k]; old != nil {
+				if immutableRecord(d.S(m["object_type"])) {
+					return fmt.Errorf("RECOVERY_BLOCKED immutable %s modified", m["object_type"])
+				}
 				rev = d.N(old["revision"])
 			}
 			if d.N(m["expected_revision"]) != rev || d.N(m["new_revision"]) != rev+1 || d.N(obj["revision"]) != rev+1 || obj["id"] != m["object_id"] {

@@ -1,0 +1,1 @@
+{"report":"gpt-5.6-luna-missing-1790075037291.json","result":"PASS","checks":{"main_proposed_one_agent":true,"no_duplicate_task":true,"no_unexpected_effect":true,"paused_for_missing_input":true,"decision_still_open":true,"no_write":true},"calls":{"main":4,"task":2},"elapsed_ms":18257}

@@ -1,0 +1,7 @@
+{
+  "verdict": "PASS",
+  "scope": "Report JSON/Python syntax, entry-document links, known credential value exclusion, provider-signature exclusion, frozen source parity; not product validation",
+  "files_scanned": 62,
+  "errors": [],
+  "source_drift": []
+}

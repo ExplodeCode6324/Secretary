@@ -120,8 +120,7 @@ func (a *App) processWorld() error {
 		}
 		receipt, e := a.World.Apply(ctx, d.M(w["change"]))
 		if e != nil {
-			a.set("WorldCommand", id, "RETRYABLE_ERROR", d.R{"error": e.Error()})
-			return e
+			return a.failState(e, "WorldCommand", id, "RETRYABLE_ERROR", d.R{"error": e.Error()})
 		}
 		if e = a.saveWorldReceipt(id, receipt); e != nil {
 			return e

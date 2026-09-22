@@ -3,7 +3,6 @@ package transport
 import (
 	"crypto/rand"
 	"crypto/subtle"
-	"embed"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -17,9 +16,6 @@ import (
 	"strconv"
 	"strings"
 )
-
-//go:embed web.html
-var web embed.FS
 
 type Server struct {
 	App         *engine.App
@@ -47,7 +43,6 @@ func (s *Server) Handler() http.Handler { return http.HandlerFunc(s.serve) }
 func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'")
 	if r.Host != s.Host {
 		http.Error(w, "invalid Host", 403)
 		return
@@ -56,46 +51,17 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "cross-origin request denied", 403)
 		return
 	}
-	if r.URL.Path == "/" && r.Method == "GET" {
-		b, _ := web.ReadFile("web.html")
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(b)
+	if r.URL.Path == "/" || r.URL.Path == "/v1/login" {
+		http.NotFound(w, r)
 		return
 	}
 	if r.URL.Path == "/healthz" && r.Method == "GET" {
-		reply(w, d.R{"status": "ok"})
-		return
-	}
-	if r.URL.Path == "/v1/login" && r.Method == "POST" {
-		var body struct {
-			Token string `json:"token"`
-		}
-		if e := decode(w, r, &body); e != nil {
-			fail(w, e)
-			return
-		}
-		if !equal(body.Token, s.Token) {
-			http.Error(w, "unauthorized", 401)
-			return
-		}
-		http.SetCookie(w, &http.Cookie{Name: "secretary_master", Value: s.Token, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
-		reply(w, d.R{"ok": true})
+		reply(w, d.R{"status": "ok", "interface": "TUI"})
 		return
 	}
 	auth := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-	cookieAuth := false
-	if auth == "" {
-		if c, e := r.Cookie("secretary_master"); e == nil {
-			auth = c.Value
-			cookieAuth = true
-		}
-	}
 	if !equal(auth, s.Token) {
 		http.Error(w, "unauthorized", 401)
-		return
-	}
-	if cookieAuth && r.Method != "GET" && r.Header.Get("Origin") != "http://"+s.Host {
-		http.Error(w, "Origin required for browser writes", 403)
 		return
 	}
 	a := s.App
@@ -193,6 +159,31 @@ func (s *Server) serve(w http.ResponseWriter, r *http.Request) {
 		}
 	case "GET /v1/rules":
 		out = a.Store.View("AuthorizationRule")
+	case "GET /v1/rule-detail":
+		rule := a.Store.Get("AuthorizationRule", r.URL.Query().Get("id"))
+		if rule == nil {
+			err = errors.New("NOT_FOUND rule")
+			break
+		}
+		var raw []byte
+		raw, err = a.Store.Read(d.M(rule["parameter_constraints"]))
+		if err == nil {
+			var constraints any
+			err = d.Decode(raw, &constraints)
+			out = d.R{"rule": rule, "parameter_constraints": constraints}
+		}
+	case "GET /v1/notifications":
+		list := []any{}
+		for _, n := range a.Store.View("Notification") {
+			var raw []byte
+			raw, err = a.Store.Read(d.M(n["message"]))
+			if err != nil {
+				break
+			}
+			n["text"] = string(raw)
+			list = append(list, n)
+		}
+		out = list
 	case "POST /v1/notifications/ack":
 		var body struct {
 			ID string `json:"id"`

@@ -7,6 +7,15 @@ import (
 	d "secretary_go_demo/internal/domain"
 )
 
+// These are historical snapshots, never mutable projections. New material gets a new ID.
+func immutableRecord(kind string) bool {
+	switch kind {
+	case "Context", "Checkpoint", "Dispatch", "TaskResult", "ArchiveManifest":
+		return true
+	}
+	return false
+}
+
 func mkdirDurable(path string) error {
 	info, e := os.Lstat(path)
 	if e == nil {

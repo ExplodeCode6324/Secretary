@@ -17,10 +17,10 @@ Pi 官方源码放在 `../pi_resource`，以 submodule 固定在 v0.87.0 / `1678
 | Consciousness | src/host.ts | 宿主安排无工具的独立整理调用，固定材料范围、版本检查；保留原件，不产生新输入 |
 | Scheduler | src/scheduler.ts | 初始化 task workspace；计划与执行分离；即时、定时和固定间隔任务；前置条件、等待决定、取消、反馈和短期回收 |
 | 执行端 | src/model.ts、scheduler.ts | 新 Pi Agent 可装入保存的 Context；人工登记 Node 程序按版本与代码摘要执行 |
-| 授权 | src/authorization.ts、server.ts | 规则匹配或独立 Master 界面批准；参数与范围绑定；最终分派前检查；主会话没有授权工具 |
+| 授权 | src/authorization.ts、tui.ts | 规则匹配或独立 Master 界面批准；参数与范围绑定；最终分派前检查；主会话没有授权工具 |
 | Operation Log / Task Log | src/store.ts | 原文对象、带摘要的提交帧、任务日志与跨对象提交；写入后 ACK；历史不随 Scheduler 回收删除 |
 | World Model | src/world.ts | 使用根目录 PostgreSQL schema；事实与来源、冲突、版本检查、提交回执、outbox |
-| 主会话界面 | web/index.html | 消息、任务详情、授权原文及普通工作决定；显示离线/真实模型模式 |
+| 终端 TUI | src/tui.ts | 消息、任务详情、授权原文及普通工作决定；显示离线/真实模型模式 |
 
 持久化结构通过根目录 JSON Schema 校验。模型输出仍是提案；授权与状态事实由宿主和 Scheduler 检查。后续处理创建新执行，不把已完成执行改回运行中。任务结果与证据先保存，随后才向主会话投递简要反馈。
 
@@ -31,9 +31,9 @@ Pi 官方源码放在 `../pi_resource`，以 submodule 固定在 v0.87.0 / `1678
 | 检查 | 结果与证据 |
 |---|---|
 | TypeScript 严格检查 | npm run check 通过 |
-| 离线运行测试 | 22 通过、0 失败；普通测试中的 PostgreSQL 项跳过，另行真实执行。见 [runtime.tap](reports/runtime.tap) |
+| 离线运行测试 | 28 通过、0 失败；普通测试中的 PostgreSQL 项跳过，另行真实执行。见 [runtime.tap](reports/runtime.tap) |
 | PostgreSQL 独立集成测试 | 临时真实数据库中 1 通过、0 失败。见 [postgres.tap](reports/postgres.tap) |
-| 启动检查 | 实际启动服务、读取页面、认证提交输入并完成 Pi task。见 [cli-smoke.json](reports/cli-smoke.json) |
+| 启动检查 | 实际启动终端进程、提交消息完成 Pi task、退出并重新打开存储；包含在 runtime.tap 的 TUI 测试中。旧 cli-smoke.json 仅为 WebUI 历史记录 |
 | 格式检查 | npm run format:check 通过 |
 | 生产依赖审计 | 0 已报告漏洞。见 [dependency-audit.json](reports/dependency-audit.json) |
 

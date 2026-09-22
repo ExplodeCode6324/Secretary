@@ -1,0 +1,196 @@
+{
+  "schema_version": 1,
+  "purpose": "TEST_DESIGN_BASELINE",
+  "git_head": "4f4261ef417311e0466e7b46cf0a24e4daa64d77",
+  "working_tree": "Contains pre-existing edits and untracked Go implementation; hashes identify actual read baseline, not only HEAD.",
+  "files": [
+    {
+      "path": "BrainStorm_Baseline_v3.md",
+      "sha256": "8e2bf44097a814a7b3455e9459538b608ff3488a5827f0887c74acebc4c8d08c"
+    },
+    {
+      "path": "README.md",
+      "sha256": "12ecfc55a18929136c15537159845e3b046b49675016a8e2c8e4ecd175fd0895"
+    },
+    {
+      "path": "demo_design/API.md",
+      "sha256": "2d3d646e9938323812c70a482f2025f3ca3a9c8d1b0e2e5bbf2e64ea4379bd6e"
+    },
+    {
+      "path": "demo_design/DECISIONS.md",
+      "sha256": "f82288e9c2540e5091c9c542a5a2fa9bfc62460e6080581b537d3ba8f97a8cec"
+    },
+    {
+      "path": "demo_design/GO_IMPLEMENTATION.md",
+      "sha256": "3e17df64eafddbadc5f0f4741d7430871b93f9cbe8d5f7e27b6cfbba3d533f0e"
+    },
+    {
+      "path": "demo_design/GO_LAYOUT.md",
+      "sha256": "060fefa3af2c6445a1a950901421173aeb3d7f886adbac7cc4b972c07c434695"
+    },
+    {
+      "path": "demo_design/IMPLEMENTATION.md",
+      "sha256": "ca46ea7625728148240bf51dc7e18179793d7c782798ec70586d6bef1dfe3550"
+    },
+    {
+      "path": "demo_design/PERSISTENCE.md",
+      "sha256": "def927665304a507b72569881cd8662585d20ab1c1e59e19d6b288fbe74864e0"
+    },
+    {
+      "path": "demo_design/README.md",
+      "sha256": "f398e486e3c87a1e0b57c541803710d72eea9f57a42488efaeaec6b8fe6c304b"
+    },
+    {
+      "path": "demo_design/REVIEW.md",
+      "sha256": "f2f4b5f948935891c0de44f1acc1af8fe0f4d75f3f1c068deee1f2342e0e6510"
+    },
+    {
+      "path": "demo_design/SCENARIOS.md",
+      "sha256": "97f48a738651522c1cbea77cecec1ab1270dfcebda7a52c7c5c2b16c727855ab"
+    },
+    {
+      "path": "demo_pi/README.md",
+      "sha256": "76f7b5a5153954d2760a6a78384d665808692c604879156908f11a8f00b92134"
+    },
+    {
+      "path": "demo_pi/pi_secretary/LIVE_REVIEW.md",
+      "sha256": "57985edc6a11605f70d04e948d621c945891f970273194e8ca6b02edc2327931"
+    },
+    {
+      "path": "demo_pi/pi_secretary/README.md",
+      "sha256": "596b90740e9d67a404e2059e129b6d8f78ae02e68b13ac5bdcc4ecf56dd28947"
+    },
+    {
+      "path": "demo_pi/pi_secretary/REVIEW.md",
+      "sha256": "e6acf417f4976feea10184abee84cc04a299251662eac20d92e46a4d5c1bb637"
+    },
+    {
+      "path": "demo_src_go/ARCHITECTURE.md",
+      "sha256": "2bfb83b01a5ffd28847bc51ee9855fc0280bd7eadded40743d64af123a1d9a5b"
+    },
+    {
+      "path": "demo_src_go/README.md",
+      "sha256": "ff00d72c01f7a3afc4fbcdd6f14c16a2bb9b90dd3a45a5d2aa3377064e70d2d7"
+    },
+    {
+      "path": "demo_src_go/REVIEW.md",
+      "sha256": "696c8fcdb7c0142bc4a519eb9ec33a699bf637539bd820bd612af47de3149583"
+    },
+    {
+      "path": "json/FIELDS.md",
+      "sha256": "c44412845c301fedb6460cc9aeb5518eb698437bee715fa16d2ba380cdc89df1"
+    },
+    {
+      "path": "json/README.md",
+      "sha256": "bd210cd8aca79dbd074b30c25344a3e07ba19f87b4615bcc9e253487a88c0d9a"
+    },
+    {
+      "path": "json/SEMANTICS.md",
+      "sha256": "bdca63389020c56b1fd149ae9d20c88074120d5ceae9ec4cfb6d7a8a721cc91e"
+    },
+    {
+      "path": "json/STORAGE.md",
+      "sha256": "7925a8a95b2f045f56a3bd2309028b7a90d9aff5cd5d8ecca725018af1d9c533"
+    },
+    {
+      "path": "json/catalog.json",
+      "sha256": "a4f713586a3ed399921d8e74339a24a1cfd39cefb6dc0fed242cc4de07be8b7e"
+    },
+    {
+      "path": "json/contracts.schema.json",
+      "sha256": "2fe5562dfdb40661b21a5a72b996851ae3deaf7ae5278af706cb542a5085cab6"
+    },
+    {
+      "path": "json/storage.schema.json",
+      "sha256": "cec1862171610ebba6aefc2732ea31652a48e4acb011cebb076ad83d5b9d82c7"
+    },
+    {
+      "path": "schema/001_world_model.sql",
+      "sha256": "3e98cb2d1ad13ce01e35092fe7a3efa93543753ace028106d31ca0634b882f0f"
+    },
+    {
+      "path": "schema/002_predicates.sql",
+      "sha256": "d89b3a68d7304229a690ceb40abbf45dbabf3c792cbc4530bef363ad620a3cd2"
+    },
+    {
+      "path": "schema/README.md",
+      "sha256": "0876eae059887d63dde8a6b691986b89f9fe04270ec57d6e5cad93fc7b2014ed"
+    },
+    {
+      "path": "schema/TRANSACTIONS.md",
+      "sha256": "7dccb79f52e001928f9e6caa83c0f2113e5f29630974b39154fd26b87ef10edf"
+    },
+    {
+      "path": "schema/queries.sql",
+      "sha256": "1bc75ae6deb8e416f07e98b1a7ebf071561e825e90d9770fa64d224c0b1f52e6"
+    },
+    {
+      "path": "state_machine/Authorization.md",
+      "sha256": "039d4d8993a904f42a70f24b313e4a79884d1875fdda8a4f4157f16cffea9239"
+    },
+    {
+      "path": "state_machine/Call.md",
+      "sha256": "0ec7c2b7b2cd70108d4bd34e7dc9cfc65be03389466de32e20029c9a2d42e317"
+    },
+    {
+      "path": "state_machine/Compaction.md",
+      "sha256": "6d8a2ff8be6a61875645a6db057f4d60f5551b7a4fcae53906b94a39ddcf25e7"
+    },
+    {
+      "path": "state_machine/Decision.md",
+      "sha256": "b290f05e1c165aa8b81c654a4debb3ab529b7e41c746f8d85b4dac0048641dfc"
+    },
+    {
+      "path": "state_machine/Execution.md",
+      "sha256": "ac5f6f015e6f6238e1233921be92c5298aee461b8c7cc18c874d8135b3217258"
+    },
+    {
+      "path": "state_machine/Feedback.md",
+      "sha256": "2474bcda2a170de0e69f1ef08e4d01fb8f88488f7c8e2d0c5884d3e8fa35451e"
+    },
+    {
+      "path": "state_machine/GUARDS.md",
+      "sha256": "52fa6c3f1294edb59233e80d569a125ad41b0fd03295e7518b9ad46426f07b44"
+    },
+    {
+      "path": "state_machine/Host.md",
+      "sha256": "c2334e76f6e3e758a4a9141c255bd99bcb39afb42b986d038c798107781d2f35"
+    },
+    {
+      "path": "state_machine/Input.md",
+      "sha256": "7a31ce00a4f7a3236d756c57db1239d43e3a95b3a9891196931a4fcedd812749"
+    },
+    {
+      "path": "state_machine/Notification.md",
+      "sha256": "bd71a81afabb9951024f2dee964d9134074689e8f28438e55093cb9583fe54ae"
+    },
+    {
+      "path": "state_machine/Operation.md",
+      "sha256": "6df190b601f5988d77d57237625bb9096873d15ebc89739558dcc5c6013227dd"
+    },
+    {
+      "path": "state_machine/Plan.md",
+      "sha256": "3597c50bb79800a7e9ba8ed5dd2ba05ed7de91f055564934283cd013cf8873d0"
+    },
+    {
+      "path": "state_machine/Program.md",
+      "sha256": "31b50d331a02a164945ac38b3ea9ed168b9016ad5f89ae7bfd6c59866a33abf7"
+    },
+    {
+      "path": "state_machine/README.md",
+      "sha256": "bcaea1fbf73e62f4d02ee121e00d8f3c74a3aaf911318747117778ad5fe1b23e"
+    },
+    {
+      "path": "state_machine/Retention.md",
+      "sha256": "d76617fde50e1fffb54569e28b03344fd1789ca324ae7b9ffab40f6689bac082"
+    },
+    {
+      "path": "state_machine/WorldCommand.md",
+      "sha256": "241ac329126d26741c8ff77191aa45381709ec6e8c6b50c7911e9890514ca300"
+    },
+    {
+      "path": "state_machine/catalog.json",
+      "sha256": "9ad9609a15d3c4cb0812e868d66abc5bb859334ed93c030053c0fa263029d665"
+    }
+  ]
+}

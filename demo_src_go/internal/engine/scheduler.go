@@ -441,6 +441,9 @@ func (a *App) Control(request string, args d.R) (out d.R, err error) {
 			if q == nil || q["execution_id"] != r["id"] || q["state"] != "OPEN" || r["state"] != "WAIT_DECISION" {
 				return errors.New("invalid decision")
 			}
+			if q["deadline"] != nil && !a.Now().Before(d.Time(q["deadline"])) {
+				return errors.New("decision deadline expired")
+			}
 			q["state"] = "ANSWERED"
 			q["answer"] = args["answer"]
 			q["answered_by"] = "MAIN"

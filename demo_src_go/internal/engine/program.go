@@ -151,7 +151,9 @@ func (a *App) runProgram(ctx context.Context, id string) error {
 	cmd.Stderr = stderr
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if e = cmd.Start(); e != nil {
-		a.operationResult(opID, "FAILED", "NOT_APPLIED", d.R{"start_error": e.Error()})
+		if err := a.operationResult(opID, "FAILED", "NOT_APPLIED", d.R{"start_error": e.Error()}); err != nil {
+			return errors.Join(e, err)
+		}
 		return a.finish(id, "FAILED", "程序未能启动", []any{}, d.R{"error": e.Error()})
 	}
 	done := make(chan error, 1)
@@ -201,18 +203,28 @@ wait:
 		return err
 	}
 	detail := d.R{"stdout_ref": outRef, "stderr_ref": errRef, "exit_code": cmd.ProcessState.ExitCode(), "parameters": params}
-	a.Store.Update(func(t *store.Tx) error {
+	if err := a.Store.Update(func(t *store.Tx) error {
 		_, err := t.Log("program.result", "PROGRAM", a.scopeTx(t, id), id, detail)
 		return err
-	})
+	}); err != nil {
+		return err
+	}
 	if interrupted {
-		a.operationResult(opID, "RESULT_UNKNOWN", "UNKNOWN", detail)
-		a.set("Execution", id, "RESULT_UNKNOWN", nil)
-		a.feedback(id, "UNKNOWN", "程序已退出，但外部影响需要核验", nil)
+		if err := a.operationResult(opID, "RESULT_UNKNOWN", "UNKNOWN", detail); err != nil {
+			return err
+		}
+		if err := a.set("Execution", id, "RESULT_UNKNOWN", nil); err != nil {
+			return err
+		}
+		if err := a.feedback(id, "UNKNOWN", "程序已退出，但外部影响需要核验", nil); err != nil {
+			return err
+		}
 		return ErrWait
 	}
 	if e != nil {
-		a.operationResult(opID, "FAILED", "PARTIAL", detail)
+		if err := a.operationResult(opID, "FAILED", "PARTIAL", detail); err != nil {
+			return errors.Join(e, err)
+		}
 		return a.finish(id, "FAILED", "程序返回非零退出码；不自动重试", []any{"external partial effects were not independently verified"}, detail)
 	}
 	b, e := a.Store.Read(d.M(reg["result_schema"]))
@@ -221,7 +233,9 @@ wait:
 	}
 	var schema, value any
 	if d.Decode(b, &schema) != nil || d.Decode(outBytes, &value) != nil || d.ValidateSchema(schema, value) != nil {
-		a.operationResult(opID, "FAILED", "PARTIAL", detail)
+		if err := a.operationResult(opID, "FAILED", "PARTIAL", detail); err != nil {
+			return err
+		}
 		return a.finish(id, "FAILED", "程序输出不符合登记协议", []any{}, detail)
 	}
 	detail["result"] = value

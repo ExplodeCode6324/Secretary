@@ -1,0 +1,311 @@
+TAP version 13
+# Subtest: AUD01 target changed after approval must not be overwritten
+not ok 1 - AUD01 target changed after approval must not be overwritten
+  ---
+  duration_ms: 932.996083
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:30:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'expected'
+    - 'concurrent edit'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'concurrent edit'
+  actual: 'expected'
+  operator: 'strictEqual'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:33:37)
+    async fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: AUD02 expired ordinary decision must be rejected
+not ok 2 - AUD02 expired ordinary decision must be rejected
+  ---
+  duration_ms: 529.343917
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:35:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:38:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD03 ordinary decision exact redelivery is idempotent
+not ok 3 - AUD03 ordinary decision exact redelivery is idempotent
+  ---
+  duration_ms: 754.425208
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:40:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Got unwanted exception.
+    Actual message: "DECISION_NOT_OPEN"
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+  error: 'DECISION_NOT_OPEN'
+  stack: |-
+    Scheduler.answer (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/src/scheduler.ts:1203:35)
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:43:38)
+    getActual (node:assert:609:5)
+    Function.doesNotThrow (node:assert:777:32)
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:43:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  operator: 'doesNotThrow'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:43:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD04 missing referenced object rejected before durable frame
+not ok 4 - AUD04 missing referenced object rejected before durable frame
+  ---
+  duration_ms: 127.284167
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:45:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    failed commit poisoned durable journal
+    
+    4553 !== 3614
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 3614
+  actual: 4553
+  operator: 'strictEqual'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:49:9)
+    fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:13)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD05 Context is immutable after first commit
+not ok 5 - AUD05 Context is immutable after first commit
+  ---
+  duration_ms: 472.873542
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:51:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:53:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD06 illegal Input ACCEPTED to HANDLED rejected
+not ok 6 - AUD06 illegal Input ACCEPTED to HANDLED rejected
+  ---
+  duration_ms: 111.918208
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:55:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:56:46)
+    fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:13)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD07 cross-object missing session rejected
+not ok 7 - AUD07 cross-object missing session rejected
+  ---
+  duration_ms: 119.665458
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:58:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:59:40)
+    fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:13)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD08 outer frame unknown fields rejected
+not ok 8 - AUD08 outer frame unknown fields rejected
+  ---
+  duration_ms: 136.739167
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:75:1'
+  failureType: 'testCodeFailure'
+  error: 'recovery accepted malformed extra'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    corrupt (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:73:2)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD09 invalid base64 rejected
+not ok 9 - AUD09 invalid base64 rejected
+  ---
+  duration_ms: 113.773916
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:76:1'
+  failureType: 'testCodeFailure'
+  error: 'recovery accepted malformed base64'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    corrupt (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:73:2)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD10 event sequence discontinuity rejected
+not ok 10 - AUD10 event sequence discontinuity rejected
+  ---
+  duration_ms: 113.793208
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:77:1'
+  failureType: 'testCodeFailure'
+  error: 'recovery accepted malformed event'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    corrupt (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:73:2)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD11 notification is not SENT before channel receipt
+not ok 11 - AUD11 notification is not SENT before channel receipt
+  ---
+  duration_ms: 116.41275
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:78:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+    
+    'SENT'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'SENT'
+  actual: 'SENT'
+  operator: 'notStrictEqual'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:81:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD12 stale epoch/attempt rejected by final gate
+not ok 12 - AUD12 stale epoch/attempt rejected by final gate
+  ---
+  duration_ms: 859.600375
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:83:1'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:86:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD13 QUEUE persists occurrence while previous run waits
+not ok 13 - AUD13 QUEUE persists occurrence while previous run waits
+  ---
+  duration_ms: 798.892916
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:88:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    0 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:93:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD14 Context tools_schema records actual tool definitions
+not ok 14 - AUD14 Context tools_schema records actual tool definitions
+  ---
+  duration_ms: 468.203542
+  type: 'test'
+  location: '/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:95:1'
+  failureType: 'testCodeFailure'
+  error: 'tools_schema contains no actual task_propose schema'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    <anonymous> (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:98:2)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (/Users/muy/Desktop/Codex_Work/Secretary/test/runs/comparison-20260922/snapshot/demo_pi/pi_secretary/test/audit.test.ts:15:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: AUD15 source input exact bytes retained and conflict rejected
+ok 15 - AUD15 source input exact bytes retained and conflict rejected
+  ---
+  duration_ms: 114.52375
+  type: 'test'
+  ...
+1..15
+# tests 15
+# suites 0
+# pass 1
+# fail 14
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6358.300209

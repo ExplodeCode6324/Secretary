@@ -1193,7 +1193,12 @@ export class Scheduler {
         : null,
     };
   }
-  answer(did: string, answer: unknown, requestID = id()) {
+  answer(
+    did: string,
+    answer: unknown,
+    requestID = id(),
+    actor: "MAIN" | "MASTER" = "MAIN",
+  ) {
     const d = this.store.get<DecisionRequest>("DecisionRequest", did);
     if (d.state !== "OPEN") throw Error("DECISION_NOT_OPEN");
     const e = this.store.get<Execution>("Execution", d.execution_id);
@@ -1203,7 +1208,7 @@ export class Scheduler {
         revise(d, {
           state: "ANSWERED",
           answer: { value: answer },
-          answered_by: "MAIN",
+          answered_by: actor,
           answer_request_id: requestID,
         }),
         revise(e, { state: "READY", waiting_request_ids: [] }),

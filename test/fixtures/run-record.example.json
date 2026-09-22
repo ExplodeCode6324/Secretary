@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "run_id": "EXAMPLE-NOT-RUN",
+  "case_id": "STA-001",
+  "subcase": "ACK_AFTER_SYNC",
+  "implementation": "go",
+  "source_manifest_sha256": null,
+  "configuration_sha256": null,
+  "seed": 17,
+  "attempt": 1,
+  "started_at": null,
+  "ended_at": null,
+  "evidence_level": "OFFLINE_RUNTIME",
+  "verdict": "NOT_RUN",
+  "expected_assertions": [
+    "已收到ACK的输入在新进程恢复"
+  ],
+  "observed_assertions": [],
+  "evidence": [],
+  "external_effect_count": null,
+  "limitations": [
+    "仅报告格式示例；未执行"
+  ],
+  "cleanup_status": "NOT_STARTED"
+}

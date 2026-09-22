@@ -1,6 +1,10 @@
 {
   "evidence_level": "LOCAL_STARTUP",
-  "health": "ok",
+  "interface": "TUI",
+  "health": {
+    "interface": "TUI",
+    "status": "ok"
+  },
   "session_state": "IDLE",
   "runtime": {
     "blocked_tasks": 0,
@@ -13,5 +17,9 @@
   },
   "authenticated_api": true,
   "task_count": 0,
-  "execution_count": 0
+  "execution_count": 0,
+  "consciousness_items": 0,
+  "master_input_events": 0,
+  "web_root_status": 404,
+  "browser_login_status": 404
 }

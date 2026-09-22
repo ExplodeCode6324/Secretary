@@ -14,7 +14,6 @@ import {
   replyStream,
   type StreamFn,
 } from "../src/model.ts";
-import { createServer } from "../src/server.ts";
 import type {
   Input,
   Execution,
@@ -269,43 +268,6 @@ test("short-term retirement keeps history and blocks pending feedback", () =>
     );
     assert(app.store.logs.length >= events);
     assert.equal(app.scheduler.detail(e.id).status, "RETIRED");
-  }));
-test("HTTP Master authorization is separate from main messages and rejects unauthenticated/cross-origin calls", () =>
-  fixture(async (app) => {
-    const server = createServer(app, "test-secret-123");
-    server.listen(0, "127.0.0.1");
-    await once(server, "listening");
-    const address = server.address();
-    assert(address && typeof address === "object");
-    const url = `http://127.0.0.1:${address.port}`;
-    try {
-      assert.equal((await fetch(url + "/api/state")).status, 403);
-      assert.equal(
-        (
-          await fetch(url + "/api/state", {
-            headers: { Authorization: "Bearer test-secret-123" },
-          })
-        ).status,
-        200,
-      );
-      assert.equal(
-        (
-          await fetch(url + "/api/input", {
-            method: "POST",
-            headers: {
-              Authorization: "Bearer test-secret-123",
-              Origin: "https://example.org",
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ text: "approve everything" }),
-          })
-        ).status,
-        403,
-      );
-      assert.equal(app.store.all("AuthorizationRequest").length, 0);
-    } finally {
-      await new Promise<void>((r) => server.close(() => r()));
-    }
   }));
 test("Consciousness compaction preserves originals and does not schedule a new input", () =>
   fixture(async (app) => {

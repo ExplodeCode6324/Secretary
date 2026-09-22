@@ -1,0 +1,33 @@
+{
+  "evidence": "LIVE_MODEL",
+  "provider": "opencode-go",
+  "model": "gpt-5.6-luna",
+  "task_model": "gpt-5.6-luna",
+  "scenario": "chain",
+  "credential_routing": {
+    "main": "first provided key",
+    "task": "second provided key"
+  },
+  "approval_driver": "Test driver acting as Master, only exact result.mjs writes",
+  "started_at": "2026-09-22T11:03:22.530Z",
+  "elapsed_ms": 34133,
+  "calls": {
+    "main": 6,
+    "task": 3
+  },
+  "checks": {
+    "main_proposed_one_agent": true,
+    "no_duplicate_task": true,
+    "no_unexpected_effect": true,
+    "approval_hash_enforced": true,
+    "succeeded": true,
+    "interleaved_main_input": true,
+    "artifact_present": true,
+    "marker_retained": true,
+    "independent_function_tests": true,
+    "no_distractor_file": true,
+    "structured_result": true,
+    "feedback_handled": true
+  },
+  "result": "PASS"
+}

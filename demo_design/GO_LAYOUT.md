@@ -25,7 +25,7 @@ internal/transport/{server.go,master.go,worker.go,tools.go,middleware.go}
 internal/adapter/{model.go,channel.go,tools.go}
 internal/clock/clock.go
 migrations/worldmodel/{001_world_model.sql,002_predicates.sql}
-web/                         # 后续选 UI 技术，主会话与授权区域共享界面
+internal/tui/                # TUI 终端客户端，主会话与授权区域共享界面
 programs/                    # 人工登记程序的源代码/文档，不放运行状态
 configs/example.json          # 只存非秘密示例；DSN/凭据从环境或秘密存储读取
 ```

@@ -78,6 +78,7 @@ type App struct {
 	ctx                                      context.Context
 	cancel                                   context.CancelFunc
 	Now                                      func() time.Time
+	history                                  historyIndex
 }
 
 func New(c Config, m model.Client, w World) (*App, error) {
@@ -146,6 +147,7 @@ func (a *App) Tick() {
 	}
 	a.Error(a.initialize())
 	a.Error(a.expireAuthorizations())
+	a.Error(a.expireDecisions())
 	a.Error(a.Schedule())
 	a.Error(a.processWorld())
 	a.Error(a.Retire())
@@ -227,7 +229,9 @@ func (a *App) recover() error {
 				if err := a.set("Execution", d.S(e["id"]), "RESULT_UNKNOWN", nil); err != nil {
 					return err
 				}
-				a.Error(a.feedback(d.S(e["id"]), "UNKNOWN", "执行中断，外部结果待核验", nil))
+				if err := a.feedback(d.S(e["id"]), "UNKNOWN", "执行中断，外部结果待核验", nil); err != nil {
+					return err
+				}
 			} else if e["state"] == "DISPATCHING" {
 				if err := a.set("Execution", d.S(e["id"]), "RUNNING", nil); err != nil {
 					return err
@@ -236,6 +240,9 @@ func (a *App) recover() error {
 		}
 	}
 	return a.Store.Update(func(t *store.Tx) error {
+		if err := a.adoptRecoveredExecutions(t); err != nil {
+			return err
+		}
 		s := t.Get("Session", a.SessionID)
 		s["owner_epoch"] = a.Store.Epoch()
 		return t.Save(s)
@@ -255,6 +262,14 @@ func (a *App) set(typ, id, state string, fields d.R) error {
 		}
 		return t.Save(r)
 	})
+}
+
+// Preserve both the initiating failure and a failed attempt to durably record it.
+func (a *App) failState(cause error, typ, id, state string, fields d.R) error {
+	if err := a.set(typ, id, state, fields); err != nil {
+		return errors.Join(cause, fmt.Errorf("persist %s %s: %w", typ, state, err))
+	}
+	return cause
 }
 func (a *App) bootHost() error {
 	s := a.Store.Get("Session", a.SessionID)
@@ -357,8 +372,7 @@ func (a *App) initialize() error {
 			}
 		} else if os.IsNotExist(e) {
 			if e = store.Atomic(manifest, d.Bytes(d.R{"schema_version": 1, "task_id": p["id"], "created_at": d.Now()})); e != nil {
-				a.set("TaskPlan", d.S(p["id"]), "INIT_FAILED", d.R{"initialization_error": e.Error()})
-				continue
+				return a.failState(e, "TaskPlan", d.S(p["id"]), "INIT_FAILED", d.R{"initialization_error": e.Error()})
 			}
 		} else {
 			return e

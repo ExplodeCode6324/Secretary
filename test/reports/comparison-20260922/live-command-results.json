@@ -1,0 +1,26 @@
+[
+  {
+    "name": "pi-live-chain",
+    "exit_code": 0
+  },
+  {
+    "name": "go-live",
+    "exit_code": 0
+  },
+  {
+    "name": "pi-live-missing",
+    "exit_code": 0
+  },
+  {
+    "name": "pi-live-unknown",
+    "exit_code": 0
+  },
+  {
+    "name": "pi-live-transport",
+    "exit_code": 0
+  },
+  {
+    "name": "pi-live-reject",
+    "exit_code": 0
+  }
+]

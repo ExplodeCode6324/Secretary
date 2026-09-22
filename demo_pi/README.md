@@ -3,7 +3,7 @@
 本目录提供可运行的 Secretary 原型，用于验证 BrainStorm 的核心职责与交接。实现语言为 TypeScript，直接复用固定版本的 Pi 源码；前面的 Go 设计保留为参考。
 
 - [pi_resource](pi_resource)：Pi 官方源码 git submodule，固定 `v0.87.0`，不跟随 main 自动更新。
-- [pi_secretary](pi_secretary/README.md)：Secretary 宿主、Scheduler、授权、持久化、World Model、界面和测试。
+- [pi_secretary](pi_secretary/README.md)：Secretary 宿主、Scheduler、授权、持久化、World Model、终端 TUI 和测试。
 - [验证与实现范围](pi_secretary/REVIEW.md)：建议 Master 从这里复核。
 - [上游锁定信息](UPSTREAM.json)：来源、版本、commit 和直接复用的文件。
 

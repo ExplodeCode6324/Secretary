@@ -1,0 +1,71 @@
+{"Time":"2026-09-22T19:06:14.942443+08:00","Action":"start","Package":"secretary_go_demo/internal/engine"}
+{"Time":"2026-09-22T19:06:14.942569+08:00","Action":"start","Package":"secretary_go_demo/internal/store"}
+{"Time":"2026-09-22T19:06:16.166722+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD01"}
+{"Time":"2026-09-22T19:06:16.167473+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD01","Output":"=== RUN   TestAudit_AUD01\n"}
+{"Time":"2026-09-22T19:06:16.420648+08:00","Action":"run","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD08"}
+{"Time":"2026-09-22T19:06:16.425133+08:00","Action":"output","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD08","Output":"=== RUN   TestAudit_AUD08\n"}
+{"Time":"2026-09-22T19:06:16.510176+08:00","Action":"output","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD08","Output":"--- PASS: TestAudit_AUD08 (0.09s)\n"}
+{"Time":"2026-09-22T19:06:16.51021+08:00","Action":"pass","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD08","Elapsed":0.09}
+{"Time":"2026-09-22T19:06:16.510223+08:00","Action":"run","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD09"}
+{"Time":"2026-09-22T19:06:16.510229+08:00","Action":"output","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD09","Output":"=== RUN   TestAudit_AUD09\n"}
+{"Time":"2026-09-22T19:06:16.575722+08:00","Action":"output","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD09","Output":"--- PASS: TestAudit_AUD09 (0.07s)\n"}
+{"Time":"2026-09-22T19:06:16.5785+08:00","Action":"pass","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD09","Elapsed":0.07}
+{"Time":"2026-09-22T19:06:16.578516+08:00","Action":"run","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD10"}
+{"Time":"2026-09-22T19:06:16.579314+08:00","Action":"output","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD10","Output":"=== RUN   TestAudit_AUD10\n"}
+{"Time":"2026-09-22T19:06:16.650796+08:00","Action":"output","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD10","Output":"--- PASS: TestAudit_AUD10 (0.07s)\n"}
+{"Time":"2026-09-22T19:06:16.650842+08:00","Action":"pass","Package":"secretary_go_demo/internal/store","Test":"TestAudit_AUD10","Elapsed":0.07}
+{"Time":"2026-09-22T19:06:16.651211+08:00","Action":"output","Package":"secretary_go_demo/internal/store","Output":"PASS\n"}
+{"Time":"2026-09-22T19:06:17.294966+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD01","Output":"--- PASS: TestAudit_AUD01 (1.13s)\n"}
+{"Time":"2026-09-22T19:06:17.295037+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD01","Elapsed":1.13}
+{"Time":"2026-09-22T19:06:17.295096+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD02"}
+{"Time":"2026-09-22T19:06:17.295108+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD02","Output":"=== RUN   TestAudit_AUD02\n"}
+{"Time":"2026-09-22T19:06:17.655374+08:00","Action":"output","Package":"secretary_go_demo/internal/store","Output":"ok  \tsecretary_go_demo/internal/store\t2.712s\n"}
+{"Time":"2026-09-22T19:06:17.656498+08:00","Action":"pass","Package":"secretary_go_demo/internal/store","Elapsed":2.714}
+{"Time":"2026-09-22T19:06:17.771354+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD02","Output":"    audit_test.go:16: expired ordinary decision was accepted\n"}
+{"Time":"2026-09-22T19:06:17.775325+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD02","Output":"--- FAIL: TestAudit_AUD02 (0.48s)\n"}
+{"Time":"2026-09-22T19:06:17.775353+08:00","Action":"fail","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD02","Elapsed":0.48}
+{"Time":"2026-09-22T19:06:17.775371+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD03"}
+{"Time":"2026-09-22T19:06:17.775378+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD03","Output":"=== RUN   TestAudit_AUD03\n"}
+{"Time":"2026-09-22T19:06:18.221243+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD03","Output":"--- PASS: TestAudit_AUD03 (0.45s)\n"}
+{"Time":"2026-09-22T19:06:18.221271+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD03","Elapsed":0.45}
+{"Time":"2026-09-22T19:06:18.22128+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD04"}
+{"Time":"2026-09-22T19:06:18.221285+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD04","Output":"=== RUN   TestAudit_AUD04\n"}
+{"Time":"2026-09-22T19:06:18.434702+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD04","Output":"--- PASS: TestAudit_AUD04 (0.21s)\n"}
+{"Time":"2026-09-22T19:06:18.434781+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD04","Elapsed":0.21}
+{"Time":"2026-09-22T19:06:18.4348+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD05"}
+{"Time":"2026-09-22T19:06:18.434809+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD05","Output":"=== RUN   TestAudit_AUD05\n"}
+{"Time":"2026-09-22T19:06:18.959653+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD05","Output":"    audit_test.go:19: immutable Context record was overwritten\n"}
+{"Time":"2026-09-22T19:06:18.967217+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD05","Output":"--- FAIL: TestAudit_AUD05 (0.53s)\n"}
+{"Time":"2026-09-22T19:06:18.967245+08:00","Action":"fail","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD05","Elapsed":0.53}
+{"Time":"2026-09-22T19:06:18.967264+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD06"}
+{"Time":"2026-09-22T19:06:18.967271+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD06","Output":"=== RUN   TestAudit_AUD06\n"}
+{"Time":"2026-09-22T19:06:19.138138+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD06","Output":"--- PASS: TestAudit_AUD06 (0.17s)\n"}
+{"Time":"2026-09-22T19:06:19.138186+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD06","Elapsed":0.17}
+{"Time":"2026-09-22T19:06:19.1382+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD07"}
+{"Time":"2026-09-22T19:06:19.138208+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD07","Output":"=== RUN   TestAudit_AUD07\n"}
+{"Time":"2026-09-22T19:06:19.347273+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD07","Output":"--- PASS: TestAudit_AUD07 (0.21s)\n"}
+{"Time":"2026-09-22T19:06:19.347449+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD07","Elapsed":0.21}
+{"Time":"2026-09-22T19:06:19.347474+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD11"}
+{"Time":"2026-09-22T19:06:19.347484+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD11","Output":"=== RUN   TestAudit_AUD11\n"}
+{"Time":"2026-09-22T19:06:19.542773+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD11","Output":"--- PASS: TestAudit_AUD11 (0.20s)\n"}
+{"Time":"2026-09-22T19:06:19.542865+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD11","Elapsed":0.2}
+{"Time":"2026-09-22T19:06:19.542913+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD12"}
+{"Time":"2026-09-22T19:06:19.542925+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD12","Output":"=== RUN   TestAudit_AUD12\n"}
+{"Time":"2026-09-22T19:06:20.498558+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD12","Output":"    audit_test.go:23: stale epoch/attempt accepted by final gate\n"}
+{"Time":"2026-09-22T19:06:20.510766+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD12","Output":"--- FAIL: TestAudit_AUD12 (0.97s)\n"}
+{"Time":"2026-09-22T19:06:20.510791+08:00","Action":"fail","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD12","Elapsed":0.97}
+{"Time":"2026-09-22T19:06:20.510816+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD13"}
+{"Time":"2026-09-22T19:06:20.510823+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD13","Output":"=== RUN   TestAudit_AUD13\n"}
+{"Time":"2026-09-22T19:06:20.873124+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD13","Output":"--- PASS: TestAudit_AUD13 (0.36s)\n"}
+{"Time":"2026-09-22T19:06:20.873159+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD13","Elapsed":0.36}
+{"Time":"2026-09-22T19:06:20.873171+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD14"}
+{"Time":"2026-09-22T19:06:20.873199+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD14","Output":"=== RUN   TestAudit_AUD14\n"}
+{"Time":"2026-09-22T19:06:21.225133+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD14","Output":"--- PASS: TestAudit_AUD14 (0.35s)\n"}
+{"Time":"2026-09-22T19:06:21.225199+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD14","Elapsed":0.35}
+{"Time":"2026-09-22T19:06:21.225216+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD15"}
+{"Time":"2026-09-22T19:06:21.225226+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD15","Output":"=== RUN   TestAudit_AUD15\n"}
+{"Time":"2026-09-22T19:06:21.348378+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD15","Output":"--- PASS: TestAudit_AUD15 (0.12s)\n"}
+{"Time":"2026-09-22T19:06:21.348466+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestAudit_AUD15","Elapsed":0.12}
+{"Time":"2026-09-22T19:06:21.348488+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Output":"FAIL\n"}
+{"Time":"2026-09-22T19:06:21.351188+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Output":"FAIL\tsecretary_go_demo/internal/engine\t6.409s\n"}
+{"Time":"2026-09-22T19:06:21.351222+08:00","Action":"fail","Package":"secretary_go_demo/internal/engine","Elapsed":6.409}

@@ -7,7 +7,6 @@ import (
 	d "secretary_go_demo/internal/domain"
 	"secretary_go_demo/internal/model"
 	"secretary_go_demo/internal/store"
-	"strings"
 	"time"
 )
 
@@ -32,25 +31,16 @@ func (a *App) Memory(ctx context.Context, args d.R) (any, error) {
 		b, e := a.Store.Read(ref)
 		return d.R{"text": string(b), "ref": ref}, e
 	case "OPERATION_LOG":
-		out := []any{}
-		query := d.S(args["query"])
-		id := d.S(args["event_id"])
-		events := a.Store.Events()
-		for i := len(events) - 1; i >= 0 && len(out) < 30; i-- {
-			ev := events[i]
-			if id != "" && id != d.S(ev["event_id"]) {
-				continue
+		if id := d.S(args["event_id"]); id != "" {
+			for _, ev := range a.Store.Events() {
+				if d.S(ev["event_id"]) == id {
+					b, err := a.Store.Read(d.M(ev["payload"]))
+					return d.R{"records": []any{d.R{"event": ev, "original": string(b), "ref": ev["payload"]}}}, err
+				}
 			}
-			b, e := a.Store.Read(d.M(ev["payload"]))
-			if e != nil {
-				return nil, e
-			}
-			if query != "" && !strings.Contains(string(b), query) && !strings.Contains(string(d.Bytes(ev)), query) {
-				continue
-			}
-			out = append(out, d.R{"event": ev, "original": string(b)})
+			return nil, errors.New("NOT_FOUND history event")
 		}
-		return d.R{"records": out, "limit": 30, "more_possible": len(out) == 30}, nil
+		return a.searchHistory(ctx, args, nil, 16000)
 	}
 	return nil, errors.New("invalid memory source")
 }
@@ -148,8 +138,7 @@ func (a *App) Compact(ctx context.Context, force bool) error {
 	}
 	resp, e := a.Model.Complete(ctx, raw, "COMPACTION")
 	if e != nil {
-		a.set("CompactionJob", jid, "FAILED", d.R{"validation_errors": []any{e.Error()}})
-		return e
+		return a.failState(e, "CompactionJob", jid, "FAILED", d.R{"validation_errors": []any{e.Error()}})
 	}
 
 	responseRef, e := a.Store.Put(resp, "application/json")
@@ -169,23 +158,16 @@ func (a *App) Compact(ctx context.Context, force bool) error {
 	text := model.Text(response)
 	var candidate d.R
 	if e = d.Decode([]byte(text), &candidate); e != nil {
-		a.set("CompactionJob", jid, "FAILED", d.R{"validation_errors": []any{"invalid summary JSON"}})
-		return e
+		return a.failState(e, "CompactionJob", jid, "FAILED", d.R{"validation_errors": []any{"invalid summary JSON"}})
 	}
-	ref, e := responseRef, error(nil)
-	if e != nil {
-		return e
-	}
-	if e = a.set("CompactionJob", jid, "VALIDATING", d.R{"candidate_ref": ref}); e != nil {
+	if e = a.set("CompactionJob", jid, "VALIDATING", d.R{"candidate_ref": responseRef}); e != nil {
 		return e
 	}
 	if e = a.resolveCandidateReferences(candidate, ids, refs); e != nil {
-		a.set("CompactionJob", jid, "FAILED", d.R{"validation_errors": []any{e.Error()}})
-		return e
+		return a.failState(e, "CompactionJob", jid, "FAILED", d.R{"validation_errors": []any{e.Error()}})
 	}
 	if e = a.validateCandidate(cs, candidate, ids, refs, groups); e != nil {
-		a.set("CompactionJob", jid, "FAILED", d.R{"validation_errors": []any{e.Error()}})
-		return e
+		return a.failState(e, "CompactionJob", jid, "FAILED", d.R{"validation_errors": []any{e.Error()}})
 	}
 	e = a.Store.Update(func(t *store.Tx) error {
 		current := t.Get("Consciousness", a.ConsciousnessID)
@@ -227,7 +209,9 @@ func (a *App) Compact(ctx context.Context, force bool) error {
 	s := a.Store.Get("Session", a.SessionID)
 	if s["state"] == "CAPACITY_BLOCKED" {
 		if _, _, e = a.build("MAIN", "", d.S(s["active_loop_id"])); e == nil {
-			a.set("Session", a.SessionID, "RUNNING", d.R{"recovery_error": nil})
+			if err := a.set("Session", a.SessionID, "RUNNING", d.R{"recovery_error": nil}); err != nil {
+				return err
+			}
 			a.Retry()
 		}
 	}

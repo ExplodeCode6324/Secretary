@@ -53,10 +53,10 @@ func TestIdentityOriginAndStrictIngress(t *testing.T) {
 		t.Fatal("DNS rebinding accepted")
 	}
 	body := string(d.Bytes(d.R{"request_id": d.ID(), "text": "safe"}))
-	if w := request("/v1/inputs", body, s.Token, "", "", true); w.Code != 403 {
-		t.Fatal("cookie write without Origin accepted")
+	if w := request("/v1/inputs", body, s.Token, "", "", true); w.Code != 401 {
+		t.Fatal("cookie credentials accepted")
 	}
-	if w := request("/v1/inputs", body, s.Token, "http://127.0.0.1:8787", "", true); w.Code != 200 {
+	if w := request("/v1/inputs", body, s.Token, "http://127.0.0.1:8787", "", false); w.Code != 200 {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	bad := string(d.Bytes(d.R{"request_id": d.ID(), "text": "inject", "actor": "MASTER_UI", "authorized": true}))
@@ -66,7 +66,16 @@ func TestIdentityOriginAndStrictIngress(t *testing.T) {
 	if w := request("/v1/approvals/decisions", `{"actor":"MASTER_UI"}`, "worker-key", "", "", false); w.Code != 401 {
 		t.Fatal("worker approved")
 	}
-	if w := request("/v1/login", string(d.Bytes(d.R{"token": s.Token})), "", "", "", false); w.Code != 200 || !strings.Contains(w.Header().Get("Set-Cookie"), "HttpOnly") {
-		t.Fatal("login cookie")
+	if w := request("/v1/login", string(d.Bytes(d.R{"token": s.Token})), "", "", "", false); w.Code != 404 || w.Header().Get("Set-Cookie") != "" {
+		t.Fatal("browser login still available")
+	}
+}
+
+func TestNoWebUI(t *testing.T) {
+	s := &Server{Host: "127.0.0.1:8787"}
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, httptest.NewRequest("GET", "http://127.0.0.1:8787/", nil))
+	if w.Code != 404 || strings.Contains(w.Body.String(), "<html") {
+		t.Fatal("Web UI still served")
 	}
 }

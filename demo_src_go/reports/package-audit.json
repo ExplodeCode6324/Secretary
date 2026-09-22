@@ -1,6 +1,6 @@
 {
   "evidence_level": "PACKAGE_AUDIT",
-  "files_checked": 58,
+  "files_checked": 110,
   "canonical_assets_match": {
     "assets/contracts.schema.json": true,
     "assets/state-machines.json": true,

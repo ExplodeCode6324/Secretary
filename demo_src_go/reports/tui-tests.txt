@@ -1,0 +1,10 @@
+=== RUN   TestTerminalConversationApprovalAndResult
+--- PASS: TestTerminalConversationApprovalAndResult (2.21s)
+=== RUN   TestAmbiguousSendRetriesExactRequestAndPreservesDraft
+--- PASS: TestAmbiguousSendRetriesExactRequestAndPreservesDraft (0.14s)
+=== RUN   TestSnapshotSelectionAndFrozenApproval
+--- PASS: TestSnapshotSelectionAndFrozenApproval (0.09s)
+=== RUN   TestClientAndTerminalTextBoundaries
+--- PASS: TestClientAndTerminalTextBoundaries (0.00s)
+PASS
+ok  	secretary_go_demo/internal/tui	3.808s

@@ -14,6 +14,7 @@ import (
 	"secretary_go_demo/internal/engine"
 	"secretary_go_demo/internal/model"
 	"secretary_go_demo/internal/transport"
+	"secretary_go_demo/internal/tui"
 	"secretary_go_demo/internal/world"
 	"strings"
 	"syscall"
@@ -80,6 +81,17 @@ func run() error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if command == "tui" {
+		raw, err := os.ReadFile(filepath.Join(c.DataRoot, "master.token"))
+		if err != nil {
+			return fmt.Errorf("start the local coordinator first: %w", err)
+		}
+		client, err := tui.NewClient(c.Listen, string(raw))
+		if err != nil {
+			return err
+		}
+		return tui.Run(ctx, client)
+	}
 	var repo *world.Repository
 	dsn := os.Getenv("SECRETARY_PG_DSN")
 	if dsn != "" {
@@ -149,7 +161,7 @@ func run() error {
 		done := make(chan error, 1)
 		go func() { done <- server.ListenAndServe() }()
 		go app.Run(ctx)
-		fmt.Printf("Secretary_go_demo: http://%s\nData: %s\nStop: Ctrl-C (state preserved)\n", c.Listen, filepath.Clean(c.DataRoot))
+		fmt.Printf("Secretary_go_demo local API: http://%s (interface: secretary tui)\nData: %s\nStop: Ctrl-C (state preserved)\n", c.Listen, filepath.Clean(c.DataRoot))
 		select {
 		case err := <-done:
 			if !errors.Is(err, http.ErrServerClosed) {
@@ -162,7 +174,7 @@ func run() error {
 		return server.Shutdown(shutdown)
 	default:
 		if strings.Contains(command, "help") {
-			fmt.Println("secretary init | serve | check-data | world migrate | program import/enable/disable")
+			fmt.Println("secretary tui | init | serve | check-data | world migrate | program import/enable/disable")
 			return nil
 		}
 		return errors.New("unknown command")

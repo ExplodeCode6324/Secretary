@@ -1,0 +1,799 @@
+{
+  "implementation": "pi",
+  "evidence_level": "LIVE_MODEL",
+  "calls": 12,
+  "phase": [
+    {
+      "after": 3,
+      "consciousness": [
+        {
+          "schema_version": 1,
+          "record_type": "Consciousness",
+          "id": "38fadc56-6a7a-435a-9d8c-c6869d9b7f87",
+          "revision": 5,
+          "updated_at": "2026-09-22T11:09:12.621Z",
+          "session_id": "2da6bf82-effa-4599-9474-e3f698ee8a64",
+          "items": [
+            {
+              "tier": "ACTIVE",
+              "summary": "隔离测试资料：默认报告语言为中文；所有演示任务只能写入其自身工作目录。",
+              "goals": [],
+              "constraints": [
+                "默认报告语言为中文",
+                "演示任务只能写入自身工作目录",
+                "资料仅供后续问答参考，不创建任务、不写入 World Model、不通知他人"
+              ],
+              "decisions": [],
+              "open_questions": [],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "0d51e2cb-6b97-43ab-abbf-cdbe7d01ce3d",
+              "source_refs": [
+                {
+                  "path": "objects/090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+                  "sha256": "090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+                  "bytes": 11974,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:12.605Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "身份区分：P-A 与 P-B 都叫林宁，但不是同一个人。P-A 是 Orion 的设计联系人，P-B 是 Lyra 的财务联系人。",
+              "goals": [],
+              "constraints": [
+                "不得将 P-A 与 P-B 混为一人"
+              ],
+              "decisions": [
+                "确认 P-A 与 P-B 为不同的人"
+              ],
+              "open_questions": [],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "32d538ea-8b24-4752-8a2e-6468ddfdef25",
+              "source_refs": [
+                {
+                  "path": "objects/090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+                  "sha256": "090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+                  "bytes": 11974,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:12.614Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "待处理承诺：收到合同草稿后检查第 7 条。合同草稿尚未提供，事项未完成，也尚未交给 Scheduler。",
+              "goals": [
+                "检查合同第 7 条"
+              ],
+              "constraints": [
+                "必须先收到合同草稿",
+                "当前不创建任务"
+              ],
+              "decisions": [
+                "该承诺尚未完成",
+                "尚未提交 Scheduler"
+              ],
+              "open_questions": [
+                "合同草稿何时提供"
+              ],
+              "unfulfilled_commitments": [
+                "在收到合同草稿后检查第 7 条"
+              ],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "c133302e-4946-4524-8ce6-d36bd232e17e",
+              "source_refs": [
+                {
+                  "path": "objects/090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+                  "sha256": "090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+                  "bytes": 11974,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:12.614Z"
+            }
+          ],
+          "pending_raw_refs": [],
+          "covered_event_ids": [
+            "bb474cca-4fe6-426f-a58f-e7558648dc70",
+            "0f43416f-0529-43e5-893f-0a4cb4f1097b",
+            "9d2b053a-d103-4825-8161-8511ed02aa99",
+            "b20cdd27-9734-4d7a-8dbf-fe59c6b21a1b",
+            "810e6a66-e2d5-43e0-99f0-2e16a1000a9c",
+            "2dcd1f7e-f533-486b-979a-efc8654b5160"
+          ],
+          "last_job_id": "a133bceb-e0a2-4fdd-acf8-40f19411385c"
+        }
+      ],
+      "jobs": [
+        {
+          "schema_version": 1,
+          "record_type": "CompactionJob",
+          "id": "a133bceb-e0a2-4fdd-acf8-40f19411385c",
+          "revision": 2,
+          "updated_at": "2026-09-22T11:09:12.621Z",
+          "state": "COMMITTED",
+          "session_id": "2da6bf82-effa-4599-9474-e3f698ee8a64",
+          "base_revision": 4,
+          "source_event_ids": [
+            "bb474cca-4fe6-426f-a58f-e7558648dc70",
+            "0f43416f-0529-43e5-893f-0a4cb4f1097b",
+            "9d2b053a-d103-4825-8161-8511ed02aa99",
+            "b20cdd27-9734-4d7a-8dbf-fe59c6b21a1b",
+            "810e6a66-e2d5-43e0-99f0-2e16a1000a9c",
+            "2dcd1f7e-f533-486b-979a-efc8654b5160"
+          ],
+          "source_refs": [
+            {
+              "path": "objects/090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+              "sha256": "090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+              "bytes": 11974,
+              "media_type": "application/json"
+            }
+          ],
+          "candidate_ref": {
+            "path": "objects/2f5e90f8c047d3ebb18cf8d5cc9848c48db4afada16f3eef47764d97573003b8",
+            "sha256": "2f5e90f8c047d3ebb18cf8d5cc9848c48db4afada16f3eef47764d97573003b8",
+            "bytes": 2245,
+            "media_type": "application/json"
+          },
+          "covered_event_ids": [
+            "bb474cca-4fe6-426f-a58f-e7558648dc70",
+            "0f43416f-0529-43e5-893f-0a4cb4f1097b",
+            "9d2b053a-d103-4825-8161-8511ed02aa99",
+            "b20cdd27-9734-4d7a-8dbf-fe59c6b21a1b",
+            "810e6a66-e2d5-43e0-99f0-2e16a1000a9c",
+            "2dcd1f7e-f533-486b-979a-efc8654b5160"
+          ],
+          "validation_errors": []
+        }
+      ]
+    },
+    {
+      "after": 6,
+      "consciousness": [
+        {
+          "schema_version": 1,
+          "record_type": "Consciousness",
+          "id": "38fadc56-6a7a-435a-9d8c-c6869d9b7f87",
+          "revision": 9,
+          "updated_at": "2026-09-22T11:09:43.131Z",
+          "session_id": "2da6bf82-effa-4599-9474-e3f698ee8a64",
+          "items": [
+            {
+              "tier": "ACTIVE",
+              "summary": "隔离资料的使用范围与工作目录限制。资料仅供后续问答参考，不创建任务、不写入 World Model、不通知他人。演示任务只能写入其自身工作目录。",
+              "goals": [],
+              "constraints": [
+                "资料仅供后续问答参考",
+                "不创建任务、不写入 World Model、不通知他人",
+                "演示任务只能写入其自身工作目录"
+              ],
+              "decisions": [
+                "工作目录限制保持不变"
+              ],
+              "open_questions": [],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "c05ce96d-d4ab-46b5-8f67-797980154987",
+              "source_refs": [
+                {
+                  "path": "objects/aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "sha256": "aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "bytes": 12530,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:43.121Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "默认报告语言存在时间变更：初始为中文；隔离资料明确更正为从 D7 起改为英文。",
+              "goals": [],
+              "constraints": [
+                "D7 之前默认报告语言为中文",
+                "从 D7 起默认报告语言为英文"
+              ],
+              "decisions": [
+                "接受从 D7 起改用英文的更正"
+              ],
+              "open_questions": [],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "26132180-9ab1-4b78-80ab-c0d3d354bc81",
+              "source_refs": [
+                {
+                  "path": "objects/aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "sha256": "aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "bytes": 12530,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:43.122Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "身份区分：P-A 与 P-B 都叫林宁，但不是同一个人。P-A 是 Orion 的设计联系人，P-B 是 Lyra 的财务联系人。",
+              "goals": [],
+              "constraints": [
+                "不得将 P-A 与 P-B 混为一人"
+              ],
+              "decisions": [
+                "确认 P-A 与 P-B 为不同的人"
+              ],
+              "open_questions": [],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "3f4129da-075f-4116-ba6b-9781ec08f0de",
+              "source_refs": [
+                {
+                  "path": "objects/aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "sha256": "aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "bytes": 12530,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:43.122Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "待收到合同草稿后检查合同第 7 条；目前合同草稿尚未提供，事项未完成，也尚未提交 Scheduler。",
+              "goals": [
+                "检查合同第 7 条"
+              ],
+              "constraints": [
+                "必须先收到合同草稿",
+                "当前不创建任务",
+                "尚未提交 Scheduler"
+              ],
+              "decisions": [
+                "该承诺尚未完成"
+              ],
+              "open_questions": [
+                "合同草稿何时提供"
+              ],
+              "unfulfilled_commitments": [
+                "在收到合同草稿后检查第 7 条"
+              ],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "72a487ab-2b04-44b5-a56c-eb9f2fa81457",
+              "source_refs": [
+                {
+                  "path": "objects/aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "sha256": "aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "bytes": 12530,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:43.122Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "设备在线观测的时效性：O1 在 D0 10:00 观测 DEV-A 在线，fresh_until 为 D1 10:00；之后没有观测，因此不能证明 DEV-A 在 D365 仍在线。",
+              "goals": [],
+              "constraints": [
+                "O1 只能支持 fresh_until 之前的在线结论",
+                "不得据此断言 DEV-A 在 D365 仍在线"
+              ],
+              "decisions": [
+                "D365 在线状态未被证明"
+              ],
+              "open_questions": [
+                "D1 10:00 之后 DEV-A 的实际在线状态"
+              ],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "52ff3634-5d8b-4d9a-a15f-423c17dd2abc",
+              "source_refs": [
+                {
+                  "path": "objects/aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "sha256": "aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "bytes": 12530,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:43.123Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "身高记录按日期分别保留，不得混淆：D0 为 173.4 厘米；D30 测量为 1.735 米，即 173.5 厘米。",
+              "goals": [],
+              "constraints": [
+                "保留 D0 的 173.4 厘米历史记录",
+                "D30 的 173.5 厘米记录与 D0 记录分开"
+              ],
+              "decisions": [
+                "两次测量不合并、不混淆"
+              ],
+              "open_questions": [],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "1d3d0a1d-c5c1-4fbf-a4c5-0451ba875bac",
+              "source_refs": [
+                {
+                  "path": "objects/aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "sha256": "aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "bytes": 12530,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:43.123Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "Orion 发布日存在未解决分歧：S-A 称为 D20，S-B 称为 D22；目前没有解决分歧的新依据。",
+              "goals": [],
+              "constraints": [
+                "不得将 D20 或 D22 视为已确认事实"
+              ],
+              "decisions": [
+                "保留 S-A 与 S-B 的不同说法",
+                "分歧目前未解决"
+              ],
+              "open_questions": [
+                "Orion 的实际发布日是 D20 还是 D22"
+              ],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "7cb79b5e-5c40-4b06-ba85-df6bd5c4338e",
+              "source_refs": [
+                {
+                  "path": "objects/aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "sha256": "aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+                  "bytes": 12530,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:43.123Z"
+            }
+          ],
+          "pending_raw_refs": [],
+          "covered_event_ids": [
+            "5102c4a8-1de9-4095-b28e-b411a45b7b91",
+            "a3f32a58-cda7-4302-a7b9-bec736efc84b",
+            "03ecd75b-ecfe-4b7e-a7c1-16a89a39dd77",
+            "e29539c3-c4a0-46bf-ab0e-6acc72d9689c",
+            "e4451382-cf05-40f6-9cba-15ff026e488f",
+            "a77bd06e-5919-4645-a4d0-2e3b4932a85b"
+          ],
+          "last_job_id": "362eb9b8-a75b-41a4-87be-e5479c6b9737"
+        }
+      ],
+      "jobs": [
+        {
+          "schema_version": 1,
+          "record_type": "CompactionJob",
+          "id": "a133bceb-e0a2-4fdd-acf8-40f19411385c",
+          "revision": 2,
+          "updated_at": "2026-09-22T11:09:12.621Z",
+          "state": "COMMITTED",
+          "session_id": "2da6bf82-effa-4599-9474-e3f698ee8a64",
+          "base_revision": 4,
+          "source_event_ids": [
+            "bb474cca-4fe6-426f-a58f-e7558648dc70",
+            "0f43416f-0529-43e5-893f-0a4cb4f1097b",
+            "9d2b053a-d103-4825-8161-8511ed02aa99",
+            "b20cdd27-9734-4d7a-8dbf-fe59c6b21a1b",
+            "810e6a66-e2d5-43e0-99f0-2e16a1000a9c",
+            "2dcd1f7e-f533-486b-979a-efc8654b5160"
+          ],
+          "source_refs": [
+            {
+              "path": "objects/090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+              "sha256": "090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+              "bytes": 11974,
+              "media_type": "application/json"
+            }
+          ],
+          "candidate_ref": {
+            "path": "objects/2f5e90f8c047d3ebb18cf8d5cc9848c48db4afada16f3eef47764d97573003b8",
+            "sha256": "2f5e90f8c047d3ebb18cf8d5cc9848c48db4afada16f3eef47764d97573003b8",
+            "bytes": 2245,
+            "media_type": "application/json"
+          },
+          "covered_event_ids": [
+            "bb474cca-4fe6-426f-a58f-e7558648dc70",
+            "0f43416f-0529-43e5-893f-0a4cb4f1097b",
+            "9d2b053a-d103-4825-8161-8511ed02aa99",
+            "b20cdd27-9734-4d7a-8dbf-fe59c6b21a1b",
+            "810e6a66-e2d5-43e0-99f0-2e16a1000a9c",
+            "2dcd1f7e-f533-486b-979a-efc8654b5160"
+          ],
+          "validation_errors": []
+        },
+        {
+          "schema_version": 1,
+          "record_type": "CompactionJob",
+          "id": "362eb9b8-a75b-41a4-87be-e5479c6b9737",
+          "revision": 2,
+          "updated_at": "2026-09-22T11:09:43.131Z",
+          "state": "COMMITTED",
+          "session_id": "2da6bf82-effa-4599-9474-e3f698ee8a64",
+          "base_revision": 8,
+          "source_event_ids": [
+            "5102c4a8-1de9-4095-b28e-b411a45b7b91",
+            "a3f32a58-cda7-4302-a7b9-bec736efc84b",
+            "03ecd75b-ecfe-4b7e-a7c1-16a89a39dd77",
+            "e29539c3-c4a0-46bf-ab0e-6acc72d9689c",
+            "e4451382-cf05-40f6-9cba-15ff026e488f",
+            "a77bd06e-5919-4645-a4d0-2e3b4932a85b"
+          ],
+          "source_refs": [
+            {
+              "path": "objects/aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+              "sha256": "aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+              "bytes": 12530,
+              "media_type": "application/json"
+            }
+          ],
+          "candidate_ref": {
+            "path": "objects/92568c6e6d94bc46619952e7afcbac89892b2e3b8dcae324657025d3f07a7df2",
+            "sha256": "92568c6e6d94bc46619952e7afcbac89892b2e3b8dcae324657025d3f07a7df2",
+            "bytes": 5312,
+            "media_type": "application/json"
+          },
+          "covered_event_ids": [
+            "5102c4a8-1de9-4095-b28e-b411a45b7b91",
+            "a3f32a58-cda7-4302-a7b9-bec736efc84b",
+            "03ecd75b-ecfe-4b7e-a7c1-16a89a39dd77",
+            "e29539c3-c4a0-46bf-ab0e-6acc72d9689c",
+            "e4451382-cf05-40f6-9cba-15ff026e488f",
+            "a77bd06e-5919-4645-a4d0-2e3b4932a85b"
+          ],
+          "validation_errors": []
+        }
+      ]
+    },
+    {
+      "after": 8,
+      "consciousness": [
+        {
+          "schema_version": 1,
+          "record_type": "Consciousness",
+          "id": "38fadc56-6a7a-435a-9d8c-c6869d9b7f87",
+          "revision": 12,
+          "updated_at": "2026-09-22T11:09:56.683Z",
+          "session_id": "2da6bf82-effa-4599-9474-e3f698ee8a64",
+          "items": [
+            {
+              "tier": "ACTIVE",
+              "summary": "隔离资料仅用于后续问答参考；工作目录限制保持不变。",
+              "goals": [],
+              "constraints": [
+                "资料仅供后续问答参考",
+                "不创建任务、不写入 World Model、不通知他人",
+                "演示任务只能写入其自身工作目录",
+                "仅记录相关状态，不提前展开问答"
+              ],
+              "decisions": [
+                "工作目录限制保持不变"
+              ],
+              "open_questions": [],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "1d7fe039-4b1e-4013-8dda-34a75528b3be",
+              "source_refs": [
+                {
+                  "path": "objects/cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "sha256": "cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "bytes": 13681,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:56.677Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "默认报告语言已按时间和对象区分：D90 起恢复中文，但 Orion 对外报告使用英文。",
+              "goals": [],
+              "constraints": [
+                "D90 之前的更正为从 D90 起默认报告语言恢复中文",
+                "仅 Orion 对外报告使用英文"
+              ],
+              "decisions": [
+                "接受从 D90 起默认报告语言恢复中文",
+                "确认 Orion 对外报告例外使用英文"
+              ],
+              "open_questions": [],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "7156af16-2ac6-4fac-bda0-8cf6bbf84dfa",
+              "source_refs": [
+                {
+                  "path": "objects/cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "sha256": "cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "bytes": 13681,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:56.677Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "身份与历史记录必须保持区分：P-A 与 P-B 是不同的人；身高记录按日期分别保留。",
+              "goals": [],
+              "constraints": [
+                "不得将 P-A 与 P-B 混为一人",
+                "保留 D0 的 173.4 厘米记录",
+                "D30 的 173.5 厘米记录与 D0 记录分开"
+              ],
+              "decisions": [
+                "确认 P-A 是 Orion 的设计联系人，P-B 是 Lyra 的财务联系人，二者不是同一人",
+                "两次身高测量不合并、不混淆"
+              ],
+              "open_questions": [],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "9a6fe424-9498-420f-9e34-467f8a30a65e",
+              "source_refs": [
+                {
+                  "path": "objects/cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "sha256": "cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "bytes": 13681,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:56.677Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "D365 只是逻辑测试检查点，不代表实际运行 365 天；没有新观测，不能证明 DEV-A 在 D365 仍在线。",
+              "goals": [],
+              "constraints": [
+                "O1 仅支持 fresh_until（D1 10:00）之前的在线结论",
+                "不得据 O1 断言 DEV-A 在 D365 仍在线",
+                "D365 检查点标记不代表设备实际运行 365 天",
+                "没有新的设备观测"
+              ],
+              "decisions": [
+                "D365 在线状态未被证明"
+              ],
+              "open_questions": [
+                "D1 10:00 之后 DEV-A 的实际在线状态"
+              ],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "53724fde-c774-4f74-bba5-40b26f1801da",
+              "source_refs": [
+                {
+                  "path": "objects/cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "sha256": "cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "bytes": 13681,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:56.677Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "Orion 发布日仍存在未解决分歧；S-A 称 D20，S-B 称 D22，暂无新证据。",
+              "goals": [],
+              "constraints": [
+                "不得将 D20 或 D22 视为已确认事实",
+                "没有新的 Orion 发布日证据"
+              ],
+              "decisions": [
+                "保留 S-A 与 S-B 的不同说法",
+                "分歧目前未解决"
+              ],
+              "open_questions": [
+                "Orion 的实际发布日是 D20 还是 D22"
+              ],
+              "unfulfilled_commitments": [],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "a796764d-1f74-4cd3-9f73-91ebf7ee87a5",
+              "source_refs": [
+                {
+                  "path": "objects/cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "sha256": "cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "bytes": 13681,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:56.677Z"
+            },
+            {
+              "tier": "ACTIVE",
+              "summary": "合同草稿尚未提供，因此合同第 7 条检查仍未完成，也未提交 Scheduler 或转交。",
+              "goals": [
+                "收到合同草稿后检查合同第 7 条"
+              ],
+              "constraints": [
+                "必须先收到合同草稿",
+                "当前不创建任务",
+                "尚未提交 Scheduler",
+                "没有合同资料"
+              ],
+              "decisions": [
+                "该承诺尚未完成"
+              ],
+              "open_questions": [
+                "合同草稿何时提供"
+              ],
+              "unfulfilled_commitments": [
+                "在收到合同草稿后检查第 7 条"
+              ],
+              "task_refs": [],
+              "pending_owner": "MAIN",
+              "item_id": "08962906-2909-4adf-b29c-a37de48bd563",
+              "source_refs": [
+                {
+                  "path": "objects/cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "sha256": "cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+                  "bytes": 13681,
+                  "media_type": "application/json"
+                }
+              ],
+              "last_activity_at": "2026-09-22T11:09:56.677Z"
+            }
+          ],
+          "pending_raw_refs": [],
+          "covered_event_ids": [
+            "ac15b496-af3d-4b4f-a0c8-2b3909db4947",
+            "1c0c3297-e856-4886-b35e-584992057558",
+            "eb7ec3d3-c56b-414b-b38a-2427fff29a49",
+            "31f78a49-0e1d-4733-abf7-6bb098fb85cd"
+          ],
+          "last_job_id": "2d2ef34e-92b1-4cf7-963a-a8ab0d2570c0"
+        }
+      ],
+      "jobs": [
+        {
+          "schema_version": 1,
+          "record_type": "CompactionJob",
+          "id": "a133bceb-e0a2-4fdd-acf8-40f19411385c",
+          "revision": 2,
+          "updated_at": "2026-09-22T11:09:12.621Z",
+          "state": "COMMITTED",
+          "session_id": "2da6bf82-effa-4599-9474-e3f698ee8a64",
+          "base_revision": 4,
+          "source_event_ids": [
+            "bb474cca-4fe6-426f-a58f-e7558648dc70",
+            "0f43416f-0529-43e5-893f-0a4cb4f1097b",
+            "9d2b053a-d103-4825-8161-8511ed02aa99",
+            "b20cdd27-9734-4d7a-8dbf-fe59c6b21a1b",
+            "810e6a66-e2d5-43e0-99f0-2e16a1000a9c",
+            "2dcd1f7e-f533-486b-979a-efc8654b5160"
+          ],
+          "source_refs": [
+            {
+              "path": "objects/090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+              "sha256": "090430eff4aaa4f7d7d1fb5cedceae33a576218d7215014546c9f063a43c34f2",
+              "bytes": 11974,
+              "media_type": "application/json"
+            }
+          ],
+          "candidate_ref": {
+            "path": "objects/2f5e90f8c047d3ebb18cf8d5cc9848c48db4afada16f3eef47764d97573003b8",
+            "sha256": "2f5e90f8c047d3ebb18cf8d5cc9848c48db4afada16f3eef47764d97573003b8",
+            "bytes": 2245,
+            "media_type": "application/json"
+          },
+          "covered_event_ids": [
+            "bb474cca-4fe6-426f-a58f-e7558648dc70",
+            "0f43416f-0529-43e5-893f-0a4cb4f1097b",
+            "9d2b053a-d103-4825-8161-8511ed02aa99",
+            "b20cdd27-9734-4d7a-8dbf-fe59c6b21a1b",
+            "810e6a66-e2d5-43e0-99f0-2e16a1000a9c",
+            "2dcd1f7e-f533-486b-979a-efc8654b5160"
+          ],
+          "validation_errors": []
+        },
+        {
+          "schema_version": 1,
+          "record_type": "CompactionJob",
+          "id": "362eb9b8-a75b-41a4-87be-e5479c6b9737",
+          "revision": 2,
+          "updated_at": "2026-09-22T11:09:43.131Z",
+          "state": "COMMITTED",
+          "session_id": "2da6bf82-effa-4599-9474-e3f698ee8a64",
+          "base_revision": 8,
+          "source_event_ids": [
+            "5102c4a8-1de9-4095-b28e-b411a45b7b91",
+            "a3f32a58-cda7-4302-a7b9-bec736efc84b",
+            "03ecd75b-ecfe-4b7e-a7c1-16a89a39dd77",
+            "e29539c3-c4a0-46bf-ab0e-6acc72d9689c",
+            "e4451382-cf05-40f6-9cba-15ff026e488f",
+            "a77bd06e-5919-4645-a4d0-2e3b4932a85b"
+          ],
+          "source_refs": [
+            {
+              "path": "objects/aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+              "sha256": "aef643e12589855698d6adbbf0add3bd9381d7f6d380486f0a8c15eb10eadc27",
+              "bytes": 12530,
+              "media_type": "application/json"
+            }
+          ],
+          "candidate_ref": {
+            "path": "objects/92568c6e6d94bc46619952e7afcbac89892b2e3b8dcae324657025d3f07a7df2",
+            "sha256": "92568c6e6d94bc46619952e7afcbac89892b2e3b8dcae324657025d3f07a7df2",
+            "bytes": 5312,
+            "media_type": "application/json"
+          },
+          "covered_event_ids": [
+            "5102c4a8-1de9-4095-b28e-b411a45b7b91",
+            "a3f32a58-cda7-4302-a7b9-bec736efc84b",
+            "03ecd75b-ecfe-4b7e-a7c1-16a89a39dd77",
+            "e29539c3-c4a0-46bf-ab0e-6acc72d9689c",
+            "e4451382-cf05-40f6-9cba-15ff026e488f",
+            "a77bd06e-5919-4645-a4d0-2e3b4932a85b"
+          ],
+          "validation_errors": []
+        },
+        {
+          "schema_version": 1,
+          "record_type": "CompactionJob",
+          "id": "2d2ef34e-92b1-4cf7-963a-a8ab0d2570c0",
+          "revision": 2,
+          "updated_at": "2026-09-22T11:09:56.683Z",
+          "state": "COMMITTED",
+          "session_id": "2da6bf82-effa-4599-9474-e3f698ee8a64",
+          "base_revision": 11,
+          "source_event_ids": [
+            "ac15b496-af3d-4b4f-a0c8-2b3909db4947",
+            "1c0c3297-e856-4886-b35e-584992057558",
+            "eb7ec3d3-c56b-414b-b38a-2427fff29a49",
+            "31f78a49-0e1d-4733-abf7-6bb098fb85cd"
+          ],
+          "source_refs": [
+            {
+              "path": "objects/cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+              "sha256": "cc4439cdc45d294043b9431ca857242ea74f1bdbb9cec383da75234e719c0d7f",
+              "bytes": 13681,
+              "media_type": "application/json"
+            }
+          ],
+          "candidate_ref": {
+            "path": "objects/3238370dbf7788b5183727499ff1bfdfeded5ee9e591d9f4792f8bb1bd300046",
+            "sha256": "3238370dbf7788b5183727499ff1bfdfeded5ee9e591d9f4792f8bb1bd300046",
+            "bytes": 4851,
+            "media_type": "application/json"
+          },
+          "covered_event_ids": [
+            "ac15b496-af3d-4b4f-a0c8-2b3909db4947",
+            "1c0c3297-e856-4886-b35e-584992057558",
+            "eb7ec3d3-c56b-414b-b38a-2427fff29a49",
+            "31f78a49-0e1d-4733-abf7-6bb098fb85cd"
+          ],
+          "validation_errors": []
+        }
+      ]
+    }
+  ],
+  "messages": [
+    {
+      "role": "user",
+      "content": "现在回答刚才隔离资料的检查题，不调用task_propose、通知或写入工具；必要时只读检索。仅输出JSON对象，字段为：default_language（当前默认语言），orion_external_language，person_a_role，person_b_role，contract_status（包含条款号及未履行/等待原因），height_d0_cm（数值），height_d30_cm（数值），release_day_status（列出候选和是否确定），device_now（能否确定D365在线），birthday（没有资料时明确不知道），write_scope。每个字段写简短答案；不能补造资料。"
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "text",
+          "text": "{\"default_language\":\"中文\",\"orion_external_language\":\"英文\",\"person_a_role\":\"P-A：Orion 的设计联系人\",\"person_b_role\":\"P-B：Lyra 的财务联系人\",\"contract_status\":\"第7条检查未履行；合同草稿尚未提供，等待资料\",\"height_d0_cm\":173.4,\"height_d30_cm\":173.5,\"release_day_status\":\"候选：D20（S-A）、D22（S-B）；尚未确定\",\"device_now\":\"不能确定 DEV-A 在D365仍在线\",\"birthday\":\"不知道；没有相关资料\",\"write_scope\":\"不写入 World Model；演示任务仅可写入其自身工作目录\"}\n"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "short synthetic battery",
+    "logical dates are story labels, not real duration"
+  ]
+}

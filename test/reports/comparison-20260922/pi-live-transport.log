@@ -1,0 +1,1 @@
+{"report":"gpt-5.6-luna-transport-1790075056174.json","result":"PASS","checks":{"main_proposed_one_agent":true,"no_duplicate_task":true,"no_unexpected_effect":true,"failed":true,"no_effect":true,"transport_failure_observed":true},"calls":{"main":4,"task":1},"elapsed_ms":12685}

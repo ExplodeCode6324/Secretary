@@ -5,10 +5,9 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "tsx --test pi_secretary/test/*.test.ts",
-    "start": "tsx pi_secretary/src/server.ts",
+    "start": "tsx pi_secretary/src/tui.ts",
     "verify": "npm run check && npm test",
-    "register-example": "tsx pi_secretary/scripts/register-example.ts",
-    "format:check": "prettier --check \"pi_secretary/src/**/*.ts\" \"pi_secretary/test/**/*.ts\" \"pi_secretary/web/*.html\"",
+    "format:check": "prettier --check \"pi_secretary/src/**/*.ts\" \"pi_secretary/test/**/*.ts\"",
     "start:live": "tsx pi_secretary/scripts/start-live.ts",
     "test:live": "tsx pi_secretary/scripts/test-live.ts"
   },

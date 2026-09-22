@@ -1,0 +1,28 @@
+{
+  "implementation": "pi",
+  "inputs": 1000,
+  "attempts": 2000,
+  "phases": [
+    {
+      "inputs": 100,
+      "elapsed_ms": 1938.5033329999999,
+      "heap_bytes": 49818168
+    },
+    {
+      "inputs": 500,
+      "elapsed_ms": 13877.701042,
+      "heap_bytes": 41288792
+    },
+    {
+      "inputs": 1000,
+      "elapsed_ms": 28831.609417,
+      "heap_bytes": 52640632
+    }
+  ],
+  "recovery_ms": 444.2873749999999,
+  "verdict": "PASS",
+  "limitations": [
+    "short ingestion/recovery load, not continuous uptime",
+    "Promise concurrency on one Node event loop"
+  ]
+}

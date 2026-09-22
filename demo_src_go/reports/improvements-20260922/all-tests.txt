@@ -1,0 +1,10 @@
+?   	secretary_go_demo/assets	[no test files]
+?   	secretary_go_demo/cmd/secretary	[no test files]
+?   	secretary_go_demo/internal/domain	[no test files]
+ok  	secretary_go_demo/internal/engine	25.547s
+ok  	secretary_go_demo/internal/model	2.077s
+ok  	secretary_go_demo/internal/store	3.624s
+ok  	secretary_go_demo/internal/transport	1.544s
+ok  	secretary_go_demo/internal/tui	4.746s
+ok  	secretary_go_demo/internal/world	3.279s
+?   	secretary_go_demo/programs	[no test files]

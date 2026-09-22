@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "evidence_level": "DOC_ONLY",
+  "runtime_tests_executed": false,
+  "generated_at": "2026-09-22T11:26:55.805314+00:00",
+  "verdict": "FAIL",
+  "counts": {
+    "cases": 120,
+    "machines": 14,
+    "transitions": 131,
+    "transition_subcase_obligations": 524,
+    "semantic_rules": 21,
+    "source_files": 47,
+    "memory_events": 29,
+    "memory_probes": 29,
+    "local_links": 2006
+  },
+  "limitations": [
+    "No application, database, model, fault campaign, or semantic quality evaluation executed.",
+    "Source hashes and reference validity do not prove semantic coverage or correctness."
+  ],
+  "errors": [
+    "source drift: demo_design/DECISIONS.md; review design before refreshing baseline",
+    "source drift: demo_design/GO_IMPLEMENTATION.md; review design before refreshing baseline",
+    "source drift: demo_design/GO_LAYOUT.md; review design before refreshing baseline",
+    "source drift: demo_pi/README.md; review design before refreshing baseline",
+    "source drift: demo_pi/pi_secretary/LIVE_REVIEW.md; review design before refreshing baseline",
+    "source drift: demo_pi/pi_secretary/README.md; review design before refreshing baseline",
+    "source drift: demo_pi/pi_secretary/REVIEW.md; review design before refreshing baseline",
+    "source drift: demo_src_go/ARCHITECTURE.md; review design before refreshing baseline",
+    "source drift: demo_src_go/README.md; review design before refreshing baseline",
+    "source drift: demo_src_go/REVIEW.md; review design before refreshing baseline"
+  ]
+}

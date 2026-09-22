@@ -1,0 +1,1 @@
+{"report":"gpt-5.6-luna-unknown-1790075040342.json","result":"PASS","checks":{"main_proposed_one_agent":true,"no_duplicate_task":true,"no_unexpected_effect":true,"fault_injected":true,"stopped_unknown":true,"no_repeat":true,"no_automatic_retry":true},"calls":{"main":4,"task":2},"elapsed_ms":20708}

@@ -1,0 +1,128 @@
+{
+  "evidence_level": "LIVE_MODEL_SYNTHETIC",
+  "results": [
+    {
+      "attempt": 1,
+      "report": "final-memory-1.json",
+      "exit_code": 0,
+      "passed": 11,
+      "total": 11,
+      "fields": {
+        "default_language": true,
+        "orion_external_language": true,
+        "person_a_role": true,
+        "person_b_role": true,
+        "contract_status": true,
+        "height_d0_cm": true,
+        "height_d30_cm": true,
+        "release_day_status": true,
+        "device_now": true,
+        "birthday": true,
+        "write_scope": true
+      },
+      "answers": {
+        "default_language": "中文",
+        "orion_external_language": "英文",
+        "person_a_role": "Orion设计联系人",
+        "person_b_role": "Lyra财务联系人",
+        "contract_status": "第7条检查未履行；合同草稿尚未提供，故在等待草稿",
+        "height_d0_cm": 173.4,
+        "height_d30_cm": 173.5,
+        "release_day_status": "候选：D20（S-A）、D22（S-B）；未确定",
+        "device_now": "不能确定D365在线；仅有D0观测且有效至D1",
+        "birthday": "不知道，资料未提供",
+        "write_scope": "仅限各演示任务自己的工作目录"
+      },
+      "calls": 12,
+      "phase_errors": [
+        "",
+        "",
+        "jsonschema validation failed with 'https://secretary.local/contracts#/$defs/WorkItem'\n- at '/source_refs/1/sha256': '12fd06f917e6d90aac6571a98a98? ' does not match pattern '^[0-9a-f]{64}$'"
+      ]
+    },
+    {
+      "attempt": 2,
+      "report": "final-memory-2.json",
+      "exit_code": 0,
+      "passed": 10,
+      "total": 11,
+      "fields": {
+        "default_language": false,
+        "orion_external_language": true,
+        "person_a_role": true,
+        "person_b_role": true,
+        "contract_status": true,
+        "height_d0_cm": true,
+        "height_d30_cm": true,
+        "release_day_status": true,
+        "device_now": true,
+        "birthday": true,
+        "write_scope": true
+      },
+      "answers": {
+        "default_language": "中文（D90起）",
+        "orion_external_language": "英文",
+        "person_a_role": "Orion设计联系人",
+        "person_b_role": "Lyra财务联系人",
+        "contract_status": "第7条检查未履行；合同草稿尚未提供，故等待草稿",
+        "height_d0_cm": 173.4,
+        "height_d30_cm": 173.5,
+        "release_day_status": "候选：D20、D22；尚未确定",
+        "device_now": "不能确定D365在线；仅有D0观测DEV-A在线，不能外推",
+        "birthday": "不知道；资料未提供",
+        "write_scope": "仅限各演示任务自身工作目录"
+      },
+      "calls": 12,
+      "phase_errors": [
+        "",
+        "",
+        "summary invented source event ID"
+      ]
+    },
+    {
+      "attempt": 3,
+      "report": "final-memory-3.json",
+      "exit_code": 0,
+      "passed": 10,
+      "total": 11,
+      "fields": {
+        "default_language": true,
+        "orion_external_language": true,
+        "person_a_role": true,
+        "person_b_role": true,
+        "contract_status": false,
+        "height_d0_cm": true,
+        "height_d30_cm": true,
+        "release_day_status": true,
+        "device_now": true,
+        "birthday": true,
+        "write_scope": true
+      },
+      "answers": {
+        "default_language": "中文",
+        "orion_external_language": "英文",
+        "person_a_role": "Orion设计联系人",
+        "person_b_role": "Lyra财务联系人",
+        "contract_status": "第7条检查未履行；合同草稿尚未提供，尚未转交Scheduler",
+        "height_d0_cm": 173.4,
+        "height_d30_cm": 173.5,
+        "release_day_status": "候选：D20（S-A）、D22（S-B）；未确定",
+        "device_now": "不能确定DEV-A在D365在线；仅知D0 10:00至D1 10:00在线",
+        "birthday": "没有资料，不知道",
+        "write_scope": "仅能写入自己的工作目录"
+      },
+      "calls": 12,
+      "phase_errors": [
+        "",
+        "unfulfilled commitment missing; explicit resolution required",
+        ""
+      ]
+    }
+  ],
+  "source_unchanged_during_run": true,
+  "limitations": [
+    "same fixed input order; independent runs, not provider-controlled seeds",
+    "short 11-question battery, not general memory accuracy or long-duration acceptance",
+    "original literal scoring rubric can reject semantically equivalent wording"
+  ]
+}

@@ -1,0 +1,1 @@
+{"report":"gpt-5.6-luna-reject-1790075061670.json","result":"PASS","checks":{"main_proposed_one_agent":true,"no_duplicate_task":true,"no_unexpected_effect":true,"failed":true,"no_effect":true},"calls":{"main":5,"task":2},"elapsed_ms":22432}

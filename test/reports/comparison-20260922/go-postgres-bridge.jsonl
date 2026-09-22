@@ -1,0 +1,8 @@
+{"Time":"2026-09-22T19:00:50.463199+08:00","Action":"start","Package":"secretary_go_demo/internal/engine"}
+{"Time":"2026-09-22T19:00:50.901716+08:00","Action":"run","Package":"secretary_go_demo/internal/engine","Test":"TestWorldApprovalCommitRecoveryBridge"}
+{"Time":"2026-09-22T19:00:50.901758+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestWorldApprovalCommitRecoveryBridge","Output":"=== RUN   TestWorldApprovalCommitRecoveryBridge\n"}
+{"Time":"2026-09-22T19:00:51.302533+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Test":"TestWorldApprovalCommitRecoveryBridge","Output":"--- PASS: TestWorldApprovalCommitRecoveryBridge (0.40s)\n"}
+{"Time":"2026-09-22T19:00:51.302559+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Test":"TestWorldApprovalCommitRecoveryBridge","Elapsed":0.4}
+{"Time":"2026-09-22T19:00:51.302573+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Output":"PASS\n"}
+{"Time":"2026-09-22T19:00:52.31042+08:00","Action":"output","Package":"secretary_go_demo/internal/engine","Output":"ok  \tsecretary_go_demo/internal/engine\t1.847s\n"}
+{"Time":"2026-09-22T19:00:52.310594+08:00","Action":"pass","Package":"secretary_go_demo/internal/engine","Elapsed":1.847}

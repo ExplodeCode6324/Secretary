@@ -16,6 +16,8 @@ journal 外帧 `{payload_b64,sha256}` 与 canonical `JournalTransaction` 一致�
 
 首版直接重放 journal，不生成设计中的可选快照缓存，也不执行历史 GC。启动时间随日志增长；这是明确的 demo 性能边界。任务 workspace/execution manifest 是从 journal 重建的定位文件，immutable objects 才是证据。
 
+Context、Checkpoint、Dispatch、TaskResult 和 ArchiveManifest 是只写一次的记录，不仅其 blob 不可变，同 ID 的记录也禁止二次保存。提交和 journal 恢复分别核验这一限制。错误处理若无法持久化失败状态，会把原错误与持久化错误一起向上传递，不宣称失败状态已经保存。
+
 ## Agent loop 与 Context
 
 主会话只注册 `memory_read`、`memory_propose_change`、`task_propose`、`task_query`、`task_control`、`master_remind`。每次认领当前一条 durable Input；运行期间新输入继续 ACCEPTED。只有对应 loop 的输入在完整回复和工具结果保存后变成 HANDLED。
@@ -34,6 +36,10 @@ ModelCall 的实际 HTTP body 不含密钥，按原字节保存到 Context.raw_c
 
 原文留在日志中；未承接原文随下一 Context 装入。程序只证明结构和交接，不证明摘要语义完整。已有未履行承诺采取保守保留检查，不能仅用时间删除。当前未提供独立的人工语义编辑器。
 
+事项退出后由原文检索承接可找回性。宿主从日志构建可重建的词法索引（英文词元、P-A 等完整实体编号和中文相邻二字），索引不成为事实权威。主会话出现新的查询时，在剩余 Context 预算内自动回查过去输入，最多 12 条、12,000 字节原件页；不把当前问题本身当作历史证据。检索保留 actor、时间、scope、事件 ID 和原件引用，明确记录遗漏数量。
+
+`memory_read OPERATION_LOG` 支持 query、event_id、limit、cursor 和输入事件筛选；分页固定历史序号及查询，不因后续追加改变页内排序。超出单页的完整原件通过 OBJECT 按引用读取。系统提示要求摘要缺项时回查，词法未命中不能说明 Master 从未提供资料。这仍不是完备的语义搜索或长期准确率保证；没有新增工具，也没有将原文自动写入 World Model。
+
 ## 调度、执行与授权
 
 支持 IMMEDIATE、AT、INTERVAL；周期是 UTC 固定秒数，不含 cron/DST/未知 EVENT 来源。调度检查间隔 300ms，超过触发点 2 秒视作错过窗口，按持久化策略处理。QUEUE 保存 occurrence 并在前一执行结束后接续；它不会因排队时间被误判为遗漏。只有登记的本地资源/设备和执行依赖检查器生效，未知前提记录 UNKNOWN 并等待。
@@ -42,9 +48,13 @@ ModelCall 的实际 HTTP body 不含密钥，按原字节保存到 Context.raw_c
 
 一次请求默认 30 分钟有效。持续规则的 schema 约束和资源路径段边界在每次 gate 检查；无默认通配放行。规则由独立认证 UI 提交。UI 的普通决定不调用批准接口。
 
+普通决定的回答入口在同一事务内核验 deadline，恰好到期也拒绝；先返回同 request_id 的既有回执，再检查新回答是否过期。维护将过期问题记为 EXPIRED，恢复执行只用于重新评估，工具返回明确的过期错误，没有回答或默认批准。
+
+最终 gate 同时核验 Operation、Execution 和当前 writer 的 epoch/attempt，不再顺手改写身份。等待后继续与重启时，仅宿主可在提交边界把 NOT_STARTED 操作明确交接到新身份，并留下 operation.rebound 日志。DISPATCHED、RESULT_UNKNOWN 不在该交接范围。关键身份检查收敛到 DispatchIdentity；其他领域记录仍以 canonical schema 校验的动态记录表示，尚未完成全面强类型化。
+
 PROGRAM 的协调流程可处于 RUNNING/WAIT_AUTH，但**真实程序只在 `program.run` Operation.DISPATCHED 与批准消费已 durable 后启动**。程序仅带最小 PATH/LANG 环境，不继承 API/PG/界面凭据。stdout/stderr 原件保存，进程组取消等待真实退出；中断可能发生外部影响时转 RESULT_UNKNOWN。共享 OS 账号下，人工登记的任意程序不是安全沙箱。
 
-普通本地通知采用 durable delivery_key 和浏览器确认；刷新不会重复创建通知。未接入邮件、Slack 或外部推送。未知文件写入可只读比较目标现有内容；无法证明时保持 UNKNOWN，不靠重试推断。
+普通本地通知采用 durable delivery_key 和 TUI 中显式确认已读；刷新不会重复创建通知。未接入邮件、Slack 或外部推送。未知文件写入可只读比较目标现有内容；无法证明时保持 UNKNOWN，不靠重试推断。
 
 ## World Model
 
@@ -56,7 +66,17 @@ UI 的字符串检索提供当前投影和实体/来源/谓词目录，每类最
 
 ## 接口收敛与限制
 
-可运行接口见 `internal/transport/server.go`。没有对外 worker HTTP 接口：同进程受控 gateway 绑定执行身份，外部 HTTP 只有 Master token/cookie。Host 严格限制 127.0.0.1，写 cookie 请求验证 Origin，UI 不以 body.actor 取得身份。
+可运行接口见 `internal/transport/server.go`。没有对外 worker HTTP 接口：同进程受控 gateway 绑定执行身份，本地 HTTP 只有 Master bearer token 认证。TUI 从本机读取 token，禁用代理和重定向，凭据不写入 URL。Host 严格限制 127.0.0.1，拒绝跨源请求，入口不以 body.actor 取得身份。网页和浏览器登录已移除，cookie 不再授予身份。
+
+## TUI 交互
+
+按 Master 2026-09-22 的设计变更，主交互采用 `internal/tui`，用 tview/tcell 处理终端控件和 Unicode 显示；agent loop、记忆及授权仍是独立 Go 代码。`secretary serve` 只承载本地 API/后台，`secretary tui` 不打开第二个 journal writer。退出界面不取消任务。
+
+主视图将大部分宽度用于主会话，右侧为 Task 看板，不设常驻导航栏。Ctrl+T 聚焦看板、Enter 打开任务详情、Esc 返回；输入草稿和任务选择在切换时保留。审批、记忆和其他记录使用 F1–F8 快捷键打开。
+
+轮询和提交在后台 goroutine 进行，控件更新串行进入终端事件循环。选择按稳定 ID 保留；审批确认冻结显示范围、hash 和 revision，刷新不能更换审批对象。提交状态未知时保留相同 request_id 和原字节，手动重试不生成新请求；后续读取失败不撤销已接受回执。任务详情只在明确读取时刷新 TTL。
+
+[tview 官方说明](https://github.com/rivo/tview)；固定版本见 go.mod。终端控件库不参与模型循环、业务状态或授权判定。
 
 短期详情访问刷新 TTL；列表、日志读取不刷新。归档验证后保留 RETIRED 墓碑和全部对象。自动备份、历史压缩、多机租约、独立账号/容器、外部通知及未知程序效果的通用核验均不是本 demo 的已实现能力。
 
