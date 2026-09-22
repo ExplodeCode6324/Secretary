@@ -1,0 +1,9 @@
+{
+  "evidence_level": "LIVE_MODEL",
+  "attempt": "pre-delivery regression",
+  "outcome": "SUMMARY_REJECTED",
+  "reason": "summary invented evidence",
+  "response": "Kept the strict reference validator; changed model protocol to return existing event IDs resolved by the host.",
+  "runtime_invariant_test": "TestCompactionFailureRetainsPendingRawThenAtomicHandoff",
+  "note": "This failed attempt is retained separately from the final successful chain report; it is not a successful semantic compaction claim."
+}

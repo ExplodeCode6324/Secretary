@@ -1,0 +1,14 @@
+{
+  "data_root": ".local/data",
+  "workspace_root": ".local/workspaces",
+  "listen": "127.0.0.1:8787",
+  "model": "gpt-5.6-luna",
+  "endpoint": "https://opencode.ai/zen/go/v1/responses",
+  "context_budget": 64000,
+  "context_reserve": 8000,
+  "compaction_threshold": 24000,
+  "max_workers": 2,
+  "max_input_bytes": 24000,
+  "max_frame_bytes": 33554432,
+  "retention_seconds": 172800
+}

@@ -1,0 +1,9 @@
+?   	secretary_go_demo/assets	[no test files]
+?   	secretary_go_demo/cmd/secretary	[no test files]
+?   	secretary_go_demo/internal/domain	[no test files]
+ok  	secretary_go_demo/internal/engine	10.672s
+ok  	secretary_go_demo/internal/model	(cached)
+ok  	secretary_go_demo/internal/store	(cached)
+ok  	secretary_go_demo/internal/transport	1.767s
+ok  	secretary_go_demo/internal/world	(cached)
+?   	secretary_go_demo/programs	[no test files]

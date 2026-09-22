@@ -1,0 +1,17 @@
+{
+  "evidence_level": "LOCAL_STARTUP",
+  "health": "ok",
+  "session_state": "IDLE",
+  "runtime": {
+    "blocked_tasks": 0,
+    "compaction_running": false,
+    "error": "",
+    "main_blocked": false,
+    "main_running": false,
+    "workers": 0,
+    "world_available": true
+  },
+  "authenticated_api": true,
+  "task_count": 0,
+  "execution_count": 0
+}

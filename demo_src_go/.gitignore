@@ -1,0 +1,5 @@
+.local/
+.private/
+bin/
+configs/local.json
+*.test

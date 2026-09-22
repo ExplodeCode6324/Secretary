@@ -1,0 +1,14 @@
+{
+  "evidence_level": "PACKAGE_AUDIT",
+  "files_checked": 58,
+  "canonical_assets_match": {
+    "assets/contracts.schema.json": true,
+    "assets/state-machines.json": true,
+    "assets/001_world_model.sql": true,
+    "assets/002_predicates.sql": true
+  },
+  "secret_matches": 0,
+  "absolute_user_path_matches": 0,
+  "private_credentials_ignored": true,
+  "private_file_mode": "0o600"
+}

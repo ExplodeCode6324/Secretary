@@ -1,0 +1,15 @@
+{
+  "evidence_level": "UI_RUNTIME",
+  "environment": "isolated localhost:8788 fixture; synthetic local report program; no model keys",
+  "checks": [
+    "login succeeds with fixture Master credential",
+    "pending program approval displays exact parameters and expandable bound scope",
+    "approval button submits a single direct Master decision",
+    "registered program reaches SUCCEEDED after approval",
+    "task detail displays result and durable evidence references",
+    "polling preserves stable controls when domain state is unchanged",
+    "Chinese send button stays on one line",
+    "layout visually inspected in actual browser"
+  ],
+  "limitations": ["Not Master's REAL_USE review", "QA fixture intentionally has no World Model or live model credentials"]
+}

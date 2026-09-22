@@ -18,3 +18,7 @@
 ## Pi 实现验证
 
 新增 [demo_pi](demo_pi/README.md)：固定 Pi v0.87.0 源码与可运行的 TypeScript Secretary 原型。实现范围、启动方式和运行测试证据见 [复核说明](demo_pi/pi_secretary/REVIEW.md)。原有 Go 模块设计仍保留为参考。
+
+## 独立 Go Demo
+
+[`demo_src_go`](demo_src_go/README.md) 是独立编写的 Go 实现；启动、停止和 Master 复核入口见 [`demo_src_go/REVIEW.md`](demo_src_go/REVIEW.md)。运行证据与此前设计检查分开记录。
