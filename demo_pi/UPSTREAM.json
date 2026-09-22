@@ -1,0 +1,11 @@
+{
+ "repository":"https://github.com/earendil-works/pi.git",
+ "original_repository_redirect":"https://github.com/badlogic/pi-mono",
+ "tag":"v0.87.0",
+ "commit":"16787ad5b2dc748047f314ca1bfe7708f30f54f3",
+ "license":"MIT (upstream LICENSE retained in pi_resource)",
+ "source_modified":false,
+ "direct_source_reuse":["packages/agent/src/agent.ts","packages/agent/src/agent-loop.ts","packages/agent/src/types.ts","packages/agent/src/harness/tools/read.ts","packages/agent/src/harness/tools/write.ts","packages/agent/src/harness/env/nodejs.ts"],
+ "matching_packages":{"@earendil-works/pi-ai":"0.87.0","@earendil-works/chord":"0.87.0"},
+ "integration":"Source imports for Agent and task filesystem tools; release-pinned Pi AI provider and Chord packages. No change to upstream source."
+}

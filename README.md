@@ -14,3 +14,7 @@
 建议阅读顺序：BrainStorm → [复核清单](demo_design/REVIEW.md) → 整体状态机 → JSON 语义与持久化 → World Model schema → Go 模块与流程。
 
 仅 World Model 使用 PostgreSQL。Context、Consciousness、Scheduler、授权、日志采用不可变 JSON 对象、JSONL 事务日志及可重建快照；它们需要可靠持久化，并非仅内存结构。没有引入 SQLite、Redis 或消息队列。证据范围与实测结果见 [检查报告](demo_design/checks/report.json)。
+
+## Pi 实现验证
+
+新增 [demo_pi](demo_pi/README.md)：固定 Pi v0.87.0 源码与可运行的 TypeScript Secretary 原型。实现范围、启动方式和运行测试证据见 [复核说明](demo_pi/pi_secretary/REVIEW.md)。原有 Go 模块设计仍保留为参考。

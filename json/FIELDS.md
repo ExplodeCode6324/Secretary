@@ -990,4 +990,3 @@ RETIRED 不复活旧执行，返回历史引用。
 | `log_records` | array of OperationLogRecord | 是 | 按对象职责及语义约束使用；null 明确表示尚无值。 |
 | `receipts` | array of CommandReceipt | 是 | 按对象职责及语义约束使用；null 明确表示尚无值。 |
 | `committed_at` | Time | 是 | UTC RFC3339；时区意图在 Trigger.timezone 另存。 |
-

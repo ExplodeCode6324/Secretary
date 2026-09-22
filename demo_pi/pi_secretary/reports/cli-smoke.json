@@ -1,0 +1,11 @@
+{
+  "result": "PASS",
+  "mode": "OFFLINE_FIXTURE",
+  "checks": [
+    "CLI server startup",
+    "HTML served",
+    "authenticated input accepted",
+    "Pi task execution SUCCEEDED"
+  ],
+  "real_model_called": false
+}
