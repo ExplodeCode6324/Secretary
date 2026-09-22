@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "record_type": "ModelCall",
+  "id": "ad3d3dc2-5653-5fb0-93ad-381ed5e99dbf",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "PREPARED",
+  "context_id": "57fbe3a3-cfde-5889-b07b-8328a6bb00d3",
+  "scope": {
+    "session_id": null,
+    "task_id": null,
+    "execution_id": null
+  },
+  "transport_attempt": 1,
+  "request": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "response": null,
+  "started_at": null,
+  "completed_at": null,
+  "error": null
+}

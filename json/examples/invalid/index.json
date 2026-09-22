@@ -1,0 +1,27 @@
+[
+  {
+    "file": "TaskProposal-authorized.json",
+    "contract": "TaskProposal",
+    "reason": "模型不能注入已授权字段"
+  },
+  {
+    "file": "Input-received_at.json",
+    "contract": "Input",
+    "reason": "严格检查 RFC3339"
+  },
+  {
+    "file": "ApprovalCommand-decision.json",
+    "contract": "ApprovalCommand",
+    "reason": "无批量越范围批准"
+  },
+  {
+    "file": "SafetyRule-stop_on_unknown.json",
+    "contract": "SafetyRule",
+    "reason": "未知结果必须停止"
+  },
+  {
+    "file": "Context-raw_context.json",
+    "contract": "Context",
+    "reason": "拒绝无效路径与摘要"
+  }
+]

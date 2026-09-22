@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "record_type": "AuthorizationRule",
+  "id": "ad2e01ec-f1e1-5b20-a56d-8df5498ba4a6",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "ENABLED",
+  "actions": [
+    "example"
+  ],
+  "resource_prefixes": [
+    "example"
+  ],
+  "parameter_constraints": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "valid_from": "2026-09-22T00:00:00Z",
+  "expires_at": null,
+  "created_by": "MASTER_UI",
+  "confirmation_ref": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  }
+}

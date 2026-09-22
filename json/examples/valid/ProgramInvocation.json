@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "record_type": "ProgramInvocation",
+  "dispatch_id": "aa2bf29e-9d09-5aeb-868c-f9574d21c3cd",
+  "execution_id": "6692576d-4cd0-5d3b-8c38-1d708de7b8f3",
+  "program_id": "40cc0483-87f2-5c31-bad7-a2e6d1c98872",
+  "program_revision": 1,
+  "code_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspace": "example",
+  "parameters": {},
+  "resume_ref": null
+}

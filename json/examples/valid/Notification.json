@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "record_type": "Notification",
+  "id": "44c0478a-079a-5f8b-87c2-593e251e3b24",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "QUEUED",
+  "session_id": "30363174-a105-582a-8e08-a8e5f7fb0a75",
+  "channel": "example",
+  "message": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "delivery_key": "9f41a707-95cb-5935-9839-2233b9b8146a",
+  "receipt": null,
+  "requested_at": "2026-09-22T00:00:00Z"
+}

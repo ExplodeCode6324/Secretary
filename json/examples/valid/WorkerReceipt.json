@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "record_type": "WorkerReceipt",
+  "id": "7e2b4bba-940d-542f-9ede-501ee6a8a416",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "dispatch_id": "cdf5dc05-8401-5407-be4f-18270c8fe30f",
+  "attempt_id": "27e10300-38df-5115-b8ff-e95e44faac48",
+  "execution_id": "621cf3c1-64c0-5b7d-94cc-263b966ff8a5",
+  "owner_epoch": 1,
+  "worker_instance_id": "52ef7339-261c-5fe2-bd9c-786a58a471c0",
+  "pid": null,
+  "status": "STARTED",
+  "checkpoint_id": null,
+  "exit_code": null,
+  "observed_at": "2026-09-22T00:00:00Z"
+}

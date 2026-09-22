@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "record_type": "Input",
+  "id": "cfa36f82-94c7-57cc-95ba-3fdc08e3c2cc",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "session_id": "c8199f73-2d05-59d3-b886-75ca13450357",
+  "dedupe_key": "example",
+  "producer": "MASTER",
+  "state": "ACCEPTED",
+  "payload": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "loop_id": null,
+  "received_at": "tomorrow",
+  "feedback_id": null
+}

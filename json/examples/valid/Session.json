@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "record_type": "Session",
+  "id": "e60ee1ad-5bc4-5a8f-8783-d88b41525049",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "STOPPED",
+  "owner_epoch": 1,
+  "active_loop_id": null,
+  "claimed_input_ids": [],
+  "last_context_id": null,
+  "consciousness_id": "738b1787-bc16-5701-82a7-23fa125a065c",
+  "last_journal_seq": 1,
+  "recovery_error": null
+}

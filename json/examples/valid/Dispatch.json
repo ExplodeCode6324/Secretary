@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "record_type": "Dispatch",
+  "id": "277c07bc-c55e-5ebc-bfaa-079047accba2",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "task_id": "69e7c187-1d5c-5afa-853b-58c1ea37a670",
+  "execution_id": "a66c88aa-3d4f-5ed3-86ae-587860e75b67",
+  "attempt_id": "fc09338e-1a63-521b-bc1d-bfa5f28116e8",
+  "owner_epoch": 1,
+  "plan_revision": 1,
+  "executor": {
+    "kind": "AGENT",
+    "agent_profile": "demo-agent",
+    "program_id": null,
+    "program_revision": null,
+    "parameters": {}
+  },
+  "workspace": "example",
+  "resume_checkpoint_id": null,
+  "operation_ids": [],
+  "issued_at": "2026-09-22T00:00:00Z"
+}

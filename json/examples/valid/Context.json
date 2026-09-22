@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "record_type": "Context",
+  "id": "4f02a401-1851-504f-a0b8-923eb64bd016",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "session_id": null,
+  "execution_id": null,
+  "loop_id": "b2ac419e-718d-500b-9bbd-67ed5667918e",
+  "call_id": "25f63d5a-49f5-5285-aaad-3ceaad62c5b4",
+  "purpose": "MAIN",
+  "messages": [
+    {
+      "message_id": "61237255-e75b-55a0-a84c-1bec14c5a406",
+      "role": "system",
+      "content": {
+        "path": "objects/example.json",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 1,
+        "media_type": "example"
+      },
+      "tool_call_id": null,
+      "source_event_ids": []
+    }
+  ],
+  "raw_context": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "provider_profile": "example",
+  "adapter_version": "example",
+  "tools_schema": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "consciousness_revision": null,
+  "input_ids": [],
+  "pending_tool_call_ids": [],
+  "token_budget": 1,
+  "estimated_tokens": 1,
+  "reserve_tokens": 1,
+  "omitted_refs": [],
+  "wm_fact_versions": []
+}

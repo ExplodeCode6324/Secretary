@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "record_type": "ProgramRegistration",
+  "id": "e5f04440-ee22-5554-bca2-3919a8e5d1b8",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "REGISTERED",
+  "name": "example",
+  "description": "example",
+  "entrypoint": "example",
+  "code_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "parameters_schema": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "result_schema": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "preconditions": [],
+  "operation_kinds": [],
+  "supports_resume": true,
+  "maintained_by": "HUMAN",
+  "validation_ref": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  }
+}

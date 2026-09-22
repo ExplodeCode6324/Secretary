@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "record_type": "MemoryReadRequest",
+  "request_id": "0706ef97-eb06-5090-b7c7-9df476883f56",
+  "source": "WORLD",
+  "world_query": null,
+  "item_ids": [],
+  "event_ids": [],
+  "object_refs": [],
+  "limit": 1,
+  "cursor": null
+}

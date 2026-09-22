@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "record_type": "Checkpoint",
+  "id": "ddae4456-ee4c-558e-9a49-9a726c9f517e",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "task_id": "004aee12-391b-539e-8bf9-47c8532d33db",
+  "execution_id": "c9391500-4cbc-5cfe-acf0-6cadd01d65d9",
+  "executor_kind": "AGENT",
+  "context_id": null,
+  "raw_context": null,
+  "program_resume_ref": null,
+  "continuation": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "artifact_refs": [],
+  "completed_operation_ids": [],
+  "pending_operation_ids": [],
+  "pending_tool_call_ids": [],
+  "adapter_version": "example",
+  "provider_profile": "example"
+}

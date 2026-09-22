@@ -1,0 +1,5255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:secretary:contracts:v1",
+  "title": "Secretary demo 数据契约 v1",
+  "$defs": {
+    "ID": {
+      "type": "string",
+      "minLength": 1,
+      "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+      "format": "uuid"
+    },
+    "Time": {
+      "type": "string",
+      "minLength": 1,
+      "description": "UTC RFC3339；时区意图在 Trigger.timezone 另存。",
+      "format": "date-time",
+      "pattern": "Z$"
+    },
+    "Digest": {
+      "type": "string",
+      "minLength": 1,
+      "description": "已保存原始字节 SHA-256 小写十六进制。",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "RelativePath": {
+      "type": "string",
+      "minLength": 1,
+      "description": "相对 data_root 或 workspace_root；运行时拒绝绝对路径、..、符号链接越界。",
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\x00]+$"
+    },
+    "HostState": {
+      "type": "string",
+      "enum": [
+        "STOPPED",
+        "RECOVERING",
+        "IDLE",
+        "RUNNING",
+        "CAPACITY_BLOCKED",
+        "RECOVERY_BLOCKED",
+        "DRAINING"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Host"
+    },
+    "InputState": {
+      "type": "string",
+      "enum": [
+        "ACCEPTED",
+        "CLAIMED",
+        "HANDLED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Input"
+    },
+    "CallState": {
+      "type": "string",
+      "enum": [
+        "PREPARED",
+        "IN_FLIGHT",
+        "RESPONSE_SAVED",
+        "INTERRUPTED",
+        "FAILED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Call"
+    },
+    "CompactionState": {
+      "type": "string",
+      "enum": [
+        "QUEUED",
+        "SUMMARIZING",
+        "VALIDATING",
+        "COMMITTED",
+        "STALE",
+        "FAILED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Compaction"
+    },
+    "PlanState": {
+      "type": "string",
+      "enum": [
+        "INITIALIZING",
+        "ACTIVE",
+        "PAUSED",
+        "INIT_FAILED",
+        "CLOSED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Plan"
+    },
+    "ExecutionState": {
+      "type": "string",
+      "enum": [
+        "CREATED",
+        "WAIT_PRECONDITION",
+        "READY",
+        "DISPATCHING",
+        "RUNNING",
+        "WAIT_DECISION",
+        "WAIT_AUTH",
+        "CANCEL_REQUESTED",
+        "RESULT_UNKNOWN",
+        "SUCCEEDED",
+        "FAILED",
+        "CANCELLED",
+        "EXPIRED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Execution"
+    },
+    "RetentionState": {
+      "type": "string",
+      "enum": [
+        "HOT",
+        "ARCHIVE_PENDING",
+        "RETIRED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Retention"
+    },
+    "OperationState": {
+      "type": "string",
+      "enum": [
+        "PREPARED",
+        "WAIT_AUTH",
+        "AUTHORIZED",
+        "DISPATCHED",
+        "SUCCEEDED",
+        "FAILED",
+        "RESULT_UNKNOWN",
+        "CANCELLED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Operation"
+    },
+    "AuthorizationState": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+        "REVOKED",
+        "EXPIRED",
+        "CONSUMED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Authorization"
+    },
+    "DecisionState": {
+      "type": "string",
+      "enum": [
+        "OPEN",
+        "ANSWERED",
+        "OBSOLETE",
+        "EXPIRED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Decision"
+    },
+    "FeedbackState": {
+      "type": "string",
+      "enum": [
+        "QUEUED",
+        "DELIVERED",
+        "HANDLED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Feedback"
+    },
+    "NotificationState": {
+      "type": "string",
+      "enum": [
+        "QUEUED",
+        "SENDING",
+        "SENT",
+        "FAILED",
+        "DELIVERY_UNKNOWN"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Notification"
+    },
+    "WorldCommandState": {
+      "type": "string",
+      "enum": [
+        "RECEIVED",
+        "WAIT_AUTH",
+        "READY",
+        "APPLYING",
+        "COMMITTED",
+        "CONFLICT",
+        "REJECTED",
+        "RETRYABLE_ERROR"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 WorldCommand"
+    },
+    "ProgramState": {
+      "type": "string",
+      "enum": [
+        "REGISTERED",
+        "ENABLED",
+        "DISABLED"
+      ],
+      "description": "状态转换见 state_machine/catalog.json 的 Program"
+    },
+    "ObjectRef": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/RelativePath"
+        },
+        "sha256": {
+          "$ref": "#/$defs/Digest"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": "原始字节长度"
+        },
+        "media_type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "如 application/json；不得用摘要代替原件。"
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "bytes",
+        "media_type"
+      ],
+      "additionalProperties": false,
+      "description": "不可变对象引用；必须校验内容散列。"
+    },
+    "Scope": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "task_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "session_id",
+        "task_id",
+        "execution_id"
+      ],
+      "additionalProperties": false,
+      "description": "日志定位：main 至少 session；task 必须 task 与 execution；跨域见语义校验。"
+    },
+    "Message": {
+      "type": "object",
+      "properties": {
+        "message_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "system",
+            "developer",
+            "user",
+            "assistant",
+            "tool"
+          ],
+          "description": ""
+        },
+        "content": {
+          "$ref": "#/$defs/ObjectRef",
+          "description": "完整内容，含多模态引用；不在此做摘要。"
+        },
+        "tool_call_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        }
+      },
+      "required": [
+        "message_id",
+        "role",
+        "content",
+        "tool_call_id",
+        "source_event_ids"
+      ],
+      "additionalProperties": false,
+      "description": "逻辑消息；provider 扩展块由原始 context 对象保留。"
+    },
+    "EvidenceRef": {
+      "type": "object",
+      "properties": {
+        "log_event_id": {
+          "$ref": "#/$defs/ID",
+          "description": "对应 OperationLogRecord.event_id"
+        },
+        "content": {
+          "$ref": "#/$defs/ObjectRef"
+        }
+      },
+      "required": [
+        "log_event_id",
+        "content"
+      ],
+      "additionalProperties": false,
+      "description": "World Model 证据引用；同时定位原始事件与字节。"
+    },
+    "Provenance": {
+      "type": "object",
+      "properties": {
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "MASTER",
+            "OBSERVATION",
+            "TASK_REPORT",
+            "MODEL_INFERENCE"
+          ],
+          "description": ""
+        },
+        "source_id": {
+          "$ref": "#/$defs/ID",
+          "description": "wm.source 主键"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          },
+          "minItems": 1,
+          "description": ""
+        },
+        "observed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "received_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1,
+          "description": "对象和适用范围"
+        },
+        "epistemic": {
+          "type": "string",
+          "enum": [
+            "OBSERVED",
+            "REPORTED",
+            "INFERRED",
+            "UNRESOLVED"
+          ],
+          "description": ""
+        }
+      },
+      "required": [
+        "source_kind",
+        "source_id",
+        "evidence",
+        "observed_at",
+        "received_at",
+        "scope",
+        "epistemic"
+      ],
+      "additionalProperties": false,
+      "description": ""
+    },
+    "Precondition": {
+      "type": "object",
+      "properties": {
+        "condition_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "DEVICE_AVAILABLE",
+            "EXECUTION_SUCCEEDED",
+            "RESOURCE_PRESENT"
+          ],
+          "description": ""
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1,
+          "description": "登记设备/资源标识或 execution UUID"
+        },
+        "required_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "condition_id",
+        "kind",
+        "target",
+        "required_revision"
+      ],
+      "additionalProperties": false,
+      "description": "运行前提只引用已登记检查器，禁止运行模型提交的表达式。"
+    },
+    "ConditionResult": {
+      "type": "object",
+      "properties": {
+        "condition_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "MET",
+            "NOT_MET",
+            "UNKNOWN"
+          ],
+          "description": ""
+        },
+        "checked_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "condition_id",
+        "status",
+        "checked_at",
+        "evidence",
+        "reason"
+      ],
+      "additionalProperties": false,
+      "description": ""
+    },
+    "Trigger": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "IMMEDIATE",
+            "AT",
+            "INTERVAL",
+            "EVENT"
+          ],
+          "description": ""
+        },
+        "at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "interval_seconds": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "anchor_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1,
+          "description": "IANA 时区；UTC 时写 Etc/UTC"
+        },
+        "event_source": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "predicate_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "missed_policy": {
+          "type": "string",
+          "enum": [
+            "REPORT_ONLY",
+            "SKIP",
+            "CATCH_UP_ONE"
+          ],
+          "description": ""
+        },
+        "overlap_policy": {
+          "type": "string",
+          "enum": [
+            "QUEUE",
+            "SKIP"
+          ],
+          "description": ""
+        }
+      },
+      "required": [
+        "kind",
+        "at",
+        "interval_seconds",
+        "anchor_at",
+        "timezone",
+        "event_source",
+        "predicate_id",
+        "missed_policy",
+        "overlap_policy"
+      ],
+      "additionalProperties": false,
+      "description": "",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "AT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "at": {
+                "$ref": "#/$defs/Time"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "INTERVAL"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "anchor_at": {
+                "$ref": "#/$defs/Time"
+              },
+              "interval_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991,
+                "description": ""
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "EVENT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "event_source": {
+                "type": "string",
+                "minLength": 1,
+                "description": ""
+              },
+              "predicate_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": ""
+              }
+            }
+          }
+        }
+      ]
+    },
+    "FeedbackPolicy": {
+      "type": "object",
+      "properties": {
+        "terminal": {
+          "type": "boolean",
+          "description": "一次性终结必须 true；周期可按约定筛选。"
+        },
+        "on_change": {
+          "type": "boolean",
+          "description": ""
+        },
+        "on_blocker": {
+          "const": true
+        },
+        "on_unknown": {
+          "const": true
+        },
+        "milestones": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        }
+      },
+      "required": [
+        "terminal",
+        "on_change",
+        "on_blocker",
+        "on_unknown",
+        "milestones"
+      ],
+      "additionalProperties": false,
+      "description": ""
+    },
+    "ExecutorSpec": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": [
+            "AGENT",
+            "PROGRAM"
+          ],
+          "description": ""
+        },
+        "agent_profile": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "program_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "program_revision": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "parameters": {
+          "description": "程序参数须再通过登记的 parameters_schema 校验；agent 参数为 {}。"
+        }
+      },
+      "required": [
+        "kind",
+        "agent_profile",
+        "program_id",
+        "program_revision",
+        "parameters"
+      ],
+      "additionalProperties": false,
+      "description": "",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "PROGRAM"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "program_id": {
+                "$ref": "#/$defs/ID"
+              },
+              "program_revision": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740991,
+                "description": ""
+              },
+              "agent_profile": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "AGENT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "agent_profile": {
+                "type": "string",
+                "minLength": 1,
+                "description": ""
+              },
+              "program_id": {
+                "type": "null"
+              },
+              "program_revision": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Session": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Session"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/HostState"
+        },
+        "owner_epoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "active_loop_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "claimed_input_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "last_context_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consciousness_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "last_journal_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "recovery_error": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "owner_epoch",
+        "active_loop_id",
+        "claimed_input_ids",
+        "last_context_id",
+        "consciousness_id",
+        "last_journal_seq",
+        "recovery_error"
+      ],
+      "additionalProperties": false,
+      "description": "逻辑主会话；状态变化由宿主单写，进程停止仍保留。"
+    },
+    "Input": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Input"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "dedupe_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "producer 内稳定键"
+        },
+        "producer": {
+          "type": "string",
+          "enum": [
+            "MASTER",
+            "SCHEDULER",
+            "ENVIRONMENT"
+          ],
+          "description": ""
+        },
+        "state": {
+          "$ref": "#/$defs/InputState"
+        },
+        "payload": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "loop_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "received_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "feedback_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "session_id",
+        "dedupe_key",
+        "producer",
+        "state",
+        "payload",
+        "loop_id",
+        "received_at",
+        "feedback_id"
+      ],
+      "additionalProperties": false,
+      "description": "外部输入；工具返回不创建此对象。"
+    },
+    "Context": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Context"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "loop_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "call_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "purpose": {
+          "type": "string",
+          "enum": [
+            "MAIN",
+            "TASK",
+            "COMPACTION"
+          ],
+          "description": ""
+        },
+        "messages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Message"
+          },
+          "minItems": 1,
+          "description": ""
+        },
+        "raw_context": {
+          "$ref": "#/$defs/ObjectRef",
+          "description": "原始、可原封不动复载的 context；provider profile 在外部绑定。"
+        },
+        "provider_profile": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "adapter_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "tools_schema": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "consciousness_revision": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "pending_tool_call_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "token_budget": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "estimated_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "reserve_tokens": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "omitted_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "wm_fact_versions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "session_id",
+        "execution_id",
+        "loop_id",
+        "call_id",
+        "purpose",
+        "messages",
+        "raw_context",
+        "provider_profile",
+        "adapter_version",
+        "tools_schema",
+        "consciousness_revision",
+        "input_ids",
+        "pending_tool_call_ids",
+        "token_budget",
+        "estimated_tokens",
+        "reserve_tokens",
+        "omitted_refs",
+        "wm_fact_versions"
+      ],
+      "additionalProperties": false,
+      "description": "一次调用不可变快照；estimated+reserve<=budget 由业务检查。"
+    },
+    "ModelCall": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "ModelCall"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/CallState"
+        },
+        "context_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "transport_attempt": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "request": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "response": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "completed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "context_id",
+        "scope",
+        "transport_attempt",
+        "request",
+        "response",
+        "started_at",
+        "completed_at",
+        "error"
+      ],
+      "additionalProperties": false,
+      "description": "模型传输生命周期；完整响应保存后才解析工具请求。"
+    },
+    "WorkItem": {
+      "type": "object",
+      "properties": {
+        "item_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "tier": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "QUIET",
+            "MINIMAL"
+          ],
+          "description": ""
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "goals": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "open_questions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "unfulfilled_commitments": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "task_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 1,
+          "description": ""
+        },
+        "last_activity_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "pending_owner": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "MAIN",
+                "SCHEDULER"
+              ],
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "item_id",
+        "tier",
+        "summary",
+        "goals",
+        "constraints",
+        "decisions",
+        "open_questions",
+        "unfulfilled_commitments",
+        "task_refs",
+        "source_refs",
+        "last_activity_at",
+        "pending_owner"
+      ],
+      "additionalProperties": false,
+      "description": "事项不等于任务；未履行且无人承接的事项不退出。"
+    },
+    "Consciousness": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Consciousness"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorkItem"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "pending_raw_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "covered_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "last_job_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "session_id",
+        "items",
+        "pending_raw_refs",
+        "covered_event_ids",
+        "last_job_id"
+      ],
+      "additionalProperties": false,
+      "description": "当前工作记忆；全部摘要提交与原文承接集合一次保存。"
+    },
+    "CompactionJob": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "CompactionJob"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/CompactionState"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "base_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "source_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 1,
+          "description": ""
+        },
+        "candidate_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "covered_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "validation_errors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "session_id",
+        "base_revision",
+        "source_event_ids",
+        "source_refs",
+        "candidate_ref",
+        "covered_event_ids",
+        "validation_errors"
+      ],
+      "additionalProperties": false,
+      "description": "固定范围摘要任务；新增输入不纳入覆盖集合。"
+    },
+    "TaskProposal": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "TaskProposal"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "submitted_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 1,
+          "description": ""
+        },
+        "trigger": {
+          "$ref": "#/$defs/Trigger"
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Precondition"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "executor": {
+          "$ref": "#/$defs/ExecutorSpec"
+        },
+        "feedback_policy": {
+          "$ref": "#/$defs/FeedbackPolicy"
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "context_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "parent_execution_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "safety_rule_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "reuse_task_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "null 创建新计划；非空表示按同目标/约束接续现有计划，须与 parent_execution_id 所属计划一致。"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "request_hash",
+        "submitted_at",
+        "session_id",
+        "goal",
+        "constraints",
+        "acceptance_criteria",
+        "trigger",
+        "preconditions",
+        "executor",
+        "feedback_policy",
+        "deadline",
+        "context_refs",
+        "parent_execution_id",
+        "safety_rule_id",
+        "reuse_task_id"
+      ],
+      "additionalProperties": false,
+      "description": "主会话只提出任务；不接受 authorized、grant 等模型声明。"
+    },
+    "TaskPlan": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "TaskPlan"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/PlanState"
+        },
+        "proposal_request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "proposal_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "workspace": {
+          "$ref": "#/$defs/RelativePath"
+        },
+        "trigger": {
+          "$ref": "#/$defs/Trigger"
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Precondition"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "executor": {
+          "$ref": "#/$defs/ExecutorSpec"
+        },
+        "feedback_policy": {
+          "$ref": "#/$defs/FeedbackPolicy"
+        },
+        "next_due_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pending_occurrences": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "active_execution_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "safety_rule_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "initialization_error": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "proposal_request_id",
+        "proposal_ref",
+        "workspace",
+        "trigger",
+        "preconditions",
+        "executor",
+        "feedback_policy",
+        "next_due_at",
+        "pending_occurrences",
+        "active_execution_ids",
+        "deadline",
+        "safety_rule_id",
+        "initialization_error"
+      ],
+      "additionalProperties": false,
+      "description": "id 即 task_id；先保存计划再建幂等目录，agent 在可执行时由 dispatch 拉起。"
+    },
+    "Execution": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Execution"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "task_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "state": {
+          "$ref": "#/$defs/ExecutionState"
+        },
+        "retention_state": {
+          "$ref": "#/$defs/RetentionState"
+        },
+        "occurrence_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "task_id+trigger occurrence 唯一"
+        },
+        "plan_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "attempt_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_epoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "waiting_request_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "condition_results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConditionResult"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "continuation_of": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pending_followup_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "cancel_requested": {
+          "type": "boolean",
+          "description": ""
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ended_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "last_activity_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "retire_after_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "初始候选 172800，可配置；只限终结且无待处理。"
+        },
+        "result_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkpoint_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "unknown_operation_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "task_id",
+        "state",
+        "retention_state",
+        "occurrence_key",
+        "plan_revision",
+        "attempt_id",
+        "owner_epoch",
+        "waiting_request_ids",
+        "condition_results",
+        "continuation_of",
+        "pending_followup_ids",
+        "cancel_requested",
+        "started_at",
+        "ended_at",
+        "last_activity_at",
+        "retire_after_seconds",
+        "result_id",
+        "checkpoint_id",
+        "unknown_operation_ids"
+      ],
+      "additionalProperties": false,
+      "description": "执行生命周期与短期留存是独立维度；终结历史不可回到 RUNNING。",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "SUCCEEDED",
+                  "FAILED",
+                  "CANCELLED",
+                  "EXPIRED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "ended_at": {
+                "$ref": "#/$defs/Time"
+              },
+              "result_id": {
+                "$ref": "#/$defs/ID"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Dispatch": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Dispatch"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "task_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "owner_epoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "plan_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "executor": {
+          "$ref": "#/$defs/ExecutorSpec"
+        },
+        "workspace": {
+          "$ref": "#/$defs/RelativePath"
+        },
+        "resume_checkpoint_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "operation_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "issued_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "task_id",
+        "execution_id",
+        "attempt_id",
+        "owner_epoch",
+        "plan_revision",
+        "executor",
+        "workspace",
+        "resume_checkpoint_id",
+        "operation_ids",
+        "issued_at"
+      ],
+      "additionalProperties": false,
+      "description": "Scheduler -> worker 固定分派；重复 attempt_id 返回既有回执，不重新起进程。"
+    },
+    "WorkerReceipt": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "WorkerReceipt"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "dispatch_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "owner_epoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "worker_instance_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "pid": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "STARTED",
+            "CHECKPOINT",
+            "EXITED",
+            "LOST"
+          ],
+          "description": ""
+        },
+        "checkpoint_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "dispatch_id",
+        "attempt_id",
+        "execution_id",
+        "owner_epoch",
+        "worker_instance_id",
+        "pid",
+        "status",
+        "checkpoint_id",
+        "exit_code",
+        "observed_at"
+      ],
+      "additionalProperties": false,
+      "description": "PID 仅线索；核对 worker_instance/attempt，不能凭 PID 判断同一进程。"
+    },
+    "Checkpoint": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Checkpoint"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "task_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "executor_kind": {
+          "type": "string",
+          "enum": [
+            "AGENT",
+            "PROGRAM"
+          ],
+          "description": ""
+        },
+        "context_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "raw_context": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "program_resume_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "continuation": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "artifact_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "completed_operation_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "pending_operation_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "pending_tool_call_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "adapter_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "provider_profile": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "task_id",
+        "execution_id",
+        "executor_kind",
+        "context_id",
+        "raw_context",
+        "program_resume_ref",
+        "continuation",
+        "artifact_refs",
+        "completed_operation_ids",
+        "pending_operation_ids",
+        "pending_tool_call_ids",
+        "adapter_version",
+        "provider_profile"
+      ],
+      "additionalProperties": false,
+      "description": "宿主保存原 context + 接续说明；恢复不执行历史工具。"
+    },
+    "Artifact": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "content": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "workspace_path": {
+          "$ref": "#/$defs/RelativePath"
+        },
+        "producing_operation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "artifact_id",
+        "name",
+        "content",
+        "workspace_path",
+        "producing_operation_id"
+      ],
+      "additionalProperties": false,
+      "description": ""
+    },
+    "TaskResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "TaskResult"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "task_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "SUCCEEDED",
+            "FAILED",
+            "CANCELLED",
+            "EXPIRED",
+            "PARTIAL",
+            "UNKNOWN"
+          ],
+          "description": ""
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 1,
+          "description": ""
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Artifact"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "detail_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "needs_action": {
+          "type": "boolean",
+          "description": ""
+        },
+        "verified_by": {
+          "type": "string",
+          "enum": [
+            "PROGRAM_CHECK",
+            "MAIN_REVIEW",
+            "NOT_VERIFIED"
+          ],
+          "description": ""
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "task_id",
+        "execution_id",
+        "outcome",
+        "summary",
+        "limitations",
+        "evidence",
+        "artifacts",
+        "detail_ref",
+        "needs_action",
+        "verified_by",
+        "observed_at"
+      ],
+      "additionalProperties": false,
+      "description": "完整结果先可查询，再反馈简要结论；PARTIAL/UNKNOWN 不意味着执行已结束。"
+    },
+    "Feedback": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Feedback"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/FeedbackState"
+        },
+        "task_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "RESULT",
+            "DECISION_REQUIRED",
+            "PROGRESS",
+            "UNKNOWN"
+          ],
+          "description": ""
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "detail_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "result_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decision_request_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "task_id",
+        "execution_id",
+        "kind",
+        "summary",
+        "detail_ref",
+        "result_id",
+        "decision_request_id",
+        "input_id",
+        "created_at"
+      ],
+      "additionalProperties": false,
+      "description": "短结论与执行引用；主会话读到时详情已保存。"
+    },
+    "DecisionRequest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "DecisionRequest"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/DecisionState"
+        },
+        "task_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "question": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "impact": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "materials": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "answer": {
+          "anyOf": [
+            {
+              "description": "普通工作决定，不能作为授权。"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "answered_by": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "MAIN",
+                "MASTER"
+              ],
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "answer_request_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "task_id",
+        "execution_id",
+        "question",
+        "options",
+        "impact",
+        "materials",
+        "deadline",
+        "answer",
+        "answered_by",
+        "answer_request_id"
+      ],
+      "additionalProperties": false,
+      "description": "普通决定通过 TaskControl；授权走独立接口。"
+    },
+    "ActionScope": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string",
+          "minLength": 1,
+          "description": "已登记操作类型，如 file.write、world.change；不能任意解释 natural-language。"
+        },
+        "resource": {
+          "type": "string",
+          "minLength": 1,
+          "description": "规范化对象标识"
+        },
+        "parameters_ref": {
+          "$ref": "#/$defs/ObjectRef",
+          "description": "所有关键参数不可变内容"
+        },
+        "parameters_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "expected_resource_revision": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intent_id": {
+          "$ref": "#/$defs/ID",
+          "description": "一个业务作用的身份；已成功作用不能因新 operation_id 重做。"
+        }
+      },
+      "required": [
+        "action",
+        "resource",
+        "parameters_ref",
+        "parameters_hash",
+        "expected_resource_revision",
+        "intent_id"
+      ],
+      "additionalProperties": false,
+      "description": ""
+    },
+    "Operation": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Operation"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "state": {
+          "$ref": "#/$defs/OperationState"
+        },
+        "action": {
+          "$ref": "#/$defs/ActionScope"
+        },
+        "authorization_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rule_revision": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner_epoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "attempt_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retry_of": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "effect": {
+          "type": "string",
+          "enum": [
+            "NOT_STARTED",
+            "APPLIED",
+            "NOT_APPLIED",
+            "PARTIAL",
+            "UNKNOWN"
+          ],
+          "description": ""
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "scope",
+        "state",
+        "action",
+        "authorization_id",
+        "rule_id",
+        "rule_revision",
+        "owner_epoch",
+        "attempt_id",
+        "retry_of",
+        "receipt",
+        "effect",
+        "error"
+      ],
+      "additionalProperties": false,
+      "description": "最终 gate 的单位；权限、取消、对象版本在此核验。",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "SUCCEEDED",
+                  "FAILED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "receipt": {
+                "$ref": "#/$defs/ObjectRef"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AuthorizationRequest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "AuthorizationRequest"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/AuthorizationState"
+        },
+        "operation_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "action": {
+          "$ref": "#/$defs/ActionScope"
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "display_ref": {
+          "$ref": "#/$defs/ObjectRef",
+          "description": "Master 实际看到的固定展示内容"
+        },
+        "display_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decision_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decided_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decided_by": {
+          "anyOf": [
+            {
+              "const": "MASTER_UI"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "consumed_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "operation_id",
+        "action",
+        "scope",
+        "display_ref",
+        "display_hash",
+        "expires_at",
+        "decision_id",
+        "decided_at",
+        "decided_by",
+        "consumed_at"
+      ],
+      "additionalProperties": false,
+      "description": "host/scheduler 私有记录，模型不可提交批准状态。",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "APPROVED",
+                  "CONSUMED"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "decision_id": {
+                "$ref": "#/$defs/ID"
+              },
+              "decided_at": {
+                "$ref": "#/$defs/Time"
+              },
+              "decided_by": {
+                "const": "MASTER_UI"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ApprovalCommand": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "ApprovalCommand"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "authorization_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "display_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "APPROVE",
+            "REJECT",
+            "REVOKE"
+          ],
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "authorization_id",
+        "expected_revision",
+        "display_hash",
+        "decision"
+      ],
+      "additionalProperties": false,
+      "description": "仅已认证 Master UI 可调用；身份取服务端 session，不能从 body 信任。"
+    },
+    "AuthorizationRule": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "AuthorizationRule"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "ENABLED",
+            "DISABLED"
+          ],
+          "description": ""
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 1,
+          "description": ""
+        },
+        "resource_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 1,
+          "description": ""
+        },
+        "parameter_constraints": {
+          "$ref": "#/$defs/ObjectRef",
+          "description": "由注册校验器解释的约束，不运行任意代码"
+        },
+        "valid_from": {
+          "$ref": "#/$defs/Time"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_by": {
+          "const": "MASTER_UI"
+        },
+        "confirmation_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "actions",
+        "resource_prefixes",
+        "parameter_constraints",
+        "valid_from",
+        "expires_at",
+        "created_by",
+        "confirmation_ref"
+      ],
+      "additionalProperties": false,
+      "description": "手工确认的持续规则，主会话无写入口；每次操作匹配当前 revision。"
+    },
+    "SafetyRule": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "SafetyRule"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "created_by": {
+          "type": "string",
+          "enum": [
+            "MASTER_UI",
+            "MAIN"
+          ],
+          "description": ""
+        },
+        "max_known_failure_retries": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "retryable_error_codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "require_no_effect_for_retry": {
+          "const": true
+        },
+        "stop_on_unknown": {
+          "const": true
+        },
+        "extra_checks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "created_by",
+        "max_known_failure_retries",
+        "retryable_error_codes",
+        "require_no_effect_for_retry",
+        "stop_on_unknown",
+        "extra_checks"
+      ],
+      "additionalProperties": false,
+      "description": "只能收紧执行条件；不能生成授权或改变未知停止要求。"
+    },
+    "ProgramRegistration": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "ProgramRegistration"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/ProgramState"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "entrypoint": {
+          "type": "string",
+          "minLength": 1,
+          "description": "受人工登记控制；参数用 argv，禁止模型拼 shell 字符串。"
+        },
+        "code_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "parameters_schema": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "result_schema": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "operation_kinds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "supports_resume": {
+          "type": "boolean",
+          "description": ""
+        },
+        "maintained_by": {
+          "const": "HUMAN"
+        },
+        "validation_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "name",
+        "description",
+        "entrypoint",
+        "code_digest",
+        "parameters_schema",
+        "result_schema",
+        "preconditions",
+        "operation_kinds",
+        "supports_resume",
+        "maintained_by",
+        "validation_ref"
+      ],
+      "additionalProperties": false,
+      "description": "人工登记；dispatch 固定 revision+code digest，更新不改历史。"
+    },
+    "Notification": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Notification"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/NotificationState"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "channel": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "message": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "delivery_key": {
+          "$ref": "#/$defs/ID"
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requested_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "session_id",
+        "channel",
+        "message",
+        "delivery_key",
+        "receipt",
+        "requested_at"
+      ],
+      "additionalProperties": false,
+      "description": "主会话普通通知；独立于授权 UI 展示。"
+    },
+    "OperationLogRecord": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "OperationLogRecord"
+        },
+        "event_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "stream": {
+          "type": "string",
+          "enum": [
+            "MAIN",
+            "TASK",
+            "SYSTEM"
+          ],
+          "description": ""
+        },
+        "scope": {
+          "$ref": "#/$defs/Scope"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "event_type": {
+          "type": "string",
+          "minLength": 1,
+          "description": "事件注册表命名；如 input.accepted / tool.result / authorization.approved。"
+        },
+        "occurred_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "recorded_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "actor": {
+          "type": "string",
+          "enum": [
+            "MASTER_UI",
+            "MAIN",
+            "EXECUTOR",
+            "SCHEDULER",
+            "HOST",
+            "PROGRAM"
+          ],
+          "description": ""
+        },
+        "payload": {
+          "$ref": "#/$defs/ObjectRef",
+          "description": "原始完整内容；敏感 credential 本体不作提示材料。"
+        },
+        "causation_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "correlation_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "related_object_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "event_id",
+        "stream",
+        "scope",
+        "sequence",
+        "event_type",
+        "occurred_at",
+        "recorded_at",
+        "actor",
+        "payload",
+        "causation_id",
+        "correlation_id",
+        "related_object_ids"
+      ],
+      "additionalProperties": false,
+      "description": "逻辑原始日志；MAIN/TASK 并列，不替代任务查询状态。"
+    },
+    "ArchiveManifest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "ArchiveManifest"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "task_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "log_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "objects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 1,
+          "description": ""
+        },
+        "verified_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retired_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "task_id",
+        "execution_id",
+        "log_event_ids",
+        "objects",
+        "verified_at",
+        "retired_at"
+      ],
+      "additionalProperties": false,
+      "description": "退出 Scheduler 前完整性检查；归档不删除长期历史。"
+    },
+    "WorldChange": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "WorldChange"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "change_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "source_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "subject_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "predicate_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "scope_key": {
+          "type": "string",
+          "description": "单值为空，多值为稳定实例键；不能用随机键逃避冲突。"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "ASSERT",
+            "CORRECT",
+            "RETRACT"
+          ],
+          "description": ""
+        },
+        "value": {
+          "description": "按 predicate 定义校验；关系采用 object_entity_id，标量采用 value。"
+        },
+        "object_entity_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "assertion_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "replaces_assertion_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resolve_conflict_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resolution_note": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "valid_from": {
+          "$ref": "#/$defs/Time"
+        },
+        "valid_to": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fresh_until": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "change_id",
+        "request_hash",
+        "source_id",
+        "subject_id",
+        "predicate_key",
+        "scope_key",
+        "expected_revision",
+        "mode",
+        "value",
+        "object_entity_id",
+        "assertion_id",
+        "replaces_assertion_id",
+        "resolve_conflict_id",
+        "resolution_note",
+        "provenance",
+        "valid_from",
+        "valid_to",
+        "fresh_until"
+      ],
+      "additionalProperties": false,
+      "description": "主会话或登记来源提案；SQL 内不保存授权范围。"
+    },
+    "WorldCatalogChange": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "WorldCatalogChange"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "change_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "UPSERT_ENTITY",
+            "REGISTER_SOURCE"
+          ],
+          "description": ""
+        },
+        "entity_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "entity_kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "PERSON",
+                "ORGANIZATION",
+                "PROJECT",
+                "DEVICE",
+                "SERVICE",
+                "RESOURCE",
+                "GOAL"
+              ],
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "display_name": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "external_key": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_kind": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "MASTER",
+                "OBSERVATION",
+                "TASK_REPORT",
+                "MODEL_INFERENCE"
+              ],
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_key": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidenceRef"
+          },
+          "minItems": 1,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "change_id",
+        "request_hash",
+        "kind",
+        "entity_id",
+        "entity_kind",
+        "display_name",
+        "external_key",
+        "source_id",
+        "source_kind",
+        "source_key",
+        "description",
+        "expected_revision",
+        "evidence"
+      ],
+      "additionalProperties": false,
+      "description": "实体登记/名称修订和不可变来源登记；仍经 Scheduler 授权。谓词由人工迁移维护。"
+    },
+    "WorldCommand": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "WorldCommand"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "state": {
+          "$ref": "#/$defs/WorldCommandState"
+        },
+        "change": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/WorldChange"
+            },
+            {
+              "$ref": "#/$defs/WorldCatalogChange"
+            }
+          ]
+        },
+        "operation_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "receipt_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "state",
+        "change",
+        "operation_id",
+        "receipt_ref",
+        "error"
+      ],
+      "additionalProperties": false,
+      "description": "跨 JSON journal / PG 的桥接状态；PG commit receipt 才证明已写。"
+    },
+    "WorldQuery": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "WorldQuery"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "subject_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "predicate_key": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "as_of": {
+          "$ref": "#/$defs/Time"
+        },
+        "include_history": {
+          "type": "boolean",
+          "description": ""
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "subject_id",
+        "predicate_key",
+        "as_of",
+        "include_history",
+        "limit",
+        "cursor"
+      ],
+      "additionalProperties": false,
+      "description": "memory_read 的 World Model 查询分支；游标绑定筛选与快照。"
+    },
+    "WorldFact": {
+      "type": "object",
+      "properties": {
+        "subject_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "predicate_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "scope_key": {
+          "type": "string"
+        },
+        "slot_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "assertion_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACTIVE",
+            "SUPPORTING",
+            "CONTESTED",
+            "RETRACTED",
+            "SUPERSEDED"
+          ],
+          "description": ""
+        },
+        "value": {
+          "description": ""
+        },
+        "object_entity_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "provenance": {
+          "$ref": "#/$defs/Provenance"
+        },
+        "valid_from": {
+          "$ref": "#/$defs/Time"
+        },
+        "valid_to": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "freshness": {
+          "type": "string",
+          "enum": [
+            "CURRENT",
+            "STALE",
+            "UNKNOWN"
+          ],
+          "description": ""
+        },
+        "fresh_until": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "subject_id",
+        "predicate_key",
+        "scope_key",
+        "slot_revision",
+        "assertion_id",
+        "status",
+        "value",
+        "object_entity_id",
+        "provenance",
+        "valid_from",
+        "valid_to",
+        "freshness",
+        "fresh_until"
+      ],
+      "additionalProperties": false,
+      "description": ""
+    },
+    "WorldReadResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "WorldReadResult"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorldFact"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "observed_db_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "omitted_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "missing_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "NOT_FOUND",
+                "UNAVAILABLE",
+                "FILTERED"
+              ],
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "facts",
+        "observed_db_at",
+        "next_cursor",
+        "omitted_count",
+        "missing_reason"
+      ],
+      "additionalProperties": false,
+      "description": "空结果不自动解释为事实不存在；CONTESTED 全部候选可查询。"
+    },
+    "CommandReceipt": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "CommandReceipt"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "ACCEPTED",
+            "REJECTED"
+          ],
+          "description": ""
+        },
+        "object_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "journal_seq": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "request_hash",
+        "status",
+        "object_id",
+        "reason",
+        "journal_seq"
+      ],
+      "additionalProperties": false,
+      "description": "入口幂等回执；同 request_id 不同 hash 返回冲突。"
+    },
+    "RuntimeConfig": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "RuntimeConfig"
+        },
+        "data_root": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "workspace_root": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "postgres_dsn_env": {
+          "type": "string",
+          "minLength": 1,
+          "description": "仅环境变量名，不存口令"
+        },
+        "retention_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "context_budget": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "context_reserve": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "compaction_threshold": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "max_workers": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "max_frame_bytes": {
+          "type": "integer",
+          "minimum": 1024,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "max_input_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "data_root",
+        "workspace_root",
+        "postgres_dsn_env",
+        "retention_seconds",
+        "context_budget",
+        "context_reserve",
+        "compaction_threshold",
+        "max_workers",
+        "max_frame_bytes",
+        "max_input_bytes"
+      ],
+      "additionalProperties": false,
+      "description": "复核默认值见 demo_design/DECISIONS.md，参数不等于 BrainStorm 最终结论。"
+    },
+    "TaskQuery": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "TaskQuery"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "CAPABILITIES",
+            "LIST",
+            "DETAIL"
+          ],
+          "description": ""
+        },
+        "task_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "kind",
+        "task_id",
+        "execution_id",
+        "limit",
+        "cursor"
+      ],
+      "additionalProperties": false,
+      "description": "DETAIL 成功且 execution 仍 HOT 时刷新留存；LIST 不刷新。"
+    },
+    "TaskControlCommand": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "TaskControlCommand"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "PAUSE_PLAN",
+            "RESUME_PLAN",
+            "CLOSE_PLAN",
+            "CANCEL_EXECUTION",
+            "ANSWER_DECISION"
+          ],
+          "description": ""
+        },
+        "target_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "answer": {
+          "anyOf": [
+            {
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "decision_request_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "expected_revision",
+        "action",
+        "target_id",
+        "answer",
+        "decision_request_id"
+      ],
+      "additionalProperties": false,
+      "description": "普通任务控制；无 APPROVE 授权操作。"
+    },
+    "MemoryReadRequest": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "MemoryReadRequest"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "WORLD",
+            "CONSCIOUSNESS",
+            "OPERATION_LOG"
+          ],
+          "description": ""
+        },
+        "world_query": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorldQuery"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "item_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "object_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "source",
+        "world_query",
+        "item_ids",
+        "event_ids",
+        "object_refs",
+        "limit",
+        "cursor"
+      ],
+      "additionalProperties": false,
+      "description": "MemoryUtil 统一读入口；WORLD 需 world_query，其余分支必须为空。"
+    },
+    "MemoryReadResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "MemoryReadResult"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "WORLD",
+            "CONSCIOUSNESS",
+            "OPERATION_LOG"
+          ],
+          "description": ""
+        },
+        "world_result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WorldReadResult"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/WorkItem"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OperationLogRecord"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "omitted_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "missing_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "NOT_FOUND",
+                "UNAVAILABLE",
+                "FILTERED"
+              ],
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "source",
+        "world_result",
+        "items",
+        "records",
+        "next_cursor",
+        "omitted_count",
+        "missing_reason"
+      ],
+      "additionalProperties": false,
+      "description": "读取只读，不更改 authority 或引发异步新输入。"
+    },
+    "TaskQueryResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "TaskQueryResult"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "plans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskPlan"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "executions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Execution"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskResult"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "programs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ProgramRegistration"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "historical_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "unavailable_reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "enum": [
+                "NOT_FOUND",
+                "RETIRED",
+                "UNAVAILABLE"
+              ],
+              "description": ""
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "request_id",
+        "plans",
+        "executions",
+        "results",
+        "programs",
+        "next_cursor",
+        "historical_refs",
+        "unavailable_reason"
+      ],
+      "additionalProperties": false,
+      "description": "RETIRED 不复活旧执行，返回历史引用。"
+    },
+    "ProgramInvocation": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "ProgramInvocation"
+        },
+        "dispatch_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "program_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "program_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "code_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "workspace": {
+          "$ref": "#/$defs/RelativePath"
+        },
+        "parameters": {
+          "description": ""
+        },
+        "resume_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "dispatch_id",
+        "execution_id",
+        "program_id",
+        "program_revision",
+        "code_digest",
+        "workspace",
+        "parameters",
+        "resume_ref"
+      ],
+      "additionalProperties": false,
+      "description": "程序 stdin JSON 协议；stdout 输出结果，stderr 过程日志；超大内容写文件并由宿主收录。"
+    },
+    "ProgramResult": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "ProgramResult"
+        },
+        "dispatch_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "SUCCEEDED",
+            "FAILED",
+            "WAITING",
+            "UNKNOWN"
+          ],
+          "description": ""
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": ""
+        },
+        "detail": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Artifact"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "effect": {
+          "type": "string",
+          "enum": [
+            "NOT_STARTED",
+            "APPLIED",
+            "NOT_APPLIED",
+            "PARTIAL",
+            "UNKNOWN"
+          ],
+          "description": ""
+        },
+        "resume_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 1,
+          "description": ""
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "dispatch_id",
+        "execution_id",
+        "outcome",
+        "summary",
+        "detail",
+        "artifacts",
+        "effect",
+        "resume_ref",
+        "evidence"
+      ],
+      "additionalProperties": false,
+      "description": "必须校验登记 result_schema；退出码 0 不足以证明业务成功。"
+    },
+    "Mutation": {
+      "type": "object",
+      "properties": {
+        "object_type": {
+          "type": "string",
+          "enum": [
+            "Session",
+            "Input",
+            "Context",
+            "ModelCall",
+            "Consciousness",
+            "CompactionJob",
+            "TaskPlan",
+            "Execution",
+            "Dispatch",
+            "WorkerReceipt",
+            "Checkpoint",
+            "TaskResult",
+            "Feedback",
+            "DecisionRequest",
+            "Operation",
+            "AuthorizationRequest",
+            "AuthorizationRule",
+            "SafetyRule",
+            "ProgramRegistration",
+            "Notification",
+            "ArchiveManifest",
+            "WorldCommand"
+          ],
+          "description": ""
+        },
+        "object_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "new_revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "snapshot": {
+          "$ref": "#/$defs/ObjectRef"
+        }
+      },
+      "required": [
+        "object_type",
+        "object_id",
+        "expected_revision",
+        "new_revision",
+        "snapshot"
+      ],
+      "additionalProperties": false,
+      "description": "服务端加载 snapshot 后按 object_type 校验并执行状态 guards；revision 必须 +1。"
+    },
+    "JournalTransaction": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "JournalTransaction"
+        },
+        "txn_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "owner_epoch": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": ""
+        },
+        "previous_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "mutations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Mutation"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "log_records": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/OperationLogRecord"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "receipts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/CommandReceipt"
+          },
+          "minItems": 0,
+          "description": ""
+        },
+        "committed_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "txn_id",
+        "sequence",
+        "owner_epoch",
+        "previous_digest",
+        "mutations",
+        "log_records",
+        "receipts",
+        "committed_at"
+      ],
+      "additionalProperties": false,
+      "description": "单写事务，frame 原始 payload 字节 checksum 外包；同帧全生效或全不生效。"
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Session"
+    },
+    {
+      "$ref": "#/$defs/Input"
+    },
+    {
+      "$ref": "#/$defs/Context"
+    },
+    {
+      "$ref": "#/$defs/ModelCall"
+    },
+    {
+      "$ref": "#/$defs/Consciousness"
+    },
+    {
+      "$ref": "#/$defs/CompactionJob"
+    },
+    {
+      "$ref": "#/$defs/TaskProposal"
+    },
+    {
+      "$ref": "#/$defs/TaskPlan"
+    },
+    {
+      "$ref": "#/$defs/Execution"
+    },
+    {
+      "$ref": "#/$defs/Dispatch"
+    },
+    {
+      "$ref": "#/$defs/WorkerReceipt"
+    },
+    {
+      "$ref": "#/$defs/Checkpoint"
+    },
+    {
+      "$ref": "#/$defs/TaskResult"
+    },
+    {
+      "$ref": "#/$defs/Feedback"
+    },
+    {
+      "$ref": "#/$defs/DecisionRequest"
+    },
+    {
+      "$ref": "#/$defs/Operation"
+    },
+    {
+      "$ref": "#/$defs/AuthorizationRequest"
+    },
+    {
+      "$ref": "#/$defs/ApprovalCommand"
+    },
+    {
+      "$ref": "#/$defs/AuthorizationRule"
+    },
+    {
+      "$ref": "#/$defs/SafetyRule"
+    },
+    {
+      "$ref": "#/$defs/ProgramRegistration"
+    },
+    {
+      "$ref": "#/$defs/Notification"
+    },
+    {
+      "$ref": "#/$defs/OperationLogRecord"
+    },
+    {
+      "$ref": "#/$defs/ArchiveManifest"
+    },
+    {
+      "$ref": "#/$defs/WorldChange"
+    },
+    {
+      "$ref": "#/$defs/WorldCatalogChange"
+    },
+    {
+      "$ref": "#/$defs/WorldCommand"
+    },
+    {
+      "$ref": "#/$defs/WorldQuery"
+    },
+    {
+      "$ref": "#/$defs/WorldReadResult"
+    },
+    {
+      "$ref": "#/$defs/CommandReceipt"
+    },
+    {
+      "$ref": "#/$defs/RuntimeConfig"
+    },
+    {
+      "$ref": "#/$defs/TaskQuery"
+    },
+    {
+      "$ref": "#/$defs/TaskControlCommand"
+    },
+    {
+      "$ref": "#/$defs/MemoryReadRequest"
+    },
+    {
+      "$ref": "#/$defs/MemoryReadResult"
+    },
+    {
+      "$ref": "#/$defs/TaskQueryResult"
+    },
+    {
+      "$ref": "#/$defs/ProgramInvocation"
+    },
+    {
+      "$ref": "#/$defs/ProgramResult"
+    },
+    {
+      "$ref": "#/$defs/JournalTransaction"
+    }
+  ]
+}

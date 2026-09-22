@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "record_type": "TaskQueryResult",
+  "request_id": "87f08261-4f5b-5dc5-a1f4-99ec7e614184",
+  "plans": [],
+  "executions": [],
+  "results": [],
+  "programs": [],
+  "next_cursor": null,
+  "historical_refs": [],
+  "unavailable_reason": null
+}

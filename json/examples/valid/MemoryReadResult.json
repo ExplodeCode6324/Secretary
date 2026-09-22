@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "record_type": "MemoryReadResult",
+  "request_id": "edefcc0e-6311-5aad-928c-3c5d8eb91281",
+  "source": "WORLD",
+  "world_result": null,
+  "items": [],
+  "records": [],
+  "next_cursor": null,
+  "omitted_count": 1,
+  "missing_reason": null
+}

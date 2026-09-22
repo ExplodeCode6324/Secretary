@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "record_type": "TaskProposal",
+  "request_id": "614801ba-9bab-589a-89a5-6b213c27caa6",
+  "request_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "submitted_at": "2026-09-22T00:00:00Z",
+  "session_id": "34c9fe4e-dc4d-55f3-b17c-6b793968b1bb",
+  "goal": "example",
+  "constraints": [],
+  "acceptance_criteria": [
+    "example"
+  ],
+  "trigger": {
+    "kind": "IMMEDIATE",
+    "at": null,
+    "interval_seconds": null,
+    "anchor_at": null,
+    "timezone": "Etc/UTC",
+    "event_source": null,
+    "predicate_id": null,
+    "missed_policy": "REPORT_ONLY",
+    "overlap_policy": "QUEUE"
+  },
+  "preconditions": [],
+  "executor": {
+    "kind": "AGENT",
+    "agent_profile": "demo-agent",
+    "program_id": null,
+    "program_revision": null,
+    "parameters": {}
+  },
+  "feedback_policy": {
+    "terminal": true,
+    "on_change": true,
+    "on_blocker": true,
+    "on_unknown": true,
+    "milestones": []
+  },
+  "deadline": null,
+  "context_refs": [],
+  "parent_execution_id": null,
+  "safety_rule_id": "dae2c92c-389f-58ab-bebe-56afb1f40be6",
+  "authorized": true,
+  "reuse_task_id": null
+}

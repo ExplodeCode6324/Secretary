@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "record_type": "WorldCatalogChange",
+  "request_id": "bd495db0-fce2-5d36-84c8-02fb869ab0ff",
+  "change_id": "c12690ee-4b60-56a2-9fb5-e6d261a4530e",
+  "request_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "kind": "UPSERT_ENTITY",
+  "entity_id": null,
+  "entity_kind": null,
+  "display_name": null,
+  "external_key": null,
+  "source_id": null,
+  "source_kind": null,
+  "source_key": null,
+  "description": null,
+  "expected_revision": 1,
+  "evidence": [
+    {
+      "log_event_id": "8f837b3c-7097-542a-a016-e978d35be1ae",
+      "content": {
+        "path": "objects/example.json",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 1,
+        "media_type": "example"
+      }
+    }
+  ]
+}

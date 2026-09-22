@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "record_type": "DecisionRequest",
+  "id": "39e79053-00c5-5c5a-a060-63e912da3bd5",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "OPEN",
+  "task_id": "b657a0ab-3abf-59b1-90c2-b1d1993c21cc",
+  "execution_id": "39b2c868-7b76-58ac-a49a-f721562795fd",
+  "question": "example",
+  "options": [],
+  "impact": "example",
+  "materials": [],
+  "deadline": null,
+  "answer": null,
+  "answered_by": null,
+  "answer_request_id": null
+}

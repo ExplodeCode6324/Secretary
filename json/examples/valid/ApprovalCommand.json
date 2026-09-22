@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "record_type": "ApprovalCommand",
+  "request_id": "579e17a3-3825-575f-b997-47469475ce6c",
+  "authorization_id": "01b40745-98fc-5d00-b0e6-927e33e18af9",
+  "expected_revision": 1,
+  "display_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "decision": "APPROVE"
+}

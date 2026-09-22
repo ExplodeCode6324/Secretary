@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "record_type": "ProgramResult",
+  "dispatch_id": "514afbbb-176a-5687-b39b-54a555f18ff3",
+  "execution_id": "d9d73908-219c-5f52-916f-19a3e3832141",
+  "outcome": "SUCCEEDED",
+  "summary": "example",
+  "detail": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "artifacts": [],
+  "effect": "NOT_STARTED",
+  "resume_ref": null,
+  "evidence": [
+    {
+      "path": "objects/example.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 1,
+      "media_type": "example"
+    }
+  ]
+}

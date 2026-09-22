@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "record_type": "TaskQuery",
+  "request_id": "99180357-d0e3-5dfd-b5e0-ac203b72f859",
+  "kind": "CAPABILITIES",
+  "task_id": null,
+  "execution_id": null,
+  "limit": 1,
+  "cursor": null
+}

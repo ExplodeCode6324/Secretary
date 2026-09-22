@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "record_type": "TaskControlCommand",
+  "request_id": "0b38f7fb-e23e-57cc-927e-9c62f11f77b5",
+  "expected_revision": 1,
+  "action": "PAUSE_PLAN",
+  "target_id": "1b6fcb9d-3b56-55cb-9478-9a9ad156e5ef",
+  "answer": null,
+  "decision_request_id": null
+}

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "record_type": "Operation",
+  "id": "41c5a2de-3b99-549b-b2e4-f14f44a85414",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "scope": {
+    "session_id": null,
+    "task_id": null,
+    "execution_id": null
+  },
+  "state": "PREPARED",
+  "action": {
+    "action": "example",
+    "resource": "example",
+    "parameters_ref": {
+      "path": "objects/example.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 1,
+      "media_type": "example"
+    },
+    "parameters_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expected_resource_revision": null,
+    "intent_id": "a5de3f7c-a6dd-52d2-8aae-9120febab060"
+  },
+  "authorization_id": null,
+  "rule_id": null,
+  "rule_revision": null,
+  "owner_epoch": 1,
+  "attempt_id": null,
+  "retry_of": null,
+  "receipt": null,
+  "effect": "NOT_STARTED",
+  "error": null
+}

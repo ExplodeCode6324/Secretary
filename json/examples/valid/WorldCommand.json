@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "record_type": "WorldCommand",
+  "id": "3caf444d-0f57-5d23-92a5-155aa2b93224",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "RECEIVED",
+  "change": {
+    "schema_version": 1,
+    "record_type": "WorldChange",
+    "request_id": "e65bdf4c-e1ec-5b5d-9c87-21575f39eba3",
+    "change_id": "0ae889cc-4186-5de4-8cdf-04aa253ccbc3",
+    "request_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "source_id": "b29f2838-bc76-5107-a946-a30a5baa8dce",
+    "subject_id": "7c52f73b-d3a2-5181-a286-5f8c15d1a953",
+    "predicate_key": "example",
+    "scope_key": "example",
+    "expected_revision": 1,
+    "mode": "ASSERT",
+    "value": {},
+    "object_entity_id": null,
+    "assertion_id": "ce3e5522-5179-5edc-9c03-429d30c05edb",
+    "replaces_assertion_id": null,
+    "resolve_conflict_id": null,
+    "resolution_note": null,
+    "provenance": {
+      "source_kind": "MASTER",
+      "source_id": "584c4b22-690d-5cd2-8fdf-1ea6209b8295",
+      "evidence": [
+        {
+          "log_event_id": "e6883d79-791b-598c-be38-e622a5e8ea7f",
+          "content": {
+            "path": "objects/example.json",
+            "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "bytes": 1,
+            "media_type": "example"
+          }
+        }
+      ],
+      "observed_at": null,
+      "received_at": "2026-09-22T00:00:00Z",
+      "scope": "example",
+      "epistemic": "OBSERVED"
+    },
+    "valid_from": "2026-09-22T00:00:00Z",
+    "valid_to": null,
+    "fresh_until": null
+  },
+  "operation_id": "1bac433f-6979-5d38-8999-8b590090681d",
+  "receipt_ref": null,
+  "error": null
+}

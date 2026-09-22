@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "record_type": "TaskPlan",
+  "id": "c3206bae-6ce9-5110-8b55-a86cbb01de52",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "INITIALIZING",
+  "proposal_request_id": "e01ceee1-60ec-587b-9787-6b24093305b5",
+  "proposal_ref": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "workspace": "example",
+  "trigger": {
+    "kind": "IMMEDIATE",
+    "at": null,
+    "interval_seconds": null,
+    "anchor_at": null,
+    "timezone": "Etc/UTC",
+    "event_source": null,
+    "predicate_id": null,
+    "missed_policy": "REPORT_ONLY",
+    "overlap_policy": "QUEUE"
+  },
+  "preconditions": [],
+  "executor": {
+    "kind": "AGENT",
+    "agent_profile": "demo-agent",
+    "program_id": null,
+    "program_revision": null,
+    "parameters": {}
+  },
+  "feedback_policy": {
+    "terminal": true,
+    "on_change": true,
+    "on_blocker": true,
+    "on_unknown": true,
+    "milestones": []
+  },
+  "next_due_at": null,
+  "pending_occurrences": [],
+  "active_execution_ids": [],
+  "deadline": null,
+  "safety_rule_id": "8431ae70-f103-570d-b6e2-45dbd4993c5d",
+  "initialization_error": null
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "record_type": "WorldReadResult",
+  "request_id": "34964507-e816-594c-b312-4347e43eb369",
+  "facts": [],
+  "observed_db_at": "2026-09-22T00:00:00Z",
+  "next_cursor": null,
+  "omitted_count": 1,
+  "missing_reason": null
+}

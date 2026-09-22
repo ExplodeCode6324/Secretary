@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "record_type": "OperationLogRecord",
+  "event_id": "3da18e1a-e8d3-5748-a863-6fc9409d0c25",
+  "stream": "MAIN",
+  "scope": {
+    "session_id": null,
+    "task_id": null,
+    "execution_id": null
+  },
+  "sequence": 1,
+  "event_type": "example",
+  "occurred_at": "2026-09-22T00:00:00Z",
+  "recorded_at": "2026-09-22T00:00:00Z",
+  "actor": "MASTER_UI",
+  "payload": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "causation_id": null,
+  "correlation_id": "602421c7-7fe1-5e2f-9606-ce0e70a76e9b",
+  "related_object_ids": []
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "record_type": "ArchiveManifest",
+  "id": "83c4b7c2-e2d3-5de8-a1d1-5c59612f5330",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "task_id": "c1443ddc-c3f2-5345-b356-f6f262b771fc",
+  "execution_id": "96f3a15a-b76d-51ad-9993-0583784dae2a",
+  "log_event_ids": [],
+  "objects": [
+    {
+      "path": "objects/example.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 1,
+      "media_type": "example"
+    }
+  ],
+  "verified_at": null,
+  "retired_at": null
+}

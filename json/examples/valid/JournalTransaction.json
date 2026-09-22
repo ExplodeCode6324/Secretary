@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "record_type": "JournalTransaction",
+  "txn_id": "42cca849-2581-52b3-acca-6ad4f5d1bda5",
+  "sequence": 1,
+  "owner_epoch": 1,
+  "previous_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mutations": [],
+  "log_records": [],
+  "receipts": [],
+  "committed_at": "2026-09-22T00:00:00Z"
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "record_type": "RuntimeConfig",
+  "data_root": "example",
+  "workspace_root": "example",
+  "postgres_dsn_env": "example",
+  "retention_seconds": 1,
+  "context_budget": 1,
+  "context_reserve": 1,
+  "compaction_threshold": 1,
+  "max_workers": 1,
+  "max_frame_bytes": 1024,
+  "max_input_bytes": 1
+}

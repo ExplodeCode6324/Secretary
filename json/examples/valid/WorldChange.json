@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "record_type": "WorldChange",
+  "request_id": "c7dd3e4f-8e27-581f-b80c-9866e8834605",
+  "change_id": "2c656189-b7b9-508a-8a8e-5aaaf823e224",
+  "request_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "source_id": "3f211732-7503-58c0-9196-f051831d30d6",
+  "subject_id": "fac01dba-ef0b-5b47-aef9-b5c0b47129a8",
+  "predicate_key": "example",
+  "scope_key": "example",
+  "expected_revision": 1,
+  "mode": "ASSERT",
+  "value": {},
+  "object_entity_id": null,
+  "assertion_id": "6a6bffea-0503-5ad4-b125-51ca28782333",
+  "replaces_assertion_id": null,
+  "resolve_conflict_id": null,
+  "resolution_note": null,
+  "provenance": {
+    "source_kind": "MASTER",
+    "source_id": "d1936c01-9dfa-5fc6-8468-8d47a9dc37d0",
+    "evidence": [
+      {
+        "log_event_id": "73c5cf93-176b-50dd-bcd8-5c38d20d93eb",
+        "content": {
+          "path": "objects/example.json",
+          "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "bytes": 1,
+          "media_type": "example"
+        }
+      }
+    ],
+    "observed_at": null,
+    "received_at": "2026-09-22T00:00:00Z",
+    "scope": "example",
+    "epistemic": "OBSERVED"
+  },
+  "valid_from": "2026-09-22T00:00:00Z",
+  "valid_to": null,
+  "fresh_until": null
+}

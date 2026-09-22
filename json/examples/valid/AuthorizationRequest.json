@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "record_type": "AuthorizationRequest",
+  "id": "b93ef546-4f82-5a01-93ac-d5195f5b10dc",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "PENDING",
+  "operation_id": "0fbd11b6-9272-5e92-99f8-392e161aa775",
+  "action": {
+    "action": "example",
+    "resource": "example",
+    "parameters_ref": {
+      "path": "objects/example.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 1,
+      "media_type": "example"
+    },
+    "parameters_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expected_resource_revision": null,
+    "intent_id": "d8203606-178f-5a3c-ae5b-ded48bb981c1"
+  },
+  "scope": {
+    "session_id": null,
+    "task_id": null,
+    "execution_id": null
+  },
+  "display_ref": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "display_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "expires_at": null,
+  "decision_id": null,
+  "decided_at": null,
+  "decided_by": null,
+  "consumed_at": null
+}

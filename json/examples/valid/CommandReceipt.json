@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "record_type": "CommandReceipt",
+  "request_id": "53169bfc-0091-59f9-bc0c-7a3771714eec",
+  "request_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "status": "ACCEPTED",
+  "object_id": null,
+  "reason": null,
+  "journal_seq": 1
+}

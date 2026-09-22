@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "record_type": "WorldQuery",
+  "request_id": "fb7b9055-ac33-5692-929e-053323acde9c",
+  "subject_id": null,
+  "predicate_key": null,
+  "as_of": "2026-09-22T00:00:00Z",
+  "include_history": true,
+  "limit": 1,
+  "cursor": null
+}

@@ -1,0 +1,308 @@
+[
+  {
+    "name": "input_claim_resume_handle",
+    "machine": "Input",
+    "events": [
+      "claim",
+      "recover",
+      "processed"
+    ],
+    "accept": true,
+    "end": "HANDLED"
+  },
+  {
+    "name": "host_keeps_new_input",
+    "machine": "Host",
+    "events": [
+      "wake",
+      "valid",
+      "input",
+      "input",
+      "done",
+      "input",
+      "done"
+    ],
+    "accept": true,
+    "end": "IDLE"
+  },
+  {
+    "name": "host_resume_claimed_loop",
+    "machine": "Host",
+    "events": [
+      "wake",
+      "resume_loop",
+      "full",
+      "compacted",
+      "done"
+    ],
+    "accept": true,
+    "end": "IDLE"
+  },
+  {
+    "name": "context_full_before_claim",
+    "machine": "Host",
+    "events": [
+      "wake",
+      "valid",
+      "full",
+      "compacted",
+      "done"
+    ],
+    "accept": true,
+    "end": "IDLE"
+  },
+  {
+    "name": "model_partial_not_tool",
+    "machine": "Call",
+    "events": [
+      "send",
+      "lost",
+      "retry",
+      "send",
+      "response"
+    ],
+    "accept": true,
+    "end": "RESPONSE_SAVED"
+  },
+  {
+    "name": "compaction_stale",
+    "machine": "Compaction",
+    "events": [
+      "start",
+      "response",
+      "stale"
+    ],
+    "accept": true,
+    "end": "STALE"
+  },
+  {
+    "name": "compaction_commit",
+    "machine": "Compaction",
+    "events": [
+      "start",
+      "response",
+      "commit"
+    ],
+    "accept": true,
+    "end": "COMMITTED"
+  },
+  {
+    "name": "plan_initialize_retry",
+    "machine": "Plan",
+    "events": [
+      "init_error",
+      "retry_init",
+      "workspace_ready",
+      "pause",
+      "resume",
+      "close"
+    ],
+    "accept": true,
+    "end": "CLOSED"
+  },
+  {
+    "name": "execute_wait_resume",
+    "machine": "Execution",
+    "events": [
+      "check",
+      "ready",
+      "dispatch",
+      "worker_started",
+      "needs_decision",
+      "decided",
+      "dispatch",
+      "worker_started",
+      "success"
+    ],
+    "accept": true,
+    "end": "SUCCEEDED"
+  },
+  {
+    "name": "program_auth_before_start",
+    "machine": "Execution",
+    "events": [
+      "check",
+      "ready",
+      "needs_auth",
+      "authorized",
+      "dispatch",
+      "worker_started",
+      "success"
+    ],
+    "accept": true,
+    "end": "SUCCEEDED"
+  },
+  {
+    "name": "unknown_requires_evidence",
+    "machine": "Execution",
+    "events": [
+      "check",
+      "ready",
+      "dispatch",
+      "lost",
+      "found_running",
+      "success"
+    ],
+    "accept": true,
+    "end": "SUCCEEDED"
+  },
+  {
+    "name": "running_deadline_cancel",
+    "machine": "Execution",
+    "events": [
+      "check",
+      "ready",
+      "dispatch",
+      "worker_started",
+      "deadline",
+      "stopped"
+    ],
+    "accept": true,
+    "end": "CANCELLED"
+  },
+  {
+    "name": "retention_cancel_retire_candidate",
+    "machine": "Retention",
+    "events": [
+      "idle",
+      "access",
+      "idle",
+      "archive_verified"
+    ],
+    "accept": true,
+    "end": "RETIRED"
+  },
+  {
+    "name": "operation_approval_unknown_verify",
+    "machine": "Operation",
+    "events": [
+      "request",
+      "approve",
+      "execute",
+      "lost",
+      "verify_success"
+    ],
+    "accept": true,
+    "end": "SUCCEEDED"
+  },
+  {
+    "name": "approval_single_use",
+    "machine": "Authorization",
+    "events": [
+      "approve",
+      "consume"
+    ],
+    "accept": true,
+    "end": "CONSUMED"
+  },
+  {
+    "name": "ordinary_decision_answer",
+    "machine": "Decision",
+    "events": [
+      "answer"
+    ],
+    "accept": true,
+    "end": "ANSWERED"
+  },
+  {
+    "name": "feedback_reliable_delivery",
+    "machine": "Feedback",
+    "events": [
+      "accept_input",
+      "processed"
+    ],
+    "accept": true,
+    "end": "HANDLED"
+  },
+  {
+    "name": "notification_unknown_verify",
+    "machine": "Notification",
+    "events": [
+      "send",
+      "lost",
+      "verified"
+    ],
+    "accept": true,
+    "end": "SENT"
+  },
+  {
+    "name": "world_outcome_recovered",
+    "machine": "WorldCommand",
+    "events": [
+      "valid",
+      "covered",
+      "apply",
+      "disconnected",
+      "conflict_found"
+    ],
+    "accept": true,
+    "end": "CONFLICT"
+  },
+  {
+    "name": "world_same_change_retry",
+    "machine": "WorldCommand",
+    "events": [
+      "valid",
+      "covered",
+      "apply",
+      "disconnected",
+      "receipt_absent",
+      "committed"
+    ],
+    "accept": true,
+    "end": "COMMITTED"
+  },
+  {
+    "name": "manual_program_versions",
+    "machine": "Program",
+    "events": [
+      "enable",
+      "update",
+      "disable",
+      "update",
+      "enable"
+    ],
+    "accept": true,
+    "end": "ENABLED"
+  },
+  {
+    "name": "terminal_cannot_resurrect",
+    "machine": "Execution",
+    "events": [
+      "dispatch"
+    ],
+    "accept": false,
+    "end": "",
+    "start": "SUCCEEDED"
+  },
+  {
+    "name": "unknown_cannot_retry_effect",
+    "machine": "Operation",
+    "events": [
+      "execute"
+    ],
+    "accept": false,
+    "end": "",
+    "start": "RESULT_UNKNOWN"
+  },
+  {
+    "name": "rejected_cannot_approve",
+    "machine": "Authorization",
+    "events": [
+      "approve"
+    ],
+    "accept": false,
+    "end": "",
+    "start": "REJECTED"
+  },
+  {
+    "name": "retired_cannot_touch",
+    "machine": "Retention",
+    "events": [
+      "access"
+    ],
+    "accept": false,
+    "end": "",
+    "start": "RETIRED"
+  }
+]

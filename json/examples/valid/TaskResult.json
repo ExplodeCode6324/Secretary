@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "record_type": "TaskResult",
+  "id": "6925ee98-e435-5ed8-a9a1-97076ac749b3",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "task_id": "3e762839-7c87-51b9-aec4-512fd9f00d1f",
+  "execution_id": "ed640dd0-25be-5499-9496-5b4daf31760c",
+  "outcome": "SUCCEEDED",
+  "summary": "example",
+  "limitations": [],
+  "evidence": [
+    {
+      "path": "objects/example.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 1,
+      "media_type": "example"
+    }
+  ],
+  "artifacts": [],
+  "detail_ref": {
+    "path": "objects/example.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 1,
+    "media_type": "example"
+  },
+  "needs_action": true,
+  "verified_by": "PROGRAM_CHECK",
+  "observed_at": "2026-09-22T00:00:00Z"
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "record_type": "SafetyRule",
+  "id": "6a0e6d68-de68-5fbf-b317-890c40453674",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "created_by": "MASTER_UI",
+  "max_known_failure_retries": 1,
+  "retryable_error_codes": [],
+  "require_no_effect_for_retry": true,
+  "stop_on_unknown": true,
+  "extra_checks": []
+}

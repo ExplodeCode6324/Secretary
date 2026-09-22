@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "record_type": "CompactionJob",
+  "id": "003e88ac-6f10-57e1-b80f-2f2e18011842",
+  "revision": 1,
+  "updated_at": "2026-09-22T00:00:00Z",
+  "state": "QUEUED",
+  "session_id": "c9db47f1-6293-5c1a-9f8d-d12261affe40",
+  "base_revision": 1,
+  "source_event_ids": [],
+  "source_refs": [
+    {
+      "path": "objects/example.json",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": 1,
+      "media_type": "example"
+    }
+  ],
+  "candidate_ref": null,
+  "covered_event_ids": [],
+  "validation_errors": []
+}
