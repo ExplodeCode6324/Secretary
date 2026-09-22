@@ -31,7 +31,7 @@ Pi 官方源码放在 `../pi_resource`，以 submodule 固定在 v0.87.0 / `1678
 | 检查 | 结果与证据 |
 |---|---|
 | TypeScript 严格检查 | npm run check 通过 |
-| 离线运行测试 | 17 通过、0 失败；普通测试中的 PostgreSQL 项跳过，另行真实执行。见 [runtime.tap](reports/runtime.tap) |
+| 离线运行测试 | 22 通过、0 失败；普通测试中的 PostgreSQL 项跳过，另行真实执行。见 [runtime.tap](reports/runtime.tap) |
 | PostgreSQL 独立集成测试 | 临时真实数据库中 1 通过、0 失败。见 [postgres.tap](reports/postgres.tap) |
 | 启动检查 | 实际启动服务、读取页面、认证提交输入并完成 Pi task。见 [cli-smoke.json](reports/cli-smoke.json) |
 | 格式检查 | npm run format:check 通过 |
@@ -43,11 +43,11 @@ Pi 官方源码放在 `../pi_resource`，以 submodule 固定在 v0.87.0 / `1678
 
 - 这不是全部状态机迁移的完成证明。模块实现了上述闭环，没有对全部 131 条设计迁移逐条覆盖；部分契约（如独立 WorkerReceipt）尚未作为单独运行对象生成。
 - Agent 执行者当前是同一宿主中的独立实例；程序是实际子进程。已验证跨进程重载 Context，但尚未部署独立常驻 Agent worker 服务。
-- 真实 provider 调用、模型任务完成质量、Consciousness 摘要质量和长期真实使用未验证。离线 fixture 产生确定回复，不证明这些能力。
-- 执行 agent 的工具集为 read/write 与普通工作决定；程序后端为人工登记的 Node 脚本。外部设备、环境推送、任意语言程序适配器未接入。
+- 真实 provider 与小规模编程任务链路已另行验证，见 [LIVE_REVIEW.md](LIVE_REVIEW.md)。Consciousness 摘要质量、长上下文注意力和长期真实使用仍未验证。
+- 执行 agent 的工具集为 read/write、普通工作决定与结构化结果提交；程序后端为人工登记的 Node 脚本。外部设备、环境推送、任意语言程序适配器未接入。
 - 支持已完成执行依赖、本地 workspace 资源和登记的 local 设备条件。后续任务目前创建新 task；同计划复用接续入口尚未提供。程序不支持通用现场恢复。
 - 未知作用保持停止。文件写入提供只读结果核验；任意程序的未知结果仍需人工核查，没有自动重复执行。
 - 共享 workspace 是组织方式，不是操作系统隔离。程序按整体执行授权，运行权限属于当前用户；没有实现复杂的任务进程沙箱。
 - 当前日志没有轮转、历史 GC 和恢复快照加速。验证包含进程中断，不包含断电或硬件持久化故障实验。
 
-启动、模型配置、数据库初始化与人工程序登记见 [README.md](README.md)。建议先在默认离线模式复核消息→任务→授权→执行→反馈→重启恢复，再接入真实模型进行下一阶段验证。
+启动、模型配置、数据库初始化与人工程序登记见 [README.md](README.md)。建议先在默认离线模式复核消息→任务→授权→执行→反馈→重启恢复，再使用独立角色密钥进行真实模型复核。

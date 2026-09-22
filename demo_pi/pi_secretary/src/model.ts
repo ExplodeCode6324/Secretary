@@ -64,6 +64,41 @@ export const fixtureStream: StreamFn = (model, context) => {
     .filter((m) => m.role === "system")
     .map((m) => JSON.stringify(m))
     .join(" ");
+  if (system.includes("TASK_EXECUTOR")) {
+    const packet = [...context.messages]
+      .reverse()
+      .find(
+        (m) =>
+          m.role === "user" &&
+          contentText(m.content).includes('"secretary.agent-task.v1"'),
+      );
+    const payload = packet
+      ? JSON.parse(contentText(packet.content))
+      : { assignment: { acceptance_criteria: [{ id: "C1" }] } };
+    return replyStream(
+      [
+        {
+          type: "toolCall",
+          id: "complete-" + context.messages.length,
+          name: "submit_result",
+          arguments: {
+            outcome: "SUCCEEDED",
+            summary: "Offline fixture task finished",
+            criteria: payload.assignment.acceptance_criteria.map(
+              (c: { id: string }) => ({
+                id: c.id,
+                met: true,
+                evidence: "Synthetic fixture only",
+              }),
+            ),
+            artifacts: [],
+            limitations: ["Offline synthetic result"],
+          },
+        },
+      ],
+      model,
+    );
+  }
   if (latest?.role === "toolResult")
     return replyStream(
       [
@@ -99,11 +134,6 @@ export const fixtureStream: StreamFn = (model, context) => {
       ],
       model,
     );
-  if (system.includes("TASK_EXECUTOR"))
-    return replyStream(
-      [{ type: "text", text: "离线执行样例完成。目标：" + text }],
-      model,
-    );
   if (text.startsWith("task:"))
     return replyStream(
       [
@@ -121,11 +151,14 @@ export const fixtureStream: StreamFn = (model, context) => {
     model,
   );
 };
-export function modelConfig() {
+export type ModelConfig = { model: Model<Api>; stream: StreamFn };
+export function modelConfig(role: "main" | "task" = "main"): ModelConfig {
   if (process.env.SECRETARY_MODE !== "live")
     return { model: fixtureModel, stream: fixtureStream };
-  const provider = process.env.SECRETARY_PROVIDER,
-    modelID = process.env.SECRETARY_MODEL;
+  const prefix = role === "main" ? "SECRETARY_MAIN" : "SECRETARY_TASK";
+  const provider =
+      process.env[`${prefix}_PROVIDER`] ?? process.env.SECRETARY_PROVIDER,
+    modelID = process.env[`${prefix}_MODEL`] ?? process.env.SECRETARY_MODEL;
   if (!provider || !modelID)
     throw Error("Live mode requires SECRETARY_PROVIDER and SECRETARY_MODEL");
   const model = getModel(
@@ -133,7 +166,30 @@ export function modelConfig() {
     modelID as never,
   );
   if (!model) throw Error("Unknown Pi model");
-  return { model, stream: streamSimple as StreamFn };
+  const apiKey = process.env[`${prefix}_API_KEY`];
+  if (!apiKey) throw Error(`Live role ${role} requires ${prefix}_API_KEY`);
+  return roleModel(model, apiKey);
+}
+export function roleModel(model: Model<Api>, apiKey: string): ModelConfig {
+  // Credentials only live in this closure: never put them in Context or logs.
+  const stream: StreamFn = (m, context, options) =>
+    streamSimple(m, context, {
+      ...options,
+      apiKey,
+      maxRetries: 0,
+      maxTokens: Math.min(
+        Number(process.env.SECRETARY_MAX_OUTPUT_TOKENS ?? 4096),
+        m.maxTokens,
+      ),
+      reasoning: "low",
+      transport: "sse",
+      headers: {
+        ...options?.headers,
+        "User-Agent": "secretary-pi-demo/0.2",
+        "x-opencode-session": options?.sessionId ?? "secretary",
+      },
+    });
+  return { model, stream };
 }
 
 import type { TSchema } from "typebox";

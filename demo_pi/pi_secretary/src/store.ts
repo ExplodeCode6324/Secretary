@@ -41,10 +41,17 @@ export function shapeDefinition(name: string, value: unknown) {
     throw Error("INVALID_" + name + ": " + JSON.stringify(validator?.errors));
 }
 export function shape(record: unknown): asserts record is Contract {
-  if (!validate(record))
+  if (!validate(record)) {
+    const kind = (record as { record_type?: string })?.record_type;
+    const specific = kind
+      ? ajv.getSchema("urn:secretary:contracts:v1#/$defs/" + kind)
+      : undefined;
+    if (specific) specific(record);
     throw Error(
-      "INVALID_CONTRACT: " + JSON.stringify(validate.errors?.slice(0, 3)),
+      "INVALID_CONTRACT: " +
+        JSON.stringify((specific?.errors ?? validate.errors)?.slice(0, 5)),
     );
+  }
 }
 const machines = JSON.parse(
   fs.readFileSync(path.join(root, "state_machine/catalog.json"), "utf8"),

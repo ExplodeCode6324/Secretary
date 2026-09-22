@@ -17,3 +17,5 @@ npm start
 ```
 
 需要 Node.js ≥22.19 和 Python 3；World Model 另外需要 PostgreSQL 18。默认是明确标识的离线 fixture 模式，运行真实 Pi loop，但模型输出由测试适配器提供。真实模型配置和 PostgreSQL 初始化见 pi_secretary 的说明。
+
+已补齐结构化 agent 任务交接与结果提交，并完成双角色 OpenCode Go 验证，见 [真实模型复核](pi_secretary/LIVE_REVIEW.md)。

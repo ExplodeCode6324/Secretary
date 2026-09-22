@@ -1,3 +1,4 @@
+import { EXECUTOR_SYSTEM, executionPrompt } from "./task-prompt.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawn, type ChildProcess } from "node:child_process";
@@ -86,6 +87,7 @@ export class Scheduler {
       at?: string;
       interval?: number;
       parent?: string;
+      materials?: string[];
       constraints?: string[];
       acceptance?: string[];
       deadline?: string;
@@ -165,7 +167,9 @@ export class Scheduler {
         milestones: [],
       },
       deadline: options.deadline ?? null,
-      context_refs: [],
+      context_refs: (options.materials ?? []).map((text) =>
+        this.store.put(text, "text/plain"),
+      ),
       parent_execution_id: options.parent ?? null,
       safety_rule_id: safety.id,
       reuse_task_id: null,
@@ -562,8 +566,7 @@ export class Scheduler {
     const agent = new Agent({
       initialState: {
         model: this.model,
-        systemPrompt:
-          "TASK_EXECUTOR: Execute only the assigned task. Use workspace tools. Missing authorization or an unknown effect means STOP. Ordinary decisions must be requested. Report evidence and limitations.",
+        systemPrompt: EXECUTOR_SYSTEM,
         messages,
         tools: this.tools(e),
       },
@@ -600,29 +603,37 @@ export class Scheduler {
       );
     };
     const proposal = this.store.read<TaskProposal>(p.proposal_ref);
-    await agent.prompt(
-      saved
-        ? "Continue the same task. Scheduler operation results: " +
-            JSON.stringify(
-              this.store
-                .all<Operation>("Operation")
-                .filter((o) => o.scope.execution_id === eid)
-                .map((o) => ({ id: o.id, state: o.state, receipt: o.receipt })),
-            ) +
-            " Ordinary decisions: " +
-            JSON.stringify(
-              this.store
-                .all<DecisionRequest>("DecisionRequest")
-                .filter(
-                  (d) => d.execution_id === eid && d.state === "ANSWERED",
-                ),
-            )
-        : JSON.stringify({
-            goal: proposal.goal,
-            constraints: proposal.constraints,
-            acceptance_criteria: proposal.acceptance_criteria,
-          }),
+    const packet = executionPrompt(
+      proposal,
+      e,
+      proposal.context_refs.map((ref) => this.store.bytes(ref).toString()),
+      {
+        resumed: !!saved,
+        operations: this.store
+          .all<Operation>("Operation")
+          .filter((o) => o.scope.execution_id === eid)
+          .map((o) => ({
+            id: o.id,
+            state: o.state,
+            action: o.action,
+            receipt: o.receipt ? this.store.read(o.receipt) : null,
+          })),
+        decisions: this.store
+          .all<DecisionRequest>("DecisionRequest")
+          .filter((d) => d.execution_id === eid && d.state === "ANSWERED"),
+      },
     );
+    this.store.commit(
+      [],
+      [
+        this.store.event(
+          "agent.dispatch_prompt",
+          { protocol: "secretary.agent-task.v1", prompt: packet },
+          scopeOf(e),
+        ),
+      ],
+    );
+    await agent.prompt(packet);
     e = this.store.get<Execution>("Execution", eid);
     if (["WAIT_AUTH", "WAIT_DECISION", "RESULT_UNKNOWN"].includes(e.state))
       return;
@@ -630,10 +641,11 @@ export class Scheduler {
       this.finish(eid, "CANCELLED", { messages: agent.state.messages });
       return;
     }
-    this.finish(eid, agent.state.errorMessage ? "FAILED" : "SUCCEEDED", {
-      messages: agent.state.messages,
-      error: agent.state.errorMessage ?? null,
-    });
+    if (!terminal(e))
+      this.finish(eid, "FAILED", {
+        messages: agent.state.messages,
+        error: agent.state.errorMessage ?? "MISSING_STRUCTURED_RESULT",
+      });
   }
   private safePath(task: string, relative: string) {
     if (
@@ -657,6 +669,71 @@ export class Scheduler {
     const upstreamRead = createReadTool(),
       upstreamWrite = createWriteTool();
     const tools: AgentTool[] = [
+      tool({
+        name: "submit_result",
+        label: "Submit structured task result",
+        description:
+          "Finish task with assessments for every C1..Cn criterion, evidence, limitations and existing workspace artifact paths. Does not independently verify semantic correctness.",
+        parameters: Type.Object({
+          outcome: Type.Union([
+            Type.Literal("SUCCEEDED"),
+            Type.Literal("FAILED"),
+          ]),
+          summary: Type.String({ minLength: 1 }),
+          criteria: Type.Array(
+            Type.Object({
+              id: Type.String(),
+              met: Type.Boolean(),
+              evidence: Type.String({ minLength: 1 }),
+            }),
+          ),
+          artifacts: Type.Array(Type.String()),
+          limitations: Type.Array(Type.String()),
+        }),
+        execute: async (_call, args) => {
+          const plan = this.store.get<TaskPlan>("TaskPlan", e.task_id);
+          const proposal = this.store.read<TaskProposal>(plan.proposal_ref);
+          const expected = proposal.acceptance_criteria.map(
+            (_, i) => `C${i + 1}`,
+          );
+          if (
+            args.criteria.length !== expected.length ||
+            new Set(args.criteria.map((c) => c.id)).size !== expected.length ||
+            expected.some((id) => !args.criteria.some((c) => c.id === id))
+          )
+            throw Error("INCOMPLETE_ACCEPTANCE_ASSESSMENT");
+          if (args.outcome === "SUCCEEDED" && args.criteria.some((c) => !c.met))
+            throw Error("UNMET_ACCEPTANCE_CRITERION");
+          const effects = this.store
+            .all<Operation>("Operation")
+            .filter((o) => o.scope.execution_id === e.id);
+          if (
+            effects.some((o) =>
+              ["WAIT_AUTH", "DISPATCHED", "RESULT_UNKNOWN"].includes(o.state),
+            )
+          )
+            throw Error("UNRESOLVED_OPERATION");
+          const artifacts = args.artifacts.map((relative) => {
+            const target = this.safePath(e.task_id, relative);
+            if (!fs.statSync(target).isFile()) throw Error("ARTIFACT_NOT_FILE");
+            return {
+              path: relative,
+              content: this.store.put(
+                fs.readFileSync(target),
+                "application/octet-stream",
+              ),
+            };
+          });
+          this.finish(e.id, args.outcome, {
+            structured_result: args,
+            artifacts,
+          });
+          return jsonTool(
+            { saved: true, outcome: args.outcome, verified_by: "NOT_VERIFIED" },
+            true,
+          );
+        },
+      }),
       tool({
         name: "read",
         label: "Read workspace",
@@ -988,6 +1065,15 @@ export class Scheduler {
     const e = this.store.get<Execution>("Execution", eid);
     if (terminal(e)) return;
     const ref = this.store.put(detail);
+    const agentDetail =
+      this.store.get<TaskPlan>("TaskPlan", e.task_id).executor.kind === "AGENT"
+        ? detail
+        : undefined;
+    const structured = (
+      agentDetail as {
+        structured_result?: { summary: string; limitations: string[] };
+      }
+    )?.structured_result;
     const r: TaskResult = {
       schema_version: 1,
       record_type: "TaskResult",
@@ -995,10 +1081,37 @@ export class Scheduler {
       task_id: e.task_id,
       execution_id: eid,
       outcome: state,
-      summary: `${state}: task ${e.task_id}`,
-      limitations: ["Model output is not independent verification"],
+      summary: structured?.summary ?? `${state}: task ${e.task_id}`,
+      limitations: [
+        ...(structured?.limitations ?? []),
+        "Model output is not independent verification",
+      ],
       evidence: [ref],
-      artifacts: [],
+      artifacts: (
+        (
+          agentDetail as {
+            artifacts?: {
+              path: string;
+              content: TaskResult["evidence"][number];
+            }[];
+          }
+        )?.artifacts ?? []
+      ).map((a) => ({
+        artifact_id: id(),
+        name: path.basename(a.path),
+        content: a.content,
+        workspace_path: a.path,
+        producing_operation_id:
+          this.store
+            .all<Operation>("Operation")
+            .find(
+              (o) =>
+                o.scope.execution_id === eid &&
+                o.state === "SUCCEEDED" &&
+                o.action.resource ===
+                  path.join(this.workspace, e.task_id, "work", a.path),
+            )?.id ?? null,
+      })),
       detail_ref: ref,
       needs_action: state !== "SUCCEEDED",
       verified_by: "NOT_VERIFIED",

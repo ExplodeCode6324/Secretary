@@ -42,6 +42,7 @@ export function durableStream(
     try {
       const response = await stream(model, context, {
         ...options,
+        sessionId: scope.execution_id ?? scope.session_id ?? loopID,
         signal: AbortSignal.any([
           ...(options?.signal ? [options.signal] : []),
           AbortSignal.timeout(120000),

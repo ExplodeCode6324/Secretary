@@ -71,6 +71,7 @@ export function createServer(app: App, token: string) {
             .filter((l) => l.event_type === "main.message")
             .slice(-40)
             .map((l) => app.store.read(l.payload)),
+          models: { main: app.host.model.id, task: app.scheduler.model.id },
           mode:
             process.env.SECRETARY_MODE === "live"
               ? "LIVE_MODEL"

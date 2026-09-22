@@ -150,7 +150,8 @@
       try {
         const s = await api("state");
         document.querySelector("#error").textContent = "";
-        document.querySelector("#mode").textContent = s.mode;
+        document.querySelector("#mode").textContent =
+          `${s.mode} · 主会话 ${s.models.main} · 执行 ${s.models.task}`;
         document.querySelector("#host").textContent =
           s.session.state +
           (s.session.recovery_error ? " · " + s.session.recovery_error : "");

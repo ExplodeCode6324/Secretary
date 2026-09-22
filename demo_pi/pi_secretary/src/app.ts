@@ -4,7 +4,7 @@ import { Authorization } from "./authorization.ts";
 import { Scheduler } from "./scheduler.ts";
 import { Host } from "./host.ts";
 import { World } from "./world.ts";
-import { modelConfig, type StreamFn } from "./model.ts";
+import { modelConfig, type StreamFn, type ModelConfig } from "./model.ts";
 import type { Model, Api } from "@earendil-works/pi-ai";
 export class App {
   private worldWork?: Promise<void>;
@@ -17,16 +17,23 @@ export class App {
   ) {}
   static async open(
     directory: string,
-    config?: { model: Model<Api>; stream: StreamFn },
+    config?: ModelConfig | { main: ModelConfig; task: ModelConfig },
     dsn?: string,
   ) {
     const store = await Store.open(directory);
     try {
-      const chosen = config ?? modelConfig();
+      const chosen =
+        config && "main" in config
+          ? config.main
+          : (config ?? modelConfig("main"));
+      const task =
+        config && "task" in config
+          ? config.task
+          : (config ?? modelConfig("task"));
       const auth = new Authorization(store);
       auth.recover();
       const world = dsn ? new World(store, auth, dsn) : undefined;
-      const scheduler = new Scheduler(store, auth, chosen.model, chosen.stream);
+      const scheduler = new Scheduler(store, auth, task.model, task.stream);
       scheduler.recover();
       const host = new Host(
         store,

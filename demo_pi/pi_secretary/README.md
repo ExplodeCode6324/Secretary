@@ -27,9 +27,21 @@ CLI 读取同一 data root 的 Master key，向正在运行的本机应用登记
 
 ## 真实模型模式
 
-设置 `SECRETARY_MODE=live`、`SECRETARY_PROVIDER`、`SECRETARY_MODEL`，以及对应 Pi provider 的凭据环境变量，再运行 `npm start`。模型标识必须在固定 Pi 版本的模型目录中存在。凭据不会写入本仓库；本轮未调用真实模型，未验证具体 provider 的账号可用性。
+OpenCode Go 已完成 DeepSeek V4.1 Flash 与 GPT 5.6 Luna 的真实链路测试，结果与失败修复记录见 [LIVE_REVIEW.md](LIVE_REVIEW.md)。
 
-不同任务默认最多 2 个执行者，可通过 `SECRETARY_MAX_WORKERS` 调整。每个 loop 最多 20 次模型调用，单次传输设置 120 秒中断信号。主会话只注册 MemoryUtil/TaskControl/MasterInteract 对应的六个工具。执行 agent 注册 Pi read/write 和普通工作决定工具；写入经过 Scheduler 最终授权检查。没有直接给主会话注册 Pi bash 或任意扩展加载入口。
+本地保存两把角色密钥的文件为 `demo_pi/.demo-data/live-credentials.json`，字段是 `main` / `task`，文件权限为 0600，整个目录排除出 Git。已有本地配置时，在 `demo_pi` 运行：
+
+```sh
+npm run start:live
+```
+
+默认主会话使用 `deepseek-v4.1-flash`，任务 agent 使用 `gpt-5.6-luna`，运行资料独立保存在 `.demo-data/interactive-live`。这条命令会调用真实 API。主会话与任务 agent 分别读取自己的密钥；主会话的 Consciousness 维护沿用主会话配置。不要将密钥作为消息、任务材料或命令行参数传入。
+
+可用 `SECRETARY_MAIN_MODEL` / `SECRETARY_TASK_MODEL` 修改模型；`SECRETARY_CREDENTIALS_FILE` 修改本地密钥文件位置。直接运行 `npm start` 时也可用 `SECRETARY_MODE=live`、`SECRETARY_MAIN_PROVIDER` / `SECRETARY_TASK_PROVIDER`、`SECRETARY_MAIN_MODEL` / `SECRETARY_TASK_MODEL`、`SECRETARY_MAIN_API_KEY` / `SECRETARY_TASK_API_KEY` 配置。兼容旧的 `SECRETARY_PROVIDER` / `SECRETARY_MODEL` 作为两个角色的模型默认值，但角色密钥必须独立明确提供。
+
+OpenCode Go 的 Pi 配置固定使用 `https://opencode.ai/zen/go/v1`：DeepSeek 走 chat/completions，Luna 走 responses。每个主会话/执行实例有稳定会话 header，使用本客户端 User-Agent；关闭 SDK 自动重试。具体路由以固定 Pi 模型目录为准。
+
+不同任务默认最多 2 个执行者，可通过 `SECRETARY_MAX_WORKERS` 调整。每个 loop 最多 20 次模型调用，单次传输设置 120 秒中断信号。主会话只注册 MemoryUtil/TaskControl/MasterInteract 对应的六个工具。执行 agent 注册 Pi read/write、普通工作决定和结构化结果提交工具；写入经过 Scheduler 最终授权检查。没有直接给主会话注册 Pi bash 或任意扩展加载入口。
 
 默认上下文容量取模型元数据，预留 4096 tokens；字节估算用于预先阻塞，最终 token 消耗仍由 provider 决定。`SECRETARY_COMPACTION_BYTES` 控制宿主自动安排整理的原文长度阈值，默认 32768 bytes。保留未承接原文；整理模型输出按事项形成工作记忆。离线 fixture 不证明摘要质量或压缩效果。
 
@@ -61,4 +73,4 @@ npm test
 python3 pi_secretary/scripts/test-postgres.py --pg-bin /path/to/postgresql/bin
 ```
 
-普通测试不调用真实模型。PostgreSQL 测试脚本自己创建临时集群，执行真实 TypeScript 仓储，再停止并清理；不连接应用数据库。具体结果和运行边界见 [REVIEW.md](REVIEW.md)。
+普通测试不调用真实模型。PostgreSQL 测试脚本自己创建临时集群，执行真实 TypeScript 仓储，再停止并清理；不连接应用数据库。具体结果和运行边界见 [REVIEW.md](REVIEW.md)；真实模型测试需显式运行 `npm run test:live -- <model> <scenario> [task-model]`，不会包含在 `npm test` 中。scenario 为 chain / missing / unknown / transport / reject。测试驾驶器只代行批准指定 result.mjs 的写入，模拟故障有明确标记，原始运行资料留在本地。
