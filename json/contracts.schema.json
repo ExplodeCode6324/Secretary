@@ -1146,6 +1146,16 @@
             "CHECKPOINT",
             "MODEL_REQUEST"
           ]
+        },
+        "base_prompt_version": {
+          "type": "string"
+        },
+        "instructions_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "system_prompt_hash": {
+          "$ref": "#/$defs/Digest"
         }
       },
       "required": [
@@ -5060,7 +5070,9 @@
             "ProgramRegistration",
             "Notification",
             "ArchiveManifest",
-            "WorldCommand"
+            "WorldCommand",
+            "UserInstructions",
+            "MainPromptSnapshot"
           ],
           "description": ""
         },
@@ -5209,6 +5221,101 @@
         "task_refs",
         "resolution_event_ids"
       ]
+    },
+    "UserInstructions": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "record_type": {
+          "const": "UserInstructions"
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "updated_by": {
+          "enum": [
+            "MASTER_UI",
+            "DEFAULT"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "revision",
+        "updated_at",
+        "record_type",
+        "content",
+        "updated_by"
+      ],
+      "additionalProperties": false
+    },
+    "MainPromptSnapshot": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "record_type": {
+          "const": "MainPromptSnapshot"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "base_prompt_version": {
+          "type": "string"
+        },
+        "instructions_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "system_prompt_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "system_message": {
+          "$ref": "#/$defs/ObjectRef"
+        }
+      },
+      "required": [
+        "schema_version",
+        "id",
+        "revision",
+        "updated_at",
+        "record_type",
+        "session_id",
+        "base_prompt_version",
+        "instructions_revision",
+        "system_prompt_hash",
+        "system_message"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [
@@ -5328,6 +5435,12 @@
     },
     {
       "$ref": "#/$defs/JournalTransaction"
+    },
+    {
+      "$ref": "#/$defs/UserInstructions"
+    },
+    {
+      "$ref": "#/$defs/MainPromptSnapshot"
     }
   ]
 }

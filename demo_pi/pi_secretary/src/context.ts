@@ -7,6 +7,7 @@ import type {
   Scope,
   Session,
   Consciousness,
+  MainPromptSnapshot,
 } from "./contracts.ts";
 import type { Agent, AgentMessage } from "./model.ts";
 export function saveContext(
@@ -83,7 +84,18 @@ export function saveContext(
   const session = scope.session_id
     ? store.find<Session>("Session", scope.session_id)
     : undefined;
+  const prompt =
+    purpose === "MAIN"
+      ? store.find<MainPromptSnapshot>("MainPromptSnapshot", loopID)
+      : undefined;
   const c: Context = {
+    ...(prompt
+      ? {
+          base_prompt_version: prompt.base_prompt_version,
+          instructions_revision: prompt.instructions_revision,
+          system_prompt_hash: prompt.system_prompt_hash,
+        }
+      : {}),
     schema_version: 1,
     record_type: "Context",
     ...base(),

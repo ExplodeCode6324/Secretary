@@ -109,3 +109,22 @@ Consciousness 的 `commitments` 是宿主管理的承诺记录：稳定 ID、原
 `/memory` 显示最近成功时间、失败原因、尝试次数和承诺列表；TUI 状态及 WebUI 记忆标记也显示整理状态。Context 记录可信的实际记忆版本、本轮输入 ID、未完成工具调用，并区分 CHECKPOINT 与 MODEL_REQUEST。日志增加 consciousness.started/retry/attempt_failed/failed/stale/committed/master_resolved 事件。
 
 维护验证脚本 `pi_secretary/scripts/verify-memory-live.ts <数据目录> <报告路径>` 会获取数据目录独占锁，只执行记忆整理和无工具的真实模型只读探针；不启动调度循环、不新增用户输入、不执行或批准任务。运行中实例应先正常停后台，优先对完整副本验证。报告仍须人工评估语义正确性，不能将结构或哈希检查当作记忆内容已被独立证明。
+
+### Secretary 说明（用户自定义提示词）
+
+Web 左侧「Secretary 说明」提供独立的用户说明编辑框，最多 2000 个 Unicode 字符。
+初始说明默认简体中文、称呼 Master、简洁回答；清空正文即关闭自定义部分。
+保存立即持久化，从下一轮主会话开始生效；当前轮与崩溃恢复继续使用开始时的版本。
+
+说明以 `UserInstructions` 单例保存在现有 journal 中，不依赖 PostgreSQL，不由模型或记忆整理改写。
+`MainPromptSnapshot` 与输入领取在同一事务中提交，记录本轮的完整 system 消息及工具声明；Context 记录
+`base_prompt_version`、`instructions_revision`、`system_prompt_hash`。历史 Context 不被覆盖。
+新轮显式替换历史 system 消息；旧版中断轮首次恢复仍保留原 system，下一轮才采用新配置。
+
+设置页会显示当前轮、最近使用及下轮版本。并发保存采用版本校验：发生冲突时保留草稿，点「重新载入」读取服务器版本后再编辑。
+普通同文重复保存不增加版本；超长或含控制字符的内容拒绝保存。没有模型工具可修改此设置。
+任务 agent 与记忆整理仍使用各自的专用提示词。说明注入属于提示词机制，不是模型语言输出的硬约束。
+
+验证：`npm run verify`；真实模型隔离测试（会产生 API 用量）：
+`node --import tsx pi_secretary/scripts/test-instructions-live.ts`。
+本次复核结果见 [说明功能复核](reports/instructions-20260923/REVIEW.md)。

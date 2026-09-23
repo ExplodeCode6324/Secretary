@@ -18,6 +18,7 @@
       <div class="section-label">最近任务</div>
       <div id="task-list"></div>
       <div class="sidebar-bottom">
+        <button class="nav" id="instructions-tab">Secretary 说明</button>
         <button class="nav" data-command="/programs">已登记程序</button
         ><button class="nav" data-command="/world-read">长期记忆</button
         ><button class="nav" data-command="/operations">执行与核验</button
@@ -101,6 +102,29 @@
         <button id="close-details" aria-label="关闭详情">×</button>
       </div>
       <pre id="detail-body"></pre>
+    </dialog>
+    <dialog id="instructions-dialog">
+      <form id="instructions-form">
+        <div class="panel-heading">
+          <h2>Secretary 说明</h2>
+          <button
+            type="button"
+            id="instructions-close"
+            aria-label="关闭说明设置"
+          >
+            ×
+          </button>
+        </div>
+        <p>
+          设置默认回复语言、称呼与沟通偏好。保存后从下一轮主会话生效，清空可关闭自定义说明。
+        </p>
+        <label for="instructions-content">自定义说明（最多 2000 字）</label>
+        <textarea id="instructions-content" rows="9"></textarea>
+        <p id="instructions-version"></p>
+        <p id="instructions-feedback" role="status"></p>
+        <button type="button" id="instructions-reload">重新载入</button>
+        <button type="submit" id="instructions-save">保存</button>
+      </form>
     </dialog>
     <script type="module" src="/app.js"></script>
   </body>

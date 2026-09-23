@@ -1,0 +1,42 @@
+{
+  "model": "deepseek-v4.1-flash",
+  "directory": "<local-test-data>",
+  "started_at": "2026-09-23T12:28:17.688Z",
+  "cases": [
+    {
+      "name": "default Chinese with English input and material",
+      "response": "报告显示当前系统 CPU 利用率较低（12%），而磁盘利用率中等偏高（48%），整体负载不高但磁盘 I/O 相对更忙。",
+      "language": "zh",
+      "instructions_revision": 1,
+      "context_id": "573cb4ed-a8ea-495b-a3b3-84a091bd18de",
+      "pass": true
+    },
+    {
+      "name": "Chinese after English log/tool material",
+      "response": "结论：日志中我们讨论的报告是那条系统资源利用情况汇报——CPU 利用率 12%、磁盘利用率 48%（即上一轮我解释的那份简短报告）。\n\n说明：日志记录仅含事件元数据与对象引用（如 `input.accepted`、`main.message`、`model.response`），未直接展开正文文本；上述内容依据本会话上下文确认。未创建任何任务。",
+      "language": "zh",
+      "instructions_revision": 1,
+      "context_id": "c1c20eef-985e-4a7d-8785-b470dd7885d6",
+      "pass": true
+    },
+    {
+      "name": "explicit English override after compaction",
+      "response": "We discussed the system resource utilization report showing CPU utilization at 12 percent and disk utilization at 48 percent.",
+      "language": "en",
+      "instructions_revision": 1,
+      "context_id": "cfd44a3a-6f04-4caa-8d5c-38e9dc9f38f4",
+      "pass": true
+    },
+    {
+      "name": "return to default Chinese",
+      "response": "报告摘要：CPU 利用率 12%，磁盘利用率 48%——CPU 负载低，磁盘相对偏忙，整体压力不大。未创建任何任务。",
+      "language": "zh",
+      "instructions_revision": 1,
+      "context_id": "e59fe3a8-5da4-4644-959e-b26db050d940",
+      "pass": true
+    }
+  ],
+  "pass": false,
+  "error": "AssertionError [ERR_ASSERTION]: 报告要点：CPU 利用率 12%，磁盘利用率 48%——CPU 负载低，磁盘相对偏忙，整体负载不高。未使用工具，也未创建任务。\n\ntrue !== false\n",
+  "completed_at": "2026-09-23T12:28:43.041Z"
+}

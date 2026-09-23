@@ -1,0 +1,12 @@
+{
+  "pass": true,
+  "cases": [
+    "initial defaults",
+    "save",
+    "concurrent conflict preserves draft",
+    "reload latest",
+    "clear persists across page reload",
+    "overlong text rejected"
+  ],
+  "errors": []
+}

@@ -39,7 +39,9 @@ export type SecretaryDemoV1 =
   | TaskQueryResult
   | ProgramInvocation
   | ProgramResult
-  | JournalTransaction;
+  | JournalTransaction
+  | UserInstructions
+  | MainPromptSnapshot;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -398,6 +400,9 @@ export interface Context {
    */
   wm_fact_versions: string[];
   capture_kind?: "CHECKPOINT" | "MODEL_REQUEST";
+  base_prompt_version?: string;
+  instructions_revision?: number;
+  system_prompt_hash?: Digest;
 }
 /**
  * 逻辑消息；provider 扩展块由原始 context 对象保留。
@@ -1524,11 +1529,40 @@ export interface Mutation {
     | "ProgramRegistration"
     | "Notification"
     | "ArchiveManifest"
-    | "WorldCommand";
+    | "WorldCommand"
+    | "UserInstructions"
+    | "MainPromptSnapshot";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
   snapshot: ObjectRef;
+}
+export interface UserInstructions {
+  schema_version: 1;
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  record_type: "UserInstructions";
+  content: string;
+  updated_by: "MASTER_UI" | "DEFAULT";
+}
+export interface MainPromptSnapshot {
+  schema_version: 1;
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  record_type: "MainPromptSnapshot";
+  session_id: ID;
+  base_prompt_version: string;
+  instructions_revision: number;
+  system_prompt_hash: Digest;
+  system_message: ObjectRef;
 }
 
 export type Contract = SecretaryDemoV1;

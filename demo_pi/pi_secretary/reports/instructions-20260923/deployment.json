@@ -1,0 +1,14 @@
+{
+  "applied_at": "2026-09-23T20:34:02.976942+08:00",
+  "backup": "<local-backup>",
+  "pid": 32175,
+  "health": {
+    "session": "cee84c83-8813-4393-b5f9-98614b07d933",
+    "mode": "live"
+  },
+  "settings_revision": 1,
+  "settings_content": "默认使用简体中文回复，称呼用户为 Master。\n回答先给结论，保持简洁；除非 Master 明确要求，否则不切换语言。\n代码、命令、路径和必要的技术名称保留原文。",
+  "previous_session": "cee84c83-8813-4393-b5f9-98614b07d933",
+  "active_revision": null,
+  "last_used_revision": null
+}

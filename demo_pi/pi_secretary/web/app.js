@@ -313,6 +313,58 @@ document.querySelectorAll(".suggestions button").forEach((b) => {
     $("message").focus();
   };
 });
+let instructionsRevision = null;
+function showInstructionsState(data) {
+  $("instructions-version").textContent =
+    `已保存 r${data.settings.revision} · 当前轮 ${data.active_revision == null ? "无" : "r" + data.active_revision} · 最近使用 ${data.last_used_revision == null ? "尚无" : "r" + data.last_used_revision}；下一轮使用 r${data.settings.revision}`;
+}
+async function loadInstructions() {
+  const data = await api("instructions?client=" + client);
+  instructionsRevision = data.settings.revision;
+  $("instructions-content").value = data.settings.content;
+  showInstructionsState(data);
+  $("instructions-feedback").textContent = "";
+}
+$("instructions-tab").onclick = async () => {
+  try {
+    await loadInstructions();
+    $("instructions-dialog").showModal();
+  } catch (e) {
+    error(e.message);
+  }
+};
+$("instructions-close").onclick = () => $("instructions-dialog").close();
+$("instructions-reload").onclick = async () => {
+  try {
+    await loadInstructions();
+  } catch (e) {
+    $("instructions-feedback").textContent = e.message;
+  }
+};
+$("instructions-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const content = $("instructions-content").value;
+  if ([...content].length > 2000) {
+    $("instructions-feedback").textContent = "说明超过 2000 字，请缩短后保存。";
+    return;
+  }
+  $("instructions-save").disabled = true;
+  try {
+    const data = await api("instructions", {
+      client,
+      content,
+      expected_revision: instructionsRevision,
+    });
+    instructionsRevision = data.settings.revision;
+    showInstructionsState(data);
+    $("instructions-feedback").textContent = "已保存，下一轮主会话生效。";
+  } catch (e) {
+    $("instructions-feedback").textContent =
+      "保存未确认，编辑内容已保留。" + e.message;
+  } finally {
+    $("instructions-save").disabled = false;
+  }
+};
 try {
   if (!token) throw Error("请通过 WebUI 启动器或 TUI 的 /web 打开此页面。");
   client = (await api("client", {})).client;

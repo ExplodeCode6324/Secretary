@@ -623,3 +623,24 @@ button:hover {
   cursor: pointer;
   padding: 8px 0;
 }
+
+#instructions-dialog {
+  width: min(640px, 90vw);
+}
+#instructions-content {
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  resize: vertical;
+  font: inherit;
+}
+#instructions-version,
+#instructions-feedback {
+  font-size: 13px;
+  line-height: 1.6;
+}
+#instructions-form > button {
+  padding: 8px 16px;
+  margin-right: 8px;
+}

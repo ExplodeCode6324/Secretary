@@ -1,3 +1,4 @@
+import { getInstructions, saveInstructions } from "./instructions.ts";
 import * as http from "node:http";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -16,6 +17,7 @@ import type {
   TaskPlan,
   TaskProposal,
   Execution,
+  MainPromptSnapshot,
 } from "./contracts.ts";
 import { id, revise } from "./store.ts";
 
@@ -179,6 +181,35 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
       );
       if (!client) return send(409, { error: "CLIENT_EXPIRED" });
       client.touched = Date.now();
+      if (url.pathname === "/api/instructions") {
+        if (req.method === "POST") {
+          try {
+            saveInstructions(app.store, body.content, body.expected_revision);
+          } catch (error) {
+            return send(
+              String(error).includes("INSTRUCTIONS_CONFLICT") ? 409 : 400,
+              { error: String(error) },
+            );
+          }
+        } else if (req.method !== "GET")
+          return send(405, { error: "METHOD_NOT_ALLOWED" });
+        const session = app.host.session;
+        const context = session.last_context_id
+          ? app.store.get<Context>("Context", session.last_context_id)
+          : null;
+        const active = session.active_loop_id
+          ? app.store.find<MainPromptSnapshot>(
+              "MainPromptSnapshot",
+              session.active_loop_id,
+            )
+          : null;
+        return send(200, {
+          settings: getInstructions(app.store),
+          active_revision: active?.instructions_revision ?? null,
+          last_used_revision: context?.instructions_revision ?? null,
+          applies: "NEXT_TURN",
+        });
+      }
       if (url.pathname === "/api/command" && req.method === "POST") {
         if (typeof body.line !== "string") throw Error("INVALID_COMMAND");
         const work = client.busy.then(() => client.ui.command(body.line));
