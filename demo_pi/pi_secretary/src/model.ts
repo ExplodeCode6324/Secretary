@@ -119,7 +119,7 @@ export const fixtureStream: StreamFn = (model, context) => {
             items: [
               {
                 tier: "ACTIVE",
-                summary: "Offline fixture preserves full source: " + text,
+                summary: "Offline fixture summary; source retained by host.",
                 goals: [],
                 constraints: [],
                 decisions: [],
@@ -178,7 +178,8 @@ export function roleModel(model: Model<Api>, apiKey: string): ModelConfig {
       apiKey,
       maxRetries: 0,
       maxTokens: Math.min(
-        Number(process.env.SECRETARY_MAX_OUTPUT_TOKENS ?? 4096),
+        options?.maxTokens ??
+          Number(process.env.SECRETARY_MAX_OUTPUT_TOKENS ?? 4096),
         m.maxTokens,
       ),
       reasoning: "low",

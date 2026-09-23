@@ -7,7 +7,7 @@
 | [state_machine](../state_machine/README.md) | 总体组合状态机，14 个模块状态机，状态/事件/守卫/提交/恢复 |
 | [schema](../schema/README.md) | World Model PostgreSQL 表、约束、种子谓词、查询、事务与跨存储交接 |
 | [json](../json/README.md) | JSON Schema、逐字段字典、形状示例、语义约束，覆盖 Context/提案/分派/日志及所需补充 |
-| [demo_design](README.md) | Go 模块/目录/函数、API、持久化、场景、实施顺序与验证 |
+| [demo_design](README.md) | 模块职责与调用边界、API、持久化、场景、实施顺序与验证 |
 
 ## 优先复核的实现取舍
 
@@ -29,7 +29,7 @@
 | 5.5、5.6 反馈、决定、接续与回收 | Execution/Retention/Decision/Feedback；Checkpoint/TaskResult/ArchiveManifest |
 | 5.7 授权检查与有效范围 | Operation/Authorization；ApprovalCommand/AuthorizationRule/SafetyRule；API 独立入口 |
 | 2.5、5.8 唯一会话与恢复 | Session、Owner epoch、精确 Context、PERSISTENCE 与 SCENARIOS 8 |
-| 5.2、5.4 程序登记与分派 | Program/Plan/Execution；ProgramRegistration/Invocation/Result；Go registry 与 executor |
+| 5.2、5.4 程序登记与分派 | Program/Plan/Execution；ProgramRegistration/Invocation/Result；程序登记与执行器 |
 | 3.4 Operation Log | OperationLogRecord 与不可变对象；MAIN/TASK/SYSTEM 逻辑流；长期历史不跟随退休删除 |
 
 建议先看前两张总览，再看本页的七项取舍。字段细节可以按模块逐项复核。本包是实现提案，复核后的修改直接落回对应文件，不另复制版本。

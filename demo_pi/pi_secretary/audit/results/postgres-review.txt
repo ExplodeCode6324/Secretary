@@ -1,0 +1,34 @@
+TAP version 13
+# Subtest: NEW15 World evidence content must match the referenced Master event
+ok 1 - NEW15 World evidence content must match the referenced Master event
+  ---
+  duration_ms: 357.6555
+  type: 'test'
+  ...
+# Subtest: NEW16 equal object facts with different key order are SUPPORTING
+ok 2 - NEW16 equal object facts with different key order are SUPPORTING
+  ---
+  duration_ms: 756.976667
+  type: 'test'
+  ...
+# Subtest: NEW17 interrupted migration after schema before predicate seed can recover
+ok 3 - NEW17 interrupted migration after schema before predicate seed can recover
+  ---
+  duration_ms: 114.083083
+  type: 'test'
+  ...
+# Subtest: NEW18 temporary database deadlock must not become permanent business REJECTED
+ok 4 - NEW18 temporary database deadlock must not become permanent business REJECTED
+  ---
+  duration_ms: 181.999292
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 4
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1938.261833

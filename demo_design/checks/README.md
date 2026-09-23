@@ -18,6 +18,6 @@ python3 demo_design/checks/validate_postgres.py --pg-bin /path/to/postgresql/bin
 - Markdown 本地文件链接、基线 hash、文档不含本机用户绝对路径。
 - PostgreSQL 空库 DDL、种子谓词、事实查询、事务回滚、证据/类型/时间/FK/不可变/唯一性约束。
 
-图路径测试只验证声明的转换边，不执行尚未实现的 Go guard。形状示例使用合成引用，不是已经导入的完整运行快照。SQL 测试直接操作临时库，不能证明未来 Go 仓储一定按事务协议写入，也不能证明授权、掉电恢复或模型行为。
+图路径测试只验证声明的转换边，不执行运行守卫。形状示例使用合成引用，不是已经导入的完整运行快照。SQL 测试直接操作临时库，不能证明应用仓储一定按事务协议写入，也不能证明授权、掉电恢复或模型行为。
 
-本次实测汇总见 [REPORT.md](REPORT.md)，机器结果见 [report.json](report.json)。
+本次实测汇总见 [REPORT.md](REPORT.md)，机器结果见 [static-report.json](static-report.json) 和 [postgres-report.json](postgres-report.json)。

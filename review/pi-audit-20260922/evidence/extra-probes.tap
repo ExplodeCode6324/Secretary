@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: NEW11 identical provider tool id in later response must not alias earlier intent
+not ok 1 - NEW11 identical provider tool id in later response must not alias earlier intent
+  ---
+  duration_ms: 666.256917
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:1:778'
+  failureType: 'testCodeFailure'
+  error: |-
+    second response tool call incorrectly replayed first task receipt
+    
+    1 !== 2
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 2
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:24:90)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:14:6)
+    async TestContext.<anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:24:2)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: NEW12 earlier read followed by WAIT_AUTH must stop model loop immediately
+not ok 2 - NEW12 earlier read followed by WAIT_AUTH must stop model loop immediately
+  ---
+  duration_ms: 635.845625
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:1:1423'
+  failureType: 'testCodeFailure'
+  error: |-
+    Pi requested another completion after durable authorization wait
+    
+    2 !== 1
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 1
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:34:302)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:14:6)
+    async TestContext.<anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:34:2)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW13 approved workspace path must not follow a replaced work root symlink
+not ok 3 - NEW13 approved workspace path must not follow a replaced work root symlink
+  ---
+  duration_ms: 893.1675
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:1:2281'
+  failureType: 'testCodeFailure'
+  error: |-
+    write escaped task workspace through symlink work root
+    + actual - expected
+    
+    + 'unauthorized replacement'
+    - 'protected sentinel'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'protected sentinel'
+  actual: 'unauthorized replacement'
+  operator: 'strictEqual'
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:47:11)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:14:6)
+    async TestContext.<anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:38:2)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW14 accepted future followup must pin parent before trigger fires
+not ok 4 - NEW14 accepted future followup must pin parent before trigger fires
+  ---
+  duration_ms: 508.782583
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:1:3536'
+  failureType: 'testCodeFailure'
+  error: 'parent has no durable followup pin until future trigger'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:52:280)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:14:6)
+    async TestContext.<anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/extra.test.ts:52:2)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 0
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3235.391292

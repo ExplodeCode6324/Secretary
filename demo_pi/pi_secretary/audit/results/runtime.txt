@@ -1,0 +1,206 @@
+
+> test
+> tsx --test pi_secretary/test/*.test.ts
+
+TAP version 13
+# Subtest: rejected multi-record transaction changes neither journal nor projection
+ok 1 - rejected multi-record transaction changes neither journal nor projection
+  ---
+  duration_ms: 457.069292
+  type: 'test'
+  ...
+# Subtest: queued notification survives restart and becomes SENT only on TUI presentation
+ok 2 - queued notification survives restart and becomes SENT only on TUI presentation
+  ---
+  duration_ms: 1909.385792
+  type: 'test'
+  ...
+# Subtest: original input constraint reaches the next real Pi request after lossy compaction
+ok 3 - original input constraint reaches the next real Pi request after lossy compaction
+  ---
+  duration_ms: 2056.079042
+  type: 'test'
+  ...
+# Subtest: actual Pi main loop, task agent, durable feedback and exact context reload
+ok 4 - actual Pi main loop, task agent, durable feedback and exact context reload
+  ---
+  duration_ms: 3859.266125
+  type: 'test'
+  ...
+# Subtest: new input arriving during a Pi call remains durable and is handled later
+ok 5 - new input arriving during a Pi call remains durable and is handled later
+  ---
+  duration_ms: 1466.953875
+  type: 'test'
+  ...
+# Subtest: task write uses Pi source tool only after independent UI approval
+ok 6 - task write uses Pi source tool only after independent UI approval
+  ---
+  duration_ms: 2509.006708
+  type: 'test'
+  ...
+# Subtest: program launch waits for approval, captures real process output
+ok 7 - program launch waits for approval, captures real process output
+  ---
+  duration_ms: 1252.356417
+  type: 'test'
+  ...
+# Subtest: restart reconstructs pending input and preserves unknown operation without retry
+ok 8 - restart reconstructs pending input and preserves unknown operation without retry
+  ---
+  duration_ms: 1228.564833
+  type: 'test'
+  ...
+# Subtest: OS owner lock excludes second writer; incomplete tail recovers; checksum corruption blocks
+ok 9 - OS owner lock excludes second writer; incomplete tail recovers; checksum corruption blocks
+  ---
+  duration_ms: 200.474959
+  type: 'test'
+  ...
+# Subtest: short-term retirement keeps history and blocks pending feedback
+ok 10 - short-term retirement keeps history and blocks pending feedback
+  ---
+  duration_ms: 1816.183625
+  type: 'test'
+  ...
+# Subtest: Consciousness compaction preserves originals and does not schedule a new input
+ok 11 - Consciousness compaction preserves originals and does not schedule a new input
+  ---
+  duration_ms: 903.392
+  type: 'test'
+  ...
+# Subtest: later tool in same Pi batch is stopped when an earlier tool waits for approval
+ok 12 - later tool in same Pi batch is stopped when an earlier tool waits for approval
+  ---
+  duration_ms: 1004.148833
+  type: 'test'
+  ...
+# Subtest: declined grant cannot launch a program or be consumed
+ok 13 - declined grant cannot launch a program or be consumed
+  ---
+  duration_ms: 356.283542
+  type: 'test'
+  ...
+# Subtest: program with an invalid result stops as RESULT_UNKNOWN instead of repeating
+ok 14 - program with an invalid result stops as RESULT_UNKNOWN instead of repeating
+  ---
+  duration_ms: 383.352125
+  type: 'test'
+  ...
+# Subtest: missing original context object blocks recovery rather than creating an empty session
+ok 15 - missing original context object blocks recovery rather than creating an empty session
+  ---
+  duration_ms: 258.908291
+  type: 'test'
+  ...
+# Subtest: separate processes restore exact Pi context and recover an ACK after SIGKILL
+ok 16 - separate processes restore exact Pi context and recover an ACK after SIGKILL
+  ---
+  duration_ms: 1512.7885
+  type: 'test'
+  ...
+# Subtest: crash after claiming a new input cannot mistake the previous loop reply for its completion
+ok 17 - crash after claiming a new input cannot mistake the previous loop reply for its completion
+  ---
+  duration_ms: 620.600833
+  type: 'test'
+  ...
+# Subtest: precondition waits stay outside idle retirement and unblock from authoritative execution status
+ok 18 - precondition waits stay outside idle retirement and unblock from authoritative execution status
+  ---
+  duration_ms: 145.334042
+  type: 'test'
+  ...
+# Subtest: a busy main model does not block approval dispatch to a task agent
+ok 19 - a busy main model does not block approval dispatch to a task agent
+  ---
+  duration_ms: 1295.484292
+  type: 'test'
+  ...
+# Subtest: separate role models and Scheduler packet preserve task materials and criteria
+ok 20 - separate role models and Scheduler packet preserve task materials and criteria
+  ---
+  duration_ms: 679.226875
+  type: 'test'
+  ...
+# Subtest: plain completion text cannot mark agent task successful
+ok 21 - plain completion text cannot mark agent task successful
+  ---
+  duration_ms: 357.297834
+  type: 'test'
+  ...
+# Subtest: agent result cannot claim success with incomplete criterion assessments
+ok 22 - agent result cannot claim success with incomplete criterion assessments
+  ---
+  duration_ms: 519.453791
+  type: 'test'
+  ...
+# Subtest: nullable optional proposal fields work through the real Pi tool validator
+ok 23 - nullable optional proposal fields work through the real Pi tool validator
+  ---
+  duration_ms: 1029.048417
+  type: 'test'
+  ...
+# Subtest: unknown effect feedback cannot create an autonomous replacement task
+ok 24 - unknown effect feedback cannot create an autonomous replacement task
+  ---
+  duration_ms: 845.125959
+  type: 'test'
+  ...
+# Subtest: TUI accepts chat, completes agent task and shows details without a network server
+ok 25 - TUI accepts chat, completes agent task and shows details without a network server
+  ---
+  duration_ms: 3946.736292
+  type: 'test'
+  ...
+# Subtest: TUI requires explicit viewed approval and rejects stale displays; chat cannot approve
+ok 26 - TUI requires explicit viewed approval and rejects stale displays; chat cannot approve
+  ---
+  duration_ms: 1198.576084
+  type: 'test'
+  ...
+# Subtest: TUI strips terminal escape/control sequences from model output
+ok 27 - TUI strips terminal escape/control sequences from model output
+  ---
+  duration_ms: 0.311709
+  type: 'test'
+  ...
+# Subtest: actual TUI process accepts input, quits cleanly and releases its store
+ok 28 - actual TUI process accepts input, quits cleanly and releases its store
+  ---
+  duration_ms: 6020.971708
+  type: 'test'
+  ...
+# Subtest: visible authorization cards enable approval and rejection without copying IDs
+ok 29 - visible authorization cards enable approval and rejection without copying IDs
+  ---
+  duration_ms: 1600.735417
+  type: 'test'
+  ...
+# Subtest: visible work decisions accept a short handle and retain Master provenance
+ok 30 - visible work decisions accept a short handle and retain Master provenance
+  ---
+  duration_ms: 1501.755834
+  type: 'test'
+  ...
+# Subtest: TUI exposes program, rule, operation and advanced task entry points
+ok 31 - TUI exposes program, rule, operation and advanced task entry points
+  ---
+  duration_ms: 159.407291
+  type: 'test'
+  ...
+# Subtest: PostgreSQL implementation: authorized catalog/facts, conflict/CAS, receipt and outbox replay
+ok 32 - PostgreSQL implementation: authorized catalog/facts, conflict/CAS, receipt and outbox replay # SKIP
+  ---
+  duration_ms: 0.724917
+  type: 'test'
+  ...
+1..32
+# tests 32
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 23206.625541

@@ -31,7 +31,7 @@ workspace 文件可以变化；作为证据或 context 的内容提交前复制�
 5. 追加完整帧并 Sync journal，只有这一步成功才更新内存索引、答复 ACCEPTED 或允许下一步外部执行。新日志段创建要先同步目录。
 6. snapshots 是缓存，不是权威；可在事务后异步生成。写完 generation 全部文件并 Sync 后切换 CURRENT，Sync 目录。恢复仍验证所覆盖 journal seq/digest。
 
-不会把“分别覆盖多个 JSON 文件”当成跨对象事务。示例代码需使用 `File.Sync` 并针对文件系统验证写入顺序，[Go os 文档](https://pkg.go.dev/os#File.Sync)说明 API 行为；本设计尚未通过掉电测试。
+不会把“分别覆盖多个 JSON 文件”当成跨对象事务。实现必须同步文件及相关目录，并针对实际文件系统验证持久化顺序；本设计尚未通过掉电测试。
 
 ## 重放与所有者
 

@@ -21,7 +21,7 @@
 | worker `POST /v1/worker/checkpoints` | Checkpoint 候选 + 完整材料流 → ACK | executor/checkpoint；宿主自行保存原文 |
 | worker `POST /v1/worker/results` | TaskResult/ProgramResult 候选 → ACK | scheduler；结果审查和归档先于反馈 |
 
-Input、Notification、Operation 的持久化 schema 含服务端字段；UI/worker 只提交上表列出的业务字段。内部工具调用可用 Go 接口，不要求全部绕 HTTP。所有入口提交 DTO 校验后由宿主填 schema_version、record_type、hash、state、revision 等，不接受模型自行设定这些控制值。
+Input、Notification、Operation 的持久化 schema 含服务端字段；UI/worker 只提交上表列出的业务字段。内部工具调用可用宿主语言接口，不要求全部绕 HTTP。所有入口提交 DTO 校验后由宿主填 schema_version、record_type、hash、state、revision 等，不接受模型自行设定这些控制值。
 
 `request_hash` 是首次入口原始业务请求字节的摘要，排除由服务端补充的 request_hash/state/revision 等字段；入口原始 bytes 保存在日志对象。schema 示例是补全后的持久化请求封装，不用于对含自身 hash 的整个封装再次求 hash。重复 request_id 必须与原始业务字节一致；相同业务但换了字段顺序也按不同 bytes 处理，客户端重投保留原请求。
 

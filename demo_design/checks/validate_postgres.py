@@ -90,7 +90,7 @@ SELECT 'contested='||count(*) FROM wm.assertion_state WHERE status='CONTESTED';R
         tables=success('only_world_model_tables',"SELECT string_agg(table_name,',' ORDER BY table_name) FROM information_schema.tables WHERE table_schema='wm';").strip().split(',')
         expected={'schema_version','entity','source','predicate','fact_slot','change_receipt','assertion','assertion_state','evidence','assertion_evidence','conflict','conflict_member','audit_outbox'}
         assert set(tables)==expected,tables
-        report={'evidence_level':'SQL_DDL','postgres_version':version,'checks':checks,'table_count':len(tables),'limitations':['No Go repository or authorization runtime implemented','No power-loss, multi-process journal or live-model validation','DDL validation is not proof of application transaction protocol']}
+        report={'evidence_level':'SQL_DDL','postgres_version':version,'checks':checks,'table_count':len(tables),'limitations':['No application repository or authorization runtime tested','No power-loss, multi-process journal or live-model validation','DDL validation is not proof of application transaction protocol']}
         Path(args.report).write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
         print(f'{len(checks)} PostgreSQL checks passed; {len(tables)} tables; server {version}')
     finally:

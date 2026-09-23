@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { Pool, type PoolClient } from "pg";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -21,15 +22,40 @@ export class World {
     this.pool = new Pool({ connectionString: dsn, max: 2 });
   }
   async migrate() {
-    const exists = await this.pool.query(
-      "SELECT to_regclass('wm.schema_version') AS name",
-    );
-    if (exists.rows[0].name) return;
-    for (const f of ["001_world_model.sql", "002_predicates.sql"])
-      await this.pool.query(
-        fs.readFileSync(path.join(root, "schema", f), "utf8"),
+    const db = await this.pool.connect();
+    try {
+      await db.query("SELECT pg_advisory_lock(784316092)");
+      const exists = await db.query(
+        "SELECT to_regclass('wm.schema_version') AS name",
       );
+      if (!exists.rows[0].name)
+        await db.query(
+          fs.readFileSync(
+            path.join(root, "schema/001_world_model.sql"),
+            "utf8",
+          ),
+        );
+      const seeded = await db.query(
+        "SELECT version FROM wm.schema_version WHERE version=2",
+      );
+      if (!seeded.rowCount) {
+        const seed = fs
+          .readFileSync(path.join(root, "schema/002_predicates.sql"), "utf8")
+          .replace(
+            /;\s*COMMIT;\s*$/,
+            " ON CONFLICT (predicate_key) DO NOTHING;\nINSERT INTO wm.schema_version(version) VALUES (2);\nCOMMIT;",
+          );
+        await db.query(seed);
+      }
+    } catch (error) {
+      await db.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      await db.query("SELECT pg_advisory_unlock(784316092)").catch(() => {});
+      db.release();
+    }
   }
+
   propose(change: WorldChange | WorldCatalogChange, scope: Scope) {
     shape(change);
     change.request_hash = hash(
@@ -41,8 +67,14 @@ export class World {
         : change.evidence;
     for (const e of ev) {
       this.store.bytes(e.content);
-      if (!this.store.logs.some((l) => l.event_id === e.log_event_id))
-        throw Error("EVIDENCE_EVENT_MISSING");
+      const event = this.store.logs.find((l) => l.event_id === e.log_event_id);
+      if (!event) throw Error("EVIDENCE_EVENT_MISSING");
+      if (
+        event.payload.sha256 !== e.content.sha256 ||
+        event.payload.path !== e.content.path ||
+        event.payload.bytes !== e.content.bytes
+      )
+        throw Error("EVIDENCE_CONTENT_MISMATCH");
     }
     const prior = this.store
       .all<WorldCommand>("WorldCommand")
@@ -127,6 +159,8 @@ export class World {
             ? await this.catalog(db, change)
             : await this.fact(db, change);
       } catch (error) {
+        const code = (error as { code?: string }).code;
+        if (code && /^(08|40|53|57|58)/.test(code)) throw error;
         await db.query("ROLLBACK TO SAVEPOINT mutation");
         outcome = String(error).includes("REVISION_CONFLICT")
           ? "CONFLICT"
@@ -306,7 +340,7 @@ export class World {
       }
     }
     const equal = (r: Record<string, unknown>) =>
-      JSON.stringify(r.value) === JSON.stringify(c.value) &&
+      isDeepStrictEqual(r.value, c.value) &&
       r.object_entity_id === c.object_entity_id;
     let status =
       remaining.length === 0

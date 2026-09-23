@@ -9,7 +9,7 @@ P0 为数据丢失、重复作用、权限越界、虚假完成、证据或关�
 ## 2. 统一前置设施
 
 1. 为每次 run 创建专用临时 data_root、workspace_root 和独立临时 PG，记录 root 的归属标记；故障注入只作用于该 run 的子进程和目录。测试结束保留证据，清理只删除同 run 标记的测试资源。
-2. 固定源码 commit 与工作区差异摘要、规范 hash、配置、adapter/profile、模型角色、seed、时区、候选 TTL、预算和 max_workers。Go/Pi 分别运行、分别计分；不假定接口完全相同。
+2. 固定源码 commit 与工作区差异摘要、规范 hash、配置、adapter/profile、模型角色、seed、时区、候选 TTL、预算和 max_workers。各实现分别运行、分别计分；不假定接口完全相同。
 3. 测试控制器在被测进程之外记录请求原始字节、实际收到的 ACK、barrier 经过记录、fake clock 和副作用账本。副作用接收器按业务 intent 记录全部尝试，包括重复与被拦截尝试。日志不能仅依赖即将被杀的进程。
 4. OfflineModel 返回确定性完整响应、部分响应、超时或畸形工具调用；ProgramFixture 可阻塞、输出、退出、忽略首次停止信号；FakeChannel 区分明确未发、已发回执及未知。真实 PG 用于仓储/桥接场景，内存替身不能标 `POSTGRES_RUNTIME`。
 5. 故障窗口用显式 barrier/ack 控制顺序；禁止靠 sleep 猜中竞态。每个有两个竞争者的场景至少跑 A→B、B→A、同一 barrier 释放三个排列，并保存实际顺序。阻塞有测试超时和人工停止入口。

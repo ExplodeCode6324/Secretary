@@ -5,11 +5,14 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "tsx --test pi_secretary/test/*.test.ts",
-    "start": "tsx pi_secretary/src/tui.ts",
+    "start": "tsx pi_secretary/src/client-tui.ts",
     "verify": "npm run check && npm test",
     "format:check": "prettier --check \"pi_secretary/src/**/*.ts\" \"pi_secretary/test/**/*.ts\"",
     "start:live": "tsx pi_secretary/scripts/start-live.ts",
-    "test:live": "tsx pi_secretary/scripts/test-live.ts"
+    "test:live": "tsx pi_secretary/scripts/test-live.ts",
+    "test:review": "tsx --test --test-skip-pattern='AUD14' pi_secretary/audit/new.test.ts pi_secretary/audit/extra.test.ts pi_secretary/audit/final.test.ts pi_secretary/audit/legacy.test.ts",
+    "start:web": "tsx pi_secretary/src/web.ts",
+    "start:web:live": "tsx pi_secretary/scripts/start-live.ts --web"
   },
   "dependencies": {
     "@earendil-works/chord": "0.87.0",

@@ -2,7 +2,7 @@
 
 本目录依据当前仓库 BrainStorm Baseline v3、状态机、JSON 契约、World Model schema 和 demo 设计编写。目标是验证状态传递与恢复、长期记忆准确率、模块稳定性、异常与并发，以及权限、可观测性和真实任务结果。设计 catalog 的初始状态保留为 `NOT_RUN`；实际执行结果按独立 run 保存，避免把子项通过当作整条验收。
 
-**已执行：** [2026-09-22 Go/Pi 对照测试与开发评估](reports/comparison-20260922/README.md)，包含离线、真实 PG、15 组边界反例、真实模型短记忆与短时负载。完整 120 条用例及长期运行尚未完成。原设计来源中 10 份实现/UI 文档后来发生 TUI 相关变更，设计检查器保留 source drift 提示；本次运行另有当前工作区的独立源码 hash，不继承旧的测试 PASS。
+历史 Pi 运行证据见 [Pi 证据索引](reports/comparison-20260922/README.md)。目录拆分前的完整混合报告与原 source manifest 已迁入相邻归档。本次为通用设计重新建立来源快照，不继承旧运行判定。
 
 建议先读 [执行与判定协议](PROTOCOL.md)，再看 [覆盖索引](COVERAGE.md)、[长期记忆评测](MEMORY.md) 和 [长期运行计划](CAMPAIGNS.md)。具体用例在 `cases/`，机器可读唯一来源是 [catalog.json](catalog.json)。状态图全边测试义务另见 [转换矩阵](TRANSITIONS.md)；矩阵不是已实现的运行测试。
 
@@ -24,6 +24,6 @@ python3 test/scripts/check.py
 
 `scripts/build.py` 根据 catalog 和当前状态图生成索引与 Markdown；修改用例后执行它。`fixtures/memory-timeline.json` 是人工设定的合成事实和预期答案，不能用被测模型的回答反写它。`fixtures/run-record.example.json` 是未运行的报告模板。
 
-当前参考实现为 [Go demo](../demo_src_go/ARCHITECTURE.md) 和 [Pi demo](../demo_pi/pi_secretary/REVIEW.md)。首次设计时现有测试仅作接线参考；本次运行的重测证据见上述报告。设计源文件快照见 [sources.json](sources.json)；未将其他 Secretary 仓库的历史设计覆盖到本基线。真实模型测试仅使用本地配置中的角色凭据与合成资料，不读取私人对话。
+当前参考实现为 [Pi demo](../demo_pi/pi_secretary/REVIEW.md)。首次设计时现有测试仅作接线参考；历史运行证据见上述索引。设计源文件快照见 [sources.json](sources.json)；未将其他 Secretary 仓库的历史设计覆盖到本基线。真实模型测试仅使用本地配置中的角色凭据与合成资料，不读取私人对话。
 
 快照缓存、自动备份、真实物理掉电、外部通知、未来 EVENT 来源等必须按各实现声明能力单独报告 `BLOCKED_CAPABILITY` 或 `NOT_APPLICABLE`，不能计入 PASS。48 小时保留、性能阈值和质量门槛是候选参数或本测试设计建议，均不改写 BrainStorm。

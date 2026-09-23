@@ -1,0 +1,106 @@
+TAP version 13
+# Subtest: two concurrently launched TUI processes attach one backend; closing a client preserves state
+ok 1 - two concurrently launched TUI processes attach one backend; closing a client preserves state
+  ---
+  duration_ms: 3025.678333
+  type: 'test'
+  ...
+# Subtest: rejected multi-record transaction changes neither journal nor projection
+ok 2 - rejected multi-record transaction changes neither journal nor projection
+  ---
+  duration_ms: 300.325708
+  type: 'test'
+  ...
+# Subtest: queued notification survives restart and becomes SENT only on TUI presentation
+ok 3 - queued notification survives restart and becomes SENT only on TUI presentation
+  ---
+  duration_ms: 1345.476042
+  type: 'test'
+  ...
+# Subtest: original input constraint reaches the next real Pi request after lossy compaction
+ok 4 - original input constraint reaches the next real Pi request after lossy compaction
+  ---
+  duration_ms: 1459.133625
+  type: 'test'
+  ...
+# Subtest: approved shell performs actual IO and preserves separate output and exit status
+ok 5 - approved shell performs actual IO and preserves separate output and exit status
+  ---
+  duration_ms: 2207.847208
+  type: 'test'
+  ...
+# Subtest: rejected shell has no effect
+ok 6 - rejected shell has no effect
+  ---
+  duration_ms: 1093.525333
+  type: 'test'
+  ...
+# Subtest: timeout preserves uncertainty and never replays partial shell effects
+ok 7 - timeout preserves uncertainty and never replays partial shell effects
+  ---
+  duration_ms: 638.555208
+  type: 'test'
+  ...
+# Subtest: approved write preflight errors become visible failure instead of waiting forever
+ok 8 - approved write preflight errors become visible failure instead of waiting forever
+  ---
+  duration_ms: 594.742209
+  type: 'test'
+  ...
+# Subtest: TUI accepts chat, completes agent task and shows details without a network server
+ok 9 - TUI accepts chat, completes agent task and shows details without a network server
+  ---
+  duration_ms: 2825.247542
+  type: 'test'
+  ...
+# Subtest: TUI requires explicit viewed approval and rejects stale displays; chat cannot approve
+ok 10 - TUI requires explicit viewed approval and rejects stale displays; chat cannot approve
+  ---
+  duration_ms: 635.954958
+  type: 'test'
+  ...
+# Subtest: TUI strips terminal escape/control sequences from model output
+ok 11 - TUI strips terminal escape/control sequences from model output
+  ---
+  duration_ms: 0.190084
+  type: 'test'
+  ...
+# Subtest: actual TUI process accepts input, quits cleanly and releases its store
+ok 12 - actual TUI process accepts input, quits cleanly and releases its store
+  ---
+  duration_ms: 3268.275625
+  type: 'test'
+  ...
+# Subtest: visible authorization cards enable approval and rejection without copying IDs
+ok 13 - visible authorization cards enable approval and rejection without copying IDs
+  ---
+  duration_ms: 609.714542
+  type: 'test'
+  ...
+# Subtest: visible work decisions accept a short handle and retain Master provenance
+ok 14 - visible work decisions accept a short handle and retain Master provenance
+  ---
+  duration_ms: 812.86225
+  type: 'test'
+  ...
+# Subtest: TUI exposes program, rule, operation and advanced task entry points
+ok 15 - TUI exposes program, rule, operation and advanced task entry points
+  ---
+  duration_ms: 103.408375
+  type: 'test'
+  ...
+# Subtest: Web and TUI clients share one session, durable inputs and bound approvals
+ok 16 - Web and TUI clients share one session, durable inputs and bound approvals
+  ---
+  duration_ms: 1186.516416
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9369.474

@@ -1140,6 +1140,12 @@
           },
           "minItems": 0,
           "description": ""
+        },
+        "capture_kind": {
+          "enum": [
+            "CHECKPOINT",
+            "MODEL_REQUEST"
+          ]
         }
       },
       "required": [
@@ -1450,6 +1456,16 @@
               "type": "null"
             }
           ]
+        },
+        "commitments": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MemoryCommitment"
+          }
+        },
+        "covered_event_sequence": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -1543,6 +1559,21 @@
           },
           "minItems": 0,
           "description": ""
+        },
+        "memory_version": {
+          "type": "integer",
+          "enum": [
+            2
+          ]
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2
+        },
+        "source_end_sequence": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -5131,6 +5162,53 @@
       ],
       "additionalProperties": false,
       "description": "单写事务，frame 原始 payload 字节 checksum 外包；同帧全生效或全不生效。"
+    },
+    "MemoryCommitment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "state": {
+          "enum": [
+            "OPEN",
+            "COMPLETED",
+            "CANCELLED"
+          ]
+        },
+        "source_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "minItems": 1
+        },
+        "task_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          }
+        },
+        "resolution_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "state",
+        "source_refs",
+        "task_refs",
+        "resolution_event_ids"
+      ]
     }
   },
   "oneOf": [

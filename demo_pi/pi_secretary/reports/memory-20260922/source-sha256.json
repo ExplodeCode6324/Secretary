@@ -1,0 +1,13 @@
+{
+  "pi_secretary/src/host.ts": "351a12f308cfb3fab7efe0218652d1e990a55ebebe246f1b4b493d11455580d3",
+  "pi_secretary/src/memory.ts": "1fe8a4c58d40baf5aef806bc84bd9e37e09edb94a08a84a6869442d10e35d21f",
+  "pi_secretary/src/context.ts": "32a738ce3c31ddea216ea55c1aa9ae023d1a4491b469bcd93d41649730e7c0fd",
+  "pi_secretary/src/model.ts": "0d6af4c1b6a8f174b650c414b933f40907d320d3142ae1e67694a06415551d94",
+  "pi_secretary/src/transport.ts": "2f846b9335012ca63bcfb60fd506de5efc8492dc1ff18f53c6180571212048ba",
+  "pi_secretary/src/tui.ts": "a77b1a59ddc2505d9ee48762f224c252c444590041d89c75e2c40b795da38982",
+  "pi_secretary/src/backend.ts": "d9620e03f2be34d99c3fa43b39fcaa4845cf5b86ddcc5bf86184fabeca17120e",
+  "pi_secretary/src/contracts.ts": "35a0c9d5b08e22040f74c663aa04de6cc09251ce20e39db4d7ad3a95991d3205",
+  "../json/contracts.schema.json": "9506d71a2f5a325f368eab5220a1eb1b9a1edff6607b606eb3ef91ccb50e992f",
+  "pi_secretary/web/app.js": "254ac9773c47cd52a902bb1ce7f6d9ea285abcf93e81e52a70f9d9fe54eb0415",
+  "pi_secretary/web/index.html": "4d7e556e5175517273b0b6a00a2547c86604006352a77be8571632e52b35868a"
+}

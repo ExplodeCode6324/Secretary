@@ -1,5 +1,0 @@
-=== RUN   TestLiveMainTaskAndConsciousness
-    live_test.go:139: live main/task/approval/artifact/feedback/consciousness passed in 35.5s
---- PASS: TestLiveMainTaskAndConsciousness (35.56s)
-PASS
-ok  	secretary_go_demo/internal/engine	37.076s

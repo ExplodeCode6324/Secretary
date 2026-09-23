@@ -1,8 +1,0 @@
-{"Time":"2026-09-22T19:44:59.378975+08:00","Action":"start","Package":"secretary_go_demo/internal/world"}
-{"Time":"2026-09-22T19:44:59.736924+08:00","Action":"run","Package":"secretary_go_demo/internal/world","Test":"TestWorldRepositoryTransactions"}
-{"Time":"2026-09-22T19:44:59.737018+08:00","Action":"output","Package":"secretary_go_demo/internal/world","Test":"TestWorldRepositoryTransactions","Output":"=== RUN   TestWorldRepositoryTransactions\n"}
-{"Time":"2026-09-22T19:44:59.792802+08:00","Action":"output","Package":"secretary_go_demo/internal/world","Test":"TestWorldRepositoryTransactions","Output":"--- PASS: TestWorldRepositoryTransactions (0.06s)\n"}
-{"Time":"2026-09-22T19:44:59.792836+08:00","Action":"pass","Package":"secretary_go_demo/internal/world","Test":"TestWorldRepositoryTransactions","Elapsed":0.06}
-{"Time":"2026-09-22T19:44:59.792854+08:00","Action":"output","Package":"secretary_go_demo/internal/world","Output":"PASS\n"}
-{"Time":"2026-09-22T19:45:00.798376+08:00","Action":"output","Package":"secretary_go_demo/internal/world","Output":"ok  \tsecretary_go_demo/internal/world\t1.419s\n"}
-{"Time":"2026-09-22T19:45:00.798548+08:00","Action":"pass","Package":"secretary_go_demo/internal/world","Elapsed":1.42}

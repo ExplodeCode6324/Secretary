@@ -1,0 +1,17 @@
+{
+  "README.md": "b70e51784b30e07267ed708679ad0ecc777bbd477ffaddde1778a7aac1875357",
+  "demo_pi/package.json": "f78c2fa2b48379e522bdbbf327c2c5f73377323a95956e6b5dfaae6f13683acf",
+  "demo_pi/pi_secretary/src/app.ts": "b0da9e79224308223d985b673e58ee11014bb79c05c3ca081220cdc03ca69347",
+  "demo_pi/pi_secretary/src/authorization.ts": "729d74e8bf1e32f6537a20a9dbc8d81598b1e8038fb7e0c155f3909ea7e74f36",
+  "demo_pi/pi_secretary/src/context.ts": "a79644466fc374740522f58696d8bc856b8aa5cd11fb012d3ac05e51e50e9b71",
+  "demo_pi/pi_secretary/src/contracts.ts": "25e5bfc2e889c8463b91f833bcc2b80eecb8c4201d86a9787875d13931fa8a1b",
+  "demo_pi/pi_secretary/src/host.ts": "643405bae82cddafa30dad25e03fb0be9e5b742123004649288009e685441674",
+  "demo_pi/pi_secretary/src/model.ts": "683e3673060cc879ec63da2d8157829123a5bf70aa35ca8d1b326f061d1fc40e",
+  "demo_pi/pi_secretary/src/scheduler.ts": "0a33351b78c6fa4ecd6f44974511f1e7f8dac344b816726e643789de1bb2ca78",
+  "demo_pi/pi_secretary/src/store.ts": "1a58a4a781a47a75e3e14426b52c9a13507a4a09b6a823a22935f8680b4c5fd0",
+  "demo_pi/pi_secretary/src/task-prompt.ts": "2504a89f034b2e1b8b96aa97b6906a3dc47d43902c41bee6e146ff17a8ba7acc",
+  "demo_pi/pi_secretary/src/transport.ts": "80dce0cdb0b73b9d9167e0d1531ac803585b37523818db89b618f05884ed1ade",
+  "demo_pi/pi_secretary/src/tui.ts": "9b0baa687c023483a575b7dd7bd84f93e0299aaefa2cd2504c3f82d68a884e7f",
+  "demo_pi/pi_secretary/src/world.ts": "39b5ccefcc9e161e25e2ba2f63440174fe41c0c6e7b9abf505a87f984a20d0ef",
+  "demo_pi/pi_secretary/test/review.test.ts": "aebb2481cc302d06c909b6cab4bf9a2501fcd9cfd149c43864612a84490a9ca9"
+}

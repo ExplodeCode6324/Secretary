@@ -9,6 +9,7 @@ export function durableStream(
   scope: Scope,
   loopID: string,
   purpose: Context["purpose"],
+  metadata: { consciousnessRevision?: number | null; maxTokens?: number } = {},
 ): StreamFn {
   let count = 0;
   return async (model, context, options) => {
@@ -21,6 +22,10 @@ export function durableStream(
       model.id,
       loopID,
       model.contextWindow,
+      {
+        consciousnessRevision: metadata.consciousnessRevision,
+        captureKind: "MODEL_REQUEST",
+      },
     );
     const call: ModelCall = {
       schema_version: 1,
@@ -42,6 +47,7 @@ export function durableStream(
     try {
       const response = await stream(model, context, {
         ...options,
+        ...(metadata.maxTokens ? { maxTokens: metadata.maxTokens } : {}),
         sessionId: scope.execution_id ?? scope.session_id ?? loopID,
         signal: AbortSignal.any([
           ...(options?.signal ? [options.signal] : []),

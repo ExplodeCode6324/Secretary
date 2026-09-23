@@ -570,7 +570,7 @@
       "evidence_level": "OFFLINE_RUNTIME",
       "status": "NOT_RUN",
       "sources": [
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/PERSISTENCE.md",
         "json/SEMANTICS.md"
       ],
@@ -4370,7 +4370,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4419,7 +4419,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4471,7 +4471,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4524,7 +4524,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4577,7 +4577,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4627,7 +4627,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4680,7 +4680,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4732,7 +4732,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4784,7 +4784,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4835,7 +4835,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4887,7 +4887,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4938,7 +4938,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -4991,7 +4991,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -5043,7 +5043,7 @@
       "status": "NOT_RUN",
       "sources": [
         "demo_design/API.md",
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/DECISIONS.md",
         "json/contracts.schema.json",
         "json/SEMANTICS.md"
@@ -5096,7 +5096,7 @@
       "evidence_level": "OFFLINE_RUNTIME",
       "status": "NOT_RUN",
       "sources": [
-        "demo_design/GO_LAYOUT.md",
+        "demo_design/IMPLEMENTATION.md",
         "demo_design/API.md",
         "schema/TRANSACTIONS.md"
       ],
@@ -5144,7 +5144,7 @@
       "sources": [
         "BrainStorm_Baseline_v3.md",
         "demo_design/SCENARIOS.md",
-        "demo_src_go/ARCHITECTURE.md",
+        "demo_design/PERSISTENCE.md",
         "demo_pi/pi_secretary/REVIEW.md"
       ],
       "modules": [
@@ -5221,7 +5221,7 @@
       "sources": [
         "BrainStorm_Baseline_v3.md",
         "demo_design/SCENARIOS.md",
-        "demo_src_go/ARCHITECTURE.md",
+        "demo_design/PERSISTENCE.md",
         "demo_pi/pi_secretary/REVIEW.md"
       ],
       "modules": [
@@ -5296,7 +5296,7 @@
       "sources": [
         "BrainStorm_Baseline_v3.md",
         "demo_design/SCENARIOS.md",
-        "demo_src_go/ARCHITECTURE.md",
+        "demo_design/PERSISTENCE.md",
         "demo_pi/pi_secretary/REVIEW.md"
       ],
       "modules": [
@@ -5371,7 +5371,7 @@
       "sources": [
         "BrainStorm_Baseline_v3.md",
         "demo_design/SCENARIOS.md",
-        "demo_src_go/ARCHITECTURE.md",
+        "demo_design/PERSISTENCE.md",
         "demo_pi/pi_secretary/REVIEW.md"
       ],
       "modules": [
@@ -5446,7 +5446,7 @@
       "sources": [
         "BrainStorm_Baseline_v3.md",
         "demo_design/SCENARIOS.md",
-        "demo_src_go/ARCHITECTURE.md",
+        "demo_design/PERSISTENCE.md",
         "demo_pi/pi_secretary/REVIEW.md"
       ],
       "modules": [
@@ -5521,7 +5521,7 @@
       "sources": [
         "BrainStorm_Baseline_v3.md",
         "demo_design/SCENARIOS.md",
-        "demo_src_go/ARCHITECTURE.md",
+        "demo_design/PERSISTENCE.md",
         "demo_pi/pi_secretary/REVIEW.md"
       ],
       "modules": [
@@ -5597,7 +5597,7 @@
       "sources": [
         "BrainStorm_Baseline_v3.md",
         "demo_design/SCENARIOS.md",
-        "demo_src_go/ARCHITECTURE.md",
+        "demo_design/PERSISTENCE.md",
         "demo_pi/pi_secretary/REVIEW.md"
       ],
       "modules": [
@@ -5672,7 +5672,7 @@
       "sources": [
         "BrainStorm_Baseline_v3.md",
         "demo_design/SCENARIOS.md",
-        "demo_src_go/ARCHITECTURE.md",
+        "demo_design/PERSISTENCE.md",
         "demo_pi/pi_secretary/REVIEW.md"
       ],
       "modules": [

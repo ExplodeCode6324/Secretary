@@ -22,7 +22,14 @@ const env = {
 };
 const child = spawn(
   process.execPath,
-  ["--import", "tsx", "pi_secretary/src/tui.ts", ...process.argv.slice(2)],
+  [
+    "--import",
+    "tsx",
+    process.argv.includes("--web")
+      ? "pi_secretary/src/web.ts"
+      : "pi_secretary/src/client-tui.ts",
+    ...process.argv.slice(2).filter((arg) => arg !== "--web"),
+  ],
   { env, stdio: "inherit" },
 );
 for (const signal of ["SIGINT", "SIGTERM"] as const)

@@ -397,6 +397,7 @@ export interface Context {
    * @minItems 0
    */
   wm_fact_versions: string[];
+  capture_kind?: "CHECKPOINT" | "MODEL_REQUEST";
 }
 /**
  * 逻辑消息；provider 扩展块由原始 context 对象保留。
@@ -497,6 +498,8 @@ export interface Consciousness {
    */
   covered_event_ids: ID[];
   last_job_id: ID | null;
+  commitments?: MemoryCommitment[];
+  covered_event_sequence?: number;
 }
 /**
  * 事项不等于任务；未履行且无人承接的事项不退出。
@@ -536,6 +539,17 @@ export interface WorkItem {
   last_activity_at: Time;
   pending_owner: ("MAIN" | "SCHEDULER") | null;
 }
+export interface MemoryCommitment {
+  id: ID;
+  text: string;
+  state: "OPEN" | "COMPLETED" | "CANCELLED";
+  /**
+   * @minItems 1
+   */
+  source_refs: ObjectRef[];
+  task_refs: ID[];
+  resolution_event_ids: ID[];
+}
 /**
  * 固定范围摘要任务；新增输入不纳入覆盖集合。
  */
@@ -568,6 +582,9 @@ export interface CompactionJob {
    * @minItems 0
    */
   validation_errors: string[];
+  memory_version?: 2;
+  attempt?: number;
+  source_end_sequence?: number;
 }
 /**
  * 主会话只提出任务；不接受 authorized、grant 等模型声明。

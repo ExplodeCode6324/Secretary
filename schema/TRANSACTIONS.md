@@ -55,7 +55,7 @@ assertion_evidence 不可删除或挪到另一主张；追加来源证据可新�
 
 WorldQuery.as_of 指事实适用时间，默认按调用方明确的当前 UTC；并不表示“恢复当时我们知道的全部状态”。历史读取可返回已更正/撤回主张及其 receipt 轨迹，精确的知识时间旅行投影不是首版功能。分页 cursor 编码过滤条件摘要、稳定 (slot_id, assertion_id) 排序边界和查询起始时间；跨页若相关 slot revision 改变，返回需重开查询的 CONFLICT，不能声称处于同一冻结快照。实现也可在短查询事务中一次收集匹配 ID 后分页；不跨模型思考时间保持 PG 事务。
 
-freshness 以服务器本次读取时间比较 fresh_until，不以 WorldQuery.as_of 冒充当前新鲜度。查询结果的 observed_db_at 保存读取时间；所有时间经 Go 编码成 UTC RFC3339，避免直接透传数据库 JSON 的时区显示格式。
+freshness 以服务器本次读取时间比较 fresh_until，不以 WorldQuery.as_of 冒充当前新鲜度。查询结果的 observed_db_at 保存读取时间；所有时间统一编码成 UTC RFC3339，避免直接透传数据库 JSON 的时区显示格式。
 
 ## 主张投影的状态转换
 

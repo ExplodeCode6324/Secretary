@@ -1,0 +1,310 @@
+
+> verify
+> npm run check && npm test
+
+
+> check
+> tsc --noEmit
+
+
+> test
+> tsx --test pi_secretary/test/*.test.ts
+
+TAP version 13
+# Subtest: two concurrently launched TUI processes attach one backend; closing a client preserves state
+ok 1 - two concurrently launched TUI processes attach one backend; closing a client preserves state
+  ---
+  duration_ms: 3639.72175
+  type: 'test'
+  ...
+# Subtest: stable commitments survive summary omission/rewording; unsupported completion cannot erase them
+ok 2 - stable commitments survive summary omission/rewording; unsupported completion cannot erase them
+  ---
+  duration_ms: 1600.017417
+  type: 'test'
+  ...
+# Subtest: invalid summary has one bounded retry and original context remains intact
+ok 3 - invalid summary has one bounded retry and original context remains intact
+  ---
+  duration_ms: 1773.456458
+  type: 'test'
+  ...
+# Subtest: repeated summary failure is visible and automatic maintenance does not spin
+ok 4 - repeated summary failure is visible and automatic maintenance does not spin
+  ---
+  duration_ms: 1499.004208
+  type: 'test'
+  ...
+# Subtest: new input during compaction makes the old candidate stale
+ok 5 - new input during compaction makes the old candidate stale
+  ---
+  duration_ms: 1007.78175
+  type: 'test'
+  ...
+# Subtest: next context identifies working memory revision, input IDs and model request snapshots
+ok 6 - next context identifies working memory revision, input IDs and model request snapshots
+  ---
+  duration_ms: 1869.436542
+  type: 'test'
+  ...
+# Subtest: context records outstanding tool calls and clears completed calls
+ok 7 - context records outstanding tool calls and clears completed calls
+  ---
+  duration_ms: 757.99525
+  type: 'test'
+  ...
+# Subtest: committed memory and ledger restore after reopening without task dispatch
+ok 8 - committed memory and ledger restore after reopening without task dispatch
+  ---
+  duration_ms: 850.744167
+  type: 'test'
+  ...
+# Subtest: length-limited responses are classified as truncation and retried
+ok 9 - length-limited responses are classified as truncation and retried
+  ---
+  duration_ms: 1036.624875
+  type: 'test'
+  ...
+# Subtest: incremental summary sends new events without repeating old tool history
+ok 10 - incremental summary sends new events without repeating old tool history
+  ---
+  duration_ms: 1589.905458
+  type: 'test'
+  ...
+# Subtest: repeated compaction keeps one current memory header while preserving original Master inputs
+ok 11 - repeated compaction keeps one current memory header while preserving original Master inputs
+  ---
+  duration_ms: 1751.902667
+  type: 'test'
+  ...
+# Subtest: rejected multi-record transaction changes neither journal nor projection
+ok 12 - rejected multi-record transaction changes neither journal nor projection
+  ---
+  duration_ms: 403.725625
+  type: 'test'
+  ...
+# Subtest: queued notification survives restart and becomes SENT only on TUI presentation
+ok 13 - queued notification survives restart and becomes SENT only on TUI presentation
+  ---
+  duration_ms: 1716.325292
+  type: 'test'
+  ...
+# Subtest: original input constraint reaches the next real Pi request after lossy compaction
+ok 14 - original input constraint reaches the next real Pi request after lossy compaction
+  ---
+  duration_ms: 2115.266459
+  type: 'test'
+  ...
+# Subtest: actual Pi main loop, task agent, durable feedback and exact context reload
+ok 15 - actual Pi main loop, task agent, durable feedback and exact context reload
+  ---
+  duration_ms: 3797.468375
+  type: 'test'
+  ...
+# Subtest: new input arriving during a Pi call remains durable and is handled later
+ok 16 - new input arriving during a Pi call remains durable and is handled later
+  ---
+  duration_ms: 1319.154417
+  type: 'test'
+  ...
+# Subtest: task write uses Pi source tool only after independent UI approval
+ok 17 - task write uses Pi source tool only after independent UI approval
+  ---
+  duration_ms: 2428.729791
+  type: 'test'
+  ...
+# Subtest: program launch waits for approval, captures real process output
+ok 18 - program launch waits for approval, captures real process output
+  ---
+  duration_ms: 984.794917
+  type: 'test'
+  ...
+# Subtest: restart reconstructs pending input and preserves unknown operation without retry
+ok 19 - restart reconstructs pending input and preserves unknown operation without retry
+  ---
+  duration_ms: 786.511708
+  type: 'test'
+  ...
+# Subtest: OS owner lock excludes second writer; incomplete tail recovers; checksum corruption blocks
+ok 20 - OS owner lock excludes second writer; incomplete tail recovers; checksum corruption blocks
+  ---
+  duration_ms: 76.810542
+  type: 'test'
+  ...
+# Subtest: short-term retirement keeps history and blocks pending feedback
+ok 21 - short-term retirement keeps history and blocks pending feedback
+  ---
+  duration_ms: 1596.62475
+  type: 'test'
+  ...
+# Subtest: Consciousness compaction preserves originals and does not schedule a new input
+ok 22 - Consciousness compaction preserves originals and does not schedule a new input
+  ---
+  duration_ms: 878.097583
+  type: 'test'
+  ...
+# Subtest: later tool in same Pi batch is stopped when an earlier tool waits for approval
+ok 23 - later tool in same Pi batch is stopped when an earlier tool waits for approval
+  ---
+  duration_ms: 1160.346
+  type: 'test'
+  ...
+# Subtest: declined grant cannot launch a program or be consumed
+ok 24 - declined grant cannot launch a program or be consumed
+  ---
+  duration_ms: 620.812417
+  type: 'test'
+  ...
+# Subtest: program with an invalid result stops as RESULT_UNKNOWN instead of repeating
+ok 25 - program with an invalid result stops as RESULT_UNKNOWN instead of repeating
+  ---
+  duration_ms: 425.65275
+  type: 'test'
+  ...
+# Subtest: missing original context object blocks recovery rather than creating an empty session
+ok 26 - missing original context object blocks recovery rather than creating an empty session
+  ---
+  duration_ms: 282.07675
+  type: 'test'
+  ...
+# Subtest: separate processes restore exact Pi context and recover an ACK after SIGKILL
+ok 27 - separate processes restore exact Pi context and recover an ACK after SIGKILL
+  ---
+  duration_ms: 1292.251458
+  type: 'test'
+  ...
+# Subtest: crash after claiming a new input cannot mistake the previous loop reply for its completion
+ok 28 - crash after claiming a new input cannot mistake the previous loop reply for its completion
+  ---
+  duration_ms: 499.11375
+  type: 'test'
+  ...
+# Subtest: precondition waits stay outside idle retirement and unblock from authoritative execution status
+ok 29 - precondition waits stay outside idle retirement and unblock from authoritative execution status
+  ---
+  duration_ms: 132.907459
+  type: 'test'
+  ...
+# Subtest: a busy main model does not block approval dispatch to a task agent
+ok 30 - a busy main model does not block approval dispatch to a task agent
+  ---
+  duration_ms: 1381.500041
+  type: 'test'
+  ...
+# Subtest: separate role models and Scheduler packet preserve task materials and criteria
+ok 31 - separate role models and Scheduler packet preserve task materials and criteria
+  ---
+  duration_ms: 676.779125
+  type: 'test'
+  ...
+# Subtest: plain completion text cannot mark agent task successful
+ok 32 - plain completion text cannot mark agent task successful
+  ---
+  duration_ms: 410.585083
+  type: 'test'
+  ...
+# Subtest: agent result cannot claim success with incomplete criterion assessments
+ok 33 - agent result cannot claim success with incomplete criterion assessments
+  ---
+  duration_ms: 510.855042
+  type: 'test'
+  ...
+# Subtest: nullable optional proposal fields work through the real Pi tool validator
+ok 34 - nullable optional proposal fields work through the real Pi tool validator
+  ---
+  duration_ms: 1029.6185
+  type: 'test'
+  ...
+# Subtest: unknown effect feedback cannot create an autonomous replacement task
+ok 35 - unknown effect feedback cannot create an autonomous replacement task
+  ---
+  duration_ms: 810.860375
+  type: 'test'
+  ...
+# Subtest: approved shell performs actual IO and preserves separate output and exit status
+ok 36 - approved shell performs actual IO and preserves separate output and exit status
+  ---
+  duration_ms: 3015.028084
+  type: 'test'
+  ...
+# Subtest: rejected shell has no effect
+ok 37 - rejected shell has no effect
+  ---
+  duration_ms: 1713.598875
+  type: 'test'
+  ...
+# Subtest: timeout preserves uncertainty and never replays partial shell effects
+ok 38 - timeout preserves uncertainty and never replays partial shell effects
+  ---
+  duration_ms: 1545.437833
+  type: 'test'
+  ...
+# Subtest: approved write preflight errors become visible failure instead of waiting forever
+ok 39 - approved write preflight errors become visible failure instead of waiting forever
+  ---
+  duration_ms: 1726.760958
+  type: 'test'
+  ...
+# Subtest: TUI accepts chat, completes agent task and shows details without a network server
+ok 40 - TUI accepts chat, completes agent task and shows details without a network server
+  ---
+  duration_ms: 3748.900875
+  type: 'test'
+  ...
+# Subtest: TUI requires explicit viewed approval and rejects stale displays; chat cannot approve
+ok 41 - TUI requires explicit viewed approval and rejects stale displays; chat cannot approve
+  ---
+  duration_ms: 1170.531791
+  type: 'test'
+  ...
+# Subtest: TUI strips terminal escape/control sequences from model output
+ok 42 - TUI strips terminal escape/control sequences from model output
+  ---
+  duration_ms: 0.325542
+  type: 'test'
+  ...
+# Subtest: actual TUI process accepts input, quits cleanly and releases its store
+ok 43 - actual TUI process accepts input, quits cleanly and releases its store
+  ---
+  duration_ms: 5525.047209
+  type: 'test'
+  ...
+# Subtest: visible authorization cards enable approval and rejection without copying IDs
+ok 44 - visible authorization cards enable approval and rejection without copying IDs
+  ---
+  duration_ms: 1464.822625
+  type: 'test'
+  ...
+# Subtest: visible work decisions accept a short handle and retain Master provenance
+ok 45 - visible work decisions accept a short handle and retain Master provenance
+  ---
+  duration_ms: 1710.851916
+  type: 'test'
+  ...
+# Subtest: TUI exposes program, rule, operation and advanced task entry points
+ok 46 - TUI exposes program, rule, operation and advanced task entry points
+  ---
+  duration_ms: 184.926125
+  type: 'test'
+  ...
+# Subtest: Web and TUI clients share one session, durable inputs and bound approvals
+ok 47 - Web and TUI clients share one session, durable inputs and bound approvals
+  ---
+  duration_ms: 1428.344333
+  type: 'test'
+  ...
+# Subtest: PostgreSQL implementation: authorized catalog/facts, conflict/CAS, receipt and outbox replay
+ok 48 - PostgreSQL implementation: authorized catalog/facts, conflict/CAS, receipt and outbox replay # SKIP
+  ---
+  duration_ms: 0.440292
+  type: 'test'
+  ...
+1..48
+# tests 48
+# suites 0
+# pass 47
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 22740.927584

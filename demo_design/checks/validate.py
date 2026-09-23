@@ -80,12 +80,13 @@ for f in files:
         if re.match(r'[a-zA-Z][\w+.-]*:',target) or target.startswith('#'):continue
         clean=unquote(target.split('#')[0].strip('<>'))
         if not clean:continue
-        links+=1;check('link:'+str(f.relative_to(ROOT))+':'+clean,(f.parent/clean).exists())
+        destination=(f.parent/clean).resolve()
+        links+=1;check('link:'+str(f.relative_to(ROOT))+':'+clean,destination.exists() or destination==Path(args.report).resolve())
 readme=(ROOT/'README.md').read_text();digest=hashlib.sha256((ROOT/'BrainStorm_Baseline_v3.md').read_bytes()).hexdigest()
 check('baseline_hash_unchanged',digest in readme)
 # Publication hygiene, without scanning credentials outside this design package.
 for f in files:
     check('no_local_home_path:'+str(f.relative_to(ROOT)),not re.search(r'/Users/[^/\s]+/',f.read_text()))
-report={'evidence_level':'DOC_ONLY','passed':True,'primary_contracts':len(contracts),'definitions':len(schema['$defs']),'storage_definitions':len(storage['$defs']),'positive_shape_examples':len(valid),'negative_shape_examples':len(index),'state_machines':len(machines),'transitions':transition_count,'graph_traces':len(traces),'markdown_files':len(files),'local_links':links,'baseline_sha256':digest,'checks_passed':len(checks),'limitations':['Shape fixtures use synthetic references; not an integrated persisted dataset','Graph traces validate allowed edges, not Go guard implementations','No Go runtime, model, power-loss or real-use tests performed']}
+report={'evidence_level':'DOC_ONLY','passed':True,'primary_contracts':len(contracts),'definitions':len(schema['$defs']),'storage_definitions':len(storage['$defs']),'positive_shape_examples':len(valid),'negative_shape_examples':len(index),'state_machines':len(machines),'transitions':transition_count,'graph_traces':len(traces),'markdown_files':len(files),'local_links':links,'baseline_sha256':digest,'checks_passed':len(checks),'limitations':['Shape fixtures use synthetic references; not an integrated persisted dataset','Graph traces validate allowed edges, not runtime guard implementations','No runtime, model, power-loss or real-use tests performed']}
 Path(args.report).write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
 print(json.dumps(report,ensure_ascii=False,indent=2))

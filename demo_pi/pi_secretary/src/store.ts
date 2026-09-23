@@ -286,6 +286,7 @@ export class Store {
       committed_at: now(),
     };
     shape(txn);
+    const staged = this.stage(txn);
     const payload = JSON.stringify(txn);
     const digest = hash(payload);
     const frame =
@@ -305,11 +306,16 @@ export class Store {
     } finally {
       fs.closeSync(fd);
     }
-    this.apply(txn, digest);
+    this.install(txn, digest, staged);
   }
-  private apply(txn: JournalTransaction, digest: string) {
+  private stage(txn: JournalTransaction): Stored[] {
+    const staged: Stored[] = [];
+    const keys = new Set<string>();
     for (const m of txn.mutations) {
-      const old = this.records.get(m.object_type + ":" + m.object_id);
+      const key = m.object_type + ":" + m.object_id;
+      if (keys.has(key)) throw Error("DUPLICATE_MUTATION");
+      keys.add(key);
+      const old = this.records.get(key);
       if (
         (old?.revision ?? 0) !== m.expected_revision ||
         m.new_revision !== m.expected_revision + 1
@@ -324,11 +330,68 @@ export class Store {
       )
         throw Error("CORRUPT_SNAPSHOT");
       this.verifyRefs(r);
-      this.records.set(r.record_type + ":" + r.id, r);
+      if (
+        old &&
+        ["Context", "Checkpoint", "TaskResult", "ArchiveManifest"].includes(
+          r.record_type,
+        )
+      )
+        throw Error("IMMUTABLE_RECORD");
+      if (old?.record_type === "Input" && r.record_type === "Input") {
+        if (
+          r.session_id !== old.session_id ||
+          r.payload.sha256 !== old.payload.sha256
+        )
+          throw Error("INPUT_IDENTITY_CHANGED");
+        if (
+          old.state !== r.state &&
+          !(
+            (old.state === "ACCEPTED" && r.state === "CLAIMED") ||
+            (old.state === "CLAIMED" && r.state === "HANDLED")
+          )
+        )
+          throw Error("INVALID_INPUT_TRANSITION");
+      }
+      staged.push(r);
     }
+    const candidate = new Map(this.records);
+    for (const r of staged) candidate.set(r.record_type + ":" + r.id, r);
+    if (
+      [...candidate.values()].filter((r) => r.record_type === "Session")
+        .length > 1
+    )
+      throw Error("MULTIPLE_MAIN_SESSIONS");
+    for (const r of staged) {
+      if (
+        "session_id" in r &&
+        r.session_id &&
+        !candidate.has("Session:" + r.session_id)
+      )
+        throw Error("MISSING_SESSION");
+    }
+    const eventIDs = new Set<string>();
+    for (const [index, e] of txn.log_records.entries()) {
+      this.verifyRefs(e);
+      if (
+        e.sequence !== this.eventSequence + index + 1 ||
+        eventIDs.has(e.event_id) ||
+        this.eventTransactions.has(e.event_id)
+      )
+        throw Error("CORRUPT_EVENT_SEQUENCE");
+      eventIDs.add(e.event_id);
+    }
+    const requests = new Set<string>();
+    for (const r of txn.receipts) {
+      if (requests.has(r.request_id) || this.receipts.has(r.request_id))
+        throw Error("DUPLICATE_RECEIPT");
+      requests.add(r.request_id);
+    }
+    return staged;
+  }
+  private install(txn: JournalTransaction, digest: string, staged: Stored[]) {
+    for (const r of staged) this.records.set(r.record_type + ":" + r.id, r);
     for (const e of txn.log_records) {
-      this.bytes(e.payload);
-      this.eventSequence = Math.max(this.eventSequence, e.sequence);
+      this.eventSequence = e.sequence;
       this.logs.push(e);
       this.eventTransactions.set(e.event_id, txn.txn_id);
     }
@@ -368,9 +431,18 @@ export class Store {
       fs.truncateSync(file, last + 1);
     }
     const text = data.subarray(0, last + 1).toString();
-    for (const line of text.split("\n").filter(Boolean)) {
+    for (const line of text.split("\n").slice(0, -1)) {
       const frame = JSON.parse(line);
+      if (
+        !frame ||
+        Object.keys(frame).sort().join(",") !== "payload_b64,sha256" ||
+        typeof frame.payload_b64 !== "string" ||
+        typeof frame.sha256 !== "string"
+      )
+        throw Error("CORRUPT_FRAME");
       const payload = Buffer.from(frame.payload_b64, "base64");
+      if (payload.toString("base64") !== frame.payload_b64)
+        throw Error("CORRUPT_BASE64");
       if (hash(payload) !== frame.sha256) throw Error("CORRUPT_JOURNAL");
       const txn = JSON.parse(payload.toString()) as JournalTransaction;
       shape(txn);
@@ -379,7 +451,7 @@ export class Store {
         txn.previous_digest !== this.digest
       )
         throw Error("CORRUPT_CHAIN");
-      this.apply(txn, frame.sha256);
+      this.install(txn, frame.sha256, this.stage(txn));
     }
   }
   async close() {

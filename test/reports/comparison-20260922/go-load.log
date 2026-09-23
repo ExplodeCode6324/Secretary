@@ -1,4 +1,0 @@
-=== RUN   TestAuditLoad
---- PASS: TestAuditLoad (43.16s)
-PASS
-ok  	secretary_go_demo/internal/engine	46.291s

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Secretary</title>
+    <link rel="stylesheet" href="/style.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <a class="brand" href="/">S<span>Secretary</span></a>
+      <div class="workspace-label">PERSONAL WORKSPACE</div>
+      <button class="nav active" id="conversation-tab">
+        ◉ <span>主会话</span><span class="live-dot"></span></button
+      ><button class="nav" id="tasks-tab">
+        ☷ <span>任务记录</span><span id="task-count">0</span>
+      </button>
+      <div class="section-label">最近任务</div>
+      <div id="task-list"></div>
+      <div class="sidebar-bottom">
+        <button class="nav" data-command="/programs">已登记程序</button
+        ><button class="nav" data-command="/world-read">长期记忆</button
+        ><button class="nav" data-command="/operations">执行与核验</button
+        ><button class="nav" data-command="/help">所有操作</button>
+        <div class="identity">
+          <span class="avatar">M</span>
+          <div>Master<small>本地工作空间</small></div>
+        </div>
+      </div>
+    </aside>
+    <main>
+      <header>
+        <div>
+          <span class="eyebrow">CONTINUOUS CONVERSATION</span>
+          <h1>主会话 <span id="runtime-state">连接中</span></h1>
+        </div>
+        <div class="header-right">
+          <span id="connection">正在连接</span
+          ><button id="attention-toggle">
+            待处理 <span id="attention-count">0</span>
+          </button>
+        </div>
+      </header>
+      <div class="context-strip">
+        <span>CONTEXT</span>
+        <div class="meter"><i id="context-bar"></i></div>
+        <span id="context-text">等待快照</span><span id="model"></span
+        ><span id="memory-state"></span>
+      </div>
+      <section id="timeline" aria-label="会话消息" aria-live="polite">
+        <div id="welcome">
+          <span class="welcome-mark">S</span>
+          <h2>从这里，继续。</h2>
+          <p>
+            交代目标，整理思路，或接着处理手头的事。<br />Secretary
+            会保留上下文，任务与授权会在这里交接。
+          </p>
+          <div class="suggestions">
+            <button>整理今天需要处理的事情</button
+            ><button>查看当前任务进展</button>
+          </div>
+        </div>
+        <div id="messages"></div>
+        <div id="thinking" hidden><span></span>Secretary 正在处理</div>
+      </section>
+      <div class="composer-wrap">
+        <div id="error" role="alert" hidden></div>
+        <form id="composer">
+          <textarea
+            id="message"
+            rows="2"
+            placeholder="告诉 Secretary 接下来要做什么…"
+            aria-label="发送给 Secretary 的消息"
+          ></textarea>
+          <div class="composer-bottom">
+            <span>同一主会话 · 与 TUI 实时同步</span
+            ><button type="submit" id="send" aria-label="发送消息">↑</button>
+          </div>
+        </form>
+        <p class="composer-hint">
+          Enter 发送 · Shift + Enter 换行
+          <span>授权由你确认，聊天中的同意不会代替批准。</span>
+        </p>
+      </div>
+    </main>
+    <aside id="attention" hidden>
+      <div class="panel-heading">
+        <h2>需要你的决定</h2>
+        <button id="close-attention" aria-label="关闭待处理面板">×</button>
+      </div>
+      <p class="panel-description">
+        任务会在这里等待。你的决定在所有界面同步。
+      </p>
+      <div id="approvals"></div>
+      <div id="decisions"></div>
+      <p id="nothing-pending">暂无待处理事项。</p>
+    </aside>
+    <dialog id="details">
+      <div class="panel-heading">
+        <h2 id="detail-title">工作记录</h2>
+        <button id="close-details" aria-label="关闭详情">×</button>
+      </div>
+      <pre id="detail-body"></pre>
+    </dialog>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

@@ -30,3 +30,9 @@
 - 本次全部离线回归 28 项通过，PostgreSQL 项在通用测试中跳过。没有重新消费真实模型 API 配额，也不把终端入口检查等同于重新验证全部数据库语义。
 
 原始检查结果见 [runtime.tap](reports/runtime.tap)。真实模型链路历史证据另见 [LIVE_REVIEW.md](LIVE_REVIEW.md)。
+
+## Context 与消息颜色
+
+启动、`/status` 和主会话快照更新时展示 Context 使用条、估算 token 数、模型窗口上限、占比、输出预留以及待装入输入数。数字沿用当前运行时的快照估算，不是供应商实测 token；待装入输入单列，尚无快照时不显示虚假的 0% 使用量。相同数值不反复刷新。
+
+同一组柔和配色：Master 米色（256 色 223 / #FFD7AF）、Secretary 浅蓝（153 / #AFD7FF）、系统/任务回传灰青（152 / #AFD7D7）、授权浅黄（229 / #FFFFAF）。历史消息按来源展示，任务回传不会误标为 Master。颜色只由 TUI 添加，消息中的终端控制序列仍被移除；非交互输出使用纯文本。普通命令尊重 `NO_COLOR` / `TERM=dumb`；双击启动器显式设置 `SECRETARY_COLOR=256`，保证交互终端启用兼容色彩。新的 TUI 与网页双开方式见 [UI_DUAL_REVIEW.md](UI_DUAL_REVIEW.md)。

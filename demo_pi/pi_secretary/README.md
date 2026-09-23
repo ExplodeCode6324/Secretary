@@ -6,7 +6,7 @@ Secretary 的可运行验证原型。模型循环直接从 `../pi_resource/packa
 
 ## 启动与复核
 
-在 `demo_pi` 目录运行 `npm start`，直接进入终端 TUI。默认运行数据保存在 `.demo-data`，已排除出 Git。`npm run start:live` 同样进入 TUI，并使用已配置的两组模型凭据。终端由 Master 本人操作；不再启动 HTTP 服务，也不需要浏览器或 master.token。
+在 `demo_pi` 目录运行 `npm start`，直接进入终端 TUI。默认运行数据保存在 `.demo-data`，已排除出 Git。`npm run start:live` 同样进入 TUI，并使用已配置的两组模型凭据。TUI 与 WebUI 共用一个本机后台，后台独占数据目录，只监听 127.0.0.1。WebUI 用 `npm run start:web`，真实模型用 `npm run start:web:live`。双开步骤见 [UI_DUAL_REVIEW.md](UI_DUAL_REVIEW.md)。
 
 直接输入文字向主会话发消息；`/help` 查看命令。启动菜单明确显示授权和工作决定入口，`/menu` 可随时返回。终端支持历史、方向键编辑、滚动回看；后台反馈到达时保留正在编辑的输入。
 
@@ -20,7 +20,8 @@ Secretary 的可运行验证原型。模型循环直接从 `../pi_resource/packa
 | 工作决定 | `/decisions`、`/answer <id> <回答>` |
 | 取消与未知写入核验 | `/cancel <execution-id>`、`/verify <operation-id>` |
 | 整理与中断恢复 | `/compact`、`/resume` |
-| 退出 | `/quit` 或 Ctrl+C |
+| 关闭当前终端（后台继续运行） | `/quit` 或 Ctrl+C |
+| 打开同一主会话的网页 | `/web` |
 
 新授权会自动展开完整卡片，显示任务、动作、资源、参数及 `/approve A1`、`/reject A1`。也可用 `/auth` 随时查看。只有完整请求展示过后才能批准；请求版本变化后需要查看更新的卡片。A1 / D1 / P1 / E1 是本次终端会话内稳定的短编号，重启后需按新卡片操作。工作决定直接显示 `/answer D1 <回答>`，回答记录保留 MASTER 来源。聊天中的“同意”不产生授权，模型输出中的命令也只作为文本显示。主会话处理期间仍可操作任务与授权。
 
@@ -66,7 +67,7 @@ OpenCode Go 的 Pi 配置固定使用 `https://opencode.ai/zen/go/v1`：DeepSeek
 npm start -- --migrate
 ```
 
-该开关只在 wm.schema_version 不存在时应用项目 `schema/001_world_model.sql` 和 `002_predicates.sql`。不修改别的 schema，不自动清空数据库。不要将原型接到有业务数据的数据库。
+该开关通过共享后台按迁移版本应用项目 `schema/001_world_model.sql` 和 `002_predicates.sql`。不修改别的 schema，不自动清空数据库。不要将原型接到有业务数据的数据库。
 
 World Model 未配置时，对应工具明确返回 UNAVAILABLE；其他模块仍可独立运行。实体/来源登记、事实新增/更正/撤回、冲突投影、版本 CAS、提交回执和 outbox 都由 PostgreSQL 后端执行。所需授权通过同一 Scheduler，PostgreSQL 不保存授权规则。
 
@@ -87,3 +88,24 @@ python3 pi_secretary/scripts/test-postgres.py --pg-bin /path/to/postgresql/bin
 ```
 
 普通测试不调用真实模型。PostgreSQL 测试脚本自己创建临时集群，执行真实 TypeScript 仓储，再停止并清理；不连接应用数据库。具体结果和运行边界见 [REVIEW.md](REVIEW.md)；真实模型测试需显式运行 `npm run test:live -- <model> <scenario> [task-model]`，不会包含在 `npm test` 中。scenario 为 chain / missing / unknown / transport / reject。测试驾驶器只代行批准指定 result.mjs 的写入，模拟故障有明确标记，原始运行资料留在本地。
+
+### 真实 shell 任务（2026-09-22）
+
+任务 agent 现有 `read`、`write`、`bash`、`request_decision` 和 `submit_result`。
+`bash` 支持本机真实命令执行、文件操作和网络访问，以当前用户运行，默认工作目录为任务的 `work` 目录；这不是操作系统沙箱。每次 shell 操作沿用授权卡和 `/approve`，批准后由 Scheduler 执行并将 stdout、stderr、exit_code 保存为操作回执，交给恢复后的 agent。模型 API 密钥不通过子进程环境变量继承。
+
+默认超时 120 秒，可用 `timeout` 指定 0.1–3600 秒；stdout/stderr 各限制为 4 MiB。超时、取消或输出超限会终止进程组并标记 `RESULT_UNKNOWN`，不自动重跑已有副作用。正常退出的操作表示命令调用完成，非零 exit_code 仍是命令失败证据，不能据此宣称任务成功。用 `/cancel <execution-id>` 停止任务。
+
+修改后退出旧测试进程，再双击 demo_pi 下的 `启动Secretary_Pi.command` 加载新工具。
+
+### 工作记忆维护 v2（2026-09-22）
+
+Consciousness 的 `commitments` 是宿主管理的承诺记录：稳定 ID、原文、OPEN/COMPLETED/CANCELLED、来源和处理凭证。旧承诺保留原文迁移，摘要改写或遗漏不能删除承诺。仅有匹配任务结果、承诺来源之后的 SENT 通知时，狭义的结果汇报承诺可自动完成；一般或复合承诺继续保留，由 Master 用 `/memory-resolve <完整承诺ID> <COMPLETED|CANCELLED> <说明>` 明确处理。此命令不注册为模型工具。
+
+整理读取已有事项、新增事件以及宿主任务状态；原始用户输入完整保留，工具长输出使用带原文引用的摘录。历史生成的工作记忆头不会作为用户原始输入反复累积。`covered_event_sequence` 标识覆盖边界，版本变化或期间有新输入则旧候选记为 STALE。
+
+`SECRETARY_COMPACTION_OUTPUT_TOKENS` 默认 8192，与普通回复的 4096 上限分开。最多两次尝试，第二次缩短工具摘录、提高输出预算（受模型上限限制）；遇到 length 明确报告 SUMMARY_OUTPUT_TRUNCATED。两次失败后保留旧摘要和全部原文，停止对同一来源自动重试；`/compact` 可手动再试。
+
+`/memory` 显示最近成功时间、失败原因、尝试次数和承诺列表；TUI 状态及 WebUI 记忆标记也显示整理状态。Context 记录可信的实际记忆版本、本轮输入 ID、未完成工具调用，并区分 CHECKPOINT 与 MODEL_REQUEST。日志增加 consciousness.started/retry/attempt_failed/failed/stale/committed/master_resolved 事件。
+
+维护验证脚本 `pi_secretary/scripts/verify-memory-live.ts <数据目录> <报告路径>` 会获取数据目录独占锁，只执行记忆整理和无工具的真实模型只读探针；不启动调度循环、不新增用户输入、不执行或批准任务。运行中实例应先正常停后台，优先对完整副本验证。报告仍须人工评估语义正确性，不能将结构或哈希检查当作记忆内容已被独立证明。

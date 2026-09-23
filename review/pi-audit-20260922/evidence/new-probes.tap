@@ -1,0 +1,226 @@
+TAP version 13
+# Subtest: NEW01 SIGKILL during input batch assembly must not mark unseen B handled
+not ok 1 - NEW01 SIGKILL during input batch assembly must not mark unseen B handled
+  ---
+  duration_ms: 1388.017041
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:1:1612'
+  failureType: 'testCodeFailure'
+  error: 'B marked HANDLED without ever entering any recovered model request'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:33:3)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: NEW02 missing reference rejection must leave a reopenable store
+not ok 2 - NEW02 missing reference rejection must leave a reopenable store
+  ---
+  duration_ms: 211.204625
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:1:2559'
+  failureType: 'testCodeFailure'
+  error: |-
+    Got unwanted rejection.
+    Actual message: "ENOENT: no such file or directory, lstat '/var/folders/cy/wl_95dz16fx4m12jf530d1xc0000gn/T/sec-poison-gYK8Tj/objects/51df211c76ba36a68bc47b158015cf6a7da1ef23652b9d2796f3151717c8c78f'"
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  actual:
+  error: "ENOENT: no such file or directory, lstat '/var/folders/cy/wl_95dz16fx4m12jf530d1xc0000gn/T/sec-poison-gYK8Tj/objects/51df211c76ba36a68bc47b158015cf6a7da1ef23652b9d2796f3151717c8c78f'"
+  stack: |-
+    Module.lstatSync (node:fs:1729:25)
+    Store.bytes (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/src/store.ts:191:12)
+    Store.verifyRefs (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/src/store.ts:356:12)
+    Store.verifyRefs (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/src/store.ts:359:48)
+    Store.apply (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/src/store.ts:326:12)
+    Store.replay (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/src/store.ts:382:12)
+    Function.open (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/src/store.ts:124:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:39:64)
+    async waitForActual (node:assert:644:5)
+  operator: 'doesNotReject'
+  stack: |-
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async TestContext.<anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:39:25)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW03 cancelled decision becomes obsolete and cannot block retirement incorrectly
+not ok 3 - NEW03 cancelled decision becomes obsolete and cannot block retirement incorrectly
+  ---
+  duration_ms: 1110.0225
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:1:3111'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected "actual" to be strictly unequal to:
+    
+    'OPEN'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'OPEN'
+  actual: 'OPEN'
+  operator: 'notStrictEqual'
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:44:9)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:17:6)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW04 decision accepted without a nonempty answer must be rejected
+not ok 4 - NEW04 decision accepted without a nonempty answer must be rejected
+  ---
+  duration_ms: 893.474375
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:1:3387'
+  failureType: 'testCodeFailure'
+  error: 'Missing expected exception.'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  operator: 'throws'
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:47:85)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:17:6)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW05 crash after decision commit but before feedback must be repaired on reopen
+not ok 5 - NEW05 crash after decision commit but before feedback must be repaired on reopen
+  ---
+  duration_ms: 855.629875
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:1:3605'
+  failureType: 'testCodeFailure'
+  error: 'durable OPEN decision never redelivered to main after restart'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:55:3)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW06 later compaction must receive previously committed working memory
+ok 6 - NEW06 later compaction must receive previously committed working memory
+  ---
+  duration_ms: 1246.50275
+  type: 'test'
+  ...
+# Subtest: NEW07 compaction commit resolving capacity must permit next model call
+not ok 7 - NEW07 compaction commit resolving capacity must permit next model call
+  ---
+  duration_ms: 706.17325
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:1:4949'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert(a.store.all<Input>('Input').every(i=>i.state==='HANDLED'))
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:64:289)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:17:6)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW08 task checkpoint obeys configured model capacity above 32768
+not ok 8 - NEW08 task checkpoint obeys configured model capacity above 32768
+  ---
+  duration_ms: 334.863792
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:1:5489'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'FAILED'
+    - 'SUCCEEDED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'SUCCEEDED'
+  actual: 'FAILED'
+  operator: 'strictEqual'
+  stack: |-
+    fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:67:190)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:17:6)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW09 child followup receives saved parent context marker
+not ok 9 - NEW09 child followup receives saved parent context marker
+  ---
+  duration_ms: 1474.698
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:1:5843'
+  failureType: 'testCodeFailure'
+  error: |-
+    The expression evaluated to a falsy value:
+    
+      assert(captured.some(x=>x.includes('PARENT_CONTEXT_MARKER_MUST_SURVIVE')))
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:71:348)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:17:6)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW10 target precondition is rechecked after waiting for authorization
+not ok 10 - NEW10 target precondition is rechecked after waiting for authorization
+  ---
+  duration_ms: 1222.209042
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:1:6478'
+  failureType: 'testCodeFailure'
+  error: 'effect ran after precondition vanished'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:75:724)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/new.test.ts:17:6)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: CONTROL Pi 0.87 system messages really contain recoverable tool declarations
+ok 11 - CONTROL Pi 0.87 system messages really contain recoverable tool declarations
+  ---
+  duration_ms: 245.723334
+  type: 'test'
+  ...
+1..11
+# tests 11
+# suites 0
+# pass 2
+# fail 9
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10435.264083

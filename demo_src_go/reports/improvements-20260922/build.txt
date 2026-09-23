@@ -1,2 +1,0 @@
-go build -o bin/secretary ./cmd/secretary
-go build -o bin/example-report ./programs/report.go

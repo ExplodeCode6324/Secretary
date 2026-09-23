@@ -32,8 +32,8 @@
 
 ## 执行适配与已有测试
 
-Go 的参考落点：internal/store/store_test.go、internal/engine 下 engine/memory/compaction/scheduler/world_test.go、internal/world/postgres_test.go、internal/transport/server_test.go。Pi 的参考落点：pi_secretary/test/runtime.test.ts、world.test.ts。完整相对链接在 [覆盖索引](COVERAGE.md)。
+Pi 的参考落点：pi_secretary/test/runtime.test.ts、world.test.ts。完整相对链接在 [覆盖索引](COVERAGE.md)。
 
-接线时先读取对应原型的启动/测试说明，使用其公开 API 或内部测试依赖注入；当前 Go 无外部 worker HTTP 入口，不能将 API 设计表当作现成端点。Go/Pi 的差异与不支持能力逐项标记。性能比较仅在相同输入、Context、模型、硬件、输出验证和外部作用限制下进行。
+接线时先读取对应原型的启动/测试说明，使用其公开 API 或内部测试依赖注入；不能将 API 设计表当作实现已提供的端点；各实现的差异与不支持能力逐项标记。性能比较仅在相同输入、Context、模型、硬件、输出验证和外部作用限制下进行。
 
 停止步骤：控制器停止投新事件，暂停新分派，记录在途 intent/attempt/PG receipt，等待可证明的静止点；超时者保持 UNKNOWN。关闭本 run 应用与临时 PG，保存证据清单，最后清理临时资源。不存在已实现 runner 的自动停机承诺；这是后续 runner 必须实现的契约。

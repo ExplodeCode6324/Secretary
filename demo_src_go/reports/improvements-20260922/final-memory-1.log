@@ -1,4 +1,0 @@
-=== RUN   TestAuditLiveMemory
---- PASS: TestAuditLiveMemory (83.53s)
-PASS
-ok  	secretary_go_demo/internal/engine	84.489s

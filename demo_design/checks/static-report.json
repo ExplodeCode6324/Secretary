@@ -9,13 +9,13 @@
   "state_machines": 14,
   "transitions": 131,
   "graph_traces": 25,
-  "markdown_files": 34,
-  "local_links": 84,
+  "markdown_files": 33,
+  "local_links": 80,
   "baseline_sha256": "8e2bf44097a814a7b3455e9459538b608ff3488a5827f0887c74acebc4c8d08c",
-  "checks_passed": 1076,
+  "checks_passed": 1071,
   "limitations": [
     "Shape fixtures use synthetic references; not an integrated persisted dataset",
-    "Graph traces validate allowed edges, not Go guard implementations",
-    "No Go runtime, model, power-loss or real-use tests performed"
+    "Graph traces validate allowed edges, not runtime guard implementations",
+    "No runtime, model, power-loss or real-use tests performed"
   ]
 }

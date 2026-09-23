@@ -77,6 +77,7 @@ export class Scheduler {
   ) {
     this.workspace = path.join(store.dir, "workspaces");
     fs.mkdirSync(this.workspace, { recursive: true });
+    this.workspace = fs.realpathSync(this.workspace);
   }
   propose(
     goal: string,
@@ -180,6 +181,25 @@ export class Scheduler {
       if (!terminal(parent) || parent.retention_state === "RETIRED")
         throw Error("PARENT_NOT_RESUMABLE");
     }
+    const parent = options.parent
+      ? this.store.get<Execution>("Execution", options.parent)
+      : null;
+    if (parent) {
+      const parentPlan = this.store.get<TaskPlan>("TaskPlan", parent.task_id);
+      const original = this.store.read<TaskProposal>(parentPlan.proposal_ref);
+      proposal.context_refs.push(...original.context_refs);
+      if (parent.checkpoint_id) {
+        const cp = this.store.get<Checkpoint>(
+          "Checkpoint",
+          parent.checkpoint_id,
+        );
+        if (cp.raw_context) proposal.context_refs.push(cp.raw_context);
+      }
+      if (parent.result_id)
+        proposal.context_refs.push(
+          this.store.get<TaskResult>("TaskResult", parent.result_id).detail_ref,
+        );
+    }
     const taskID = id();
     const plan: TaskPlan = {
       schema_version: 1,
@@ -201,7 +221,18 @@ export class Scheduler {
       initialization_error: null,
     };
     this.store.commit(
-      [safety, plan],
+      [
+        safety,
+        plan,
+        ...(parent
+          ? [
+              revise(parent, {
+                pending_followup_ids: [...parent.pending_followup_ids, taskID],
+                last_activity_at: now(),
+              }),
+            ]
+          : []),
+      ],
       [
         this.store.event(
           "task.proposed",
@@ -261,17 +292,36 @@ export class Scheduler {
       }
       if (
         p.state !== "ACTIVE" ||
-        !p.next_due_at ||
-        Date.parse(p.next_due_at) > at
+        (!p.pending_occurrences.length &&
+          (!p.next_due_at || Date.parse(p.next_due_at) > at))
       )
         continue;
       if (
         p.active_execution_ids.some(
           (eid) => !terminal(this.store.get<Execution>("Execution", eid)),
         )
-      )
+      ) {
+        if (
+          p.trigger.kind === "INTERVAL" &&
+          p.next_due_at &&
+          Date.parse(p.next_due_at) <= at &&
+          p.trigger.overlap_policy === "QUEUE"
+        ) {
+          this.store.commit([
+            revise(p, {
+              pending_occurrences: [
+                ...new Set([...p.pending_occurrences, p.next_due_at]),
+              ],
+              next_due_at: new Date(
+                Date.parse(p.next_due_at) + p.trigger.interval_seconds! * 1000,
+              ).toISOString(),
+            }),
+          ]);
+        }
         continue;
-      const due = p.next_due_at;
+      }
+      const queued = p.pending_occurrences.length > 0;
+      const due = queued ? p.pending_occurrences[0] : p.next_due_at!;
       const key = p.trigger.kind === "IMMEDIATE" ? "once" : due;
       if (
         this.store
@@ -281,11 +331,19 @@ export class Scheduler {
         continue;
       // Do not silently catch up missed periodic windows after restart.
       if (
+        !queued &&
         p.trigger.kind === "INTERVAL" &&
         at - Date.parse(due) > (p.trigger.interval_seconds ?? 0) * 1000
       ) {
         const nextDue = new Date(
-          at + (p.trigger.interval_seconds ?? 1) * 1000,
+          Date.parse(due) +
+            (Math.floor(
+              (at - Date.parse(due)) /
+                ((p.trigger.interval_seconds ?? 1) * 1000),
+            ) +
+              1) *
+              (p.trigger.interval_seconds ?? 1) *
+              1000,
         ).toISOString();
         this.store.commit(
           [revise(p, { next_due_at: nextDue })],
@@ -328,8 +386,12 @@ export class Scheduler {
         e,
         revise(p, {
           active_execution_ids: [...p.active_execution_ids, e.id],
-          next_due_at:
-            p.trigger.kind === "INTERVAL"
+          pending_occurrences: queued
+            ? p.pending_occurrences.slice(1)
+            : p.pending_occurrences,
+          next_due_at: queued
+            ? p.next_due_at
+            : p.trigger.kind === "INTERVAL"
               ? new Date(
                   Date.parse(due) + (p.trigger.interval_seconds ?? 1) * 1000,
                 ).toISOString()
@@ -340,7 +402,10 @@ export class Scheduler {
         const prev = this.store.get<Execution>("Execution", e.continuation_of);
         records.push(
           revise(prev, {
-            pending_followup_ids: [...prev.pending_followup_ids, e.id],
+            pending_followup_ids: [
+              ...prev.pending_followup_ids.filter((v) => v !== p.id),
+              e.id,
+            ],
             last_activity_at: now(),
           }),
         );
@@ -364,7 +429,19 @@ export class Scheduler {
   ready(eid: string) {
     const e = this.store.get<Execution>("Execution", eid),
       p = this.store.get<TaskPlan>("TaskPlan", e.task_id);
-    const checks: ConditionResult[] = p.preconditions.map((c) => {
+    const checks = this.conditions(e);
+    this.store.commit([
+      revise(e, {
+        condition_results: checks,
+        state: checks.every((c) => c.status === "MET")
+          ? "READY"
+          : "WAIT_PRECONDITION",
+      }),
+    ]);
+  }
+  private conditions(e: Execution): ConditionResult[] {
+    const p = this.store.get<TaskPlan>("TaskPlan", e.task_id);
+    return p.preconditions.map((c) => {
       let met = false;
       try {
         if (c.kind === "EXECUTION_SUCCEEDED")
@@ -383,14 +460,6 @@ export class Scheduler {
         reason: met ? null : "Registered precondition not met",
       };
     });
-    this.store.commit([
-      revise(e, {
-        condition_results: checks,
-        state: checks.every((c) => c.status === "MET")
-          ? "READY"
-          : "WAIT_PRECONDITION",
-      }),
-    ]);
   }
   private setState(
     eid: string,
@@ -440,7 +509,7 @@ export class Scheduler {
           );
         } else if (
           !terminal(e) &&
-          !["WAIT_AUTH", "WAIT_DECISION", "RESULT_UNKNOWN"].includes(e.state)
+          !["WAIT_DECISION", "RESULT_UNKNOWN"].includes(e.state)
         )
           this.finish(eid, "FAILED", { error: String(error) });
       })
@@ -474,6 +543,15 @@ export class Scheduler {
         (o) => o.state === "AUTHORIZED" && o.action.action === "file.write",
       ))
         await this.applyWrite(o);
+      for (const o of ops.filter(
+        (o) => o.state === "AUTHORIZED" && o.action.action === "shell.run",
+      )) {
+        await this.applyShell(o, entry);
+        if (
+          this.store.get<Execution>("Execution", eid).state === "RESULT_UNKNOWN"
+        )
+          return;
+      }
       this.setState(eid, "READY", { waiting_request_ids: [] });
       e = this.store.get<Execution>("Execution", eid);
     }
@@ -573,6 +651,10 @@ export class Scheduler {
       streamFn: durableStream(this.store, this.stream, scopeOf(e), eid, "TASK"),
       toolExecution: "sequential",
     });
+    agent.finishTurn = () => {
+      const current = this.store.get<Execution>("Execution", eid);
+      if (current.state !== "RUNNING") return { action: "end" };
+    };
     entry.agent = agent;
     agent.subscribe((event) => {
       if (event.type === "message_end") {
@@ -650,6 +732,7 @@ export class Scheduler {
   private safePath(task: string, relative: string) {
     if (
       !relative ||
+      /^[ @~]/.test(relative) ||
       path.isAbsolute(relative) ||
       relative.split(/[\\/]/).some((p) => p === ".." || p === "")
     )
@@ -657,6 +740,15 @@ export class Scheduler {
     const root = path.join(this.workspace, task, "work");
     const dest = path.resolve(root, relative);
     if (!dest.startsWith(root + path.sep)) throw Error("INVALID_PATH");
+    // Include the workspace root and its parents, not only descendants.
+    for (
+      let ancestor = root;
+      ancestor !== path.dirname(ancestor);
+      ancestor = path.dirname(ancestor)
+    ) {
+      if (fs.lstatSync(ancestor).isSymbolicLink())
+        throw Error("SYMLINK_REJECTED");
+    }
     let cur = root;
     for (const part of relative.split("/")) {
       cur = path.join(cur, part);
@@ -740,10 +832,10 @@ export class Scheduler {
         description: upstreamRead.description,
         parameters: upstreamRead.parameters,
         execute: async (call, args) => {
-          this.safePath(e.task_id, args.path);
+          const target = this.safePath(e.task_id, args.path);
           return upstreamRead.execute(
             call,
-            args,
+            { ...args, path: target },
             () => {},
             {
               env: new NodeExecutionEnv({
@@ -770,6 +862,7 @@ export class Scheduler {
             resource,
             args,
             intent,
+            this.fileRevision(resource),
           );
           if (op.state === "SUCCEEDED")
             return jsonTool({ operation_id: op.id, state: op.state });
@@ -788,6 +881,40 @@ export class Scheduler {
             return jsonTool({ operation_id: op.id, state: op.state }, true);
           }
           return jsonTool(await this.applyWrite(op));
+        },
+      }),
+      tool({
+        name: "bash",
+        label: "Run shell command with approval",
+        description:
+          "Execute a real bash command as the local user, starting in the task workspace. Supports system inspection, files and network; not sandboxed. Requires Master approval. Returns durable stdout, stderr and exit_code receipts. Never repeat an unknown effect.",
+        parameters: Type.Object({
+          command: Type.String({ minLength: 1 }),
+          timeout: Type.Optional(Type.Number({ minimum: 0.1, maximum: 3600 })),
+        }),
+        execute: async (call, args) => {
+          const cwd = path.join(this.workspace, e.task_id, "work");
+          const op = this.auth.prepare(
+            scopeOf(e),
+            "shell.run",
+            cwd,
+            { command: args.command, timeout: args.timeout ?? 120, cwd },
+            stableID(e.id + ":bash:" + call),
+          );
+          if (op.receipt) return jsonTool(this.store.read(op.receipt));
+          if (op.state !== "AUTHORIZED") {
+            if (op.state !== "WAIT_AUTH") throw Error("SHELL_NOT_DISPATCHABLE");
+            this.setState(e.id, "WAIT_AUTH", {
+              waiting_request_ids: [op.authorization_id!],
+            });
+            return jsonTool({ operation_id: op.id, state: op.state }, true);
+          }
+          const result = await this.applyShell(op, this.running.get(e.id)!);
+          return jsonTool(
+            result,
+            this.store.get<Execution>("Execution", e.id).state ===
+              "RESULT_UNKNOWN",
+          );
         },
       }),
       tool({
@@ -846,6 +973,109 @@ export class Scheduler {
       },
     }));
   }
+  private async applyShell(op: Operation, entry: { child?: ChildProcess }) {
+    const eid = op.scope.execution_id!;
+    const e = this.store.get<Execution>("Execution", eid);
+    const params = this.store.read<{
+      command: string;
+      timeout: number;
+      cwd: string;
+    }>(op.action.parameters_ref);
+    const cwd = path.join(this.workspace, e.task_id, "work");
+    this.safePath(e.task_id, ".shell-path-check");
+    if (params.cwd !== cwd || op.action.resource !== cwd)
+      throw Error("RESOURCE_CHANGED");
+    if (this.conditions(e).some((c) => c.status !== "MET"))
+      throw Error("PRECONDITION_CHANGED");
+    this.auth.dispatch(op.id);
+    let stdout = "",
+      stderr = "",
+      timed_out = false,
+      truncated = false;
+    const child = spawn(
+      "/bin/bash",
+      ["--noprofile", "--norc", "-c", params.command],
+      {
+        cwd,
+        env: {
+          PATH: process.env.PATH,
+          HOME: process.env.HOME,
+          TMPDIR: process.env.TMPDIR,
+          LANG: "en_US.UTF-8",
+        },
+        stdio: ["ignore", "pipe", "pipe"],
+        detached: process.platform !== "win32",
+      },
+    );
+    entry.child = child;
+    const limit = 4 * 1024 * 1024;
+    const capture = (b: Buffer, stream: "stdout" | "stderr") => {
+      const current = stream === "stdout" ? stdout : stderr;
+      if (Buffer.byteLength(current) + b.length > limit) {
+        truncated = true;
+        this.stopChild(child);
+      } else if (stream === "stdout") stdout += b.toString();
+      else stderr += b.toString();
+    };
+    child.stdout.on("data", (b) => capture(b, "stdout"));
+    child.stderr.on("data", (b) => capture(b, "stderr"));
+    const timer = setTimeout(() => {
+      timed_out = true;
+      this.stopChild(child);
+    }, params.timeout * 1000);
+    try {
+      const result = await new Promise<{
+        exit_code: number | null;
+        signal: string | null;
+      }>((resolve, reject) => {
+        child.once("error", reject);
+        child.once("close", (exit_code, signal) =>
+          resolve({ exit_code, signal }),
+        );
+      });
+      const receipt = {
+        command: params.command,
+        cwd,
+        stdout,
+        stderr,
+        ...result,
+        timed_out,
+        truncated,
+      };
+      const unknown =
+        timed_out ||
+        truncated ||
+        result.signal !== null ||
+        result.exit_code === null;
+      this.auth.finish(op.id, receipt, unknown ? "UNKNOWN" : "APPLIED");
+      if (unknown) {
+        this.setState(eid, "RESULT_UNKNOWN", {
+          unknown_operation_ids: [op.id],
+        });
+        this.feedback(
+          eid,
+          "UNKNOWN",
+          "Shell interrupted; effects require verification, do not retry",
+          this.store.put(receipt),
+        );
+      }
+      return receipt;
+    } finally {
+      clearTimeout(timer);
+      entry.child = undefined;
+    }
+  }
+  private fileRevision(target: string): string {
+    try {
+      const stat = fs.lstatSync(target);
+      if (!stat.isFile() || stat.isSymbolicLink())
+        throw Error("INVALID_RESOURCE");
+      return hash(fs.readFileSync(target));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return "ABSENT";
+      throw error;
+    }
+  }
   private async applyWrite(op: Operation) {
     const e = this.store.get<Execution>("Execution", op.scope.execution_id!);
     if (e.cancel_requested || terminal(e)) throw Error("EXECUTION_NOT_ACTIVE");
@@ -854,6 +1084,12 @@ export class Scheduler {
     );
     const target = this.safePath(e.task_id, params.path);
     if (target !== op.action.resource) throw Error("RESOURCE_CHANGED");
+    if (op.action.expected_resource_revision !== this.fileRevision(target))
+      throw Error(
+        "RESOURCE_REVISION_CHANGED: prepare a new operation and approval",
+      );
+    if (this.conditions(e).some((c) => c.status !== "MET"))
+      throw Error("PRECONDITION_CHANGED");
     this.auth.dispatch(op.id);
     try {
       const tool = createWriteTool();
@@ -988,6 +1224,7 @@ export class Scheduler {
       cwd: path.join(this.workspace, e.task_id, "work"),
       env: { PATH: process.env.PATH, LANG: "en_US.UTF-8" },
       stdio: ["pipe", "pipe", "pipe"],
+      detached: process.platform !== "win32",
     });
     entry.child = child;
     let output = "",
@@ -1007,7 +1244,7 @@ export class Scheduler {
       );
       if (output.length + b.length > 4 * 1024 * 1024) {
         overflow = true;
-        child.kill("SIGTERM");
+        this.stopChild(child);
       } else output += String(b);
     });
     child.stderr.on("data", (b) => {
@@ -1040,8 +1277,22 @@ export class Scheduler {
         )
       )
         throw Error("INVALID_PROGRAM_RESULT");
-      this.auth.finish(opID, { result, stdout: output, stderr: error, code });
-      this.finish(eid, "SUCCEEDED", result);
+      const outcome = result as { outcome?: string; effect?: string };
+      if (
+        outcome.outcome != null &&
+        !["SUCCEEDED", "FAILED"].includes(outcome.outcome)
+      )
+        throw Error("UNSUPPORTED_PROGRAM_OUTCOME");
+      this.auth.finish(
+        opID,
+        { result, stdout: output, stderr: error, code },
+        outcome.effect === "NOT_APPLIED" ? "NOT_APPLIED" : "APPLIED",
+      );
+      this.finish(
+        eid,
+        outcome.outcome === "FAILED" ? "FAILED" : "SUCCEEDED",
+        result,
+      );
     } catch (err) {
       this.auth.finish(
         opID,
@@ -1118,6 +1369,10 @@ export class Scheduler {
       observed_at: now(),
     };
     const changes: Stored[] = [
+      ...this.store
+        .all<DecisionRequest>("DecisionRequest")
+        .filter((d) => d.execution_id === eid && d.state === "OPEN")
+        .map((d) => revise(d, { state: "OBSOLETE" })),
       r,
       revise(e, {
         state,
@@ -1200,7 +1455,23 @@ export class Scheduler {
     actor: "MAIN" | "MASTER" = "MAIN",
   ) {
     const d = this.store.get<DecisionRequest>("DecisionRequest", did);
+    if (
+      answer == null ||
+      (typeof answer === "string" && !answer.trim()) ||
+      (typeof answer === "object" && !Object.keys(answer).length)
+    )
+      throw Error("EMPTY_DECISION");
+    if (d.answer_request_id === requestID) {
+      if (
+        JSON.stringify(d.answer) !== JSON.stringify({ value: answer }) ||
+        d.answered_by !== actor
+      )
+        throw Error("REQUEST_CONFLICT");
+      return;
+    }
     if (d.state !== "OPEN") throw Error("DECISION_NOT_OPEN");
+    if (d.deadline && Date.parse(d.deadline) <= Date.now())
+      throw Error("DECISION_EXPIRED");
     const e = this.store.get<Execution>("Execution", d.execution_id);
     if (e.state !== "WAIT_DECISION") throw Error("DECISION_STALE");
     this.store.commit(
@@ -1216,13 +1487,30 @@ export class Scheduler {
       [this.store.event("decision.answered", { id: did, answer }, scopeOf(e))],
     );
   }
+  private stopChild(child: ChildProcess) {
+    if (child.exitCode !== null || child.signalCode !== null) return;
+    const signal = (name: NodeJS.Signals) => {
+      try {
+        if (process.platform !== "win32" && child.pid)
+          process.kill(-child.pid, name);
+        else child.kill(name);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+      }
+    };
+    signal("SIGTERM");
+    const timer = setTimeout(() => signal("SIGKILL"), 200);
+    timer.unref();
+    child.once("close", () => clearTimeout(timer));
+  }
   cancel(eid: string) {
     const e = this.store.get<Execution>("Execution", eid);
     if (terminal(e)) return;
     if (this.running.has(eid)) {
       this.setState(eid, "CANCEL_REQUESTED", { cancel_requested: true });
       this.running.get(eid)?.agent?.abort();
-      this.running.get(eid)?.child?.kill("SIGTERM");
+      const child = this.running.get(eid)?.child;
+      if (child) this.stopChild(child);
     } else if (e.state === "RESULT_UNKNOWN")
       this.store.commit([revise(e, { cancel_requested: true })]);
     else {
@@ -1287,6 +1575,24 @@ export class Scheduler {
           ],
         );
       }
+    for (const d of this.store.all<DecisionRequest>("DecisionRequest")) {
+      if (
+        d.state === "OPEN" &&
+        this.store.get<Execution>("Execution", d.execution_id).state ===
+          "WAIT_DECISION" &&
+        !this.store
+          .all<Feedback>("Feedback")
+          .some((f) => f.decision_request_id === d.id)
+      )
+        this.feedback(
+          d.execution_id,
+          "DECISION_REQUIRED",
+          d.question,
+          this.store.put(d),
+          null,
+          d.id,
+        );
+    }
     for (const e of this.store.all<Execution>("Execution")) {
       if (["RUNNING", "DISPATCHING", "CANCEL_REQUESTED"].includes(e.state)) {
         this.setState(e.id, "RESULT_UNKNOWN", {
@@ -1325,7 +1631,7 @@ export class Scheduler {
     for (const [eid, r] of this.running) {
       this.cancel(eid);
       r.agent?.abort();
-      r.child?.kill("SIGTERM");
+      if (r.child) this.stopChild(r.child);
     }
     await this.idle();
   }

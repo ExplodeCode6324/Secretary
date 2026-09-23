@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "purpose": "TEST_DESIGN_BASELINE",
-  "git_head": "4f4261ef417311e0466e7b46cf0a24e4daa64d77",
-  "working_tree": "Contains pre-existing edits and untracked Go implementation; hashes identify actual read baseline, not only HEAD.",
+  "git_head": "377eb30052cc18e57fa9d0de0562509944b1900b",
+  "working_tree": "Explicit migration rebaseline: generic design and Pi references only. Original manifest and drift evidence preserved in sibling archive; no runtime verdict inherited.",
   "files": [
     {
       "path": "BrainStorm_Baseline_v3.md",
@@ -10,39 +10,31 @@
     },
     {
       "path": "README.md",
-      "sha256": "12ecfc55a18929136c15537159845e3b046b49675016a8e2c8e4ecd175fd0895"
+      "sha256": "4683a0c22c09bc688178c030d3739043d02eb816c1f2996cf3fb042d5f6bf3cc"
     },
     {
       "path": "demo_design/API.md",
-      "sha256": "2d3d646e9938323812c70a482f2025f3ca3a9c8d1b0e2e5bbf2e64ea4379bd6e"
+      "sha256": "5d403a082511e107aca9e76aefbd9a418a685dc2ac193ec015e2834d3e877c94"
     },
     {
       "path": "demo_design/DECISIONS.md",
-      "sha256": "f82288e9c2540e5091c9c542a5a2fa9bfc62460e6080581b537d3ba8f97a8cec"
-    },
-    {
-      "path": "demo_design/GO_IMPLEMENTATION.md",
-      "sha256": "3e17df64eafddbadc5f0f4741d7430871b93f9cbe8d5f7e27b6cfbba3d533f0e"
-    },
-    {
-      "path": "demo_design/GO_LAYOUT.md",
-      "sha256": "060fefa3af2c6445a1a950901421173aeb3d7f886adbac7cc4b972c07c434695"
+      "sha256": "7e0612cf6071598ebbeaaf80596dddeb4714697105e640137a30bc26ebe43e45"
     },
     {
       "path": "demo_design/IMPLEMENTATION.md",
-      "sha256": "ca46ea7625728148240bf51dc7e18179793d7c782798ec70586d6bef1dfe3550"
+      "sha256": "2923a3664f2cb93dbb7c06271fba6bd5d53cca532b7d7b897a843e4b8871f1ef"
     },
     {
       "path": "demo_design/PERSISTENCE.md",
-      "sha256": "def927665304a507b72569881cd8662585d20ab1c1e59e19d6b288fbe74864e0"
+      "sha256": "6316775d2c331cb4f263f4873d2a152aaf363fd6178c371363cf2eaab7bfb9e0"
     },
     {
       "path": "demo_design/README.md",
-      "sha256": "f398e486e3c87a1e0b57c541803710d72eea9f57a42488efaeaec6b8fe6c304b"
+      "sha256": "689f7db2edf3df5b91195b705426e356fa7bb5fa89e2bea5385a035a83aa6c43"
     },
     {
       "path": "demo_design/REVIEW.md",
-      "sha256": "f2f4b5f948935891c0de44f1acc1af8fe0f4d75f3f1c068deee1f2342e0e6510"
+      "sha256": "0db34c22d0a297abd945bc4b7386d9efd20a27f156467b10943ea96a1bededde"
     },
     {
       "path": "demo_design/SCENARIOS.md",
@@ -50,31 +42,19 @@
     },
     {
       "path": "demo_pi/README.md",
-      "sha256": "76f7b5a5153954d2760a6a78384d665808692c604879156908f11a8f00b92134"
+      "sha256": "77518575a4910b5101b4ffc37b4a7e7ead602451d55fa9e4d4eb22931a0ae4d7"
     },
     {
       "path": "demo_pi/pi_secretary/LIVE_REVIEW.md",
-      "sha256": "57985edc6a11605f70d04e948d621c945891f970273194e8ca6b02edc2327931"
+      "sha256": "a3f12756e12e527499d561ea306385251d3e19d9e2a7e0813aa2c3f75b5b529d"
     },
     {
       "path": "demo_pi/pi_secretary/README.md",
-      "sha256": "596b90740e9d67a404e2059e129b6d8f78ae02e68b13ac5bdcc4ecf56dd28947"
+      "sha256": "4abe57a05235671619ca44d6fcace3c9c74e6f6795a8df88eaa9104a89e504e5"
     },
     {
       "path": "demo_pi/pi_secretary/REVIEW.md",
-      "sha256": "e6acf417f4976feea10184abee84cc04a299251662eac20d92e46a4d5c1bb637"
-    },
-    {
-      "path": "demo_src_go/ARCHITECTURE.md",
-      "sha256": "2bfb83b01a5ffd28847bc51ee9855fc0280bd7eadded40743d64af123a1d9a5b"
-    },
-    {
-      "path": "demo_src_go/README.md",
-      "sha256": "ff00d72c01f7a3afc4fbcdd6f14c16a2bb9b90dd3a45a5d2aa3377064e70d2d7"
-    },
-    {
-      "path": "demo_src_go/REVIEW.md",
-      "sha256": "696c8fcdb7c0142bc4a519eb9ec33a699bf637539bd820bd612af47de3149583"
+      "sha256": "19169842723f27a3e5c17bb4b5de108658483472c256a440c2c4e130a59fb47a"
     },
     {
       "path": "json/FIELDS.md",
@@ -86,7 +66,7 @@
     },
     {
       "path": "json/SEMANTICS.md",
-      "sha256": "bdca63389020c56b1fd149ae9d20c88074120d5ceae9ec4cfb6d7a8a721cc91e"
+      "sha256": "fcce8e7621f00959136a47ad11278560bb09360dc572980b129654736ed53f27"
     },
     {
       "path": "json/STORAGE.md",
@@ -118,7 +98,7 @@
     },
     {
       "path": "schema/TRANSACTIONS.md",
-      "sha256": "7dccb79f52e001928f9e6caa83c0f2113e5f29630974b39154fd26b87ef10edf"
+      "sha256": "848a591b757a07bb525c58098894fab524817cef46f361ef6071d4734469430e"
     },
     {
       "path": "schema/queries.sql",
@@ -192,5 +172,6 @@
       "path": "state_machine/catalog.json",
       "sha256": "9ad9609a15d3c4cb0812e868d66abc5bb859334ed93c030053c0fa263029d665"
     }
-  ]
+  ],
+  "rebaselined_at": "2026-09-22T14:02:31.133694+00:00"
 }

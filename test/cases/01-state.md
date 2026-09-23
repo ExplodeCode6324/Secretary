@@ -313,7 +313,7 @@ P0 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 2.5；语义约束 J01, J14。
 
-规范：[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[PERSISTENCE.md](../../demo_design/PERSISTENCE.md)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[PERSISTENCE.md](../../demo_design/PERSISTENCE.md)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：输入已可靠 ACCEPTED，模拟只丢失内存 channel 唤醒提示而不丢数据。
 

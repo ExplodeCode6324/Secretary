@@ -1,0 +1,94 @@
+TAP version 13
+# Subtest: NEW15 World evidence content must match the referenced Master event
+not ok 1 - NEW15 World evidence content must match the referenced Master event
+  ---
+  duration_ms: 594.274583
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:19:1'
+  failureType: 'testCodeFailure'
+  error: 'MASTER fact committed with unrelated event ID plus model-authored content'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:23:2)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:14:234)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: NEW16 equal object facts with different key order are SUPPORTING
+not ok 2 - NEW16 equal object facts with different key order are SUPPORTING
+  ---
+  duration_ms: 621.937666
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:25:1'
+  failureType: 'testCodeFailure'
+  error: 'equal JSONB values became a knowledge conflict'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:29:41)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:14:234)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW17 interrupted migration after schema before predicate seed can recover
+not ok 3 - NEW17 interrupted migration after schema before predicate seed can recover
+  ---
+  duration_ms: 109.3795
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:31:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    migration returned success with zero registered predicates
+    
+    0 !== 10
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 10
+  actual: 0
+  operator: 'strictEqual'
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:32:275)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:14:234)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW18 temporary database deadlock must not become permanent business REJECTED
+not ok 4 - NEW18 temporary database deadlock must not become permanent business REJECTED
+  ---
+  duration_ms: 189.3515
+  type: 'test'
+  location: '<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:34:1'
+  failureType: 'testCodeFailure'
+  error: 'SQLSTATE 40P01 consumed change_id as a permanent rejection'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'REJECTED'
+  actual: 'REJECTED'
+  operator: 'notStrictEqual'
+  stack: |-
+    <anonymous> (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:37:83)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/secretary-audit-20260922/Secretary/demo_pi/pi_secretary/audit/world-extra.test.ts:14:234)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 0
+# fail 4
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2052.87825

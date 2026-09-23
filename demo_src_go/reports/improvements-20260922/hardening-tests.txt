@@ -1,2 +1,0 @@
-ok  	secretary_go_demo/internal/engine	21.819s
-ok  	secretary_go_demo/internal/store	1.704s

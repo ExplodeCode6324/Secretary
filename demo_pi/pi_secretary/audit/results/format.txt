@@ -1,0 +1,6 @@
+
+> format:check
+> prettier --check "pi_secretary/src/**/*.ts" "pi_secretary/test/**/*.ts"
+
+Checking formatting...
+All matched files use Prettier code style!

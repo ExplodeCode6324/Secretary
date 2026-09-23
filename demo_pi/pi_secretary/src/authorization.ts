@@ -26,6 +26,7 @@ export class Authorization {
     resource: string,
     params: unknown,
     intent = id(),
+    expectedResourceRevision: string | null = null,
   ): Operation {
     if (
       this.store
@@ -64,14 +65,16 @@ export class Authorization {
         resource,
         parameters_ref: ref,
         parameters_hash: ref.sha256,
-        expected_resource_revision: null,
+        expected_resource_revision: expectedResourceRevision,
         intent_id: intent,
       },
       authorization_id: null,
       rule_id: null,
       rule_revision: null,
       owner_epoch: this.store.epoch,
-      attempt_id: null,
+      attempt_id: scope.execution_id
+        ? this.store.get<Execution>("Execution", scope.execution_id).attempt_id
+        : null,
       retry_of: null,
       receipt: null,
       effect: "NOT_STARTED",
@@ -233,11 +236,13 @@ export class Authorization {
   dispatch(operationID: string, extra: Stored[] = []): Operation {
     const op = this.store.get<Operation>("Operation", operationID);
     if (op.state !== "AUTHORIZED") throw Error("NOT_AUTHORIZED");
+    if (op.owner_epoch !== this.store.epoch) throw Error("STALE_OWNER");
     if (op.scope.execution_id) {
       const execution = this.store.get<Execution>(
         "Execution",
         op.scope.execution_id,
       );
+      if (op.attempt_id !== execution.attempt_id) throw Error("STALE_ATTEMPT");
       if (
         execution.cancel_requested ||
         !["RUNNING", "READY", "WAIT_AUTH"].includes(execution.state)
@@ -295,7 +300,26 @@ export class Authorization {
     return r;
   }
   recover() {
-    for (const op of this.store.all<Operation>("Operation"))
+    for (const op of this.store.all<Operation>("Operation")) {
+      if (
+        ["PREPARED", "WAIT_AUTH", "AUTHORIZED"].includes(op.state) &&
+        op.effect === "NOT_STARTED"
+      ) {
+        this.store.commit(
+          [revise(op, { owner_epoch: this.store.epoch })],
+          [
+            this.store.event(
+              "operation.owner_rebound",
+              {
+                operation_id: op.id,
+                previous_epoch: op.owner_epoch,
+                owner_epoch: this.store.epoch,
+              },
+              op.scope,
+            ),
+          ],
+        );
+      }
       if (op.state === "DISPATCHED") {
         this.store.commit(
           [
@@ -314,5 +338,6 @@ export class Authorization {
           ],
         );
       }
+    }
   }
 }

@@ -3,7 +3,7 @@ import { fileURLToPath } from "node:url";
 import * as readline from "node:readline";
 import { stripVTControlCharacters } from "node:util";
 import { App } from "./app.ts";
-import { id } from "./store.ts";
+import { id, revise } from "./store.ts";
 import type {
   AuthorizationRequest,
   TaskPlan,
@@ -12,6 +12,11 @@ import type {
   DecisionRequest,
   ProgramRegistration,
   Operation,
+  Notification,
+  Context,
+  Input,
+  Feedback,
+  OperationLogRecord,
 } from "./contracts.ts";
 
 // Model/tool text is display data, never terminal commands or control sequences.
@@ -20,6 +25,19 @@ export function terminalText(value: string) {
     /[\x00-\x08\x0b-\x1f\x7f-\x9f\u202a-\u202e\u2066-\u2069]/g,
     "",
   );
+}
+export type MessageTone = "master" | "secretary" | "system" | "authorization";
+export const MESSAGE_COLORS: Record<MessageTone, number> = {
+  master: 223,
+  secretary: 153,
+  system: 152,
+  authorization: 229,
+};
+// Untrusted text is sanitized before adding our own terminal color sequences.
+export function renderMessage(text: string, tone: MessageTone, color: boolean) {
+  const clean = terminalText(text);
+  // Apple Terminal ignores 24-bit SGR. Indexed xterm colors work there as well.
+  return color ? `\x1b[38;5;${MESSAGE_COLORS[tone]}m${clean}\x1b[0m` : clean;
 }
 function display(value: unknown) {
   return JSON.stringify(
@@ -59,6 +77,8 @@ const HELP = `直接输入消息与主会话交谈；命令只由 Master 的终�
 /register <JSON>           登记程序，字段 entrypoint、name
 /rule <JSON>               添加授权规则，字段 action、resource、parameters
 /world [JSON]              查询 World Model，或提交变更提案
+/memory                    记忆整理状态、承诺 ID 与失败原因
+/memory-resolve <id> <COMPLETED|CANCELLED> <说明>  明确处理承诺
 /compact  /resume          整理工作记忆／重试已中断模型调用
 /help  /quit               帮助／停止并退出
 Ctrl+C 退出；支持终端历史、方向键编辑与滚动回看。`;
@@ -67,13 +87,42 @@ export class TerminalController {
   private viewed = new Map<string, { revision: number; hash: string }>();
   private aliases = new Map<string, string>();
   private eventIndex = 0;
+  private echoedInputs = new Set<string>();
+  private contextSignature = "";
   private pendingSignature = JSON.stringify([[], []]);
   constructor(
     readonly app: App,
-    private emit: (text: string) => void,
+    private emit: (text: string, tone: MessageTone) => void,
   ) {}
-  private print(value: unknown) {
-    this.emit(terminalText(typeof value === "string" ? value : display(value)));
+  private print(value: unknown, tone: MessageTone = "system") {
+    this.emit(
+      terminalText(typeof value === "string" ? value : display(value)),
+      tone,
+    );
+  }
+  contextUsage() {
+    const session = this.app.host.session;
+    const context = session.last_context_id
+      ? this.app.store.get<Context>("Context", session.last_context_id)
+      : null;
+    const budget = context?.token_budget ?? this.app.host.model.contextWindow;
+    const pending = this.app.store
+      .all<Input>("Input")
+      .filter(
+        (i) => i.session_id === session.id && i.state === "ACCEPTED",
+      ).length;
+    if (!context)
+      return `Context · 尚无快照 · 窗口 ${budget.toLocaleString("en-US")} tokens · 待装入 ${pending} 条`;
+    const ratio = context.estimated_tokens / budget;
+    const filled = Math.min(12, Math.max(0, Math.round(ratio * 12)));
+    return `Context [${"█".repeat(filled)}${"░".repeat(12 - filled)}] ≈${context.estimated_tokens.toLocaleString("en-US")} / ${budget.toLocaleString("en-US")} tokens · ${(ratio * 100).toFixed(1)}% · 预留 ${context.reserve_tokens.toLocaleString("en-US")} · 待装入 ${pending} 条（最近快照估算）`;
+  }
+  private showContext() {
+    const text = this.contextUsage();
+    if (text !== this.contextSignature) {
+      this.contextSignature = text;
+      this.print(text);
+    }
   }
   help() {
     this.print(HELP);
@@ -82,6 +131,13 @@ export class TerminalController {
     this.print(
       `Secretary · ${process.env.SECRETARY_MODE === "live" ? "LIVE_MODEL" : "OFFLINE_FIXTURE"}\n主会话 ${this.app.host.model.id} · 执行 ${this.app.scheduler.model.id}\n状态 ${this.app.host.session.state}${this.app.host.session.recovery_error ? " · " + this.app.host.session.recovery_error : ""}`,
     );
+    this.print(this.contextUsage());
+    this.print(this.memoryUsage());
+    this.contextSignature = this.contextUsage();
+  }
+  private memoryUsage() {
+    const m = this.app.host.memoryStatus();
+    return `Memory · ${m.state} · revision ${m.revision} · 最近成功 ${m.last_success_at ?? "尚无"} · 尝试 ${m.attempt}/2${m.errors.length ? " · " + m.errors.at(-1) : ""}`;
   }
   private alias(prefix: string, id: string) {
     const old = [...this.aliases].find(
@@ -122,9 +178,13 @@ export class TerminalController {
       : "主会话操作";
     this.print(
       `══ ${a.state === "PENDING" ? "等待授权" : "授权详情"} ${label} ══\n任务：${goal}\n动作：${a.action.action}\n资源：${a.action.resource}\n状态：${a.state} · 版本 ${a.revision}\n请求 ID：${a.id}\n完整请求与参数：`,
+      "authorization",
     );
     // Authorization parameters must be displayed verbatim, not filtered like model messages.
-    this.print(JSON.stringify(this.app.store.read(a.display_ref), null, 2));
+    this.print(
+      JSON.stringify(this.app.store.read(a.display_ref), null, 2),
+      "authorization",
+    );
     this.viewed.set(a.id, { revision: a.revision, hash: a.display_hash });
     this.print(
       a.state === "PENDING"
@@ -132,13 +192,14 @@ export class TerminalController {
         : a.state === "APPROVED"
           ? `撤销批准 → /revoke ${label}`
           : "此请求已结束，不能再次批准。",
+      "authorization",
     );
   }
   private approvals() {
     const list = this.app.store
       .all<AuthorizationRequest>("AuthorizationRequest")
       .filter((a) => ["PENDING", "APPROVED"].includes(a.state));
-    if (!list.length) this.print("授权入口：暂无待处理授权。");
+    if (!list.length) this.print("授权入口：暂无待处理授权。", "authorization");
     for (const a of list) this.approvalCard(a);
   }
   private decisions() {
@@ -160,28 +221,64 @@ export class TerminalController {
       throw Error("请输入唯一 ID（可使用不歧义的前缀）。");
     return matches[0];
   }
-  refresh() {
-    for (const event of this.app.store.logs.slice(this.eventIndex)) {
-      if (event.event_type === "main.message") {
-        const m = this.app.store.read<{ role: string; content: unknown }>(
-          event.payload,
-        );
-        if (m.role === "assistant" && Array.isArray(m.content)) {
-          const text = m.content
-            .filter((c) => c.type === "text")
-            .map((c) => c.text)
-            .join("\n");
-          if (text) this.print("Secretary › " + text);
-        }
-      }
-      if (event.event_type === "notification.result") {
-        const n = this.app.store.read<{
-          message: Parameters<App["store"]["bytes"]>[0];
-        }>(event.payload);
-        this.print("通知 › " + this.app.store.bytes(n.message).toString());
+  private showEvent(event: OperationLogRecord) {
+    if (event.event_type === "input.accepted") {
+      const input = this.app.store.read<Input>(event.payload);
+      this.print(
+        `${input.producer === "MASTER" ? "Master" : "系统"} › ${this.app.store.bytes(input.payload).toString()}`,
+        input.producer === "MASTER" ? "master" : "system",
+      );
+    } else if (event.event_type === "feedback.delivered") {
+      const feedback = this.app.store.read<Feedback>(event.payload);
+      this.print(
+        `系统 · 任务反馈 › ${feedback.summary}\n执行：${feedback.execution_id} · /show ${feedback.execution_id}`,
+        "system",
+      );
+    } else if (event.event_type.startsWith("consciousness.")) {
+      this.print(this.memoryUsage());
+    } else if (event.event_type === "main.message") {
+      const m = this.app.store.read<{ role: string; content: unknown }>(
+        event.payload,
+      );
+      if (m.role === "assistant" && Array.isArray(m.content)) {
+        const text = m.content
+          .filter((c) => c.type === "text")
+          .map((c) => c.text)
+          .join("\n");
+        if (text) this.print("Secretary › " + text, "secretary");
       }
     }
+  }
+  refresh() {
+    for (const event of this.app.store.logs.slice(this.eventIndex)) {
+      if (event.event_type === "input.accepted") {
+        const input = this.app.store.read<Input>(event.payload);
+        if (this.echoedInputs.has(input.id)) continue;
+        this.echoedInputs.add(input.id);
+      }
+      this.showEvent(event);
+    }
     this.eventIndex = this.app.store.logs.length;
+    for (const n of this.app.store
+      .all<Notification>("Notification")
+      .filter((n) => n.state === "QUEUED")) {
+      this.print(
+        "Secretary · 通知 › " + this.app.store.bytes(n.message).toString(),
+        "secretary",
+      );
+      const delivered = revise(n, {
+        state: "SENT",
+        receipt: this.app.store.put({
+          channel: "local-ui",
+          delivery_key: n.delivery_key,
+          presented: true,
+        }),
+      });
+      this.app.store.commit(
+        [delivered],
+        [this.app.store.event("notification.result", delivered)],
+      );
+    }
     const approvals = this.app.store
       .all<AuthorizationRequest>("AuthorizationRequest")
       .filter((a) => ["PENDING", "APPROVED"].includes(a.state));
@@ -202,13 +299,17 @@ export class TerminalController {
         `待授权 ${approvals.filter((a) => a.state === "PENDING").length} · 待决定 ${decisions.length} · /menu 返回功能入口`,
       );
     }
+    this.showContext();
   }
+
   async command(line: string): Promise<boolean> {
     const input = line.trim();
     if (!input) return true;
     if (!input.startsWith("/")) {
-      this.app.host.accept(input);
-      this.print("消息已保存。");
+      const accepted = this.app.host.accept(input);
+      this.echoedInputs.add(accepted.id);
+      this.print("Master › " + input, "master");
+      this.showContext();
       return true;
     }
     const space = input.indexOf(" "),
@@ -264,12 +365,22 @@ export class TerminalController {
         this.print(await this.app.world.read(rest || null));
         break;
       case "/history": {
-        const messages = store.logs
-          .filter((l) => l.event_type === "main.message")
-          .map((l) => store.read<{ role: string; content: unknown }>(l.payload))
-          .filter((m) => ["user", "assistant"].includes(m.role))
+        const events = store.logs
+          .filter((event) => {
+            if (
+              ["input.accepted", "feedback.delivered"].includes(
+                event.event_type,
+              )
+            )
+              return true;
+            return (
+              event.event_type === "main.message" &&
+              store.read<{ role: string }>(event.payload).role === "assistant"
+            );
+          })
           .slice(-20);
-        this.print(messages.length ? messages : "暂无会话历史。");
+        if (!events.length) this.print("暂无会话历史。");
+        for (const event of events) this.showEvent(event);
         break;
       }
       case "/help":
@@ -356,6 +467,7 @@ export class TerminalController {
                   ? "REJECT"
                   : "REVOKE",
           }),
+          "authorization",
         );
         this.viewed.delete(a.id);
         break;
@@ -424,6 +536,21 @@ export class TerminalController {
             : await this.app.world.read(null),
         );
         break;
+      case "/memory":
+        this.print(this.app.host.memoryStatus());
+        break;
+      case "/memory-resolve": {
+        const [commitment, state, ...note] = rest.split(/\s+/);
+        if (state !== "COMPLETED" && state !== "CANCELLED")
+          throw Error("状态须为 COMPLETED 或 CANCELLED");
+        this.app.host.resolveMemoryCommitment(
+          commitment,
+          state,
+          note.join(" "),
+        );
+        this.print(this.app.host.memoryStatus());
+        break;
+      }
       case "/compact":
         void this.app.host.compact().catch((e) => this.print(String(e)));
         this.print("已请求整理。");
@@ -464,17 +591,23 @@ export async function runTerminal() {
       historySize: 200,
     });
     const tty = !!process.stdout.isTTY;
+    const color =
+      tty &&
+      (process.env.SECRETARY_COLOR === "256" ||
+        (process.env.NO_COLOR === undefined && process.env.TERM !== "dumb"));
     let renders = 0;
     let ui: TerminalController;
-    const print = (text: string) => {
+    const print = (text: string, tone: MessageTone = "system") => {
       renders++;
       if (tty) {
         readline.clearLine(process.stdout, 0);
         readline.cursorTo(process.stdout, 0);
       }
-      process.stdout.write(terminalText(text) + "\n");
+      process.stdout.write(renderMessage(text, tone, color) + "\n");
       if (!stopping) {
-        rl!.setPrompt(ui?.prompt() ?? "Master › ");
+        rl!.setPrompt(
+          renderMessage(ui?.prompt() ?? "Master › ", "master", color),
+        );
         rl!.prompt(true);
       }
     };

@@ -141,13 +141,5 @@ World Model 主张投影的 ACTIVE/SUPPORTING/CONTESTED/SUPERSEDED/RETRACTED 另
 
 仅标出后续接线位置，不继承历史 PASS，不声称本次已执行。
 
-- [demo_src_go/internal/store/store_test.go](../demo_src_go/internal/store/store_test.go)
-- [demo_src_go/internal/engine/engine_test.go](../demo_src_go/internal/engine/engine_test.go)
-- [demo_src_go/internal/engine/compaction_test.go](../demo_src_go/internal/engine/compaction_test.go)
-- [demo_src_go/internal/engine/memory_test.go](../demo_src_go/internal/engine/memory_test.go)
-- [demo_src_go/internal/engine/scheduler_test.go](../demo_src_go/internal/engine/scheduler_test.go)
-- [demo_src_go/internal/engine/world_test.go](../demo_src_go/internal/engine/world_test.go)
-- [demo_src_go/internal/world/postgres_test.go](../demo_src_go/internal/world/postgres_test.go)
-- [demo_src_go/internal/transport/server_test.go](../demo_src_go/internal/transport/server_test.go)
 - [demo_pi/pi_secretary/test/runtime.test.ts](../demo_pi/pi_secretary/test/runtime.test.ts)
 - [demo_pi/pi_secretary/test/world.test.ts](../demo_pi/pi_secretary/test/world.test.ts)

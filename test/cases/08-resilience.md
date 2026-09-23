@@ -11,7 +11,7 @@ P0 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J02, J09。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：主会话与整理模型各阻塞60秒，Scheduler有可运行工作。
 
@@ -35,7 +35,7 @@ P1 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J03, J14, J15。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：fixture 提供429/500、明确拒绝、超时、断流、工具畸形。
 
@@ -61,7 +61,7 @@ P0 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J01, J04, J08。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：按 CAMPAIGNS 测吞吐 λ 和输入/worker 上限。
 
@@ -88,7 +88,7 @@ P1 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J04, J10, J16。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：按 C6 真实时钟连续运行，日志保留，固定负载。
 
@@ -115,7 +115,7 @@ P1 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J07, J08, J12。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：UTC周期、授权时限和TTL；可控wall/monotonic clock。
 
@@ -140,7 +140,7 @@ P0 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J01, J12, J20。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：仅本地测试server，Master session与未认证客户端。
 
@@ -167,7 +167,7 @@ P0 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J12, J19, J16。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：只使用合成canary密钥，主/任务/PG/UI各不同。
 
@@ -193,7 +193,7 @@ P0 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J12, J13, J17。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：任务文档/工具返回含伪系统指令与旧批准文本。
 
@@ -218,7 +218,7 @@ P0 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J13, J21。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：两个获准任务修改同一明确共享文件v1。
 
@@ -244,7 +244,7 @@ P1 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J02, J03, J06, J17。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：按39根契约与嵌套defs生成有效结构，不作运行快照。
 
@@ -269,7 +269,7 @@ P0 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J01, J02, J21。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：入口大小/深度限制，revision/sequence边界由契约确定。
 
@@ -294,7 +294,7 @@ P1 · 目标证据 `UI_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J12, J20。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：授权卡显示精确范围，用户正在输入普通决定。
 
@@ -322,7 +322,7 @@ P1 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J14, J16。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：分别1万/10万/100万journal事件和多执行详情。
 
@@ -348,7 +348,7 @@ P1 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 2.4, 3.4, 4, 5.2, 5.7, 5.8；语义约束 J05, J09, J17, J20。
 
-规范：[API.md](../../demo_design/API.md)、[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
+规范：[API.md](../../demo_design/API.md)、[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[DECISIONS.md](../../demo_design/DECISIONS.md)、[contracts.schema.json](../../json/contracts.schema.json)、[SEMANTICS.md](../../json/SEMANTICS.md)。
 
 前置：分别暂停PG、通知渠道、整理模型、一个worker。
 
@@ -375,7 +375,7 @@ P0 · 目标证据 `OFFLINE_RUNTIME` · `NOT_RUN`
 
 依据：BrainStorm 5.2, 5.7, 3.3；语义约束 J06, J13, J17, J19。
 
-规范：[GO_LAYOUT.md](../../demo_design/GO_LAYOUT.md)、[API.md](../../demo_design/API.md)、[TRANSACTIONS.md](../../schema/TRANSACTIONS.md)。
+规范：[IMPLEMENTATION.md](../../demo_design/IMPLEMENTATION.md)、[API.md](../../demo_design/API.md)、[TRANSACTIONS.md](../../schema/TRANSACTIONS.md)。
 
 前置：隔离程序仅回显 argv，临时 PG 含哨兵实体；所有输入均为合成文本。
 
