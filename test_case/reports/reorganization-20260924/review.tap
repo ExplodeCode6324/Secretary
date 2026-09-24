@@ -1,0 +1,230 @@
+
+> test:review
+> tsx --test --test-skip-pattern='AUD14' test_case/offline/audit/new.test.ts test_case/offline/audit/extra.test.ts test_case/offline/audit/final.test.ts test_case/offline/audit/legacy.test.ts
+
+TAP version 13
+# Subtest: NEW11 identical provider tool id in later response must not alias earlier intent
+ok 1 - NEW11 identical provider tool id in later response must not alias earlier intent
+  ---
+  duration_ms: 1970.231541
+  type: 'test'
+  ...
+# Subtest: NEW12 earlier read followed by WAIT_AUTH must stop model loop immediately
+ok 2 - NEW12 earlier read followed by WAIT_AUTH must stop model loop immediately
+  ---
+  duration_ms: 1556.693333
+  type: 'test'
+  ...
+# Subtest: NEW13 approved workspace path must not follow a replaced work root symlink
+ok 3 - NEW13 approved workspace path must not follow a replaced work root symlink
+  ---
+  duration_ms: 1672.645209
+  type: 'test'
+  ...
+# Subtest: NEW14 accepted future followup must pin parent before trigger fires
+ok 4 - NEW14 accepted future followup must pin parent before trigger fires
+  ---
+  duration_ms: 1196.846208
+  type: 'test'
+  ...
+# Subtest: NEW19 program business FAILED cannot be promoted to SUCCEEDED by exit zero
+ok 5 - NEW19 program business FAILED cannot be promoted to SUCCEEDED by exit zero
+  ---
+  duration_ms: 1090.902333
+  type: 'test'
+  ...
+# Subtest: NEW20 cancellation of program ignoring SIGTERM needs bounded escalation
+ok 6 - NEW20 cancellation of program ignoring SIGTERM needs bounded escalation
+  ---
+  duration_ms: 1451.622708
+  type: 'test'
+  ...
+# Subtest: NEW21 summary cannot claim source covered while omitting its explicit constraint
+ok 7 - NEW21 summary cannot claim source covered while omitting its explicit constraint
+  ---
+  duration_ms: 1359.30675
+  type: 'test'
+  ...
+# Subtest: NEW22 upstream at-prefix normalization cannot bypass workspace read boundary
+ok 8 - NEW22 upstream at-prefix normalization cannot bypass workspace read boundary
+  ---
+  duration_ms: 1799.069167
+  type: 'test'
+  ...
+# Subtest: AUD01 target changed after approval must not be overwritten
+ok 9 - AUD01 target changed after approval must not be overwritten
+  ---
+  duration_ms: 1553.601125
+  type: 'test'
+  ...
+# Subtest: AUD02 expired ordinary decision must be rejected
+ok 10 - AUD02 expired ordinary decision must be rejected
+  ---
+  duration_ms: 1382.089
+  type: 'test'
+  ...
+# Subtest: AUD03 ordinary decision exact redelivery is idempotent
+ok 11 - AUD03 ordinary decision exact redelivery is idempotent
+  ---
+  duration_ms: 1424.379709
+  type: 'test'
+  ...
+# Subtest: AUD04 missing referenced object rejected before durable frame
+ok 12 - AUD04 missing referenced object rejected before durable frame
+  ---
+  duration_ms: 271.216041
+  type: 'test'
+  ...
+# Subtest: AUD05 Context is immutable after first commit
+ok 13 - AUD05 Context is immutable after first commit
+  ---
+  duration_ms: 896.948583
+  type: 'test'
+  ...
+# Subtest: AUD06 illegal Input ACCEPTED to HANDLED rejected
+ok 14 - AUD06 illegal Input ACCEPTED to HANDLED rejected
+  ---
+  duration_ms: 209.816417
+  type: 'test'
+  ...
+# Subtest: AUD07 cross-object missing session rejected
+ok 15 - AUD07 cross-object missing session rejected
+  ---
+  duration_ms: 166.15825
+  type: 'test'
+  ...
+# Subtest: AUD08 outer frame unknown fields rejected
+ok 16 - AUD08 outer frame unknown fields rejected
+  ---
+  duration_ms: 184.715291
+  type: 'test'
+  ...
+# Subtest: AUD09 invalid base64 rejected
+ok 17 - AUD09 invalid base64 rejected
+  ---
+  duration_ms: 168.634625
+  type: 'test'
+  ...
+# Subtest: AUD10 event sequence discontinuity rejected
+ok 18 - AUD10 event sequence discontinuity rejected
+  ---
+  duration_ms: 159.831334
+  type: 'test'
+  ...
+# Subtest: AUD11 notification is not SENT before channel receipt
+ok 19 - AUD11 notification is not SENT before channel receipt
+  ---
+  duration_ms: 126.239125
+  type: 'test'
+  ...
+# Subtest: AUD12 stale epoch/attempt rejected by final gate
+ok 20 - AUD12 stale epoch/attempt rejected by final gate
+  ---
+  duration_ms: 907.386125
+  type: 'test'
+  ...
+# Subtest: AUD13 QUEUE persists occurrence while previous run waits
+ok 21 - AUD13 QUEUE persists occurrence while previous run waits
+  ---
+  duration_ms: 773.919
+  type: 'test'
+  ...
+# Subtest: AUD15 source input exact bytes retained and conflict rejected
+ok 22 - AUD15 source input exact bytes retained and conflict rejected
+  ---
+  duration_ms: 125.005542
+  type: 'test'
+  ...
+# Subtest: AUD12-refinement valid
+ok 23 - AUD12-refinement valid
+  ---
+  duration_ms: 848.6215
+  type: 'test'
+  ...
+# Subtest: AUD12-refinement epoch
+ok 24 - AUD12-refinement epoch
+  ---
+  duration_ms: 904.09825
+  type: 'test'
+  ...
+# Subtest: AUD12-refinement attempt
+ok 25 - AUD12-refinement attempt
+  ---
+  duration_ms: 905.813959
+  type: 'test'
+  ...
+# Subtest: NEW01 SIGKILL during input batch assembly must not mark unseen B handled
+ok 26 - NEW01 SIGKILL during input batch assembly must not mark unseen B handled
+  ---
+  duration_ms: 1800.330167
+  type: 'test'
+  ...
+# Subtest: NEW02 missing reference rejection must leave a reopenable store
+ok 27 - NEW02 missing reference rejection must leave a reopenable store
+  ---
+  duration_ms: 248.041958
+  type: 'test'
+  ...
+# Subtest: NEW03 cancelled decision becomes obsolete and cannot block retirement incorrectly
+ok 28 - NEW03 cancelled decision becomes obsolete and cannot block retirement incorrectly
+  ---
+  duration_ms: 1492.895208
+  type: 'test'
+  ...
+# Subtest: NEW04 decision accepted without a nonempty answer must be rejected
+ok 29 - NEW04 decision accepted without a nonempty answer must be rejected
+  ---
+  duration_ms: 1395.926417
+  type: 'test'
+  ...
+# Subtest: NEW05 crash after decision commit but before feedback must be repaired on reopen
+ok 30 - NEW05 crash after decision commit but before feedback must be repaired on reopen
+  ---
+  duration_ms: 1283.1335
+  type: 'test'
+  ...
+# Subtest: NEW06 later compaction must receive previously committed working memory
+ok 31 - NEW06 later compaction must receive previously committed working memory
+  ---
+  duration_ms: 1333.713625
+  type: 'test'
+  ...
+# Subtest: NEW07 compaction commit resolving capacity must permit next model call
+ok 32 - NEW07 compaction commit resolving capacity must permit next model call
+  ---
+  duration_ms: 1085.933167
+  type: 'test'
+  ...
+# Subtest: NEW08 task checkpoint obeys configured model capacity above 32768
+ok 33 - NEW08 task checkpoint obeys configured model capacity above 32768
+  ---
+  duration_ms: 824.764834
+  type: 'test'
+  ...
+# Subtest: NEW09 child followup receives saved parent context marker
+ok 34 - NEW09 child followup receives saved parent context marker
+  ---
+  duration_ms: 1526.045167
+  type: 'test'
+  ...
+# Subtest: NEW10 target precondition is rechecked after waiting for authorization
+ok 35 - NEW10 target precondition is rechecked after waiting for authorization
+  ---
+  duration_ms: 553.943166
+  type: 'test'
+  ...
+# Subtest: CONTROL Pi 0.87 system messages really contain recoverable tool declarations
+ok 36 - CONTROL Pi 0.87 system messages really contain recoverable tool declarations
+  ---
+  duration_ms: 337.152125
+  type: 'test'
+  ...
+1..36
+# tests 36
+# suites 0
+# pass 36
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 12710.830958

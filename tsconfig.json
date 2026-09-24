@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowImportingTsExtensions": true,
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true
+  },
+  "include": [
+    "src/pi_secretary/src/**/*.ts",
+    "src/pi_secretary/scripts/*.ts",
+    "test_case/offline/runtime/**/*.ts",
+    "test_case/online/*.ts"
+  ]
+}

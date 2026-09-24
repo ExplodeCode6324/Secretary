@@ -1,0 +1,16 @@
+TAP version 13
+# Subtest: PostgreSQL implementation: authorized catalog/facts, conflict/CAS, receipt and outbox replay
+ok 1 - PostgreSQL implementation: authorized catalog/facts, conflict/CAS, receipt and outbox replay
+  ---
+  duration_ms: 1097.929292
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1600.843709

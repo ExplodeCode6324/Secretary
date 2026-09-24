@@ -1,0 +1,1298 @@
+{
+  "schema_version": 1,
+  "machines": {
+    "Host": {
+      "owner": "host",
+      "initial": "STOPPED",
+      "terminal": [],
+      "states": [
+        "STOPPED",
+        "RECOVERING",
+        "IDLE",
+        "RUNNING",
+        "CAPACITY_BLOCKED",
+        "RECOVERY_BLOCKED",
+        "DRAINING"
+      ],
+      "transitions": [
+        {
+          "id": "Host-01",
+          "from": "STOPPED",
+          "event": "wake",
+          "to": "RECOVERING",
+          "guard": "exclusive_owner",
+          "commit": "复用应用持有的独占锁和 owner_epoch；仅应用重新取得所有权时递增 epoch"
+        },
+        {
+          "id": "Host-02",
+          "from": "RECOVERING",
+          "event": "valid",
+          "to": "IDLE",
+          "guard": "recovery_complete",
+          "commit": "重放 journal；核对中断操作"
+        },
+        {
+          "id": "Host-03",
+          "from": "RECOVERING",
+          "event": "invalid",
+          "to": "RECOVERY_BLOCKED",
+          "guard": "missing_or_corrupt",
+          "commit": "保存恢复故障；不创建空会话"
+        },
+        {
+          "id": "Host-04",
+          "from": "RECOVERY_BLOCKED",
+          "event": "repair",
+          "to": "RECOVERING",
+          "guard": "operator_repaired",
+          "commit": "重新验证完整记录"
+        },
+        {
+          "id": "Host-05",
+          "from": "IDLE",
+          "event": "input",
+          "to": "RUNNING",
+          "guard": "pending_input_and_capacity",
+          "commit": "原子认领输入并创建 loop_id"
+        },
+        {
+          "id": "Host-06",
+          "from": "RUNNING",
+          "event": "input",
+          "to": "RUNNING",
+          "guard": "valid_new_input",
+          "commit": "只追加可靠 inbox，不并发 loop"
+        },
+        {
+          "id": "Host-07",
+          "from": "RUNNING",
+          "event": "next_call",
+          "to": "RUNNING",
+          "guard": "call_checkpoint_safe",
+          "commit": "保存本轮调用和工具交互"
+        },
+        {
+          "id": "Host-08",
+          "from": "RUNNING",
+          "event": "done",
+          "to": "IDLE",
+          "guard": "loop_effects_recorded",
+          "commit": "输入标 HANDLED；未认领输入不清空"
+        },
+        {
+          "id": "Host-09",
+          "from": "RUNNING",
+          "event": "full",
+          "to": "CAPACITY_BLOCKED",
+          "guard": "cannot_fit_context",
+          "commit": "保留原文和本轮进度"
+        },
+        {
+          "id": "Host-10",
+          "from": "CAPACITY_BLOCKED",
+          "event": "compacted",
+          "to": "RUNNING",
+          "guard": "context_fits",
+          "commit": "已有 loop 从持久化调用边界继续；尚无认领批次则原子认领待输入再调用"
+        },
+        {
+          "id": "Host-11",
+          "from": "IDLE",
+          "event": "shutdown",
+          "to": "DRAINING",
+          "guard": "no_active_loop",
+          "commit": "停止新调用"
+        },
+        {
+          "id": "Host-12",
+          "from": "RUNNING",
+          "event": "shutdown",
+          "to": "DRAINING",
+          "guard": "checkpoint_requested",
+          "commit": "等待安全交互边界"
+        },
+        {
+          "id": "Host-13",
+          "from": "CAPACITY_BLOCKED",
+          "event": "shutdown",
+          "to": "DRAINING",
+          "guard": "checkpoint_saved",
+          "commit": "保存未完成 loop"
+        },
+        {
+          "id": "Host-14",
+          "from": "DRAINING",
+          "event": "saved",
+          "to": "STOPPED",
+          "guard": "all_owned_state_durable",
+          "commit": "退出模型宿主；Scheduler 可继续运行"
+        },
+        {
+          "id": "Host-15",
+          "from": "RECOVERING",
+          "event": "resume_loop",
+          "to": "RUNNING",
+          "guard": "same_loop_checkpoint",
+          "commit": "恢复已认领 loop；只处理尚未完成交互"
+        },
+        {
+          "id": "Host-16",
+          "from": "IDLE",
+          "event": "full",
+          "to": "CAPACITY_BLOCKED",
+          "guard": "cannot_fit_context",
+          "commit": "待输入仍 ACCEPTED，保留准备中的 loop 标识"
+        }
+      ]
+    },
+    "Input": {
+      "owner": "host",
+      "initial": "ACCEPTED",
+      "terminal": [
+        "HANDLED"
+      ],
+      "states": [
+        "ACCEPTED",
+        "CLAIMED",
+        "HANDLED"
+      ],
+      "transitions": [
+        {
+          "id": "Input-01",
+          "from": "ACCEPTED",
+          "event": "claim",
+          "to": "CLAIMED",
+          "guard": "single_loop",
+          "commit": "保存 loop_id"
+        },
+        {
+          "id": "Input-02",
+          "from": "CLAIMED",
+          "event": "processed",
+          "to": "HANDLED",
+          "guard": "response_and_effects_durable",
+          "commit": "提交本批输入处理回执"
+        },
+        {
+          "id": "Input-03",
+          "from": "CLAIMED",
+          "event": "recover",
+          "to": "CLAIMED",
+          "guard": "same_loop_checkpoint",
+          "commit": "续接同一 loop，禁止重新从头执行工具"
+        }
+      ]
+    },
+    "Call": {
+      "owner": "host/executor",
+      "initial": "PREPARED",
+      "terminal": [
+        "RESPONSE_SAVED",
+        "FAILED"
+      ],
+      "states": [
+        "PREPARED",
+        "IN_FLIGHT",
+        "RESPONSE_SAVED",
+        "INTERRUPTED",
+        "FAILED"
+      ],
+      "transitions": [
+        {
+          "id": "Call-01",
+          "from": "PREPARED",
+          "event": "send",
+          "to": "IN_FLIGHT",
+          "guard": "context_durable",
+          "commit": "记录发送意图"
+        },
+        {
+          "id": "Call-02",
+          "from": "IN_FLIGHT",
+          "event": "response",
+          "to": "RESPONSE_SAVED",
+          "guard": "complete_response",
+          "commit": "保存完整原始响应"
+        },
+        {
+          "id": "Call-03",
+          "from": "IN_FLIGHT",
+          "event": "lost",
+          "to": "INTERRUPTED",
+          "guard": "no_complete_response",
+          "commit": "不执行部分输出"
+        },
+        {
+          "id": "Call-04",
+          "from": "INTERRUPTED",
+          "event": "retry",
+          "to": "PREPARED",
+          "guard": "no_tools_from_partial",
+          "commit": "同 context 新 transport_attempt；不重放工具"
+        },
+        {
+          "id": "Call-05",
+          "from": "IN_FLIGHT",
+          "event": "error",
+          "to": "FAILED",
+          "guard": "definitive_error",
+          "commit": "保存明确失败"
+        }
+      ]
+    },
+    "Compaction": {
+      "owner": "consciousness",
+      "initial": "QUEUED",
+      "terminal": [
+        "COMMITTED",
+        "STALE",
+        "FAILED"
+      ],
+      "states": [
+        "QUEUED",
+        "SUMMARIZING",
+        "VALIDATING",
+        "COMMITTED",
+        "STALE",
+        "FAILED"
+      ],
+      "transitions": [
+        {
+          "id": "Compaction-01",
+          "from": "QUEUED",
+          "event": "start",
+          "to": "SUMMARIZING",
+          "guard": "one_job_and_fixed_source",
+          "commit": "固定 base_revision 和原文引用"
+        },
+        {
+          "id": "Compaction-02",
+          "from": "SUMMARIZING",
+          "event": "response",
+          "to": "VALIDATING",
+          "guard": "complete_response",
+          "commit": "保存候选摘要"
+        },
+        {
+          "id": "Compaction-03",
+          "from": "SUMMARIZING",
+          "event": "error",
+          "to": "FAILED",
+          "guard": "known_failure",
+          "commit": "原文保留"
+        },
+        {
+          "id": "Compaction-04",
+          "from": "VALIDATING",
+          "event": "commit",
+          "to": "COMMITTED",
+          "guard": "base_and_coverage_valid",
+          "commit": "一次事务保存新 Consciousness 与承接集合"
+        },
+        {
+          "id": "Compaction-05",
+          "from": "VALIDATING",
+          "event": "stale",
+          "to": "STALE",
+          "guard": "base_changed",
+          "commit": "保留原文，后续新 job"
+        },
+        {
+          "id": "Compaction-06",
+          "from": "VALIDATING",
+          "event": "invalid",
+          "to": "FAILED",
+          "guard": "validation_failed",
+          "commit": "保留原文"
+        },
+        {
+          "id": "Compaction-07",
+          "from": "SUMMARIZING",
+          "event": "interrupted",
+          "to": "FAILED",
+          "guard": "no_complete_response",
+          "commit": "保留原文；重新建立固定范围 job"
+        }
+      ]
+    },
+    "Plan": {
+      "owner": "scheduler",
+      "initial": "INITIALIZING",
+      "terminal": [
+        "CLOSED"
+      ],
+      "states": [
+        "INITIALIZING",
+        "ACTIVE",
+        "PAUSED",
+        "INIT_FAILED",
+        "CLOSED"
+      ],
+      "transitions": [
+        {
+          "id": "Plan-01",
+          "from": "INITIALIZING",
+          "event": "workspace_ready",
+          "to": "ACTIVE",
+          "guard": "workspace_verified",
+          "commit": "目录就绪；可供触发"
+        },
+        {
+          "id": "Plan-02",
+          "from": "INITIALIZING",
+          "event": "init_error",
+          "to": "INIT_FAILED",
+          "guard": "known_error",
+          "commit": "记录目录错误"
+        },
+        {
+          "id": "Plan-03",
+          "from": "INIT_FAILED",
+          "event": "retry_init",
+          "to": "INITIALIZING",
+          "guard": "same_task_id",
+          "commit": "不分配第二个任务"
+        },
+        {
+          "id": "Plan-04",
+          "from": "ACTIVE",
+          "event": "pause",
+          "to": "PAUSED",
+          "guard": "control_authorized",
+          "commit": "停止新增触发分派"
+        },
+        {
+          "id": "Plan-05",
+          "from": "PAUSED",
+          "event": "resume",
+          "to": "ACTIVE",
+          "guard": "control_authorized",
+          "commit": "恢复触发"
+        },
+        {
+          "id": "Plan-06",
+          "from": "ACTIVE",
+          "event": "close",
+          "to": "CLOSED",
+          "guard": "no_future_occurrence",
+          "commit": "关闭计划；不改写执行"
+        },
+        {
+          "id": "Plan-07",
+          "from": "PAUSED",
+          "event": "close",
+          "to": "CLOSED",
+          "guard": "control_authorized",
+          "commit": "关闭计划"
+        },
+        {
+          "id": "Plan-08",
+          "from": "INITIALIZING",
+          "event": "close",
+          "to": "CLOSED",
+          "guard": "control_authorized",
+          "commit": "停止初始化并关闭计划；已产生目录留存归属记录"
+        },
+        {
+          "id": "Plan-09",
+          "from": "INIT_FAILED",
+          "event": "close",
+          "to": "CLOSED",
+          "guard": "control_authorized",
+          "commit": "关闭不再重试的初始化失败计划"
+        }
+      ]
+    },
+    "Execution": {
+      "owner": "scheduler",
+      "initial": "CREATED",
+      "terminal": [
+        "SUCCEEDED",
+        "FAILED",
+        "CANCELLED",
+        "EXPIRED"
+      ],
+      "states": [
+        "CREATED",
+        "WAIT_PRECONDITION",
+        "READY",
+        "DISPATCHING",
+        "RUNNING",
+        "WAIT_DECISION",
+        "WAIT_AUTH",
+        "CANCEL_REQUESTED",
+        "RESULT_UNKNOWN",
+        "SUCCEEDED",
+        "FAILED",
+        "CANCELLED",
+        "EXPIRED"
+      ],
+      "transitions": [
+        {
+          "id": "Execution-01",
+          "from": "CREATED",
+          "event": "check",
+          "to": "WAIT_PRECONDITION",
+          "guard": "trigger_due",
+          "commit": "保存前提检查"
+        },
+        {
+          "id": "Execution-02",
+          "from": "WAIT_PRECONDITION",
+          "event": "ready",
+          "to": "READY",
+          "guard": "preconditions_met",
+          "commit": "清除可恢复等待"
+        },
+        {
+          "id": "Execution-03",
+          "from": "READY",
+          "event": "dispatch",
+          "to": "DISPATCHING",
+          "guard": "enabled_revision_and_no_overlap",
+          "commit": "保存 Dispatch 与 attempt_id"
+        },
+        {
+          "id": "Execution-04",
+          "from": "DISPATCHING",
+          "event": "worker_started",
+          "to": "RUNNING",
+          "guard": "matching_epoch_attempt",
+          "commit": "关联 worker"
+        },
+        {
+          "id": "Execution-05",
+          "from": "DISPATCHING",
+          "event": "spawn_failed",
+          "to": "FAILED",
+          "guard": "definite_not_started",
+          "commit": "保存失败结果"
+        },
+        {
+          "id": "Execution-06",
+          "from": "RUNNING",
+          "event": "needs_decision",
+          "to": "WAIT_DECISION",
+          "guard": "materials_saved",
+          "commit": "持有 DecisionRequest"
+        },
+        {
+          "id": "Execution-07",
+          "from": "WAIT_DECISION",
+          "event": "decided",
+          "to": "READY",
+          "guard": "valid_decision_and_conditions",
+          "commit": "保存普通决定"
+        },
+        {
+          "id": "Execution-08",
+          "from": "RUNNING",
+          "event": "needs_auth",
+          "to": "WAIT_AUTH",
+          "guard": "operation_prepared",
+          "commit": "持有 AuthorizationRequest"
+        },
+        {
+          "id": "Execution-09",
+          "from": "WAIT_AUTH",
+          "event": "authorized",
+          "to": "READY",
+          "guard": "grant_current",
+          "commit": "待执行操作仍须最终 gate"
+        },
+        {
+          "id": "Execution-10",
+          "from": "WAIT_AUTH",
+          "event": "refused",
+          "to": "FAILED",
+          "guard": "task_cannot_continue",
+          "commit": "保存拒绝结果"
+        },
+        {
+          "id": "Execution-11",
+          "from": "RUNNING",
+          "event": "success",
+          "to": "SUCCEEDED",
+          "guard": "result_and_evidence_saved",
+          "commit": "结果已可查再创建反馈"
+        },
+        {
+          "id": "Execution-12",
+          "from": "RUNNING",
+          "event": "failure",
+          "to": "FAILED",
+          "guard": "known_failed",
+          "commit": "保存已知影响"
+        },
+        {
+          "id": "Execution-13",
+          "from": "RUNNING",
+          "event": "uncertain",
+          "to": "RESULT_UNKNOWN",
+          "guard": "missing_effect_result",
+          "commit": "停止相关操作并反馈"
+        },
+        {
+          "id": "Execution-14",
+          "from": "DISPATCHING",
+          "event": "lost",
+          "to": "RESULT_UNKNOWN",
+          "guard": "may_have_started",
+          "commit": "先查 worker/receipt"
+        },
+        {
+          "id": "Execution-15",
+          "from": "RESULT_UNKNOWN",
+          "event": "verified_success",
+          "to": "SUCCEEDED",
+          "guard": "new_evidence",
+          "commit": "记录核验依据"
+        },
+        {
+          "id": "Execution-16",
+          "from": "RESULT_UNKNOWN",
+          "event": "verified_failure",
+          "to": "FAILED",
+          "guard": "new_evidence",
+          "commit": "不自动重试"
+        },
+        {
+          "id": "Execution-17",
+          "from": "RESULT_UNKNOWN",
+          "event": "found_running",
+          "to": "RUNNING",
+          "guard": "identity_verified",
+          "commit": "接回原 worker，不新起重复者"
+        },
+        {
+          "id": "Execution-18",
+          "from": "CANCEL_REQUESTED",
+          "event": "stopped",
+          "to": "CANCELLED",
+          "guard": "stop_and_effects_known",
+          "commit": "保存停止证据"
+        },
+        {
+          "id": "Execution-19",
+          "from": "CANCEL_REQUESTED",
+          "event": "uncertain",
+          "to": "RESULT_UNKNOWN",
+          "guard": "effects_unknown",
+          "commit": "保留取消意图"
+        },
+        {
+          "id": "Execution-20",
+          "from": "CANCEL_REQUESTED",
+          "event": "completed_before_cancel",
+          "to": "SUCCEEDED",
+          "guard": "completion_proven",
+          "commit": "报告取消未阻止完成"
+        },
+        {
+          "id": "Execution-21",
+          "from": "CREATED",
+          "event": "cancel",
+          "to": "CANCELLED",
+          "guard": "no_inflight_effect",
+          "commit": "未开始的相关操作取消"
+        },
+        {
+          "id": "Execution-22",
+          "from": "CREATED",
+          "event": "deadline",
+          "to": "EXPIRED",
+          "guard": "deadline_elapsed_and_no_inflight",
+          "commit": "到期结束；无期限不自行过期"
+        },
+        {
+          "id": "Execution-23",
+          "from": "WAIT_PRECONDITION",
+          "event": "cancel",
+          "to": "CANCELLED",
+          "guard": "no_inflight_effect",
+          "commit": "未开始的相关操作取消"
+        },
+        {
+          "id": "Execution-24",
+          "from": "WAIT_PRECONDITION",
+          "event": "deadline",
+          "to": "EXPIRED",
+          "guard": "deadline_elapsed_and_no_inflight",
+          "commit": "到期结束；无期限不自行过期"
+        },
+        {
+          "id": "Execution-25",
+          "from": "READY",
+          "event": "cancel",
+          "to": "CANCELLED",
+          "guard": "no_inflight_effect",
+          "commit": "未开始的相关操作取消"
+        },
+        {
+          "id": "Execution-26",
+          "from": "READY",
+          "event": "deadline",
+          "to": "EXPIRED",
+          "guard": "deadline_elapsed_and_no_inflight",
+          "commit": "到期结束；无期限不自行过期"
+        },
+        {
+          "id": "Execution-27",
+          "from": "WAIT_DECISION",
+          "event": "cancel",
+          "to": "CANCELLED",
+          "guard": "no_inflight_effect",
+          "commit": "未开始的相关操作取消"
+        },
+        {
+          "id": "Execution-28",
+          "from": "WAIT_DECISION",
+          "event": "deadline",
+          "to": "EXPIRED",
+          "guard": "deadline_elapsed_and_no_inflight",
+          "commit": "到期结束；无期限不自行过期"
+        },
+        {
+          "id": "Execution-29",
+          "from": "WAIT_AUTH",
+          "event": "cancel",
+          "to": "CANCELLED",
+          "guard": "no_inflight_effect",
+          "commit": "未开始的相关操作取消"
+        },
+        {
+          "id": "Execution-30",
+          "from": "WAIT_AUTH",
+          "event": "deadline",
+          "to": "EXPIRED",
+          "guard": "deadline_elapsed_and_no_inflight",
+          "commit": "到期结束；无期限不自行过期"
+        },
+        {
+          "id": "Execution-31",
+          "from": "RUNNING",
+          "event": "cancel",
+          "to": "CANCEL_REQUESTED",
+          "guard": "request_valid",
+          "commit": "只记录请求；停止须回执"
+        },
+        {
+          "id": "Execution-32",
+          "from": "DISPATCHING",
+          "event": "cancel",
+          "to": "CANCEL_REQUESTED",
+          "guard": "request_valid",
+          "commit": "只记录请求；停止须回执"
+        },
+        {
+          "id": "Execution-33",
+          "from": "READY",
+          "event": "needs_auth",
+          "to": "WAIT_AUTH",
+          "guard": "operation_prepared",
+          "commit": "程序启动先创建受控 program.run 请求，不先启动程序"
+        },
+        {
+          "id": "Execution-34",
+          "from": "WAIT_AUTH",
+          "event": "needs_decision",
+          "to": "WAIT_DECISION",
+          "guard": "materials_saved",
+          "commit": "授权拒绝后请求普通方案选择，不能把选择变批准"
+        },
+        {
+          "id": "Execution-35",
+          "from": "RUNNING",
+          "event": "deadline",
+          "to": "CANCEL_REQUESTED",
+          "guard": "deadline_elapsed",
+          "commit": "保存到期原因，等待实际停止"
+        },
+        {
+          "id": "Execution-36",
+          "from": "DISPATCHING",
+          "event": "deadline",
+          "to": "CANCEL_REQUESTED",
+          "guard": "deadline_elapsed",
+          "commit": "先核实分派，不把超时当未发生"
+        }
+      ]
+    },
+    "Retention": {
+      "owner": "scheduler",
+      "initial": "HOT",
+      "terminal": [
+        "RETIRED"
+      ],
+      "states": [
+        "HOT",
+        "ARCHIVE_PENDING",
+        "RETIRED"
+      ],
+      "transitions": [
+        {
+          "id": "Retention-01",
+          "from": "HOT",
+          "event": "access",
+          "to": "HOT",
+          "guard": "targeted_detail_or_followup",
+          "commit": "刷新 last_activity_at，列表不刷新"
+        },
+        {
+          "id": "Retention-02",
+          "from": "HOT",
+          "event": "idle",
+          "to": "ARCHIVE_PENDING",
+          "guard": "terminal_no_pending_and_ttl",
+          "commit": "冻结退出候选"
+        },
+        {
+          "id": "Retention-03",
+          "from": "ARCHIVE_PENDING",
+          "event": "access",
+          "to": "HOT",
+          "guard": "before_retirement_commit",
+          "commit": "撤销退出候选并刷新"
+        },
+        {
+          "id": "Retention-04",
+          "from": "ARCHIVE_PENDING",
+          "event": "archive_verified",
+          "to": "RETIRED",
+          "guard": "logs_objects_durable_and_no_pending",
+          "commit": "移除短期查询能力；保留索引墓碑"
+        }
+      ]
+    },
+    "Operation": {
+      "owner": "gateway",
+      "initial": "PREPARED",
+      "terminal": [
+        "SUCCEEDED",
+        "FAILED",
+        "CANCELLED"
+      ],
+      "states": [
+        "PREPARED",
+        "WAIT_AUTH",
+        "AUTHORIZED",
+        "DISPATCHED",
+        "SUCCEEDED",
+        "FAILED",
+        "RESULT_UNKNOWN",
+        "CANCELLED"
+      ],
+      "transitions": [
+        {
+          "id": "Operation-01",
+          "from": "PREPARED",
+          "event": "covered",
+          "to": "AUTHORIZED",
+          "guard": "rule_matches",
+          "commit": "保存规则版本与范围"
+        },
+        {
+          "id": "Operation-02",
+          "from": "PREPARED",
+          "event": "request",
+          "to": "WAIT_AUTH",
+          "guard": "valid_not_covered",
+          "commit": "生成授权请求"
+        },
+        {
+          "id": "Operation-03",
+          "from": "WAIT_AUTH",
+          "event": "approve",
+          "to": "AUTHORIZED",
+          "guard": "master_ui_valid",
+          "commit": "绑定 grant"
+        },
+        {
+          "id": "Operation-04",
+          "from": "WAIT_AUTH",
+          "event": "deny",
+          "to": "CANCELLED",
+          "guard": "master_reject_or_expire",
+          "commit": "无执行"
+        },
+        {
+          "id": "Operation-05",
+          "from": "AUTHORIZED",
+          "event": "execute",
+          "to": "DISPATCHED",
+          "guard": "final_gate",
+          "commit": "一次提交 consume grant + dispatch intent"
+        },
+        {
+          "id": "Operation-06",
+          "from": "AUTHORIZED",
+          "event": "stale",
+          "to": "WAIT_AUTH",
+          "guard": "grant_or_target_changed",
+          "commit": "原 grant 不再适用"
+        },
+        {
+          "id": "Operation-07",
+          "from": "DISPATCHED",
+          "event": "success",
+          "to": "SUCCEEDED",
+          "guard": "durable_receipt",
+          "commit": "结果与证据留存"
+        },
+        {
+          "id": "Operation-08",
+          "from": "DISPATCHED",
+          "event": "failure",
+          "to": "FAILED",
+          "guard": "known_effects",
+          "commit": "保存实际影响"
+        },
+        {
+          "id": "Operation-09",
+          "from": "DISPATCHED",
+          "event": "lost",
+          "to": "RESULT_UNKNOWN",
+          "guard": "outcome_unknown",
+          "commit": "禁止重做"
+        },
+        {
+          "id": "Operation-10",
+          "from": "RESULT_UNKNOWN",
+          "event": "verify_success",
+          "to": "SUCCEEDED",
+          "guard": "evidence",
+          "commit": "只补证据"
+        },
+        {
+          "id": "Operation-11",
+          "from": "RESULT_UNKNOWN",
+          "event": "verify_failure",
+          "to": "FAILED",
+          "guard": "evidence",
+          "commit": "新重试须新操作且符合安全规则"
+        },
+        {
+          "id": "Operation-12",
+          "from": "PREPARED",
+          "event": "cancel",
+          "to": "CANCELLED",
+          "guard": "no_inflight_effect",
+          "commit": "未分派；撤下批准请求或使批准不可消费"
+        },
+        {
+          "id": "Operation-13",
+          "from": "WAIT_AUTH",
+          "event": "cancel",
+          "to": "CANCELLED",
+          "guard": "no_inflight_effect",
+          "commit": "未分派；撤下批准请求或使批准不可消费"
+        },
+        {
+          "id": "Operation-14",
+          "from": "AUTHORIZED",
+          "event": "cancel",
+          "to": "CANCELLED",
+          "guard": "no_inflight_effect",
+          "commit": "未分派；撤下批准请求或使批准不可消费"
+        }
+      ]
+    },
+    "Authorization": {
+      "owner": "scheduler.authorization",
+      "initial": "PENDING",
+      "terminal": [
+        "REJECTED",
+        "REVOKED",
+        "EXPIRED",
+        "CONSUMED"
+      ],
+      "states": [
+        "PENDING",
+        "APPROVED",
+        "REJECTED",
+        "REVOKED",
+        "EXPIRED",
+        "CONSUMED"
+      ],
+      "transitions": [
+        {
+          "id": "Authorization-01",
+          "from": "PENDING",
+          "event": "approve",
+          "to": "APPROVED",
+          "guard": "master_ui_and_scope_match",
+          "commit": "持久化批准"
+        },
+        {
+          "id": "Authorization-02",
+          "from": "PENDING",
+          "event": "reject",
+          "to": "REJECTED",
+          "guard": "master_ui",
+          "commit": "持久化拒绝"
+        },
+        {
+          "id": "Authorization-03",
+          "from": "PENDING",
+          "event": "expire",
+          "to": "EXPIRED",
+          "guard": "deadline_elapsed",
+          "commit": "撤下有效请求"
+        },
+        {
+          "id": "Authorization-04",
+          "from": "APPROVED",
+          "event": "revoke",
+          "to": "REVOKED",
+          "guard": "master_ui",
+          "commit": "阻止未分派操作"
+        },
+        {
+          "id": "Authorization-05",
+          "from": "APPROVED",
+          "event": "expire",
+          "to": "EXPIRED",
+          "guard": "deadline_elapsed",
+          "commit": "禁止消费"
+        },
+        {
+          "id": "Authorization-06",
+          "from": "APPROVED",
+          "event": "consume",
+          "to": "CONSUMED",
+          "guard": "final_gate",
+          "commit": "与 Operation.DISPATCHED 同事务"
+        },
+        {
+          "id": "Authorization-07",
+          "from": "PENDING",
+          "event": "withdraw",
+          "to": "REVOKED",
+          "guard": "scope_changed",
+          "commit": "操作取消或对象改变，请求作废"
+        }
+      ]
+    },
+    "Decision": {
+      "owner": "scheduler",
+      "initial": "OPEN",
+      "terminal": [
+        "ANSWERED",
+        "OBSOLETE",
+        "EXPIRED"
+      ],
+      "states": [
+        "OPEN",
+        "ANSWERED",
+        "OBSOLETE",
+        "EXPIRED"
+      ],
+      "transitions": [
+        {
+          "id": "Decision-01",
+          "from": "OPEN",
+          "event": "answer",
+          "to": "ANSWERED",
+          "guard": "request_revision_matches",
+          "commit": "保存普通工作决定"
+        },
+        {
+          "id": "Decision-02",
+          "from": "OPEN",
+          "event": "changed",
+          "to": "OBSOLETE",
+          "guard": "scope_changed",
+          "commit": "不沿用旧回复"
+        },
+        {
+          "id": "Decision-03",
+          "from": "OPEN",
+          "event": "expire",
+          "to": "EXPIRED",
+          "guard": "explicit_deadline",
+          "commit": "没有回复不表示同意"
+        }
+      ]
+    },
+    "Feedback": {
+      "owner": "scheduler/host",
+      "initial": "QUEUED",
+      "terminal": [
+        "HANDLED"
+      ],
+      "states": [
+        "QUEUED",
+        "DELIVERED",
+        "HANDLED"
+      ],
+      "transitions": [
+        {
+          "id": "Feedback-01",
+          "from": "QUEUED",
+          "event": "accept_input",
+          "to": "DELIVERED",
+          "guard": "details_durable",
+          "commit": "与 Input.ACCEPTED 同事务；按 feedback_id 去重"
+        },
+        {
+          "id": "Feedback-02",
+          "from": "DELIVERED",
+          "event": "processed",
+          "to": "HANDLED",
+          "guard": "loop_handled",
+          "commit": "记录主会话已处理"
+        }
+      ]
+    },
+    "Notification": {
+      "owner": "interaction",
+      "initial": "QUEUED",
+      "terminal": [
+        "SENT",
+        "FAILED"
+      ],
+      "states": [
+        "QUEUED",
+        "SENDING",
+        "SENT",
+        "FAILED",
+        "DELIVERY_UNKNOWN"
+      ],
+      "transitions": [
+        {
+          "id": "Notification-01",
+          "from": "QUEUED",
+          "event": "send",
+          "to": "SENDING",
+          "guard": "channel_ready",
+          "commit": "持久化发送意图"
+        },
+        {
+          "id": "Notification-02",
+          "from": "SENDING",
+          "event": "receipt",
+          "to": "SENT",
+          "guard": "delivery_receipt",
+          "commit": "不等于已读"
+        },
+        {
+          "id": "Notification-03",
+          "from": "SENDING",
+          "event": "reject",
+          "to": "FAILED",
+          "guard": "definite_not_sent",
+          "commit": "记录失败"
+        },
+        {
+          "id": "Notification-04",
+          "from": "SENDING",
+          "event": "lost",
+          "to": "DELIVERY_UNKNOWN",
+          "guard": "may_have_sent",
+          "commit": "先查询渠道，不盲目重发"
+        },
+        {
+          "id": "Notification-05",
+          "from": "DELIVERY_UNKNOWN",
+          "event": "verified",
+          "to": "SENT",
+          "guard": "channel_evidence",
+          "commit": "补投递回执"
+        },
+        {
+          "id": "Notification-06",
+          "from": "DELIVERY_UNKNOWN",
+          "event": "not_sent",
+          "to": "FAILED",
+          "guard": "channel_evidence",
+          "commit": "新发送由主会话决定"
+        }
+      ]
+    },
+    "WorldCommand": {
+      "owner": "worldmodel",
+      "initial": "RECEIVED",
+      "terminal": [
+        "COMMITTED",
+        "CONFLICT",
+        "REJECTED"
+      ],
+      "states": [
+        "RECEIVED",
+        "WAIT_AUTH",
+        "READY",
+        "APPLYING",
+        "COMMITTED",
+        "CONFLICT",
+        "REJECTED",
+        "RETRYABLE_ERROR"
+      ],
+      "transitions": [
+        {
+          "id": "WorldCommand-01",
+          "from": "RECEIVED",
+          "event": "valid",
+          "to": "WAIT_AUTH",
+          "guard": "registered_predicate_and_provenance",
+          "commit": "请求统一授权"
+        },
+        {
+          "id": "WorldCommand-02",
+          "from": "RECEIVED",
+          "event": "invalid",
+          "to": "REJECTED",
+          "guard": "invalid_payload",
+          "commit": "记录原因"
+        },
+        {
+          "id": "WorldCommand-03",
+          "from": "WAIT_AUTH",
+          "event": "covered",
+          "to": "READY",
+          "guard": "valid_grant_or_rule",
+          "commit": "保存授权引用"
+        },
+        {
+          "id": "WorldCommand-04",
+          "from": "WAIT_AUTH",
+          "event": "denied",
+          "to": "REJECTED",
+          "guard": "denied",
+          "commit": "不写 PG"
+        },
+        {
+          "id": "WorldCommand-05",
+          "from": "READY",
+          "event": "apply",
+          "to": "APPLYING",
+          "guard": "final_gate",
+          "commit": "保留稳定 change_id"
+        },
+        {
+          "id": "WorldCommand-06",
+          "from": "APPLYING",
+          "event": "committed",
+          "to": "COMMITTED",
+          "guard": "pg_receipt_exists",
+          "commit": "从 PG receipt 补日志"
+        },
+        {
+          "id": "WorldCommand-07",
+          "from": "APPLYING",
+          "event": "conflict",
+          "to": "CONFLICT",
+          "guard": "revision_mismatch",
+          "commit": "保存冲突，重新提案使用新 change_id"
+        },
+        {
+          "id": "WorldCommand-08",
+          "from": "APPLYING",
+          "event": "disconnected",
+          "to": "RETRYABLE_ERROR",
+          "guard": "unknown_pg_commit",
+          "commit": "先查同 change_id receipt"
+        },
+        {
+          "id": "WorldCommand-09",
+          "from": "RETRYABLE_ERROR",
+          "event": "receipt_found",
+          "to": "COMMITTED",
+          "guard": "hash_matches",
+          "commit": "不重复写事实"
+        },
+        {
+          "id": "WorldCommand-10",
+          "from": "RETRYABLE_ERROR",
+          "event": "receipt_absent",
+          "to": "APPLYING",
+          "guard": "pg_reachable_and_no_receipt",
+          "commit": "仅补做同一已分派 PG 事务，不重新消费批准"
+        },
+        {
+          "id": "WorldCommand-11",
+          "from": "RETRYABLE_ERROR",
+          "event": "conflict_found",
+          "to": "CONFLICT",
+          "guard": "pg_receipt_exists",
+          "commit": "复用 PG 的 CONFLICT receipt"
+        },
+        {
+          "id": "WorldCommand-12",
+          "from": "RETRYABLE_ERROR",
+          "event": "rejection_found",
+          "to": "REJECTED",
+          "guard": "pg_receipt_exists",
+          "commit": "复用 PG 的 REJECTED receipt"
+        },
+        {
+          "id": "WorldCommand-13",
+          "from": "APPLYING",
+          "event": "rejected",
+          "to": "REJECTED",
+          "guard": "pg_receipt_exists",
+          "commit": "事务内业务校验拒绝"
+        }
+      ]
+    },
+    "Program": {
+      "owner": "registry",
+      "initial": "REGISTERED",
+      "terminal": [],
+      "states": [
+        "REGISTERED",
+        "ENABLED",
+        "DISABLED"
+      ],
+      "transitions": [
+        {
+          "id": "Program-01",
+          "from": "REGISTERED",
+          "event": "enable",
+          "to": "ENABLED",
+          "guard": "human_validated",
+          "commit": "固化登记 revision 和代码摘要"
+        },
+        {
+          "id": "Program-02",
+          "from": "ENABLED",
+          "event": "disable",
+          "to": "DISABLED",
+          "guard": "human_control",
+          "commit": "停止新分派，运行者不自动停止"
+        },
+        {
+          "id": "Program-03",
+          "from": "DISABLED",
+          "event": "enable",
+          "to": "ENABLED",
+          "guard": "human_validated",
+          "commit": "重新启用"
+        },
+        {
+          "id": "Program-04",
+          "from": "ENABLED",
+          "event": "update",
+          "to": "ENABLED",
+          "guard": "human_validated",
+          "commit": "新 revision；分派前再检查"
+        },
+        {
+          "id": "Program-05",
+          "from": "DISABLED",
+          "event": "update",
+          "to": "DISABLED",
+          "guard": "human_validated",
+          "commit": "新 revision 保持禁用"
+        },
+        {
+          "id": "Program-06",
+          "from": "REGISTERED",
+          "event": "update",
+          "to": "REGISTERED",
+          "guard": "human_validated",
+          "commit": "人工修订未启用的登记版本"
+        }
+      ]
+    }
+  }
+}

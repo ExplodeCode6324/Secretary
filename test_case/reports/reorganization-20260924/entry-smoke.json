@@ -1,0 +1,10 @@
+{
+  "mode": "fixture",
+  "api_called": false,
+  "web_http_status": 200,
+  "web_html": true,
+  "start_exit": 0,
+  "stop_exit": 0,
+  "backend_stopped": true,
+  "pass": true
+}

@@ -1,0 +1,16 @@
+
+> format:check
+> prettier --check "src/pi_secretary/src/**/*.ts" "test_case/offline/runtime/**/*.ts"
+
+Checking formatting...
+[warn] src/pi_secretary/src/store.ts
+[warn] src/pi_secretary/src/world.ts
+[warn] test_case/offline/runtime/helpers/process.ts
+[warn] test_case/offline/runtime/instructions.test.ts
+[warn] test_case/offline/runtime/memory.test.ts
+[warn] test_case/offline/runtime/review.test.ts
+[warn] test_case/offline/runtime/runtime.test.ts
+[warn] test_case/offline/runtime/tui.test.ts
+[warn] test_case/offline/runtime/web.test.ts
+[warn] test_case/offline/runtime/world.test.ts
+[warn] Code style issues found in 10 files. Run Prettier with --write to fix.

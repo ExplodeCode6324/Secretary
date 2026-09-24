@@ -1,0 +1,33 @@
+src/pi_secretary/src/app.ts 40ms (unchanged)
+src/pi_secretary/src/authorization.ts 34ms (unchanged)
+src/pi_secretary/src/backend.ts 40ms (unchanged)
+src/pi_secretary/src/client-tui.ts 6ms (unchanged)
+src/pi_secretary/src/context.ts 12ms (unchanged)
+src/pi_secretary/src/contracts.ts 42ms
+src/pi_secretary/src/host.ts 51ms (unchanged)
+src/pi_secretary/src/instructions.ts 3ms (unchanged)
+src/pi_secretary/src/memory.ts 6ms (unchanged)
+src/pi_secretary/src/model.ts 9ms (unchanged)
+src/pi_secretary/src/scheduler.ts 58ms (unchanged)
+src/pi_secretary/src/stop-ui.ts 1ms (unchanged)
+src/pi_secretary/src/store.ts 29ms
+src/pi_secretary/src/task-prompt.ts 2ms (unchanged)
+src/pi_secretary/src/transport.ts 3ms (unchanged)
+src/pi_secretary/src/tui.ts 31ms (unchanged)
+src/pi_secretary/src/ui-client.ts 3ms (unchanged)
+src/pi_secretary/src/web.ts 1ms (unchanged)
+src/pi_secretary/src/world.ts 14ms
+test_case/offline/runtime/dual-ui.test.ts 3ms (unchanged)
+test_case/offline/runtime/helpers/instructions-crash.ts 1ms (unchanged)
+test_case/offline/runtime/helpers/process.ts 1ms
+test_case/offline/runtime/instructions.test.ts 17ms
+test_case/offline/runtime/memory.test.ts 13ms
+test_case/offline/runtime/review.test.ts 8ms
+test_case/offline/runtime/runtime.test.ts 37ms
+test_case/offline/runtime/shell.test.ts 7ms (unchanged)
+test_case/offline/runtime/tui.test.ts 10ms
+test_case/offline/runtime/web.test.ts 8ms
+test_case/offline/runtime/world.test.ts 7ms
+test_case/online/test-instructions-live.ts 4ms
+test_case/online/test-live.ts 9ms (unchanged)
+test_case/online/verify-memory-live.ts 7ms (unchanged)
