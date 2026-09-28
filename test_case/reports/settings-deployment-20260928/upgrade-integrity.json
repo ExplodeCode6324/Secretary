@@ -1,0 +1,15 @@
+{
+  "pass": true,
+  "delivery_files_unchanged": true,
+  "old_object_count": 1760,
+  "missing_or_changed_old_objects": [],
+  "original_journal_prefix_preserved": true,
+  "original_session_preserved": true,
+  "upgrade_application": "2e99ac29-395a-4ac8-858c-c80649ef4da8",
+  "upgrade_state": "APPLIED",
+  "pending_refs_before": 1,
+  "pending_refs_covered": true,
+  "frozen_source_refs": 1,
+  "summary_chunks": 1,
+  "history_input_anchors": 10
+}

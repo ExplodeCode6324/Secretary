@@ -41,7 +41,9 @@ export type SecretaryDemoV1 =
   | ProgramResult
   | JournalTransaction
   | UserInstructions
-  | MainPromptSnapshot;
+  | MainPromptSnapshot
+  | SettingsDraft
+  | SettingsApplication;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -62,6 +64,10 @@ export type HostState =
   | "RECOVERY_BLOCKED"
   | "DRAINING";
 /**
+ * 已保存原始字节 SHA-256 小写十六进制。
+ */
+export type Digest = string;
+/**
  * 状态枚举对应 src/state_machine/catalog.json 的 Input
  */
 export type InputState = "ACCEPTED" | "CLAIMED" | "HANDLED";
@@ -69,10 +75,6 @@ export type InputState = "ACCEPTED" | "CLAIMED" | "HANDLED";
  * 相对 data_root 或 workspace_root；运行时拒绝绝对路径、..、符号链接越界。
  */
 export type RelativePath = string;
-/**
- * 已保存原始字节 SHA-256 小写十六进制。
- */
-export type Digest = string;
 /**
  * 状态枚举对应 src/state_machine/catalog.json 的 Call
  */
@@ -314,6 +316,7 @@ export interface Session {
   consciousness_id: ID;
   last_journal_seq: number;
   recovery_error: string | null;
+  runtime_settings_hash?: Digest;
 }
 /**
  * 外部输入；工具返回不创建此对象。
@@ -403,6 +406,7 @@ export interface Context {
   base_prompt_version?: string;
   instructions_revision?: number;
   system_prompt_hash?: Digest;
+  settings_application_id?: ID | null;
 }
 /**
  * 逻辑消息；provider 扩展块由原始 context 对象保留。
@@ -505,6 +509,11 @@ export interface Consciousness {
   last_job_id: ID | null;
   commitments?: MemoryCommitment[];
   covered_event_sequence?: number;
+  settings_application_id?: ID | null;
+  /**
+   * 设置切换已摘要的精确消息哈希，防止引用交叠造成重复。
+   */
+  covered_message_hashes?: Digest[];
 }
 /**
  * 事项不等于任务；未履行且无人承接的事项不退出。
@@ -1194,7 +1203,7 @@ export interface EvidenceRef {
   content: ObjectRef;
 }
 /**
- * 实体登记/名称修订和不可变来源登记；仍经 Scheduler 授权。谓词由人工迁移维护。
+ * 实体登记、名称修订、无有效状态引用时停用，以及不可变来源登记。模型提案经过授权后进入统一设置生效流程；谓词目录由迁移维护。
  */
 export interface WorldCatalogChange {
   schema_version: 1;
@@ -1202,7 +1211,7 @@ export interface WorldCatalogChange {
   request_id: ID;
   change_id: ID;
   request_hash: Digest;
-  kind: "UPSERT_ENTITY" | "REGISTER_SOURCE";
+  kind: "UPSERT_ENTITY" | "REGISTER_SOURCE" | "RETIRE_ENTITY";
   entity_id: ID | null;
   entity_kind:
     | (
@@ -1531,12 +1540,17 @@ export interface Mutation {
     | "ArchiveManifest"
     | "WorldCommand"
     | "UserInstructions"
-    | "MainPromptSnapshot";
+    | "MainPromptSnapshot"
+    | "SettingsDraft"
+    | "SettingsApplication";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
   snapshot: ObjectRef;
 }
+/**
+ * 当前有效的 Master 说明；UI 先保存草稿，完整摘要并重建 context 后与应用状态一次提交。
+ */
 export interface UserInstructions {
   schema_version: 1;
   id: ID;
@@ -1563,6 +1577,75 @@ export interface MainPromptSnapshot {
   instructions_revision: number;
   system_prompt_hash: Digest;
   system_message: ObjectRef;
+  settings_application_id?: ID | null;
+}
+/**
+ * Master 待应用修改；payload 为 SettingsPayload，不是有效设置。
+ */
+export interface SettingsDraft {
+  schema_version: 1;
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  record_type: "SettingsDraft";
+  payload_ref: ObjectRef7;
+}
+/**
+ * 不可变对象引用；必须校验内容散列。
+ */
+export interface ObjectRef7 {
+  path: RelativePath;
+  sha256: Digest;
+  /**
+   * 原始字节长度
+   */
+  bytes: number;
+  /**
+   * 如 application/json；不得用摘要代替原件。
+   */
+  media_type: string;
+}
+/**
+ * 固定批次的设置应用；数据库提交后必须完成重建才可继续主会话。
+ */
+export interface SettingsApplication {
+  schema_version: 1;
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  record_type: "SettingsApplication";
+  session_id: ID;
+  state:
+    | "QUEUED"
+    | "SUMMARIZING"
+    | "COMMITTING"
+    | "REBUILDING"
+    | "APPLIED"
+    | "FAILED"
+    | "BLOCKED";
+  payload_ref: ObjectRef;
+  /**
+   * SettingsSource 固定来源、完整分片、原记忆、事件截止和精确 World 变更；定义见 settings-memory.ts。
+   */
+  source_ref: ObjectRef | null;
+  /**
+   * SettingsCandidate 的记忆事项、宿主承诺及已完成分片数；仅候选，不提前生效。
+   */
+  candidate_ref: ObjectRef | null;
+  error: string | null;
+  request_id: ID;
+  request_hash: Digest;
+  context_id: ID | null;
+  /**
+   * 已保存原始字节 SHA-256 小写十六进制。
+   */
+  runtime_settings_hash: string;
 }
 
 export type Contract = SecretaryDemoV1;

@@ -18,6 +18,8 @@
 | `last_job_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `commitments` | array<MemoryCommitment> | 否 |  关联：[MemoryCommitment](MemoryCommitment.md) |
 | `covered_event_sequence` | integer | 否 |  {"minimum": 0} |
+| `settings_application_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
+| `covered_message_hashes` | array<Digest> | 否 | 设置切换已摘要的精确消息哈希，防止引用交叠造成重复。 关联：[Digest](Digest.md) |
 
 ## 组合约束
 

@@ -23,7 +23,7 @@ shell 默认 120 秒，允许 0.1–3600 秒；stdout/stderr 各限 4 MiB。超�
 
 TUI `/help` 列出命令；常用 `/status`、`/tasks`、`/show`、`/task`、`/program`、`/auth`、`/approval`、`/approve`、`/reject`、`/revoke`、`/decisions`、`/answer`、`/cancel`、`/verify`、`/memory`、`/compact`、`/resume`、`/world`、`/register`、`/rule`。A1/D1 等是客户端内短编号，不能跨重启当作持久 ID。
 
-批准前必须展示完整请求，版本/内容变化后重新展示。聊天文字不能代替批准按钮或命令。终端与 Web 共用 TerminalController 的执行路径。
+批准前必须展示完整请求，版本/内容变化后重新展示。聊天文字不能代替批准按钮或命令。终端与 Web 的通用命令共用 TerminalController；World 管理及说明草稿使用受认证的专用 API，并共用 Settings 后端。TUI 状态和提示符显示设置应用阶段及输入排队状态，`/web` 可进入管理与恢复页面。
 
 ## 本机 HTTP API
 
@@ -36,7 +36,9 @@ TUI `/help` 列出命令；常用 `/status`、`/tasks`、`/show`、`/task`、`/p
 | /api/state / /api/poll | 读取状态和输出 |
 | /api/message / /api/command | POST 输入或 Master 命令 |
 | /api/approval / /api/presented | POST 批准决定或通知展示回报 |
-| /api/instructions | 读取或 POST 保存用户说明 |
+| /api/instructions | 读取有效说明或 POST 保存说明草稿 |
+| /api/world | GET 分页查询当前/历史事实及管理目录 |
+| /api/settings、/draft、/apply、/retry、/restore | 草稿及统一生效管理；完整路径与请求见 [设置规范](settings-activation.md) |
 | /api/migrate / /api/shutdown | POST 迁移或正常停机 |
 
 客户端请求体上限 1 MiB，闲置客户端约一小时清理。具体 body 字段以 backend 分支和 web/app.js 调用为准；没有承诺稳定的外部 HTTP SDK。

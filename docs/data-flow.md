@@ -48,6 +48,6 @@ flowchart LR
 
 Consciousness 整理读取旧事项、原始输入/事件、任务状态和承诺，产生候选摘要；提交前检查版本和输入边界。成功更新覆盖游标，失败保留原记忆及未覆盖原文。
 
-World 变更先持久化 WorldCommand/Operation，批准后执行 PostgreSQL 事务。事务写 change_receipt 与 audit_outbox；drain 将数据库事实提交回执桥接到 journal，再标记 outbox 已导出。这是两个持久化域的可恢复桥接，不是跨数据库和文件系统的原子事务。
+模型/TUI World 提案先持久化 WorldCommand/Operation，批准后进入 Settings 协调器。Master 管理页先保存草稿，一键应用记录明确的 Master 证据；两种入口均在完整摘要和 context 容量检查后执行 PostgreSQL 批次事务。事务写 change_receipt 与 audit_outbox；drain 将数据库事实提交回执桥接到 journal，再标记 outbox 已导出。这是两个持久化域的可恢复桥接，不是跨数据库和文件系统的原子事务。
 
 实现依据：[host.ts](../src/pi_secretary/src/host.ts)、[scheduler.ts](../src/pi_secretary/src/scheduler.ts)、[world.ts](../src/pi_secretary/src/world.ts)。

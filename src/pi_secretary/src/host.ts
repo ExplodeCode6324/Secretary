@@ -55,6 +55,8 @@ const result = (value: unknown) => ({
 export class Host {
   sessionID: string;
   private active?: Promise<void>;
+  settingsBlocked: () => boolean = () => false;
+  fullMemoryRefresh?: () => Promise<void>;
   private agent?: Agent;
   private closing = false;
   private maintenance?: Promise<void>;
@@ -220,6 +222,7 @@ export class Host {
     return this.drain();
   }
   drain() {
+    if (this.settingsBlocked()) return this.active ?? Promise.resolve();
     if (["RECOVERY_BLOCKED", "CAPACITY_BLOCKED"].includes(this.session.state))
       return Promise.resolve();
     if (this.active) return this.active;
@@ -341,7 +344,7 @@ export class Host {
     return messages;
   }
   private async run() {
-    while (!this.closing) {
+    while (!this.closing && !this.settingsBlocked()) {
       this.deliverFeedback();
       let s = this.session;
       const pending = this.store
@@ -384,6 +387,9 @@ export class Host {
           record_type: "MainPromptSnapshot",
           ...base(loopID),
           session_id: this.sessionID,
+          settings_application_id:
+            this.store.get<Consciousness>("Consciousness", s.consciousness_id)
+              .settings_application_id ?? null,
           base_prompt_version: legacySystem ? "legacy" : hash(BASE_SYSTEM),
           instructions_revision: legacySystem ? 0 : settings.revision,
           system_prompt_hash: hash(contentText(systemMessage.content)),
@@ -835,6 +841,7 @@ export class Host {
     ]);
   }
   maintainIfNeeded() {
+    if (this.settingsBlocked()) return;
     const cs = this.store.get<Consciousness>(
       "Consciousness",
       this.session.consciousness_id,
@@ -859,7 +866,15 @@ export class Host {
     void this.compact();
   }
   compact() {
+    if (this.settingsBlocked())
+      return Promise.reject(Error("SETTINGS_APPLICATION_IN_PROGRESS"));
     if (this.maintenance) return this.maintenance;
+    const memory = this.store.get<Consciousness>(
+      "Consciousness",
+      this.session.consciousness_id,
+    );
+    if (memory.pending_raw_refs.length > 1 && this.fullMemoryRefresh)
+      return this.fullMemoryRefresh();
     this.maintenance = this.maintain().finally(() => {
       this.maintenance = undefined;
     });
@@ -1157,11 +1172,25 @@ Previous items plus new events are your fixed source. runtime_tasks is the host 
       .filter((j) => j.session_id === this.sessionID);
     const latest = jobs.at(-1);
     const successful = jobs.filter((j) => j.state === "COMMITTED").at(-1);
+    const activation = cs.settings_application_id
+      ? this.store.find("SettingsApplication", cs.settings_application_id)
+      : undefined;
+    const activationNewer =
+      activation && (!latest || activation.updated_at > latest.updated_at);
     return {
       revision: cs.revision,
-      state: latest?.state ?? "NOT_NEEDED",
-      last_success_at: successful?.updated_at ?? null,
-      pending_source_bytes: cs.pending_raw_refs[0]?.bytes ?? 0,
+      state: activationNewer
+        ? "SETTINGS_APPLIED"
+        : (latest?.state ?? "NOT_NEEDED"),
+      last_success_at:
+        activation &&
+        (!successful || activation.updated_at > successful.updated_at)
+          ? activation.updated_at
+          : (successful?.updated_at ?? null),
+      pending_source_bytes: cs.pending_raw_refs.reduce(
+        (n, r) => n + r.bytes,
+        0,
+      ),
       attempt: latest?.attempt ?? 0,
       errors: latest?.validation_errors ?? [],
       commitments: migrateCommitments(cs),
@@ -1173,6 +1202,7 @@ Previous items plus new events are your fixed source. runtime_tasks is the host 
     state: "COMPLETED" | "CANCELLED",
     note: string,
   ) {
+    if (this.settingsBlocked()) throw Error("SETTINGS_APPLICATION_IN_PROGRESS");
     if (!note.trim()) throw Error("RESOLUTION_NOTE_REQUIRED");
     const cs = this.store.get<Consciousness>(
       "Consciousness",
@@ -1191,6 +1221,52 @@ Previous items plus new events are your fixed source. runtime_tasks is the host 
     commitment.state = state;
     commitment.resolution_event_ids = [event.event_id];
     this.store.commit([revise(cs, { commitments })], [event]);
+  }
+
+  async settingsIdle() {
+    await this.active;
+    await this.maintenance;
+  }
+  prepareSettingsContext(
+    applicationID: string,
+    content: string,
+    instructionsRevision: number,
+    messages: AgentMessage[],
+    memoryRevision: number,
+  ) {
+    const loopID = id();
+    const agent = new Agent({
+      streamFn: this.stream,
+      initialState: {
+        model: this.model,
+        systemPrompt: composeInstructions(content),
+        tools: this.tools(loopID),
+      },
+    });
+    const system = agent.state.messages[0];
+    if (system.role !== "system") throw Error("SYSTEM_MESSAGE_MISSING");
+    const snapshot: MainPromptSnapshot = {
+      schema_version: 1,
+      record_type: "MainPromptSnapshot",
+      ...base(loopID),
+      session_id: this.sessionID,
+      base_prompt_version: hash(BASE_SYSTEM),
+      instructions_revision: instructionsRevision,
+      system_prompt_hash: hash(contentText(system.content)),
+      system_message: this.store.put(system),
+      settings_application_id: applicationID,
+    };
+    this.store.commit([snapshot]);
+    return saveContext(
+      this.store,
+      [system, ...messages],
+      { session_id: this.sessionID, task_id: null, execution_id: null },
+      "MAIN",
+      this.model.id,
+      loopID,
+      this.model.contextWindow,
+      { consciousnessRevision: memoryRevision, inputIDs: [] },
+    );
   }
 
   async close() {

@@ -16,6 +16,57 @@
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "PROGRAM"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "program_id": {
+            "$ref": "#/$defs/ID"
+          },
+          "program_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": ""
+          },
+          "agent_profile": {
+            "type": "null"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "AGENT"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "agent_profile": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "program_id": {
+            "type": "null"
+          },
+          "program_revision": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
 }
 ```

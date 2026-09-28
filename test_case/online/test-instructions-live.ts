@@ -11,10 +11,7 @@ import {
   fixtureStream,
   type StreamFn,
 } from "../../src/pi_secretary/src/model.ts";
-import {
-  getInstructions,
-  saveInstructions,
-} from "../../src/pi_secretary/src/instructions.ts";
+import { getInstructions } from "../../src/pi_secretary/src/instructions.ts";
 import type {
   Context,
   ModelCall,
@@ -95,10 +92,27 @@ try {
     "Summarize the report again briefly. Do not use tools or create tasks.",
     "zh",
   );
-  saveInstructions(
-    app.store,
-    "默认使用英语回复，称呼用户为 Master。保持简短。用户明确指定语言时按用户要求。",
-    getInstructions(app.store).revision,
+  app.settings.save(
+    {
+      instructions: {
+        content: "Always reply in English. Address the user as Master.",
+        expected_revision: getInstructions(app.store).revision,
+      },
+      edits: [],
+      command_ids: [],
+    },
+    app.settings.draft().revision,
+  );
+  const application = app.settings.request(
+    app.settings.draft().revision,
+    crypto.randomUUID(),
+  );
+  await app.settings.tick();
+  assert(
+    "id" in application &&
+      app.store.get<
+        import("../../src/pi_secretary/src/contracts.ts").SettingsApplication
+      >("SettingsApplication", application.id).state === "APPLIED",
   );
   await turn(
     "new custom default English on same conversation",

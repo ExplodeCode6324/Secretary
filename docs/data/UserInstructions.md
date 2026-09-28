@@ -1,6 +1,6 @@
 # UserInstructions
 
-当前运行契约中的结构或共享类型。
+当前有效的 Master 说明；UI 先保存草稿，完整摘要并重建 context 后与应用状态一次提交。
 
 来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/UserInstructions)。此页自动生成；行为以调用模块为准。
 

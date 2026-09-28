@@ -8,7 +8,7 @@ with tempfile.TemporaryDirectory(prefix='secretary-pg-') as tmp, tempfile.Tempor
   subprocess.run([str(bin/'initdb'),'-D',str(data),'--no-locale','--encoding=UTF8','--auth=trust'],check=True,stdout=subprocess.DEVNULL)
   subprocess.run([str(bin/'pg_ctl'),'-D',str(data),'-l',str(pathlib.Path(tmp)/'log'),'-o',f"-k {sock} -c listen_addresses=''",'-w','start'],check=True,stdout=subprocess.DEVNULL);started=True
   env={**os.environ,'SECRETARY_TEST_DATABASE_URL':f'postgresql://{getpass.getuser()}@localhost/postgres?host={urllib.parse.quote(sock)}'}
-  result=subprocess.run(['node','node_modules/tsx/dist/cli.mjs','--test','test_case/offline/runtime/world.test.ts'],cwd=root,env=env)
+  result=subprocess.run(['node','node_modules/tsx/dist/cli.mjs','--test','--test-concurrency=1','test_case/offline/runtime/settings.test.ts','test_case/offline/runtime/world.test.ts'],cwd=root,env=env)
   if result.returncode:raise SystemExit(result.returncode)
  finally:
   if started:subprocess.run([str(bin/'pg_ctl'),'-D',str(data),'-m','fast','-w','stop'],check=True,stdout=subprocess.DEVNULL)

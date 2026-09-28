@@ -91,6 +91,7 @@ export function saveContext(
   const c: Context = {
     ...(prompt
       ? {
+          settings_application_id: prompt.settings_application_id ?? null,
           base_prompt_version: prompt.base_prompt_version,
           instructions_revision: prompt.instructions_revision,
           system_prompt_hash: prompt.system_prompt_hash,

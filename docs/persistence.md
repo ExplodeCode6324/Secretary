@@ -17,9 +17,9 @@
 ## 恢复规则
 
 1. 正常关闭后台会停止 loop、处理任务中断、关闭数据库和文件锁。
-2. 重启先重放 Store，再恢复 Authorization 和 Scheduler，最后构造 Host。
+2. 重启先重放 Store，再恢复 Authorization 和 Scheduler，最后构造 Host 和 Settings，恢复待完成的设置切换。
 3. DISPATCHED 但无回执的操作标记未知；中断执行保留 checkpoint 和未知反馈。
-4. 主会话用持久化 prompt 与上下文续接中断轮；新一轮才使用新的用户说明。
+4. 主会话用持久化 prompt 与上下文续接中断轮；新的用户说明在完整摘要及 context 重建成功后才使用。
 5. `verifyWrite()` 核验写入目标和预期内容；任意 shell / 程序的外部效果必须另行核实。
 
 备份时先停止后台，再完整复制数据目录；不能只复制 journal。登记程序入口为绝对路径，迁移目录后旧登记可能失效，需要重新登记并复核旧任务；不可通过篡改历史参数或回执掩盖变化。停止命令与数据路径见 [运行手册](operations.md)。
@@ -27,3 +27,7 @@
 当前没有 journal 分段、快照加速、自动历史垃圾回收、任意程序现场恢复或断电硬件持久性证明。
 
 目录迁移也可能使历史 shell Operation 的绝对 cwd/resource 指向旧目录。历史记录保持原样；待执行操作需复核并重新提出适用的任务/授权，不能改写旧许可后继续执行。
+
+## 设置批次恢复
+
+PostgreSQL 的 settings_batch_receipt 确认事实批次是否提交，Store 的 SettingsApplication 确认摘要与 context 是否完成切换。跨域状态不假装原子提交：数据库结果未知时保持 gate，锁定回执查询后再恢复；确认数据库成功后必须完成本地重建。见[统一生效协议](settings-activation.md)。

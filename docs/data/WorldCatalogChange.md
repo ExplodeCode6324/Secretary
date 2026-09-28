@@ -1,6 +1,6 @@
 # WorldCatalogChange
 
-实体登记/名称修订和不可变来源登记；仍经 Scheduler 授权。谓词由人工迁移维护。
+实体登记、名称修订、无有效状态引用时停用，以及不可变来源登记。模型提案经过授权后进入统一设置生效流程；谓词目录由迁移维护。
 
 来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/WorldCatalogChange)。此页自动生成；行为以调用模块为准。
 
@@ -11,7 +11,7 @@
 | `request_id` | ID | 是 |  关联：[ID](ID.md) |
 | `change_id` | ID | 是 |  关联：[ID](ID.md) |
 | `request_hash` | Digest | 是 |  关联：[Digest](Digest.md) |
-| `kind` | UPSERT_ENTITY / REGISTER_SOURCE | 是 |  |
+| `kind` | UPSERT_ENTITY / REGISTER_SOURCE / RETIRE_ENTITY | 是 |  |
 | `entity_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `entity_kind` | PERSON / ORGANIZATION / PROJECT / DEVICE / SERVICE / RESOURCE / GOAL 或 null | 是 |  |
 | `display_name` | string 或 null | 是 |  |

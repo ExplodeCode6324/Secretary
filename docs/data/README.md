@@ -38,12 +38,12 @@ Schema 是结构校验来源，TypeScript contracts.ts 是生成类型。字段�
 | [Trigger](Trigger.md) | 9 |  |
 | [FeedbackPolicy](FeedbackPolicy.md) | 5 |  |
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
-| [Session](Session.md) | 13 | 逻辑主会话；状态变化由宿主单写，进程停止仍保留。 |
+| [Session](Session.md) | 14 | 逻辑主会话；状态变化由宿主单写，进程停止仍保留。 |
 | [Input](Input.md) | 13 | 外部输入；工具返回不创建此对象。 |
-| [Context](Context.md) | 27 | 一次调用不可变快照；estimated+reserve<=budget 由业务检查。 |
+| [Context](Context.md) | 28 | 一次调用不可变快照；estimated+reserve<=budget 由业务检查。 |
 | [ModelCall](ModelCall.md) | 14 | 模型传输生命周期；完整响应保存后才解析工具请求。 |
 | [WorkItem](WorkItem.md) | 12 | 事项不等于任务；未履行且无人承接的事项不退出。 |
-| [Consciousness](Consciousness.md) | 12 | 当前工作记忆；全部摘要提交与原文承接集合一次保存。 |
+| [Consciousness](Consciousness.md) | 14 | 当前工作记忆；全部摘要提交与原文承接集合一次保存。 |
 | [CompactionJob](CompactionJob.md) | 16 | 固定范围摘要任务；新增输入不纳入覆盖集合。 |
 | [TaskProposal](TaskProposal.md) | 18 | 主会话只提出任务；不接受 authorized、grant 等模型声明。 |
 | [TaskPlan](TaskPlan.md) | 19 | id 即 task_id；先保存计划再建幂等目录，agent 在可执行时由 dispatch 拉起。 |
@@ -66,7 +66,7 @@ Schema 是结构校验来源，TypeScript contracts.ts 是生成类型。字段�
 | [OperationLogRecord](OperationLogRecord.md) | 14 | 逻辑原始日志；MAIN/TASK 并列，不替代任务查询状态。 |
 | [ArchiveManifest](ArchiveManifest.md) | 11 | 退出 Scheduler 前完整性检查；归档不删除长期历史。 |
 | [WorldChange](WorldChange.md) | 21 | 主会话或登记来源提案；SQL 内不保存授权范围。 |
-| [WorldCatalogChange](WorldCatalogChange.md) | 16 | 实体登记/名称修订和不可变来源登记；仍经 Scheduler 授权。谓词由人工迁移维护。 |
+| [WorldCatalogChange](WorldCatalogChange.md) | 16 | 实体登记、名称修订、无有效状态引用时停用，以及不可变来源登记。模型提案经过授权后进入统一设置生效流程；谓词目录由迁移维护。 |
 | [WorldCommand](WorldCommand.md) | 10 | 跨 JSON journal / PG 的桥接状态；PG commit receipt 才证明已写。 |
 | [WorldQuery](WorldQuery.md) | 9 | memory_read 的 World Model 查询分支；游标绑定筛选与快照。 |
 | [WorldFact](WorldFact.md) | 13 |  |
@@ -83,5 +83,9 @@ Schema 是结构校验来源，TypeScript contracts.ts 是生成类型。字段�
 | [Mutation](Mutation.md) | 5 | 服务端加载 snapshot 后按 object_type 校验并执行状态 guards；revision 必须 +1。 |
 | [JournalTransaction](JournalTransaction.md) | 10 | 单写事务，frame 原始 payload 字节 checksum 外包；同帧全生效或全不生效。 |
 | [MemoryCommitment](MemoryCommitment.md) | 6 |  |
-| [UserInstructions](UserInstructions.md) | 7 |  |
-| [MainPromptSnapshot](MainPromptSnapshot.md) | 10 |  |
+| [UserInstructions](UserInstructions.md) | 7 | 当前有效的 Master 说明；UI 先保存草稿，完整摘要并重建 context 后与应用状态一次提交。 |
+| [MainPromptSnapshot](MainPromptSnapshot.md) | 11 |  |
+| [SettingsDraft](SettingsDraft.md) | 6 | Master 待应用修改；payload 为 SettingsPayload，不是有效设置。 |
+| [SettingsApplication](SettingsApplication.md) | 15 | 固定批次的设置应用；数据库提交后必须完成重建才可继续主会话。 |
+| [WorldEdit](WorldEdit.md) | 19 |  |
+| [SettingsPayload](SettingsPayload.md) | 3 |  |

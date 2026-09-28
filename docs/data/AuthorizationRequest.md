@@ -27,6 +27,33 @@ host/scheduler 私有记录，模型不可提交批准状态。
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "APPROVED",
+              "CONSUMED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "decision_id": {
+            "$ref": "#/$defs/ID"
+          },
+          "decided_at": {
+            "$ref": "#/$defs/Time"
+          },
+          "decided_by": {
+            "const": "MASTER_UI"
+          }
+        }
+      }
+    }
+  ]
 }
 ```

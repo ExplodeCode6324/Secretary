@@ -63,6 +63,7 @@ test(
           decision: "APPROVE",
         });
         await world.drain();
+        await app.settings.tick();
         return app.store.get<WorldCommand>("WorldCommand", c.id);
       }
       const catalog = (
@@ -136,7 +137,8 @@ test(
         l.event_type.startsWith("world.change_"),
       ).length;
       await world.pool.query(
-        "UPDATE wm.audit_outbox SET exported_journal_txn=NULL,exported_at=NULL",
+        "UPDATE wm.audit_outbox SET exported_journal_txn=NULL,exported_at=NULL WHERE change_id=$1",
+        [first.change_id],
       );
       await world.export();
       assert.equal(

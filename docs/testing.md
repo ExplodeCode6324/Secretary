@@ -9,7 +9,7 @@ python3 test_case/offline/test-postgres.py --pg-bin /path/to/postgresql/bin
 python3 test_case/offline/audit/run-world.py --pg-bin /path/to/postgresql/bin
 ```
 
-普通 offline 测试涵盖 Store、Host、Scheduler、授权、记忆、说明、shell、TUI/Web、崩溃恢复。world.test 无测试 DSN 时跳过；PostgreSQL runner 创建临时 Unix socket 集群并执行实际 TypeScript 仓储，结束后停止清理，不连接应用数据库。review 的 AUD14 是历史误报并显式排除，不能声称全部历史探针无例外通过。
+普通 offline 测试涵盖 Store、Host、Scheduler、授权、记忆、说明、shell、TUI/Web、崩溃恢复。world.test 和 settings.test 中依赖数据库的用例在无测试 DSN 时跳过；PostgreSQL runner 创建临时 Unix socket 集群，串行执行这两个文件及实际 TypeScript 仓储，结束后停止清理，不连接应用数据库。review 的 AUD14 是历史误报并显式排除，不能声称全部历史探针无例外通过。
 
 显式在线入口：
 
@@ -37,3 +37,14 @@ node --import tsx test_case/online/verify-memory-live.ts <数据目录完整副�
 未来套件应记录模型/provider、prompt版本、代码 hash、初始数据、操作授权边界、每个验收点和失败原件。用确定性断言衡量权限与状态，以人工盲审/独立评分衡量摘要与沟通质量，比较基线和趋势，不能单次跑通就宣称行为稳定。本节是计划，尚未实现完整日常回归套件。
 
 证据层次分别为静态设计检查、OFFLINE_RUNTIME、POSTGRES_RUNTIME、LIVE_MODEL 和 REAL_USE；各层互不替代。
+
+## 设置与 World 管理回归
+
+`settings.test.ts` 覆盖双来源/多引用摘要、长材料分片、新输入排队、草稿持久化、版本冲突、真实 PostgreSQL 批次回滚、提交后 SIGKILL 恢复、历史时间范围与超过 100 条分页，以及运行配置切换。与 `world.test.ts` 同用测试数据库时必须串行运行；每次使用新的隔离数据库，避免不同 Store 的 outbox 混用。
+
+```sh
+SECRETARY_TEST_DATABASE_URL='<隔离测试数据库 DSN>' node --import tsx --test --test-concurrency=1 test_case/offline/runtime/*.test.ts
+SECRETARY_TEST_DATABASE_URL='<另一个隔离数据库 DSN>' node --import tsx test_case/online/test-settings-live.ts <报告路径>
+```
+
+在线探针仅使用合成事实，验证更正、撤回、说明语言与旧约束承接；不代表长期真实使用。实际结果见[设置功能报告](../test_case/reports/settings-20260928/README.md)。

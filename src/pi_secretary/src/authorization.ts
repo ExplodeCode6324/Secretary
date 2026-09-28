@@ -280,6 +280,61 @@ export class Authorization {
     );
     return dispatched;
   }
+  // Only for the same idempotent World batch, after its locked receipt lookup proved no commit.
+  resumeWorldDispatch(operationID: string) {
+    const op = this.store.get<Operation>("Operation", operationID);
+    if (
+      op.action.action !== "world.change" ||
+      !["DISPATCHED", "RESULT_UNKNOWN"].includes(op.state)
+    )
+      throw Error("NOT_WORLD_DISPATCH");
+    if (op.scope.execution_id) {
+      const execution = this.store.get<Execution>(
+        "Execution",
+        op.scope.execution_id,
+      );
+      if (
+        execution.cancel_requested ||
+        execution.attempt_id !== op.attempt_id ||
+        !["RUNNING", "READY", "WAIT_AUTH"].includes(execution.state)
+      )
+        throw Error("EXECUTION_NOT_ACTIVE");
+    }
+    this.store.bytes(op.action.parameters_ref);
+    if (op.action.parameters_ref.sha256 !== op.action.parameters_hash)
+      throw Error("PARAMETER_CHANGED");
+    if (op.authorization_id) {
+      const grant = this.store.get<AuthorizationRequest>(
+        "AuthorizationRequest",
+        op.authorization_id,
+      );
+      if (
+        grant.state !== "CONSUMED" ||
+        JSON.stringify(grant.action) !== JSON.stringify(op.action) ||
+        (grant.expires_at && Date.parse(grant.expires_at) <= Date.now())
+      )
+        throw Error("GRANT_INVALID");
+    } else {
+      const rule = this.match(op);
+      if (!rule || rule.id !== op.rule_id || rule.revision !== op.rule_revision)
+        throw Error("RULE_CHANGED");
+    }
+    const next = revise(op, {
+      state: "DISPATCHED",
+      owner_epoch: this.store.epoch,
+    });
+    this.store.commit(
+      [next],
+      [
+        this.store.event(
+          "world.dispatch_reconciled",
+          { operation_id: op.id, receipt_absent: true },
+          op.scope,
+        ),
+      ],
+    );
+    return next;
+  }
   finish(
     operationID: string,
     value: unknown,

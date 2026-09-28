@@ -5,6 +5,9 @@ flowchart TD
   TUI[TUI client] --> B[本机共享 backend]
   WEB[WebUI] --> B
   B --> APP[App]
+  APP --> G[Settings 生效协调器]
+  G --> H[Host 主会话]
+  G --> W[World 可选]
   APP --> H[Host 主会话]
   APP --> S[Scheduler]
   APP --> W[World 可选]
@@ -30,6 +33,7 @@ flowchart TD
 | scheduler.ts | 任务提案、workspace 初始化、触发、前置条件、并发执行、授权后续接、结果和归档 |
 | authorization.ts | 操作准备、规则匹配、Master 决定、派发前复核、回执和未知作用恢复 |
 | store.ts / lock.py | 契约校验、对象库、JSONL 事务、请求幂等和 OS 文件锁 |
+| settings.ts / settings-memory.ts / settings-payload.ts | 草稿、批次生效、完整来源摘要、上下文重建与恢复 |
 | world.ts | 迁移、World 变更、SQL 事务、证据与 outbox 桥接 |
 | model.ts / transport.ts | fixture/live、双角色模型配置、请求/响应持久化 |
 | context.ts | 原始上下文、checkpoint、token 预估与来源元数据 |

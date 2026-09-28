@@ -7,10 +7,9 @@ import { contentText } from "@earendil-works/pi-ai";
 import { App } from "../../../src/pi_secretary/src/app.ts";
 import { serve } from "../../../src/pi_secretary/src/backend.ts";
 import { api } from "../../../src/pi_secretary/src/ui-client.ts";
-import { hash } from "../../../src/pi_secretary/src/store.ts";
+import { hash, id } from "../../../src/pi_secretary/src/store.ts";
 import {
   getInstructions,
-  saveInstructions,
   BASE_SYSTEM,
   DEFAULT_INSTRUCTIONS,
 } from "../../../src/pi_secretary/src/instructions.ts";
@@ -36,6 +35,38 @@ const systemText = (messages: any[]) =>
 const latest = (app: App) =>
   app.store.get<Context>("Context", app.host.session.last_context_id!);
 
+function stageInstructions(
+  app: App,
+  content: string,
+  expected_revision: number,
+) {
+  const draft = app.settings.draft();
+  app.settings.save(
+    {
+      instructions: { content, expected_revision },
+      edits: [],
+      command_ids: [],
+    },
+    draft.revision,
+  );
+}
+async function applyInstructions(
+  app: App,
+  content?: string,
+  expectedRevision?: number,
+) {
+  if (content !== undefined) stageInstructions(app, content, expectedRevision!);
+  const a = app.settings.request(app.settings.draft().revision, id());
+  await app.settings.tick();
+  if ("id" in a)
+    assert.equal(
+      app.store.get<
+        import("../../../src/pi_secretary/src/contracts.ts").SettingsApplication
+      >("SettingsApplication", a.id).state,
+      "APPLIED",
+    );
+}
+
 test("new turns replace historical system; empty instructions disable injection; contexts retain evidence", async () => {
   const dir = temp();
   const app = await App.open(dir, cfg());
@@ -49,7 +80,7 @@ test("new turns replace historical system; empty instructions disable injection;
     assert.equal(oldRaw.filter((m) => m.role === "system").length, 1);
     assert(systemText(oldRaw).includes("简体中文"));
     assert(oldRaw[0].toolsAdded.length > 0);
-    saveInstructions(app.store, "NEW_CONFIG_ENGLISH", 1);
+    await applyInstructions(app, "NEW_CONFIG_ENGLISH", 1);
     app.host.accept("second");
     await app.host.drain();
     const second = latest(app);
@@ -62,8 +93,12 @@ test("new turns replace historical system; empty instructions disable injection;
     assert.equal(second.system_prompt_hash, hash(systemText(raw)));
     assert.equal(second.base_prompt_version, hash(BASE_SYSTEM));
     assert(app.store.bytes(first.raw_context).equals(oldBytes));
-    assert(raw.some((m) => m.role === "user" && m.content === "hello"));
-    saveInstructions(app.store, "", 2);
+    assert(
+      raw.some(
+        (m) => m.role === "user" && contentText(m.content).includes("hello"),
+      ),
+    );
+    await applyInstructions(app, "", 2);
     app.host.accept("third");
     await app.host.drain();
     assert.equal(
@@ -72,7 +107,7 @@ test("new turns replace historical system; empty instructions disable injection;
     );
     assert.equal(
       app.store.all<MainPromptSnapshot>("MainPromptSnapshot").length,
-      3,
+      5,
     );
     for (const c of app.store
       .all<Context>("Context")
@@ -116,11 +151,13 @@ test("settings saved during tool loop never change current turn and never deadlo
     app.host.accept("first");
     const running = app.host.drain();
     await started;
-    saveInstructions(app.store, "NEXT_ONLY", 1);
+    stageInstructions(app, "NEXT_ONLY", 1);
+    app.settings.request(app.settings.draft().revision, id());
     release();
     await running;
     assert(captured.length >= 2);
     assert(captured.every((s) => !s.includes("NEXT_ONLY")));
+    await app.settings.tick();
     app.host.accept("next");
     await app.host.drain();
     assert(captured.at(-1)!.includes("NEXT_ONLY"));
@@ -145,7 +182,7 @@ test("interrupted turn resumes its persisted prompt after settings update and re
     const original = latest(app);
     const loop = original.loop_id;
     assert(app.store.all<Input>("Input").some((i) => i.state === "CLAIMED"));
-    saveInstructions(app.store, "NEW_AFTER_RESTART", 1);
+    stageInstructions(app, "NEW_AFTER_RESTART", 1);
     await app.close();
     app = await App.open(dir, cfg());
     await app.host.drain();
@@ -156,6 +193,7 @@ test("interrupted turn resumes its persisted prompt after settings update and re
         "NEW_AFTER_RESTART",
       ),
     );
+    await applyInstructions(app);
     app.host.accept("fresh turn");
     await app.host.drain();
     assert.equal(latest(app).instructions_revision, 2);
@@ -169,7 +207,7 @@ test("compaction cannot own or override the custom instructions; tasks remain is
   const dir = temp();
   const app = await App.open(dir, cfg());
   try {
-    saveInstructions(app.store, "UNIQUE_MASTER_STYLE", 1);
+    await applyInstructions(app, "UNIQUE_MASTER_STYLE", 1);
     app.host.accept("hello");
     await app.host.drain();
     await app.host.compact();
@@ -205,10 +243,10 @@ test("compaction cannot own or override the custom instructions; tasks remain is
   }
 });
 
-test("authenticated settings API serializes concurrent writes, rejects invalid data and preserves escaped text", async () => {
-  const dir = temp();
-  const app = await App.open(dir, cfg());
-  const server = await serve(app);
+test("authenticated settings API stages CAS edits, rejects invalid text and explicitly applies escaped text", async () => {
+  const dir = temp(),
+    app = await App.open(dir, cfg()),
+    server = await serve(app);
   try {
     assert.equal(
       (await fetch(server.endpoint.url + "/api/instructions")).status,
@@ -217,44 +255,50 @@ test("authenticated settings API serializes concurrent writes, rejects invalid d
     const client = (await api(server.endpoint, "/api/client", {})).client;
     const route = "/api/instructions?client=" + client;
     const initial = await api(server.endpoint, route);
-    assert.equal(initial.settings.revision, 1);
     const saves = await Promise.allSettled(
       ["first", "second"].map((content) =>
         api(server.endpoint, "/api/instructions", {
           client,
           content,
           expected_revision: 1,
+          draft_revision: initial.management.draft.revision,
         }),
       ),
     );
     assert.equal(saves.filter((r) => r.status === "fulfilled").length, 1);
     assert(
       saves.some(
-        (r) =>
-          r.status === "rejected" &&
-          String(r.reason).includes("INSTRUCTIONS_CONFLICT"),
+        (r) => r.status === "rejected" && String(r.reason).includes("CONFLICT"),
       ),
     );
+    assert.equal(getInstructions(app.store).revision, 1);
+    const next = await api(server.endpoint, route);
     for (const content of ["x".repeat(2001), null, {}, "bad\u0000text"])
       await assert.rejects(
         api(server.endpoint, "/api/instructions", {
           client,
           content,
-          expected_revision: 2,
+          expected_revision: 1,
+          draft_revision: next.management.draft.revision,
         }),
-        /INVALID_INSTRUCTIONS/,
+        /INVALID/,
       );
     const text = '<script>alert("not code")</script>\n😀';
-    await api(server.endpoint, "/api/instructions", {
+    const saved = await api(server.endpoint, "/api/instructions", {
       client,
       content: text,
-      expected_revision: 2,
+      expected_revision: 1,
+      draft_revision: next.management.draft.revision,
     });
+    assert.equal(saved.management.draft.payload.instructions.content, text);
+    await api(server.endpoint, "/api/settings/apply", {
+      client,
+      expected_revision: saved.management.draft.revision,
+      request_id: id(),
+    });
+    await app.settings.tick();
     assert.equal((await api(server.endpoint, route)).settings.content, text);
-    assert.equal(getInstructions(app.store).revision, 3);
-    assert.equal(app.world, undefined);
-    const page = await (await fetch(server.endpoint.url)).text();
-    assert(page.includes('id="instructions-content"'));
+    assert.equal(getInstructions(app.store).revision, 2);
     assert(!app.store.all("Input").length);
   } finally {
     await server.close();
@@ -281,7 +325,7 @@ test("corrupt configuration prevents startup rather than becoming empty defaults
   }
 });
 
-test("SIGKILL after settings commit preserves active snapshot and next-turn setting", async () => {
+test("SIGKILL after draft save preserves active snapshot and requires explicit application", async () => {
   const { spawn } = await import("node:child_process");
   const { fileURLToPath } = await import("node:url");
   const dir = temp();
@@ -305,9 +349,14 @@ test("SIGKILL after settings commit preserves active snapshot and next-turn sett
     });
     assert.equal(signal, "SIGKILL");
     app = await App.open(dir, cfg());
-    assert.equal(getInstructions(app.store).content, "POST_CRASH_NEW_CONFIG");
+    assert.equal(getInstructions(app.store).content, DEFAULT_INSTRUCTIONS);
+    assert.equal(
+      app.settings.status().draft.payload.instructions?.content,
+      "POST_CRASH_NEW_CONFIG",
+    );
     await app.host.drain();
     assert.equal(latest(app).instructions_revision, 1);
+    await applyInstructions(app);
     app.host.accept("New turn after recovery");
     await app.host.drain();
     assert.equal(latest(app).instructions_revision, 2);

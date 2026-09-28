@@ -33,6 +33,7 @@
 | `base_prompt_version` | string | 否 |  |
 | `instructions_revision` | integer | 否 |  {"minimum": 0} |
 | `system_prompt_hash` | Digest | 否 |  关联：[Digest](Digest.md) |
+| `settings_application_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
 
 ## 组合约束
 

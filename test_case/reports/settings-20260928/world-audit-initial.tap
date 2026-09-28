@@ -1,0 +1,74 @@
+TAP version 13
+# Subtest: NEW15 World evidence content must match the referenced Master event
+not ok 1 - NEW15 World evidence content must match the referenced Master event
+  ---
+  duration_ms: 288.296875
+  type: 'test'
+  location: '<workspace>/test_case/offline/audit/world-extra.test.ts:19:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'WAIT_AUTH'
+    - 'COMMITTED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'COMMITTED'
+  actual: 'WAIT_AUTH'
+  operator: 'strictEqual'
+  stack: |-
+    <anonymous> (<workspace>/test_case/offline/audit/world-extra.test.ts:20:39)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/test_case/offline/audit/world-extra.test.ts:14:234)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:296:3)
+  ...
+# Subtest: NEW16 equal object facts with different key order are SUPPORTING
+not ok 2 - NEW16 equal object facts with different key order are SUPPORTING
+  ---
+  duration_ms: 402.599208
+  type: 'test'
+  location: '<workspace>/test_case/offline/audit/world-extra.test.ts:25:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    + actual - expected
+    
+    + 'WAIT_AUTH'
+    - 'COMMITTED'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 'COMMITTED'
+  actual: 'WAIT_AUTH'
+  operator: 'strictEqual'
+  stack: |-
+    <anonymous> (<workspace>/test_case/offline/audit/world-extra.test.ts:27:149)
+    process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    async fixture (<workspace>/test_case/offline/audit/world-extra.test.ts:14:234)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+# Subtest: NEW17 interrupted migration after schema before predicate seed can recover
+ok 3 - NEW17 interrupted migration after schema before predicate seed can recover
+  ---
+  duration_ms: 140.173209
+  type: 'test'
+  ...
+# Subtest: NEW18 temporary database deadlock must not become permanent business REJECTED
+ok 4 - NEW18 temporary database deadlock must not become permanent business REJECTED
+  ---
+  duration_ms: 176.167625
+  type: 'test'
+  ...
+1..4
+# tests 4
+# suites 0
+# pass 2
+# fail 2
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1547.9855

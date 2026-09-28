@@ -1,5 +1,47 @@
 import * as fs from "node:fs";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import * as path from "node:path";
+// Machine-local deployment settings are optional and never contain model keys.
+const runtimeFile =
+  process.env.SECRETARY_RUNTIME_FILE ??
+  (path.resolve(process.env.SECRETARY_DATA ?? ".demo-data/interactive-live") ===
+  path.resolve(".demo-data/interactive-live")
+    ? ".demo-data/live-runtime.json"
+    : undefined);
+const runtime =
+  runtimeFile && fs.existsSync(runtimeFile)
+    ? (JSON.parse(fs.readFileSync(runtimeFile, "utf8")) as {
+        database_url?: string;
+        local_postgres_data?: string;
+      })
+    : {};
+if (!process.env.SECRETARY_DATABASE_URL && runtime.local_postgres_data) {
+  const result = spawnSync(
+    "pg_ctl",
+    ["-D", runtime.local_postgres_data, "status"],
+    {
+      stdio: "ignore",
+    },
+  );
+  if (result.status !== 0) {
+    const started = spawnSync(
+      "pg_ctl",
+      [
+        "-D",
+        runtime.local_postgres_data,
+        "-l",
+        path.join(
+          path.dirname(runtime.local_postgres_data),
+          "world-postgres.log",
+        ),
+        "-w",
+        "start",
+      ],
+      { stdio: "inherit" },
+    );
+    if (started.status !== 0) throw Error("Local World database did not start");
+  }
+}
 const file =
   process.env.SECRETARY_CREDENTIALS_FILE ?? ".demo-data/live-credentials.json";
 const keys = JSON.parse(fs.readFileSync(file, "utf8")) as {
@@ -10,6 +52,8 @@ if (!keys.main || !keys.task)
   throw Error("Separate main/task keys are required");
 const env = {
   ...process.env,
+  SECRETARY_DATABASE_URL:
+    process.env.SECRETARY_DATABASE_URL ?? runtime.database_url,
   SECRETARY_MODE: "live",
   SECRETARY_MAIN_PROVIDER: "opencode-go",
   SECRETARY_TASK_PROVIDER: "opencode-go",

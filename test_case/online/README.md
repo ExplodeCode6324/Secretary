@@ -5,6 +5,7 @@
 | 脚本 | 命令与范围 |
 | --- | --- |
 | test-live.ts | `npm run test:live -- <model> <scenario> [task-model]`；chain / missing / unknown / transport / reject |
+| test-settings-live.ts | `SECRETARY_TEST_DATABASE_URL='<隔离数据库 DSN>' node --import tsx test_case/online/test-settings-live.ts <报告路径>`；World 更正、撤回、说明与约束承接 |
 | test-instructions-live.ts | `npm run test:instructions:live`；用户说明真实模型探针 |
 | verify-memory-live.ts | `node --import tsx test_case/online/verify-memory-live.ts <数据目录副本> <报告路径>`；独占目录进行整理及只读模型探针 |
 

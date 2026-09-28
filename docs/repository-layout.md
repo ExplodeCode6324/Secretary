@@ -1,6 +1,6 @@
 # 仓库整理与路径迁移
 
-根 README 是产品入口，`src` 是实现，`test_case` 以 offline / online / reports 三类保存测试，`docs` 保存其余文档。根 package.json、package-lock.json 和 tsconfig.json 是全仓工具入口。
+根 README 是产品入口，`src` 是实现，`test_case` 以 offline / online / reports 三类保存测试，`docs` 保存其余文档，`docs/fix` 保存每次更新计划及实施进度，命名为 `fix_yyyymmdd_具体功能描述.md`。根 package.json、package-lock.json 和 tsconfig.json 是全仓工具入口。
 
 | 旧位置 | 新位置 |
 | --- | --- |

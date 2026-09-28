@@ -1293,6 +1293,120 @@
           "commit": "人工修订未启用的登记版本"
         }
       ]
+    },
+    "SettingsApplication": {
+      "owner": "settings",
+      "initial": "QUEUED",
+      "terminal": [
+        "APPLIED"
+      ],
+      "states": [
+        "QUEUED",
+        "SUMMARIZING",
+        "COMMITTING",
+        "REBUILDING",
+        "APPLIED",
+        "FAILED",
+        "BLOCKED"
+      ],
+      "transitions": [
+        {
+          "id": "Settings-01",
+          "from": "QUEUED",
+          "event": "freeze",
+          "to": "SUMMARIZING",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-02",
+          "from": "SUMMARIZING",
+          "event": "database_batch",
+          "to": "COMMITTING",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-03",
+          "from": "SUMMARIZING",
+          "event": "no_world_changes",
+          "to": "REBUILDING",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-04",
+          "from": "COMMITTING",
+          "event": "receipt_confirmed",
+          "to": "REBUILDING",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-05",
+          "from": "REBUILDING",
+          "event": "atomic_local_activation",
+          "to": "APPLIED",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-06",
+          "from": "FAILED",
+          "event": "explicit_retry",
+          "to": "QUEUED",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-07",
+          "from": "BLOCKED",
+          "event": "explicit_reconcile",
+          "to": "COMMITTING",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-08",
+          "from": "QUEUED",
+          "event": "confirmed_not_applied",
+          "to": "FAILED",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-09",
+          "from": "SUMMARIZING",
+          "event": "confirmed_not_applied",
+          "to": "FAILED",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-10",
+          "from": "COMMITTING",
+          "event": "confirmed_not_applied",
+          "to": "FAILED",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-11",
+          "from": "COMMITTING",
+          "event": "uncertain_or_incomplete",
+          "to": "BLOCKED",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        },
+        {
+          "id": "Settings-12",
+          "from": "REBUILDING",
+          "event": "uncertain_or_incomplete",
+          "to": "BLOCKED",
+          "guard": "settings_coordinator_and_durable_receipts",
+          "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        }
+      ]
     }
   }
 }

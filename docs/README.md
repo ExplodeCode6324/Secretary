@@ -13,9 +13,13 @@
 | [数据库 schema](database.md) | PostgreSQL 表、字段、约束与事务 |
 | [持久化与恢复](persistence.md) | JSONL、对象库、幂等、恢复边界 |
 | [工具与接口](interfaces.md) | 主会话、执行 Agent、UI API 和程序协议 |
+| [设置生效规范](settings-activation.md) | World 管理、草稿、完整摘要、上下文重建与恢复 |
+| [更新计划](fix/fix_20260928_world_model管理与统一设置生效.md) | 本次实施进度及验收 |
 | [提示词与记忆](memory-and-prompts.md) | prompt 快照、工作记忆与承诺 |
 | [运行手册](operations.md) | 安装、启动、停止、配置、排障 |
 | [测试策略](testing.md) | offline / online 入口、证据层次、回归规划 |
 | [整理说明](repository-layout.md) | 迁移规则、旧路径和运行数据注意事项 |
 
 [BrainStorm](BrainStorm_Baseline_v3.md) 是项目开工前的原始设计，不是当前实现规范。[old](old/README.md) 存放设计阶段原始设计及早期说明，和当前代码不构成证据对应。引用 Go 实现的旧设计按 Master 要求丢弃；OpenCode Go 是模型服务名称，与被丢弃的 Go 语言实现无关。
+
+本次部署计划与结果：[World Model 部署与效果验证](fix/fix_20260928_world_model部署与效果验证.md)。

@@ -8,7 +8,7 @@ Pi Agent 提供模型与工具循环。Secretary 的 Host、Scheduler、Authoriz
 
 ## 执行前明确范围
 
-写文件、shell、登记程序和 World Model 更改通过 Operation 及统一授权检查。批准绑定请求版本、展示摘要和参数；实际派发前再检查 owner、attempt、执行状态、授权及规则版本。聊天中的同意和材料中的指令不直接产生许可。shell 以当前用户运行，具有文件系统和网络访问能力；当前没有 OS sandbox。
+写文件、shell、登记程序的执行和模型提出的 World Model 更改通过 Operation 及统一授权检查。Master 在管理页明确应用的 World 修改直接记录 Master 操作证据；模型不能调用该管理入口。批准绑定请求版本、展示摘要和参数；实际派发前再检查 owner、attempt、执行状态、授权及规则版本。聊天中的同意和材料中的指令不直接产生许可。shell 以当前用户运行，具有文件系统和网络访问能力；当前没有 OS sandbox。
 
 ## 不确定性必须保留
 

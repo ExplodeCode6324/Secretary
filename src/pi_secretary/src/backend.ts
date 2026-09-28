@@ -1,4 +1,4 @@
-import { getInstructions, saveInstructions } from "./instructions.ts";
+import { getInstructions } from "./instructions.ts";
 import * as http from "node:http";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -181,10 +181,74 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
       );
       if (!client) return send(409, { error: "CLIENT_EXPIRED" });
       client.touched = Date.now();
+      if (url.pathname.startsWith("/api/settings")) {
+        if (url.pathname === "/api/settings" && req.method === "GET")
+          return send(200, app.settings.status());
+        if (req.method !== "POST")
+          return send(405, { error: "METHOD_NOT_ALLOWED" });
+        try {
+          if (url.pathname === "/api/settings/draft") {
+            app.settings.save(body.payload, body.expected_revision);
+            return send(200, app.settings.status());
+          }
+          if (url.pathname === "/api/settings/apply")
+            return send(
+              202,
+              app.settings.request(body.expected_revision, body.request_id),
+            );
+          if (url.pathname === "/api/settings/retry")
+            return send(202, app.settings.retry(body.application_id));
+          if (url.pathname === "/api/settings/restore") {
+            app.settings.restoreDraft(
+              body.application_id,
+              body.expected_revision,
+            );
+            return send(200, app.settings.status());
+          }
+        } catch (error) {
+          return send(String(error).includes("CONFLICT") ? 409 : 400, {
+            error: String(error),
+          });
+        }
+        return send(404, { error: "NOT_FOUND" });
+      }
+      if (url.pathname === "/api/world") {
+        if (req.method !== "GET")
+          return send(405, { error: "METHOD_NOT_ALLOWED" });
+        if (!app.world)
+          return send(503, { error: "WORLD_UNAVAILABLE: PostgreSQL 未配置" });
+        try {
+          const page = await app.world.browse({
+            subject: url.searchParams.get("subject") || undefined,
+            predicate: url.searchParams.get("predicate") || undefined,
+            history: url.searchParams.get("history") === "true",
+            cursor: url.searchParams.get("cursor") || undefined,
+            limit: Number(url.searchParams.get("limit") ?? 30),
+          });
+          return send(200, { ...page, ...(await app.world.catalogList()) });
+        } catch (error) {
+          return send(String(error).includes("STALE") ? 409 : 400, {
+            error: String(error),
+          });
+        }
+      }
       if (url.pathname === "/api/instructions") {
         if (req.method === "POST") {
           try {
-            saveInstructions(app.store, body.content, body.expected_revision);
+            const draft = app.settings.draft();
+            const payload = app.store.read<
+              import("./settings-payload.ts").SettingsPayload
+            >(draft.payload_ref);
+            app.settings.save(
+              {
+                ...payload,
+                instructions: {
+                  content: body.content,
+                  expected_revision: body.expected_revision,
+                },
+              },
+              body.draft_revision,
+            );
           } catch (error) {
             return send(
               String(error).includes("INSTRUCTIONS_CONFLICT") ? 409 : 400,
@@ -205,9 +269,10 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
           : null;
         return send(200, {
           settings: getInstructions(app.store),
+          management: app.settings.status(),
           active_revision: active?.instructions_revision ?? null,
           last_used_revision: context?.instructions_revision ?? null,
-          applies: "NEXT_TURN",
+          applies: "SUMMARY_AND_REBUILD",
         });
       }
       if (url.pathname === "/api/command" && req.method === "POST") {
@@ -287,6 +352,7 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
           mode: process.env.SECRETARY_MODE ?? "fixture",
           revision: app.store.sequence,
           memory: app.host.memoryStatus(),
+          settings: app.settings.status(),
           context: context
             ? {
                 used: context.estimated_tokens,

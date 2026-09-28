@@ -20,6 +20,69 @@
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "AT"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "at": {
+            "$ref": "#/$defs/Time"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "INTERVAL"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "anchor_at": {
+            "$ref": "#/$defs/Time"
+          },
+          "interval_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991,
+            "description": ""
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "EVENT"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "event_source": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          },
+          "predicate_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": ""
+          }
+        }
+      }
+    }
+  ]
 }
 ```

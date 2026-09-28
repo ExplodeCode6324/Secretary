@@ -644,3 +644,84 @@ button:hover {
   padding: 8px 16px;
   margin-right: 8px;
 }
+
+.world-dialog {
+  width: min(1000px, 94vw);
+  max-width: 1000px;
+  max-height: 90vh;
+  overflow: auto;
+}
+.world-toolbar,
+.world-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin: 16px 0;
+}
+.world-form label,
+.world-toolbar label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+  flex: 1;
+}
+.world-form label:has(textarea) {
+  min-width: 90%;
+}
+.world-form p {
+  flex-basis: 100%;
+}
+.world-dialog select,
+.world-dialog input,
+.world-dialog textarea {
+  max-width: 100%;
+  padding: 8px;
+  border: 1px solid #d8ddd7;
+  border-radius: 6px;
+  background: #fff;
+  color: #24322c;
+}
+.world-dialog details,
+.world-row {
+  padding: 12px 0;
+  border-bottom: 1px solid #ddd;
+}
+.world-row p,
+.world-row pre {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.world-row button {
+  margin-right: 8px;
+  margin-top: 6px;
+}
+.world-dialog summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.world-dialog [hidden] {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .sidebar .sidebar-bottom {
+    display: block;
+    margin-top: auto;
+  }
+  .sidebar-bottom > .nav {
+    font-size: 10px;
+    white-space: normal;
+    padding: 10px 2px;
+  }
+  .sidebar-bottom > [data-command],
+  .sidebar-bottom .identity {
+    display: none;
+  }
+}
+
+.world-toolbar label:has(input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+}

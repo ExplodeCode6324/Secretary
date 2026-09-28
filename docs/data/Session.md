@@ -19,6 +19,7 @@
 | `consciousness_id` | ID | 是 |  关联：[ID](ID.md) |
 | `last_journal_seq` | integer | 是 |  {"minimum": 0, "maximum": 9007199254740991} |
 | `recovery_error` | string 或 null | 是 |  |
+| `runtime_settings_hash` | Digest | 否 |  关联：[Digest](Digest.md) |
 
 ## 组合约束
 

@@ -69,6 +69,7 @@ export class Scheduler {
     { agent?: Agent; child?: ChildProcess; promise: Promise<void> }
   >();
   private closed = false;
+  settingsBlocked: () => boolean = () => false;
   constructor(
     readonly store: Store,
     readonly auth: Authorization,
@@ -284,6 +285,7 @@ export class Scheduler {
     }
   }
   tick(at = Date.now()) {
+    if (this.settingsBlocked()) return;
     if (this.closed) return;
     for (const p of this.store.all<TaskPlan>("TaskPlan")) {
       if (p.state === "INITIALIZING" || p.state === "INIT_FAILED") {

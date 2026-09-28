@@ -1,10 +1,19 @@
 import { App } from "../../../../src/pi_secretary/src/app.ts";
 import { fixtureModel } from "../../../../src/pi_secretary/src/model.ts";
-import { saveInstructions } from "../../../../src/pi_secretary/src/instructions.ts";
 const app = await App.open(process.argv[2], {
   model: fixtureModel,
   stream: async () => {
-    saveInstructions(app.store, "POST_CRASH_NEW_CONFIG", 1);
+    app.settings.save(
+      {
+        instructions: {
+          content: "POST_CRASH_NEW_CONFIG",
+          expected_revision: 1,
+        },
+        edits: [],
+        command_ids: [],
+      },
+      app.settings.draft().revision,
+    );
     process.kill(process.pid, "SIGKILL");
     throw Error("unreachable");
   },

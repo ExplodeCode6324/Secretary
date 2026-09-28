@@ -1,3 +1,4 @@
+import { Settings } from "./settings.ts";
 import type { TaskPlan, Execution } from "./contracts.ts";
 import { Store } from "./store.ts";
 import { Authorization } from "./authorization.ts";
@@ -8,13 +9,16 @@ import { modelConfig, type StreamFn, type ModelConfig } from "./model.ts";
 import type { Model, Api } from "@earendil-works/pi-ai";
 export class App {
   private worldWork?: Promise<void>;
+  readonly settings: Settings;
   private constructor(
     readonly store: Store,
     readonly authorization: Authorization,
     readonly scheduler: Scheduler,
     readonly host: Host,
     readonly world?: World,
-  ) {}
+  ) {
+    this.settings = new Settings(store, host, world);
+  }
   static async open(
     directory: string,
     config?: ModelConfig | { main: ModelConfig; task: ModelConfig },
@@ -49,13 +53,14 @@ export class App {
     }
   }
   async pump() {
-    if (this.world && !this.worldWork)
+    if (this.world && !this.worldWork && !this.settings.blocked)
       this.worldWork = this.world
         .drain()
         .catch((error) => console.error(String(error)))
         .finally(() => {
           this.worldWork = undefined;
         });
+    void this.settings.tick();
     this.scheduler.tick();
     this.scheduler.retire();
     this.host.deliverFeedback();
@@ -69,6 +74,7 @@ export class App {
       await this.pump();
       await this.host.drain();
       await this.worldWork;
+      await this.settings.tick();
       await this.scheduler.idle();
       this.host.deliverFeedback();
       const pending = this.store
@@ -93,6 +99,7 @@ export class App {
     await this.host.drain();
   }
   async close() {
+    await this.settings.close();
     await this.host.close();
     await this.scheduler.close();
     await this.worldWork;

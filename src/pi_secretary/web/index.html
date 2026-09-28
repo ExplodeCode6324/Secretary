@@ -20,7 +20,7 @@
       <div class="sidebar-bottom">
         <button class="nav" id="instructions-tab">Secretary 说明</button>
         <button class="nav" data-command="/programs">已登记程序</button
-        ><button class="nav" data-command="/world-read">长期记忆</button
+        ><button class="nav" id="world-tab">World Model 管理</button
         ><button class="nav" data-command="/operations">执行与核验</button
         ><button class="nav" data-command="/help">所有操作</button>
         <div class="identity">
@@ -116,15 +116,104 @@
           </button>
         </div>
         <p>
-          设置默认回复语言、称呼与沟通偏好。保存后从下一轮主会话生效，清空可关闭自定义说明。
+          设置默认回复语言、称呼与沟通偏好。保存为待应用修改；应用时先摘要工作上下文，再重建
+          context。清空可关闭自定义说明。
         </p>
         <label for="instructions-content">自定义说明（最多 2000 字）</label>
         <textarea id="instructions-content" rows="9"></textarea>
         <p id="instructions-version"></p>
         <p id="instructions-feedback" role="status"></p>
         <button type="button" id="instructions-reload">重新载入</button>
-        <button type="submit" id="instructions-save">保存</button>
+        <button type="submit" id="instructions-save">保存草稿</button>
+        <button type="button" id="instructions-apply">
+          应用全部更改并重建上下文
+        </button>
+        <p id="instructions-application" role="status"></p>
       </form>
+    </dialog>
+    <dialog id="world-dialog" class="world-dialog">
+      <div class="panel-heading">
+        <h2>World Model 管理</h2>
+        <button id="world-close" aria-label="关闭 World Model">×</button>
+      </div>
+      <p>
+        编辑先保存为草稿。应用时摘要工作记忆并重建上下文；撤回保留历史与证据。
+      </p>
+      <div class="world-toolbar">
+        <label
+          >实体筛选<select id="world-filter-subject">
+            <option value="">全部实体</option>
+          </select></label
+        >
+        <label
+          >属性筛选<select id="world-filter-predicate">
+            <option value="">全部属性</option>
+          </select></label
+        >
+        <label
+          ><input type="checkbox" id="world-history" />包含历史与已撤回</label
+        >
+        <button id="world-reload">查询 / 刷新</button>
+      </div>
+      <p id="world-feedback" role="status"></p>
+      <div id="world-list"></div>
+      <button id="world-next" hidden>下一页</button>
+      <details id="world-editor">
+        <summary>新增 / 更正事实</summary>
+        <form id="world-form" class="world-form">
+          <label>实体<select id="world-subject" required></select></label>
+          <label>属性<select id="world-predicate" required></select></label>
+          <label>范围键（多值属性必填）<input id="world-scope" /></label>
+          <label id="world-value-label"
+            >值<textarea id="world-value" rows="3"></textarea>
+          </label>
+          <label id="world-object-label" hidden
+            >关联实体<select id="world-object"></select
+          ></label>
+          <p id="world-value-help"></p>
+          <label
+            >有效起点（UTC，可留空）<input
+              id="world-valid-from"
+              placeholder="2026-09-28T00:00:00.000Z"
+          /></label>
+          <label>有效终点（UTC，可留空）<input id="world-valid-to" /></label>
+          <label>新鲜期限（UTC，可留空）<input id="world-fresh-until" /></label>
+          <label>解决冲突 ID（可留空）<input id="world-conflict" /></label>
+          <label>冲突解决说明<input id="world-resolution" /></label>
+          <p id="world-edit-status">新增事实</p>
+          <button type="submit">保存事实草稿</button
+          ><button type="button" id="world-new">改为新增</button>
+        </form>
+      </details>
+      <details>
+        <summary>实体管理</summary>
+        <div id="world-entities"></div>
+        <form id="entity-form" class="world-form">
+          <label>名称<input id="entity-name" required maxlength="500" /></label>
+          <label
+            >类型<select id="entity-kind">
+              <option>PERSON</option>
+              <option>ORGANIZATION</option>
+              <option>PROJECT</option>
+              <option>DEVICE</option>
+              <option>SERVICE</option>
+              <option>RESOURCE</option>
+              <option>GOAL</option>
+            </select></label
+          >
+          <label>外部标识（可留空）<input id="entity-key" /></label>
+          <p id="entity-edit-status">新增实体</p>
+          <button type="submit">保存实体草稿</button
+          ><button type="button" id="entity-new">改为新增</button>
+        </form>
+      </details>
+      <section>
+        <h3>待应用修改</h3>
+        <div id="settings-draft"></div>
+        <button id="settings-apply">应用全部更改并重建上下文</button>
+        <p id="settings-progress" role="status"></p>
+        <div id="settings-history"></div>
+      </section>
     </dialog>
     <script type="module" src="/app.js"></script>
   </body>

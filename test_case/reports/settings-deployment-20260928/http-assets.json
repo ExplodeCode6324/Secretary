@@ -1,0 +1,19 @@
+{
+  "index.html": {
+    "status": 200,
+    "matches_disk": true,
+    "sha256": "c460e2db0b1203e7bc715575130cbe75ad27cf9439428279b46a9633605d3293"
+  },
+  "app.js": {
+    "status": 200,
+    "matches_disk": true,
+    "sha256": "ee1ac786110eae100bc2e73a5315702e4b6ae842d6a7695c3ecfc9b5e589be0e"
+  },
+  "style.css": {
+    "status": 200,
+    "matches_disk": true,
+    "sha256": "8f176c8e3d24e1dc919b6c2fc45827df489818e3ca38550a797a308ca0e5bb88"
+  },
+  "unauthenticated_api_rejected": true,
+  "pass": true
+}

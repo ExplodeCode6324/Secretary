@@ -14,11 +14,14 @@ import type {
 } from "./contracts.ts";
 export class World {
   readonly pool: Pool;
+  readonly configurationHash: string;
+  coordinate?: (command: WorldCommand) => void;
   constructor(
     readonly store: Store,
     readonly auth: Authorization,
     dsn: string,
   ) {
+    this.configurationHash = hash(dsn);
     this.pool = new Pool({ connectionString: dsn, max: 2 });
   }
   async migrate() {
@@ -50,6 +53,9 @@ export class World {
           );
         await db.query(seed);
       }
+      await db.query(
+        fs.readFileSync(path.join(root, "src/schema/003_settings.sql"), "utf8"),
+      );
     } catch (error) {
       await db.query("ROLLBACK").catch(() => {});
       throw error;
@@ -121,6 +127,10 @@ export class World {
         continue;
       }
       if (o.state === "WAIT_AUTH") continue;
+      if (this.coordinate) {
+        this.coordinate(c);
+        continue;
+      }
       try {
         if (o.state === "AUTHORIZED")
           this.auth.dispatch(o.id, [revise(c, { state: "APPLYING" })]);
@@ -136,10 +146,15 @@ export class World {
     }
     await this.export();
   }
-  async apply(change: WorldChange | WorldCatalogChange) {
-    const db = await this.pool.connect();
+  async apply(
+    change: WorldChange | WorldCatalogChange,
+    transaction?: PoolClient,
+    applicationID?: string,
+  ) {
+    const db = transaction ?? (await this.pool.connect());
     try {
-      await db.query("BEGIN");
+      if (!transaction) await db.query("BEGIN");
+      await db.query("SELECT pg_advisory_xact_lock(784316093)");
       await db.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [
         change.change_id,
       ]);
@@ -150,7 +165,7 @@ export class World {
       if (old.rowCount) {
         if (old.rows[0].request_hash !== change.request_hash)
           throw Error("CHANGE_HASH_CONFLICT");
-        await db.query("COMMIT");
+        if (!transaction) await db.query("COMMIT");
         return old.rows[0];
       }
       let result: Record<string, unknown>;
@@ -163,7 +178,8 @@ export class World {
             : await this.fact(db, change);
       } catch (error) {
         const code = (error as { code?: string }).code;
-        if (code && /^(08|40|53|57|58)/.test(code)) throw error;
+        if (transaction || (code && /^(08|40|53|57|58)/.test(code)))
+          throw error;
         await db.query("ROLLBACK TO SAVEPOINT mutation");
         outcome = String(error).includes("REVISION_CONFLICT")
           ? "CONFLICT"
@@ -182,15 +198,24 @@ export class World {
       );
       await db.query(
         "INSERT INTO wm.audit_outbox(event_id,change_id,payload) VALUES($1,$2,$3)",
-        [id(), change.change_id, { change, result, outcome }],
+        [
+          id(),
+          change.change_id,
+          {
+            change,
+            result,
+            outcome,
+            ...(applicationID ? { application_id: applicationID } : {}),
+          },
+        ],
       );
-      await db.query("COMMIT");
+      if (!transaction) await db.query("COMMIT");
       return { outcome, result };
     } catch (error) {
-      await db.query("ROLLBACK").catch(() => {});
+      if (!transaction) await db.query("ROLLBACK").catch(() => {});
       throw error;
     } finally {
-      db.release();
+      if (!transaction) db.release();
     }
   }
   private async catalog(db: PoolClient, c: WorldCatalogChange) {
@@ -210,6 +235,27 @@ export class World {
       );
       return { source_id: c.source_id };
     }
+    if (c.kind === "RETIRE_ENTITY") {
+      const entity = (
+        await db.query(
+          "SELECT * FROM wm.entity WHERE entity_id=$1 FOR UPDATE",
+          [c.entity_id],
+        )
+      ).rows[0];
+      if (!entity || Number(entity.revision) !== c.expected_revision)
+        throw Error("REVISION_CONFLICT");
+      const refs = await db.query(
+        "SELECT a.assertion_id FROM wm.assertion a JOIN wm.assertion_state st USING(assertion_id,slot_id) JOIN wm.fact_slot s USING(slot_id) WHERE (s.subject_id=$1 OR a.object_entity_id=$1) AND st.status IN ('ACTIVE','SUPPORTING','CONTESTED') LIMIT 20",
+        [c.entity_id],
+      );
+      if (refs.rowCount)
+        throw Error("ENTITY_REFERENCED: " + JSON.stringify(refs.rows));
+      await db.query(
+        "UPDATE wm.entity SET retired_at=now(), revision=revision+1,updated_at=now() WHERE entity_id=$1",
+        [c.entity_id],
+      );
+      return { entity_id: c.entity_id, retired: true };
+    }
     if (!c.entity_id || !c.entity_kind || !c.display_name)
       throw Error("INVALID_ENTITY");
     const old = await db.query(
@@ -227,6 +273,7 @@ export class World {
         [c.entity_id, c.entity_kind, c.display_name, c.external_key],
       );
     else {
+      if (old.rows[0].retired_at) throw Error("ENTITY_RETIRED");
       if (old.rows[0].kind !== c.entity_kind)
         throw Error("ENTITY_KIND_IMMUTABLE");
       await db.query(
@@ -237,6 +284,17 @@ export class World {
     return { entity_id: c.entity_id, revision: c.expected_revision + 1 };
   }
   private async fact(db: PoolClient, c: WorldChange) {
+    if (c.mode !== "RETRACT") {
+      for (const entity of [c.subject_id, c.object_entity_id].filter(Boolean)) {
+        const row = (
+          await db.query(
+            "SELECT retired_at FROM wm.entity WHERE entity_id=$1",
+            [entity],
+          )
+        ).rows[0];
+        if (!row || row.retired_at) throw Error("ENTITY_UNAVAILABLE");
+      }
+    }
     const pred = (
       await db.query("SELECT * FROM wm.predicate WHERE predicate_key=$1", [
         c.predicate_key,
@@ -439,6 +497,21 @@ export class World {
         const command = this.store
           .all<WorldCommand>("WorldCommand")
           .find((c) => c.change.change_id === row.change_id);
+        if (!command && row.payload.application_id) {
+          const application = this.store.find(
+            "SettingsApplication",
+            row.payload.application_id,
+          );
+          if (!application) throw Error("MISSING_SETTINGS_APPLICATION");
+          const event = this.store.event("world.change_applied", row.payload);
+          event.event_id = row.event_id;
+          this.store.commit([], [event]);
+          await this.pool.query(
+            "UPDATE wm.audit_outbox SET exported_journal_txn=$2,exported_at=now() WHERE event_id=$1",
+            [row.event_id, this.store.transactionForEvent(row.event_id)],
+          );
+          continue;
+        }
         if (!command) throw Error("MISSING_WORLD_COMMAND");
         const op = this.store.get<Operation>("Operation", command.operation_id);
         const receipt = this.store.put(row.payload);
@@ -474,6 +547,176 @@ export class World {
         "UPDATE wm.audit_outbox SET exported_journal_txn=$2,exported_at=now() WHERE event_id=$1",
         [row.event_id, this.store.transactionForEvent(row.event_id)],
       );
+    }
+  }
+  async applyBatch(
+    applicationID: string,
+    digest: string,
+    changes: (WorldChange | WorldCatalogChange)[],
+  ) {
+    const db = await this.pool.connect();
+    try {
+      await db.query("BEGIN");
+      await db.query("SELECT pg_advisory_xact_lock(784316093)");
+      const old = (
+        await db.query(
+          "SELECT * FROM wm.settings_batch_receipt WHERE application_id=$1",
+          [applicationID],
+        )
+      ).rows[0];
+      if (old) {
+        if (old.request_hash !== digest) throw Error("BATCH_HASH_CONFLICT");
+        await db.query("COMMIT");
+        return old.result;
+      }
+      const results = [];
+      for (const change of changes) {
+        shape(change);
+        for (const evidence of change.record_type === "WorldChange"
+          ? change.provenance.evidence
+          : change.evidence) {
+          this.store.bytes(evidence.content);
+          const event = this.store.logs.find(
+            (e) => e.event_id === evidence.log_event_id,
+          );
+          if (!event || !isDeepStrictEqual(event.payload, evidence.content))
+            throw Error("EVIDENCE_CONTENT_MISMATCH");
+        }
+        const result = await this.apply(change, db, applicationID);
+        if (result.outcome !== "APPLIED") throw Error("BATCH_CHANGE_REJECTED");
+        results.push(result);
+      }
+      await db.query(
+        "INSERT INTO wm.settings_batch_receipt(application_id,request_hash,result) VALUES($1,$2,$3)",
+        [applicationID, digest, JSON.stringify(results)],
+      );
+      await db.query("COMMIT");
+      return results;
+    } catch (error) {
+      await db.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      db.release();
+    }
+  }
+  async batchReceipt(applicationID: string) {
+    const db = await this.pool.connect();
+    try {
+      await db.query("BEGIN");
+      // Wait for any in-flight commit before certifying that its receipt is absent.
+      await db.query("SELECT pg_advisory_xact_lock(784316093)");
+      const receipt =
+        (
+          await db.query(
+            "SELECT * FROM wm.settings_batch_receipt WHERE application_id=$1",
+            [applicationID],
+          )
+        ).rows[0] ?? null;
+      await db.query("COMMIT");
+      return receipt;
+    } catch (error) {
+      await db.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      db.release();
+    }
+  }
+  async catalogList() {
+    const [entities, predicates, sources] = await Promise.all([
+      this.pool.query(
+        "SELECT * FROM wm.entity ORDER BY display_name,entity_id",
+      ),
+      this.pool.query("SELECT * FROM wm.predicate ORDER BY predicate_key"),
+      this.pool.query("SELECT * FROM wm.source ORDER BY source_key"),
+    ]);
+    return {
+      entities: entities.rows,
+      predicates: predicates.rows,
+      sources: sources.rows,
+    };
+  }
+  async browse(options: {
+    subject?: string;
+    predicate?: string;
+    history?: boolean;
+    cursor?: string;
+    limit?: number;
+  }) {
+    const limit = options.limit ?? 30;
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+      throw Error("INVALID_PAGE_LIMIT");
+    const signature = hash(
+      JSON.stringify([
+        options.subject ?? null,
+        options.predicate ?? null,
+        !!options.history,
+      ]),
+    );
+    const cursor = options.cursor
+      ? JSON.parse(Buffer.from(options.cursor, "base64url").toString())
+      : null;
+    const db = await this.pool.connect();
+    try {
+      await db.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      const version = (
+        await db.query(
+          "SELECT count(*)::text AS version FROM wm.change_receipt",
+        )
+      ).rows[0].version;
+      if (
+        cursor &&
+        (cursor.version !== version || cursor.signature !== signature)
+      )
+        throw Error("WORLD_PAGE_STALE: reload first page");
+      const at = cursor?.at ?? now();
+      const rows = (
+        await db.query(
+          `SELECT s.*, a.*, st.status, src.kind AS source_kind, src.description AS source_description,
+        e.display_name AS subject_name, obj.display_name AS object_name,
+        (SELECT jsonb_agg(jsonb_build_object('log_event_id',ev.log_event_id,'content',jsonb_build_object('path',ev.object_path,'sha256',ev.sha256,'bytes',ev.byte_count,'media_type',ev.media_type))) FROM wm.assertion_evidence ae JOIN wm.evidence ev USING(evidence_id) WHERE ae.assertion_id=a.assertion_id) AS evidence,
+        (SELECT jsonb_agg(c) FROM wm.conflict c WHERE c.slot_id=s.slot_id) AS conflicts,
+        (SELECT jsonb_agg(r ORDER BY r.committed_at) FROM wm.change_receipt r WHERE r.change_id IN (a.change_id,st.changed_by)) AS receipts,
+        s.revision AS current_revision
+        FROM wm.assertion a JOIN wm.fact_slot s USING(slot_id) JOIN wm.assertion_state st USING(assertion_id,slot_id)
+        JOIN wm.source src USING(source_id) JOIN wm.entity e ON e.entity_id=s.subject_id LEFT JOIN wm.entity obj ON obj.entity_id=a.object_entity_id
+        WHERE ($1::uuid IS NULL OR s.subject_id=$1) AND ($2::text IS NULL OR s.predicate_key=$2)
+        AND ($3::boolean OR (st.status IN ('ACTIVE','SUPPORTING','CONTESTED') AND a.valid_from<=$4::timestamptz AND (a.valid_to IS NULL OR a.valid_to>$4::timestamptz)))
+        AND ($5::uuid IS NULL OR (s.slot_id,a.assertion_id)>($5::uuid,$6::uuid)) ORDER BY s.slot_id,a.assertion_id LIMIT $7`,
+          [
+            options.subject ?? null,
+            options.predicate ?? null,
+            !!options.history,
+            at,
+            cursor?.slot ?? null,
+            cursor?.assertion ?? null,
+            limit + 1,
+          ],
+        )
+      ).rows;
+      const more = rows.length > limit;
+      const page = rows.slice(0, limit);
+      const last = page.at(-1);
+      await db.query("COMMIT");
+      return {
+        rows: page,
+        version,
+        next_cursor: more
+          ? Buffer.from(
+              JSON.stringify({
+                signature,
+                version,
+                at,
+                slot: last.slot_id,
+                assertion: last.assertion_id,
+              }),
+            ).toString("base64url")
+          : null,
+      };
+    } catch (error) {
+      await db.query("ROLLBACK").catch(() => {});
+      throw error;
+    } finally {
+      db.release();
     }
   }
   async read(subject: string | null = null, predicate: string | null = null) {

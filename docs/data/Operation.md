@@ -28,6 +28,27 @@
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "SUCCEEDED",
+              "FAILED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "receipt": {
+            "$ref": "#/$defs/ObjectRef"
+          }
+        }
+      }
+    }
+  ]
 }
 ```

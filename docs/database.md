@@ -2,13 +2,13 @@
 
 当前 World Model 使用 `wm` schema；Session、Task、授权规则、Context 与 Consciousness 存储在本地 journal，不是 PostgreSQL 表。
 
-权威 SQL：[001_world_model.sql](../src/schema/001_world_model.sql)、[002_predicates.sql](../src/schema/002_predicates.sql)、[queries.sql](../src/schema/queries.sql)。执行仓储：[world.ts](../src/pi_secretary/src/world.ts)。
+权威 SQL：[001_world_model.sql](../src/schema/001_world_model.sql)、[002_predicates.sql](../src/schema/002_predicates.sql)、[003_settings.sql](../src/schema/003_settings.sql)、[queries.sql](../src/schema/queries.sql)。执行仓储：[world.ts](../src/pi_secretary/src/world.ts)。
 
 ## 迁移与事务
 
-World.migrate 使用 advisory lock 串行化迁移；不存在 schema_version 时执行基线，再应用 predicate seed 并记录版本 2。基线/seed 自带事务；migrate 在失败时 rollback 并释放锁。仅显式 --migrate / API 调用迁移。
+World.migrate 使用 advisory lock 串行化迁移；不存在 schema_version 时执行基线，再应用 predicate seed 并记录版本 2，最后执行增加 settings_batch_receipt 的版本 3 迁移。基线/seed 自带事务；migrate 在失败时 rollback 并释放锁。仅显式 --migrate / API 调用迁移。
 
-变更先验证内容、证据和授权，再在数据库事务中检查实体、predicate 与 slot revision。change_id/request_id/request_hash 支持回执去重和冲突检查。assertion、状态投影、冲突、证据、change_receipt 与 audit_outbox 在事务中提交；JSONL 审计导出属于独立可恢复桥接。
+变更通过 Settings 协调器先摘要并预检 context。Master 管理页记录明确应用证据；模型提案仍经授权。数据库事务检查实体、predicate 与 slot revision；整批原子提交并保存 settings_batch_receipt。change_id/request_id/request_hash 支持回执去重和冲突检查。assertion、状态投影、冲突、证据、change_receipt 与 audit_outbox 在事务中提交；JSONL 审计导出属于独立可恢复桥接。
 
 ## 关系图
 
@@ -193,11 +193,20 @@ event_id uuid PRIMARY KEY,
     CHECK ((exported_journal_txn IS NULL)=(exported_at IS NULL))
 ```
 
+### wm.settings_batch_receipt
+
+```sql
+application_id uuid PRIMARY KEY,
+    request_hash text NOT NULL,
+    result jsonb NOT NULL,
+    committed_at timestamptz NOT NULL DEFAULT now()
+```
+
 ## 索引、触发器与读模型
 
 assertion_state 以部分唯一索引保证每个 slot 至多一个 ACTIVE；conflict 每个 slot 至多一个 OPEN。来源/slot 时间索引支持事实读取，pending_audit_exports 支持未导出事件扫描。
 
-validate_slot 检查 subject kind 与 SINGLE/MULTI 的 scope_key；validate_assertion 检查 slot revision、值类型与 ENTITY 引用。assertion、receipt、evidence 及证据关联禁止修改删除；source 身份字段不可改；延迟触发器要求每条 assertion 有证据。更正与撤回通过新的变更和投影表达。
+validate_slot 检查 subject kind 与 SINGLE/MULTI 的 scope_key；validate_assertion 检查 slot revision、值类型与 ENTITY 引用。assertion、receipt、evidence 及证据关联禁止修改删除；source 身份字段不可改；延迟触发器要求每条 assertion 有证据。更正与撤回通过新的变更和投影表达。settings_batch_receipt 也禁止更新和删除，以保留批次幂等依据。
 
 SQL 本身不是全部业务守卫：World 仓储还用 Ajv 验证 predicate.value_schema、检查证据对象和 CAS；不能仅根据表约束宣称所有语义已验证。queries.sql 返回当前投影、冲突、来源及有效性信息，缺失和冲突保留，不用模型猜测补全。
 

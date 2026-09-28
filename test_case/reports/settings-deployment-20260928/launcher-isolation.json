@@ -1,0 +1,17 @@
+{
+  "pass": true,
+  "cases": [
+    {
+      "case": "custom data ignores default database",
+      "pass": true
+    },
+    {
+      "case": "default data reads runtime",
+      "pass": true
+    },
+    {
+      "case": "explicit config honored for custom data",
+      "pass": true
+    }
+  ]
+}

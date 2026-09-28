@@ -89,6 +89,7 @@ export class TerminalController {
   private eventIndex = 0;
   private echoedInputs = new Set<string>();
   private contextSignature = "";
+  private settingsSignature = "";
   private pendingSignature = JSON.stringify([[], []]);
   constructor(
     readonly app: App,
@@ -133,7 +134,12 @@ export class TerminalController {
     );
     this.print(this.contextUsage());
     this.print(this.memoryUsage());
+    this.print(this.settingsUsage());
     this.contextSignature = this.contextUsage();
+  }
+  private settingsUsage() {
+    const application = this.app.settings.applications().at(-1);
+    return `Settings · ${application?.state ?? "无待应用记录"} · ${this.app.settings.blocked ? "输入排队，等待设置生效" : "可领取输入"}${application?.error ? " · " + application.error : ""} · /web 管理或重试`;
   }
   private memoryUsage() {
     const m = this.app.host.memoryStatus();
@@ -151,6 +157,8 @@ export class TerminalController {
     return key;
   }
   prompt() {
+    if (this.app.settings.blocked)
+      return "Master [设置待处理 · 输入将排队 · /web] › ";
     const n = this.app.store
       .all<AuthorizationRequest>("AuthorizationRequest")
       .filter((a) => a.state === "PENDING").length;
@@ -234,6 +242,12 @@ export class TerminalController {
         `系统 · 任务反馈 › ${feedback.summary}\n执行：${feedback.execution_id} · /show ${feedback.execution_id}`,
         "system",
       );
+    } else if (event.event_type.startsWith("settings.")) {
+      const state = this.settingsUsage();
+      if (state !== this.settingsSignature) {
+        this.print(state);
+        this.settingsSignature = state;
+      }
     } else if (event.event_type.startsWith("consciousness.")) {
       this.print(this.memoryUsage());
     } else if (event.event_type === "main.message") {

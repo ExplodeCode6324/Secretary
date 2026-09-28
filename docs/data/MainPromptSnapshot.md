@@ -16,6 +16,7 @@
 | `instructions_revision` | integer | 是 |  {"minimum": 0} |
 | `system_prompt_hash` | Digest | 是 |  关联：[Digest](Digest.md) |
 | `system_message` | ObjectRef | 是 |  关联：[ObjectRef](ObjectRef.md) |
+| `settings_application_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
 
 ## 组合约束
 

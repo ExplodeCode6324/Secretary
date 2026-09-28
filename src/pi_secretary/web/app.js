@@ -83,9 +83,13 @@ async function command(line) {
   }
 }
 function render(state) {
+  if (state.settings) renderSettings(state.settings);
   $("connection").textContent = "● 已同步";
-  $("runtime-state").textContent =
-    state.state === "IDLE" ? "待命" : state.state;
+  $("runtime-state").textContent = state.settings?.blocked
+    ? "设置待处理"
+    : state.state === "IDLE"
+      ? "待命"
+      : state.state;
   $("model").textContent =
     `${state.mode === "live" ? "LIVE" : "DEMO"} · ${state.model}`;
   if (state.memory) {
@@ -313,15 +317,20 @@ document.querySelectorAll(".suggestions button").forEach((b) => {
     $("message").focus();
   };
 });
-let instructionsRevision = null;
+let instructionsRevision = null,
+  instructionsDraftRevision = null;
 function showInstructionsState(data) {
   $("instructions-version").textContent =
-    `已保存 r${data.settings.revision} · 当前轮 ${data.active_revision == null ? "无" : "r" + data.active_revision} · 最近使用 ${data.last_used_revision == null ? "尚无" : "r" + data.last_used_revision}；下一轮使用 r${data.settings.revision}`;
+    `当前生效 r${data.settings.revision} · 最近使用 ${data.last_used_revision == null ? "尚无" : "r" + data.last_used_revision}；草稿需应用后生效`;
 }
 async function loadInstructions() {
   const data = await api("instructions?client=" + client);
   instructionsRevision = data.settings.revision;
-  $("instructions-content").value = data.settings.content;
+  instructionsDraftRevision = data.management.draft.revision;
+  $("instructions-content").value =
+    data.management.draft.payload.instructions?.content ??
+    data.settings.content;
+  renderSettings(data.management);
   showInstructionsState(data);
   $("instructions-feedback").textContent = "";
 }
@@ -354,15 +363,496 @@ $("instructions-form").onsubmit = async (e) => {
       client,
       content,
       expected_revision: instructionsRevision,
+      draft_revision: instructionsDraftRevision,
     });
     instructionsRevision = data.settings.revision;
+    instructionsDraftRevision = data.management.draft.revision;
+    renderSettings(data.management);
     showInstructionsState(data);
-    $("instructions-feedback").textContent = "已保存，下一轮主会话生效。";
+    $("instructions-feedback").textContent = "草稿已保存，点击应用后生效。";
   } catch (e) {
     $("instructions-feedback").textContent =
       "保存未确认，编辑内容已保留。" + e.message;
   } finally {
     $("instructions-save").disabled = false;
+  }
+};
+let settingsState,
+  worldData,
+  worldCursor = null,
+  editingFact = null,
+  editingEntity = null,
+  applyRequest = null;
+const phaseNames = {
+  QUEUED: "等待当前轮次结束",
+  SUMMARIZING: "摘要工作上下文",
+  COMMITTING: "提交变更",
+  REBUILDING: "重建上下文",
+  APPLIED: "已生效",
+  FAILED: "失败 · 原设置保留",
+  BLOCKED: "待恢复 · 主会话暂停",
+};
+function worldError(e) {
+  $("world-feedback").textContent = e.message;
+  error(e.message);
+}
+function button(text, action) {
+  const b = element("button", text);
+  b.type = "button";
+  b.onclick = async () => {
+    b.disabled = true;
+    try {
+      await action();
+    } catch (e) {
+      worldError(e);
+    } finally {
+      b.disabled = false;
+    }
+  };
+  return b;
+}
+function renderSettings(data) {
+  const previous = settingsState?.applications.at(-1);
+  settingsState = data;
+  if (data.effective_instructions && instructionsRevision !== null)
+    $("instructions-version").textContent =
+      `当前生效 r${data.effective_instructions.revision} · 编辑基于 r${instructionsRevision}；其他页面或应用已更新时请重新载入`;
+  const latestApplied = data.applications.at(-1);
+  if (
+    worldData &&
+    $("world-dialog").open &&
+    latestApplied?.state === "APPLIED" &&
+    (previous?.id !== latestApplied.id || previous?.state !== "APPLIED")
+  )
+    void loadWorld().catch(worldError);
+  if (worldData) updateEntityOptions();
+  const payload = data.draft.payload;
+  const latest = data.applications.at(-1);
+  const progress = latest
+    ? `${phaseNames[latest.state]} · ${latest.id}${latest.error ? " · " + latest.error : ""}`
+    : "尚无应用记录";
+  $("settings-progress").textContent = progress;
+  $("instructions-application").textContent = progress;
+  const count = payload.edits.length + (payload.instructions ? 1 : 0);
+  $("settings-apply").disabled = !count;
+  $("instructions-apply").disabled = !count;
+  $("settings-draft").replaceChildren();
+  if (!count) $("settings-draft").append(element("p", "暂无待应用修改。"));
+  if (payload.instructions)
+    $("settings-draft").append(
+      element("p", "Secretary 说明修改（与本批 World 修改一起应用）"),
+    );
+  for (const [index, edit] of payload.edits.entries()) {
+    const row = element("div", null, "world-row");
+    const subject =
+      worldData?.entities.find((e) => e.entity_id === edit.subject_id)
+        ?.display_name ??
+      payload.edits.find((e) => e.entity_id === edit.subject_id)
+        ?.display_name ??
+      "所选实体";
+    const description =
+      edit.kind === "ENTITY"
+        ? `${edit.retire ? "停用" : "保存"}实体：${edit.display_name}`
+        : `${{ ASSERT: "新增", CORRECT: "更正", RETRACT: "撤回" }[edit.mode]}：${subject} · ${edit.predicate_key}${edit.mode === "RETRACT" ? "（保留历史）" : " → " + (edit.object_entity_id ? "所选关联实体" : JSON.stringify(edit.value))}`;
+    row.append(
+      element("p", description),
+      button("移除草稿", async () => {
+        const next = structuredClone(settingsState.draft.payload);
+        next.edits.splice(index, 1);
+        await saveDraft(next);
+      }),
+    );
+    $("settings-draft").append(row);
+  }
+  if (payload.instructions)
+    $("settings-draft").append(
+      button("移除说明草稿", async () => {
+        await saveDraft({ ...settingsState.draft.payload, instructions: null });
+      }),
+    );
+  $("settings-history").replaceChildren();
+  for (const application of [...data.applications].reverse().slice(0, 8)) {
+    const row = element("div", null, "world-row");
+    row.append(
+      element("p", `${phaseNames[application.state]} · ${application.id}`),
+    );
+    if (application.error) row.append(element("p", application.error));
+    if (["FAILED", "BLOCKED"].includes(application.state))
+      row.append(
+        button("重试应用", async () => {
+          await api("settings/retry", {
+            client,
+            application_id: application.id,
+          });
+          await reloadSettings();
+        }),
+      );
+    if (application.state === "FAILED")
+      row.append(
+        button("恢复为可编辑草稿", async () => {
+          renderSettings(
+            await api("settings/restore", {
+              client,
+              application_id: application.id,
+              expected_revision: settingsState.draft.revision,
+            }),
+          );
+        }),
+      );
+    $("settings-history").append(row);
+  }
+}
+async function reloadSettings() {
+  renderSettings(await api("settings?client=" + client));
+}
+async function saveDraft(payload) {
+  renderSettings(
+    await api("settings/draft", {
+      client,
+      payload,
+      expected_revision: settingsState.draft.revision,
+    }),
+  );
+  $("world-feedback").textContent = "草稿已保存，尚未生效。";
+}
+async function addEdit(edit) {
+  const payload = structuredClone(settingsState.draft.payload);
+  // One edit per fact slot/entity in each batch; avoids an ambiguous sequence of revisions.
+  const key = (e) =>
+    e.kind === "ENTITY"
+      ? "entity:" + e.entity_id
+      : JSON.stringify([e.subject_id, e.predicate_key, e.scope_key]);
+  const old = payload.edits.findIndex((e) => key(e) === key(edit));
+  if (old >= 0) payload.edits[old] = edit;
+  else payload.edits.push(edit);
+  await saveDraft(payload);
+}
+async function applySettings() {
+  const revision = settingsState.draft.revision;
+  if (!applyRequest || applyRequest.revision !== revision)
+    applyRequest = { revision, request_id: crypto.randomUUID() };
+  const result = await api("settings/apply", {
+    client,
+    expected_revision: revision,
+    request_id: applyRequest.request_id,
+  });
+  applyRequest = null;
+  await reloadSettings();
+  $("instructions-feedback").textContent =
+    result.state === "NO_CHANGES"
+      ? "没有待应用修改。"
+      : "应用请求已保存，可在进度中查看结果。";
+}
+$("settings-apply").onclick = () => applySettings().catch(worldError);
+$("instructions-apply").onclick = () =>
+  applySettings().catch((e) => {
+    $("instructions-feedback").textContent = e.message;
+  });
+function options(select, rows, value, label, blank) {
+  const previous = select.value;
+  select.replaceChildren();
+  if (blank) select.append(new Option(blank, ""));
+  for (const row of rows) select.append(new Option(label(row), row[value]));
+  if ([...select.options].some((o) => o.value === previous))
+    select.value = previous;
+}
+function predicateLabel(predicate) {
+  const meaning = predicate.description?.split(/[；;]/, 1)[0].trim();
+  return meaning
+    ? `${meaning}（${predicate.predicate_key}）`
+    : predicate.predicate_key;
+}
+function updateEntityOptions() {
+  if (!worldData) return;
+  const entities = new Map(
+    worldData.entities
+      .filter((e) => !e.retired_at)
+      .map((e) => [e.entity_id, e]),
+  );
+  for (const e of settingsState?.draft.payload.edits ?? [])
+    if (e.kind === "ENTITY" && !e.retire)
+      entities.set(e.entity_id, {
+        ...e,
+        display_name: e.display_name + "（待应用）",
+      });
+  options(
+    $("world-subject"),
+    [...entities.values()],
+    "entity_id",
+    (e) => e.display_name,
+  );
+  options(
+    $("world-object"),
+    [...entities.values()],
+    "entity_id",
+    (e) => e.display_name,
+  );
+  updatePredicateOptions();
+}
+function updatePredicateOptions() {
+  if (!worldData) return;
+  const key = $("world-subject").value;
+  const entity =
+    settingsState?.draft.payload.edits.find(
+      (e) => e.kind === "ENTITY" && e.entity_id === key,
+    ) ?? worldData.entities.find((e) => e.entity_id === key);
+  const kind = entity?.entity_kind ?? entity?.kind;
+  options(
+    $("world-predicate"),
+    worldData.predicates.filter((p) => !kind || p.subject_kinds.includes(kind)),
+    "predicate_key",
+    predicateLabel,
+  );
+  valueType();
+}
+$("world-subject").onchange = updatePredicateOptions;
+function renderWorld(data) {
+  worldData = data;
+  worldCursor = data.next_cursor;
+  $("world-next").hidden = !worldCursor;
+  const active = data.entities.filter((e) => !e.retired_at);
+  options(
+    $("world-filter-subject"),
+    data.entities,
+    "entity_id",
+    (e) => e.display_name,
+    "全部实体",
+  );
+  options(
+    $("world-filter-predicate"),
+    data.predicates,
+    "predicate_key",
+    predicateLabel,
+    "全部属性",
+  );
+  options($("world-subject"), active, "entity_id", (e) => e.display_name);
+  options($("world-object"), active, "entity_id", (e) => e.display_name);
+  options(
+    $("world-predicate"),
+    data.predicates,
+    "predicate_key",
+    predicateLabel,
+  );
+  updateEntityOptions();
+  valueType();
+  $("world-list").replaceChildren();
+  if (!data.rows.length)
+    $("world-list").append(
+      element("p", "此筛选下暂无事实。先创建实体，再新增事实。"),
+    );
+  for (const fact of data.rows) {
+    const row = element("div", null, "world-row");
+    row.append(
+      element(
+        "strong",
+        `${fact.subject_name} · ${fact.predicate_key} · ${fact.status}`,
+      ),
+      element("pre", fact.object_name ?? JSON.stringify(fact.value)),
+      element(
+        "p",
+        `范围 ${fact.scope_key || "默认"} · 当前版本 ${fact.current_revision}`,
+      ),
+    );
+    row.append(
+      button("详情 / 来源 / 历史证据", () =>
+        detail("World Model 事实", JSON.stringify(fact, null, 2)),
+      ),
+    );
+    if (["ACTIVE", "SUPPORTING", "CONTESTED"].includes(fact.status)) {
+      row.append(
+        button("更正", () => editFact(fact)),
+        button("撤回（保留历史）", () =>
+          addEdit({
+            kind: "FACT",
+            mode: "RETRACT",
+            subject_id: fact.subject_id,
+            predicate_key: fact.predicate_key,
+            scope_key: fact.scope_key,
+            assertion_id: fact.assertion_id,
+            expected_revision: Number(fact.current_revision),
+          }),
+        ),
+      );
+    }
+    $("world-list").append(row);
+  }
+  $("world-entities").replaceChildren();
+  for (const entity of data.entities) {
+    const row = element("div", null, "world-row");
+    row.append(
+      element(
+        "span",
+        `${entity.display_name} · ${entity.kind}${entity.retired_at ? " · 已停用" : ""}`,
+      ),
+    );
+    if (!entity.retired_at)
+      row.append(
+        button("编辑", () => {
+          editingEntity = entity;
+          $("entity-name").value = entity.display_name;
+          $("entity-kind").value = entity.kind;
+          $("entity-kind").disabled = true;
+          $("entity-key").value = entity.external_key ?? "";
+          $("entity-edit-status").textContent =
+            "修改实体 · r" + entity.revision;
+        }),
+        button("停用", () =>
+          addEdit({
+            kind: "ENTITY",
+            entity_id: entity.entity_id,
+            entity_kind: entity.kind,
+            display_name: entity.display_name,
+            external_key: entity.external_key,
+            expected_revision: Number(entity.revision),
+            retire: true,
+          }),
+        ),
+      );
+    $("world-entities").append(row);
+  }
+}
+async function loadWorld(next = false) {
+  const query = new URLSearchParams({
+    client,
+    subject: $("world-filter-subject").value,
+    predicate: $("world-filter-predicate").value,
+    history: String($("world-history").checked),
+  });
+  if (next && worldCursor) query.set("cursor", worldCursor);
+  const data = await api("world?" + query);
+  renderWorld(data);
+  $("world-feedback").textContent =
+    `本页 ${data.rows.length} 条；${data.next_cursor ? "还有下一页" : "已到末页"}`;
+}
+$("world-tab").onclick = async () => {
+  $("world-dialog").showModal();
+  try {
+    await reloadSettings();
+    await loadWorld();
+  } catch (e) {
+    worldError(e);
+  }
+};
+$("world-close").onclick = () => $("world-dialog").close();
+$("world-reload").onclick = () => loadWorld().catch(worldError);
+$("world-next").onclick = () => loadWorld(true).catch(worldError);
+function valueType() {
+  const predicate = worldData?.predicates.find(
+    (p) => p.predicate_key === $("world-predicate").value,
+  );
+  $("world-object-label").hidden = predicate?.value_type !== "ENTITY";
+  $("world-value-label").hidden = predicate?.value_type === "ENTITY";
+  $("world-value-help").textContent = predicate
+    ? `${predicate.description} · ${predicate.value_type}${predicate.unit ? " · " + predicate.unit : ""}；${predicate.value_type === "STRING" ? "直接填写文本" : predicate.value_type === "ENTITY" ? "选择关联实体" : "填写合法 JSON 值"}。约束：${JSON.stringify(predicate.value_schema)}`
+    : "";
+}
+$("world-predicate").onchange = valueType;
+function editFact(f) {
+  editingFact = f;
+  $("world-editor").open = true;
+  $("world-subject").value = f.subject_id;
+  updatePredicateOptions();
+  $("world-predicate").value = f.predicate_key;
+  $("world-scope").value = f.scope_key;
+  $("world-subject").disabled =
+    $("world-predicate").disabled =
+    $("world-scope").disabled =
+      true;
+  $("world-value").value =
+    typeof f.value === "string" ? f.value : JSON.stringify(f.value);
+  $("world-object").value = f.object_entity_id ?? "";
+  $("world-valid-from").value = f.valid_from;
+  $("world-valid-to").value = f.valid_to ?? "";
+  $("world-fresh-until").value = f.fresh_until ?? "";
+  $("world-conflict").value = "";
+  $("world-resolution").value = "";
+  $("world-edit-status").textContent =
+    `更正事实 · 预期版本 ${f.current_revision}`;
+  valueType();
+}
+$("world-new").onclick = () => {
+  editingFact = null;
+  $("world-form").reset();
+  $("world-subject").disabled =
+    $("world-predicate").disabled =
+    $("world-scope").disabled =
+      false;
+  $("world-edit-status").textContent = "新增事实";
+  valueType();
+};
+$("world-form").onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const predicate = worldData.predicates.find(
+      (p) => p.predicate_key === $("world-predicate").value,
+    );
+    const subject = $("world-subject").value,
+      scope = $("world-scope").value;
+    // Query the exact slot so a new assertion on an existing slot uses its current revision.
+    const exact = await api(
+      "world?" +
+        new URLSearchParams({
+          client,
+          subject,
+          predicate: predicate.predicate_key,
+          history: "true",
+          limit: "100",
+        }),
+    );
+    const slot = exact.rows.find((r) => r.scope_key === scope);
+    if (exact.next_cursor && !slot)
+      throw Error("此实体属性的范围过多，请先查询具体事实再更正。");
+    const edit = {
+      kind: "FACT",
+      mode: editingFact ? "CORRECT" : "ASSERT",
+      subject_id: subject,
+      predicate_key: predicate.predicate_key,
+      scope_key: scope,
+      expected_revision: editingFact
+        ? Number(editingFact.current_revision)
+        : Number(slot?.current_revision ?? 0),
+      value:
+        predicate.value_type === "ENTITY"
+          ? null
+          : predicate.value_type === "STRING"
+            ? $("world-value").value
+            : JSON.parse($("world-value").value),
+      object_entity_id:
+        predicate.value_type === "ENTITY" ? $("world-object").value : null,
+    };
+    if (editingFact) edit.assertion_id = editingFact.assertion_id;
+    for (const [field, control] of [
+      ["valid_from", "world-valid-from"],
+      ["valid_to", "world-valid-to"],
+      ["fresh_until", "world-fresh-until"],
+      ["resolve_conflict_id", "world-conflict"],
+      ["resolution_note", "world-resolution"],
+    ])
+      if ($(control).value) edit[field] = $(control).value;
+    await addEdit(edit);
+  } catch (error) {
+    worldError(error);
+  }
+};
+$("entity-new").onclick = () => {
+  editingEntity = null;
+  $("entity-form").reset();
+  $("entity-kind").disabled = false;
+  $("entity-edit-status").textContent = "新增实体";
+};
+$("entity-form").onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await addEdit({
+      kind: "ENTITY",
+      entity_id: editingEntity?.entity_id ?? crypto.randomUUID(),
+      entity_kind: $("entity-kind").value,
+      display_name: $("entity-name").value,
+      external_key: $("entity-key").value || null,
+      expected_revision: Number(editingEntity?.revision ?? 0),
+    });
+  } catch (error) {
+    worldError(error);
   }
 };
 try {

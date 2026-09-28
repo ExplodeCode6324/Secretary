@@ -13,6 +13,7 @@
 | Operation / AuthorizationRequest | scope、authorization_id、action、parameters_hash、display_hash | Authorization 绑定请求与作用；Master UI 决定 |
 | DecisionRequest | execution_id、deadline、answer_source | 执行者请求缺失信息；回答不能替代授权许可 |
 | WorldChange / WorldCommand | change_id、request_hash、operation_id、evidence | World 接受提案，经过许可后进入数据库事务 |
+| SettingsDraft / SettingsApplication | payload_ref、source_ref、candidate_ref、context_id、runtime_settings_hash | Settings 管理待应用内容、覆盖清单、候选进度和生效回执；Session/Context 关联生效版本 |
 | Notification | state、内容对象、来源 | Host 创建，UI 确认展示后变为 SENT |
 | JournalTransaction / OperationLogRecord | sequence、事件 ID、对象引用 | Store 在同帧提交对象状态、日志与幂等回执 |
 

@@ -56,3 +56,7 @@ AuthorizationRequest：PENDING → APPROVED / REJECTED；撤销与其他合法�
 | Execution.retention_state | HOT → RETIRED；已终结且无待处理工作才可归档 |
 
 48 小时留存阈值不是删除期限。归档保留证据，当前无历史 GC。状态字段的完整枚举见 [数据索引](data/README.md)，它们可能包含尚未走通的设计预留值。
+
+## 设置应用
+
+`SettingsApplication` 由 Settings 协调器推进：QUEUED → SUMMARIZING → COMMITTING（有 World 写入时）→ REBUILDING → APPLIED。确定未提交时为 FAILED；结果未知或提交后重建未完成为 BLOCKED。来源与候选按不可变引用保存，最后一帧同时提交记忆、说明、context 指针和 APPLIED。详细并发、重启和配置变化规则见[设置生效规范](settings-activation.md)。

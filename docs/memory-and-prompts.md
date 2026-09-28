@@ -4,13 +4,15 @@
 
 主会话使用 [instructions.ts](../src/pi_secretary/src/instructions.ts) 的 BASE_SYSTEM 与 Master 自定义说明。执行 Agent 使用 [task-prompt.ts](../src/pi_secretary/src/task-prompt.ts) 的专用 system prompt 和 `secretary.agent-task.v1` JSON 包。整理模型由 Host 构造摘要上下文。三者不共享任意可编辑 system prompt。
 
-Web「Secretary 说明」保存 UserInstructions 单例：最多 2000 个 Unicode 字符，拒绝部分控制字符，revision CAS 防止覆盖并发编辑；同文保存不增版本，空文关闭自定义部分。没有模型工具修改此设置。
+Web「Secretary 说明」先保存 SettingsDraft，统一应用成功后更新 UserInstructions 单例：最多 2000 个 Unicode 字符，拒绝部分控制字符，revision CAS 防止覆盖并发编辑；同文保存不增版本，空文关闭自定义部分。没有模型工具修改此设置。
 
-Host 领取输入时保存 MainPromptSnapshot，包含完整 system 消息、工具声明、基础 prompt 版本、说明版本与 system hash。修改说明只影响下一轮；中断恢复使用原快照。Context 保存 CHECKPOINT / MODEL_REQUEST、input_ids、记忆版本、pending tool IDs 和原始上下文对象。`wm_fact_versions`、`omitted_refs` 等当前构造为空，不能据字段存在宣称完整 World 版本追踪。
+Host 领取输入时保存 MainPromptSnapshot，包含完整 system 消息、工具声明、基础 prompt 版本、说明版本与 system hash。修改说明必须经过[统一设置生效流程](settings-activation.md)：完整摘要未覆盖来源并重建 context，成功后才处理下一轮；中断轮次仍使用原快照恢复。Context 保存 CHECKPOINT / MODEL_REQUEST、input_ids、记忆版本、pending tool IDs 和原始上下文对象。`wm_fact_versions`、`omitted_refs` 等当前构造为空，不能据字段存在宣称完整 World 版本追踪。
 
 ## Consciousness
 
-自动整理由原文字节阈值触发，默认 32768；`/compact` 可手动运行。Host 整理旧事项、新增事件、原始输入、工具摘录与当前任务状态。工具长输出保留原件引用，原始用户输入不通过摘要伪装成完整历史。
+自动整理由原文字节阈值触发，默认 32768；`/compact` 可手动运行；多个原文引用时转完整来源流程。设置应用不受此阈值限制，使用持久分片候选。Host 整理旧事项、新增事件、原始输入、工具摘录与当前任务状态。工具长输出保留原件引用，原始用户输入不通过摘要伪装成完整历史。
+
+以下重试与 STALE 规则描述普通单来源 CompactionJob；设置应用采用固定截止序号及分片候选，详见统一规范。
 
 候选提交需满足输入和版本边界；期间新增输入或版本变化会得到 STALE。最多两次尝试，第二次缩短工具摘录并提高预算，仍受模型输出上限约束；失败保留旧记忆和全部未覆盖原文，同来源自动重试受抑制。输出截断有独立错误提示。
 

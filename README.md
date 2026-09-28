@@ -24,6 +24,8 @@ npm run stop
 SECRETARY_DATA=.demo-data npm run stop
 ```
 
+WebUI 已提供 World Model 管理：实体与事实查询、登记、更正、撤回和历史记录。修改先保存草稿，一键应用时完整摘要工作上下文并重建 context；Secretary 说明遵循同一规则。使用及恢复边界见[设置生效规范](docs/settings-activation.md)。
+
 ## 仓库分类
 
 | 分类 | 内容 |
@@ -37,6 +39,24 @@ SECRETARY_DATA=.demo-data npm run stop
 
 ## 开发路线
 
-当前完成基本架构搭建。后续将完善 task 系统、system prompt、主会话工具、TUI 和 WebUI，优化 agent loop，使其更适配 Secretary 的工作模式；完善更接近日常使用、可持续衡量行为稳定性的 online 回归用例。
+### 基本架构搭建
+基本完成架构搭建，还需进行一系列后续优化。
 
-后续还将支持社交软件内容导入 World Model 人际关系、GitHub 等仓库状态导入 World Model 认知、移动应用、语音输入、生命体征监测。这些属于规划，当前没有对应的完整集成实现。
+### 后续架构改进规划
+1. 完善 task 系统
+当前缺陷：
+（仅针对task agent类任务）目前，task的生成机制是任何master的执行请求都会触发 task 生成，且同一个task没有接续工作的能力；不同的task没有互相查看的权限。举例：master让secretary做task A，返回结果后master提出了修改意见，要求做一遍更改要求后的task A，此时secretary无法复用task A的产出和上下文（task B没有访问task A的workspace的权限），需要重新创建task B，这样会有两个问题：1.任务产出/结论无法复用和审计，master让干了A，但是在结果不满意的时候无法审计task A，如果想修正A的规划接着干，只能靠secretary主会话塞入未必可靠的任务总结给task B。 2.master交互没有连贯性，造成了secretary在实际上无法独立完成长任务。
+task的缺陷使整个task系统都处于不可用的情况，
+2. system prompt
+当前缺陷：
+目前的system prompt还比较原始，没有根据架构特性把需要模型注意的部分着重处理。实际上对于deepseek v4.1 flash及以上能力的模型来说，上下文窗口是比较富裕的。目前还没有激发secretary主会话的主观能动性（根据当前的表现，secretary的主会话像一个听话但不聪明的本科生。）
+3. 主会话工具、TUI 和 WebUI
+4. 优化 agent loop，使其更适配 Secretary 的工作模式
+5. 完善更接近日常使用、可持续衡量行为稳定性的 online 回归用例。
+
+### 使用改进规划
+1. 支持社交软件内容导入 World Model 人际关系
+2. GitHub 等仓库状态导入 World Model 认知
+3. 移动应用
+4. 语音输入
+5. 生命体征监测。

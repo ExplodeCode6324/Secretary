@@ -35,6 +35,32 @@
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "enum": [
+              "SUCCEEDED",
+              "FAILED",
+              "CANCELLED",
+              "EXPIRED"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "ended_at": {
+            "$ref": "#/$defs/Time"
+          },
+          "result_id": {
+            "$ref": "#/$defs/ID"
+          }
+        }
+      }
+    }
+  ]
 }
 ```
