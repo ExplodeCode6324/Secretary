@@ -71,3 +71,14 @@ node --import tsx test_case/online/test-streaming-live.ts <指标报告路径>
 ```
 
 此探针读取本机 main 凭据，创建独立 Store，发送一次合成无工具请求；任务角色使用 fixture，结果检查没有新增任务或 Operation。报告只保存时间、状态与字符数，不保存 token 或思考原文。模型未返回可见思考时按实际记录，不能以 fixture 代替 LIVE_MODEL 结果。当前交付证据见[流式显示验收](../test_case/reports/streaming-20260929/README.md)。
+
+## 任务复用验收
+
+```sh
+npm run test:task-reuse
+npm run test:task-reuse:live -- deepseek-v4.1-flash
+```
+
+离线套件纳入 npm test，覆盖 A01–A15 的工具入口、快照、幂等、产物、授权、周期、留存和旧 journal 兼容；helpers/task-reuse-crash.ts 在受理前后、创建前后、分派后、Host 工具返回落盘前执行真实 SIGKILL，再核对持久恢复。故障与首次失败记录见[本轮报告](../test_case/reports/task-reuse-20260929/README.md)。
+
+在线入口按 O01–O06 使用真实主会话与任务模型，不向输入注入 task ID 或工具选择。每角色最多 48 次调用、100 次工具调用、总计 12 分钟、每次模型请求 60 秒；只批准隔离 workspace 内 report.md / separate-delivery.md 的 file.write。保留首次失败，未执行用例不能登记为通过。语言内容与真实文件检查只证明本组明确场景，不代表一般语义归并能力。

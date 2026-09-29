@@ -94,6 +94,12 @@ export class Store {
     if (!tx) throw Error("EVENT_NOT_COMMITTED");
     return tx;
   }
+  private planHistory = new Map<string, ObjectRef>();
+  taskPlanAt(taskID: string, revision: number) {
+    const ref = this.planHistory.get(`${taskID}:${revision}`);
+    if (!ref) throw Error("MISSING_HISTORICAL_PLAN");
+    return this.read<import("./contracts.ts").TaskPlan>(ref);
+  }
   private receipts = new Map<string, { hash: string; value: unknown }>();
   private constructor(dir: string, helper: ChildProcessWithoutNullStreams) {
     this.dir = dir;
@@ -200,9 +206,17 @@ export class Store {
   read<T>(ref: ObjectRef): T {
     return JSON.parse(this.bytes(ref).toString()) as T;
   }
-  receipt<T>(request: string, digest: string): T | undefined {
+  hasReceipt(request: string) {
+    return this.receipts.has(request);
+  }
+  receipt<T>(
+    request: string,
+    digest: string,
+    legacyDigests: string[] = [],
+  ): T | undefined {
     const r = this.receipts.get(request);
-    if (r && r.hash !== digest) throw Error("REQUEST_CONFLICT");
+    if (r && r.hash !== digest && !legacyDigests.includes(r.hash))
+      throw Error("REQUEST_CONFLICT");
     return r?.value as T | undefined;
   }
   event(
@@ -355,6 +369,13 @@ export class Store {
         )
           throw Error("INVALID_INPUT_TRANSITION");
       }
+      if (
+        old?.record_type === "Execution" &&
+        r.record_type === "Execution" &&
+        old.proposal_ref &&
+        old.proposal_ref.sha256 !== r.proposal_ref?.sha256
+      )
+        throw Error("EXECUTION_PROPOSAL_IMMUTABLE");
       staged.push(r);
     }
     const candidate = new Map(this.records);
@@ -392,6 +413,9 @@ export class Store {
     return staged;
   }
   private install(txn: JournalTransaction, digest: string, staged: Stored[]) {
+    for (const m of txn.mutations)
+      if (m.object_type === "TaskPlan")
+        this.planHistory.set(`${m.object_id}:${m.new_revision}`, m.snapshot);
     for (const r of staged) this.records.set(r.record_type + ":" + r.id, r);
     for (const e of txn.log_records) {
       this.eventSequence = e.sequence;

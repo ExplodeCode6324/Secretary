@@ -46,3 +46,15 @@ TUI `/help` 列出命令；常用 `/status`、`/tasks`、`/show`、`/task`、`/p
 ## 登记程序
 
 `/register-example` 登记示例；`/register {"entrypoint":"绝对路径","name":"名称"}` 登记 Node 脚本。派发前检查 revision 与代码 SHA-256。stdin 接收 ProgramInvocation JSON，stdout 输出 ProgramResult JSON，stderr 保存日志。授权以整个程序执行范围为单位，当前 `supports_resume=false`，没有任意程序现场恢复。
+
+## 同任务接续
+
+`task_propose` 的 `reuse_task_id` 与 `parent_execution_id` 同时非空时，在同一 Task 内登记一次即时执行。parent 必须是该任务最新已结束且尚未回收的执行；任务有活跃执行、待执行请求、已到期周期工作或未知操作时拒绝。非空 reuse 缺 parent 返回 `PARENT_REQUIRED`，复用失败不降级为新任务。只填 parent 保持原有新任务引用旧材料的语义。
+
+`goal` 是本轮完整目标；constraints、acceptance_criteria、deadline 省略或 null 从 parent 快照继承。显式数组完整替换该字段，空 constraints 有效，空 acceptance 拒绝。program_id 省略继承执行器，显式改变执行器拒绝；PROGRAM 保留原版本及参数，只把 goal 更新为本轮目标。复用不能传 at / interval_seconds。材料不具备修改正式要求的权威。
+
+回执仍包含 TaskPlan，并增加 acceptance 关联（request_id、task_id、occurrence_key、proposal_ref、execution_id 与当前状态）。尚未分派的 execution_id 为 null；旧版回执可能只有计划关联。同 ID 重投返回原受理，不重新接受。
+
+`task_query` 无参数提供可读任务列表；task_id 返回计划基线、最近执行要求、结果、产物、待决定事项、can_continue 与阻止原因；execution_id 保持执行详情入口。两个 ID 同时传入返回 `AMBIGUOUS_QUERY`。列表不刷新留存，具体热执行详情刷新；RETIRED 不重新激活。受理端重新验证权限和接续条件。
+
+`task_control` 增加 `cancel_request`，id 为已受理即时请求的 request_id。未分派时原子移除待执行项、释放 parent 并登记取消原因；已分派则进入现有执行取消流程。重复取消幂等；已取消请求重投不会再次执行。AT / INTERVAL 的计划请求不使用此入口。

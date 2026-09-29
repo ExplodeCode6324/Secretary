@@ -25,6 +25,7 @@ id 即 task_id；先保存计划再建幂等目录，agent 在可执行时由 di
 | `deadline` | Time 或 null | 是 |  关联：[Time](Time.md) |
 | `safety_rule_id` | ID | 是 |  关联：[ID](ID.md) |
 | `initialization_error` | string 或 null | 是 |  |
+| `pending_requests` | array<object> | 否 | 已受理即时请求的唯一待执行表示；旧记录缺省为空。周期时间点仍使用 pending_occurrences。 关联：[ID](ID.md), [ObjectRef](ObjectRef.md), [Time](Time.md) |
 
 ## 组合约束
 

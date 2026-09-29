@@ -21,7 +21,7 @@
 | `waiting_request_ids` | array<ID> | 是 |  {"minItems": 0} 关联：[ID](ID.md) |
 | `condition_results` | array<ConditionResult> | 是 |  {"minItems": 0} 关联：[ConditionResult](ConditionResult.md) |
 | `continuation_of` | ID 或 null | 是 |  关联：[ID](ID.md) |
-| `pending_followup_ids` | array<ID> | 是 |  {"minItems": 0} 关联：[ID](ID.md) |
+| `pending_followup_ids` | array<ID> | 是 | 待接续请求 ID，分派后换为子执行 ID；旧 parent-only 新建使用 task ID，结束或撤销释放。 {"minItems": 0} 关联：[ID](ID.md) |
 | `cancel_requested` | boolean | 是 |  |
 | `started_at` | Time 或 null | 是 |  关联：[Time](Time.md) |
 | `ended_at` | Time 或 null | 是 |  关联：[Time](Time.md) |
@@ -30,6 +30,7 @@
 | `result_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `checkpoint_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `unknown_operation_ids` | array<ID> | 是 |  {"minItems": 0} 关联：[ID](ID.md) |
+| `proposal_ref` | ObjectRef | 否 | 本轮不可变有效提案。旧执行按 plan_revision 从 journal 历史计划固定；不能读取最新计划代替。 关联：[ObjectRef](ObjectRef.md) |
 
 ## 组合约束
 

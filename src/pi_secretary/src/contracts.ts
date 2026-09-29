@@ -154,6 +154,8 @@ export type Execution = {
   condition_results: ConditionResult[];
   continuation_of: ID | null;
   /**
+   * 待接续请求 ID，分派后换为子执行 ID；旧 parent-only 新建使用 task ID，结束或撤销释放。
+   *
    * @minItems 0
    */
   pending_followup_ids: ID[];
@@ -171,6 +173,7 @@ export type Execution = {
    * @minItems 0
    */
   unknown_operation_ids: ID[];
+  proposal_ref?: ObjectRef3;
 };
 /**
  * 状态枚举对应 src/state_machine/catalog.json 的 Execution
@@ -258,7 +261,7 @@ export type AuthorizationRequest = {
   operation_id: ID;
   action: ActionScope;
   scope: Scope;
-  display_ref: ObjectRef4;
+  display_ref: ObjectRef5;
   display_hash: Digest;
   expires_at: Time | null;
   decision_id: ID | null;
@@ -634,9 +637,13 @@ export interface TaskProposal {
   parent_execution_id: ID | null;
   safety_rule_id: ID;
   /**
-   * null 创建新计划；非空表示按同目标/约束接续现有计划，须与 parent_execution_id 所属计划一致。
+   * null 新建计划；非空在同一工作内按本轮正式要求创建新执行，parent 必须是该任务最新已结束执行。计划基线不变。
    */
   reuse_task_id: ID | null;
+  /**
+   * 正式提供的来源材料引用；接续只继承这些来源，再装配直接 parent 的执行证据。context_refs 包含本轮全部来源及派生历史证据。旧提案按 checkpoint/result 原件关联识别来源。
+   */
+  source_context_refs?: ObjectRef[];
 }
 /**
  * 运行前提只引用已登记检查器，禁止运行模型提交的表达式。
@@ -698,6 +705,15 @@ export interface TaskPlan {
   deadline: Time | null;
   safety_rule_id: ID;
   initialization_error: string | null;
+  /**
+   * 已受理即时请求的唯一待执行表示；旧记录缺省为空。周期时间点仍使用 pending_occurrences。
+   */
+  pending_requests?: {
+    request_id: ID;
+    occurrence_key: ID;
+    due_at: Time;
+    proposal_ref: ObjectRef;
+  }[];
 }
 export interface ConditionResult {
   condition_id: ID;
@@ -708,6 +724,21 @@ export interface ConditionResult {
    */
   evidence: ObjectRef[];
   reason: string | null;
+}
+/**
+ * 不可变对象引用；必须校验内容散列。
+ */
+export interface ObjectRef3 {
+  path: RelativePath;
+  sha256: Digest;
+  /**
+   * 原始字节长度
+   */
+  bytes: number;
+  /**
+   * 如 application/json；不得用摘要代替原件。
+   */
+  media_type: string;
 }
 /**
  * Scheduler -> worker 固定分派；重复 attempt_id 返回既有回执，不重新起进程。
@@ -901,7 +932,7 @@ export interface ActionScope {
    * 规范化对象标识
    */
   resource: string;
-  parameters_ref: ObjectRef3;
+  parameters_ref: ObjectRef4;
   parameters_hash: Digest;
   expected_resource_revision: string | null;
   /**
@@ -912,7 +943,7 @@ export interface ActionScope {
 /**
  * 不可变对象引用；必须校验内容散列。
  */
-export interface ObjectRef3 {
+export interface ObjectRef4 {
   path: RelativePath;
   sha256: Digest;
   /**
@@ -927,7 +958,7 @@ export interface ObjectRef3 {
 /**
  * 不可变对象引用；必须校验内容散列。
  */
-export interface ObjectRef4 {
+export interface ObjectRef5 {
   path: RelativePath;
   sha256: Digest;
   /**
@@ -972,7 +1003,7 @@ export interface AuthorizationRule {
    * @minItems 1
    */
   resource_prefixes: string[];
-  parameter_constraints: ObjectRef5;
+  parameter_constraints: ObjectRef6;
   valid_from: Time;
   expires_at: Time | null;
   created_by: "MASTER_UI";
@@ -981,7 +1012,7 @@ export interface AuthorizationRule {
 /**
  * 不可变对象引用；必须校验内容散列。
  */
-export interface ObjectRef5 {
+export interface ObjectRef6 {
   path: RelativePath;
   sha256: Digest;
   /**
@@ -1089,7 +1120,7 @@ export interface OperationLogRecord {
   occurred_at: Time;
   recorded_at: Time;
   actor: "MASTER_UI" | "MAIN" | "EXECUTOR" | "SCHEDULER" | "HOST" | "PROGRAM";
-  payload: ObjectRef6;
+  payload: ObjectRef7;
   causation_id: ID | null;
   correlation_id: ID;
   /**
@@ -1100,7 +1131,7 @@ export interface OperationLogRecord {
 /**
  * 不可变对象引用；必须校验内容散列。
  */
-export interface ObjectRef6 {
+export interface ObjectRef7 {
   path: RelativePath;
   sha256: Digest;
   /**
@@ -1591,12 +1622,12 @@ export interface SettingsDraft {
   revision: number;
   updated_at: Time;
   record_type: "SettingsDraft";
-  payload_ref: ObjectRef7;
+  payload_ref: ObjectRef8;
 }
 /**
  * 不可变对象引用；必须校验内容散列。
  */
-export interface ObjectRef7 {
+export interface ObjectRef8 {
   path: RelativePath;
   sha256: Digest;
   /**

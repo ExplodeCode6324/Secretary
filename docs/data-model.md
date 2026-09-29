@@ -28,3 +28,9 @@ TaskPlan 的 ID 即 task_id，一个 plan 可产生多个周期 Execution；Exec
 Context.messages 的 source_event_ids、omitted_refs 和 wm_fact_versions 当前未全面填充；tools_schema 保存系统消息集合，不能误解为另外一套独立、完整的工具 schema 注册表。精确的请求上下文还保存在 ModelCall.request 和主会话 prompt 快照中。
 
 状态枚举的所有值由 schema 接受，不表示所有迁移已被运行时实现。字段上的来源说明和模型声明需要和原件、操作回执、数据库 receipt 对照；结构合法不等于内容真实。
+
+## 每轮任务要求
+
+TaskPlan.proposal_ref 是计划基线；Execution.proposal_ref 是本轮不可变有效提案，不能互相替代。接续要求从指定最新 parent 的快照继承，显式修订形成新对象，E1 的要求和产物不随 E2 工作文件变化。TaskPlan.pending_requests 保存即时请求，周期时间点仍由 pending_occurrences 保存；省略新增字段的旧记录按[持久化兼容规则](persistence.md)读取。
+
+TaskProposal.source_context_refs 标记正式来源，context_refs 则包含本轮全部来源和直接 parent 的派生证据。只继承来源可避免把旧提示包递归嵌入后续执行；完整原始 checkpoint 仍由持久引用保留。

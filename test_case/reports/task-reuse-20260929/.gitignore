@@ -1,0 +1,4 @@
+# Raw runtime evidence stays local; publish only the reviewed synthetic summary.
+*.json
+*.tap
+*.log

@@ -63,3 +63,9 @@ Web 静态资源在 `src/pi_secretary/web`；人工程序示例在 `src/pi_secre
 `/api/stream` 使用经过同源、Bearer token 和 client 校验的 SSE，前端通过带 Authorization header 的 fetch 接收；每 100ms 合并发送变化快照、每约 10 秒发送心跳。快照自带独立版本，重连从当前快照继续；客户端不共享消费队列。慢客户端积压超过 512KiB 时断开以便重连，连接关闭清理定时器。`/api/state` 继续以 700ms 轮询更新持久状态、任务和授权。两个接口仅在 `thinking=1` 时投影可见思考字段。
 
 前端按调用或消息 ID 复用节点，保留折叠状态，用户位于底部时才跟随滚动。显示偏好变更会使状态缓存失效，并阻止旧请求把已隐藏的思考重新写入页面；不经过全局 Settings 生效流程。
+
+## 任务身份与执行轮次
+
+主会话可自行推理、分析材料和解释结果；文件操作、外部动作和需要独立执行上下文的工作才交给任务执行者。对同一工作的修改，通过 task_propose 复用 Task 身份，按轮次创建独立 Execution。TaskPlan 保留最初提案与周期安排，Execution 的 proposal_ref 固定本轮目标、约束、验收、前提、截止时间及执行器。恢复旧 Execution 不等于创建接续轮次。
+
+Scheduler 在单次 journal 提交中登记即时请求、回执和 parent 留存保护；tick 在单次提交中消费请求并创建执行。work 目录按 Task 共享，结果、checkpoint 与不可变产物按 Execution 保存。每个 Task 同时最多一个活跃执行或待执行接续；本阶段只接续最新终结执行，不提供历史分支、运行中追加要求或归档恢复。

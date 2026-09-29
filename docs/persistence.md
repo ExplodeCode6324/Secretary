@@ -31,3 +31,15 @@
 ## 设置批次恢复
 
 PostgreSQL 的 settings_batch_receipt 确认事实批次是否提交，Store 的 SettingsApplication 确认摘要与 context 是否完成切换。跨域状态不假装原子提交：数据库结果未知时保持 gate，锁定回执查询后再恢复；确认数据库成功后必须完成本地重建。见[统一生效协议](settings-activation.md)。
+
+## 即时请求与要求快照兼容
+
+TaskPlan.pending_requests 是即时请求的唯一待执行表示，每项记录 request_id、occurrence_key、due_at、proposal_ref。pending_occurrences 继续只保存周期时间点。新即时请求以 request_id 作为发生键，唯一性为 task_id + occurrence_key；Execution.proposal_ref 保存不可变的本轮完整提案。取消或分派后从队列移除，历史受理关联保留在 task.request.accepted 事件和回执中；移除原因保存在 task.request.removed。
+
+Store 重放时建立 TaskPlan 历史版本索引。旧 Execution 缺少 proposal_ref 时，Scheduler 按其 plan_revision 找到对应历史提案并持久固定，找不到则阻塞启动，不退回最新计划。旧 pending_requests 缺省为空，旧 once 仍只执行一次；新代码保留旧请求指纹的有限兼容读取。CREATED 中断恢复到 WAIT_PRECONDITION，DISPATCHING / RUNNING 中断保持 RESULT_UNKNOWN 守卫。
+
+暂停计划保留待执行接续；CLOSED 计划清除待执行项并释放 parent。请求取消、分派和子执行结束均更新 parent 的 pending_followup_ids，避免自身依赖。
+
+新增字段是向前读取兼容，不保证旧代码读取升级后的 journal。部署前必须备份完整目录并保留兼容读取版本；产生新执行或副作用后不能仅退回旧代码或恢复旧备份。应停止新派发，使用支持新契约的修复版本继续核验和恢复，保留全部操作回执。尚未产生新操作时，可在另一个隔离副本验证升级前备份；不得借回滚重放已发生的外部操作。
+
+主会话在 Scheduler 已提交回执、Host 工具结果尚未保存的窗口中断时，仅对具有持久回执的 task_propose 重建结果。其他未确认工具仍进入 RECOVERY_BLOCKED。接续材料的来源与派生证据由 TaskProposal.source_context_refs 区分；checkpoint 原件保留，模型输入只投影直接 parent 的 assistant/toolResult 证据，不递归嵌入旧分派包。

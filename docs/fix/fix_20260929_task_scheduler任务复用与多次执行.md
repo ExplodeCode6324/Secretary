@@ -1,7 +1,7 @@
 # Task Scheduler 一阶段：任务复用与多次执行修复计划
 
 - 日期：2026-09-29。
-- 状态：修复计划已形成，待 Codex 实施；本次仅新增本文，未修改实现代码、未执行实现验收、未部署。
+- 状态：Master 已授权开发与隔离测试；实现已完成，最终验收记录见本文末尾与验收报告。未部署。
 - 核查基线：`main` / `7f4cf24f2d3c14223bea8cfc5cdc5b32291a0c11`。当前 Pi 实现位于 `src/pi_secretary`，命令从仓库根目录运行。实施时先记录实际 HEAD，保留基线之后的其他改动。
 - 授权边界：Master 本次要求编写计划，随后交 Codex 执行。Codex 收到实施指令后按本文开发和隔离测试；不由此自动获得部署、重启现用服务、修改现用数据或清理工作目录的授权。
 - 进度记录：实施时在本文逐项补充修改文件、验证命令、证据、失败和剩余事项。未执行、失败和跳过不能登记为通过。
@@ -181,12 +181,12 @@ T1 / R3 → key=R3 → E3
 ## 4. 实施顺序与进度
 
 - [x] P0：核对一阶段需求、现有 `docs/fix/` 文档格式及当前核心代码，形成修复计划；未实施运行代码。
-- [ ] P1：冻结工具输入、继承规则、执行快照、待执行表示和兼容策略；记录新字段及错误语义，先补关键失败用例。
-- [ ] P2：实现 Scheduler 新建/复用分支、快照读取、workspace/parent 关联、即时请求登记与消费、幂等和恢复。
-- [ ] P3：贯通 Host 复用参数及任务级查询，修改主会话说明与执行提示；核对授权、未知结果、普通决定入口不被绕过。
-- [ ] P4：执行定向离线测试、旧数据/崩溃恢复测试和既有回归，修复发现的问题。
-- [ ] P5：执行隔离的真实模型多轮用例，记录首次行为、实际 task/execution 关系、产物及失败原因。
-- [ ] P6：同步生成契约页、当前项目文档和测试 README，核对最终代码差异，提交验收报告与限制；不自动部署。
+- [x] P1：冻结工具输入、继承规则、执行快照、待执行表示和兼容策略；记录新字段及错误语义，先补关键失败用例。
+- [x] P2：实现 Scheduler 新建/复用分支、快照读取、workspace/parent 关联、即时请求登记与消费、幂等和恢复。
+- [x] P3：贯通 Host 复用参数及任务级查询，修改主会话说明与执行提示；核对授权、未知结果、普通决定入口不被绕过。
+- [x] P4：执行定向离线测试、旧数据/崩溃恢复测试和既有回归，修复发现的问题。
+- [x] P5：执行隔离的真实模型多轮用例，记录首次行为、实际 task/execution 关系、产物及失败原因。
+- [x] P6：同步生成契约页、当前项目文档和测试 README，核对最终代码差异，提交验收报告与限制；不自动部署。
 
 预期修改重点：`instructions.ts`、`host.ts`、`scheduler.ts`、`task-prompt.ts`、契约源及生成文件，必要的 Store 兼容读取、测试和文档。优先复用现有模块，不修改 `src/pi_resource` 的 Pi 子模块，不触碰无关的 World Model、显示设置或用户未提交改动。
 
@@ -267,4 +267,29 @@ git diff --check
 
 若持久字段发生变化，不能简单声称恢复旧代码即可回退：必须先验证旧代码是否能读取新 journal，或提供明确的兼容版本/迁移回退方案。不删除已产生的新执行、操作回执或产物来制造兼容状态；不通过回滚历史来重做可能已发生的外部操作。
 
-当前完成记录：仅计划编写完成。P1–P6、所有实现验收和部署均未完成；由实施者根据真实证据更新。
+当前完成记录：P1–P6 已完成；A01–A15 与 O01–O06 结果和首次失败见验收报告。部署未授权、未执行。
+
+
+## 8. 实施冻结与问题反馈（2026-09-29）
+
+Master 授权执行本计划及评估补充边界，并要求严格测试、遇到问题及时反馈。实际开发基线为 28ec06a，未改动 Pi 子模块或现用实例。
+
+### 最终字段与语义
+
+- TaskPlan.pending_requests 为唯一即时待执行字段，条目为 request_id、occurrence_key、due_at、proposal_ref。新即时任务及接续均以 request_id 为执行键；周期 pending_occurrences 保持时间点语义。
+- Execution.proposal_ref 固定本轮有效提案，Store 禁止后续覆盖。旧执行以 journal 历史 TaskPlan 的 plan_revision 固定来源；旧 once 和旧回执兼容。
+- TaskProposal.source_context_refs 区分来源材料与派生执行证据，context_refs 保存本轮全部引用。新执行只继承来源，再装配直接 parent 的 checkpoint、结果和操作/决定证据。提示包展示 checkpoint 的 assistant/toolResult 内容，保留原始引用，排除旧 system/assignment 包及 thinking；完整原件未删除或改写。
+- parent 必须是本任务最新执行；历史分支不纳入本阶段。PROGRAM 不改变身份/版本，保留参数并明确更新 goal，按登记 schema 检查。
+- task_control.cancel_request 在分派前取消请求、释放 parent；分派后转现有 cancel。计划 PAUSED 保留队列，CLOSED 拒绝并释放。任务查询 latest_request 可读取取消/拒绝原因。
+- 接续错误包含 PARENT_REQUIRED、PARENT_TASK_MISMATCH、PARENT_NOT_LATEST、PARENT_NOT_RESUMABLE、PLAN_NOT_ACTIVE、TASK_BUSY、TASK_BUSY_PERIODIC、UNRESOLVED_OPERATION、WORKSPACE_MISSING_OR_UNSAFE、EXECUTOR_CHANGE_NOT_ALLOWED、REUSE_TRIGGER_NOT_ALLOWED、REQUEST_CONFLICT；非法结构沿用契约错误。
+
+### 已反馈的问题与修复
+
+1. 恢复 WAIT_PRECONDITION→READY 后扫描仍持有旧状态：刷新执行记录后继续分派。
+2. Scheduler 已接受、Host 工具结果未落盘时 SIGKILL 导致 RECOVERY_BLOCKED：仅对已存在持久回执的 task_propose 重建结果，不重放未知工具。
+3. 首轮真实模型额外请求 wc/file，超出隔离测试授权：停止并保留失败；测试任务补清“只读写报告、不运行命令”，没有放宽授权。
+4. 第二轮 O01–O04 通过，O05 正确复用任务但历史提示包递归嵌入造成约 778 KB 材料并触发 CAPACITY_BLOCKED：新增来源/历史区分及非递归装配，补充连续 12 次接续回归；重新执行真实模型验收。此项是对材料继承细节的必要修正，已向 Master 反馈。
+
+验收命令、逐项结果、失败原件和回退限制见[验收报告](../../test_case/reports/task-reuse-20260929/README.md)。
+
+最终真实模型第三轮 O01–O06 通过，2 Task / 5 SUCCEEDED Execution，代码 hash 与最终实现匹配。前两轮失败未覆盖；独立内容复核和测试计数器修正均在报告中单列。

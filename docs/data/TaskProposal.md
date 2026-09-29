@@ -23,7 +23,8 @@
 | `context_refs` | array<ObjectRef> | 是 |  {"minItems": 0} 关联：[ObjectRef](ObjectRef.md) |
 | `parent_execution_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `safety_rule_id` | ID | 是 |  关联：[ID](ID.md) |
-| `reuse_task_id` | ID 或 null | 是 | null 创建新计划；非空表示按同目标/约束接续现有计划，须与 parent_execution_id 所属计划一致。 关联：[ID](ID.md) |
+| `reuse_task_id` | ID 或 null | 是 | null 新建计划；非空在同一工作内按本轮正式要求创建新执行，parent 必须是该任务最新已结束执行。计划基线不变。 关联：[ID](ID.md) |
+| `source_context_refs` | array<ObjectRef> | 否 | 正式提供的来源材料引用；接续只继承这些来源，再装配直接 parent 的执行证据。context_refs 包含本轮全部来源及派生历史证据。旧提案按 checkpoint/result 原件关联识别来源。 关联：[ObjectRef](ObjectRef.md) |
 
 ## 组合约束
 

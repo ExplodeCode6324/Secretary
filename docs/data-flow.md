@@ -51,3 +51,9 @@ Consciousness 整理读取旧事项、原始输入/事件、任务状态和承�
 模型/TUI World 提案先持久化 WorldCommand/Operation，批准后进入 Settings 协调器。Master 管理页先保存草稿，一键应用记录明确的 Master 证据；两种入口均在完整摘要和 context 容量检查后执行 PostgreSQL 批次事务。事务写 change_receipt 与 audit_outbox；drain 将数据库事实提交回执桥接到 journal，再标记 outbox 已导出。这是两个持久化域的可恢复桥接，不是跨数据库和文件系统的原子事务。
 
 实现依据：[host.ts](../src/pi_secretary/src/host.ts)、[scheduler.ts](../src/pi_secretary/src/scheduler.ts)、[world.ts](../src/pi_secretary/src/world.ts)。
+
+## 已完成任务的接续
+
+Master 补充要求 → Host 发现/查询原 Task → task_propose(reuse_task_id, parent_execution_id) → Scheduler 校验最新 parent、执行空闲、资料和 workspace → 固定有效提案 → 同一 journal 提交回执、pending_requests 与 parent 保护 → tick 原子消费并创建带 proposal_ref 的新 Execution → 现有授权与执行流程 → 保存新结果和不可变产物 → 释放 parent 保护并反馈。
+
+重复请求先重放回执，不能因已受理后任务繁忙而拒绝原请求。普通结果解释由主会话直接处理；新独立交付创建新 Task，parent-only 仍是新任务引用旧材料。

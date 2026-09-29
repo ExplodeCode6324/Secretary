@@ -321,11 +321,39 @@ export class Host {
           call.name,
           call.arguments,
         );
-        const log = this.store.logs.find(
+        let log = this.store.logs.find(
           (l) =>
             l.event_type === "main.tool.result" &&
             this.store.read<{ key: string }>(l.payload).key === key,
         );
+        // Scheduler acceptance and Host tool-result are distinct journal commits.
+        // Reconcile only a proven durable proposal receipt, never replay arbitrary effects.
+        if (
+          !log &&
+          call.name === "task_propose" &&
+          this.store.hasReceipt(stableID(key))
+        ) {
+          const value = this.proposeTask(
+            call.arguments as Parameters<Host["proposeTask"]>[0],
+            stableID(key),
+          );
+          this.store.commit(
+            [],
+            [
+              this.store.event(
+                "main.tool.result",
+                { key, result: value },
+                {
+                  session_id: this.sessionID,
+                  task_id: null,
+                  execution_id: null,
+                },
+                "MAIN",
+              ),
+            ],
+          );
+          log = this.store.logs.at(-1)!;
+        }
         if (!log)
           throw Error(
             "RECOVERY_BLOCKED: pending tool result requires reconciliation",
@@ -610,6 +638,36 @@ export class Host {
       ),
     ]);
   }
+  private proposeTask(
+    args: {
+      goal: string;
+      reuse_task_id?: string | null;
+      parent_execution_id?: string | null;
+      program_id?: string | null;
+      at?: string | null;
+      interval_seconds?: number | null;
+      materials?: string[] | null;
+      constraints?: string[] | null;
+      acceptance_criteria?: string[] | null;
+      deadline?: string | null;
+    },
+    call: string,
+  ) {
+    return result({
+      ...this.scheduler.propose(args.goal, call, this.sessionID, {
+        reuse: args.reuse_task_id ?? undefined,
+        programID: args.program_id ?? undefined,
+        at: args.at ?? undefined,
+        interval: args.interval_seconds ?? undefined,
+        parent: args.parent_execution_id ?? undefined,
+        materials: args.materials ?? undefined,
+        constraints: args.constraints ?? undefined,
+        acceptance: args.acceptance_criteria ?? undefined,
+        deadline: args.deadline ?? undefined,
+      }),
+      acceptance: this.scheduler.requestStatus(call),
+    });
+  }
   private tools(loopID: string): AgentTool[] {
     const wrap = (tools: AgentTool[]) =>
       tools.map(
@@ -683,9 +741,12 @@ export class Host {
         name: "task_propose",
         label: "Propose task",
         description:
-          "Submit AGENT task by default; PROGRAM only with a registered program_id. Scheduler generates the executor packet. Include all relevant constraints and materials. Use null for unspecified optional fields; do not invent program IDs, dates or deadlines.",
+          "Submit new AGENT task by default; PROGRAM only with a registered program_id. For revisions of existing work, use reuse_task_id and its latest ended parent_execution_id; query tasks when identity or requirements are unclear. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace that field, so preserve unchanged requirements. goal is this round's complete goal. No at/interval on reuse. Independent deliverables use a new task. Scheduler generates the executor packet. Include all relevant constraints and materials. Use null for unspecified optional fields; do not invent program IDs, dates or deadlines.",
         parameters: Type.Object({
           goal: Type.String(),
+          reuse_task_id: Type.Optional(
+            Type.Union([Type.String(), Type.Null()]),
+          ),
           materials: Type.Optional(
             Type.Union([Type.Array(Type.String()), Type.Null()]),
           ),
@@ -705,51 +766,44 @@ export class Host {
           ),
           deadline: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         }),
-        execute: async (call, args) =>
-          result(
-            this.scheduler.propose(args.goal, call, this.sessionID, {
-              programID: args.program_id ?? undefined,
-              at: args.at ?? undefined,
-              interval: args.interval_seconds ?? undefined,
-              parent: args.parent_execution_id ?? undefined,
-              materials: args.materials ?? undefined,
-              constraints: args.constraints ?? undefined,
-              acceptance: args.acceptance_criteria ?? undefined,
-              deadline: args.deadline ?? undefined,
-            }),
-          ),
+        execute: async (call, args) => this.proposeTask(args, call),
       }),
       tool({
         name: "task_query",
         label: "Query tasks",
-        description: "List tasks/capabilities or read exact execution details.",
+        description:
+          "Discover tasks with readable goals and continuation eligibility, read task baseline/latest requirements and results by task_id, or exact execution details by execution_id. Supply at most one ID.",
         parameters: Type.Object({
+          task_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
           execution_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         }),
         execute: async (_call, args) =>
           result(
-            args.execution_id
-              ? this.scheduler.detail(args.execution_id)
-              : {
-                  plans: this.store.all("TaskPlan"),
-                  executions: this.store.all("Execution"),
-                  programs: this.store.all("ProgramRegistration"),
-                  decisions: this.store.all("DecisionRequest"),
-                },
+            this.scheduler.query(
+              this.sessionID,
+              args.task_id,
+              args.execution_id,
+            ),
           ),
       }),
       tool({
         name: "task_control",
         label: "Control tasks",
         description:
-          "Cancel execution or answer ordinary decision. Cannot approve authorization.",
+          "Cancel execution, cancel_request using the accepted request_id (also cancels its execution if dispatched), or answer ordinary decision. Cannot approve authorization.",
         parameters: Type.Object({
-          action: Type.Union([Type.Literal("cancel"), Type.Literal("answer")]),
+          action: Type.Union([
+            Type.Literal("cancel"),
+            Type.Literal("cancel_request"),
+            Type.Literal("answer"),
+          ]),
           id: Type.String(),
           answer: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         }),
         execute: async (call, args) => {
-          if (args.action === "cancel") this.scheduler.cancel(args.id);
+          if (args.action === "cancel_request")
+            this.scheduler.cancelRequest(args.id, this.sessionID);
+          else if (args.action === "cancel") this.scheduler.cancel(args.id);
           else this.scheduler.answer(args.id, args.answer, call);
           return result({ accepted: true });
         },

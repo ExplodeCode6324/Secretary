@@ -85,25 +85,69 @@ export class Scheduler {
     requestID = id(),
     sessionID: string,
     options: {
-      programID?: string;
-      at?: string;
-      interval?: number;
-      parent?: string;
-      materials?: string[];
-      constraints?: string[];
-      acceptance?: string[];
-      deadline?: string;
-      preconditions?: Precondition[];
+      reuse?: string | null;
+      programID?: string | null;
+      at?: string | null;
+      interval?: number | null;
+      parent?: string | null;
+      materials?: string[] | null;
+      constraints?: string[] | null;
+      acceptance?: string[] | null;
+      deadline?: string | null;
+      preconditions?: Precondition[] | null;
     } = {},
   ): TaskPlan {
     if (!goal.trim()) throw Error("EMPTY_GOAL");
-    const fingerprint = hash(JSON.stringify({ goal, options, sessionID }));
-    const old = this.store.receipt<string>(requestID, fingerprint);
+    if (options.reuse != null && !options.reuse.trim())
+      throw Error("INVALID_REUSE_TASK");
+    const normalized = Object.fromEntries(
+      Object.entries(options)
+        .filter(([, v]) => v != null)
+        .sort(([a], [b]) => a.localeCompare(b)),
+    );
+    const fingerprint = hash(
+      JSON.stringify({ version: 2, goal, options: normalized, sessionID }),
+    );
+    // Preserve the old direct-call and Host field order when replaying v1 receipts.
+    const { reuse: _reuse, ...legacyOptions } = options;
+    const hostOptions = {
+      programID: options.programID ?? undefined,
+      at: options.at ?? undefined,
+      interval: options.interval ?? undefined,
+      parent: options.parent ?? undefined,
+      materials: options.materials ?? undefined,
+      constraints: options.constraints ?? undefined,
+      acceptance: options.acceptance ?? undefined,
+      deadline: options.deadline ?? undefined,
+    };
+    const legacy = options.reuse
+      ? []
+      : [
+          legacyOptions,
+          ...(options.preconditions == null ? [hostOptions] : []),
+        ].map((options) => hash(JSON.stringify({ goal, options, sessionID })));
+    const old = this.store.receipt<string>(requestID, fingerprint, legacy);
     if (old) return this.store.get<TaskPlan>("TaskPlan", old);
     if (options.at && !Number.isFinite(Date.parse(options.at)))
       throw Error("INVALID_TRIGGER");
-    if (options.interval && options.interval < 1)
+    if (
+      options.interval != null &&
+      (!Number.isFinite(options.interval) || options.interval < 1)
+    )
       throw Error("INVALID_INTERVAL");
+    if (
+      options.deadline != null &&
+      !Number.isFinite(Date.parse(options.deadline))
+    )
+      throw Error("INVALID_DEADLINE");
+    if (options.reuse)
+      return this.continueTask(
+        goal,
+        requestID,
+        sessionID,
+        options,
+        fingerprint,
+      );
     const program = options.programID
       ? this.store.get<ProgramRegistration>(
           "ProgramRegistration",
@@ -172,6 +216,9 @@ export class Scheduler {
       context_refs: (options.materials ?? []).map((text) =>
         this.store.put(text, "text/plain"),
       ),
+      source_context_refs: (options.materials ?? []).map((text) =>
+        this.store.put(text, "text/plain"),
+      ),
       parent_execution_id: options.parent ?? null,
       safety_rule_id: safety.id,
       reuse_task_id: null,
@@ -187,8 +234,11 @@ export class Scheduler {
       : null;
     if (parent) {
       const parentPlan = this.store.get<TaskPlan>("TaskPlan", parent.task_id);
-      const original = this.store.read<TaskProposal>(parentPlan.proposal_ref);
-      proposal.context_refs.push(...original.context_refs);
+      this.assertAccess(parentPlan, sessionID);
+      const original = this.proposalFor(parent);
+      const sources = this.sourceRefs(original);
+      proposal.source_context_refs!.push(...sources);
+      proposal.context_refs.push(...sources);
       if (parent.checkpoint_id) {
         const cp = this.store.get<Checkpoint>(
           "Checkpoint",
@@ -214,8 +264,20 @@ export class Scheduler {
       preconditions: proposal.preconditions,
       executor: proposal.executor,
       feedback_policy: proposal.feedback_policy,
-      next_due_at: options.at ?? now(),
+      next_due_at:
+        proposal.trigger.kind === "IMMEDIATE" ? null : (options.at ?? now()),
       pending_occurrences: [],
+      pending_requests:
+        proposal.trigger.kind === "IMMEDIATE"
+          ? [
+              {
+                request_id: requestID,
+                occurrence_key: requestID,
+                due_at: proposal.submitted_at,
+                proposal_ref: this.store.put(proposal),
+              },
+            ]
+          : [],
       active_execution_ids: [],
       deadline: proposal.deadline,
       safety_rule_id: safety.id,
@@ -235,6 +297,13 @@ export class Scheduler {
           : []),
       ],
       [
+        this.store.event("task.request.accepted", {
+          request_id: requestID,
+          task_id: taskID,
+          occurrence_key:
+            proposal.trigger.kind === "IMMEDIATE" ? requestID : null,
+          proposal_ref: plan.proposal_ref,
+        }),
         this.store.event(
           "task.proposed",
           proposal,
@@ -246,6 +315,443 @@ export class Scheduler {
     );
     this.initialize(taskID);
     return this.store.get<TaskPlan>("TaskPlan", taskID);
+  }
+  proposalFor(e: Execution): TaskProposal {
+    return this.store.read<TaskProposal>(
+      e.proposal_ref ??
+        this.store.taskPlanAt(e.task_id, e.plan_revision).proposal_ref,
+    );
+  }
+  private sourceRefs(proposal: TaskProposal) {
+    if (proposal.source_context_refs) return proposal.source_context_refs;
+    // Old proposals mixed source materials and derived checkpoint/result evidence.
+    const derived = new Set([
+      ...this.store
+        .all<Checkpoint>("Checkpoint")
+        .flatMap((cp) => (cp.raw_context ? [cp.raw_context.sha256] : [])),
+      ...this.store
+        .all<TaskResult>("TaskResult")
+        .map((r) => r.detail_ref.sha256),
+    ]);
+    return proposal.context_refs.filter((ref) => !derived.has(ref.sha256));
+  }
+  private promptMaterials(proposal: TaskProposal) {
+    const checkpoints = new Set(
+      this.store
+        .all<Checkpoint>("Checkpoint")
+        .flatMap((cp) => (cp.raw_context ? [cp.raw_context.sha256] : [])),
+    );
+    const sources = new Set(this.sourceRefs(proposal).map((ref) => ref.sha256));
+    return proposal.context_refs.map((ref) => {
+      if (!checkpoints.has(ref.sha256) || sources.has(ref.sha256))
+        return this.store.bytes(ref).toString();
+      const messages = this.store.read<AgentMessage[]>(ref);
+      // Preserve the immutable raw reference, but do not recursively embed prior system/assignment packets.
+      return {
+        kind: "parent_execution_evidence",
+        raw_context_ref: ref,
+        messages: messages
+          .filter((m) => m.role === "assistant" || m.role === "toolResult")
+          .map((m) => ({
+            role: m.role,
+            ...(m.role === "toolResult"
+              ? { toolName: m.toolName, isError: m.isError }
+              : {}),
+            content: Array.isArray(m.content)
+              ? m.content.filter((part) => part.type !== "thinking")
+              : m.content,
+          })),
+      };
+    });
+  }
+  private assertAccess(p: TaskPlan, sessionID: string) {
+    if (this.store.read<TaskProposal>(p.proposal_ref).session_id !== sessionID)
+      throw Error("TASK_NOT_ACCESSIBLE");
+  }
+  private validateWorkspace(p: TaskPlan) {
+    if (p.workspace !== p.id) throw Error("WORKSPACE_OWNER");
+    const root = path.join(this.workspace, p.workspace);
+    for (const dir of [
+      root,
+      path.join(root, "work"),
+      path.join(root, "executions"),
+    ]) {
+      if (
+        !fs.existsSync(dir) ||
+        !fs.lstatSync(dir).isDirectory() ||
+        fs.lstatSync(dir).isSymbolicLink()
+      )
+        throw Error("WORKSPACE_MISSING_OR_UNSAFE");
+    }
+    const manifest = path.join(root, "workspace.json");
+    if (
+      fs.lstatSync(manifest).isSymbolicLink() ||
+      JSON.parse(fs.readFileSync(manifest, "utf8")).task_id !== p.id
+    )
+      throw Error("WORKSPACE_OWNER");
+    // Also validate the ancestors using the same policy as execution file tools.
+    this.safePath(p.id, "workspace-validation");
+  }
+  private continuationParent(p: TaskPlan, parentID: string, sessionID: string) {
+    this.assertAccess(p, sessionID);
+    if (p.state !== "ACTIVE") throw Error("PLAN_NOT_ACTIVE");
+    const es = this.store
+      .all<Execution>("Execution")
+      .filter((e) => e.task_id === p.id);
+    const parent = this.store.get<Execution>("Execution", parentID);
+    if (parent.task_id !== p.id) throw Error("PARENT_TASK_MISMATCH");
+    if (es.some((e) => !terminal(e)) || (p.pending_requests?.length ?? 0))
+      throw Error("TASK_BUSY");
+    if (!terminal(parent) || parent.retention_state === "RETIRED")
+      throw Error("PARENT_NOT_RESUMABLE");
+    if (es.at(-1)?.id !== parent.id) throw Error("PARENT_NOT_LATEST");
+    if (
+      es.some((e) => e.unknown_operation_ids.length) ||
+      this.store
+        .all<Operation>("Operation")
+        .some(
+          (o) =>
+            o.scope.task_id === p.id &&
+            [
+              "WAIT_AUTH",
+              "AUTHORIZED",
+              "DISPATCHED",
+              "RESULT_UNKNOWN",
+            ].includes(o.state),
+        )
+    )
+      throw Error("UNRESOLVED_OPERATION");
+    if (
+      p.pending_occurrences.length ||
+      (p.next_due_at && Date.parse(p.next_due_at) <= Date.now())
+    )
+      throw Error("TASK_BUSY_PERIODIC");
+    this.validateWorkspace(p);
+    return parent;
+  }
+  private continueTask(
+    goal: string,
+    requestID: string,
+    sessionID: string,
+    options: Parameters<Scheduler["propose"]>[3],
+    fingerprint: string,
+  ): TaskPlan {
+    if (!options?.parent) throw Error("PARENT_REQUIRED");
+    if (options.at != null || options.interval != null)
+      throw Error("REUSE_TRIGGER_NOT_ALLOWED");
+    const p = this.store.get<TaskPlan>("TaskPlan", options.reuse!);
+    const parent = this.continuationParent(p, options.parent, sessionID);
+    const original = this.proposalFor(parent);
+    if (
+      options.programID != null &&
+      options.programID !== original.executor.program_id
+    )
+      throw Error("EXECUTOR_CHANGE_NOT_ALLOWED");
+    if (original.executor.kind === "PROGRAM") {
+      const program = this.store.get<ProgramRegistration>(
+        "ProgramRegistration",
+        original.executor.program_id!,
+      );
+      if (
+        program.state !== "ENABLED" ||
+        program.revision !== original.executor.program_revision ||
+        hash(fs.readFileSync(program.entrypoint)) !== program.code_digest
+      )
+        throw Error("PROGRAM_CHANGED");
+      if (
+        !new Ajv2020().validate(
+          this.store.read<object>(program.parameters_schema),
+          { ...original.executor.parameters, goal },
+        )
+      )
+        throw Error("INVALID_PROGRAM_PARAMETERS");
+    }
+    const sources = [
+      ...new Map(
+        [
+          ...this.sourceRefs(original),
+          ...(options.materials ?? []).map((t) =>
+            this.store.put(t, "text/plain"),
+          ),
+        ].map((ref) => [ref.sha256, ref]),
+      ).values(),
+    ];
+    const refs = [...sources];
+    if (parent.checkpoint_id) {
+      const cp = this.store.get<Checkpoint>("Checkpoint", parent.checkpoint_id);
+      if (cp.raw_context) refs.push(cp.raw_context);
+    }
+    if (parent.result_id) {
+      const r = this.store.get<TaskResult>("TaskResult", parent.result_id);
+      refs.push(r.detail_ref);
+      for (const artifact of r.artifacts) this.store.bytes(artifact.content);
+    }
+    refs.push(
+      this.store.put({
+        parent_execution_id: parent.id,
+        decisions: this.store
+          .all<DecisionRequest>("DecisionRequest")
+          .filter(
+            (d) => d.execution_id === parent.id && d.state === "ANSWERED",
+          ),
+        operations: this.store
+          .all<Operation>("Operation")
+          .filter((o) => o.scope.execution_id === parent.id)
+          .map((o) => ({
+            id: o.id,
+            state: o.state,
+            action: o.action,
+            receipt: o.receipt ? this.store.read(o.receipt) : null,
+          })),
+      }),
+    );
+    for (const ref of refs) this.store.bytes(ref);
+    this.store.get<SafetyRule>("SafetyRule", original.safety_rule_id);
+    const proposal: TaskProposal = {
+      ...original,
+      request_id: requestID,
+      request_hash: fingerprint,
+      submitted_at: now(),
+      session_id: sessionID,
+      goal,
+      constraints: options.constraints ?? original.constraints,
+      acceptance_criteria: options.acceptance ?? original.acceptance_criteria,
+      preconditions: options.preconditions ?? original.preconditions,
+      deadline: options.deadline ?? original.deadline,
+      executor: {
+        ...original.executor,
+        parameters:
+          original.executor.kind === "PROGRAM"
+            ? { ...original.executor.parameters, goal }
+            : original.executor.parameters,
+      },
+      trigger: {
+        ...original.trigger,
+        kind: "IMMEDIATE",
+        at: null,
+        interval_seconds: null,
+        anchor_at: null,
+      },
+      context_refs: [...new Map(refs.map((r) => [r.sha256, r])).values()],
+      source_context_refs: sources,
+      parent_execution_id: parent.id,
+      reuse_task_id: p.id,
+    };
+    shape(proposal);
+    const ref = this.store.put(proposal);
+    const pending = {
+      request_id: requestID,
+      occurrence_key: requestID,
+      due_at: proposal.submitted_at,
+      proposal_ref: ref,
+    };
+    this.store.commit(
+      [
+        revise(p, { pending_requests: [pending] }),
+        revise(parent, {
+          pending_followup_ids: [...parent.pending_followup_ids, requestID],
+          last_activity_at: now(),
+        }),
+      ],
+      [
+        this.store.event(
+          "task.request.accepted",
+          {
+            request_id: requestID,
+            task_id: p.id,
+            occurrence_key: requestID,
+            proposal_ref: ref,
+            input: { goal, options, sessionID },
+          },
+          { session_id: sessionID, task_id: p.id, execution_id: null },
+          "MAIN",
+        ),
+      ],
+      { request: requestID, hash: fingerprint, value: p.id },
+    );
+    return this.store.get<TaskPlan>("TaskPlan", p.id);
+  }
+  requestStatus(requestID: string) {
+    const event = this.store.logs.find(
+      (l) =>
+        l.event_type === "task.request.accepted" &&
+        this.store.read<{ request_id: string }>(l.payload).request_id ===
+          requestID,
+    );
+    if (!event) return null; // v1 receipt remains a valid task association.
+    const accepted = this.store.read<{
+      request_id: string;
+      task_id: string;
+      occurrence_key: string | null;
+      proposal_ref: TaskPlan["proposal_ref"];
+    }>(event.payload);
+    const e = this.store
+      .all<Execution>("Execution")
+      .find(
+        (e) =>
+          e.task_id === accepted.task_id &&
+          e.occurrence_key === accepted.occurrence_key,
+      );
+    const stopped = this.store.logs.findLast(
+      (l) =>
+        l.event_type === "task.request.removed" &&
+        this.store.read<{ request_id: string }>(l.payload).request_id ===
+          requestID,
+    );
+    return {
+      ...accepted,
+      execution_id: e?.id ?? null,
+      state: e?.state ?? (stopped ? "CANCELLED_OR_REJECTED" : "ACCEPTED"),
+      reason: stopped ? this.store.read(stopped.payload) : null,
+    };
+  }
+  private removePending(
+    taskID: string,
+    requestID: string,
+    reason: string,
+    executionID?: string,
+  ) {
+    const p = this.store.get<TaskPlan>("TaskPlan", taskID);
+    const item = p.pending_requests?.find((r) => r.request_id === requestID);
+    if (!item) return;
+    // Parent association is also recoverable from pending_followup_ids when an object is damaged.
+    const records: Stored[] = [
+      revise(p, {
+        pending_requests: p.pending_requests!.filter(
+          (r) => r.request_id !== requestID,
+        ),
+      }),
+    ];
+    for (const parent of this.store
+      .all<Execution>("Execution")
+      .filter(
+        (e) =>
+          e.pending_followup_ids.includes(requestID) ||
+          (p.trigger.kind === "IMMEDIATE" &&
+            e.pending_followup_ids.includes(taskID)),
+      )) {
+      const ids = parent.pending_followup_ids.filter(
+        (v) => v !== requestID && v !== taskID,
+      );
+      if (
+        executionID &&
+        !terminal(this.store.get<Execution>("Execution", executionID))
+      )
+        ids.push(executionID);
+      records.push(
+        revise(parent, {
+          pending_followup_ids: [...new Set(ids)],
+          last_activity_at: now(),
+        }),
+      );
+    }
+    this.store.commit(records, [
+      this.store.event("task.request.removed", {
+        request_id: requestID,
+        task_id: taskID,
+        reason,
+      }),
+    ]);
+  }
+  cancelRequest(requestID: string, sessionID: string) {
+    const status = this.requestStatus(requestID);
+    if (!status) throw Error("REQUEST_NOT_FOUND");
+    if (!status.occurrence_key) throw Error("REQUEST_NOT_IMMEDIATE");
+    const p = this.store.get<TaskPlan>("TaskPlan", status.task_id);
+    this.assertAccess(p, sessionID);
+    if (status.execution_id) {
+      this.cancel(status.execution_id);
+      return;
+    }
+    this.removePending(p.id, requestID, "MASTER_CANCELLED");
+  }
+  query(
+    sessionID: string,
+    taskID?: string | null,
+    executionID?: string | null,
+  ) {
+    if (taskID && executionID) throw Error("AMBIGUOUS_QUERY");
+    if (executionID) {
+      const e = this.store.get<Execution>("Execution", executionID);
+      this.assertAccess(
+        this.store.get<TaskPlan>("TaskPlan", e.task_id),
+        sessionID,
+      );
+      return this.detail(e.id);
+    }
+    const view = (p: TaskPlan, detail: boolean) => {
+      const baseline = this.store.read<TaskProposal>(p.proposal_ref);
+      const es = this.store
+        .all<Execution>("Execution")
+        .filter((e) => e.task_id === p.id);
+      const latest = es.at(-1);
+      let reason: string | null = null;
+      try {
+        if (!latest) throw Error("NO_PARENT_EXECUTION");
+        this.continuationParent(p, latest.id, sessionID);
+      } catch (error) {
+        reason = (error as Error).message;
+      }
+      const result = latest?.result_id
+        ? this.store.get<TaskResult>("TaskResult", latest.result_id)
+        : null;
+      const effective = latest ? this.proposalFor(latest) : null;
+      const accepted = this.store.logs.findLast(
+        (l) =>
+          l.event_type === "task.request.accepted" &&
+          this.store.read<{ task_id: string }>(l.payload).task_id === p.id,
+      );
+      const latestRequest = accepted
+        ? this.requestStatus(
+            this.store.read<{ request_id: string }>(accepted.payload)
+              .request_id,
+          )
+        : null;
+      return {
+        task_id: p.id,
+        state: p.state,
+        goal: baseline.goal,
+        latest_execution_id: latest?.id ?? null,
+        latest_state: latest?.state ?? null,
+        active_execution_ids: es.filter((e) => !terminal(e)).map((e) => e.id),
+        pending_requests: p.pending_requests ?? [],
+        can_continue: reason === null,
+        continuation_blocker: reason,
+        latest_request: latestRequest,
+        ...(detail
+          ? {
+              baseline,
+              effective_proposal: effective,
+              proposal_ref: latest?.proposal_ref ?? p.proposal_ref,
+              result,
+              details: latest ? this.detail(latest.id) : null,
+              decisions: this.store
+                .all<DecisionRequest>("DecisionRequest")
+                .filter(
+                  (d) =>
+                    es.some((e) => e.id === d.execution_id) &&
+                    d.state === "OPEN",
+                ),
+            }
+          : { result_summary: result?.summary ?? null }),
+      };
+    };
+    if (taskID) {
+      const p = this.store.get<TaskPlan>("TaskPlan", taskID);
+      this.assertAccess(p, sessionID);
+      return view(p, true);
+    }
+    const plans = this.store
+      .all<TaskPlan>("TaskPlan")
+      .filter(
+        (p) =>
+          this.store.read<TaskProposal>(p.proposal_ref).session_id ===
+          sessionID,
+      );
+    return {
+      plans: plans.map((p) => view(p, false)),
+      programs: this.store.all<ProgramRegistration>("ProgramRegistration"),
+    };
   }
   initialize(taskID: string) {
     const p = this.store.get<TaskPlan>("TaskPlan", taskID);
@@ -287,21 +793,41 @@ export class Scheduler {
   tick(at = Date.now()) {
     if (this.settingsBlocked()) return;
     if (this.closed) return;
-    for (const p of this.store.all<TaskPlan>("TaskPlan")) {
+    for (let p of this.store.all<TaskPlan>("TaskPlan")) {
+      // Repair duplicate queue representations before busy checks, including active executions.
+      for (const item of p.pending_requests ?? []) {
+        const existing = this.store
+          .all<Execution>("Execution")
+          .find(
+            (e) =>
+              e.task_id === p.id && e.occurrence_key === item.occurrence_key,
+          );
+        if (existing)
+          this.removePending(p.id, item.request_id, "consumed", existing.id);
+      }
+      p = this.store.get<TaskPlan>("TaskPlan", p.id);
+      if (p.state === "CLOSED") {
+        for (const item of p.pending_requests ?? [])
+          this.removePending(p.id, item.request_id, "PLAN_UNAVAILABLE");
+        continue;
+      }
       if (p.state === "INITIALIZING" || p.state === "INIT_FAILED") {
         this.initialize(p.id);
         continue;
       }
+      const request = p.pending_requests?.[0];
       if (
         p.state !== "ACTIVE" ||
-        (!p.pending_occurrences.length &&
-          (!p.next_due_at || Date.parse(p.next_due_at) > at))
+        (!request &&
+          !p.pending_occurrences.length &&
+          (!p.next_due_at || Date.parse(p.next_due_at) > at)) ||
+        (request && Date.parse(request.due_at) > at)
       )
         continue;
       if (
-        p.active_execution_ids.some(
-          (eid) => !terminal(this.store.get<Execution>("Execution", eid)),
-        )
+        this.store
+          .all<Execution>("Execution")
+          .some((e) => e.task_id === p.id && !terminal(e))
       ) {
         if (
           p.trigger.kind === "INTERVAL" &&
@@ -322,17 +848,36 @@ export class Scheduler {
         }
         continue;
       }
-      const queued = p.pending_occurrences.length > 0;
-      const due = queued ? p.pending_occurrences[0] : p.next_due_at!;
-      const key = p.trigger.kind === "IMMEDIATE" ? "once" : due;
+      const queued = !request && p.pending_occurrences.length > 0;
+      const due =
+        request?.due_at ?? (queued ? p.pending_occurrences[0] : p.next_due_at!);
+      const key =
+        request?.occurrence_key ??
+        (p.trigger.kind === "IMMEDIATE" ? "once" : due);
       if (
         this.store
           .all<Execution>("Execution")
           .some((e) => e.task_id === p.id && e.occurrence_key === key)
-      )
+      ) {
+        this.store.commit([
+          revise(p, {
+            pending_occurrences: queued
+              ? p.pending_occurrences.slice(1)
+              : p.pending_occurrences,
+            next_due_at: queued
+              ? p.next_due_at
+              : p.trigger.kind === "INTERVAL"
+                ? new Date(
+                    Date.parse(due) + p.trigger.interval_seconds! * 1000,
+                  ).toISOString()
+                : null,
+          }),
+        ]);
         continue;
+      }
       // Do not silently catch up missed periodic windows after restart.
       if (
+        !request &&
         !queued &&
         p.trigger.kind === "INTERVAL" &&
         at - Date.parse(due) > (p.trigger.interval_seconds ?? 0) * 1000
@@ -359,7 +904,17 @@ export class Scheduler {
         );
         continue;
       }
-      const proposal = this.store.read<TaskProposal>(p.proposal_ref);
+      const proposalRef = request?.proposal_ref ?? p.proposal_ref;
+      let proposal: TaskProposal;
+      try {
+        proposal = this.store.read<TaskProposal>(proposalRef);
+        if (proposal.reuse_task_id) this.validateWorkspace(p);
+        for (const ref of proposal.context_refs) this.store.bytes(ref);
+      } catch (error) {
+        if (!request) throw error;
+        this.removePending(p.id, request.request_id, String(error));
+        continue;
+      }
       const e: Execution = {
         schema_version: 1,
         record_type: "Execution",
@@ -369,6 +924,7 @@ export class Scheduler {
         retention_state: "HOT",
         occurrence_key: key,
         plan_revision: p.revision,
+        proposal_ref: proposalRef,
         attempt_id: null,
         owner_epoch: this.store.epoch,
         waiting_request_ids: [],
@@ -388,16 +944,23 @@ export class Scheduler {
         e,
         revise(p, {
           active_execution_ids: [...p.active_execution_ids, e.id],
+          pending_requests: request
+            ? (p.pending_requests ?? []).filter(
+                (r) => r.request_id !== request.request_id,
+              )
+            : p.pending_requests,
           pending_occurrences: queued
             ? p.pending_occurrences.slice(1)
             : p.pending_occurrences,
-          next_due_at: queued
+          next_due_at: request
             ? p.next_due_at
-            : p.trigger.kind === "INTERVAL"
-              ? new Date(
-                  Date.parse(due) + (p.trigger.interval_seconds ?? 1) * 1000,
-                ).toISOString()
-              : null,
+            : queued
+              ? p.next_due_at
+              : p.trigger.kind === "INTERVAL"
+                ? new Date(
+                    Date.parse(due) + (p.trigger.interval_seconds ?? 1) * 1000,
+                  ).toISOString()
+                : null,
         }),
       ];
       if (e.continuation_of) {
@@ -405,7 +968,10 @@ export class Scheduler {
         records.push(
           revise(prev, {
             pending_followup_ids: [
-              ...prev.pending_followup_ids.filter((v) => v !== p.id),
+              ...prev.pending_followup_ids.filter(
+                (v) =>
+                  v !== (proposal.reuse_task_id ? request!.request_id : p.id),
+              ),
               e.id,
             ],
             last_activity_at: now(),
@@ -416,15 +982,23 @@ export class Scheduler {
       this.setState(e.id, "WAIT_PRECONDITION");
       this.ready(e.id);
     }
-    for (const e of this.store.all<Execution>("Execution")) {
-      const plan = this.store.get<TaskPlan>("TaskPlan", e.task_id);
+    for (let e of this.store.all<Execution>("Execution")) {
+      const plan = this.proposalFor(e);
+      if (e.state === "CREATED") {
+        this.setState(e.id, "WAIT_PRECONDITION");
+        this.ready(e.id);
+        continue;
+      }
       if (plan.deadline && Date.parse(plan.deadline) <= at && !terminal(e)) {
         if (this.running.has(e.id)) this.cancel(e.id);
         else if (e.state !== "RESULT_UNKNOWN")
           this.finish(e.id, "EXPIRED", { reason: "Explicit deadline passed" });
         continue;
       }
-      if (e.state === "WAIT_PRECONDITION") this.ready(e.id);
+      if (e.state === "WAIT_PRECONDITION") {
+        this.ready(e.id);
+        e = this.store.get<Execution>("Execution", e.id);
+      }
       if (e.state === "READY" || e.state === "WAIT_AUTH") void this.run(e.id);
     }
   }
@@ -443,7 +1017,7 @@ export class Scheduler {
   }
   private conditions(e: Execution): ConditionResult[] {
     const p = this.store.get<TaskPlan>("TaskPlan", e.task_id);
-    return p.preconditions.map((c) => {
+    return this.proposalFor(e).preconditions.map((c) => {
       let met = false;
       try {
         if (c.kind === "EXECUTION_SUCCEEDED")
@@ -523,7 +1097,13 @@ export class Scheduler {
     entry: { agent?: Agent; child?: ChildProcess },
   ) {
     let e = this.store.get<Execution>("Execution", eid);
-    const p = this.store.get<TaskPlan>("TaskPlan", e.task_id);
+    const baseline = this.store.get<TaskPlan>("TaskPlan", e.task_id);
+    const effective = this.proposalFor(e);
+    const p = {
+      ...baseline,
+      executor: effective.executor,
+      safety_rule_id: effective.safety_rule_id,
+    };
     if (!["READY", "WAIT_AUTH"].includes(e.state) || p.state !== "ACTIVE")
       return;
     if (e.state === "WAIT_AUTH") {
@@ -588,6 +1168,13 @@ export class Scheduler {
         hash(fs.readFileSync(pr.entrypoint)) !== pr.code_digest
       )
         throw Error("PROGRAM_CHANGED");
+      if (
+        !new Ajv2020().validate(
+          this.store.read<object>(pr.parameters_schema),
+          p.executor.parameters,
+        )
+      )
+        throw Error("INVALID_PROGRAM_PARAMETERS");
       const op = this.auth.prepare(
         scopeOf(e),
         "program.run",
@@ -686,11 +1273,11 @@ export class Scheduler {
         this.model.contextWindow,
       );
     };
-    const proposal = this.store.read<TaskProposal>(p.proposal_ref);
+    const proposal = this.proposalFor(e);
     const packet = executionPrompt(
       proposal,
       e,
-      proposal.context_refs.map((ref) => this.store.bytes(ref).toString()),
+      this.promptMaterials(proposal),
       {
         resumed: !!saved,
         operations: this.store
@@ -786,7 +1373,7 @@ export class Scheduler {
         }),
         execute: async (_call, args) => {
           const plan = this.store.get<TaskPlan>("TaskPlan", e.task_id);
-          const proposal = this.store.read<TaskProposal>(plan.proposal_ref);
+          const proposal = this.proposalFor(e);
           const expected = proposal.acceptance_criteria.map(
             (_, i) => `C${i + 1}`,
           );
@@ -1319,9 +1906,7 @@ export class Scheduler {
     if (terminal(e)) return;
     const ref = this.store.put(detail);
     const agentDetail =
-      this.store.get<TaskPlan>("TaskPlan", e.task_id).executor.kind === "AGENT"
-        ? detail
-        : undefined;
+      this.proposalFor(e).executor.kind === "AGENT" ? detail : undefined;
     const structured = (
       agentDetail as {
         structured_result?: { summary: string; limitations: string[] };
@@ -1559,6 +2144,16 @@ export class Scheduler {
     }
   }
   recover() {
+    for (const e of this.store.all<Execution>("Execution")) {
+      if (!e.proposal_ref)
+        this.store.commit([
+          revise(e, {
+            proposal_ref: this.store.taskPlanAt(e.task_id, e.plan_revision)
+              .proposal_ref,
+          }),
+        ]);
+      if (e.state === "CREATED") this.setState(e.id, "WAIT_PRECONDITION");
+    }
     for (const p of this.store.all<TaskPlan>("TaskPlan"))
       if (
         p.state === "ACTIVE" &&

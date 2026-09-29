@@ -1737,7 +1737,14 @@
               "type": "null"
             }
           ],
-          "description": "null 创建新计划；非空表示按同目标/约束接续现有计划，须与 parent_execution_id 所属计划一致。"
+          "description": "null 新建计划；非空在同一工作内按本轮正式要求创建新执行，parent 必须是该任务最新已结束执行。计划基线不变。"
+        },
+        "source_context_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "description": "正式提供的来源材料引用；接续只继承这些来源，再装配直接 parent 的执行证据。context_refs 包含本轮全部来源及派生历史证据。旧提案按 checkpoint/result 原件关联识别来源。"
         }
       },
       "required": [
@@ -1865,6 +1872,34 @@
               "type": "null"
             }
           ]
+        },
+        "pending_requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "request_id": {
+                "$ref": "#/$defs/ID"
+              },
+              "occurrence_key": {
+                "$ref": "#/$defs/ID"
+              },
+              "due_at": {
+                "$ref": "#/$defs/Time"
+              },
+              "proposal_ref": {
+                "$ref": "#/$defs/ObjectRef"
+              }
+            },
+            "required": [
+              "request_id",
+              "occurrence_key",
+              "due_at",
+              "proposal_ref"
+            ],
+            "additionalProperties": false
+          },
+          "description": "已受理即时请求的唯一待执行表示；旧记录缺省为空。周期时间点仍使用 pending_occurrences。"
         }
       },
       "required": [
@@ -1980,7 +2015,7 @@
             "$ref": "#/$defs/ID"
           },
           "minItems": 0,
-          "description": ""
+          "description": "待接续请求 ID，分派后换为子执行 ID；旧 parent-only 新建使用 task ID，结束或撤销释放。"
         },
         "cancel_requested": {
           "type": "boolean",
@@ -2042,6 +2077,10 @@
           },
           "minItems": 0,
           "description": ""
+        },
+        "proposal_ref": {
+          "$ref": "#/$defs/ObjectRef",
+          "description": "本轮不可变有效提案。旧执行按 plan_revision 从 journal 历史计划固定；不能读取最新计划代替。"
         }
       },
       "required": [

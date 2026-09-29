@@ -85,8 +85,8 @@ export class App {
         .some(
           (p) =>
             p.state === "ACTIVE" &&
-            p.next_due_at &&
-            Date.parse(p.next_due_at) <= Date.now() &&
+            ((p.pending_requests?.length ?? 0) > 0 ||
+              (p.next_due_at && Date.parse(p.next_due_at) <= Date.now())) &&
             !p.active_execution_ids.some(
               (eid) =>
                 !["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"].includes(
