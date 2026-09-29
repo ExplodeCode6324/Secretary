@@ -1,0 +1,350 @@
+{
+  "model": "deepseek-v4.1-flash",
+  "elapsed_ms": 4433,
+  "final_new_messages": 21,
+  "final_text_chars": 6014,
+  "final_thinking_chars": 31794,
+  "body_live": true,
+  "thinking_live": true,
+  "multiple_body_updates": 5,
+  "multiple_thinking_updates": 2,
+  "task_count_unchanged": true,
+  "no_new_operation": true,
+  "final_idle": true,
+  "incomplete": false,
+  "font": {
+    "thinking": "12px",
+    "body": "14px"
+  },
+  "errors": [],
+  "samples": [
+    {
+      "at_ms": 192,
+      "new_messages": 0,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "",
+      "runtime": "待命"
+    },
+    {
+      "at_ms": 295,
+      "new_messages": 0,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "",
+      "runtime": "待命"
+    },
+    {
+      "at_ms": 398,
+      "new_messages": 0,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "",
+      "runtime": "待命"
+    },
+    {
+      "at_ms": 501,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "待命"
+    },
+    {
+      "at_ms": 606,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "待命"
+    },
+    {
+      "at_ms": 709,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 811,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 916,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1022,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1125,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1228,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1335,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1439,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1544,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1647,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1752,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1856,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 1959,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2064,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2168,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2271,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2373,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2479,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2581,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2685,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2788,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2892,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 2996,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 3099,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 3203,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 3308,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 3412,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 3515,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 0,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 3615,
+      "new_messages": 1,
+      "text_chars": 0,
+      "thinking_chars": 28,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 3719,
+      "new_messages": 1,
+      "text_chars": 17,
+      "thinking_chars": 49,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 3822,
+      "new_messages": 1,
+      "text_chars": 29,
+      "thinking_chars": 49,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 3927,
+      "new_messages": 1,
+      "text_chars": 36,
+      "thinking_chars": 49,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 4031,
+      "new_messages": 1,
+      "text_chars": 63,
+      "thinking_chars": 49,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 4134,
+      "new_messages": 1,
+      "text_chars": 81,
+      "thinking_chars": 49,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 4238,
+      "new_messages": 1,
+      "text_chars": 81,
+      "thinking_chars": 49,
+      "status": "生成中",
+      "runtime": "RUNNING"
+    },
+    {
+      "at_ms": 4341,
+      "new_messages": 1,
+      "text_chars": 89,
+      "thinking_chars": 49,
+      "status": "",
+      "runtime": "待命"
+    }
+  ]
+}

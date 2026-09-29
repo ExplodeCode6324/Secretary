@@ -26,23 +26,44 @@ export type UIMessage = {
   role: MessageTone;
   text: string;
   at: string;
+  thinking?: string;
+  call_id?: string;
+  incomplete?: boolean;
 };
-export function conversation(app: App): UIMessage[] {
+export function conversation(app: App, showThinking = false): UIMessage[] {
   const output: UIMessage[] = [];
   for (const e of app.store.logs) {
     let role: MessageTone = "system",
       text = "";
+    let thinking: string | undefined,
+      call_id: string | undefined,
+      incomplete = false;
     if (e.event_type === "input.accepted") {
       const input = app.store.read<Input>(e.payload);
       role = input.producer === "MASTER" ? "master" : "system";
       text = app.store.bytes(input.payload).toString();
     } else if (e.event_type === "main.message") {
+      if (e.scope.session_id !== app.host.sessionID) continue;
       const m = app.store.read<{
         role: string;
-        content: { type: string; text?: string }[];
+        content: {
+          type: string;
+          text?: string;
+          thinking?: string;
+          redacted?: boolean;
+        }[];
+        display_call_id?: string;
+        stopReason?: string;
       }>(e.payload);
       if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
       role = "secretary";
+      call_id = m.display_call_id;
+      incomplete = m.stopReason === "error" || m.stopReason === "aborted";
+      if (showThinking)
+        thinking = m.content
+          .filter((c) => c.type === "thinking" && !c.redacted)
+          .map((c) => c.thinking ?? "")
+          .join("\n");
       text = m.content
         .filter((c) => c.type === "text")
         .map((c) => c.text ?? "")
@@ -55,7 +76,18 @@ export function conversation(app: App): UIMessage[] {
       role = "secretary";
       text = app.store.bytes(n.message).toString();
     }
-    if (text) output.push({ id: e.event_id, role, text, at: e.occurred_at });
+    if (text || thinking || call_id)
+      output.push({
+        id: e.event_id,
+        role,
+        text,
+        at: e.occurred_at,
+        ...(showThinking && role === "secretary"
+          ? { thinking: thinking ?? "" }
+          : {}),
+        ...(call_id ? { call_id } : {}),
+        ...(incomplete ? { incomplete } : {}),
+      });
   }
   return output;
 }
@@ -181,6 +213,33 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
       );
       if (!client) return send(409, { error: "CLIENT_EXPIRED" });
       client.touched = Date.now();
+      if (url.pathname === "/api/stream" && req.method === "GET") {
+        const thinking = url.searchParams.get("thinking") === "1";
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream; charset=utf-8",
+          Connection: "keep-alive",
+        });
+        let revision = -1,
+          heartbeat = 0;
+        const sendSnapshot = () => {
+          client.touched = Date.now();
+          if (res.writableLength > 512 * 1024) {
+            res.destroy();
+            return;
+          }
+          const current = app.host.previews.revision;
+          if (revision !== current) {
+            revision = current;
+            res.write(
+              `event: preview\ndata: ${JSON.stringify({ revision, previews: app.host.previews.snapshot(app.host.sessionID, thinking) })}\n\n`,
+            );
+          } else if (++heartbeat % 100 === 0) res.write(": heartbeat\n\n");
+        };
+        sendSnapshot();
+        const updates = setInterval(sendSnapshot, 100);
+        res.on("close", () => clearInterval(updates));
+        return;
+      }
       if (url.pathname.startsWith("/api/settings")) {
         if (url.pathname === "/api/settings" && req.method === "GET")
           return send(200, app.settings.status());
@@ -364,7 +423,7 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
                 budget: app.host.model.contextWindow,
                 reserve: 4096,
               },
-          messages: conversation(app),
+          messages: conversation(app, url.searchParams.get("thinking") === "1"),
           notification_ids: app.store
             .all<Notification>("Notification")
             .filter((n) => n.session_id === session.id && n.state === "QUEUED")

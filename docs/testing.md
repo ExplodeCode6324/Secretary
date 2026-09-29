@@ -48,3 +48,26 @@ SECRETARY_TEST_DATABASE_URL='<另一个隔离数据库 DSN>' node --import tsx t
 ```
 
 在线探针仅使用合成事实，验证更正、撤回、说明语言与旧约束承接；不代表长期真实使用。实际结果见[设置功能报告](../test_case/reports/settings-20260928/README.md)。
+
+## 流式与思考显示验收
+
+`streaming.test.ts` 覆盖完成前预览、SSE 认证与重连快照、关闭思考后的字段过滤、工具执行前落盘、观察回调异常、保存失败、取消、缓存边界、多调用关联、redacted 内容过滤及历史恢复。属于普通 `npm test` 的离线用例。
+
+浏览器验收使用独立 fixture 服务与真实 Chrome：
+
+```sh
+mkdir -p .demo-data/streaming-browser test_case/reports/streaming-local
+node --import tsx test_case/offline/runtime/helpers/streaming-web.ts .demo-data/streaming-browser
+# 另一个终端运行，需要 Playwright 包及 Chrome；可用 PLAYWRIGHT_MODULE 指向本机包的 index.mjs
+node test_case/offline/runtime/helpers/streaming-browser.mjs .demo-data/streaming-browser/browser-endpoint.json test_case/reports/streaming-local
+```
+
+服务为每段设置实际延迟，驾驶器采样完成前的正文与思考，检查四种开关组合、默认值、刷新持久化、字号、折叠和窄屏，并生成仅含合成内容的截图。完成后终止该 fixture 进程。普通 fixture 回复可能一次完成，不应以打字动画作为流式证据。
+
+有界 live 探针：
+
+```sh
+node --import tsx test_case/online/test-streaming-live.ts <指标报告路径>
+```
+
+此探针读取本机 main 凭据，创建独立 Store，发送一次合成无工具请求；任务角色使用 fixture，结果检查没有新增任务或 Operation。报告只保存时间、状态与字符数，不保存 token 或思考原文。模型未返回可见思考时按实际记录，不能以 fixture 代替 LIVE_MODEL 结果。当前交付证据见[流式显示验收](../test_case/reports/streaming-20260929/README.md)。

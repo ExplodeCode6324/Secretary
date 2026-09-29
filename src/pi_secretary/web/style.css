@@ -725,3 +725,49 @@ button:hover {
   flex-direction: row;
   align-items: center;
 }
+
+.display-settings {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+.display-settings label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+.display-settings input {
+  accent-color: var(--secretary);
+}
+.display-hint {
+  font-size: 11px;
+}
+.message-thinking {
+  background: var(--surface);
+  border-left: 2px solid var(--line);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+.message-thinking summary {
+  cursor: pointer;
+}
+.thinking-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding-top: 6px;
+}
+.message-status {
+  color: var(--muted);
+  font-size: 11px;
+  margin-top: 8px;
+}

@@ -25,6 +25,7 @@ import {
 } from "./store.ts";
 import { Scheduler, stableID } from "./scheduler.ts";
 import { World } from "./world.ts";
+import { Previews } from "./preview.ts";
 import { durableStream } from "./transport.ts";
 import { saveContext } from "./context.ts";
 import type {
@@ -53,6 +54,7 @@ const result = (value: unknown) => ({
   details: undefined,
 });
 export class Host {
+  readonly previews = new Previews();
   sessionID: string;
   private active?: Promise<void>;
   settingsBlocked: () => boolean = () => false;
@@ -450,6 +452,7 @@ export class Host {
             })),
           );
         }
+        let displayCallID: string | undefined;
         const agent = new Agent({
           initialState: {
             model: this.model,
@@ -462,6 +465,12 @@ export class Host {
             { session_id: this.sessionID, task_id: null, execution_id: null },
             loopID,
             "MAIN",
+            {
+              observe: (update) => {
+                if (update.type === "start") displayCallID = update.id;
+                this.previews.update(update);
+              },
+            },
           ),
           toolExecution: "sequential",
         });
@@ -511,7 +520,9 @@ export class Host {
               [
                 this.store.event(
                   "main.message",
-                  event.message,
+                  event.message.role === "assistant"
+                    ? { ...event.message, display_call_id: displayCallID }
+                    : event.message,
                   {
                     session_id: this.sessionID,
                     task_id: null,

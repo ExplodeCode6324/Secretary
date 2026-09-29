@@ -1,0 +1,62 @@
+{
+  "model": "deepseek-v4.1-flash",
+  "elapsed_ms": 3834,
+  "samples": [
+    {
+      "at_ms": 173,
+      "status": "running",
+      "text_chars": 0,
+      "thinking_chars": 0
+    },
+    {
+      "at_ms": 2717,
+      "status": "running",
+      "text_chars": 0,
+      "thinking_chars": 3
+    },
+    {
+      "at_ms": 2818,
+      "status": "running",
+      "text_chars": 0,
+      "thinking_chars": 50
+    },
+    {
+      "at_ms": 2920,
+      "status": "running",
+      "text_chars": 0,
+      "thinking_chars": 77
+    },
+    {
+      "at_ms": 3325,
+      "status": "running",
+      "text_chars": 75,
+      "thinking_chars": 227
+    },
+    {
+      "at_ms": 3426,
+      "status": "running",
+      "text_chars": 101,
+      "thinking_chars": 227
+    },
+    {
+      "at_ms": 3528,
+      "status": "running",
+      "text_chars": 138,
+      "thinking_chars": 227
+    },
+    {
+      "at_ms": 3679,
+      "status": "saved",
+      "text_chars": 147,
+      "thinking_chars": 227
+    }
+  ],
+  "final_messages": 1,
+  "final_text_chars": 147,
+  "final_thinking_chars": 227,
+  "incomplete": false,
+  "task_count": 0,
+  "operation_count": 0,
+  "text_stream_seen": true,
+  "thinking_stream_seen": true
+}

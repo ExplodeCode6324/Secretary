@@ -1,0 +1,17 @@
+{
+  "restarted": true,
+  "state": "IDLE",
+  "session_preserved": true,
+  "journal_prefix_preserved": true,
+  "sse": true,
+  "assets": [
+    {
+      "name": "app.js",
+      "match": true
+    },
+    {
+      "name": "style.css",
+      "match": true
+    }
+  ]
+}

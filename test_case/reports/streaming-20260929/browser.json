@@ -1,0 +1,231 @@
+{
+  "results": [
+    {
+      "streaming": true,
+      "thinking": true,
+      "samples": [
+        {
+          "count": 5,
+          "text": "",
+          "thinking": "等待可显示的思考内容…",
+          "status": "生成中"
+        },
+        {
+          "count": 5,
+          "text": "",
+          "thinking": "检查",
+          "status": "生成中"
+        },
+        {
+          "count": 5,
+          "text": "",
+          "thinking": "检查输入信息",
+          "status": "生成中"
+        },
+        {
+          "count": 5,
+          "text": "",
+          "thinking": "检查输入信息。",
+          "status": "生成中"
+        },
+        {
+          "count": 5,
+          "text": "这是",
+          "thinking": "检查输入信息。",
+          "status": "生成中"
+        },
+        {
+          "count": 5,
+          "text": "这是逐段输出",
+          "thinking": "检查输入信息。",
+          "status": "生成中"
+        },
+        {
+          "count": 5,
+          "text": "这是逐段输出的正文。",
+          "thinking": "检查输入信息。",
+          "status": "生成中"
+        },
+        {
+          "count": 5,
+          "text": "这是逐段输出的正文。",
+          "thinking": "检查输入信息。",
+          "status": ""
+        }
+      ]
+    },
+    {
+      "streaming": true,
+      "thinking": false,
+      "samples": [
+        {
+          "count": 5,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": "生成中"
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": "生成中"
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": "生成中"
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": "生成中"
+        },
+        {
+          "count": 6,
+          "text": "这是",
+          "thinking": "",
+          "status": "生成中"
+        },
+        {
+          "count": 6,
+          "text": "这是逐段输出",
+          "thinking": "",
+          "status": "生成中"
+        },
+        {
+          "count": 6,
+          "text": "这是逐段输出的正文。",
+          "thinking": "",
+          "status": "生成中"
+        }
+      ]
+    },
+    {
+      "streaming": false,
+      "thinking": true,
+      "samples": [
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 6,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        }
+      ]
+    },
+    {
+      "streaming": false,
+      "thinking": false,
+      "samples": [
+        {
+          "count": 7,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 7,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 7,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 7,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 7,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 7,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 7,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        },
+        {
+          "count": 7,
+          "text": "",
+          "thinking": "",
+          "status": ""
+        }
+      ]
+    }
+  ],
+  "font": {
+    "thinking": "12px",
+    "body": "14px",
+    "color": "rgb(146, 153, 150)"
+  },
+  "errors": [],
+  "persistence": true,
+  "folding": true,
+  "narrowScreen": true,
+  "reconnectAndMidstreamToggle": true,
+  "scrollPreserved": true
+}

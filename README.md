@@ -24,6 +24,8 @@ npm run stop
 SECRETARY_DATA=.demo-data npm run stop
 ```
 
+WebUI 主会话支持流式正文和可见思考内容，两项默认开启，可在「显示设置」独立关闭。思考区使用更小字号，实际内容取决于供应商是否返回。开关只影响当前浏览器显示；详见[运行手册](docs/operations.md#流式输出与思考显示)。
+
 WebUI 已提供 World Model 管理：实体与事实查询、登记、更正、撤回和历史记录。修改先保存草稿，一键应用时完整摘要工作上下文并重建 context；Secretary 说明遵循同一规则。使用及恢复边界见[设置生效规范](docs/settings-activation.md)。
 
 ## 仓库分类
@@ -51,6 +53,7 @@ task的缺陷使整个task系统都处于不可用的情况，
 当前缺陷：
 目前的system prompt还比较原始，没有根据架构特性把需要模型注意的部分着重处理。实际上对于deepseek v4.1 flash及以上能力的模型来说，上下文窗口是比较富裕的。目前还没有激发secretary主会话的主观能动性（根据当前的表现，secretary的主会话像一个听话但不聪明的本科生。）
 3. 主会话工具、TUI 和 WebUI
+
 4. 优化 agent loop，使其更适配 Secretary 的工作模式
 5. 完善更接近日常使用、可持续衡量行为稳定性的 online 回归用例。
 

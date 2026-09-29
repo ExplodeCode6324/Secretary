@@ -1,0 +1,87 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const endpoint = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const reportDir = process.argv[3];
+const browser = await chromium.launch({ channel: 'chrome', headless: true });
+const results = [], errors = [];
+try {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 850 } });
+  const page = await context.newPage();
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(endpoint.url + '/#' + endpoint.token);
+  await page.waitForFunction(() => document.querySelector('#connection').textContent.includes('已同步'));
+  assert(await page.locator('#display-streaming').isChecked());
+  assert(await page.locator('#display-thinking').isChecked());
+  for (const [streaming, thinking] of [[true,true], [true,false], [false,true], [false,false]]) {
+    await page.locator('#display-streaming').setChecked(streaming);
+    await page.locator('#display-thinking').setChecked(thinking);
+    await page.waitForTimeout(850);
+    const before = await page.locator('.message.secretary').count();
+    await page.locator('#message').fill(`合成验收 ${streaming}/${thinking}`);
+    await page.locator('#send').click();
+    const samples = [];
+    for (let n=0;n<8;n++) {
+      await page.waitForTimeout(450);
+      samples.push(await page.evaluate(before => {
+        const messages = [...document.querySelectorAll('.message.secretary')];
+        const m = messages[before];
+        return { count: messages.length, text: m?.querySelector('.message-body').textContent || '', thinking: m && !m.querySelector('.message-thinking').hidden ? m.querySelector('.thinking-text').textContent : '', status: m?.querySelector('.message-status').textContent || '' };
+      }, before));
+    }
+    if (streaming) assert(samples.some(s => s.status.includes('生成中') && s.text && s.text !== '这是逐段输出的正文。'));
+    else assert(samples.filter(s=>s.status.includes('生成中')).length === 0);
+    if (thinking && streaming) assert(new Set(samples.map(s=>s.thinking).filter(s=>s && !s.includes('等待'))).size >= 2);
+    if (!thinking) assert(samples.every(s=>!s.thinking));
+    await page.waitForTimeout(850);
+    assert.equal(await page.locator('.message.secretary').count(), before+1);
+    assert.equal(await page.locator('.message.secretary').last().locator('.message-body').textContent(), '这是逐段输出的正文。');
+    if (thinking) assert.equal(await page.locator('.message.secretary').last().locator('.thinking-text').textContent(), '检查输入信息。');
+    results.push({ streaming, thinking, samples });
+  }
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('#connection').textContent.includes('已同步'));
+  assert(!(await page.locator('#display-streaming').isChecked()));
+  assert(!(await page.locator('#display-thinking').isChecked()));
+  await page.locator('#display-streaming').check();
+  await page.locator('#display-thinking').check();
+  await page.waitForTimeout(850);
+  const beforeRecovery = await page.locator('.message.secretary').count();
+  await page.locator('#message').fill('合成验收：运行中切换与断线恢复');
+  await page.locator('#send').click();
+  await page.waitForTimeout(650);
+  await page.locator('#display-thinking').uncheck();
+  assert.equal(await page.locator('.message-thinking:visible').count(), 0);
+  await page.locator('#display-streaming').uncheck();
+  assert.equal(await page.locator('.message.secretary').count(), beforeRecovery);
+  await page.locator('#display-thinking').check();
+  await page.locator('#display-streaming').check();
+  await context.setOffline(true);
+  await page.waitForTimeout(350);
+  await context.setOffline(false);
+  await page.waitForTimeout(350);
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('#connection').textContent.includes('已同步'));
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: reportDir + '/streaming.png', fullPage: true });
+  await page.locator('#timeline').evaluate(n=>{n.scrollTop=0;});
+  await page.waitForTimeout(600);
+  assert(await page.locator('#timeline').evaluate(n=>n.scrollTop<5));
+  await page.waitForTimeout(2500);
+  assert.equal(await page.locator('.message.secretary').count(), beforeRecovery+1);
+  await page.locator('#timeline').evaluate(n=>{n.scrollTop=n.scrollHeight;});
+  const font = await page.locator('.message.secretary').last().evaluate(m => ({ thinking: getComputedStyle(m.querySelector('.thinking-text')).fontSize, body: getComputedStyle(m.querySelector('.message-body')).fontSize, color: getComputedStyle(m.querySelector('.thinking-text')).color }));
+  assert(parseFloat(font.thinking) < parseFloat(font.body));
+  const thought = page.locator('.message.secretary').last().locator('details');
+  await thought.locator('summary').click();
+  await page.waitForTimeout(900);
+  assert(!(await thought.evaluate(n => n.open)));
+  await thought.locator('summary').click();
+  await page.screenshot({ path: reportDir + '/desktop.png', fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: reportDir + '/mobile.png', fullPage: true });
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  assert.deepEqual(errors, []);
+  fs.writeFileSync(reportDir + '/browser.json', JSON.stringify({ results, font, errors, persistence: true, folding: true, narrowScreen: true, reconnectAndMidstreamToggle: true, scrollPreserved: true }, null, 2));
+  console.log(JSON.stringify({ combinations: results.length, font, errors, persistence: true, folding: true, narrowScreen: true, reconnectAndMidstreamToggle: true, scrollPreserved: true }));
+} finally { await browser.close(); }
