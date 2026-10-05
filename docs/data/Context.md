@@ -1,6 +1,6 @@
 # Context
 
-一次调用不可变快照；estimated+reserve<=budget 由业务检查。
+不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。
 
 来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/Context)。此页自动生成；行为以调用模块为准。
 
@@ -34,6 +34,10 @@
 | `instructions_revision` | integer | 否 |  {"minimum": 0} |
 | `system_prompt_hash` | Digest | 否 |  关联：[Digest](Digest.md) |
 | `settings_application_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
+| `request_budget` | object | 否 |  {"additionalProperties": false} |
+| `source_context_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
+| `compaction_job_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
+| `protected_from_index` | integer | 否 |  {"minimum": 0} |
 
 ## 组合约束
 

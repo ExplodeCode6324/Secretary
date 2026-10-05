@@ -1,3 +1,4 @@
+import { contextStatus } from "./context.ts";
 import {
   ActivityTerminal,
   activityLines,
@@ -108,21 +109,25 @@ export class TerminalController {
     );
   }
   contextUsage() {
-    const session = this.app.host.session;
-    const context = session.last_context_id
-      ? this.app.store.get<Context>("Context", session.last_context_id)
-      : null;
-    const budget = context?.token_budget ?? this.app.host.model.contextWindow;
-    const pending = this.app.store
-      .all<Input>("Input")
-      .filter(
-        (i) => i.session_id === session.id && i.state === "ACCEPTED",
-      ).length;
-    if (!context)
-      return `Context · 尚无快照 · 窗口 ${budget.toLocaleString("en-US")} tokens · 待装入 ${pending} 条`;
-    const ratio = context.estimated_tokens / budget;
+    const c = contextStatus(
+      this.app.store,
+      this.app.host.session,
+      this.app.host.model,
+    );
+    if (c.used === null)
+      return `Context · 尚无模型请求 · 窗口 ${c.budget.toLocaleString("en-US")} tokens · 待装入 ${c.pending_inputs} 条（发送前重算）`;
+    const ratio = c.occupancy ?? c.used / c.budget;
     const filled = Math.min(12, Math.max(0, Math.round(ratio * 12)));
-    return `Context [${"█".repeat(filled)}${"░".repeat(12 - filled)}] ≈${context.estimated_tokens.toLocaleString("en-US")} / ${budget.toLocaleString("en-US")} tokens · ${(ratio * 100).toFixed(1)}% · 预留 ${context.reserve_tokens.toLocaleString("en-US")} · 待装入 ${pending} 条（最近快照估算）`;
+    const method =
+      c.method === "historical_rough_estimate" ? "历史粗估" : "UTF-8 保守估算";
+    const limits =
+      c.usable_input === null
+        ? ""
+        : ` · 输出 ${c.effective_output} · 工具预留 ${c.tool_reserve} · 安全余量 ${c.safety_margin}`;
+    const observed = c.observed_usage
+      ? ` · 供应商输入字段 ${c.observed_usage.input}`
+      : "";
+    return `Context [${"█".repeat(filled)}${"░".repeat(12 - filled)}] ≈${c.used.toLocaleString("en-US")} / ${(c.usable_input ?? c.budget).toLocaleString("en-US")} tokens · ${(ratio * 100).toFixed(1)}% · 最近请求 ${c.model}（${method}）${limits}${observed} · 待装入 ${c.pending_inputs} 条（发送前重算）${c.deployment_limit_verified ? " · 服务上限采用部署声明" : " · 服务上限未核验"}`;
   }
   private showContext() {
     const text = this.contextUsage();
@@ -149,7 +154,15 @@ export class TerminalController {
   }
   private memoryUsage() {
     const m = this.app.host.memoryStatus();
-    return `Memory · ${m.state} · revision ${m.revision} · 最近成功 ${m.last_success_at ?? "尚无"} · 尝试 ${m.attempt}/2${m.errors.length ? " · " + m.errors.at(-1) : ""}`;
+    const mode = (m as typeof m & { maintenance_mode?: string })
+      .maintenance_mode;
+    const operation =
+      mode === "WORKING_MEMORY"
+        ? "记忆更新"
+        : mode === "CONTEXT_COMPACTION"
+          ? "上下文压缩"
+          : "记忆";
+    return `Memory · ${operation} · ${m.state} · revision ${m.revision} · 最近成功 ${m.last_success_at ?? "尚无"} · 尝试 ${m.attempt}/2${m.errors.length ? " · " + m.errors.at(-1) : ""}${m.compaction_target_reached === false ? " · 未达压缩目标（保留原文/工具证据）" : ""}`;
   }
   private alias(prefix: string, id: string) {
     const old = [...this.aliases].find(

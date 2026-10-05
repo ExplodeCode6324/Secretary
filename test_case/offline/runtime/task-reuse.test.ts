@@ -658,6 +658,13 @@ test("A01: actual Host tool schema, reuse passthrough and accepted request assoc
     const { p, e } = await first(app);
     let schemaSeen = false;
     const stream: StreamFn = (m, c) => {
+      // Completed scheduler feedback now triggers independent working-memory maintenance.
+      if (
+        /CONSCIOUSNESS|COMMITMENT_EXTRACTION/.test(
+          JSON.stringify(c.messages.filter((m) => m.role === "system")),
+        )
+      )
+        return fixtureStream(m, c);
       schemaSeen =
         JSON.stringify(c.messages.filter((m) => m.role === "system")).includes(
           "reuse_task_id",

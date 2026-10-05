@@ -26,6 +26,8 @@ import {
   type SettingsSource,
   type SettingsCandidate,
 } from "./settings-memory.ts";
+import { budgetConfig } from "./budget.ts";
+import { SUMMARY_POLICY } from "./summary.ts";
 const DRAFT_ID = "21b45476-750e-44ae-82f9-5b6f49a7377c";
 type Changes = {
   world: (WorldChange | WorldCatalogChange)[];
@@ -42,6 +44,10 @@ export class Settings {
   ) {
     this.runtimeHash = hash(
       JSON.stringify({
+        policy_version: "settings-memory-v3",
+        summary_policy: SUMMARY_POLICY,
+        main_budget: budgetConfig("main"),
+        task_budget: budgetConfig("task"),
         model: [
           host.model.id,
           host.model.provider,
@@ -61,8 +67,9 @@ export class Settings {
         base_prompt: hash(BASE_SYSTEM),
         task_prompt: hash(EXECUTOR_SYSTEM),
         runtime_options: [
-          process.env.SECRETARY_COMPACTION_BYTES ?? "32768",
-          process.env.SECRETARY_COMPACTION_OUTPUT_TOKENS ?? "8192",
+          process.env.SECRETARY_MEMORY_UPDATE_TURNS ?? "8",
+          process.env.SECRETARY_MEMORY_UPDATE_SECONDS ?? "60",
+          process.env.SECRETARY_MEMORY_MIN_INTERVAL_SECONDS ?? "120",
           process.env.SECRETARY_MAX_OUTPUT_TOKENS ?? "4096",
           process.env.SECRETARY_MAX_WORKERS ?? "2",
         ],
@@ -74,7 +81,7 @@ export class Settings {
     );
     if (incomplete && incomplete.runtime_settings_hash !== this.runtimeHash)
       throw Error(
-        "SETTINGS_RECOVERY_REQUIRES_ORIGINAL_RUNTIME: restore the previous model/database configuration before recovery",
+        "SETTINGS_RECOVERY_REQUIRES_ORIGINAL_RUNTIME: unfinished application belongs to an older policy or configuration; use the exact previous code version AND its model/database configuration against its backed-up store to finish/reconcile the application before upgrade. Changing environment variables alone cannot restore an older policy hash; never discard an application with an external receipt",
       );
     host.settingsBlocked = () => this.blocked;
     host.scheduler.settingsBlocked = () => this.blocked;
@@ -585,6 +592,13 @@ export class Settings {
           ],
           last_job_id: null,
           settings_application_id: key,
+          maintenance_version: 3,
+          context_compaction: null,
+          memory_source_ref: this.store.get<import("./contracts.ts").Context>(
+            "Context",
+            a.context_id!,
+          ).raw_context,
+          memory_updated_at: now(),
         }),
         revise(this.host.session, {
           last_context_id: a.context_id,

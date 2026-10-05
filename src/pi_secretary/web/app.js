@@ -165,19 +165,24 @@ function render(state) {
     `${state.mode === "live" ? "LIVE" : "DEMO"} · ${state.model}`;
   if (state.memory) {
     $("memory-state").textContent =
-      `记忆 ${state.memory.state} · r${state.memory.revision}`;
+      `${state.memory.maintenance_mode === "WORKING_MEMORY" ? "记忆更新" : state.memory.maintenance_mode === "CONTEXT_COMPACTION" ? "上下文压缩" : "记忆"} ${state.memory.state} · r${state.memory.revision}${state.memory.compaction_target_reached === false ? " · 未达压缩目标" : ""}`;
     $("memory-state").title =
-      `最近成功：${state.memory.last_success_at ?? "尚无"}；尝试 ${state.memory.attempt}/2；${state.memory.errors.join("; ")}`;
+      `最近成功：${state.memory.last_success_at ?? "尚无"}；尝试 ${state.memory.attempt}/2；${state.memory.errors.join("; ")}${state.memory.compaction_target_reached === false ? "；原始输入与工具证据必须保留，压缩后仍高于目标比例" : ""}`;
   }
   const c = state.context,
-    ratio = c.used == null ? 0 : (c.used / c.budget) * 100;
-  $("context-bar").style.width = Math.min(100, ratio) + "%";
+    ratio = c.used == null ? 0 : (c.occupancy ?? c.used / c.budget) * 100;
+  $("context-bar").style.width = Math.max(0, Math.min(100, ratio)) + "%";
   $("context-text").textContent =
     c.used == null
-      ? `尚无快照 / ${c.budget.toLocaleString()} tokens`
-      : `≈ ${c.used.toLocaleString()} / ${c.budget.toLocaleString()} · ${ratio.toFixed(1)}%`;
+      ? `尚无模型请求 / ${c.budget.toLocaleString()} tokens`
+      : `最近请求 ≈ ${c.used.toLocaleString()} / ${(c.usable_input ?? c.budget).toLocaleString()} · ${ratio.toFixed(1)}%`;
+  const method =
+    c.method === "historical_rough_estimate" ? "历史粗估" : "UTF-8 保守估算";
+  const observed = c.observed_usage
+    ? `；该请求供应商原始字段：input=${c.observed_usage.input}、output=${c.observed_usage.output}、cacheRead=${c.observed_usage.cache_read}、cacheWrite=${c.observed_usage.cache_write}（未相加）`
+    : "；尚无对应供应商用量";
   $("context-text").title =
-    `最近 Context 快照的估算值；预留 ${c.reserve} tokens，不是供应商实际计量。`;
+    `最近主会话模型请求（${c.model ?? "尚无"}）；${method}，不是精确 tokenizer 计量。可用输入 ${c.usable_input ?? "未知"}；窗口 ${c.budget}；输出上限 ${c.effective_output ?? "未知"}（请求 ${c.requested_output ?? "未知"}）；工具增长预留 ${c.tool_reserve ?? "未知"}；安全余量 ${c.safety_margin ?? "未知"}。${c.deployment_limit_verified ? "服务上限采用部署声明" : "使用模型注册容量，服务上限未核验"}${observed}。恢复检查点独立保留；下一请求发送前重算，待装入 ${c.pending_inputs ?? 0} 条。`;
   $("thinking").hidden = true;
 
   $("task-count").textContent =

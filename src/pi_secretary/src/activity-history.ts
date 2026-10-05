@@ -396,6 +396,22 @@ export class ActivityHistory {
           BLOCKED: "设置结果待核对",
         } as Record<string, string>
       )[r.state] ?? "维护状态待核对";
+    if (r.record_type === "CompactionJob") {
+      const label =
+        r.mode === "WORKING_MEMORY"
+          ? "工作记忆"
+          : r.mode === "CONTEXT_COMPACTION"
+            ? "上下文"
+            : "旧式记忆整理";
+      row.phase =
+        r.state === "COMMITTED"
+          ? label + (r.mode === "CONTEXT_COMPACTION" ? "已压缩" : "已更新")
+          : r.state === "SUMMARIZING"
+            ? "正在更新" + label
+            : r.state === "FAILED"
+              ? label + "处理失败"
+              : row.phase;
+    }
     const done = terminal(r.state) || r.state === "STALE";
     row.status =
       r.state === "FAILED" ? "failed" : done ? "succeeded" : "waiting";

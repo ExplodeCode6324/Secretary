@@ -361,7 +361,7 @@ export interface ObjectRef {
   media_type: string;
 }
 /**
- * 一次调用不可变快照；estimated+reserve<=budget 由业务检查。
+ * 不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。
  */
 export interface Context {
   schema_version: 1;
@@ -410,6 +410,22 @@ export interface Context {
   instructions_revision?: number;
   system_prompt_hash?: Digest;
   settings_application_id?: ID | null;
+  request_budget?: {
+    estimated_tokens: number;
+    effective_context_window: number;
+    requested_output_tokens: number;
+    effective_output_tokens: number;
+    tool_reserve_tokens: number;
+    safety_margin_tokens: number;
+    usable_input_tokens: number;
+    occupancy: number;
+    count_method: "utf8_bytes_upper_estimate_v1";
+    policy_id: string;
+    deployment_limit_verified: boolean;
+  };
+  source_context_id?: ID | null;
+  compaction_job_id?: ID | null;
+  protected_from_index?: number;
 }
 /**
  * 逻辑消息；provider 扩展块由原始 context 对象保留。
@@ -517,6 +533,15 @@ export interface Consciousness {
    * 设置切换已摘要的精确消息哈希，防止引用交叠造成重复。
    */
   covered_message_hashes?: Digest[];
+  maintenance_version?: 3;
+  memory_source_ref?: ObjectRef;
+  memory_updated_at?: Time;
+  context_compaction?: null | {
+    job_id: ID;
+    source_ref: ObjectRef;
+    messages_ref: ObjectRef;
+    source_end_sequence: number;
+  };
 }
 /**
  * 事项不等于任务；未履行且无人承接的事项不退出。
@@ -602,6 +627,14 @@ export interface CompactionJob {
   memory_version?: 2;
   attempt?: number;
   source_end_sequence?: number;
+  mode?: "WORKING_MEMORY" | "CONTEXT_COMPACTION";
+  policy_id?: string;
+  progress_ref?: ObjectRef;
+  source_start_sequence?: number;
+  /**
+   * 仅上下文裁剪：保留原文及当前协议后是否达到目标占用；false 不代表删除保留材料。
+   */
+  target_reached?: boolean;
 }
 /**
  * 主会话只提出任务；不接受 authorized、grant 等模型声明。

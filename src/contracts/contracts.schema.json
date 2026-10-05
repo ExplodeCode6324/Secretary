@@ -1169,6 +1169,89 @@
               "type": "null"
             }
           ]
+        },
+        "request_budget": {
+          "type": "object",
+          "properties": {
+            "estimated_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "effective_context_window": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "requested_output_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "effective_output_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "tool_reserve_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "safety_margin_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "usable_input_tokens": {
+              "type": "integer"
+            },
+            "occupancy": {
+              "type": "number",
+              "minimum": 0
+            },
+            "count_method": {
+              "const": "utf8_bytes_upper_estimate_v1"
+            },
+            "policy_id": {
+              "type": "string"
+            },
+            "deployment_limit_verified": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "estimated_tokens",
+            "effective_context_window",
+            "requested_output_tokens",
+            "effective_output_tokens",
+            "tool_reserve_tokens",
+            "safety_margin_tokens",
+            "usable_input_tokens",
+            "occupancy",
+            "count_method",
+            "policy_id",
+            "deployment_limit_verified"
+          ],
+          "additionalProperties": false
+        },
+        "source_context_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "compaction_job_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protected_from_index": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -1197,7 +1280,7 @@
         "wm_fact_versions"
       ],
       "additionalProperties": false,
-      "description": "一次调用不可变快照；estimated+reserve<=budget 由业务检查。"
+      "description": "不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。"
     },
     "ModelCall": {
       "type": "object",
@@ -1506,6 +1589,47 @@
             "$ref": "#/$defs/Digest"
           },
           "description": "设置切换已摘要的精确消息哈希，防止引用交叠造成重复。"
+        },
+        "maintenance_version": {
+          "const": 3
+        },
+        "memory_source_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "memory_updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "context_compaction": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "job_id": {
+                  "$ref": "#/$defs/ID"
+                },
+                "source_ref": {
+                  "$ref": "#/$defs/ObjectRef"
+                },
+                "messages_ref": {
+                  "$ref": "#/$defs/ObjectRef"
+                },
+                "source_end_sequence": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "job_id",
+                "source_ref",
+                "messages_ref",
+                "source_end_sequence"
+              ],
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "required": [
@@ -1614,6 +1738,26 @@
         "source_end_sequence": {
           "type": "integer",
           "minimum": 0
+        },
+        "mode": {
+          "enum": [
+            "WORKING_MEMORY",
+            "CONTEXT_COMPACTION"
+          ]
+        },
+        "policy_id": {
+          "type": "string"
+        },
+        "progress_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "source_start_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "target_reached": {
+          "type": "boolean",
+          "description": "仅上下文裁剪：保留原文及当前协议后是否达到目标占用；false 不代表删除保留材料。"
         }
       },
       "required": [

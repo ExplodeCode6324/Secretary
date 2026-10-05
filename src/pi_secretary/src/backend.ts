@@ -1,3 +1,4 @@
+import { contextStatus } from "./context.ts";
 import { getInstructions } from "./instructions.ts";
 import { activityHistoryFor } from "./activity-history.ts";
 import { timelineFor, type TimelineOptions } from "./timeline.ts";
@@ -568,9 +569,6 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
         const session = app.host.session;
         const windowed = url.searchParams.get("window") === "1";
         const timeline = windowed ? timelineFor(app) : null;
-        const context = session.last_context_id
-          ? app.store.get<Context>("Context", session.last_context_id)
-          : null;
         return send(200, {
           session: session.id,
           state: session.state,
@@ -579,17 +577,7 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
           revision: app.store.sequence,
           memory: app.host.memoryStatus(),
           settings: app.settings.status(),
-          context: context
-            ? {
-                used: context.estimated_tokens,
-                budget: context.token_budget,
-                reserve: context.reserve_tokens,
-              }
-            : {
-                used: null,
-                budget: app.host.model.contextWindow,
-                reserve: 4096,
-              },
+          context: contextStatus(app.store, session, app.host.model),
           ...(windowed
             ? { timeline_summary: timeline!.summary(session.id) }
             : {

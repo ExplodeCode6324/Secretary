@@ -1,8 +1,16 @@
+import { requestTokens, type RequestBudget } from "./budget.ts";
 import { migrateCommitments } from "./memory.ts";
-import { contentText } from "@earendil-works/pi-ai";
+import {
+  contentText,
+  type Api,
+  type Model,
+  type AssistantMessage,
+} from "@earendil-works/pi-ai";
 import { Store, base, id, now } from "./store.ts";
 import type {
   Context,
+  ModelCall,
+  Input,
   Checkpoint,
   Scope,
   Session,
@@ -22,11 +30,24 @@ export function saveContext(
     consciousnessRevision?: number | null;
     inputIDs?: string[];
     captureKind?: "CHECKPOINT" | "MODEL_REQUEST";
+    budget?: RequestBudget;
+    sourceContextID?: string | null;
+    compactionJobID?: string | null;
+    protectedFromIndex?: number;
   } = {},
 ): Context {
   const raw = store.put(messages);
-  const estimated = Math.ceil(store.bytes(raw).length / 3);
-  if (estimated + 4096 > budget) throw Error("CAPACITY_BLOCKED");
+  const estimated =
+    metadata.budget?.estimated_tokens ?? requestTokens(messages);
+  // A checkpoint is recovery evidence, even when no model could accept it.
+  // Sending is authorized separately using the complete model-specific request.
+  if (
+    metadata.captureKind === "MODEL_REQUEST" &&
+    (!metadata.budget ||
+      metadata.budget.usable_input_tokens <= 0 ||
+      estimated > metadata.budget.usable_input_tokens)
+  )
+    throw Error("CAPACITY_BLOCKED: model request requires a passing budget");
   const pending = new Set<string>();
   let memoryRevision: number | null = null;
   for (const m of messages) {
@@ -62,20 +83,22 @@ export function saveContext(
               commitments: migrateCommitments(cs),
             })
           : null;
-        const previouslyCaptured = store
-          .all<Context>("Context")
-          .some(
-            (c) =>
-              c.session_id === scope.session_id &&
-              c.consciousness_revision === parsed.revision &&
-              c.messages.some(
-                (entry) =>
-                  entry.role === "user" &&
-                  contentText(
-                    store.read<{ content: string }>(entry.content).content,
-                  ) === text,
-              ),
-          );
+        const previouslyCaptured =
+          text !== canonical &&
+          store
+            .all<Context>("Context")
+            .some(
+              (c) =>
+                c.session_id === scope.session_id &&
+                c.consciousness_revision === parsed.revision &&
+                c.messages.some(
+                  (entry) =>
+                    entry.role === "user" &&
+                    contentText(
+                      store.read<{ content: string }>(entry.content).content,
+                    ) === text,
+                ),
+            );
         if (text === canonical || previouslyCaptured)
           memoryRevision = parsed.revision ?? null;
       } catch {}
@@ -132,9 +155,23 @@ export function saveContext(
       (session?.active_loop_id === loopID ? session.claimed_input_ids : []),
     pending_tool_call_ids: [...pending],
     capture_kind: metadata.captureKind ?? "CHECKPOINT",
-    token_budget: budget,
+    ...(metadata.budget ? { request_budget: metadata.budget } : {}),
+    ...(metadata.sourceContextID
+      ? { source_context_id: metadata.sourceContextID }
+      : {}),
+    ...(metadata.compactionJobID
+      ? { compaction_job_id: metadata.compactionJobID }
+      : {}),
+    ...(metadata.protectedFromIndex === undefined
+      ? {}
+      : { protected_from_index: metadata.protectedFromIndex }),
+    token_budget: metadata.budget?.effective_context_window ?? budget,
     estimated_tokens: estimated,
-    reserve_tokens: 4096,
+    reserve_tokens: metadata.budget
+      ? metadata.budget.effective_output_tokens +
+        metadata.budget.tool_reserve_tokens +
+        metadata.budget.safety_margin_tokens
+      : 0,
     omitted_refs: [],
     wm_fact_versions: [],
   };
@@ -179,4 +216,99 @@ export function checkpoint(
   };
   store.commit([cp]);
   return cp;
+}
+
+const requestViews = new WeakMap<
+  Store,
+  {
+    position: number;
+    contexts: Map<string, Context>;
+    usages: Map<string, { sha: string; usage: AssistantMessage["usage"] }>;
+  }
+>();
+/** The UI describes a request separately from recovery evidence and future inputs. */
+export function contextStatus(
+  store: Store,
+  session: Session,
+  model: Model<Api>,
+) {
+  let cache = requestViews.get(store);
+  if (!cache) {
+    cache = { position: 0, contexts: new Map(), usages: new Map() };
+    requestViews.set(store, cache);
+  }
+  for (const event of store.logs.slice(cache.position)) {
+    if (event.event_type !== "model.context") continue;
+    const context = store.read<Context>(event.payload);
+    if (
+      context.purpose === "MAIN" &&
+      context.capture_kind === "MODEL_REQUEST" &&
+      context.session_id
+    )
+      cache.contexts.set(context.session_id, context);
+  }
+  cache.position = store.logs.length;
+  const context = cache.contexts.get(session.id);
+  const facts = context?.request_budget;
+  const checkpoint = session.last_context_id
+    ? store.find<Context>("Context", session.last_context_id)
+    : undefined;
+  const call = context
+    ? store.find<ModelCall>("ModelCall", context.call_id)
+    : undefined;
+  let observed = cache.usages.get(session.id);
+  if (call?.response && observed?.sha !== call.response.sha256) {
+    const response = store.read<AssistantMessage>(call.response);
+    observed = { sha: call.response.sha256, usage: response.usage };
+    cache.usages.set(session.id, observed);
+  }
+  const usage =
+    call?.response && observed?.sha === call.response.sha256
+      ? observed.usage
+      : undefined;
+  const pending = store.select<Input>(
+    "Input",
+    (input) => input.session_id === session.id && input.state === "ACCEPTED",
+    Number.MAX_SAFE_INTEGER,
+  ).length;
+  return {
+    used: context?.estimated_tokens ?? null,
+    budget:
+      facts?.effective_context_window ??
+      context?.token_budget ??
+      model.contextWindow,
+    reserve: context?.reserve_tokens ?? null,
+    context_id: context?.id ?? null,
+    capture_kind: context?.capture_kind ?? null,
+    model: context?.provider_profile ?? null,
+    current_model: model.id,
+    call_state: call?.state ?? null,
+    method:
+      facts?.count_method ?? (context ? "historical_rough_estimate" : null),
+    usable_input: facts?.usable_input_tokens ?? null,
+    occupancy: facts?.occupancy ?? null,
+    requested_output: facts?.requested_output_tokens ?? null,
+    effective_output: facts?.effective_output_tokens ?? null,
+    tool_reserve: facts?.tool_reserve_tokens ?? null,
+    safety_margin: facts?.safety_margin_tokens ?? null,
+    deployment_limit_verified: facts?.deployment_limit_verified ?? false,
+    observed_usage: usage
+      ? {
+          input: usage.input,
+          output: usage.output,
+          cache_read: usage.cacheRead,
+          cache_write: usage.cacheWrite,
+          total: usage.totalTokens,
+        }
+      : null,
+    checkpoint: checkpoint
+      ? {
+          id: checkpoint.id,
+          capture_kind: checkpoint.capture_kind,
+          estimated_tokens: checkpoint.estimated_tokens,
+        }
+      : null,
+    next_request_budget: null,
+    pending_inputs: pending,
+  };
 }

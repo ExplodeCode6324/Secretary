@@ -158,7 +158,7 @@ test("repeated summary failure is visible and automatic maintenance does not spi
   }, stream);
 });
 
-test("new input during compaction makes the old candidate stale", async () => {
+test("new input during compaction queues beyond the committed fixed source", async () => {
   let release!: () => void;
   let started!: () => void;
   const gate = new Promise<void>((r) => {
@@ -182,14 +182,19 @@ test("new input during compaction makes the old candidate stale", async () => {
     const revision = cs(app).revision;
     const pending = app.host.compact();
     await ready;
-    app.host.accept("A newer constraint");
+    const queued = app.host.accept("A newer constraint");
+    const acceptedSequence = app.store.eventSequence;
     release();
     await pending;
     assert.equal(
       app.store.all<CompactionJob>("CompactionJob").at(-1)?.state,
-      "STALE",
+      "COMMITTED",
     );
-    assert.equal(cs(app).revision, revision);
+    // Issue #2: arrival alone does not invalidate a fixed completed source.
+    assert(cs(app).revision > revision);
+    assert((cs(app).covered_event_sequence ?? 0) < acceptedSequence);
+    assert.equal(app.store.get<Input>("Input", queued.id).state, "ACCEPTED");
+    assert(!JSON.stringify(cs(app).items).includes("A newer constraint"));
   }, stream);
 });
 
@@ -325,14 +330,23 @@ test("incremental summary sends new events without repeating old tool history", 
   };
   await fixture(async (app) => {
     await app.host.compact();
-    const oldIds = new Set(packets[0].new_events.map((e: any) => e.event_id));
+    const oldIds = new Set(
+      JSON.parse(packets[0].source_chunk).map(
+        (fragment: any) => fragment.source_id,
+      ),
+    );
     app.host.accept("new distinct update");
     await app.host.drain();
     await app.host.compact();
-    assert(packets[1].new_events.length > 0);
-    assert(packets[1].new_events.every((e: any) => !oldIds.has(e.event_id)));
+    // Issue #2 sends complete source fragments, retaining stable event identity.
+    const fragments = JSON.parse(packets[1].source_chunk);
+    assert(fragments.length > 0);
+    assert(fragments.every((fragment: any) => !oldIds.has(fragment.source_id)));
     assert(
-      JSON.stringify(packets[1].new_events).includes("new distinct update"),
+      fragments
+        .map((fragment: any) => fragment.fragment)
+        .join("")
+        .includes("new distinct update"),
     );
   }, stream);
 });

@@ -25,8 +25,8 @@ Master 点击应用即明确提交本批内容，后端保存 MASTER_UI 证据�
 ## 切换顺序
 
 1. 持久化 QUEUED 应用及请求幂等回执，阻止主会话领取下一批输入，等待当前轮次和已有整理结束。未恢复的 CLAIMED 输入或未配对工具结果必须先解决。
-2. 固定当前 Context、Consciousness revision、事件截止序号。合并全部 pending_raw_refs、当前 context 和未覆盖的主会话消息事件，按消息哈希去重；已有整理来源及覆盖哈希防止重复。重建时生成的记忆/设置包装消息标记为已覆盖，后续不重新摘要这些派生包装。
-3. SUMMARIZING 按完整消息 JSON 分片并合并短片输入模型，逐片携带前序记忆和即将生效的设置变化。每片最多尝试两次，候选和已完成片数逐步持久化。不会只保留工具输出开头就标记整段已覆盖。
+2. 固定当前 Context、Consciousness revision、事件截止序号。合并全部 pending_raw_refs、当前 context 和未覆盖的主会话消息事件，按稳定事件 ID 保留不同事件，旧快照以消息出现次数承接，不能把同文不同事件合并；已有事件覆盖边界防止重复。重建时生成的记忆/设置包装消息标记为已覆盖，后续不重新摘要这些派生包装。
+3. SUMMARIZING 按完整消息 JSON 分片并合并短片输入模型，逐片携带前序记忆和即将生效的设置变化。每片最多尝试两次，按较大重试输出预算冻结来源；候选和已完成片数逐步持久化。全部摘要片段完成后才独立提取承诺，完整消息装不下时明确阻塞；成功提取复用，失败或未知尝试不可因重启、改账本或加来源而自动重发。不会只保留工具输出开头就标记整段已覆盖。
 4. 检查结构、覆盖、承诺和源版本，预先构建并检查新 context 容量。无新增来源且无旧记忆时不制造摘要模型调用。摘要候选不提前成为有效 Consciousness。
 5. COMMITTING 在一个 PostgreSQL 事务内执行本批 World 修改，保存 `wm.settings_batch_receipt`、逐变更回执和 outbox。语义或版本冲突导致本批事实全部回滚。
 6. REBUILDING 完成 outbox 桥接后，一次 Store 事务提交新的工作记忆、有效说明、Session context 指针、运行配置哈希和 APPLIED 状态。最后放行排队输入与新任务调度。
@@ -48,7 +48,7 @@ Master 点击应用即明确提交本批内容，后端保存 MASTER_UI 证据�
 
 普通人工修改失败时可继续旧配置下的工作。启动配置已经变化但重建失败时仍保持 gate，需重试成功或恢复原配置，不能在失败后直接使用新模型。切换运行配置前如有未恢复的主会话轮次，应先在原配置下恢复它。
 
-普通单来源 `/compact` 仍使用 CompactionJob 的增量整理；发现多个 pending_raw_refs 时转完整来源流程。自动、手动整理与设置应用不能并发提交记忆。`/memory` 显示最近设置应用成功时间和 SETTINGS_APPLIED；它不等于证明模型摘要语义质量合格。
+普通单来源 `/compact` 使用 CompactionJob 的 WORKING_MEMORY 增量更新，并仅在容量阈值到达时另记 CONTEXT_COMPACTION 裁剪；发现多个 pending_raw_refs 时转完整来源流程。自动、手动整理与设置应用不能并发提交记忆。`/memory` 显示最近设置应用成功时间和 SETTINGS_APPLIED；它不等于证明模型摘要语义质量合格。
 
 ## HTTP API
 
@@ -65,3 +65,5 @@ Master 点击应用即明确提交本批内容，后端保存 MASTER_UI 证据�
 | GET/POST `/api/instructions` | GET 返回有效说明和 management；POST 用 `content`、有效说明 `expected_revision`、`draft_revision` 保存草稿，`applies=SUMMARY_AND_REBUILD` |
 
 新增设置时必须补充：草稿/有效版本的契约、影响范围、摘要与重建入口、运行中工作边界、失败与恢复测试、文档和实际模型证据范围。
+
+运行配置指纹包含摘要策略、main/task 容量及输出预算、记忆节流参数。旧未完成应用指纹不匹配时，需使用备份对应的完整旧代码与配置，在隔离副本核对阶段与 World 回执，再完成对账；只恢复环境变量不足以跨版本恢复，已提交的外部设置不能通过删除本地记录假装回滚。详见[容量与记忆规范](memory-and-prompts.md)。

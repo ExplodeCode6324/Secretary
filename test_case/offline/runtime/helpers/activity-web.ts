@@ -47,7 +47,8 @@ const taskStream: StreamFn = async (m, c, o) => {
   return fixtureStream(m, c, o);
 };
 const app = await App.open(directory, {
-  main: { model: fixtureModel, stream },
+  // Leave room for the complete synthetic user message and retained input anchors.
+  main: { model: { ...fixtureModel, contextWindow: 131072 }, stream },
   task: { model: fixtureModel, stream: taskStream },
 });
 // Seed enough synthetic source to exercise real multi-chunk settings work.

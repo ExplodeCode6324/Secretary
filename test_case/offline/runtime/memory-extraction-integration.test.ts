@@ -17,6 +17,7 @@ import type {
   Consciousness,
   CompactionJob,
   SettingsApplication,
+  Input,
 } from "../../../src/pi_secretary/src/contracts.ts";
 
 const promise =
@@ -126,7 +127,18 @@ test("empty primary summary falls back once and records an assistant-only condit
         "retain the full condition verbatim",
       );
       assert.equal(ledger[0].state, "OPEN");
-      assert.deepEqual(ledger[0].source_refs, [source]);
+      // Issue #2 stores the exact completed-event evidence independently of the
+      // recovery Context; every promise must cite that immutable source snapshot.
+      const job = app.store
+        .all<CompactionJob>("CompactionJob")
+        .findLast((entry) => entry.mode === "WORKING_MEMORY")!;
+      assert(ledger[0].source_refs.length > 0);
+      for (const ref of ledger[0].source_refs) {
+        assert(
+          job.source_refs.some((candidate) => candidate.sha256 === ref.sha256),
+        );
+        assert(app.store.bytes(ref).toString().includes(promise));
+      }
       assert.deepEqual(ledger[0].resolution_event_ids, []);
       assert(app.store.bytes(source).equals(before));
     },
@@ -245,7 +257,7 @@ test("fallback cannot introduce an invented quote absent from the durable source
 });
 
 test(
-  "input accepted while fallback awaits makes the candidate stale without committing memory",
+  "input accepted during extraction queues while the fixed old source commits",
   { timeout: 15000 },
   async () => {
     let release!: () => void;
@@ -275,21 +287,24 @@ test(
           const input = app.host.accept(
             "A newer review constraint has arrived.",
           );
+          const acceptedSequence = app.store.eventSequence;
           release();
           await pending;
           assert.equal(calls.primary, 1);
           assert.equal(calls.extraction, 1);
           const job = app.store.all<CompactionJob>("CompactionJob").at(-1)!;
-          assert.equal(job.state, "STALE");
-          assert.equal(job.candidate_ref, null);
-          assert.deepEqual(
-            memory(app),
-            before,
-            "no stale summary or quote may be committed",
+          assert.equal(job.state, "COMMITTED");
+          assert(job.candidate_ref);
+          assert(memory(app).revision > before.revision);
+          assert((memory(app).covered_event_sequence ?? 0) < acceptedSequence);
+          assert.equal(
+            app.store.get<Input>("Input", input.id).state,
+            "ACCEPTED",
           );
+          assert.equal(memory(app).commitments?.[0].text, promise);
           assert(
-            app.store.logs.some(
-              (event) => event.event_type === "consciousness.stale",
+            !JSON.stringify(memory(app).items).includes(
+              "A newer review constraint has arrived.",
             ),
           );
           assert(app.store.all().some((record) => record.id === input.id));

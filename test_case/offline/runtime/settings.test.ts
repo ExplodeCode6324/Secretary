@@ -195,13 +195,16 @@ test("new inputs during settings summary queue beyond a fixed boundary; long sou
       revise(cs, {
         pending_raw_refs: [
           ...cs.pending_raw_refs,
-          app.store.put([
-            {
+          // Packed summary groups now allow 16KiB. Three complete 11k
+          // messages still exercise >=3 groups while each extraction input fits.
+          app.store.put(
+            Array.from({ length: 3 }, (_, index) => ({
               role: "user",
-              content: "x".repeat(23000) + "END_OF_LONG_SOURCE",
-              timestamp: 10,
-            },
-          ]),
+              content:
+                "x".repeat(11000) + (index === 2 ? "END_OF_LONG_SOURCE" : ""),
+              timestamp: 10 + index,
+            })),
+          ),
         ],
       }),
     ]);

@@ -42,10 +42,51 @@ export function reconcileCommitments(
   const ledger = migrateCommitments(cs);
   // Only a quote present in the source can introduce a new pending obligation.
   // Existing IDs/text survive paraphrases and omissions in the model's candidate.
-  const original = store.bytes(source).toString();
+  const raw = store.bytes(source).toString();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = raw;
+  }
+  // Match decoded message text, never JSON keys, escaped serialization or tool data.
+  const original: string[] = [];
+  const visit = (value: unknown) => {
+    if (typeof value === "string") {
+      original.push(value);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach(visit);
+      return;
+    }
+    if (
+      !value ||
+      typeof value !== "object" ||
+      !("role" in value) ||
+      !("content" in value) ||
+      !["user", "assistant"].includes(String(value.role))
+    )
+      return;
+    if (typeof value.content === "string") original.push(value.content);
+    else if (Array.isArray(value.content))
+      original.push(
+        value.content
+          .filter(
+            (part) =>
+              part && part.type === "text" && typeof part.text === "string",
+          )
+          .map((part) => part.text)
+          .join("\n"),
+      );
+  };
+  visit(parsed);
   for (const item of items)
     for (const text of item.unfulfilled_commitments) {
-      if (!original.includes(text) || ledger.some((c) => c.text === text))
+      if (
+        !original.some((body) => body.includes(text)) ||
+        ledger.some((c) => c.text === text)
+      )
         continue;
       ledger.push({
         id: commitmentID(cs.id + text),
