@@ -1,4 +1,6 @@
 import { getInstructions } from "./instructions.ts";
+import { activityHistoryFor } from "./activity-history.ts";
+import { timelineFor, type TimelineOptions } from "./timeline.ts";
 import * as http from "node:http";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -29,10 +31,27 @@ export type UIMessage = {
   thinking?: string;
   call_id?: string;
   incomplete?: boolean;
+  order?: number;
 };
+const conversations = new WeakMap<
+  App["store"],
+  Map<string, { position: number; output: UIMessage[] }>
+>();
 export function conversation(app: App, showThinking = false): UIMessage[] {
-  const output: UIMessage[] = [];
-  for (const e of app.store.logs) {
+  let caches = conversations.get(app.store);
+  if (!caches) {
+    caches = new Map();
+    conversations.set(app.store, caches);
+  }
+  const key = `${app.host.sessionID}:${showThinking}`;
+  let cache = caches.get(key);
+  if (!cache) {
+    cache = { position: 0, output: [] };
+    caches.set(key, cache);
+  }
+  const output = cache.output;
+  const history = activityHistoryFor(app.store);
+  for (const e of app.store.logs.slice(cache.position)) {
     let role: MessageTone = "system",
       text = "";
     let thinking: string | undefined,
@@ -82,6 +101,7 @@ export function conversation(app: App, showThinking = false): UIMessage[] {
         role,
         text,
         at: e.occurred_at,
+        order: history.messageOrder(e.event_id),
         ...(showThinking && role === "secretary"
           ? { thinking: thinking ?? "" }
           : {}),
@@ -89,7 +109,8 @@ export function conversation(app: App, showThinking = false): UIMessage[] {
         ...(incomplete ? { incomplete } : {}),
       });
   }
-  return output;
+  cache.position = app.store.logs.length;
+  return output.map((message) => ({ ...message }));
 }
 export async function serve(app: App, port = 0, onShutdown?: () => void) {
   const token = randomBytes(32).toString("hex");
@@ -140,6 +161,10 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
         const names: Record<string, string> = {
           "/": "index.html",
           "/app.js": "app.js",
+          "/markdown.js": "markdown.js",
+          "/activity.js": "activity.js",
+          "/timeline-window.js": "timeline-window.js",
+          "/timeline-view.js": "timeline-view.js",
           "/style.css": "style.css",
         };
         const name = names[url.pathname];
@@ -213,6 +238,132 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
       );
       if (!client) return send(409, { error: "CLIENT_EXPIRED" });
       client.touched = Date.now();
+      if (url.pathname === "/api/timeline" && req.method === "POST") {
+        const options = body.options as TimelineOptions;
+        if (!options || typeof options !== "object" || Array.isArray(options))
+          return send(400, { error: "INVALID_TIMELINE_OPTIONS" });
+        return send(200, timelineFor(app).query(app.host.sessionID, options));
+      }
+      if (url.pathname === "/api/panels" && req.method === "GET") {
+        const kind = url.searchParams.get("kind"),
+          offset = Number(url.searchParams.get("offset") ?? 0);
+        if (
+          !Number.isSafeInteger(offset) ||
+          offset < 0 ||
+          !["tasks", "approvals", "decisions"].includes(kind ?? "")
+        )
+          return send(400, { error: "INVALID_PANEL_PAGE" });
+        const session = app.host.sessionID,
+          history = activityHistoryFor(app.store);
+        let records: any[];
+        if (kind === "tasks")
+          records = history
+            .sessionTasks(session)
+            .reverse()
+            .slice(offset, offset + 21)
+            .map((id) => app.store.get<TaskPlan>("TaskPlan", id));
+        else if (kind === "approvals")
+          records = app.store.select<AuthorizationRequest>(
+            "AuthorizationRequest",
+            (a) =>
+              (a.scope.session_id === session ||
+                (!!a.scope.task_id &&
+                  history.taskSession(a.scope.task_id) === session)) &&
+              ["PENDING", "APPROVED"].includes(a.state),
+            21,
+            offset,
+          );
+        else
+          records = app.store.select<DecisionRequest>(
+            "DecisionRequest",
+            (d) =>
+              history.taskSession(d.task_id) === session && d.state === "OPEN",
+            21,
+            offset,
+          );
+        const items = records.slice(0, 20).map((r) =>
+          kind === "tasks"
+            ? {
+                id: r.id,
+                state: r.state,
+                goal: app.store.read<TaskProposal>(r.proposal_ref).goal,
+                executions: app.store.select<Execution>(
+                  "Execution",
+                  (e) => e.task_id === r.id,
+                  1,
+                  0,
+                  { latest: true },
+                ),
+              }
+            : kind === "approvals"
+              ? { ...r, display: app.store.read(r.display_ref) }
+              : r,
+        );
+        return send(200, {
+          items,
+          next: records.length > 20 ? offset + 20 : null,
+        });
+      }
+      const activitySnapshot = () => {
+        const snapshot = app.activitySnapshot();
+        if (url.searchParams.get("timeline") !== "1") return snapshot;
+        const history = activityHistoryFor(app.store);
+        return {
+          ...snapshot,
+          timeline: {
+            ...history.page(app.host.sessionID),
+            live: history.live(snapshot),
+            updates: history.updates(snapshot),
+          },
+        };
+      };
+      if (url.pathname === "/api/activity/history" && req.method === "GET") {
+        try {
+          if (url.searchParams.has("ids")) {
+            let ids: unknown;
+            try {
+              ids = JSON.parse(url.searchParams.get("ids")!);
+            } catch {
+              return send(400, { error: "INVALID_ACTIVITY_IDS" });
+            }
+            return send(200, {
+              items: activityHistoryFor(app.store).selected(
+                app.host.sessionID,
+                ids,
+              ),
+              store_revision: app.store.sequence,
+            });
+          }
+          return send(
+            200,
+            activityHistoryFor(app.store).page(
+              app.host.sessionID,
+              url.searchParams.get("cursor") ?? undefined,
+              Number(url.searchParams.get("limit") ?? 50),
+            ),
+          );
+        } catch (error) {
+          if (/^INVALID_ACTIVITY_/.test(String((error as Error).message)))
+            return send(400, { error: (error as Error).message });
+          throw error;
+        }
+      }
+      if (url.pathname === "/api/activity" && req.method === "GET") {
+        const snapshot = activitySnapshot();
+        if (
+          url.searchParams.get("instance") === snapshot.server_instance_id &&
+          url.searchParams.get("since") ===
+            String(snapshot.activity_revision) &&
+          url.searchParams.get("timeline") !== "1"
+        )
+          return send(200, {
+            unchanged: true,
+            server_instance_id: snapshot.server_instance_id,
+            activity_revision: snapshot.activity_revision,
+            observed_at: snapshot.observed_at,
+          });
+        return send(200, snapshot);
+      }
       if (url.pathname === "/api/stream" && req.method === "GET") {
         const thinking = url.searchParams.get("thinking") === "1";
         res.writeHead(200, {
@@ -220,7 +371,10 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
           Connection: "keep-alive",
         });
         let revision = -1,
+          activityRevision = "",
           heartbeat = 0;
+        const includeActivity = url.searchParams.get("activity") === "1";
+        const includePreview = url.searchParams.get("preview") !== "0";
         const sendSnapshot = () => {
           client.touched = Date.now();
           if (res.writableLength > 512 * 1024) {
@@ -228,12 +382,23 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
             return;
           }
           const current = app.host.previews.revision;
-          if (revision !== current) {
+          if (includePreview && revision !== current) {
             revision = current;
             res.write(
               `event: preview\ndata: ${JSON.stringify({ revision, previews: app.host.previews.snapshot(app.host.sessionID, thinking) })}\n\n`,
             );
-          } else if (++heartbeat % 100 === 0) res.write(": heartbeat\n\n");
+          }
+          if (includeActivity) {
+            const snapshot = activitySnapshot();
+            const version = `${snapshot.activity_revision}:${url.searchParams.get("timeline") === "1" ? snapshot.store_revision : ""}`;
+            if (activityRevision !== version) {
+              activityRevision = version;
+              res.write(
+                `event: activity\ndata: ${JSON.stringify(snapshot)}\n\n`,
+              );
+            }
+          }
+          if (++heartbeat % 50 === 0) res.write(": heartbeat\n\n");
         };
         sendSnapshot();
         const updates = setInterval(sendSnapshot, 100);
@@ -401,6 +566,8 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
         if (url.searchParams.get("since") === String(app.store.sequence))
           return send(200, { unchanged: true, revision: app.store.sequence });
         const session = app.host.session;
+        const windowed = url.searchParams.get("window") === "1";
+        const timeline = windowed ? timelineFor(app) : null;
         const context = session.last_context_id
           ? app.store.get<Context>("Context", session.last_context_id)
           : null;
@@ -423,27 +590,42 @@ export async function serve(app: App, port = 0, onShutdown?: () => void) {
                 budget: app.host.model.contextWindow,
                 reserve: 4096,
               },
-          messages: conversation(app, url.searchParams.get("thinking") === "1"),
+          ...(windowed
+            ? { timeline_summary: timeline!.summary(session.id) }
+            : {
+                messages: conversation(
+                  app,
+                  url.searchParams.get("thinking") === "1",
+                ),
+              }),
           notification_ids: app.store
-            .all<Notification>("Notification")
-            .filter((n) => n.session_id === session.id && n.state === "QUEUED")
-            .map((n) => n.id)
-            .slice(0, 500),
-          approvals: app.store
-            .all<AuthorizationRequest>("AuthorizationRequest")
-            .filter((a) => ["PENDING", "APPROVED"].includes(a.state))
-            .map((a) => ({ ...a, display: app.store.read(a.display_ref) })),
-          decisions: app.store
-            .all<DecisionRequest>("DecisionRequest")
-            .filter((d) => d.state === "OPEN"),
-          tasks: app.store.all<TaskPlan>("TaskPlan").map((p) => ({
-            id: p.id,
-            state: p.state,
-            goal: app.store.read<TaskProposal>(p.proposal_ref).goal,
-            executions: app.store
-              .all<Execution>("Execution")
-              .filter((e) => e.task_id === p.id),
-          })),
+            .select<Notification>(
+              "Notification",
+              (n) => n.session_id === session.id && n.state === "QUEUED",
+              500,
+            )
+            .map((n) => n.id),
+          approvals: windowed
+            ? []
+            : app.store
+                .all<AuthorizationRequest>("AuthorizationRequest")
+                .filter((a) => ["PENDING", "APPROVED"].includes(a.state))
+                .map((a) => ({ ...a, display: app.store.read(a.display_ref) })),
+          decisions: windowed
+            ? []
+            : app.store
+                .all<DecisionRequest>("DecisionRequest")
+                .filter((d) => d.state === "OPEN"),
+          tasks: windowed
+            ? []
+            : app.store.all<TaskPlan>("TaskPlan").map((p) => ({
+                id: p.id,
+                state: p.state,
+                goal: app.store.read<TaskProposal>(p.proposal_ref).goal,
+                executions: app.store
+                  .all<Execution>("Execution")
+                  .filter((e) => e.task_id === p.id),
+              })),
         });
       }
       send(404, { error: "NOT_FOUND" });

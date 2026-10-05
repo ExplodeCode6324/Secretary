@@ -5,6 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { processHasExited } from "./helpers/process-lifecycle.ts";
 import { api, type Endpoint } from "../../../src/pi_secretary/src/ui-client.ts";
 const until = async (condition: () => boolean) => {
   for (let n = 0; n < 150; n++) {
@@ -31,7 +32,7 @@ test("two concurrently launched TUI processes attach one backend; closing a clie
     p.stderr.on("data", (b) => {
       text += b;
     });
-    return { p, text: () => text, exited: once(p, "exit") };
+    return { p, text: () => text, closed: once(p, "close") };
   };
   const a = launch(),
     b = launch();
@@ -51,7 +52,7 @@ test("two concurrently launched TUI processes attach one backend; closing a clie
         a.text().includes("TUI_B_unique") && b.text().includes("TUI_A_unique"),
     );
     a.p.stdin.write("/quit\n");
-    await a.exited;
+    await a.closed;
     const { client } = await api(endpoint!, "/api/client", {});
     const state = await api(endpoint!, "/api/state?client=" + client);
     assert.equal(
@@ -61,20 +62,15 @@ test("two concurrently launched TUI processes attach one backend; closing a clie
     );
     const before = state.session;
     b.p.stdin.write("/quit\n");
-    await b.exited;
+    await b.closed;
     assert.equal((await api(endpoint!, "/api/health")).session, before);
   } finally {
-    for (const c of [a, b]) if (c.p.exitCode === null) c.p.kill("SIGTERM");
+    for (const c of [a, b])
+      if (c.p.exitCode === null && c.p.signalCode === null) c.p.kill("SIGTERM");
+    await Promise.all([a.closed, b.closed]);
     if (endpoint) {
       await api(endpoint, "/api/shutdown", {}).catch(() => {});
-      await until(() => {
-        try {
-          process.kill(endpoint!.pid, 0);
-          return false;
-        } catch {
-          return true;
-        }
-      });
+      await until(() => processHasExited(endpoint!.pid));
     }
     fs.rmSync(dir, { recursive: true, force: true });
   }

@@ -26,6 +26,8 @@ SECRETARY_DATA=.demo-data npm run stop
 
 WebUI 主会话支持流式正文和可见思考内容，两项默认开启，可在「显示设置」独立关闭。思考区使用更小字号，实际内容取决于供应商是否返回。开关只影响当前浏览器显示；详见[运行手册](docs/operations.md#流式输出与思考显示)。
 
+WebUI 在消息之间展示活动与可展开步骤，历史来自已有 journal/CAS，支持刷新、重启恢复及向前分页；输入区保留排队与当前活动跳转入口。TUI 保留输入区状态及 `/activity`。活动独立于正文显示开关；详见[当前活动](docs/operations.md#当前活动)。
+
 WebUI 已提供 World Model 管理：实体与事实查询、登记、更正、撤回和历史记录。修改先保存草稿，一键应用时完整摘要工作上下文并重建 context；Secretary 说明遵循同一规则。使用及恢复边界见[设置生效规范](docs/settings-activation.md)。
 
 ## 仓库分类
@@ -46,9 +48,7 @@ WebUI 已提供 World Model 管理：实体与事实查询、登记、更正、�
 
 ### 后续架构改进规划
 1. 完善 task 系统
-当前缺陷：
-（仅针对task agent类任务）目前，task的生成机制是任何master的执行请求都会触发 task 生成，且同一个task没有接续工作的能力；不同的task没有互相查看的权限。举例：master让secretary做task A，返回结果后master提出了修改意见，要求做一遍更改要求后的task A，此时secretary无法复用task A的产出和上下文（task B没有访问task A的workspace的权限），需要重新创建task B，这样会有两个问题：1.任务产出/结论无法复用和审计，master让干了A，但是在结果不满意的时候无法审计task A，如果想修正A的规划接着干，只能靠secretary主会话塞入未必可靠的任务总结给task B。 2.master交互没有连贯性，造成了secretary在实际上无法独立完成长任务。
-task的缺陷使整个task系统都处于不可用的情况，
+当前实现已支持已结束任务的同任务接续：查询原任务后提交新的执行要求，保留工作目录、执行记录与产物证据；独立任务仍有独立工作区。后续需继续验证日常使用中的任务归并、长任务接续与失败恢复边界，详见[任务复用验收](docs/testing.md#任务复用验收)。
 2. system prompt
 当前缺陷：
 目前的system prompt还比较原始，没有根据架构特性把需要模型注意的部分着重处理。实际上对于deepseek v4.1 flash及以上能力的模型来说，上下文窗口是比较富裕的。目前还没有激发secretary主会话的主观能动性（根据当前的表现，secretary的主会话像一个听话但不聪明的本科生。）

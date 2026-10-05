@@ -1,3 +1,5 @@
+import { TimelineView } from "./timeline-view.js";
+
 const $ = (id) => document.getElementById(id);
 const token =
   location.hash.slice(1) || sessionStorage.getItem("secretary-token");
@@ -15,7 +17,7 @@ const error = (message) => {
   $("error").textContent = message;
   $("error").hidden = !message;
 };
-async function api(route, body) {
+async function api(route, body, signal) {
   const response = await fetch("/api/" + route, {
     method: body ? "POST" : "GET",
     headers: {
@@ -23,7 +25,9 @@ async function api(route, body) {
       "Content-Type": "application/json",
     },
     body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(10000),
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
+      : AbortSignal.timeout(10000),
   });
   const data = await response.json();
   if (!response.ok) throw Error(data.error || "请求失败");
@@ -34,37 +38,6 @@ function element(tag, text, className) {
   if (text != null) node.textContent = text;
   if (className) node.className = className;
   return node;
-}
-function inline(node, text) {
-  for (const part of text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g)) {
-    if (part.startsWith("**") && part.endsWith("**"))
-      node.append(element("strong", part.slice(2, -2)));
-    else if (part.startsWith("`") && part.endsWith("`"))
-      node.append(element("code", part.slice(1, -1)));
-    else node.append(document.createTextNode(part));
-  }
-}
-function markdown(node, text) {
-  let code = null;
-  for (const line of text.split("\n")) {
-    if (line.startsWith("```")) {
-      if (code) {
-        node.append(element("pre", code.join("\n")));
-        code = null;
-      } else code = [];
-      continue;
-    }
-    if (code) {
-      code.push(line);
-      continue;
-    }
-    if (!line.trim()) continue;
-    const heading = /^#{1,6}\s+/.test(line);
-    const row = element(heading ? "h3" : "p");
-    inline(row, line.replace(/^#{1,6}\s+/, ""));
-    node.append(row);
-  }
-  if (code) node.append(element("pre", code.join("\n")));
 }
 function detail(title, text) {
   $("detail-title").textContent = title;
@@ -81,191 +54,70 @@ async function command(line) {
     error(e.message);
   }
 }
-// These are browser display preferences, independent of model/settings activation.
 const displayPreferences = { streaming: true, thinking: true };
 try {
   const stored = JSON.parse(localStorage.getItem("secretary-display") || "{}");
   for (const key of Object.keys(displayPreferences))
     if (typeof stored[key] === "boolean") displayPreferences[key] = stored[key];
-} catch {
-  /* Browser storage may be unavailable. */
+} catch {}
+let displayVersion = 0;
+let lastState;
+const panelData = { tasks: [], approvals: [], decisions: [] };
+const panelPages = new Map();
+const panelRequests = new Set();
+let visibleTasks = "";
+async function loadPanel(kind, offset = 0) {
+  if (panelRequests.has(kind)) return;
+  panelRequests.add(kind);
+  try {
+    const page = await api(
+      `panels?client=${client}&kind=${kind}&offset=${offset}`,
+    );
+    panelData[kind] = page.items;
+    panelPages.set(kind, { ...page, offset });
+    if (lastState) render(lastState);
+  } catch (e) {
+    error(e.message);
+  } finally {
+    panelRequests.delete(kind);
+  }
 }
-let currentMessages = [],
-  previews = [],
-  displayVersion = 0,
-  streamController;
-let renderScheduled = false;
-const messageNodes = new Map();
-function scheduleMessages() {
-  if (renderScheduled) return;
-  renderScheduled = true;
-  requestAnimationFrame(() => {
-    renderScheduled = false;
-    renderMessages();
-  });
-}
-function renderMessages() {
-  const finalCalls = new Set(
-    currentMessages.map((m) => m.call_id).filter(Boolean),
-  );
-  const pending = displayPreferences.streaming
-    ? previews
-        .filter((p) => !finalCalls.has(p.id))
-        .map((p) => ({
-          id: p.id,
-          call_id: p.id,
-          role: "secretary",
-          at: p.at,
-          text: p.blocks
-            .filter((b) => b.type === "text")
-            .map((b) => b.text)
-            .join("\n"),
-          thinking: p.blocks
-            .filter((b) => b.type === "thinking")
-            .map((b) => b.text)
-            .join("\n"),
-          running: p.status === "running",
-          incomplete: p.status === "incomplete",
-          truncated: p.truncated,
-        }))
-    : [];
-  const messages = [...currentMessages, ...pending].sort(
-    (a, b) => Date.parse(a.at) - Date.parse(b.at),
-  );
-  const timeline = $("timeline");
-  const bottom =
-    timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight < 120;
-  const wanted = new Set();
-  let previous = null;
-  for (const m of messages) {
-    const key = m.call_id || m.id;
-    wanted.add(key);
-    let item = messageNodes.get(key);
-    if (!item) {
-      const article = element("article", null, `message ${m.role}`);
-      article.dataset.messageId = key;
-      const label = element(
-        "div",
-        {
-          master: "Master",
-          secretary: "Secretary",
-          system: "系统 · 任务交接",
-          authorization: "授权",
-        }[m.role],
-        "author",
-      );
-      label.append(
-        element(
-          "time",
-          new Date(m.at).toLocaleTimeString("zh-CN", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-        ),
-      );
-      const thought = element("details", null, "message-thinking");
-      thought.open = true;
-      const summary = element("summary", "思考过程");
-      const thoughtText = element("div", null, "thinking-text");
-      thought.append(summary, thoughtText);
-      const body = element("div", null, "message-body");
-      const status = element("div", null, "message-status");
-      article.append(label, thought, body, status);
-      item = { article, thought, thoughtText, body, status, text: undefined };
-      messageNodes.set(key, item);
+const timelineView = new TimelineView({
+  scroller: $("timeline"),
+  root: $("messages"),
+  footer: $("activity"),
+  request: (options, signal) => api("timeline", { client, options }, signal),
+  preferences: displayPreferences,
+  action: (action) => {
+    if (action === "settings") $("world-tab").click();
+    else if (action === "authorization" || action === "decisions") {
+      $("attention").hidden = false;
+      void loadPanel("approvals");
+      void loadPanel("decisions");
+    } else void command(action === "tasks" ? "/tasks" : "/status");
+  },
+  changed: (summary) => {
+    if (summary.store_revision !== lastRevision) void refresh();
+    const tasks = summary.locators
+      .filter((l) => l.id.startsWith("task:"))
+      .map((l) => l.id)
+      .join();
+    if (tasks !== visibleTasks) {
+      visibleTasks = tasks;
+      void loadPanel("tasks");
     }
-    item.thought.hidden =
-      m.role !== "secretary" || !displayPreferences.thinking;
-    const thinking = displayPreferences.thinking
-      ? m.thinking ||
-        (m.running ? "等待可显示的思考内容…" : "本次未返回可显示的思考内容")
+    $("attention-count").textContent = summary.locators.some((l) =>
+      l.actions.some((a) => a === "authorization" || a === "decisions"),
+    )
+      ? "●"
       : "";
-    if (item.thoughtText.textContent !== thinking)
-      item.thoughtText.textContent = thinking;
-    if (item.text !== m.text) {
-      item.body.replaceChildren();
-      markdown(item.body, m.text);
-      item.text = m.text;
-    }
-    const status = [
-      m.running ? "生成中" : m.incomplete ? "未完成" : "",
-      m.truncated ? "预览已截断，完成后显示完整内容" : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    if (item.status.textContent !== status) item.status.textContent = status;
-    item.status.hidden = !status;
-    const next = previous ? previous.nextSibling : $("messages").firstChild;
-    if (next !== item.article) $("messages").insertBefore(item.article, next);
-    previous = item.article;
-  }
-  for (const [key, item] of messageNodes)
-    if (!wanted.has(key)) {
-      item.article.remove();
-      messageNodes.delete(key);
-    }
-  $("welcome").hidden = !!messages.length;
-  if (bottom) timeline.scrollTop = timeline.scrollHeight;
-}
+  },
+});
 function restartStream() {
-  streamController?.abort();
-  streamController = new AbortController();
-  previews = [];
-  scheduleMessages();
-  if (client && displayPreferences.streaming)
-    void followStream(streamController.signal);
-}
-async function followStream(signal) {
-  while (!signal.aborted) {
-    try {
-      const response = await fetch(
-        `/api/stream?client=${client}&thinking=${Number(displayPreferences.thinking)}`,
-        { headers: { Authorization: `Bearer ${token}` }, signal },
-      );
-      if (!response.ok) throw Error("实时连接失败");
-      const reader = response.body
-        .pipeThrough(new TextDecoderStream())
-        .getReader();
-      let buffer = "",
-        revision = -1;
-      try {
-        while (!signal.aborted) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          buffer += value;
-          let end;
-          while ((end = buffer.indexOf("\n\n")) >= 0) {
-            const frame = buffer.slice(0, end);
-            buffer = buffer.slice(end + 2);
-            const data = frame
-              .split("\n")
-              .find((line) => line.startsWith("data: "));
-            if (!data || signal.aborted) continue;
-            const snapshot = JSON.parse(data.slice(6));
-            if (snapshot.revision <= revision) continue;
-            revision = snapshot.revision;
-            previews = snapshot.previews;
-            scheduleMessages();
-          }
-        }
-      } finally {
-        await reader.cancel().catch(() => {});
-        reader.releaseLock();
-      }
-    } catch {
-      /* Persistent state polling remains available during reconnect. */
-    }
-    if (!signal.aborted)
-      await new Promise((resolve) => {
-        const finish = () => {
-          clearTimeout(timer);
-          signal.removeEventListener("abort", finish);
-          resolve();
-        };
-        const timer = setTimeout(finish, 1000);
-        signal.addEventListener("abort", finish, { once: true });
-      });
-  }
+  void timelineView.open(
+    timelineView.follow ? undefined : timelineView.capture()?.id,
+    !timelineView.follow,
+  );
 }
 for (const [id, key] of [
   ["display-streaming", "streaming"],
@@ -281,16 +133,27 @@ for (const [id, key] of [
         JSON.stringify(displayPreferences),
       );
     } catch {}
-    if (!displayPreferences.thinking)
-      currentMessages = currentMessages.map(({ thinking, ...m }) => m);
-    lastRevision = -1;
+    // Clear immediately: an in-flight response from the previous generation cannot restore thinking.
+    timelineView.generation++;
+    timelineView.cache.reset();
+    timelineView.revision = null;
+    for (const node of timelineView.nodes.values()) {
+      timelineView.observer.unobserve(node);
+      node.remove();
+    }
+    timelineView.nodes.clear();
+    timelineView.heights.clear();
     restartStream();
-    renderMessages();
-    void refresh();
   };
 }
-window.addEventListener("pagehide", () => streamController?.abort());
+window.addEventListener("online", () => void timelineView.sync());
+window.addEventListener("offline", () => {
+  timelineView.connection.textContent = "连接中断，活动状态暂不可确认";
+});
+window.addEventListener("pagehide", () => timelineView.close());
 function render(state) {
+  lastState = state;
+  state = { ...state, ...panelData };
   if (state.settings) renderSettings(state.settings);
   $("connection").textContent = "● 已同步";
   $("runtime-state").textContent = state.settings?.blocked
@@ -315,10 +178,11 @@ function render(state) {
       : `≈ ${c.used.toLocaleString()} / ${c.budget.toLocaleString()} · ${ratio.toFixed(1)}%`;
   $("context-text").title =
     `最近 Context 快照的估算值；预留 ${c.reserve} tokens，不是供应商实际计量。`;
-  $("thinking").hidden = !["RUNNING", "PREPARING"].includes(state.state);
-  currentMessages = state.messages;
-  renderMessages();
-  $("task-count").textContent = state.tasks.length;
+  $("thinking").hidden = true;
+
+  $("task-count").textContent =
+    String(state.tasks.length) +
+    (panelPages.get("tasks")?.next != null ? "+" : "");
   const tasks = JSON.stringify(state.tasks);
   if (tasks !== taskSignature) {
     taskSignature = tasks;
@@ -393,6 +257,7 @@ function render(state) {
               decision,
             });
             await refresh();
+            await loadPanel("approvals");
           } catch (e) {
             error("授权未提交：" + e.message);
             button.disabled = false;
@@ -416,11 +281,31 @@ function render(state) {
       button.onclick = async () => {
         if (!answer.value.trim()) return;
         await command("/answer " + d.id + " " + answer.value);
+        await loadPanel("decisions");
       };
       section.append(answer, button);
       $("decisions").append(section);
     }
   }
+  panelNavigation("tasks", $("task-list"));
+  panelNavigation("approvals", $("approvals"));
+  panelNavigation("decisions", $("decisions"));
+}
+function panelNavigation(kind, root) {
+  root.querySelector(".panel-pages")?.remove();
+  const page = panelPages.get(kind);
+  if (!page) return;
+  const nav = element("div", null, "panel-pages");
+  for (const [label, offset] of [
+    ["上一页", page.offset ? Math.max(0, page.offset - 20) : null],
+    ["下一页", page.next],
+  ]) {
+    if (offset == null) continue;
+    const b = element("button", label);
+    b.onclick = () => loadPanel(kind, offset);
+    nav.append(b);
+  }
+  root.append(nav);
 }
 async function refresh() {
   if (!client || polling) return;
@@ -428,7 +313,7 @@ async function refresh() {
   const preferencesVersion = displayVersion;
   try {
     const state = await api(
-      "state?client=" +
+      "state?window=1&client=" +
         client +
         "&since=" +
         lastRevision +
@@ -468,7 +353,7 @@ $("composer").onsubmit = async (e) => {
     $("message").value = "";
     pendingMessage = null;
     await refresh();
-    $("timeline").scrollTop = $("timeline").scrollHeight;
+    await timelineView.open();
   } catch (e) {
     error("发送未确认，请重试：" + e.message);
   } finally {
@@ -484,6 +369,10 @@ $("message").onkeydown = (e) => {
 };
 $("attention-toggle").onclick = () => {
   $("attention").hidden = !$("attention").hidden;
+  if (!$("attention").hidden) {
+    void loadPanel("approvals");
+    void loadPanel("decisions");
+  }
 };
 $("close-attention").onclick = () => {
   $("attention").hidden = true;
@@ -1043,8 +932,9 @@ try {
   client = (await api("client", {})).client;
   await api("poll?client=" + client);
   await refresh();
-  restartStream();
-  setInterval(() => void refresh(), 700);
+  await timelineView.open();
+  void loadPanel("tasks");
+  setInterval(() => void refresh(), 5000);
 } catch (e) {
   error(e.message);
   $("connection").textContent = "未连接";

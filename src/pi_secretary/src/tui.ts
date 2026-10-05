@@ -1,3 +1,8 @@
+import {
+  ActivityTerminal,
+  activityLines,
+  activityLine,
+} from "./activity-terminal.ts";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as readline from "node:readline";
@@ -56,6 +61,7 @@ const HELP = `直接输入消息与主会话交谈；命令只由 Master 的终�
 /menu                      功能入口总览
 /history                   最近会话消息
 /status                    会话与模型状态
+/activity                  当前及近期活动
 /programs                  已登记程序列表
 /operations                操作与未知结果列表
 /rules                     已保存授权规则
@@ -400,6 +406,23 @@ export class TerminalController {
       case "/help":
         this.help();
         break;
+      case "/activity": {
+        const snapshot = this.app.activitySnapshot();
+        this.print(
+          [
+            ...activityLines(snapshot),
+            "近期活动（重启可能缺少短步骤）：",
+            ...snapshot.recent
+              .slice(-50)
+              .map(
+                (a) =>
+                  "阶段记录 · " +
+                  activityLine(a, Date.parse(a.ended_at ?? a.last_progress_at)),
+              ),
+          ].join("\n"),
+        );
+        break;
+      }
       case "/status":
         this.status();
         break;
@@ -590,6 +613,7 @@ export async function runTerminal() {
   );
   let rl: readline.Interface | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let activityTerminal: ActivityTerminal | undefined;
   let stopping = false,
     pumping = false;
   try {
@@ -604,6 +628,7 @@ export async function runTerminal() {
       prompt: "Master › ",
       historySize: 200,
     });
+    activityTerminal = new ActivityTerminal(rl);
     const tty = !!process.stdout.isTTY;
     const color =
       tty &&
@@ -614,15 +639,13 @@ export async function runTerminal() {
     const print = (text: string, tone: MessageTone = "system") => {
       renders++;
       if (tty) {
-        readline.clearLine(process.stdout, 0);
-        readline.cursorTo(process.stdout, 0);
+        activityTerminal?.clear();
       }
       process.stdout.write(renderMessage(text, tone, color) + "\n");
       if (!stopping) {
-        rl!.setPrompt(
+        activityTerminal?.setPrompt(
           renderMessage(ui?.prompt() ?? "Master › ", "master", color),
         );
-        rl!.prompt(true);
       }
     };
     ui = new TerminalController(app, print);
@@ -658,7 +681,9 @@ export async function runTerminal() {
     const sigterm = () => stop();
     process.once("SIGTERM", sigterm);
     timer = setInterval(() => {
-      if (pumping || stopping) return;
+      if (stopping) return;
+      activityTerminal?.accept(app.activitySnapshot());
+      if (pumping) return;
       pumping = true;
       app
         .pump()
@@ -674,6 +699,7 @@ export async function runTerminal() {
   } finally {
     stopping = true;
     if (timer) clearInterval(timer);
+    activityTerminal?.close();
     rl?.close();
     await app.close();
     process.stdout.write("Secretary 已停止。\n");

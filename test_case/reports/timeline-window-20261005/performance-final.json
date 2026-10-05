@@ -1,0 +1,136 @@
+{
+  "node": "v22.22.0",
+  "platform": "darwin",
+  "arch": "arm64",
+  "cpu": "Apple M2",
+  "gc": true,
+  "message_lengths": "90% messages, 10% compaction activities; message body 128-2048 characters",
+  "measurements": [
+    {
+      "size": 1000,
+      "seed_ms": 2216.091792,
+      "incremental_index_ms": 50.82712500000025,
+      "incremental_cas_reads": 1900,
+      "incremental_index_heap_bytes": 493504,
+      "diagnostics": {
+        "metadata": 1000,
+        "fragment_bytes": 0,
+        "fragment_count": 0
+      },
+      "browser_paint": {
+        "chrome": "154.0.8037.93",
+        "queries": 100,
+        "p50_ms": 23.700000286102295,
+        "p95_ms": 24.200000286102295,
+        "max_ms": 24.699999809265137,
+        "pass": true
+      },
+      "cases": [
+        {
+          "concurrency": 1,
+          "queries": 100,
+          "api_p50_ms": 7.335959000000003,
+          "api_p95_ms": 9.192415999999866,
+          "api_max_ms": 12.66045800000029,
+          "cas_reads": 18000,
+          "max_payload_bytes": 200560,
+          "pass": true
+        },
+        {
+          "concurrency": 4,
+          "queries": 100,
+          "api_p50_ms": 28.287624999999935,
+          "api_p95_ms": 32.71545800000058,
+          "api_max_ms": 36.17016700000022,
+          "cas_reads": 18000,
+          "max_payload_bytes": 200560,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "size": 10000,
+      "seed_ms": 17136.617458,
+      "incremental_index_ms": 331.2136250000003,
+      "incremental_cas_reads": 17100,
+      "incremental_index_heap_bytes": 2932168,
+      "diagnostics": {
+        "metadata": 10000,
+        "fragment_bytes": 0,
+        "fragment_count": 0
+      },
+      "browser_paint": {
+        "chrome": "154.0.8037.93",
+        "queries": 100,
+        "p50_ms": 24.399999618530273,
+        "p95_ms": 24.90000009536743,
+        "max_ms": 32.90000009536743,
+        "pass": true
+      },
+      "cases": [
+        {
+          "concurrency": 1,
+          "queries": 100,
+          "api_p50_ms": 7.215041999999812,
+          "api_p95_ms": 8.532749999998487,
+          "api_max_ms": 11.177417000002606,
+          "cas_reads": 18000,
+          "max_payload_bytes": 200796,
+          "pass": true
+        },
+        {
+          "concurrency": 4,
+          "queries": 100,
+          "api_p50_ms": 29.039958999997907,
+          "api_p95_ms": 35.5893329999999,
+          "api_max_ms": 39.178209000001516,
+          "cas_reads": 18000,
+          "max_payload_bytes": 200796,
+          "pass": true
+        }
+      ]
+    },
+    {
+      "size": 100000,
+      "seed_ms": 95394.62312500001,
+      "incremental_index_ms": 3577.678709,
+      "incremental_cas_reads": 171000,
+      "incremental_index_heap_bytes": 27311352,
+      "diagnostics": {
+        "metadata": 100000,
+        "fragment_bytes": 0,
+        "fragment_count": 0
+      },
+      "browser_paint": {
+        "chrome": "154.0.8037.93",
+        "queries": 100,
+        "p50_ms": 24,
+        "p95_ms": 24.59999990463257,
+        "max_ms": 25.399999618530273,
+        "pass": true
+      },
+      "cases": [
+        {
+          "concurrency": 1,
+          "queries": 100,
+          "api_p50_ms": 6.752166999998735,
+          "api_p95_ms": 7.819833999994444,
+          "api_max_ms": 14.851416999998037,
+          "cas_reads": 18000,
+          "max_payload_bytes": 201017,
+          "pass": true
+        },
+        {
+          "concurrency": 4,
+          "queries": 100,
+          "api_p50_ms": 27.006457999988925,
+          "api_p95_ms": 29.132875000010245,
+          "api_max_ms": 31.189708999998402,
+          "cas_reads": 18000,
+          "max_payload_bytes": 201017,
+          "pass": true
+        }
+      ]
+    }
+  ]
+}

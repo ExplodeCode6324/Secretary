@@ -1,0 +1,41 @@
+[
+  {
+    "activities": 1000,
+    "cold_ms": 27.031167000001005,
+    "heap_delta_bytes": 554312,
+    "page_p50_ms": 0.08641700000043784,
+    "page_p95_ms": 0.17416699999921548,
+    "page_max_ms": 0.17416699999921548,
+    "steady_cas_reads": 0,
+    "incremental_ms": 0.05645799999911105,
+    "incremental_cas_reads": 1,
+    "postgres_connection_configured": false,
+    "gc_available": true
+  },
+  {
+    "activities": 10000,
+    "cold_ms": 712.496833000012,
+    "heap_delta_bytes": 4877216,
+    "page_p50_ms": 0.08629200000723358,
+    "page_p95_ms": 0.10366599999542814,
+    "page_max_ms": 0.3318330000038259,
+    "steady_cas_reads": 0,
+    "incremental_ms": 0.04279200000746641,
+    "incremental_cas_reads": 1,
+    "postgres_connection_configured": false,
+    "gc_available": true
+  },
+  {
+    "activities": 30000,
+    "cold_ms": 1774.244875000033,
+    "heap_delta_bytes": 10493432,
+    "page_p50_ms": 0.08133300003828481,
+    "page_p95_ms": 0.1019170000217855,
+    "page_max_ms": 1.0026669999933802,
+    "steady_cas_reads": 0,
+    "incremental_ms": 0.04158299998380244,
+    "incremental_cas_reads": 1,
+    "postgres_connection_configured": false,
+    "gc_available": true
+  }
+]

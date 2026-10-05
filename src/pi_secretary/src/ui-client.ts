@@ -68,3 +68,24 @@ export async function connectBackend() {
     "后台未启动。若旧版 TUI 正在运行，请先 /quit 后重开；详情见数据目录 ui-backend.log。",
   );
 }
+
+// Reattach only to an already running replacement; an activity poll never starts a backend.
+export async function readRunningBackend(): Promise<Endpoint | null> {
+  try {
+    const directory = path.resolve(process.env.SECRETARY_DATA ?? ".demo-data");
+    const endpoint = JSON.parse(
+      fs.readFileSync(path.join(directory, "ui-endpoint.json"), "utf8"),
+    ) as Endpoint;
+    if (
+      !/^http:\/\/127\.0\.0\.1:\d+$/.test(endpoint.url) ||
+      !/^[a-f0-9]{64}$/.test(endpoint.token)
+    )
+      return null;
+    const health = await api(endpoint, "/api/health");
+    return health.mode === (process.env.SECRETARY_MODE ?? "fixture")
+      ? endpoint
+      : null;
+  } catch {
+    return null;
+  }
+}

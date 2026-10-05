@@ -1,9 +1,10 @@
+import { ActivityTerminal } from "./activity-terminal.ts";
 import * as readline from "node:readline";
-import { connectBackend, api } from "./ui-client.ts";
+import { connectBackend, api, readRunningBackend } from "./ui-client.ts";
 import { renderMessage, type MessageTone } from "./tui.ts";
-const endpoint = await connectBackend();
+let endpoint = await connectBackend();
 if (process.argv.includes("--migrate")) await api(endpoint, "/api/migrate", {});
-const { client } = await api(endpoint, "/api/client", {});
+let { client } = await api(endpoint, "/api/client", {});
 const tty = !!process.stdout.isTTY;
 const color =
   tty &&
@@ -14,13 +15,36 @@ const rl = readline.createInterface({
   output: process.stdout,
   terminal: tty && !!process.stdin.isTTY,
 });
+const activityTerminal = new ActivityTerminal(rl);
+let activityBusy = false;
+async function pollActivity() {
+  if (activityBusy || closed) return;
+  activityBusy = true;
+  try {
+    activityTerminal.accept(
+      await api(endpoint, `/api/activity?client=${client}`),
+    );
+  } catch {
+    activityTerminal.disconnect();
+    const replacement = await readRunningBackend();
+    if (replacement && !closed) {
+      try {
+        const next = await api(replacement, "/api/client", {});
+        endpoint = replacement;
+        client = next.client;
+      } catch {}
+    }
+  } finally {
+    activityBusy = false;
+  }
+}
+const activityTimer = setInterval(() => void pollActivity(), 350);
 let closed = false,
   busy = false,
   prompt = "Master › ";
 function print(text: string, tone: MessageTone = "system") {
   if (tty) {
-    readline.clearLine(process.stdout, 0);
-    readline.cursorTo(process.stdout, 0);
+    activityTerminal.clear();
   }
   process.stdout.write(renderMessage(text, tone, color) + "\n");
 }
@@ -32,8 +56,7 @@ async function poll() {
     prompt = state.prompt;
     for (const item of state.output) print(item.text, item.tone);
     if (state.output.length) {
-      rl.setPrompt(renderMessage(prompt, "master", color));
-      rl.prompt(true);
+      activityTerminal.setPrompt(renderMessage(prompt, "master", color));
     }
     return state.output.length > 0;
   } catch (error) {
@@ -67,8 +90,7 @@ rl.on("line", (line) => {
     } catch (error) {
       print(String(error));
     }
-    rl.setPrompt(renderMessage(prompt, "master", color));
-    rl.prompt(true);
+    activityTerminal.setPrompt(renderMessage(prompt, "master", color));
   });
 });
 rl.on("SIGINT", () => rl.close());
@@ -76,5 +98,7 @@ const timer = setInterval(() => void poll(), 350);
 await new Promise<void>((r) => rl.on("close", r));
 closed = true;
 clearInterval(timer);
+clearInterval(activityTimer);
+activityTerminal.close();
 await commands;
 process.stdout.write("终端已关闭；共享后台仍在运行。\n");

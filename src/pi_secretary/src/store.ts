@@ -84,7 +84,13 @@ export class Store {
   digest = "0".repeat(64);
   eventSequence = 0;
   private records = new Map<string, Stored>();
+  private recordsByType = new Map<string, Map<string, Stored>>();
   readonly logs: OperationLogRecord[] = [];
+  // Validated immutable references for disposable read projections. No second journal.
+  readonly projectionFrames: Pick<
+    JournalTransaction,
+    "sequence" | "committed_at" | "mutations" | "log_records"
+  >[] = [];
   private helper: ChildProcessWithoutNullStreams;
   private closed = false;
   private healthy = true;
@@ -145,10 +151,30 @@ export class Store {
       throw e;
     }
   }
+  // Inspect in-memory metadata; clone only a bounded result, with no CAS reads.
+  select<T extends Stored>(
+    type: T["record_type"],
+    predicate: (record: Readonly<T>) => boolean,
+    limit: number,
+    offset = 0,
+    options: { latest?: boolean } = {},
+  ): T[] {
+    const result: T[] = [];
+    for (const record of this.recordsByType.get(type)?.values() ?? []) {
+      if (!predicate(record as T)) continue;
+      if (offset-- > 0) continue;
+      result.push(record as T);
+      if (result.length > limit) result.shift();
+      if (!options.latest && result.length >= limit) break;
+    }
+    return structuredClone(result);
+  }
   all<T extends Stored = Stored>(type?: T["record_type"]): T[] {
-    return structuredClone(
-      [...this.records.values()].filter((r) => !type || r.record_type === type),
-    ) as T[];
+    return structuredClone([
+      ...(type
+        ? (this.recordsByType.get(type)?.values() ?? [])
+        : this.records.values()),
+    ]) as T[];
   }
   get<T extends Stored>(type: T["record_type"], recordID: string): T {
     const r = this.records.get(type + ":" + recordID);
@@ -413,10 +439,24 @@ export class Store {
     return staged;
   }
   private install(txn: JournalTransaction, digest: string, staged: Stored[]) {
+    this.projectionFrames.push({
+      sequence: txn.sequence,
+      committed_at: txn.committed_at,
+      mutations: txn.mutations,
+      log_records: txn.log_records,
+    });
     for (const m of txn.mutations)
       if (m.object_type === "TaskPlan")
         this.planHistory.set(`${m.object_id}:${m.new_revision}`, m.snapshot);
-    for (const r of staged) this.records.set(r.record_type + ":" + r.id, r);
+    for (const r of staged) {
+      this.records.set(r.record_type + ":" + r.id, r);
+      let bucket = this.recordsByType.get(r.record_type);
+      if (!bucket) {
+        bucket = new Map();
+        this.recordsByType.set(r.record_type, bucket);
+      }
+      bucket.set(r.id, r);
+    }
     for (const e of txn.log_records) {
       this.eventSequence = e.sequence;
       this.logs.push(e);

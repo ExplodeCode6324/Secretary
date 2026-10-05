@@ -1,3 +1,4 @@
+import { activitiesFor } from "./activity.ts";
 import { Store, base, hash, id, now, revise, shape } from "./store.ts";
 import type { Stored } from "./store.ts";
 import type { Host } from "./host.ts";
@@ -434,12 +435,27 @@ export class Settings {
     return { world, instructions: payload.instructions };
   }
   private async execute(key: string) {
+    const activity = activitiesFor(this.store),
+      activityID = "settings:" + key;
+    activity.start(
+      activityID,
+      { session_id: this.host.sessionID, task_id: null, execution_id: null },
+      "settings",
+      "等待主会话安全边界",
+    );
+    activity.step(activityID, "等待主会话安全边界", undefined, "waiting");
     let stage = this.store.get<SettingsApplication>(
       "SettingsApplication",
       key,
     ).state;
     try {
       await this.host.settingsIdle();
+      activity.step(
+        activityID,
+        this.host.session.runtime_settings_hash !== this.runtimeHash
+          ? "正在初始化配置"
+          : "正在应用新设置",
+      );
       let a = this.store.get<SettingsApplication>("SettingsApplication", key);
       const payload = this.store.read<SettingsPayload>(a.payload_ref);
       if (
@@ -487,6 +503,7 @@ export class Settings {
         );
         a = this.update(key, { candidate_ref: this.store.put(candidate) });
       }
+      activity.step(activityID, "正在校验设置与上下文");
       if (!candidate || candidate.completed !== source.chunks.length)
         throw Error("INCOMPLETE_SUMMARY_COVERAGE");
       const changes = source.changes as Changes;
@@ -518,6 +535,7 @@ export class Settings {
       }
       if (changes.world.length) {
         if (!this.world) throw Error("WORLD_UNAVAILABLE");
+        activity.step(activityID, "正在提交设置");
         a = this.update(key, { state: "COMMITTING" });
         stage = a.state;
         // A durable receipt wins over later auth changes after an already completed commit.
@@ -542,6 +560,7 @@ export class Settings {
         await this.world.applyBatch(key, a.request_hash, changes.world);
         await this.world.export();
       }
+      activity.step(activityID, "正在重建上下文");
       a = this.update(key, { state: "REBUILDING" });
       stage = a.state;
       const mutations: Stored[] = [
@@ -653,6 +672,12 @@ export class Settings {
         }
       }
       this.update(key, { state, error: String(error) });
+    } finally {
+      const state = this.store.get<SettingsApplication>(
+        "SettingsApplication",
+        key,
+      ).state;
+      activity.end(activityID, state === "APPLIED" ? "succeeded" : "failed");
     }
   }
   async close() {

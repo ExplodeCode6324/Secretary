@@ -64,6 +64,9 @@ export const fixtureStream: StreamFn = (model, context) => {
     .filter((m) => m.role === "system")
     .map((m) => JSON.stringify(m))
     .join(" ");
+  // Offline extraction protocol only; never used by roleModel/live streams.
+  if (system.includes("COMMITMENT_EXTRACTION:"))
+    return replyStream([{ type: "text", text: '{"quotes":[]}' }], model);
   if (system.includes("TASK_EXECUTOR")) {
     const packet = [...context.messages]
       .reverse()

@@ -1,3 +1,4 @@
+import { activitiesFor } from "./activity.ts";
 import { EXECUTOR_SYSTEM, executionPrompt } from "./task-prompt.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -1558,7 +1559,13 @@ export class Scheduler {
         const current = this.store.get<Execution>("Execution", e.id);
         if (current.state !== "RUNNING" || current.cancel_requested)
           return jsonTool({ state: current.state, blocked: true }, true);
-        return t.execute(call, args, signal, update);
+        return activitiesFor(this.store).tool(
+          "tool:" + e.id + ":" + call,
+          scopeOf(e),
+          t.name,
+          args,
+          () => t.execute(call, args, signal, update),
+        );
       },
     }));
   }

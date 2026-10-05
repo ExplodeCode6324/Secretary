@@ -9,7 +9,6 @@
   <body>
     <aside class="sidebar">
       <a class="brand" href="/">S<span>Secretary</span></a>
-      <div class="workspace-label">PERSONAL WORKSPACE</div>
       <button class="nav active" id="conversation-tab">
         ◉ <span>主会话</span><span class="live-dot"></span></button
       ><button class="nav" id="tasks-tab">
@@ -25,14 +24,13 @@
         ><button class="nav" data-command="/help">所有操作</button>
         <div class="identity">
           <span class="avatar">M</span>
-          <div>Master<small>本地工作空间</small></div>
+          <div>Master</div>
         </div>
       </div>
     </aside>
     <main>
       <header>
         <div>
-          <span class="eyebrow">CONTINUOUS CONVERSATION</span>
           <h1>主会话 <span id="runtime-state">连接中</span></h1>
         </div>
         <div class="header-right">
@@ -43,12 +41,16 @@
         </div>
       </header>
       <div class="context-strip">
-        <span>CONTEXT</span>
+        <span>上下文</span>
         <div class="meter"><i id="context-bar"></i></div>
         <span id="context-text">等待快照</span><span id="model"></span
         ><span id="memory-state"></span>
       </div>
-      <div class="display-settings" aria-label="显示设置">
+      <div
+        class="display-settings"
+        aria-label="显示设置"
+        title="仅调整当前浏览器显示"
+      >
         <span>显示设置</span>
         <label
           ><input
@@ -64,9 +66,8 @@
             checked
           />显示思考过程</label
         >
-        <span class="display-hint">仅调整当前浏览器显示</span>
       </div>
-      <section id="timeline" aria-label="会话消息" aria-live="polite">
+      <section id="timeline" aria-label="会话消息">
         <div id="welcome">
           <span class="welcome-mark">S</span>
           <h2>从这里，继续。</h2>
@@ -92,10 +93,10 @@
             aria-label="发送给 Secretary 的消息"
           ></textarea>
           <div class="composer-bottom">
-            <span>同一主会话 · 与 TUI 实时同步</span
-            ><button type="submit" id="send" aria-label="发送消息">↑</button>
+            <button type="submit" id="send" aria-label="发送消息">↑</button>
           </div>
         </form>
+        <section id="activity" aria-label="当前活动"></section>
         <p class="composer-hint">
           Enter 发送 · Shift + Enter 换行
           <span>授权由你确认，聊天中的同意不会代替批准。</span>

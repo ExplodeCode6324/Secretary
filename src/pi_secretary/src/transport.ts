@@ -1,3 +1,4 @@
+import { activitiesFor } from "./activity.ts";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import type { PreviewUpdate } from "./preview.ts";
 import type { StreamFn } from "./model.ts";
@@ -14,6 +15,7 @@ export function durableStream(
   metadata: {
     consciousnessRevision?: number | null;
     maxTokens?: number;
+    activityPhase?: "正在整理回复";
     observe?: (update: PreviewUpdate) => void;
   } = {},
 ): StreamFn {
@@ -63,6 +65,28 @@ export function durableStream(
       loop: loopID,
       session: scope.session_id ?? "",
     });
+    const activity = activitiesFor(store);
+    const activityID = "model:" + call.id;
+    const parent =
+      purpose === "TASK"
+        ? "task:" + scope.execution_id
+        : purpose === "COMPACTION"
+          ? (store.find("SettingsApplication", loopID)
+              ? "settings:"
+              : "compaction:") + loopID
+          : null;
+    try {
+      activity.start(
+        activityID,
+        scope,
+        purpose === "COMPACTION" ? "compaction" : "model",
+        purpose === "COMPACTION"
+          ? "正在整理记忆"
+          : (metadata.activityPhase ?? "正在思考"),
+        parent,
+        { loop_id: loopID, call_id: call.id },
+      );
+    } catch {}
     const signal = AbortSignal.any([
       ...(options?.signal ? [options.signal] : []),
       AbortSignal.timeout(120000),
@@ -122,9 +146,23 @@ export function durableStream(
             : "saved",
         id: call.id,
       });
+      try {
+        activity.end(
+          activityID,
+          complete.stopReason === "aborted"
+            ? "interrupted"
+            : complete.stopReason === "error"
+              ? "failed"
+              : "succeeded",
+          complete.errorMessage,
+        );
+      } catch {}
       if (metadata.observe) replay.end(complete);
       return metadata.observe ? replay : response;
     } catch (error) {
+      try {
+        activity.end(activityID, "interrupted", error);
+      } catch {}
       observe({ type: "failed", id: call.id });
       const current = store.get<ModelCall>("ModelCall", active.id);
       if (current.state === "IN_FLIGHT")

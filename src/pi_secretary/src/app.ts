@@ -1,3 +1,5 @@
+import { activitiesFor } from "./activity.ts";
+import { activityHistoryFor } from "./activity-history.ts";
 import { Settings } from "./settings.ts";
 import type { TaskPlan, Execution } from "./contracts.ts";
 import { Store } from "./store.ts";
@@ -46,11 +48,21 @@ export class App {
         chosen.stream,
         world,
       );
-      return new App(store, auth, scheduler, host, world);
+      const app = new App(store, auth, scheduler, host, world);
+      // Warm the disposable read index once, before accepting UI requests.
+      try {
+        activityHistoryFor(store);
+      } catch {
+        /* A display projection must not prevent business recovery. */
+      }
+      return app;
     } catch (error) {
       await store.close();
       throw error;
     }
+  }
+  activitySnapshot() {
+    return activitiesFor(this.store).snapshot(this);
   }
   async pump() {
     if (this.world && !this.worldWork && !this.settings.blocked)

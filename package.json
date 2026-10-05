@@ -19,7 +19,8 @@
     "docs:generate": "python3 src/pi_secretary/scripts/generate-docs.py",
     "docs:check": "python3 src/pi_secretary/scripts/check-docs.py",
     "test:task-reuse:live": "tsx test_case/online/test-task-reuse-live.ts",
-    "test:task-reuse": "tsx --test test_case/offline/runtime/task-reuse.test.ts"
+    "test:task-reuse": "tsx --test test_case/offline/runtime/task-reuse.test.ts",
+    "test:continuity:live": "tsx test_case/online/test-continuity-astra-live.ts"
   },
   "dependencies": {
     "@earendil-works/chord": "0.87.0",
