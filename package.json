@@ -5,6 +5,7 @@
   "scripts": {
     "check": "tsc --noEmit",
     "test": "tsx --test test_case/offline/runtime/*.test.ts",
+    "test:issue5": "tsx --test test_case/offline/issue5/*.test.ts",
     "start": "tsx src/pi_secretary/src/client-tui.ts",
     "verify": "npm run check && npm test",
     "format:check": "prettier --check \"src/pi_secretary/src/**/*.ts\" \"test_case/offline/runtime/**/*.ts\"",

@@ -20,6 +20,10 @@
 | `covered_event_sequence` | integer | 否 |  {"minimum": 0} |
 | `settings_application_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
 | `covered_message_hashes` | array<Digest> | 否 | 设置切换已摘要的精确消息哈希，防止引用交叠造成重复。 关联：[Digest](Digest.md) |
+| `maintenance_version` | 3 | 否 |  |
+| `memory_source_ref` | ObjectRef | 否 |  关联：[ObjectRef](ObjectRef.md) |
+| `memory_updated_at` | Time | 否 |  关联：[Time](Time.md) |
+| `context_compaction` | null 或 object | 否 |  关联：[ID](ID.md), [ObjectRef](ObjectRef.md) |
 
 ## 组合约束
 

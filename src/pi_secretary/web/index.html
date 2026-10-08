@@ -17,6 +17,7 @@
       <div class="section-label">最近任务</div>
       <div id="task-list"></div>
       <div class="sidebar-bottom">
+        <button class="nav" id="memory-recovery-tab">记忆提取恢复</button>
         <button class="nav" id="instructions-tab">Secretary 说明</button>
         <button class="nav" data-command="/programs">已登记程序</button
         ><button class="nav" id="world-tab">World Model 管理</button
@@ -103,6 +104,16 @@
         </p>
       </div>
     </main>
+    <dialog id="memory-recovery-dialog">
+      <h2>记忆提取恢复</h2>
+      <p>
+        预检只读。每次确认只覆盖选中的失败来源分组，至多一次新调用，可能重复计费。已保存完整结果优先对账，对账不调用模型；超时未知保持
+        BLOCKED。
+      </p>
+      <div id="memory-recovery-groups"></div>
+      <button id="memory-recovery-refresh">重新预检</button>
+      <button id="memory-recovery-close">关闭</button>
+    </dialog>
     <aside id="attention" hidden>
       <div class="panel-heading">
         <h2>需要你的决定</h2>

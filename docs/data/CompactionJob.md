@@ -22,6 +22,11 @@
 | `memory_version` | 2 | 否 |  |
 | `attempt` | integer | 否 |  {"minimum": 1, "maximum": 2} |
 | `source_end_sequence` | integer | 否 |  {"minimum": 0} |
+| `mode` | WORKING_MEMORY / CONTEXT_COMPACTION | 否 |  |
+| `policy_id` | string | 否 |  |
+| `progress_ref` | ObjectRef | 否 |  关联：[ObjectRef](ObjectRef.md) |
+| `source_start_sequence` | integer | 否 |  {"minimum": 0} |
+| `target_reached` | boolean | 否 | 仅上下文裁剪：保留原文及当前协议后是否达到目标占用；false 不代表删除保留材料。 |
 
 ## 组合约束
 

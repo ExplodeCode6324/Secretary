@@ -40,7 +40,25 @@ async function wheel(delta) {
   await frames();
   return state();
 }
+async function settledScroll() {
+  // Native keyboard scroll animates beyond the first scroll event. Do not click
+  // latest while the preceding browser gesture still has queued animation frames.
+  await page.waitForFunction(() => {
+    const top = probe.scroller.scrollTop;
+    const previous = window.scrollSettle;
+    window.scrollSettle = {
+      top,
+      frames:
+        previous?.top === top && !probe.pending.size ? previous.frames + 1 : 0,
+    };
+    return window.scrollSettle.frames >= 8;
+  });
+}
 async function latest() {
+  await page.evaluate(() => {
+    window.scrollSettle = null;
+  });
+  await settledScroll();
   // Use the actual public action when detached; initial page already follows.
   if (await page.locator(".timeline-latest").isVisible())
     await page.locator(".timeline-latest").click();
@@ -84,6 +102,10 @@ try {
       return sync.apply(this, args);
     };
     window.scrollEvents = 0;
+    window.scrollEnds = 0;
+    document.querySelector("#timeline").addEventListener("scrollend", () => {
+      window.scrollEnds++;
+    });
     document
       .querySelector("#timeline")
       .addEventListener("scroll", () => window.scrollEvents++);
@@ -129,14 +151,27 @@ try {
     n.tabIndex = 0;
     n.focus();
   });
+  const keyboardBefore = await state();
+  const endsBefore = await page.evaluate(() => window.scrollEnds);
   await page.keyboard.press("ArrowUp");
   await page.waitForFunction(() => !probe.follow);
-  await frames();
+  await page.waitForFunction((ends) => window.scrollEnds > ends, endsBefore);
+  await page.evaluate(() => {
+    window.scrollSettle = null;
+  });
+  await settledScroll();
+  const keyboardAfter = await state();
   assert((await state()).distance > 2);
   await page.keyboard.press("Control+End");
   // macOS Chrome supports Meta+ArrowDown as well; public latest action is separately checked.
   await latest();
-  results.push({ keyboard_up_detaches: true, latest_action_resumes: true });
+  results.push({
+    keyboard_up_detaches: true,
+    latest_action_resumes: true,
+    keyboardBefore,
+    keyboardAfter,
+    native_scrollend_observed: true,
+  });
 
   // Ongoing real fixture stream must respect a user's first small upward gesture.
   const { client } = await call("client", {});
@@ -218,7 +253,12 @@ try {
   assert.deepEqual(errors, []);
   await page.screenshot({ path: out + "/final.png" });
 } catch (error) {
-  results.push({ failure: String(error), stack: error.stack });
+  results.push({
+    failure: String(error),
+    stack: error.stack,
+    state: await state().catch(() => null),
+    scrollEnds: await page.evaluate(() => window.scrollEnds).catch(() => null),
+  });
   await page.screenshot({ path: out + "/failure.png" }).catch(() => {});
   throw error;
 } finally {

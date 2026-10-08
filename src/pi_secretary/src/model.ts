@@ -13,6 +13,11 @@ import {
   type Model,
   type Api,
 } from "@earendil-works/pi-ai";
+import {
+  assertRequestBudget,
+  assertFinalPayload,
+  type BudgetRole,
+} from "./budget.ts";
 import { getModel, streamSimple } from "@earendil-works/pi-ai/compat";
 export const fixtureModel: Model<Api> = {
   id: "secretary-fixture",
@@ -171,20 +176,32 @@ export function modelConfig(role: "main" | "task" = "main"): ModelConfig {
   if (!model) throw Error("Unknown Pi model");
   const apiKey = process.env[`${prefix}_API_KEY`];
   if (!apiKey) throw Error(`Live role ${role} requires ${prefix}_API_KEY`);
-  return roleModel(model, apiKey);
+  return roleModel(model, apiKey, role);
 }
-export function roleModel(model: Model<Api>, apiKey: string): ModelConfig {
+export function roleModel(
+  model: Model<Api>,
+  apiKey: string,
+  role: BudgetRole = "main",
+): ModelConfig {
   // Credentials only live in this closure: never put them in Context or logs.
-  const stream: StreamFn = (m, context, options) =>
-    streamSimple(m, context, {
+  const stream: StreamFn = (m, context, options) => {
+    if (m.api !== "openai-completions" && m.api !== "openai-responses")
+      throw Error(`CAPACITY_UNSUPPORTED_ADAPTER: ${m.api}`);
+    const budget = assertRequestBudget(m, context.messages, {
+      role,
+      maxTokens: options?.maxTokens,
+    });
+    return streamSimple(m, context, {
       ...options,
       apiKey,
       maxRetries: 0,
-      maxTokens: Math.min(
-        options?.maxTokens ??
-          Number(process.env.SECRETARY_MAX_OUTPUT_TOKENS ?? 4096),
-        m.maxTokens,
-      ),
+      maxTokens: budget.effective_output_tokens,
+      onPayload: async (payload, actualModel) => {
+        const changed = await options?.onPayload?.(payload, actualModel);
+        const final = changed === undefined ? payload : changed;
+        assertFinalPayload(actualModel, final, budget);
+        return final;
+      },
       reasoning: "low",
       transport: "sse",
       headers: {
@@ -193,6 +210,7 @@ export function roleModel(model: Model<Api>, apiKey: string): ModelConfig {
         "x-opencode-session": options?.sessionId ?? "secretary",
       },
     });
+  };
   return { model, stream };
 }
 

@@ -36,14 +36,11 @@ test("compaction includes assistant-only promises despite display metadata and e
         (entry) => entry.role === "user",
       )!;
       const packet = JSON.parse(contentText(message.content)) as {
-        source: { new_events: Event[] };
+        source: { id: string; text: string }[];
       };
-      const quotes = packet.source.new_events
-        .flatMap((entry) =>
-          entry.message?.role === "assistant"
-            ? [contentText(entry.message.content)]
-            : [],
-        )
+      // Extraction receives whole eligible messages, never summary snippets.
+      const quotes = packet.source
+        .map((entry) => entry.text)
         .filter((text) => text === promise);
       return replyStream(
         [{ type: "text", text: JSON.stringify({ quotes }) }],
@@ -55,9 +52,15 @@ test("compaction includes assistant-only promises despite display metadata and e
         (entry) => entry.role === "user",
       )!;
       const packet = JSON.parse(contentText(message.content)) as {
-        new_events: Event[];
+        source_chunk: string;
       };
-      batches.push(packet.new_events);
+      // This small material fits complete fragments. Larger fragments are covered
+      // by the Issue #2 Unicode reconstruction and fixed-budget helper tests.
+      batches.push(
+        JSON.parse(packet.source_chunk).map((fragment: { fragment: string }) =>
+          JSON.parse(fragment.fragment),
+        ),
+      );
       return replyStream(
         [
           {

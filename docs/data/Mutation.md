@@ -6,7 +6,7 @@
 
 | 字段 | 类型 / 值域 | 必填 | 说明与约束 |
 | --- | --- | --- | --- |
-| `object_type` | Session / Input / Context / ModelCall / Consciousness / CompactionJob / TaskPlan / Execution / Dispatch / WorkerReceipt / Checkpoint / TaskResult / Feedback / DecisionRequest / Operation / AuthorizationRequest / AuthorizationRule / SafetyRule / ProgramRegistration / Notification / ArchiveManifest / WorldCommand / UserInstructions / MainPromptSnapshot / SettingsDraft / SettingsApplication | 是 |  |
+| `object_type` | Session / Input / Context / ModelCall / Consciousness / CompactionJob / TaskPlan / Execution / Dispatch / WorkerReceipt / Checkpoint / TaskResult / Feedback / DecisionRequest / Operation / AuthorizationRequest / AuthorizationRule / SafetyRule / ProgramRegistration / Notification / ArchiveManifest / WorldCommand / UserInstructions / MainPromptSnapshot / SettingsDraft / SettingsApplication / ExtractionRecovery | 是 |  |
 | `object_id` | ID | 是 |  关联：[ID](ID.md) |
 | `expected_revision` | integer | 是 |  {"minimum": 0, "maximum": 9007199254740991} |
 | `new_revision` | integer | 是 |  {"minimum": 1, "maximum": 9007199254740991} |

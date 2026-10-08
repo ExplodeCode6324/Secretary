@@ -1169,6 +1169,89 @@
               "type": "null"
             }
           ]
+        },
+        "request_budget": {
+          "type": "object",
+          "properties": {
+            "estimated_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "effective_context_window": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "requested_output_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "effective_output_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "tool_reserve_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "safety_margin_tokens": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "usable_input_tokens": {
+              "type": "integer"
+            },
+            "occupancy": {
+              "type": "number",
+              "minimum": 0
+            },
+            "count_method": {
+              "const": "utf8_bytes_upper_estimate_v1"
+            },
+            "policy_id": {
+              "type": "string"
+            },
+            "deployment_limit_verified": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "estimated_tokens",
+            "effective_context_window",
+            "requested_output_tokens",
+            "effective_output_tokens",
+            "tool_reserve_tokens",
+            "safety_margin_tokens",
+            "usable_input_tokens",
+            "occupancy",
+            "count_method",
+            "policy_id",
+            "deployment_limit_verified"
+          ],
+          "additionalProperties": false
+        },
+        "source_context_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "compaction_job_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "protected_from_index": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -1197,7 +1280,7 @@
         "wm_fact_versions"
       ],
       "additionalProperties": false,
-      "description": "一次调用不可变快照；estimated+reserve<=budget 由业务检查。"
+      "description": "不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。"
     },
     "ModelCall": {
       "type": "object",
@@ -1506,6 +1589,47 @@
             "$ref": "#/$defs/Digest"
           },
           "description": "设置切换已摘要的精确消息哈希，防止引用交叠造成重复。"
+        },
+        "maintenance_version": {
+          "const": 3
+        },
+        "memory_source_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "memory_updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "context_compaction": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "job_id": {
+                  "$ref": "#/$defs/ID"
+                },
+                "source_ref": {
+                  "$ref": "#/$defs/ObjectRef"
+                },
+                "messages_ref": {
+                  "$ref": "#/$defs/ObjectRef"
+                },
+                "source_end_sequence": {
+                  "type": "integer",
+                  "minimum": 0
+                }
+              },
+              "required": [
+                "job_id",
+                "source_ref",
+                "messages_ref",
+                "source_end_sequence"
+              ],
+              "additionalProperties": false
+            }
+          ]
         }
       },
       "required": [
@@ -1614,6 +1738,26 @@
         "source_end_sequence": {
           "type": "integer",
           "minimum": 0
+        },
+        "mode": {
+          "enum": [
+            "WORKING_MEMORY",
+            "CONTEXT_COMPACTION"
+          ]
+        },
+        "policy_id": {
+          "type": "string"
+        },
+        "progress_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "source_start_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "target_reached": {
+          "type": "boolean",
+          "description": "仅上下文裁剪：保留原文及当前协议后是否达到目标占用；false 不代表删除保留材料。"
         }
       },
       "required": [
@@ -5144,7 +5288,8 @@
             "UserInstructions",
             "MainPromptSnapshot",
             "SettingsDraft",
-            "SettingsApplication"
+            "SettingsApplication",
+            "ExtractionRecovery"
           ],
           "description": ""
         },
@@ -5283,6 +5428,10 @@
           "items": {
             "$ref": "#/$defs/ID"
           }
+        },
+        "source_batch": {
+          "$ref": "#/$defs/CommitmentSourceBatch",
+          "description": "新提取承诺的固定事件批次；缺省只按旧 Context 来源兼容，不能凭相同 blob 推断事件归属。"
         }
       },
       "required": [
@@ -5742,6 +5891,322 @@
         "command_ids"
       ],
       "additionalProperties": false
+    },
+    "CommitmentSourceBatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "宿主绑定的新承诺来源批次；必须与指定持久化 owner 的事件集合和边界完全一致。",
+      "properties": {
+        "owner_type": {
+          "enum": [
+            "CompactionJob",
+            "SettingsApplication"
+          ]
+        },
+        "owner_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "source_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "uniqueItems": true
+        },
+        "source_end_sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "owner_type",
+        "owner_id",
+        "source_event_ids",
+        "source_end_sequence"
+      ]
+    },
+    "ExtractionRecovery": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "ExtractionRecovery"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "group_key": {
+          "$ref": "#/$defs/Digest"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "parent_attempt_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "binding_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "generation": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "owner_epoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "enum": [
+            "CLAIMED",
+            "SUCCEEDED",
+            "FAILED",
+            "BLOCKED"
+          ]
+        },
+        "call_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "quotes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "binding_snapshot": {
+          "$ref": "#/$defs/RecoveryBinding"
+        },
+        "request_snapshot": {
+          "$ref": "#/$defs/RecoveryRequest"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "session_id",
+        "group_key",
+        "attempt_id",
+        "parent_attempt_id",
+        "request_id",
+        "request_hash",
+        "binding_ref",
+        "generation",
+        "owner_epoch",
+        "state",
+        "call_id",
+        "quotes",
+        "error",
+        "binding_snapshot",
+        "request_snapshot"
+      ],
+      "additionalProperties": false,
+      "description": "Explicit single-use recovery authorization; immutable request binding and generation fence, never automatic retry."
+    },
+    "RecoveryBinding": {
+      "type": "object",
+      "properties": {
+        "authorization_id": {
+          "$ref": "#/$defs/ID",
+          "description": "Server-issued in-memory authorization; required for new consumption, optional only for legacy receipt compatibility."
+        },
+        "issued_at": {
+          "$ref": "#/$defs/Time",
+          "description": "Server-issued ticket time; cannot be extended by the caller."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Time",
+          "description": "Five-minute first-consumption deadline. Consumed same-request receipts remain replayable after expiry or restart."
+        },
+        "group_key": {
+          "$ref": "#/$defs/Digest"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "implementation_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "config_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "source_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "model_call_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_request_hash": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actual_payload_hash": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "group_key",
+        "attempt_id",
+        "expected_revision",
+        "policy",
+        "implementation_version",
+        "config_hash",
+        "source_hash",
+        "model_call_id",
+        "model_request_hash",
+        "actual_payload_hash"
+      ],
+      "additionalProperties": false
+    },
+    "RecoveryRequest": {
+      "type": "object",
+      "properties": {
+        "authorization_id": {
+          "$ref": "#/$defs/ID",
+          "description": "Server-issued in-memory authorization; required for new consumption, optional only for legacy receipt compatibility."
+        },
+        "issued_at": {
+          "$ref": "#/$defs/Time",
+          "description": "Server-issued ticket time; cannot be extended by the caller."
+        },
+        "expires_at": {
+          "$ref": "#/$defs/Time",
+          "description": "Five-minute first-consumption deadline. Consumed same-request receipts remain replayable after expiry or restart."
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "group_key": {
+          "$ref": "#/$defs/Digest"
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "implementation_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "config_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "source_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "model_call_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "model_request_hash": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "actual_payload_hash": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "request_id",
+        "group_key",
+        "attempt_id",
+        "expected_revision",
+        "policy",
+        "implementation_version",
+        "config_hash",
+        "source_hash",
+        "model_call_id",
+        "model_request_hash",
+        "actual_payload_hash"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [
@@ -5873,6 +6338,9 @@
     },
     {
       "$ref": "#/$defs/SettingsApplication"
+    },
+    {
+      "$ref": "#/$defs/ExtractionRecovery"
     }
   ]
 }

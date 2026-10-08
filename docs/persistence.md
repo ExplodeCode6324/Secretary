@@ -12,7 +12,7 @@
 
 对象先写临时文件并 fsync，rename 后同步目录；事务写入 journal 并同步后才确认。Store 校验 JSON Schema、版本与对象引用；读取对象验证 SHA-256 和长度，拒绝对象符号链接。重放可处理不完整尾帧，中段损坏或引用原件缺失会拒绝恢复，不创建假空会话。
 
-请求 ID 与内容 hash 形成幂等回执；同 ID 不同内容报冲突。Scheduler 的 occurrence_key 限制重复周期实例；授权派发绑定 owner epoch / attempt。锁丢失使仓储不可继续安全提交。此机制只负责单数据目录，没有分布式租约。
+请求 ID 与内容 hash 形成幂等回执；同 ID 不同内容报冲突。Scheduler 的 occurrence_key 限制重复周期实例；授权派发绑定 owner epoch / attempt。journal 的重放快照、不完整尾帧修复和追加均由持有 OS 锁的 helper 执行。JS Store 通过每次打开独有的本地通道提交事务，收到对应事务的 fsync 确认后才安装内存状态；helper 不可用或结果未知后不重试追加，新 owner 不接管旧通道。异步进程退出通知和缓存的 owner epoch 仅供辅助检查，不能代表写权限。此机制只负责单数据目录，没有分布式租约。
 
 ## 恢复规则
 

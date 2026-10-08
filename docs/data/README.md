@@ -40,11 +40,11 @@ Schema 是结构校验来源，TypeScript contracts.ts 是生成类型。字段�
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
 | [Session](Session.md) | 14 | 逻辑主会话；状态变化由宿主单写，进程停止仍保留。 |
 | [Input](Input.md) | 13 | 外部输入；工具返回不创建此对象。 |
-| [Context](Context.md) | 28 | 一次调用不可变快照；estimated+reserve<=budget 由业务检查。 |
+| [Context](Context.md) | 32 | 不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。 |
 | [ModelCall](ModelCall.md) | 14 | 模型传输生命周期；完整响应保存后才解析工具请求。 |
 | [WorkItem](WorkItem.md) | 12 | 事项不等于任务；未履行且无人承接的事项不退出。 |
-| [Consciousness](Consciousness.md) | 14 | 当前工作记忆；全部摘要提交与原文承接集合一次保存。 |
-| [CompactionJob](CompactionJob.md) | 16 | 固定范围摘要任务；新增输入不纳入覆盖集合。 |
+| [Consciousness](Consciousness.md) | 18 | 当前工作记忆；全部摘要提交与原文承接集合一次保存。 |
+| [CompactionJob](CompactionJob.md) | 21 | 固定范围摘要任务；新增输入不纳入覆盖集合。 |
 | [TaskProposal](TaskProposal.md) | 19 | 主会话只提出任务；不接受 authorized、grant 等模型声明。 |
 | [TaskPlan](TaskPlan.md) | 20 | id 即 task_id；先保存计划再建幂等目录，agent 在可执行时由 dispatch 拉起。 |
 | [Execution](Execution.md) | 25 | 执行生命周期与短期留存是独立维度；终结历史不可回到 RUNNING。 |
@@ -82,10 +82,14 @@ Schema 是结构校验来源，TypeScript contracts.ts 是生成类型。字段�
 | [ProgramResult](ProgramResult.md) | 11 | 必须校验登记 result_schema；退出码 0 不足以证明业务成功。 |
 | [Mutation](Mutation.md) | 5 | 服务端加载 snapshot 后按 object_type 校验并执行状态 guards；revision 必须 +1。 |
 | [JournalTransaction](JournalTransaction.md) | 10 | 单写事务，frame 原始 payload 字节 checksum 外包；同帧全生效或全不生效。 |
-| [MemoryCommitment](MemoryCommitment.md) | 6 |  |
+| [MemoryCommitment](MemoryCommitment.md) | 7 |  |
 | [UserInstructions](UserInstructions.md) | 7 | 当前有效的 Master 说明；UI 先保存草稿，完整摘要并重建 context 后与应用状态一次提交。 |
 | [MainPromptSnapshot](MainPromptSnapshot.md) | 11 |  |
 | [SettingsDraft](SettingsDraft.md) | 6 | Master 待应用修改；payload 为 SettingsPayload，不是有效设置。 |
 | [SettingsApplication](SettingsApplication.md) | 15 | 固定批次的设置应用；数据库提交后必须完成重建才可继续主会话。 |
 | [WorldEdit](WorldEdit.md) | 19 |  |
 | [SettingsPayload](SettingsPayload.md) | 3 |  |
+| [CommitmentSourceBatch](CommitmentSourceBatch.md) | 4 | 宿主绑定的新承诺来源批次；必须与指定持久化 owner 的事件集合和边界完全一致。 |
+| [ExtractionRecovery](ExtractionRecovery.md) | 20 | Explicit single-use recovery authorization; immutable request binding and generation fence, never automatic retry. |
+| [RecoveryBinding](RecoveryBinding.md) | 13 |  |
+| [RecoveryRequest](RecoveryRequest.md) | 14 |  |

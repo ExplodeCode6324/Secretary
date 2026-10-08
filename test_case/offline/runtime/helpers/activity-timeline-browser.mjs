@@ -61,7 +61,9 @@ try {
   ]) {
     await page.locator("#display-streaming").setChecked(streaming);
     await page.locator("#display-thinking").setChecked(thinking);
-    const before = await page.locator(".message.secretary").count();
+    const before = await page
+      .locator(".message.secretary")
+      .evaluateAll((nodes) => nodes.map((node) => node.dataset.messageId));
     await page.locator("#message").fill("synthetic timeline probe");
     await page.locator("#send").click();
     await page.waitForFunction(() =>
@@ -72,7 +74,12 @@ try {
       ].some((x) => x.textContent.includes("正在思考")),
     );
     await page.waitForFunction(
-      (n) => document.querySelectorAll(".message.secretary").length > n,
+      (ids) =>
+        [...document.querySelectorAll(".message.secretary")].some(
+          (node) =>
+            !ids.includes(node.dataset.messageId) &&
+            node.textContent.includes("逐段输出的正文。"),
+        ),
       before,
     );
     await page.waitForFunction(
@@ -82,26 +89,48 @@ try {
     );
     results.push({ streaming, thinking, inlineActivity: true });
   }
+  const priorToolIDs = new Set(
+    await page
+      .locator('.timeline-activity[data-activity-id^="tool:"]')
+      .evaluateAll((rows) => rows.map((row) => row.dataset.activityId)),
+  );
   await page.locator("#message").fill("query-memory");
   await page.locator("#send").click();
-  await page.waitForFunction(() =>
-    [...document.querySelectorAll(".timeline-activity")].some((x) =>
-      x.textContent.includes("已读取工作记忆"),
-    ),
+  await page.waitForFunction(
+    (ids) =>
+      [
+        ...document.querySelectorAll(
+          '.timeline-activity[data-activity-id^="tool:"]',
+        ),
+      ].some(
+        (row) =>
+          !ids.includes(row.dataset.activityId) &&
+          row.textContent.includes("已读取工作记忆"),
+      ),
+    [...priorToolIDs],
   );
   const toolIDs = await page
     .locator('.timeline-activity[data-activity-id^="tool:"]')
     .evaluateAll((rows) => rows.map((r) => r.dataset.activityId));
-  assert.equal(toolIDs.length, 1);
+  assert.equal(toolIDs.length, new Set(toolIDs).size);
+  const newToolIDs = toolIDs.filter((id) => !priorToolIDs.has(id));
+  assert.equal(
+    newToolIDs.length,
+    1,
+    "one new activity per query, including a reused synthetic fixture",
+  );
   const toolText = await page
-    .locator('.timeline-activity[data-activity-id^="tool:"] summary')
+    .locator(`[data-activity-id="${newToolIDs[0]}"] summary`)
     .textContent();
   assert(toolText.includes("耗时未知"));
   await page.reload();
   await page.waitForFunction(
-    () =>
-      document.querySelectorAll('.timeline-activity[data-activity-id^="tool:"]')
-        .length === 1,
+    (ids) =>
+      ids.every(
+        (id) =>
+          document.querySelectorAll(`[data-activity-id="${id}"]`).length === 1,
+      ),
+    toolIDs,
   );
   assert.deepEqual(
     await page
@@ -141,21 +170,60 @@ try {
   );
   await context.setOffline(true);
   await page.waitForFunction(
-    () => document.querySelector("#activity").dataset.connected === "false",
+    () =>
+      !navigator.onLine &&
+      document
+        .querySelector("#activity .activity-connection")
+        ?.textContent.includes("连接中断"),
   );
   await context.setOffline(false);
   await page.waitForFunction(
-    () => document.querySelector("#activity").dataset.connected === "true",
+    () =>
+      navigator.onLine &&
+      document.querySelector("#connection")?.textContent.includes("已同步") &&
+      document.querySelector("#activity .activity-connection")?.textContent ===
+        "",
   );
   await page.waitForFunction(
     () =>
       document.querySelectorAll('.timeline-activity[data-status="running"]')
         .length === 0,
   );
+  // Offscreen active records are deliberately absent from the bounded DOM.
+  // Verify authoritative completion and its UI projection, not mounted-card count.
+  const idleDeadline = Date.now() + 45000;
+  let idleSnapshot;
+  do {
+    idleSnapshot = await call("activity?client=" + encodeURIComponent(client));
+    if (
+      !idleSnapshot.activities.length &&
+      !idleSnapshot.queue.accepted &&
+      !idleSnapshot.queue.claimed
+    )
+      break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  } while (Date.now() < idleDeadline);
+  assert.equal(
+    idleSnapshot.activities.length,
+    0,
+    "all three concurrent activities must finish",
+  );
+  assert.equal(idleSnapshot.queue.accepted, 0);
+  assert.equal(idleSnapshot.queue.claimed, 0);
+  await page.waitForFunction(
+    () =>
+      document.querySelectorAll("#activity .activity-locators button")
+        .length === 0 &&
+      document
+        .querySelector("#activity .activity-queue")
+        ?.textContent.trim() === "",
+  );
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.locator("#timeline").evaluate((n) => {
-    n.scrollTop = n.scrollHeight;
-  });
+  if (await page.locator(".timeline-latest").isVisible())
+    await page.locator(".timeline-latest").click();
+  await page.waitForFunction(
+    () => document.querySelector(".timeline-latest")?.hidden,
+  );
   await page.screenshot({ path: out + "/mobile.png", fullPage: true });
   assert(
     await page.evaluate(
@@ -227,6 +295,8 @@ try {
         draftPreserved: true,
         mobile: 390,
         offlineReconnect: true,
+        finalAuthoritativeActive: idleSnapshot.activities.length,
+        finalQueue: idleSnapshot.queue,
         errors,
         defensive,
       },

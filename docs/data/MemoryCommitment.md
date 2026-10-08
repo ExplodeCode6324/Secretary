@@ -12,6 +12,7 @@
 | `source_refs` | array<ObjectRef> | 是 |  {"minItems": 1} 关联：[ObjectRef](ObjectRef.md) |
 | `task_refs` | array<ID> | 是 |  关联：[ID](ID.md) |
 | `resolution_event_ids` | array<ID> | 是 |  关联：[ID](ID.md) |
+| `source_batch` | CommitmentSourceBatch | 否 | 新提取承诺的固定事件批次；缺省只按旧 Context 来源兼容，不能凭相同 blob 推断事件归属。 关联：[CommitmentSourceBatch](CommitmentSourceBatch.md) |
 
 ## 组合约束
 

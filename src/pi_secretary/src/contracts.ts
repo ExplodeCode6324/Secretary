@@ -43,7 +43,8 @@ export type SecretaryDemoV1 =
   | UserInstructions
   | MainPromptSnapshot
   | SettingsDraft
-  | SettingsApplication;
+  | SettingsApplication
+  | ExtractionRecovery;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -361,7 +362,7 @@ export interface ObjectRef {
   media_type: string;
 }
 /**
- * 一次调用不可变快照；estimated+reserve<=budget 由业务检查。
+ * 不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。
  */
 export interface Context {
   schema_version: 1;
@@ -410,6 +411,22 @@ export interface Context {
   instructions_revision?: number;
   system_prompt_hash?: Digest;
   settings_application_id?: ID | null;
+  request_budget?: {
+    estimated_tokens: number;
+    effective_context_window: number;
+    requested_output_tokens: number;
+    effective_output_tokens: number;
+    tool_reserve_tokens: number;
+    safety_margin_tokens: number;
+    usable_input_tokens: number;
+    occupancy: number;
+    count_method: "utf8_bytes_upper_estimate_v1";
+    policy_id: string;
+    deployment_limit_verified: boolean;
+  };
+  source_context_id?: ID | null;
+  compaction_job_id?: ID | null;
+  protected_from_index?: number;
 }
 /**
  * 逻辑消息；provider 扩展块由原始 context 对象保留。
@@ -517,6 +534,15 @@ export interface Consciousness {
    * 设置切换已摘要的精确消息哈希，防止引用交叠造成重复。
    */
   covered_message_hashes?: Digest[];
+  maintenance_version?: 3;
+  memory_source_ref?: ObjectRef;
+  memory_updated_at?: Time;
+  context_compaction?: null | {
+    job_id: ID;
+    source_ref: ObjectRef;
+    messages_ref: ObjectRef;
+    source_end_sequence: number;
+  };
 }
 /**
  * 事项不等于任务；未履行且无人承接的事项不退出。
@@ -566,6 +592,16 @@ export interface MemoryCommitment {
   source_refs: ObjectRef[];
   task_refs: ID[];
   resolution_event_ids: ID[];
+  source_batch?: CommitmentSourceBatch;
+}
+/**
+ * 新提取承诺的固定事件批次；缺省只按旧 Context 来源兼容，不能凭相同 blob 推断事件归属。
+ */
+export interface CommitmentSourceBatch {
+  owner_type: "CompactionJob" | "SettingsApplication";
+  owner_id: ID;
+  source_event_ids: ID[];
+  source_end_sequence: number;
 }
 /**
  * 固定范围摘要任务；新增输入不纳入覆盖集合。
@@ -602,6 +638,14 @@ export interface CompactionJob {
   memory_version?: 2;
   attempt?: number;
   source_end_sequence?: number;
+  mode?: "WORKING_MEMORY" | "CONTEXT_COMPACTION";
+  policy_id?: string;
+  progress_ref?: ObjectRef;
+  source_start_sequence?: number;
+  /**
+   * 仅上下文裁剪：保留原文及当前协议后是否达到目标占用；false 不代表删除保留材料。
+   */
+  target_reached?: boolean;
 }
 /**
  * 主会话只提出任务；不接受 authorized、grant 等模型声明。
@@ -1573,7 +1617,8 @@ export interface Mutation {
     | "UserInstructions"
     | "MainPromptSnapshot"
     | "SettingsDraft"
-    | "SettingsApplication";
+    | "SettingsApplication"
+    | "ExtractionRecovery";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -1677,6 +1722,80 @@ export interface SettingsApplication {
    * 已保存原始字节 SHA-256 小写十六进制。
    */
   runtime_settings_hash: string;
+}
+/**
+ * Explicit single-use recovery authorization; immutable request binding and generation fence, never automatic retry.
+ */
+export interface ExtractionRecovery {
+  schema_version: 1;
+  record_type: "ExtractionRecovery";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  session_id: ID;
+  group_key: Digest;
+  attempt_id: ID;
+  parent_attempt_id: ID;
+  request_id: ID;
+  request_hash: Digest;
+  binding_ref: ObjectRef;
+  generation: number;
+  owner_epoch: number;
+  state: "CLAIMED" | "SUCCEEDED" | "FAILED" | "BLOCKED";
+  call_id: ID | null;
+  quotes: string[];
+  error: string | null;
+  binding_snapshot: RecoveryBinding;
+  request_snapshot: RecoveryRequest;
+}
+export interface RecoveryBinding {
+  /**
+   * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
+   */
+  authorization_id?: string;
+  /**
+   * UTC RFC3339；时区意图在 Trigger.timezone 另存。
+   */
+  issued_at?: string;
+  /**
+   * UTC RFC3339；时区意图在 Trigger.timezone 另存。
+   */
+  expires_at?: string;
+  group_key: Digest;
+  attempt_id: ID;
+  expected_revision: number;
+  policy: string;
+  implementation_version: string;
+  config_hash: Digest;
+  source_hash: Digest;
+  model_call_id: ID | null;
+  model_request_hash: Digest | null;
+  actual_payload_hash: Digest | null;
+}
+export interface RecoveryRequest {
+  /**
+   * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
+   */
+  authorization_id?: string;
+  /**
+   * UTC RFC3339；时区意图在 Trigger.timezone 另存。
+   */
+  issued_at?: string;
+  /**
+   * UTC RFC3339；时区意图在 Trigger.timezone 另存。
+   */
+  expires_at?: string;
+  request_id: ID;
+  group_key: Digest;
+  attempt_id: ID;
+  expected_revision: number;
+  policy: string;
+  implementation_version: string;
+  config_hash: Digest;
+  source_hash: Digest;
+  model_call_id: ID | null;
+  model_request_hash: Digest | null;
+  actual_payload_hash: Digest | null;
 }
 
 export type Contract = SecretaryDemoV1;

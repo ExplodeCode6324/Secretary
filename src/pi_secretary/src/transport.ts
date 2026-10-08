@@ -1,3 +1,9 @@
+import {
+  assertRequestBudget,
+  assertFinalPayload,
+  requestBudget,
+  type RequestBudget,
+} from "./budget.ts";
 import { activitiesFor } from "./activity.ts";
 import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import type { PreviewUpdate } from "./preview.ts";
@@ -14,7 +20,13 @@ export function durableStream(
   purpose: Context["purpose"],
   metadata: {
     consciousnessRevision?: number | null;
+    onPrepared?: (call: ModelCall) => void;
     maxTokens?: number;
+    requestMetadata?: () => {
+      sourceContextID?: string | null;
+      compactionJobID?: string | null;
+      consciousnessRevision?: number | null;
+    };
     activityPhase?: "正在整理回复";
     observe?: (update: PreviewUpdate) => void;
   } = {},
@@ -22,6 +34,44 @@ export function durableStream(
   let count = 0;
   return async (model, context, options) => {
     if (++count > 20) throw Error("MODEL_CALL_LIMIT");
+    const requestMetadata = metadata.requestMetadata?.();
+    const budgetOptions = {
+      role: purpose === "TASK" ? ("task" as const) : ("main" as const),
+      maxTokens: metadata.maxTokens ?? options?.maxTokens,
+    };
+    let budget: RequestBudget;
+    try {
+      budget = assertRequestBudget(model, context.messages, budgetOptions);
+    } catch (error) {
+      let diagnostic: RequestBudget | undefined;
+      try {
+        diagnostic = requestBudget(model, context.messages, budgetOptions);
+      } catch {
+        /* Invalid metadata or uncountable payload has no numeric budget. */
+      }
+      store.commit(
+        [],
+        [
+          store.event(
+            "model.capacity_blocked",
+            {
+              loop_id: loopID,
+              purpose,
+              model: model.id,
+              provider: model.provider,
+              api: model.api,
+              request_ref: store.put(context),
+              request_budget: diagnostic ?? null,
+              source_context_id: requestMetadata?.sourceContextID ?? null,
+              error: String(error),
+              sent: false,
+            },
+            scope,
+          ),
+        ],
+      );
+      throw error;
+    }
     const input = saveContext(
       store,
       context.messages,
@@ -33,6 +83,8 @@ export function durableStream(
       {
         consciousnessRevision: metadata.consciousnessRevision,
         captureKind: "MODEL_REQUEST",
+        budget,
+        ...requestMetadata,
       },
     );
     const call: ModelCall = {
@@ -50,6 +102,8 @@ export function durableStream(
       error: null,
     };
     store.commit([call]);
+    // Extraction links the exact prepared call durably before any send is possible.
+    metadata.onPrepared?.(call);
     const active = revise(call, { state: "IN_FLIGHT", started_at: now() });
     store.commit([active]);
     const observe = (update: PreviewUpdate) => {
@@ -104,7 +158,29 @@ export function durableStream(
         Promise.resolve(
           stream(model, context, {
             ...options,
-            ...(metadata.maxTokens ? { maxTokens: metadata.maxTokens } : {}),
+            maxTokens: budget.effective_output_tokens,
+            onPayload: async (payload, actualModel) => {
+              const changed = await options?.onPayload?.(payload, actualModel);
+              const final = changed === undefined ? payload : changed;
+              const facts = assertFinalPayload(actualModel, final, budget);
+              store.commit(
+                [],
+                [
+                  store.event(
+                    "model.payload",
+                    {
+                      call_id: call.id,
+                      context_id: input.id,
+                      payload_ref: store.put(final),
+                      count_method: budget.count_method,
+                      ...facts,
+                    },
+                    scope,
+                  ),
+                ],
+              );
+              return final;
+            },
             sessionId: scope.execution_id ?? scope.session_id ?? loopID,
             signal,
           }),

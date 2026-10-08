@@ -190,7 +190,13 @@ test("settings real chunks, retry, extraction and persisted queue; no duplicate 
         pending_raw_refs: [
           ...cs.pending_raw_refs,
           app.store.put([
-            { role: "user", content: "synthetic ".repeat(2700), timestamp: 1 },
+            // Issue #2 extracts whole messages after all summaries. Keep the
+            // same 27k source volume in complete messages that individually fit.
+            ...Array.from({ length: 3 }, (_, index) => ({
+              role: "user",
+              content: "synthetic ".repeat(900),
+              timestamp: index + 1,
+            })),
           ]),
         ],
       }),
@@ -226,7 +232,7 @@ test("settings real chunks, retry, extraction and persisted queue; no duplicate 
       .activitySnapshot()
       .activities.find((a) => a.kind === "settings")!;
     assert.equal(setting.phase, "正在提取承诺");
-    assert.equal(setting.progress!.completed, 0);
+    assert.equal(setting.progress!.completed, setting.progress!.total);
     extract.release();
     await app.settings.tick();
     assert.equal(

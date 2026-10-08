@@ -39,9 +39,16 @@ TUI `/help` 列出命令；常用 `/status`、`/tasks`、`/show`、`/task`、`/p
 | /api/instructions | 读取有效说明或 POST 保存说明草稿 |
 | /api/world | GET 分页查询当前/历史事实及管理目录 |
 | /api/settings、/draft、/apply、/retry、/restore | 草稿及统一生效管理；完整路径与请求见 [设置规范](settings-activation.md) |
+| /api/memory/recovery | GET 只读分组预检，POST 显式一次恢复或已有结果对账；TUI/Web 共用 Host |
 | /api/migrate / /api/shutdown | POST 迁移或正常停机 |
 
 客户端请求体上限 1 MiB，闲置客户端约一小时清理。具体 body 字段以 backend 分支和 web/app.js 调用为准；没有承诺稳定的外部 HTTP SDK。
+
+记忆提取恢复：GET 携带已认证 `client`，返回分组、旧 attempt/owner、状态、原因与 `binding`，不消费授权或写日志。POST 携带 `client`、UUID `request_id` 及预检完整绑定：`group_key`、`attempt_id`、`expected_revision`、`policy`、`implementation_version`、`config_hash`、`source_hash`、可空的 `model_call_id`、`model_request_hash`、`actual_payload_hash`。后面三个字段绑定旧调用及已有实际 payload 证据，缺证据时为 null，不凭同 loop_id 猜测。session 由当前 Host 确定，来源由服务端固定证据重建，客户端不能提供替换文本。相同请求 ID 与相同绑定只对账，同 ID 改参拒绝；旧预检失效须重新读取。该接口仅面向用户操作，不注册到主模型工具。
+
+预检还返回服务端签发并保存在当前 Store 实例内的 `authorization_id`、`issued_at`、`expires_at`。首次消费须在签发后 5 分钟内完成，且完整凭证及绑定原样匹配；客户端延长期限、缺凭证、过期或服务重启后的未消费凭证均拒绝。重新 GET 可取得新凭证，不修改 journal，也不消费授权。期限只限制首次消费；已经消费的原 request_id 与原参数仍按持久回执对账，过期或重启不能使该请求再次发送。新增字段在存储契约中可缺省，仅为读取旧回执；新消费必须具备有效凭证。
+
+TUI `/memory-recovery [group]` 只读预检，`/memory-recover <JSON>` 提交显式请求；JSON 为新 request_id 加返回的 binding。`/memory-resolve` 仅处理承诺账本状态，不能授权提取。恢复状态 `SUCCEEDED` 仍应结合原 owner 提交回执判断是否已进入工作记忆；其他未授权分组、过期来源或未知执行可能继续阻塞提交。
 
 ## 登记程序
 

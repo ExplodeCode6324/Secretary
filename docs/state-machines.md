@@ -60,3 +60,24 @@ AuthorizationRequest：PENDING → APPROVED / REJECTED；撤销与其他合法�
 ## 设置应用
 
 `SettingsApplication` 由 Settings 协调器推进：QUEUED → SUMMARIZING → COMMITTING（有 World 写入时）→ REBUILDING → APPLIED。确定未提交时为 FAILED；结果未知或提交后重建未完成为 BLOCKED。来源与候选按不可变引用保存，最后一帧同时提交记忆、说明、context 指针和 APPLIED。详细并发、重启和配置变化规则见[设置生效规范](settings-activation.md)。
+
+## 提取恢复
+
+`ExtractionRecovery` 是显式请求的持久记录，`CLAIMED` 表示一次授权已经消费；只有该来源当前领取代次可以推进结果。原 attempt 日志不可变，新 attempt 关联父 attempt 与请求。Store 的独占 owner 锁、同步 journal 提交及 revision CAS 提供本地串行化，不使用超时租约重新获得发送权。
+
+| 磁盘证据与当前条件 | 预检/恢复行为 |
+| --- | --- |
+| 来源、owner、policy、配置、revision 不匹配，ModelCall/Context/请求证据不一致或 legacy 无精确证据 | BLOCKED，无发送 |
+| 旧进程中 attempt 仍活跃 | BLOCKED，不把点击当作隔离 |
+| 自动 attempt 已明确失败且尚未创建 ModelCall | READY，显式授权最多一次新调用 |
+| 精确关联的 ModelCall 仅 PREPARED，尚未 IN_FLIGHT | 可确认本地未发；尚未消费恢复授权时才可 READY |
+| started 无终态/无精确调用关联，或 IN_FLIGHT/INTERRUPTED 无完整终态 | BLOCKED，重启不发送 |
+| 已保存 error/aborted 响应 | BLOCKED，不把错误响应当供应商未执行证明 |
+| 已保存完整终态但输出不满足提取协议，且本地旧执行已结束 | READY，可明确授权新调用，显示再次计费边界 |
+| 已保存合法完整响应 | RECONCILE，确定性复用，零新调用 |
+| 已有提取成功或原 owner 已提交 | 复用结果/回执，不重复提取或提交 |
+| 恢复授权已消费而尚无完整结果 | 同请求只对账或 BLOCKED，不退还授权后再发送 |
+
+预检不修改持久 Store；只在当前进程内签发有效期 5 分钟的凭证。新消费先核验服务端签发记录、完整绑定和有效期；过期、客户端延长、服务重启后的未消费凭证拒绝，允许重新预检。已消费 request_id 的持久回执优先对账，期限不恢复发送权。
+
+RECONCILE 是用户显式发起的写操作，记录请求和对账结果，但不产生模型调用。提取成功与原批次提交是不同检查点：后者仍需完整来源、候选、任务事实和版本校验，设置路径还须核查 World 回执。

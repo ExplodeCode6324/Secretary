@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { JournalOwner } from "./store-lock.ts";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import type {
@@ -91,7 +91,7 @@ export class Store {
     JournalTransaction,
     "sequence" | "committed_at" | "mutations" | "log_records"
   >[] = [];
-  private helper: ChildProcessWithoutNullStreams;
+  private owner: JournalOwner;
   private closed = false;
   private healthy = true;
   private eventTransactions = new Map<string, string>();
@@ -107,43 +107,24 @@ export class Store {
     return this.read<import("./contracts.ts").TaskPlan>(ref);
   }
   private receipts = new Map<string, { hash: string; value: unknown }>();
-  private constructor(dir: string, helper: ChildProcessWithoutNullStreams) {
+  private constructor(dir: string, owner: JournalOwner) {
     this.dir = dir;
-    this.helper = helper;
-    helper.once("exit", () => {
-      this.healthy = false;
-    });
+    this.owner = owner;
   }
   static async open(dir: string) {
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
-    const helper = spawn(
-      "python3",
-      [
-        fileURLToPath(new URL("./lock.py", import.meta.url)),
-        path.join(dir, "owner.lock"),
-      ],
-      { stdio: "pipe" },
-    );
-    await new Promise<void>((resolve, reject) => {
-      helper.once("error", reject);
-      helper.stdout.once("data", (b) =>
-        String(b).trim() === "LOCKED" ? resolve() : reject(Error("OWNER_BUSY")),
-      );
-      helper.once("exit", (code) => {
-        if (code) reject(Error("OWNER_BUSY"));
-      });
-    });
-    const s = new Store(dir, helper);
+    const { owner, replay } = await JournalOwner.open(dir);
+    const s = new Store(dir, owner);
     try {
       fs.mkdirSync(path.join(dir, "objects"), { recursive: true });
-      s.replay();
+      s.replay(replay);
       s.epoch =
         s
           .all()
           .reduce(
             (n, r) =>
               Math.max(n, Number("owner_epoch" in r ? r.owner_epoch : 0)),
-            0,
+            s.epoch - 1,
           ) + 1;
       return s;
     } catch (e) {
@@ -281,8 +262,13 @@ export class Store {
     events: OperationLogRecord[] = [],
     receipt?: { request: string; hash: string; value: string },
   ) {
-    if (this.closed || !this.healthy || this.helper.exitCode !== null)
-      throw Error("STORE_NOT_OWNER");
+    if (this.closed || !this.healthy) throw Error("STORE_NOT_OWNER");
+    try {
+      this.owner.assertOwner();
+    } catch (error) {
+      this.healthy = false;
+      throw error;
+    }
     for (const r of records) {
       shape(r);
       const old = this.records.get(r.record_type + ":" + r.id);
@@ -337,17 +323,11 @@ export class Store {
         payload_b64: Buffer.from(payload).toString("base64"),
         sha256: digest,
       }) + "\n";
-    const file = path.join(this.dir, "journal.jsonl");
-    const fd = fs.openSync(file, "a", 0o600);
     try {
-      fs.writeFileSync(fd, frame);
-      fs.fsyncSync(fd);
-      syncDir(this.dir);
+      this.owner.append(frame, digest);
     } catch (e) {
       this.healthy = false;
       throw e;
-    } finally {
-      fs.closeSync(fd);
     }
     this.install(txn, digest, staged);
   }
@@ -402,6 +382,34 @@ export class Store {
         old.proposal_ref.sha256 !== r.proposal_ref?.sha256
       )
         throw Error("EXECUTION_PROPOSAL_IMMUTABLE");
+      if (
+        old?.record_type === "ExtractionRecovery" &&
+        r.record_type === "ExtractionRecovery"
+      ) {
+        const immutable = [
+          "session_id",
+          "group_key",
+          "attempt_id",
+          "parent_attempt_id",
+          "request_id",
+          "request_hash",
+          "binding_ref",
+          "binding_snapshot",
+          "request_snapshot",
+          "generation",
+          "owner_epoch",
+        ] as const;
+        if (
+          immutable.some(
+            (key) => JSON.stringify(old[key]) !== JSON.stringify(r[key]),
+          )
+        )
+          throw Error("EXTRACTION_RECOVERY_IDENTITY_CHANGED");
+        if (old.state !== "CLAIMED")
+          throw Error("EXTRACTION_RECOVERY_TERMINAL_IMMUTABLE");
+        if (old.call_id && old.call_id !== r.call_id)
+          throw Error("EXTRACTION_RECOVERY_CALL_CHANGED");
+      }
       staged.push(r);
     }
     const candidate = new Map(this.records);
@@ -418,6 +426,30 @@ export class Store {
         !candidate.has("Session:" + r.session_id)
       )
         throw Error("MISSING_SESSION");
+    }
+    for (const r of staged) {
+      if (r.record_type !== "ExtractionRecovery") continue;
+      const peers = [...candidate.values()].filter(
+        (other): other is import("./contracts.ts").ExtractionRecovery =>
+          other.record_type === "ExtractionRecovery" &&
+          other.session_id === r.session_id &&
+          other.group_key === r.group_key &&
+          other.id !== r.id,
+      );
+      if (peers.some((other) => other.generation === r.generation))
+        throw Error("EXTRACTION_RECOVERY_GENERATION_CONFLICT");
+      if (
+        r.state === "CLAIMED" &&
+        peers.some((other) => other.state === "CLAIMED")
+      )
+        throw Error("EXTRACTION_RECOVERY_SOURCE_CLAIMED");
+      const old = this.records.get("ExtractionRecovery:" + r.id);
+      if (
+        !old &&
+        r.generation !==
+          Math.max(0, ...peers.map((other) => other.generation)) + 1
+      )
+        throw Error("EXTRACTION_RECOVERY_GENERATION_CONFLICT");
     }
     const eventIDs = new Set<string>();
     for (const [index, e] of txn.log_records.entries()) {
@@ -488,16 +520,8 @@ export class Store {
     }
     for (const child of Object.values(v)) this.verifyRefs(child);
   }
-  private replay() {
-    const file = path.join(this.dir, "journal.jsonl");
-    if (!fs.existsSync(file)) return;
-    const data = fs.readFileSync(file);
-    const last = data.lastIndexOf(10);
-    if (last !== data.length - 1) {
-      fs.writeFileSync(file + ".incomplete-" + id(), data.subarray(last + 1));
-      fs.truncateSync(file, last + 1);
-    }
-    const text = data.subarray(0, last + 1).toString();
+  private replay(data: Buffer) {
+    const text = data.toString();
     for (const line of text.split("\n").slice(0, -1)) {
       const frame = JSON.parse(line);
       if (
@@ -519,16 +543,11 @@ export class Store {
       )
         throw Error("CORRUPT_CHAIN");
       this.install(txn, frame.sha256, this.stage(txn));
+      this.epoch = Math.max(this.epoch, txn.owner_epoch + 1);
     }
   }
   async close() {
-    if (this.closed) return;
     this.closed = true;
-    const exited = new Promise<void>((r) =>
-      this.helper.once("exit", () => r()),
-    );
-    if (this.helper.exitCode !== null) return;
-    this.helper.stdin.end();
-    await exited;
+    await this.owner.close();
   }
 }

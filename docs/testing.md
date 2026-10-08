@@ -42,6 +42,8 @@ node --import tsx test_case/online/verify-memory-live.ts <数据目录完整副�
 
 ## 设置与 World 管理回归
 
+Issue 5 的 `npm run test:issue5` 使用合成输入和全新临时 Store，检查历史已完全覆盖时的设置应用、空提取不重复调用及不匹配证据拒绝；同时检查设置后原始 Master 输入跨压缩、重启和重复投影仍进入实际主模型 stream 请求，保持历史语义、工具配对与容量硬门禁。摘要 fixture 故意不复述原文，因此通过不依赖摘要偶然保留。此套件属于应用逻辑回归，不声称验证真实模型长期记忆质量。
+
 `settings.test.ts` 覆盖双来源/多引用摘要、长材料分片、新输入排队、草稿持久化、版本冲突、真实 PostgreSQL 批次回滚、提交后 SIGKILL 恢复、历史时间范围与超过 100 条分页，以及运行配置切换。与 `world.test.ts` 同用测试数据库时必须串行运行；每次使用新的隔离数据库，避免不同 Store 的 outbox 混用。
 
 ```sh
@@ -110,3 +112,11 @@ python3 test_case/offline/runtime/helpers/activity-pty.py <隔离目录> <PTY报
 浏览器验证四种流式/思考组合、三项并行活动、刷新、离线事件、重连、窄屏、草稿保留和安全文本/过期版本过滤。PTY 验证中文输入、中间插字及缩放时的光标保持；测试适配器不等同于人工 Terminal.app 长期使用。
 
 显式 `node --import tsx test_case/online/test-activity-live.ts <报告路径>` 使用真实主模型、隔离 Store 和合成输入，最多 12 次调用/15 分钟，禁止模型工具调用结果进入 Agent 执行；验证聊天、设置整理和排队恢复，不连接现用数据库。报告分别保存调用数和活动采样，不保存凭据或提示原文。见[本轮验收报告](../test_case/reports/activity-20261005/README.md)。
+
+## Issue 4 显式提取恢复
+
+`test_case/offline/issue4/` 使用合成模型与临时 Store，验证 request_id/hash 幂等、并发领取、配置/版本/来源绑定、未知结果停发、完整结果对账、原 owner 提交以及 TUI/HTTP 入口。完整运行方式为 `node --import tsx --test test_case/offline/issue2/*.test.ts test_case/offline/issue3/*.test.ts test_case/offline/issue4/*.test.ts`；Issue 2/3/4 测试还需单独 strict TypeScript 检查，不能只依赖默认 tsconfig 的 runtime include。
+
+中断测试区分进程内注入与真实 SIGKILL；对授权落盘、发送前后、响应保存、提取成功、工作记忆提交窗口分别核对跨重启发送数及回执。World 相关测试仅使用新建隔离 PostgreSQL。保留 Issue 3 来源/批次/时间/任务/通知回归及 PERRI 原始跨批次探针，不能以新测试替换它们。本轮首次失败、后续结果、完整命令、版本和哈希保存在 `test_case/reports/issue4-20261006/`；是否通过以最终报告为准，不以本规范充当运行证明。
+
+PERRI 复审后的补强覆盖：ModelCall task/execution scope、Context 缺失及 system 请求不符的损坏证据反例；5 分钟凭证过期、期限篡改、重启失效及已消费回执继续对账；Store 锁内 journal 协议和正常 owner/reopen/尾帧恢复。历史 helper 丢失故障实验被平台中止，本轮仅只读保存其既有证据，不重跑或改路径重建该实验，不据此声称已验证恢复端到端重复发送。新证据保存在 `test_case/reports/issue4-20261007/`，原报告保持不变。

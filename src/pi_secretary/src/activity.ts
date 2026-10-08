@@ -362,7 +362,12 @@ export class Activities {
         "compaction:" + job.id,
         "compaction",
         live?.phase ??
-          (job.state === "FAILED" ? "记忆整理失败" : "等待恢复记忆整理"),
+          (job.state === "FAILED"
+            ? job.mode === "WORKING_MEMORY"
+              ? "工作记忆更新失败"
+              : "上下文整理失败"
+            : "等待恢复" +
+              (job.mode === "WORKING_MEMORY" ? "工作记忆更新" : "上下文整理")),
         job.state === "FAILED" ? "failed" : live ? "running" : "waiting",
         live?.last_progress_at ?? job.updated_at,
         null,
