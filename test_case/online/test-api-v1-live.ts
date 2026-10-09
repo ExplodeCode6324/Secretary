@@ -73,7 +73,14 @@ if (process.argv.includes("--self-check")) {
   for (const field of ["project", "code", "deadline", "explanation"])
     assert.throws(() => oracle(JSON.stringify({ ...good, [field]: "wrong" })));
   assert(!PROBE.includes(good.code));
-  console.log("API-v1 live oracle self-check PASS; 0 provider attempts");
+  const { scenarioSelfCheck } = await import("./api-v1-online-worker.ts");
+  scenarioSelfCheck();
+  console.log(
+    "API-v1 live oracle, process identity and budget reserve self-check PASS; 0 provider attempts",
+  );
+} else if (process.argv.includes("--scenario")) {
+  const { runBoundedScenario } = await import("./api-v1-online-worker.ts");
+  await runBoundedScenario();
 } else {
   const index = process.argv.indexOf("--evidence"),
     directory = process.argv[index + 1];

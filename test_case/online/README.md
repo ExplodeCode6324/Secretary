@@ -48,4 +48,23 @@ node --import tsx test_case/online/test-api-v1-live.ts --live --evidence '<仓�
 
 `--retry-compaction-from '<此前私密证据目录>'` 仅供明确授权后的失败整理重试：检查前次是本脚本合成 memory/settings 运行且有 `SUMMARY_PRIOR_BOUND_EXCEEDED`，把合成 Store 复制到新的证据目录，保留原失败目录，继续用 API 整理并重开回忆。只有该显式重试允许生产流程的 `previous_error` 重试；所有 HTTP 请求仍计入剩余预算。原始 summary/prompt/校验规则不变，预算耗尽仍报告未通过。
 
-2026-10-10 有界运行结果为 **未通过完整线上验收**：总计 12 次真实调用、26647 token、90.863 秒执行时间，SDK 目录费用估算 $0.007705772，实际账单不可用。主模型 `opencode-go / deepseek-v4.1-flash` 调用 11 次（25814 token），任务模型 `opencode-go / gpt-5.6-luna` 调用 1 次（833 token）。主会话、设置应用及其事实/语言影响、显式重试后的整理有证据；第一个任务通过 API 和持久状态核验，但完整任务链未通过。Store 重开保留会话，重开后的真实回忆在 provider 发送前被测试预算拦截，未验证。首次测试预算对齐错误、loopback fetch 失败及随后真实整理的 `SUMMARY_PRIOR_BOUND_EXCEEDED` 均保留，失败记录不改写为通过；原始与聚合证据均存于仓库外私密目录。
+2026-10-10 **历史首轮**有界运行结果为 **未通过完整线上验收**（后续独立场景结果见下节，旧证据不改写）：总计 12 次真实调用、26647 token、90.863 秒执行时间，SDK 目录费用估算 $0.007705772，实际账单不可用。主模型 `opencode-go / deepseek-v4.1-flash` 调用 11 次（25814 token），任务模型 `opencode-go / gpt-5.6-luna` 调用 1 次（833 token）。主会话、设置应用及其事实/语言影响、显式重试后的整理有证据；第一个任务通过 API 和持久状态核验，但完整任务链未通过。Store 重开保留会话，重开后的真实回忆在 provider 发送前被测试预算拦截，未验证。首次测试预算对齐错误、loopback fetch 失败及随后真实整理的 `SUMMARY_PRIOR_BOUND_EXCEEDED` 均保留，失败记录不改写为通过；原始与聚合证据均存于仓库外私密目录。
+
+## 独立任务链与真实进程重启验收
+
+在上述真实模型环境变量和既有凭据路径已设置后，可独立运行：
+
+```sh
+node --import tsx test_case/online/test-api-v1-live.ts --live --scenario task-chain --evidence '<仓库外全新任务证据目录>'
+node --import tsx test_case/online/test-api-v1-live.ts --live --scenario memory-restart --evidence '<仓库外全新记忆证据目录>'
+```
+
+两个场景各限 12 次实际 provider HTTP 请求、10 分钟，单请求限 90 秒、4096 输出 token、80000 字节上下文。`api-v1-online-worker.ts` 在独立 OS 子进程中启动隔离 API v1 服务，凭据仅在子进程内读入现有 `roleModel`。调用计数与用量写入私密账本，重启后继续累计；生产 summary 校验与正常 `previous_error` 重试保持原样。
+
+任务场景通过 API 请求先计算 42，再在同一任务、明确父执行上计算 84；验证两个不同执行均成功，任务身份、父执行和结果一致，且任务角色确有真实传输。通过正常 Scheduler tick/idle 推进，主会话通知消费和自动整理不属于该场景。
+
+记忆场景先完成合成事实主会话、设置应用和独立事实/语言 oracle，再要求真实整理 `COMMITTED`。准备阶段最多使用 10 次请求，硬性保留两次给重启后回忆。关闭必须得到旧子进程退出码 0，并确认旧 PID 已退出；随后以新 PID、新 Core instance 打开同一 Store，检查会话/数据身份，再实际调用主模型验证同一 oracle。没有给 probe 注入正确事实值；原始用户锚点可能保留，因此是产品连续性验证，不是仅靠摘要回忆的证明。
+
+初轮失败分类补充：第二个任务的持久错误是 `LIVE_BUDGET_EXHAUSTED`，源于预算对齐失败后测试共享 gate 关闭；不是任务模型拒绝。`SUMMARY_PRIOR_BOUND_EXCEEDED` 的候选原始 items 为 1971 字节，未超 prompt 宣告的 2048 字节限制；Host 补入 WorkItem 元数据后超过原 prior bound。原生产第二次更紧限制的重试随后成功，未放宽断言。初轮 `fetch failed` 没有捕获 cause，具体原因仍未知。
+
+后续分别授权的两个独立场景均通过：任务链 2 次真实请求、2228 token、SDK 估算 $0.00071245；记忆与 OS 进程重启 7 次真实请求、14390 token、SDK 估算 $0.00474465。合计新增 9 次、16618 token、估算 $0.00545710，实际账单不可用。任务模型为 `opencode-go / gpt-5.6-luna`，主模型为 `opencode-go / deepseek-v4.1-flash`。记忆准备阶段使用 6 次请求，重启后的实际回忆使用 1 次；旧进程退出、新 PID/Core instance、同一数据域/会话及精确事实/英语 oracle 全部核验。初轮失败证据完整保留；后续通过不改写初轮结论。

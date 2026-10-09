@@ -2,7 +2,7 @@
 
 日期：2026-10-10。关联：[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)、[实施起点 #8](https://github.com/ExplodeCode6324/Secretary/issues/8)。
 
-状态：**BRANCH_ONLY / WAITING_FOR_PERRI_REVIEW**。四项审计缺陷已修复，当前验证结果和 online 未通过项见第 11 节；PERRI 独立复审后仍需 Master 终审。
+状态：**BRANCH_ONLY / WAITING_FOR_PERRI_REVIEW**。四项审计缺陷已修复，两个追加 online 场景已通过；初轮失败与补齐结果见第 11、12 节。PERRI 独立复审后仍需 Master 终审。
 
 2026-10-10 Master 已明确授权“领取 issue8 开干”，在 `codex/issue8-api-v1` 实现与验证，终审后才可合并。启动基线 `f8dbddcf4338914c1d264efff0fd26d5bc07c2cb`；远端 main `38daab6cbbccf9f6a85071ff5933eaa198d77de8`。类型检查通过；runtime 基线 167 项，162 通过、5 跳过、0 失败。首次缺少固定 Pi 子模块导致的类型错误单独保留，初始化仓库锁定的子模块后检查通过。
 
@@ -224,3 +224,24 @@ online 由独立 Astra/high 子代理使用现有配置在全新合成数据目�
 修复代码提交：`ee386efe953b8319f4e83a5a44e263062f55e590`。最终独立复跑：runtime 159 通过/8 跳过，API 30 通过/2 个 PG 单独执行，Issue #2–#5 181 通过/2 跳过；隔离 PG 14/14。类型、外部 DTO 消费、生成一致性、Swift 和 diff 检查通过，docs 49 项继承错误无新增。首次高并发运行的 5 个失败保留，未更改断言或时限。
 
 online 达到 12 次实际请求上限，26,647 token，SDK 目录估算 USD 0.007705772，账单不可用。主会话、首个任务、设置影响和显式重试后的整理通过；完整任务链未通过，重开后真实回忆因预算耗尽未验证。结论为 NOT PASSED / PARTIAL COVERAGE，不能写作全面验收通过。逐轮失败、模型明细、源码哈希匹配和未测边界见 [验证记录](../api/v1/verification.md)。PERRI 原始归档未能通过当前 executor 的工具物化，此次 red/green 为本机独立永久回归。
+
+
+## 12. 追加验收：任务链与整理后进程重启（2026-10-10）
+
+Master 已授权继续补齐 #8 验收缺口。继续使用 `codex/issue8-api-v1`，本轮基线 `e150e37c47a044a3835567044b43914ad55ffa4a`；原四项缺陷由 PERRI 独立复跑，此轮不搬运原始审计归档。初轮 12 次 online 的证据文件冻结散列，禁止覆盖或删除失败。
+
+失败分类进一步核对：第二段任务结果为 LIVE_BUDGET_EXHAUSTED，来自首个预算不一致错误关闭共享 harness 调用开关，未向任务 provider 发请求，不能判作生产任务模型拒绝。整理原始 items 为 1971 UTF-8 bytes，低于模型收到的 2048 candidate_byte_limit；宿主增加 WorkItem 元数据后超过 prior_bytes，触发 SUMMARY_PRIOR_BOUND_EXCEEDED。因此不能简单记为模型违反公开候选预算。原生产第二次请求收紧到 0.8 倍后成功，测试须保留该验证重试。loopback fetch 原 cause 未记录，原因继续记为未知。
+
+独立 Astra/high online 子代理分两个合成场景执行：
+
+1. 同一个任务的两段执行，通过新版 API 提交与查询，原结果 42、续接结果 84，核验 task/parent/execution 身份和两段成功；最多 12 次实际 provider 尝试、10 分钟。仅聚焦 Scheduler 任务生命周期，主会话通知消费与自动维护的覆盖另列。
+2. 合成事实、设置生效、真实整理 COMMITTED 后正常停止 OS 进程，以新进程打开同一测试数据，再发真实模型回忆请求，核验事实与当前语言规则。每轮总计最多 12 次实际 provider 尝试、10 分钟，其中至少 2 次预留给重启后回忆；不以同进程 App.close/open 冒充进程重启。
+
+两个场景分别建立全新私密数据与报告目录，已有失败数据不重放。只使用已有配置的 opencode-go/deepseek-v4.1-flash 主模型、opencode-go/gpt-5.6-luna 任务模型和现有凭据；不显示、搬运或重新配置密钥。单请求 90 秒、4096 输出 token、80000 bytes 上下文，前后预算保持一致；所有生产验证和原业务 oracle 保留。原验证重试可在总预算内执行，达到单轮上限先定位具体阻碍，不无限重试。没有部署、生产数据或设备操作。
+
+本轮先更正 README 的“未进行真实模型验证”旧陈述，再按实际追加结果更新验证记录与 PR。若查明需要修改生产代码，增加相应失败回归并复跑相关 offline；仅 harness/文档变化不冒充业务修复。等待 PERRI 独立复审后再由 Master 终审。
+
+
+追加结果：任务场景 2 次真实 gpt-5.6-luna 请求，两个执行均成功且父执行关联正确、42→84；记忆场景 7 次真实 deepseek-v4.1-flash 请求（准备 6、重启后 1），整理 COMMITTED，旧进程正常退出，新 PID/Core instance 对同一 Store 的真实回忆通过原事实及语言 oracle。两场景共 16,618 token，SDK 目录估算 USD 0.005457100，账单费用不可用；各自低于 12 次/600 秒上限。没有新增生产代码改动。
+
+745 份原始证据 SHA-256 未变，初轮 12 次调用及失败继续保留。本轮类型、online 离线自检、API 30 通过/2 PG 条件跳过，docs 49 项继承错误无新增。覆盖边界及逐模型用量详见 [验证记录](../api/v1/verification.md)；最终仍等待 PERRI 独立复审与 Master 终审。
