@@ -190,10 +190,11 @@
 验证结果：
 
 - `npm run check`：通过。
-- `npm run verify`：通过；runtime 167 项中 159 通过、8 跳过（5 个未配置 PostgreSQL 的既有用例、3 个明确退出范围的旧 UI 兼容用例）；API 24 项中 23 通过、1 个需隔离 PostgreSQL 的用例跳过。
+- `npm run verify`：通过；runtime 167 项中 159 通过、8 跳过（5 个未配置 PostgreSQL 的既有用例、3 个明确退出范围的旧 UI 兼容用例）；最终 `npm run test:api` 专项 25 项中 24 通过、1 个需隔离 PostgreSQL 的用例跳过。
 - Issue #2–#5 offline 回归：183 项中 181 通过、2 跳过、0 失败。记忆恢复 API 用例保留完整 binding、期限和提取次数断言。
 - 独立 PostgreSQL World/API/Settings/边界：13 项通过，0 跳过、0 失败。复跑必须创建全新测试数据库，避免旧合成 source_key 与固定 fixture 冲突；该首次复跑失败日志保留，不调整原断言。
 - 显示角色/能力及最终 schema 增量对应 API + streaming：19 项通过；两个独立 CLI 进程并发启动及退出后存活单独验证。
+- 最后审阅补充审批参数与 World/决定任意 JSON 的原值保留，防止用户字段被误当成 Store 元数据；针对性 API 全套 24 通过、1 跳过。
 - Swift 示例解码通过；生成文件可重复生成；`git diff --check` 通过。
 - 文档检查：49 项既有缺失报告/迁移目标错误，与改动前集合完全相同，新增 0 项。
 

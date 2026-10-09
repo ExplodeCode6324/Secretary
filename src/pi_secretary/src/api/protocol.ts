@@ -58,6 +58,11 @@ export function limitOf(query: URLSearchParams) {
 // Public read models never disclose CAS paths, model requests, or credentials.
 export function project(value: unknown, key = ""): any {
   if (value === null || value === undefined) return value ?? null;
+  // These are user/domain JSON values, not Store metadata. Never rename,
+  // redact, or convert an arbitrary value's keys (including "revision" or
+  // "entrypoint"); approval must show the exact action parameters.
+  if (["parameters", "value", "answer"].includes(key))
+    return structuredClone(value);
   if (
     typeof value === "number" &&
     /(?:revision|sequence|journal_seq|bytes|version)$/.test(key)

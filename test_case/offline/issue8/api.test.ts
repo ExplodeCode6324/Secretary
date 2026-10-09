@@ -664,3 +664,31 @@ test("attention deadlines invalidate the read snapshot even without a journal mu
     assert.notEqual(after.version, before.version);
     assert.equal(app.store.sequence, seq);
   }));
+
+test("approval parameters and arbitrary World/decision JSON retain their exact meaning", () =>
+  fixture(async (app, server, c) => {
+    const parameters = {
+      entrypoint: "synthetic-program.mjs",
+      payload_ref: "literal user value",
+      revision: 7,
+      nested: { workspace: "literal workspace", revision: 9 },
+    };
+    const op = app.authorization.prepare(
+      { session_id: app.host.sessionID, task_id: null, execution_id: null },
+      "program.run",
+      "synthetic-program",
+      parameters,
+    );
+    const view: any = await c.query("authorizations/" + op.authorization_id);
+    assert.deepEqual(view.display.parameters, parameters);
+    const { project } =
+      await import("../../../src/pi_secretary/src/api/protocol.ts");
+    assert.deepEqual(
+      project({
+        revision: 3,
+        value: parameters,
+        answer: { value: parameters },
+      }),
+      { revision: "3", value: parameters, answer: { value: parameters } },
+    );
+  }));
