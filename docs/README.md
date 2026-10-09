@@ -20,6 +20,8 @@
 | [测试策略](testing.md) | offline / online 入口、证据层次、回归规划 |
 | [整理说明](repository-layout.md) | 迁移规则、旧路径和运行数据注意事项 |
 
+原生客户端后续设计：[页面、组件与行为规范 v0.3](native-client-design-v0.3.md)。这是待实施的界面与协议需求，不是当前 TUI/WebUI 的实现说明。
+
 [BrainStorm](BrainStorm_Baseline_v3.md) 是项目开工前的原始设计，不是当前实现规范。[old](old/README.md) 存放设计阶段原始设计及早期说明，和当前代码不构成证据对应。引用 Go 实现的旧设计按 Master 要求丢弃；OpenCode Go 是模型服务名称，与被丢弃的 Go 语言实现无关。
 
 本次部署计划与结果：[World Model 部署与效果验证](fix/fix_20260928_world_model部署与效果验证.md)。

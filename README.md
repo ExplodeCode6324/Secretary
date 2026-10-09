@@ -64,6 +64,8 @@ Secretary 的原型基础已搭建，当前仍处于架构、可靠性与日常�
 
 本轮实施按 [#8 公共 API](https://github.com/ExplodeCode6324/Secretary/issues/8)、[#9 可靠同步](https://github.com/ExplodeCode6324/Secretary/issues/9)、[#10 SwiftUI 基础迁移](https://github.com/ExplodeCode6324/Secretary/issues/10)、[#11 Portable](https://github.com/ExplodeCode6324/Secretary/issues/11)、[#12 EVENT](https://github.com/ExplodeCode6324/Secretary/issues/12)、[#13 远程工具](https://github.com/ExplodeCode6324/Secretary/issues/13)推进；设备展示与模拟验收由 [#14 配套工作包](https://github.com/ExplodeCode6324/Secretary/issues/14)承接。每阶段先提交 `docs/fix/` 计划，经 Master 授权后实施。
 
+客户端遵循[页面、组件与行为规范 v0.3](docs/native-client-design-v0.3.md)：顶部纯文字名称与栏目、连续对话阅读区、较小默认字号（正文 13 pt）及可收起的窄右栏（默认 200 pt）。取消固定三比一分栏，把剩余宽高优先留给对话；补齐待处理入口、记忆/产物完整页、关联查询及能力/错误状态。尺寸与字号是待实际 macOS 验收的设计起点，不表示客户端已经实现。
+
 #### 日常使用能力
 
 - **World Model 内容导入**：支持从社交软件内容中导入人际关系信息，以及从 GitHub 等仓库状态中补充相关认知。
