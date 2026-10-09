@@ -6,10 +6,13 @@
 
 本计划落实 Master 的规划修订授权及“领取首个 issue、写 fix 计划，授权后执行”的要求。本次只领取和编写文档；业务代码、合同生成、数据库变化、运行测试与部署尚未获准执行。新版 TUI 暂不做，设备访问限制不变。
 
+2026-10-10 设计补充已获准纳入本计划：[客户端页面、组件与行为规范 v0.3](../native-client-design-v0.3.md)。取消固定三比一分栏，采用较小默认字号与优先占据剩余空间的对话区；本阶段落实其后端合同，实际 SwiftUI 布局和显示验收属于 #10。本次修订授权不等同业务实现授权。
+
 ## 1. 固定基线与问题
 
 - 源码基线：`dcc2f449c3f4e227ff421712271d10da0ed6eaaf`。
 - 计划基线：`d9168e08ed49aa444d05b1c66324afbea3cd691d`，在 `b5916f72134277c207e9a3a17c934c5af116e6fb` 上仅更新 README 路线。以上两次增量均为文档，未修改运行时。
+- v0.3 设计基线：main 的 `38daab6cbbccf9f6a85071ff5933eaa198d77de8`（页面规范与 README 索引，仅文档），已同步到计划分支；此前计划提交 `9745bd3822a4f1a235c2868c2ac56d54d16c451a` 的运行时基线未改变。
 - 工作分支：`codex/issue8-api-v1`。实施授权后重新记录完整 HEAD、远端 main、issue 正文摘要与文件哈希；若出现业务增量，先评估再更新计划。
 - 当前 [backend.ts](../../src/pi_secretary/src/backend.ts) 为 `/api/client` 构造 TerminalController，控制与查询依赖旧文本命令、临时 client ID 和输出队列；新版 API 不能沿用该层作为业务入口。
 - [scheduler.ts](../../src/pi_secretary/src/scheduler.ts) 的 `detail()` 写入留存状态；`answer()` 有局部去重但未统一通用回执，取消等入口也未统一客户端 request ID。
@@ -29,6 +32,7 @@
 - #9 负责持久 ChangeFeed、bootstrap、水位、可靠 SSE 与多端通知回执；本阶段只定义它需要的身份、资源版本、关联 ID 与接入边界，不提前实现第二套事件总线。
 - #10 负责原生基础界面；#11–#13 负责设备接入、EVENT 与远程工具；#14 承接设备模拟展示。附件首期只读已有产物，不新增上传或多模态管线。
 - 既有审批、来源保留、记忆恢复 binding、未知副作用停止等领域保障继续生效。
+- v0.3 新增明确交付：助手显示配置、公开记忆摘要与来源、产物目录、关联资源查询、记录定位和待处理摘要。它们属于现有权威状态的公开投影或显示配置，不新增第二套任务/记忆/审批状态机。
 
 ## 3. 拟修改模块
 
@@ -36,7 +40,7 @@
 | --- | --- |
 | `src/pi_secretary/src/application-service.ts`（新增） | 可信 principal、校验后命令/查询编排、公开结果投影；调用现有领域对象 |
 | `src/pi_secretary/src/api-v1.ts`（新增） | 仅承载 HTTP 方法/路径、schema 校验、统一错误与认证映射 |
-| `src/pi_secretary/src/api/`（新增） | DTO/schema 校验及投影，不暴露 Store 对象图和 CAS 路径 |
+| `src/pi_secretary/src/api/`（新增） | DTO/schema 校验与身份/能力、公开记忆、产物目录、关联/定位、待处理读模型；不暴露 Store 对象图和 CAS 路径 |
 | `src/pi_secretary/src/backend.ts`、`app.ts` | 改为无 UI 的 Core 服务装配与后台推进；初始化只读接口所需的持久基础记录 |
 | `host.ts`、`scheduler.ts`、`authorization.ts`、`settings.ts` | 窄范围补齐幂等回执和纯查询；不改变任务接续、审批或记忆提取规则 |
 | `world.ts` | 有界目录/事实查询、精确槽查询、查询版本；复用既有 SQL 事务与 outbox |
@@ -53,11 +57,16 @@
 
 | 操作 | 路径草案 | 主要语义 |
 | --- | --- | --- |
-| Core 状态 | `GET /api/v1/core` | API 版本、能力、稳定数据域身份、进程实例、唯一 session、运行状态 |
+| Core 状态 | `GET /api/v1/core` | API 版本、服务端能力与原因码、稳定数据域身份、进程实例、唯一 session、运行状态 |
+| 助手显示配置 | `GET /api/v1/assistant`、`POST /api/v1/assistant/profile` | display_name、稳定显示主体 ID、revision；修改绑定 request_id/expected_revision，不触发模型或记忆重建 |
 | 连接登记 | `POST /api/v1/clients` | owner 认证后登记稳定客户端身份；连接实例与身份分开 |
 | 主会话/记忆 | `GET /api/v1/session`、`GET /api/v1/memory` | 有界公开状态，不读取即触发模型 |
+| 记忆内容 | `GET /api/v1/memory/summary`、`GET /api/v1/memory/commitments` | 只读摘要、版本、更新/覆盖状态、来源 ID；承诺有界分页，复用既有承诺处理命令 |
 | 消息提交 | `POST /api/v1/messages` | request_id、文本；返回受理回执与 input ID |
 | 时间线/活动 | `GET /api/v1/timeline`、`GET /api/v1/activities/{id}` | 有界读模型、稳定逻辑消息关联、活动详情 |
+| 记录定位 | `GET /api/v1/timeline/around` | message_id 或 event_id 二选一；返回有界周边记录、锚点状态和新游标，不扫描全历史 |
+| 关联资源 | `GET /api/v1/related` | scope_type=session/task/message/event 与 scope_id；明确关系依据、资源引用、有界分页；只读无模型调用 |
+| 待处理摘要 | `GET /api/v1/attention` | 同一权限范围内的待审批/待回答计数、有限条目、投影版本与查询时刻；复用原对象状态 |
 | 正文分片 | `GET /api/v1/messages/{id}/content` | 不透明分页游标、内容版本、UTF-8 JSON 完整文本片段，不向 Swift 暴露 JS 字符串偏移 |
 | 任务查询 | `GET /api/v1/tasks`、`GET /api/v1/tasks/{id}`、`GET /api/v1/executions/{id}` | 分页、要求、接续条件、结果/局限/待执行请求；不续留 |
 | 任务命令 | `POST /api/v1/task-requests`、`POST /api/v1/task-requests/{id}/cancel` | 沿用 reuse_task_id、parent、继承和未分派请求取消语义 |
@@ -69,6 +78,7 @@
 | World | `GET /api/v1/world/catalog`、`GET /api/v1/world/facts`、`GET /api/v1/world/slot` | 所有集合有界；slot 用 subject/predicate/scope 精确查询并返回版本，World 更改经 Settings 草稿/apply |
 | 维护 | `POST /api/v1/session/compact`、`POST /api/v1/session/resume`、`POST /api/v1/memory/commitments/{id}/resolve` | 显式管理命令，沿用已有整理、恢复和承诺规则 |
 | 记忆提取恢复 | `GET /api/v1/memory/recovery`、`POST /api/v1/memory/recovery` | 原完整 preflight binding、一次授权与旧批次对账，不简化为裸重试 |
+| 产物目录 | `GET /api/v1/artifacts` | 当前主体可见范围内的分页目录、task_id 筛选、文件名、所属任务/结果、内容版本及可读状态；不用遍历全部任务历史 |
 | 产物 | `GET /api/v1/artifacts/{id}`、`GET /api/v1/artifacts/{id}/content` | 所属任务校验、metadata、内容流、不可用状态；不接受任意本机路径 |
 | 对账 | `GET /api/v1/requests/{request_id}` | 返回原受理结果与资源引用；业务进度从原领域对象投影，不重新执行 |
 | Core 停止 | `POST /api/v1/core/stop` | owner 管理动作；持久受理后关闭，可在后续启动对账，GET 不自动重启 |
@@ -81,10 +91,19 @@
 2. principal 从服务器已验证凭据产生。正文中的 actor/role/device_id 不产生身份权限；稳定 client ID 通过已认证登记绑定，不能由连接 ID 或任意请求字段替代。
 3. 分开表示稳定 Core 数据域身份、session ID、稳定 client ID 和每次启动的 server_instance_id。进程重启不更改数据域身份；不把进程实例当作幂等作用域。
 4. request_id 是有长度限制的不透明字符串。统一去重作用域采用稳定 owner principal + request_id，客户端标识是来源字段；同一请求跨重连、客户端重装/恢复后仍可按原身份对账。所有命令类型共享冲突检测，防止同 ID 跨操作串用。
-5. 公共版本、revision/sequence 等 可能超出安全数值范围的值采用十进制字符串；时间使用带时区的 ISO 8601。命令字段严格校验，额外敏感字段拒绝；查询响应允许新增非破坏性字段，未知枚举通过 raw/unknown 分支展示，未知命令拒绝。
+5. 公共版本、revision/sequence 等可能超出安全数值范围的值采用十进制字符串；时间使用带时区的 ISO 8601。命令字段严格校验，额外敏感字段拒绝；查询响应允许新增非破坏性字段，未知枚举通过 raw/unknown 分支展示，未知命令拒绝。
 6. 统一错误信封含 code、message、request_id 及必要冲突详情。至少区分 INVALID_REQUEST、UNAUTHENTICATED、FORBIDDEN、NOT_FOUND、REQUEST_CONFLICT、REVISION_CONFLICT、EXPIRED、UNSUPPORTED_VERSION、CURSOR_EXPIRED、SERVICE_UNAVAILABLE；客户端不分析中文错误文字。
 7. 默认列表 limit=30，最大100；Timeline 复用既有 200条/1MiB 上限作为上界，具体分页预算进入公开 schema。正文分片不切断 Unicode 标量；客户端连接片段后保持原文，组合字符跨片也不能丢失/重复。
 8. Timeline 翻页游标与 #9 持久同步游标分开命名、校验用途及投影版本。World 返回自己的 world_version；本阶段不承诺跨 PostgreSQL/journal 的原子快照。
+
+### v0.3 显示配置、能力与数据状态
+
+- 显示名称由 Core 独立显示配置保存并按 revision/CAS 更新，Unicode 首尾空白去除后为空归一为未设置，公开 display_name 回退 `secretary`；精确长度、换行和控制字符校验写入 schema。更名不改变 session/actor/producer，不解析或修改提示词。与人格/业务说明变更分开，后者仍走 Settings apply。
+- 同一 actor 可以显示当前有效名称；历史消息的身份、类型、时间与因果关系不随显示名变化。设备/工具/系统内容不能因为名称匹配变成 Master 消息。
+- 服务端能力表示 supported/not_supported/not_configured 等状态及稳定 reason_code；资源动作返回 allowed 或拒绝原因。客户端是否实现页面由客户端掌握，不能与权限、连接和数据存在混成一个 available 字段。
+- API 成功空列表明确表示 empty；初次加载、连接/请求失败和本地 cached/stale 状态由客户端网络与缓存层管理，返回必要的查询时刻、资源版本和新鲜度依据。不能把失败响应转换为空列表。
+- 字号、导航折叠、旁栏宽度、阅读位置与未提交编辑草稿留在按数据域隔离的客户端存储，不写入业务 Settings/记忆。发送后的 outbox 沿用新协议 request ID，不因显示调整而变更。
+- #9 后续为名称、记忆公开内容、产物、关联及待处理提供持久变更或失效通知；本阶段返回可复用的版本、稳定关系与资源 ID，不新增另一个同步通道。
 
 ## 6. 统一幂等与崩溃一致性
 
@@ -104,6 +123,16 @@
 - 产物 ID 从所属任务/结果与已收录内容引用建立受控映射；验证 task/session 权限、引用所属关系、内容长度/哈希与归档状态。拒绝 traversal、任意绝对路径和不可信符号链接绕过；大文件有界流式输出，不放入状态 JSON。
 - 可复用预览读取为瞬态快照，但明确无持久补发保证；最终消息读取来自持久证据，不调用模型补预览。
 
+### v0.3 完整页面与关联查询
+
+- `memory/summary` 提供已持久保存的工作记忆摘要、更新/覆盖边界和可访问来源 ID，正文过大使用有界分片；明确摘要并非全量历史。`memory/commitments` 分页返回已有承诺及处理状态，复用 resolve 命令，不允许通用 PATCH 改写内部 Consciousness。World 查询与草稿/apply 保持既有领域流程。
+- 产物目录从既有 TaskResult.artifacts 及已验证内容引用建立可重建索引；按稳定排序键分页，重名不合并，返回 task/result 关联、内容版本、可读/归档状态。索引不是新的产物权威，不能从任意工作区路径搜集文件。
+- 关联查询只利用已有显式记录或本阶段有证据新增的关系映射，不能根据聊天关键词或模型推断。默认 scope=session；task/message/event 是明确选择。当前阶段无设备关系时不伪造数据，能力未接入与成功空集合分开返回；#11 增量扩展同一资源引用类型。
+- 关联每类默认最多5条，并返回 has_more/下一页游标，沿用既定条数及字节上限。普通刷新只读，不提交 viewed、不改变 scope、不唤醒模型。
+- `timeline/around` 对消息/事件锚点建立可重建索引，返回在既有 Timeline 条数/字节预算内的前后窗口与锚点定位信息；正文仍按内容接口分片。无权访问、不存在、已归档/不可读按公开错误返回，不能让客户端无限翻页寻找。
+- `attention` 从 AuthorizationRequest/DecisionRequest 的权威状态、deadline 和当前权限投影；计数与条目属于同一次有界快照，带 as_of、projection_revision，必要时带 valid_until。时间跨过期限时可重新查询，不以缺少新的 journal 事务认定旧动作仍可执行。
+- 待处理资源仍走原决定/审批 API：浏览或已读不自动批准，跨端计数失效不生成任何决定。服务端处理新命令时重新核验最新状态，客户端缓存的 allowed 不构成授权。
+
 ## 8. 生命周期与切换
 
 1. 将 Core serve/pump/close 与任何 UI 分离；数据目录仍由现有 owner lock 保证单 writer。
@@ -118,7 +147,7 @@
 以下均待 Master 授权后执行，不是已完成结果。
 
 1. **冻结基线**：记录提交、文件哈希、环境版本、现有离线检查首次结果与继承失败。初始化固定依赖只用于隔离开发；不读取本地真实凭据或设备日志。
-2. **合同与接口盘点**：完成上述操作字段、错误、身份、管理能力映射及 TS/Swift 可解析合成样例。复核跨 #9/#10/#11 的 ID、版本、cursor 边界后冻结 v1 草案。
+2. **合同与接口盘点**：完成上述操作字段、错误、身份、管理能力映射及 TS/Swift 可解析合成样例，包括 v0.3 名称/能力/记忆/产物/关联/定位/待处理合同。复核跨 #9/#10/#11/#14 的 ID、版本、cursor 边界后冻结 v1 草案；视图状态与服务端权限分别验证。
 3. **服务与生命周期拆分**：新 Core 启动、认证上下文、纯查询、无 UI pump；新路由不依赖旧 TerminalController。
 4. **命令可靠性**：逐个补齐短命令 receipt 与长命令受理/恢复；真实 Store/journal 故障窗口测试先复现再修复，保留首次失败。
 5. **读模型和产物**：分页、World 精确槽、Timeline/Unicode 分片、路径与权限控制；多客户端与查询无副作用验证。
@@ -134,6 +163,9 @@
 | 查询 | 隔离后台推进后重复读取，业务 revision、留存、输入和模型调用不增加；显式 viewed 单独生效 |
 | 数据与产物 | 分页/字节上限、中文/emoji/组合字符无损、World 精确槽、越权/任意路径拒绝、归档与丢失内容可见 |
 | 新协议 | schema/TS/样例一致、错误代码、未知字段/枚举/版本处理；旧 UI 路由拒绝，不构造 TerminalController |
+| 显示身份/能力 | 名称未设置/空白/超长校验、更名 CAS/幂等和跨端读取；身份不变、无模型/记忆重建；能力未支持、未配置和权限拒绝可区分 |
+| 完整页面读模型 | 摘要/承诺有界读取与来源定位、World 独立版本、产物分页/任务筛选/重名/归档；不透传内部上下文或扫描全历史 |
+| 关联与待处理 | 明确范围和真实关系、每类上限、按 ID 定位锚点、无权限/不存在/归档；计数与条目同快照、deadline 到期重查、查询不回答/批准/已读/续留 |
 | 数据转换 | 需要转换的历史合成 fixture 保留来源、证据与 UNKNOWN；备份可校验，不能用旧 writer 打开新数据 |
 
 验证命令按最终文件清单细化：`npm run check`、`npm run types:generate`（仅内部 schema 改动时）、公开 DTO 校验、相关 runtime/Issue 2–5 离线用例、隔离 PostgreSQL 的 Settings/World 用例，以及 `npm run docs:generate` / `npm run docs:check` 的基线比较。必要回归通过后不无理由重复长测试。
@@ -142,6 +174,6 @@
 
 ## 10. 估算与批准对象
 
-#8 原估算为 6–10 人日，作为接口整理的量级参考；取消 TUI 适配后，仍须承担全操作幂等、长命令恢复和旧数据转换验证。基线与合同盘点若发现超出此范围的领域改动，应更新计划与估算后复核。
+#8 原估算为 6–10 人日，作为接口整理的量级参考；取消 TUI 适配后，仍须承担全操作幂等、长命令恢复和旧数据转换验证。v0.3 增加显示身份、记忆公开读模型、产物目录、关联/定位索引与待处理摘要，需要在合同盘点时独立拆分估算，不默认包含在原有上限内。若需要超出本计划的新领域语义或数据迁移范围，更新计划后复核。
 
 本计划请求批准的下一步是 **#8 的业务实现、合成数据下的离线故障验证与必要隔离 PostgreSQL 回归**。不含真实模型调用、运行实例切换、生产数据迁移、设备访问、TUI/SwiftUI 开发或后续阶段实现。
