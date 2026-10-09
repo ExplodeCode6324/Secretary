@@ -57,9 +57,12 @@ Secretary 的原型基础已搭建，当前仍处于架构、可靠性与日常�
 
 1. **完善 task（任务）系统**：继续验证日常使用中的任务归并、长任务接续与失败恢复边界。
 2. **改进 system prompt（系统提示词）**：进一步突出 Secretary 的架构特性、主会话职责和模型需要重点关注的内容；结合实际模型能力与可用上下文预算，提升需求理解、工作组织和授权范围内的主动推进能力。
-3. **主会话工具与原生客户端**：继续补充工具能力；下一阶段以 SwiftUI 原生薄客户端为主要交互方向，统一后端数据接口与事件语义，再逐步替代 WebUI、淡化 TUI。当前入口在迁移验收前保留，不将客户端迁移等同于后端改造已经完成。
+3. **主会话工具与原生客户端**：继续补充工具能力；以 SwiftUI 原生薄客户端为主要交互方向，按[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)先完成 Core 公共 API 与可靠同步，再完成原生迁移。所有客户端的数据、命令、事件、游标与回执统一按新版协议设计；迁移完成后不兼容旧 TUI/WebUI 的路由、文本输出或缓存，不建设长期兼容层。迁移中的旧客户端也不要求适配新版 Core；切换前保留旧版本作为回退基线，历史数据转换、证据保留与回退单独验收。WebUI 在原生日常流程验收后退役，不将规划或客户端迁移等同于后端能力已经完成。
 4. **优化 agent loop（智能体执行循环）**：使执行循环更适配 Secretary 的工作模式。
 5. **完善 online（真实模型接入）回归用例**：覆盖更接近日常使用的场景，持续衡量行为稳定性。
+6. **可选新版 TUI（后续，暂不实现）**：未来如保留终端交互入口，必须使用新版 Core 公共数据协议、身份、命令回执和同步机制；不解析旧 Web/TUI 输出，不直接访问内部 Store，也不建立另一套业务状态。新版 TUI 不属于本轮迁移的交付或验收前提。旧 TUI 启动入口随迁移退役；Core 启停、状态和必要排障由独立管理入口提供。
+
+本轮实施按 [#8 公共 API](https://github.com/ExplodeCode6324/Secretary/issues/8)、[#9 可靠同步](https://github.com/ExplodeCode6324/Secretary/issues/9)、[#10 SwiftUI 基础迁移](https://github.com/ExplodeCode6324/Secretary/issues/10)、[#11 Portable](https://github.com/ExplodeCode6324/Secretary/issues/11)、[#12 EVENT](https://github.com/ExplodeCode6324/Secretary/issues/12)、[#13 远程工具](https://github.com/ExplodeCode6324/Secretary/issues/13)推进；设备展示与模拟验收由 [#14 配套工作包](https://github.com/ExplodeCode6324/Secretary/issues/14)承接。每阶段先提交 `docs/fix/` 计划，经 Master 授权后实施。
 
 #### 日常使用能力
 
@@ -140,7 +143,7 @@ Secretary 的原型基础已搭建，当前仍处于架构、可靠性与日常�
 
 离线用例只使用合成或经许可脱敏的数据，不把真实生命体征、设备标识和凭据提交到公开测试夹具。
 
-下一轮 SwiftUI 开发应包含阶段 1、2 中与客户端有关的测试，并为阶段 3—6 留出真实后端与设备验证入口。**本 README 是规划，不自动授权安装 APK、ADB 操作、配对、固件升级或更改设备电源设置；既有真机冻结或访问限制仍须单独解除。**
+下一轮 SwiftUI 设备展示由 [#14](https://github.com/ExplodeCode6324/Secretary/issues/14)落实上表阶段 1、2 中与客户端有关的合同、界面和模拟测试，并为阶段 3—6 留出真实后端与设备验证入口。它独立于 [#10 基础客户端迁移](https://github.com/ExplodeCode6324/Secretary/issues/10)验收和估算，不阻塞基础迁移关闭；真实采集、厂商 SDK 和真机联调另行规划，模拟通过不代表实际接入完成。**本 README 是规划，不自动授权安装 APK、ADB 操作、配对、固件升级或更改设备电源设置；既有真机冻结或访问限制仍须单独解除。**
 
 SDK 原件、版本差异和详细到货清单集中在维护者的 [secretary-band 资料仓库](https://github.com/ExplodeCode6324/secretary-band)（私有，需授权访问）。此处不复制厂商二进制、凭据或真实生命体征数据。
 
