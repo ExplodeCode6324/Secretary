@@ -1,0 +1,4134 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Secretary Core local owner API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:{port}",
+      "variables": {
+        "port": {
+          "default": "0"
+        }
+      }
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "localOwner": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/assistant/profile": {
+      "post": {
+        "operationId": "post__api_v1_assistant_profile",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/ProfileCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients": {
+      "post": {
+        "operationId": "post__api_v1_clients",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/ClientCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages": {
+      "post": {
+        "operationId": "post__api_v1_messages",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/MessageCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task-requests": {
+      "post": {
+        "operationId": "post__api_v1_task_requests",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/TaskCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task-requests/{id}/cancel": {
+      "post": {
+        "operationId": "post__api_v1_task_requests__id__cancel",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/EmptyCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{id}/cancel": {
+      "post": {
+        "operationId": "post__api_v1_executions__id__cancel",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/EmptyCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{id}/viewed": {
+      "post": {
+        "operationId": "post__api_v1_executions__id__viewed",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/EmptyCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/decisions/{id}/answer": {
+      "post": {
+        "operationId": "post__api_v1_decisions__id__answer",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/AnswerCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/authorizations/{id}/decision": {
+      "post": {
+        "operationId": "post__api_v1_authorizations__id__decision",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/ApprovalCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/draft": {
+      "post": {
+        "operationId": "post__api_v1_settings_draft",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/DraftCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/apply": {
+      "post": {
+        "operationId": "post__api_v1_settings_apply",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/RevisionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/applications/{id}/retry": {
+      "post": {
+        "operationId": "post__api_v1_settings_applications__id__retry",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/EmptyCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings/applications/{id}/restore-draft": {
+      "post": {
+        "operationId": "post__api_v1_settings_applications__id__restore_draft",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/RevisionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session/compact": {
+      "post": {
+        "operationId": "post__api_v1_session_compact",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/EmptyCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session/resume": {
+      "post": {
+        "operationId": "post__api_v1_session_resume",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/EmptyCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/commitments/{id}/resolve": {
+      "post": {
+        "operationId": "post__api_v1_memory_commitments__id__resolve",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/ResolveCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/recovery": {
+      "post": {
+        "operationId": "post__api_v1_memory_recovery",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/RecoveryCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "get__api_v1_memory_recovery",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group_key",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/RecoveryPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations/{id}/verify-write": {
+      "post": {
+        "operationId": "post__api_v1_operations__id__verify_write",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/EmptyCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/world/migrate": {
+      "post": {
+        "operationId": "post__api_v1_admin_world_migrate",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/EmptyCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/programs": {
+      "post": {
+        "operationId": "post__api_v1_admin_programs",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/ProgramCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "get__api_v1_admin_programs",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/ProgramPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/authorization-rules": {
+      "post": {
+        "operationId": "post__api_v1_admin_authorization_rules",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/RuleCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "get__api_v1_admin_authorization_rules",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/RulePage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/authorization-rules/{id}/disable": {
+      "post": {
+        "operationId": "post__api_v1_admin_authorization_rules__id__disable",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/RevisionCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/core/stop": {
+      "post": {
+        "operationId": "post__api_v1_core_stop",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/EmptyCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/core": {
+      "get": {
+        "operationId": "get__api_v1_core",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Core"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/assistant": {
+      "get": {
+        "operationId": "get__api_v1_assistant",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Assistant"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/session": {
+      "get": {
+        "operationId": "get__api_v1_session",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Session"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/clients/{id}": {
+      "get": {
+        "operationId": "get__api_v1_clients__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/ClientRegistration"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{id}": {
+      "get": {
+        "operationId": "get__api_v1_requests__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/RequestStatus"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/settings": {
+      "get": {
+        "operationId": "get__api_v1_settings",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Settings"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory": {
+      "get": {
+        "operationId": "get__api_v1_memory",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/MemoryStatus"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/summary": {
+      "get": {
+        "operationId": "get__api_v1_memory_summary",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/MemoryPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/memory/commitments": {
+      "get": {
+        "operationId": "get__api_v1_memory_commitments",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/CommitmentPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks": {
+      "get": {
+        "operationId": "get__api_v1_tasks",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/TaskPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{id}": {
+      "get": {
+        "operationId": "get__api_v1_tasks__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/TaskDetail"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{id}/requests": {
+      "get": {
+        "operationId": "get__api_v1_tasks__id__requests",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/PendingRequestPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/tasks/{id}/executions": {
+      "get": {
+        "operationId": "get__api_v1_tasks__id__executions",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/ExecutionPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task-requests/{id}": {
+      "get": {
+        "operationId": "get__api_v1_task_requests__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/TaskRequestStatus"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/executions/{id}": {
+      "get": {
+        "operationId": "get__api_v1_executions__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Execution"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/decisions": {
+      "get": {
+        "operationId": "get__api_v1_decisions",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/DecisionPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/decisions/{id}": {
+      "get": {
+        "operationId": "get__api_v1_decisions__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Decision"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/authorizations": {
+      "get": {
+        "operationId": "get__api_v1_authorizations",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/AuthorizationPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/authorizations/{id}": {
+      "get": {
+        "operationId": "get__api_v1_authorizations__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Authorization"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/attention": {
+      "get": {
+        "operationId": "get__api_v1_attention",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Attention"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/artifacts": {
+      "get": {
+        "operationId": "get__api_v1_artifacts",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/ArtifactPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/artifacts/{id}": {
+      "get": {
+        "operationId": "get__api_v1_artifacts__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Artifact"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/timeline": {
+      "get": {
+        "operationId": "get__api_v1_timeline",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "thinking",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "streaming",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "before",
+                "after"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Timeline"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/timeline/around": {
+      "get": {
+        "operationId": "get__api_v1_timeline_around",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "thinking",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "streaming",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "event_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Timeline"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/messages/{id}/content": {
+      "get": {
+        "operationId": "get__api_v1_messages__id__content",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "thinking",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "streaming",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/activities/{id}": {
+      "get": {
+        "operationId": "get__api_v1_activities__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Activity"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/related": {
+      "get": {
+        "operationId": "get__api_v1_related",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "session",
+                "task",
+                "message",
+                "event"
+              ],
+              "default": "session"
+            }
+          },
+          {
+            "name": "scope_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/RelatedPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/world/catalog": {
+      "get": {
+        "operationId": "get__api_v1_world_catalog",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "entities",
+                "predicates",
+                "sources"
+              ],
+              "default": "entities"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/WorldPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/world/facts": {
+      "get": {
+        "operationId": "get__api_v1_world_facts",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "subject",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "predicate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "history",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/WorldPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/world/slot": {
+      "get": {
+        "operationId": "get__api_v1_world_slot",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "subject",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "predicate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/WorldSlot"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations": {
+      "get": {
+        "operationId": "get__api_v1_operations",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 30
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/OperationPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations/{id}": {
+      "get": {
+        "operationId": "get__api_v1_operations__id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Operation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/artifacts/{id}/content": {
+      "get": {
+        "operationId": "get__api_v1_artifacts__id__content",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

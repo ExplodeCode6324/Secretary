@@ -1,5 +1,7 @@
 # 运行手册
 
+> API v1 分支说明：当前启停、认证与 HTTP 合同见 [API v1](api/v1/README.md)。本文保留领域流程与历史 UI 使用记录；旧 TUI/WebUI 路由不适用于新版 Core。
+
 所有命令均从仓库根目录执行。依赖 Node.js ≥22.19、npm 和 Python 3；World Model 测试使用 PostgreSQL 18。
 
 ```sh

@@ -1,3 +1,4 @@
+import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -245,24 +246,28 @@ test("compaction cannot own or override the custom instructions; tasks remain is
 
 test("authenticated settings API stages CAS edits, rejects invalid text and explicitly applies escaped text", async () => {
   const dir = temp(),
-    app = await App.open(dir, cfg()),
+    app = await App.open(dir, { model: fixtureModel, stream: fixtureStream }),
     server = await serve(app);
   try {
+    const client = new CoreClient(server.endpoint);
     assert.equal(
-      (await fetch(server.endpoint.url + "/api/instructions")).status,
+      (await fetch(server.endpoint.url + "/api/v1/settings")).status,
       401,
     );
-    const client = (await api(server.endpoint, "/api/client", {})).client;
-    const route = "/api/instructions?client=" + client;
-    const initial = await api(server.endpoint, route);
+    const initial: any = await client.query("settings");
+    const save = (content: unknown, revision: string) =>
+      client.command("settings/draft", {
+        request_id: id(),
+        expected_revision: revision,
+        payload: {
+          instructions: { content, expected_revision: "1" },
+          edits: [],
+          command_ids: [],
+        },
+      });
     const saves = await Promise.allSettled(
       ["first", "second"].map((content) =>
-        api(server.endpoint, "/api/instructions", {
-          client,
-          content,
-          expected_revision: 1,
-          draft_revision: initial.management.draft.revision,
-        }),
+        save(content, initial.draft.revision),
       ),
     );
     assert.equal(saves.filter((r) => r.status === "fulfilled").length, 1);
@@ -272,32 +277,22 @@ test("authenticated settings API stages CAS edits, rejects invalid text and expl
       ),
     );
     assert.equal(getInstructions(app.store).revision, 1);
-    const next = await api(server.endpoint, route);
+    const next: any = await client.query("settings");
     for (const content of ["x".repeat(2001), null, {}, "bad\u0000text"])
-      await assert.rejects(
-        api(server.endpoint, "/api/instructions", {
-          client,
-          content,
-          expected_revision: 1,
-          draft_revision: next.management.draft.revision,
-        }),
-        /INVALID/,
-      );
+      await assert.rejects(save(content, next.draft.revision), /INVALID/);
     const text = '<script>alert("not code")</script>\n😀';
-    const saved = await api(server.endpoint, "/api/instructions", {
-      client,
-      content: text,
-      expected_revision: 1,
-      draft_revision: next.management.draft.revision,
-    });
-    assert.equal(saved.management.draft.payload.instructions.content, text);
-    await api(server.endpoint, "/api/settings/apply", {
-      client,
-      expected_revision: saved.management.draft.revision,
+    await save(text, next.draft.revision);
+    const saved: any = await client.query("settings");
+    assert.equal(saved.draft.payload.instructions.content, text);
+    await client.command("settings/apply", {
       request_id: id(),
+      expected_revision: saved.draft.revision,
     });
     await app.settings.tick();
-    assert.equal((await api(server.endpoint, route)).settings.content, text);
+    assert.equal(
+      (await client.query<any>("settings")).effective_instructions.content,
+      text,
+    );
     assert.equal(getInstructions(app.store).revision, 2);
     assert(!app.store.all("Input").length);
   } finally {

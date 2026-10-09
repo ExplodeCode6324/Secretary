@@ -1,3 +1,4 @@
+import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -100,68 +101,38 @@ test("durable history reconstructs real tools once, associates batched inputs an
   }
 });
 
-test("history API authenticates, rejects bad cursors and leaves old activity API compatible", async () => {
+test("API v1 timeline authenticates, rejects bad cursors and locates activity details", async () => {
   const dir = temp(),
-    app = await App.open(dir, { model: fixtureModel, stream });
-  const server = await serve(app);
+    app = await App.open(dir, { model: fixtureModel, stream }),
+    server = await serve(app);
   try {
     app.host.accept("synthetic");
     await app.host.drain();
-    const client = (await api(server.endpoint, "/api/client", {})).client;
-    const url = server.endpoint.url + "/api/activity/history?client=" + client;
-    assert.equal((await fetch(url)).status, 401);
-    const headers = { Authorization: `Bearer ${server.endpoint.token}` };
+    const client = new CoreClient(server.endpoint);
     assert.equal(
-      (await fetch(url + "&cursor=invalid", { headers })).status,
-      400,
+      (await fetch(server.endpoint.url + "/api/v1/timeline")).status,
+      401,
     );
-    assert.equal((await fetch(url + "&limit=10000", { headers })).status, 400);
-    const first = await (await fetch(url + "&limit=2", { headers })).json();
+    await assert.rejects(
+      client.query("timeline?cursor=invalid"),
+      /CURSOR_EXPIRED/,
+    );
+    await assert.rejects(client.query("timeline?limit=10000"), /INVALID_LIMIT/);
+    const first: any = await client.query("timeline?limit=2");
     assert.equal(first.items.length, 2);
-    assert(first.next_cursor);
-    const selected = await (
-      await fetch(
-        url +
-          "&ids=" +
-          encodeURIComponent(
-            JSON.stringify(first.items.map((a: { id: string }) => a.id)),
-          ),
-        { headers },
-      )
-    ).json();
-    assert.deepEqual(
-      selected.items.map((a: { id: string }) => a.id),
-      first.items.map((a: { id: string }) => a.id),
+    assert(first.before);
+    const next: any = await client.query(
+      "timeline?limit=2&cursor=" + encodeURIComponent(first.before),
     );
-    assert.equal(
-      (
-        await fetch(
-          url +
-            "&ids=" +
-            encodeURIComponent(JSON.stringify(Array(51).fill("x"))),
-          { headers },
-        )
-      ).status,
-      400,
-    );
-    const next = await (
-      await fetch(url + "&cursor=" + encodeURIComponent(first.next_cursor), {
-        headers,
-      })
-    ).json();
     assert(
-      !next.items.some((x: { id: string }) =>
-        first.items.some((y: { id: string }) => x.id === y.id),
-      ),
+      !next.items.some((x: any) => first.items.some((y: any) => x.id === y.id)),
     );
-    const normal = await api(server.endpoint, "/api/activity?client=" + client);
-    assert(!normal.timeline);
-    const timeline = await api(
-      server.endpoint,
-      "/api/activity?timeline=1&client=" + client,
-    );
-    assert(timeline.timeline.items.length >= 4);
-    assert(timeline.timeline.updates);
+    const whole: any = await client.query("timeline");
+    assert(whole.items.length >= 4);
+    for (const item of whole.items.filter((x: any) => x.kind === "activity")) {
+      const selected: any = await client.query("activities/" + item.id);
+      assert.equal(selected.id, item.id);
+    }
   } finally {
     await server.close();
     fs.rmSync(dir, { recursive: true, force: true });

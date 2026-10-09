@@ -1,0 +1,953 @@
+[
+  {
+    "method": "POST",
+    "path": "/api/v1/assistant/profile",
+    "request": "ProfileCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/clients",
+    "request": "ClientCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/messages",
+    "request": "MessageCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/task-requests",
+    "request": "TaskCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/task-requests/{id}/cancel",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/executions/{id}/cancel",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/executions/{id}/viewed",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/decisions/{id}/answer",
+    "request": "AnswerCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/authorizations/{id}/decision",
+    "request": "ApprovalCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/settings/draft",
+    "request": "DraftCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/settings/apply",
+    "request": "RevisionCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/settings/applications/{id}/retry",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/settings/applications/{id}/restore-draft",
+    "request": "RevisionCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/session/compact",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/session/resume",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/memory/commitments/{id}/resolve",
+    "request": "ResolveCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/memory/recovery",
+    "request": "RecoveryCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/operations/{id}/verify-write",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/world/migrate",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/programs",
+    "request": "ProgramCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/authorization-rules",
+    "request": "RuleCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/authorization-rules/{id}/disable",
+    "request": "RevisionCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/core/stop",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/core",
+    "response": "Core",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/assistant",
+    "response": "Assistant",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/session",
+    "response": "Session",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/clients/{id}",
+    "response": "ClientRegistration",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/requests/{id}",
+    "response": "RequestStatus",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/settings",
+    "response": "Settings",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/memory",
+    "response": "MemoryStatus",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/memory/summary",
+    "response": "MemoryPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/memory/commitments",
+    "response": "CommitmentPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/memory/recovery",
+    "response": "RecoveryPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "group_key",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks",
+    "response": "TaskPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}",
+    "response": "TaskDetail",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/requests",
+    "response": "PendingRequestPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/tasks/{id}/executions",
+    "response": "ExecutionPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/task-requests/{id}",
+    "response": "TaskRequestStatus",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/executions/{id}",
+    "response": "Execution",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/decisions",
+    "response": "DecisionPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/decisions/{id}",
+    "response": "Decision",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/authorizations",
+    "response": "AuthorizationPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/authorizations/{id}",
+    "response": "Authorization",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/attention",
+    "response": "Attention",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/artifacts",
+    "response": "ArtifactPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "task_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/artifacts/{id}",
+    "response": "Artifact",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/timeline",
+    "response": "Timeline",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "thinking",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      {
+        "name": "streaming",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      {
+        "name": "direction",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "enum": [
+            "before",
+            "after"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/timeline/around",
+    "response": "Timeline",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "thinking",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      {
+        "name": "streaming",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      {
+        "name": "message_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "event_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/messages/{id}/content",
+    "response": "Message",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "thinking",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      {
+        "name": "streaming",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/activities/{id}",
+    "response": "Activity",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/related",
+    "response": "RelatedPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "scope_type",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "enum": [
+            "session",
+            "task",
+            "message",
+            "event"
+          ],
+          "default": "session"
+        }
+      },
+      {
+        "name": "scope_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/world/catalog",
+    "response": "WorldPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "kind",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "enum": [
+            "entities",
+            "predicates",
+            "sources"
+          ],
+          "default": "entities"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/world/facts",
+    "response": "WorldPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "subject",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      {
+        "name": "predicate",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "history",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/world/slot",
+    "response": "WorldSlot",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "subject",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      {
+        "name": "predicate",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "scope",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/operations",
+    "response": "OperationPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/operations/{id}",
+    "response": "Operation",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/programs",
+    "response": "ProgramPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/admin/authorization-rules",
+    "response": "RulePage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 30
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/artifacts/{id}/content",
+    "response": "binary",
+    "status": 200
+  }
+]

@@ -186,39 +186,36 @@ test("ordinary settings retry retains failed extraction evidence and never dispa
   });
 });
 
-test("TUI and authenticated Web preflight/recovery share Host and one request receipt", async () => {
-  const { serve } = await import("../../../src/pi_secretary/src/backend.ts");
-  const { api } = await import("../../../src/pi_secretary/src/ui-client.ts");
-  const { TerminalController } =
-    await import("../../../src/pi_secretary/src/tui.ts");
+test("API v1 recovery shares Host provenance and consumes one bound extraction", async () => {
+  const { serveCore } = await import("../../../src/pi_secretary/src/api-v1.ts");
+  const { CoreClient } =
+    await import("../../../src/pi_secretary/src/core-client.ts");
+  const { reconciled } = await import("../issue8/helpers.ts");
   await fixture(async (app, counts, recover) => {
     app.host.accept("Please report tomorrow.");
     await app.host.drain();
     await app.host.compact();
-    const output: string[] = [];
-    const tui = new TerminalController(app, (text) => output.push(text));
-    await tui.command("/memory-recovery");
-    assert.match(output.join("\n"), /READY/);
-    const backend = await serve(app);
+    const backend = await serveCore(app, 0, undefined, { pump: false });
     try {
-      const client = (await api(backend.endpoint, "/api/client", {})).client;
-      const groups = await api(
-        backend.endpoint,
-        "/api/memory/recovery?client=" + client,
-      );
-      assert.deepEqual(groups, app.host.memoryRecoveryPreflight());
-      recover();
-      const request = { request_id: id(), ...groups[0].binding };
-      const result = await api(backend.endpoint, "/api/memory/recovery", {
-        client,
-        ...request,
-      });
-      assert.equal(result.owner_committed, true);
-      await tui.command("/memory-recover " + JSON.stringify(request));
-      assert.equal(counts.extraction, 2);
-      assert.match(output.join("\n"), /owner_committed/);
+      const client = new CoreClient(backend.endpoint);
+      const groups: any = await client.query("memory/recovery");
+      assert.equal(groups.items[0].status, "READY");
+      const binding = groups.items[0].binding;
       assert.equal(
-        (await fetch(backend.endpoint.url + "/api/memory/recovery")).status,
+        binding.authorization_id,
+        app.host.memoryRecoveryPreflight()[0].binding?.authorization_id,
+      );
+      recover();
+      const request = { request_id: id(), ...binding };
+      await client.command("memory/recovery", request);
+      const result = await reconciled(client, request.request_id);
+      assert.equal(result.receipt.state, "COMPLETED");
+      assert.equal(result.result.owner_committed, true);
+      assert.equal(result.result.status, "SUCCEEDED");
+      await client.command("memory/recovery", request);
+      assert.equal(counts.extraction, 2);
+      assert.equal(
+        (await fetch(backend.endpoint.url + "/api/v1/memory/recovery")).status,
         401,
       );
     } finally {

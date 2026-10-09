@@ -1,3 +1,4 @@
+import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -301,13 +302,13 @@ test("cache scrolls 6000 items both ways, shares activity quota, enforces bytes 
   assert.notEqual(w.items[0].text, "stale");
 });
 
-test("window state avoids legacy body reads, authenticated API bounds requests and keeps old API", async () => {
+test("API v1 status avoids history body reads and timeline pages remain bounded", async () => {
   const dir = temp(),
     app = await App.open(dir);
   seed(app, 300);
   const server = await serve(app);
   try {
-    const client = (await api(server.endpoint, "/api/client", {})).client;
+    const client = new CoreClient(server.endpoint);
     timelineFor(app);
     let reads = 0;
     const read = app.store.read.bind(app.store);
@@ -315,31 +316,30 @@ test("window state avoids legacy body reads, authenticated API bounds requests a
       reads++;
       return read(ref);
     }) as typeof read;
-    const state = await api(
-      server.endpoint,
-      `/api/state?client=${client}&window=1`,
-    );
-    assert(!("messages" in state));
-    assert.equal(state.tasks.length, 0);
+    await client.core();
     assert(reads < 10);
     app.store.read = read;
-    const page = await api(server.endpoint, "/api/timeline", {
-      client,
-      options: {},
-    });
+    const page: any = await client.query("timeline?limit=200");
     assert(page.items.length <= 200);
     assert(Buffer.byteLength(JSON.stringify(page)) <= PAGE_BYTES);
     assert.equal(
-      (
-        await fetch(server.endpoint.url + "/api/timeline", {
-          method: "POST",
-          body: JSON.stringify({ client, options: {} }),
-        })
-      ).status,
+      (await fetch(server.endpoint.url + "/api/v1/timeline")).status,
       401,
     );
-    const normal = await api(server.endpoint, `/api/state?client=${client}`);
-    assert.equal(normal.messages.length, 300);
+    const previous: any = await client.query(
+      "timeline?limit=200&cursor=" + encodeURIComponent(page.before),
+    );
+    assert.equal(
+      [...page.items, ...previous.items].filter(
+        (item: any) => item.kind === "message",
+      ).length,
+      300,
+    );
+    assert.equal(
+      new Set([...page.items, ...previous.items].map((item: any) => item.id))
+        .size,
+      page.items.length + previous.items.length,
+    );
   } finally {
     await server.close();
     fs.rmSync(dir, { recursive: true, force: true });
@@ -423,11 +423,8 @@ test("idle and loaded-range polling read no old bodies; task children and author
     );
     const server = await serve(app);
     try {
-      const client = (await api(server.endpoint, "/api/client", {})).client;
-      const approvals = await api(
-        server.endpoint,
-        `/api/panels?client=${client}&kind=approvals`,
-      );
+      const client = new CoreClient(server.endpoint);
+      const approvals: any = await client.query("authorizations");
       assert.equal(approvals.items.length, 1);
       assert.equal(approvals.items[0].state, "PENDING");
     } finally {

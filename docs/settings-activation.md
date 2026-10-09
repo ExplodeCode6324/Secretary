@@ -1,5 +1,7 @@
 # World Model 管理与设置生效规范
 
+> API v1 分支说明：当前启停、认证与 HTTP 合同见 [API v1](api/v1/README.md)。本文保留领域流程与历史 UI 使用记录；旧 TUI/WebUI 路由不适用于新版 Core。
+
 本规范对应 [Settings](../src/pi_secretary/src/settings.ts)、[完整来源整理](../src/pi_secretary/src/settings-memory.ts)、[World](../src/pi_secretary/src/world.ts) 和 [WebUI](../src/pi_secretary/web/app.js)。实现计划及验收记录见 [本次更新计划](fix/fix_20260928_world_model管理与统一设置生效.md)。
 
 ## 统一规则

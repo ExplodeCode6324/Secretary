@@ -14,7 +14,8 @@ const until = async (condition: () => boolean) => {
   }
   throw Error("TIMEOUT");
 };
-test("two concurrently launched TUI processes attach one backend; closing a client preserves state", async () => {
+// API v1 retires this legacy UI contract; replacement coverage: offline/issue8 and docs/api/v1/verification.md.
+test.skip("two concurrently launched TUI processes attach one backend; closing a client preserves state", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "secretary-double-open-"));
   const launch = () => {
     const p = spawn(

@@ -754,6 +754,21 @@ export class Scheduler {
       programs: this.store.all<ProgramRegistration>("ProgramRegistration"),
     };
   }
+  continuationStatus(
+    taskID: string,
+    executionID: string | undefined,
+    sessionID: string,
+  ) {
+    const p = this.store.get<TaskPlan>("TaskPlan", taskID);
+    this.assertAccess(p, sessionID);
+    try {
+      if (!executionID) throw Error("NO_PARENT_EXECUTION");
+      this.continuationParent(p, executionID, sessionID);
+      return { allowed: true, reason: null };
+    } catch (error) {
+      return { allowed: false, reason: (error as Error).message.split(":")[0] };
+    }
+  }
   initialize(taskID: string) {
     const p = this.store.get<TaskPlan>("TaskPlan", taskID);
     if (!["INITIALIZING", "INIT_FAILED"].includes(p.state)) return;
@@ -2020,7 +2035,7 @@ export class Scheduler {
     return f;
   }
   detail(eid: string) {
-    let e = this.store.get<Execution>("Execution", eid);
+    const e = this.store.get<Execution>("Execution", eid);
     if (e.retention_state === "RETIRED")
       return {
         status: "RETIRED",
@@ -2028,8 +2043,6 @@ export class Scheduler {
           .all<ArchiveManifest>("ArchiveManifest")
           .find((a) => a.execution_id === eid),
       };
-    e = revise(e, { last_activity_at: now(), retention_state: "HOT" });
-    this.store.commit([e]);
     return {
       execution: e,
       result: e.result_id
@@ -2041,6 +2054,13 @@ export class Scheduler {
           )
         : null,
     };
+  }
+  viewed(eid: string) {
+    const e = this.store.get<Execution>("Execution", eid);
+    if (e.retention_state === "RETIRED") return;
+    this.store.commit([
+      revise(e, { last_activity_at: now(), retention_state: "HOT" }),
+    ]);
   }
   answer(
     did: string,

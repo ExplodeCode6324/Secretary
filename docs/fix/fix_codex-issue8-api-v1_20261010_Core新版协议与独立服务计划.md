@@ -2,11 +2,13 @@
 
 日期：2026-10-10。关联：[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)、[实施起点 #8](https://github.com/ExplodeCode6324/Secretary/issues/8)。
 
-状态：**PLAN_ONLY / NOT_IMPLEMENTED / NOT_TESTED / WAITING_FOR_MASTER_APPROVAL**。
+状态：**IMPLEMENTED / BRANCH_ONLY / WAITING_FOR_MASTER_FINAL_REVIEW**。
 
-本计划落实 Master 的规划修订授权及“领取首个 issue、写 fix 计划，授权后执行”的要求。本次只领取和编写文档；业务代码、合同生成、数据库变化、运行测试与部署尚未获准执行。新版 TUI 暂不做，设备访问限制不变。
+2026-10-10 Master 已明确授权“领取 issue8 开干”，在 `codex/issue8-api-v1` 实现与验证，终审后才可合并。启动基线 `f8dbddcf4338914c1d264efff0fd26d5bc07c2cb`；远端 main `38daab6cbbccf9f6a85071ff5933eaa198d77de8`。类型检查通过；runtime 基线 167 项，162 通过、5 跳过、0 失败。首次缺少固定 Pi 子模块导致的类型错误单独保留，初始化仓库锁定的子模块后检查通过。
 
-2026-10-10 设计补充已获准纳入本计划：[客户端页面、组件与行为规范 v0.3](../native-client-design-v0.3.md)。取消固定三比一分栏，采用较小默认字号与优先占据剩余空间的对话区；本阶段落实其后端合同，实际 SwiftUI 布局和显示验收属于 #10。本次修订授权不等同业务实现授权。
+本计划落实 Master 的规划修订授权及“领取首个 issue、写 fix 计划，授权后执行”的要求。此前规划轮只领取和编写文档；本轮获准业务实现、合同生成与隔离验证。部署、现有实例和真实模型操作不在本轮范围。新版 TUI 暂不做，设备访问限制不变。
+
+2026-10-10 设计补充已获准纳入本计划：[客户端页面、组件与行为规范 v0.3](../native-client-design-v0.3.md)。取消固定三比一分栏，采用较小默认字号与优先占据剩余空间的对话区；本阶段落实其后端合同，实际 SwiftUI 布局和显示验收属于 #10。此前设计修订本身不等同业务实施授权；本轮按页首 Master 的明确开工授权执行。
 
 ## 1. 固定基线与问题
 
@@ -19,7 +21,7 @@
 - [settings.ts](../../src/pi_secretary/src/settings.ts) 的 `status()` 可通过 `draft()` 懒创建记录；save/retry/restore 等仍需补齐一致的请求绑定与对账。
 - [ui-client.ts](../../src/pi_secretary/src/ui-client.ts) 发现、启动后台但返回 `any`，endpoint 与 UI 名称绑定；[app.ts](../../src/pi_secretary/src/app.ts) 已有可复用的领域生命周期。
 
-本轮只完成静态审查，未运行改动前基线测试；不能把已有历史测试报告当成本计划的验证结果。
+本轮已冻结改动前基线；检查摘要见本页状态，原始日志保留在本机临时目录，不提交私人运行数据。
 
 ## 2. 交付与边界
 
@@ -177,3 +179,24 @@
 #8 原估算为 6–10 人日，作为接口整理的量级参考；取消 TUI 适配后，仍须承担全操作幂等、长命令恢复和旧数据转换验证。v0.3 增加显示身份、记忆公开读模型、产物目录、关联/定位索引与待处理摘要，需要在合同盘点时独立拆分估算，不默认包含在原有上限内。若需要超出本计划的新领域语义或数据迁移范围，更新计划后复核。
 
 本计划请求批准的下一步是 **#8 的业务实现、合成数据下的离线故障验证与必要隔离 PostgreSQL 回归**。不含真实模型调用、运行实例切换、生产数据迁移、设备访问、TUI/SwiftUI 开发或后续阶段实现。
+
+
+## 9. 分支实现与验收记录（2026-10-10）
+
+已实现 UI 无关 ApplicationService、API v1 路由与独立 Core 启停/附着；去除新版服务的 TerminalController 依赖及旧 HTTP/static 路由。短命令受理与首个领域变更同 journal frame 落盘，NO_CHANGES 持久化；长命令持久排队，未知中断不重发。新增显示配置、纯查询、显式 viewed、任务/执行/待请求分页、审批与决定、Settings/World、记忆恢复与摘要、产物目录和有界内容流、关联/定位和按期限失效的待处理投影。
+
+合同与切换指南在 [API v1](../api/v1/README.md)，测试责任及旧兼容断言替换说明在 [验证记录](../api/v1/verification.md)。Schema、OpenAPI 与 TS DTO 同步生成；提供 Swift Codable 合成示例。所有 revision、事件序号、World version 与字节长度均以十进制字符串投影，分页和正文游标按新版隔离。
+
+验证结果：
+
+- `npm run check`：通过。
+- `npm run verify`：通过；runtime 167 项中 159 通过、8 跳过（5 个未配置 PostgreSQL 的既有用例、3 个明确退出范围的旧 UI 兼容用例）；API 24 项中 23 通过、1 个需隔离 PostgreSQL 的用例跳过。
+- Issue #2–#5 offline 回归：183 项中 181 通过、2 跳过、0 失败。记忆恢复 API 用例保留完整 binding、期限和提取次数断言。
+- 独立 PostgreSQL World/API/Settings/边界：13 项通过，0 跳过、0 失败。复跑必须创建全新测试数据库，避免旧合成 source_key 与固定 fixture 冲突；该首次复跑失败日志保留，不调整原断言。
+- 显示角色/能力及最终 schema 增量对应 API + streaming：19 项通过；两个独立 CLI 进程并发启动及退出后存活单独验证。
+- Swift 示例解码通过；生成文件可重复生成；`git diff --check` 通过。
+- 文档检查：49 项既有缺失报告/迁移目标错误，与改动前集合完全相同，新增 0 项。
+
+已知边界：本分支没有部署现有实例、真实模型调用、生产数据迁移、设备操作、可靠 ChangeFeed 或原生 UI。来源缺少明确事件绑定时返回 unavailable，不从 hash 或文字推断来源；原领域有 source_batch 的承诺保留明确事件 ID。长命令 UNKNOWN 需要原领域证据对账，不自动重复操作。
+
+交付停在工作分支与待终审 PR；未经 Master 终审，不合并 main、不关闭 #8。

@@ -1,5 +1,7 @@
 # 项目文档
 
+- [Core API v1 合同、生命周期与迁移](api/v1/README.md)
+
 本目录的当前文档以 `src/pi_secretary` 的 Pi 实现为准。文档说明实现事实与边界；测试通过范围以 [测试报告](../test_case/reports/README.md) 为准。
 
 | 文档 | 用途 |

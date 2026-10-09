@@ -20,6 +20,8 @@ export class App {
     readonly world?: World,
   ) {
     this.settings = new Settings(store, host, world);
+    // Initialize durable configuration before any query is accepted.
+    this.settings.draft();
   }
   static async open(
     directory: string,

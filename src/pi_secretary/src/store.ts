@@ -107,6 +107,21 @@ export class Store {
     return this.read<import("./contracts.ts").TaskPlan>(ref);
   }
   private receipts = new Map<string, { hash: string; value: unknown }>();
+  private admission?: (records: Stored[]) => Stored;
+  // Synchronous admission only. The first authoritative mutation and its public
+  // request binding share one fsynced journal transaction, including replay.
+  withAdmission<T>(
+    admission: (records: Stored[]) => Stored,
+    action: () => T,
+  ): T {
+    if (this.admission) throw Error("NESTED_ADMISSION");
+    this.admission = admission;
+    try {
+      return action();
+    } finally {
+      this.admission = undefined;
+    }
+  }
   private constructor(dir: string, owner: JournalOwner) {
     this.dir = dir;
     this.owner = owner;
@@ -263,6 +278,11 @@ export class Store {
     receipt?: { request: string; hash: string; value: string },
   ) {
     if (this.closed || !this.healthy) throw Error("STORE_NOT_OWNER");
+    if (this.admission) {
+      const admission = this.admission;
+      this.admission = undefined;
+      records = [...records, admission(records)];
+    }
     try {
       this.owner.assertOwner();
     } catch (error) {

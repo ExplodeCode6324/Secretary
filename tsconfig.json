@@ -15,6 +15,7 @@
     "src/pi_secretary/scripts/*.ts",
     "test_case/offline/runtime/**/*.ts",
     "test_case/offline/issue5/**/*.ts",
-    "test_case/online/*.ts"
+    "test_case/online/*.ts",
+    "test_case/offline/issue8/**/*.ts"
   ]
 }

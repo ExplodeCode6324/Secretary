@@ -1,0 +1,2960 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:secretary:api:v1",
+  "title": "ApiV1",
+  "$defs": {
+    "Revision": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "Json": {
+      "type": [
+        "string",
+        "number",
+        "boolean",
+        "null",
+        "array",
+        "object"
+      ]
+    },
+    "EmptyCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "request_id"
+      ]
+    },
+    "ProfileCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        }
+      },
+      "required": [
+        "request_id",
+        "name",
+        "expected_revision"
+      ]
+    },
+    "ClientCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "client_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "instance_id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "request_id",
+        "name"
+      ]
+    },
+    "MessageCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1048576
+        }
+      },
+      "required": [
+        "request_id",
+        "text"
+      ]
+    },
+    "TaskCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        },
+        "reuse_task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "parent_execution_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "program_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "interval_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "materials": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 65536
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 65536
+          }
+        },
+        "acceptance": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "string",
+            "maxLength": 65536
+          }
+        },
+        "preconditions": {
+          "type": "array",
+          "maxItems": 100,
+          "items": {
+            "type": "object",
+            "properties": {
+              "condition_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+                "format": "uuid"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "DEVICE_AVAILABLE",
+                  "EXECUTION_SUCCEEDED",
+                  "RESOURCE_PRESENT"
+                ],
+                "description": ""
+              },
+              "target": {
+                "type": "string",
+                "minLength": 1,
+                "description": "登记设备/资源标识或 execution UUID"
+              },
+              "required_revision": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": ""
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "condition_id",
+              "kind",
+              "target",
+              "required_revision"
+            ],
+            "additionalProperties": false,
+            "description": "运行前提只引用已登记检查器，禁止运行模型提交的表达式。"
+          }
+        }
+      },
+      "required": [
+        "request_id",
+        "goal"
+      ]
+    },
+    "AnswerCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "answer": {
+          "$ref": "#/$defs/Json"
+        }
+      },
+      "required": [
+        "request_id",
+        "answer"
+      ]
+    },
+    "ApprovalCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "display_hash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "decision": {
+          "enum": [
+            "APPROVE",
+            "REJECT",
+            "REVOKE"
+          ]
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_revision",
+        "display_hash",
+        "decision"
+      ]
+    },
+    "RevisionCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_revision"
+      ]
+    },
+    "DraftCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "instructions": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "content": {
+                      "type": "string"
+                    },
+                    "expected_revision": {
+                      "type": "string",
+                      "pattern": "^[1-9][0-9]*$"
+                    }
+                  },
+                  "required": [
+                    "content",
+                    "expected_revision"
+                  ]
+                }
+              ]
+            },
+            "edits": {
+              "type": "array",
+              "maxItems": 100,
+              "items": {
+                "$ref": "#/$defs/WorldEdit"
+              }
+            },
+            "command_ids": {
+              "type": "array",
+              "maxItems": 0
+            }
+          },
+          "required": [
+            "instructions",
+            "edits",
+            "command_ids"
+          ]
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_revision",
+        "payload"
+      ]
+    },
+    "ResolveCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "state": {
+          "enum": [
+            "COMPLETED",
+            "CANCELLED"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        }
+      },
+      "required": [
+        "request_id",
+        "state",
+        "note"
+      ]
+    },
+    "RecoveryCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "group_key": {
+          "type": "string"
+        },
+        "attempt_id": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "string"
+        },
+        "implementation_version": {
+          "type": "string"
+        },
+        "config_hash": {
+          "type": "string"
+        },
+        "source_hash": {
+          "type": "string"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "model_call_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model_request_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actual_payload_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authorization_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "request_id",
+        "group_key",
+        "attempt_id",
+        "policy",
+        "implementation_version",
+        "config_hash",
+        "source_hash",
+        "expected_revision",
+        "model_call_id",
+        "model_request_hash",
+        "actual_payload_hash",
+        "authorization_id",
+        "issued_at",
+        "expires_at"
+      ]
+    },
+    "ProgramCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "entrypoint": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_id",
+        "entrypoint",
+        "name"
+      ]
+    },
+    "RuleCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "action": {
+          "enum": [
+            "file.write",
+            "program.run",
+            "world.change"
+          ]
+        },
+        "resource": {
+          "type": "string"
+        },
+        "parameters": {
+          "$ref": "#/$defs/Json"
+        }
+      },
+      "required": [
+        "request_id",
+        "action",
+        "resource",
+        "parameters"
+      ]
+    },
+    "Error": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ]
+    },
+    "ResourceLink": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ]
+    },
+    "Receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "command": {
+          "type": "string"
+        },
+        "acceptance": {
+          "enum": [
+            "ACCEPTED"
+          ]
+        },
+        "state": {
+          "enum": [
+            "ACCEPTED",
+            "QUEUED",
+            "RUNNING",
+            "COMPLETED",
+            "FAILED",
+            "UNKNOWN"
+          ]
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "resource_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ResourceLink"
+          }
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "request_id",
+        "command",
+        "acceptance",
+        "state",
+        "revision",
+        "resource_ids",
+        "error_code"
+      ]
+    },
+    "Capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "enum": [
+            "supported",
+            "not_supported",
+            "not_configured"
+          ]
+        },
+        "allowed": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "allowed",
+        "reason"
+      ]
+    },
+    "Core": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "api_version": {
+          "const": "1"
+        },
+        "data_domain_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "owner_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "instance_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "state": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string"
+        },
+        "capabilities": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Capability"
+          }
+        }
+      },
+      "required": [
+        "api_version",
+        "data_domain_id",
+        "owner_id",
+        "instance_id",
+        "session_id",
+        "state",
+        "mode",
+        "capabilities"
+      ]
+    },
+    "Assistant": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "actor_id": {
+          "const": "assistant"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        }
+      },
+      "required": [
+        "name",
+        "actor_id",
+        "revision"
+      ]
+    },
+    "Envelope": {
+      "type": "object",
+      "properties": {
+        "api_version": {
+          "const": "1"
+        },
+        "data": {
+          "$ref": "#/$defs/Json"
+        }
+      },
+      "required": [
+        "api_version",
+        "data"
+      ]
+    },
+    "WorldEdit": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "FACT",
+            "ENTITY"
+          ]
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "entity_kind": {
+          "enum": [
+            "PERSON",
+            "ORGANIZATION",
+            "PROJECT",
+            "DEVICE",
+            "SERVICE",
+            "RESOURCE",
+            "GOAL"
+          ]
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "external_key": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500
+        },
+        "retire": {
+          "type": "boolean"
+        },
+        "mode": {
+          "enum": [
+            "ASSERT",
+            "CORRECT",
+            "RETRACT"
+          ]
+        },
+        "predicate_key": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_.]+$",
+          "maxLength": 200
+        },
+        "scope_key": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "value": {},
+        "resolution_note": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "entity_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+          "format": "uuid"
+        },
+        "subject_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+          "format": "uuid"
+        },
+        "assertion_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+          "format": "uuid"
+        },
+        "object_entity_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "resolve_conflict_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valid_from": {
+          "type": "string",
+          "minLength": 1,
+          "description": "UTC RFC3339；时区意图在 Trigger.timezone 另存。",
+          "format": "date-time",
+          "pattern": "Z$"
+        },
+        "valid_to": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "UTC RFC3339；时区意图在 Trigger.timezone 另存。",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "fresh_until": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1,
+              "description": "UTC RFC3339；时区意图在 Trigger.timezone 另存。",
+              "format": "date-time",
+              "pattern": "Z$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "kind",
+        "expected_revision"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "ENTITY"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "entity_id",
+              "entity_kind",
+              "display_name"
+            ]
+          },
+          "else": {
+            "required": [
+              "mode",
+              "subject_id",
+              "predicate_key",
+              "scope_key"
+            ]
+          }
+        }
+      ]
+    },
+    "Session": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "type": "string"
+        },
+        "recovery_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "state",
+        "recovery_error"
+      ],
+      "additionalProperties": true
+    },
+    "Source": {
+      "type": "object",
+      "properties": {
+        "content_version": {
+          "type": "string"
+        },
+        "bytes": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "locator_state": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "content_version",
+        "bytes",
+        "media_type",
+        "event_ids",
+        "locator_state"
+      ],
+      "additionalProperties": true
+    },
+    "TaskSummary": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "active_execution_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "state",
+        "goal",
+        "active_execution_ids"
+      ],
+      "additionalProperties": true
+    },
+    "Result": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "outcome": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "artifact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "needs_action": {
+          "type": "boolean"
+        },
+        "verified_by": {
+          "type": "string"
+        },
+        "observed_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "outcome",
+        "summary",
+        "limitations",
+        "artifact_ids",
+        "needs_action",
+        "verified_by",
+        "observed_at"
+      ],
+      "additionalProperties": true
+    },
+    "Proposal": {
+      "type": "object",
+      "properties": {
+        "goal": {
+          "type": "string"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "goal",
+        "constraints",
+        "acceptance_criteria"
+      ],
+      "additionalProperties": true
+    },
+    "TaskDetail": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "baseline": {
+          "$ref": "#/$defs/Proposal"
+        },
+        "effective_proposal": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Proposal"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latest_execution_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "latest_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "continuation": {
+          "type": "object",
+          "properties": {
+            "allowed": {
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "allowed",
+            "reason"
+          ],
+          "additionalProperties": true
+        },
+        "pending_requests": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "request_id": {
+                "type": "string"
+              },
+              "due_at": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "request_id",
+              "due_at"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "pending_request_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Result"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "state",
+        "goal",
+        "baseline",
+        "effective_proposal",
+        "latest_execution_id",
+        "latest_state",
+        "continuation",
+        "pending_requests",
+        "pending_request_count",
+        "result"
+      ],
+      "additionalProperties": true
+    },
+    "Execution": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "retention_state": {
+          "type": "string"
+        },
+        "last_activity_at": {
+          "type": "string"
+        },
+        "waiting_request_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unknown_operation_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "cancel_requested": {
+          "type": "boolean"
+        },
+        "result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Result"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "task_id",
+        "state",
+        "retention_state",
+        "last_activity_at",
+        "waiting_request_ids",
+        "unknown_operation_ids",
+        "cancel_requested",
+        "result"
+      ],
+      "additionalProperties": true
+    },
+    "Artifact": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "execution_id": {
+          "type": "string"
+        },
+        "content_version": {
+          "type": "string"
+        },
+        "bytes": {
+          "type": "string"
+        },
+        "media_type": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "task_id",
+        "execution_id",
+        "content_version",
+        "bytes",
+        "media_type",
+        "state"
+      ],
+      "additionalProperties": true
+    },
+    "Message": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "message"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "role": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "thinking": {
+          "type": "string"
+        },
+        "call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "incomplete": {
+          "type": "boolean"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "revision",
+        "role",
+        "text",
+        "call_id",
+        "incomplete",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "Activity": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "phase": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "additionalProperties": true
+    },
+    "TimelineItem": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Message"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "activity"
+            },
+            "revision": {
+              "$ref": "#/$defs/Revision"
+            },
+            "activity": {
+              "$ref": "#/$defs/Activity"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "revision",
+            "activity"
+          ],
+          "additionalProperties": true
+        }
+      ]
+    },
+    "Timeline": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TimelineItem"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "before": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "after": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "generation",
+        "before",
+        "after"
+      ],
+      "additionalProperties": true
+    },
+    "MemoryItem": {
+      "type": "object",
+      "properties": {
+        "item_id": {
+          "type": "string"
+        },
+        "tier": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "goals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "decisions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "open_questions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "task_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Source"
+          }
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "item_id",
+        "tier",
+        "summary",
+        "goals",
+        "constraints",
+        "decisions",
+        "open_questions",
+        "task_ids",
+        "sources",
+        "updated_at"
+      ],
+      "additionalProperties": true
+    },
+    "Commitment": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "task_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resolution_event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Source"
+          }
+        },
+        "source_event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "text",
+        "state",
+        "task_ids",
+        "resolution_event_ids",
+        "sources",
+        "source_event_ids"
+      ],
+      "additionalProperties": true
+    },
+    "Decision": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "execution_id": {
+          "type": "string"
+        },
+        "question": {
+          "type": "string"
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "impact": {
+          "type": "string"
+        },
+        "deadline": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "answer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "answered_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "answer_request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "state",
+        "task_id",
+        "execution_id",
+        "question",
+        "options",
+        "impact",
+        "deadline",
+        "answer",
+        "answered_by",
+        "answer_request_id"
+      ],
+      "additionalProperties": true
+    },
+    "Authorization": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "type": "string"
+        },
+        "display_hash": {
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "task_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "execution_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "session_id",
+            "task_id",
+            "execution_id"
+          ],
+          "additionalProperties": true
+        },
+        "display": {
+          "$ref": "#/$defs/Json"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "state",
+        "display_hash",
+        "expires_at",
+        "scope"
+      ],
+      "additionalProperties": true
+    },
+    "Settings": {
+      "type": "object",
+      "properties": {
+        "draft": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "revision": {
+              "$ref": "#/$defs/Revision"
+            },
+            "payload": {
+              "$ref": "#/$defs/Json"
+            }
+          },
+          "required": [
+            "id",
+            "revision",
+            "payload"
+          ],
+          "additionalProperties": true
+        },
+        "applications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "revision": {
+                "$ref": "#/$defs/Revision"
+              },
+              "state": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "revision",
+              "state"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "blocked": {
+          "type": "boolean"
+        },
+        "world_available": {
+          "type": "boolean"
+        },
+        "effective_instructions": {
+          "type": "object",
+          "properties": {
+            "revision": {
+              "type": "string"
+            },
+            "content": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "revision",
+            "content"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "draft",
+        "applications",
+        "blocked",
+        "world_available",
+        "effective_instructions"
+      ],
+      "additionalProperties": true
+    },
+    "MemoryStatus": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "type": "string"
+        },
+        "maintenance_mode": {
+          "type": "string"
+        },
+        "last_success_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pending_source_bytes": {
+          "type": "string"
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "covered_event_sequence": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "revision",
+        "state",
+        "maintenance_mode",
+        "last_success_at",
+        "pending_source_bytes",
+        "errors",
+        "covered_event_sequence"
+      ],
+      "additionalProperties": true
+    },
+    "AttentionItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "revision",
+        "expires_at"
+      ],
+      "additionalProperties": true
+    },
+    "Attention": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AttentionItem"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "counts": {
+          "type": "object",
+          "properties": {
+            "authorizations": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "decisions": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "authorizations",
+            "decisions"
+          ],
+          "additionalProperties": true
+        },
+        "as_of": {
+          "type": "string"
+        },
+        "valid_until": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "session_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor",
+        "counts",
+        "as_of",
+        "valid_until",
+        "session_id"
+      ],
+      "additionalProperties": true
+    },
+    "TaskPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskSummary"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "ExecutionPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Execution"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "ArtifactPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Artifact"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "MemoryPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/MemoryItem"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "CommitmentPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Commitment"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "DecisionPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Decision"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "AuthorizationPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Authorization"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "RelatedPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "basis": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "basis"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "RequestStatus": {
+      "type": "object",
+      "properties": {
+        "receipt": {
+          "$ref": "#/$defs/Receipt"
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "state": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "revision": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "type",
+              "state",
+              "revision"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "result": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "receipt",
+        "resources",
+        "result"
+      ],
+      "additionalProperties": true
+    },
+    "WorldPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Json"
+          }
+        },
+        "world_version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "world_version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "WorldSlot": {
+      "type": "object",
+      "properties": {
+        "slot": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "slot_id": {
+                  "type": "string"
+                },
+                "subject_id": {
+                  "type": "string"
+                },
+                "predicate_key": {
+                  "type": "string"
+                },
+                "scope_key": {
+                  "type": "string"
+                },
+                "revision": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "slot_id",
+                "subject_id",
+                "predicate_key",
+                "scope_key",
+                "revision"
+              ],
+              "additionalProperties": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "world_version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "slot",
+        "world_version"
+      ],
+      "additionalProperties": true
+    },
+    "RecoveryBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "group_key": {
+          "type": "string"
+        },
+        "attempt_id": {
+          "type": "string"
+        },
+        "policy": {
+          "type": "string"
+        },
+        "implementation_version": {
+          "type": "string"
+        },
+        "config_hash": {
+          "type": "string"
+        },
+        "source_hash": {
+          "type": "string"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "model_call_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "model_request_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "actual_payload_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "authorization_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "issued_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expires_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "group_key",
+        "attempt_id",
+        "policy",
+        "implementation_version",
+        "config_hash",
+        "source_hash",
+        "expected_revision",
+        "model_call_id",
+        "model_request_hash",
+        "actual_payload_hash",
+        "authorization_id",
+        "issued_at",
+        "expires_at"
+      ]
+    },
+    "RecoveryGroup": {
+      "type": "object",
+      "properties": {
+        "group_key": {
+          "type": "string"
+        },
+        "attempt_id": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "binding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RecoveryBinding"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "source_count": {
+          "type": "integer"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "role": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "sequence": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "role",
+              "sequence"
+            ],
+            "additionalProperties": true
+          }
+        }
+      },
+      "required": [
+        "group_key",
+        "attempt_id",
+        "status",
+        "reason",
+        "binding",
+        "source_count",
+        "sources"
+      ],
+      "additionalProperties": true
+    },
+    "RecoveryPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RecoveryGroup"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "ClientRegistration": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "name": {
+          "type": "string"
+        },
+        "owner_id": {
+          "type": "string"
+        },
+        "updated_at": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "name",
+        "owner_id",
+        "updated_at"
+      ],
+      "additionalProperties": true
+    },
+    "TaskRequestStatus": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "occurrence_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "state": {
+          "type": "string"
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "goal": {
+          "type": "string"
+        },
+        "constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "acceptance_criteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "request_id",
+        "task_id",
+        "occurrence_key",
+        "execution_id",
+        "state",
+        "reason",
+        "goal",
+        "constraints",
+        "acceptance_criteria"
+      ],
+      "additionalProperties": true
+    },
+    "PendingRequestPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "request_id": {
+                "type": "string"
+              },
+              "due_at": {
+                "type": "string"
+              },
+              "goal": {
+                "type": "string"
+              },
+              "constraints": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "acceptance_criteria": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "request_id",
+              "due_at",
+              "goal",
+              "constraints",
+              "acceptance_criteria"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "Operation": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "object",
+          "properties": {
+            "session_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "task_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "execution_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "session_id",
+            "task_id",
+            "execution_id"
+          ],
+          "additionalProperties": true
+        },
+        "action": {
+          "type": "object",
+          "properties": {
+            "action": {
+              "type": "string"
+            },
+            "resource": {
+              "type": "string"
+            },
+            "parameters_hash": {
+              "type": "string"
+            },
+            "intent_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "action",
+            "resource",
+            "parameters_hash",
+            "intent_id"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "state",
+        "scope",
+        "action"
+      ],
+      "additionalProperties": true
+    },
+    "OperationPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Operation"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "Program": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "code_digest": {
+          "type": "string"
+        },
+        "supports_resume": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "state",
+        "name",
+        "description",
+        "code_digest",
+        "supports_resume"
+      ],
+      "additionalProperties": true
+    },
+    "ProgramPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Program"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    },
+    "AuthorizationRule": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "state": {
+          "type": "string"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resource_prefixes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "valid_from": {
+          "type": "string"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "state",
+        "actions",
+        "resource_prefixes",
+        "valid_from",
+        "expires_at"
+      ],
+      "additionalProperties": true
+    },
+    "RulePage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/AuthorizationRule"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ],
+      "additionalProperties": true
+    }
+  },
+  "oneOf": [
+    {
+      "$ref": "#/$defs/Core"
+    },
+    {
+      "$ref": "#/$defs/Assistant"
+    },
+    {
+      "$ref": "#/$defs/Receipt"
+    },
+    {
+      "$ref": "#/$defs/Error"
+    },
+    {
+      "$ref": "#/$defs/Envelope"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "core": {
+    "api_version": "1",
+    "data_domain_id": "10000000-0000-4000-8000-000000000001",
+    "owner_id": "10000000-0000-4000-8000-000000000001",
+    "instance_id": "10000000-0000-4000-8000-000000000002",
+    "session_id": "10000000-0000-4000-8000-000000000003",
+    "state": "IDLE",
+    "mode": "fixture",
+    "capabilities": {
+      "core": { "state": "supported", "allowed": true, "reason": null },
+      "devices": { "state": "not_supported", "allowed": false, "reason": "DEVICE_API_NOT_IMPLEMENTED" }
+    }
+  },
+  "assistant": { "name": "secretary", "actor_id": "assistant", "revision": "1" },
+  "receipt": {
+    "request_id": "10000000-0000-4000-8000-000000000004",
+    "command": "messages",
+    "acceptance": "ACCEPTED",
+    "state": "ACCEPTED",
+    "revision": "1",
+    "resource_ids": [{ "type": "Input", "id": "10000000-0000-4000-8000-000000000005" }],
+    "error_code": null
+  },
+  "message": {
+    "id": "10000000-0000-4000-8000-000000000006",
+    "kind": "message",
+    "revision": "9007199254740993",
+    "role": "future_role",
+    "at": "2026-10-10T00:00:00.000Z",
+    "text": "中文 😀 é 𠮷\nSynthetic example",
+    "call_id": null,
+    "incomplete": false,
+    "next_cursor": null,
+    "future_field": "ignored by older clients"
+  }
+}
