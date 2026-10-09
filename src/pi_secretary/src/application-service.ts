@@ -206,7 +206,7 @@ export class ApplicationService {
       return this.receipt(requestID);
     }
     // A client cannot capture a legacy/internal request ID from the same store.
-    if (store.hasReceipt(requestID))
+    if (store.hasRequestIdentity(requestID))
       throw new ApiError("REQUEST_CONFLICT", 409);
     const request: ApiCommand = {
       ...base(requestID),

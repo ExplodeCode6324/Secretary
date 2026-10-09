@@ -4,10 +4,20 @@ import { compile } from "json-schema-to-typescript";
 const schema = JSON.parse(
   fs.readFileSync(new URL("../../../docs/api/v1/schema.json", import.meta.url)),
 );
+// unreachableDefinitions is only visited for object schemas by the generator;
+// the wire schema's oneOf root silently dropped most public DTOs. Compile an
+// object namespace containing every definition and the unchanged ApiV1 root.
+// This wrapper exists only during code generation, never in the wire schema.
+const { $defs, ...apiV1 } = schema;
+const namespace = {
+  type: "object",
+  additionalProperties: false,
+  $defs: { ApiV1: apiV1, ...$defs },
+};
 fs.writeFileSync(
   new URL("../src/api/contracts.ts", import.meta.url),
   await format(
-    await compile(schema, "ApiV1", {
+    await compile(namespace, "ApiV1Definitions", {
       unreachableDefinitions: true,
       ignoreMinAndMaxItems: true,
       bannerComment:

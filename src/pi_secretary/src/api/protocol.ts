@@ -61,8 +61,12 @@ export function project(value: unknown, key = ""): any {
   // These are user/domain JSON values, not Store metadata. Never rename,
   // redact, or convert an arbitrary value's keys (including "revision" or
   // "entrypoint"); approval must show the exact action parameters.
-  if (["parameters", "value", "answer"].includes(key))
+  // value_schema is predicate-owned JSON Schema, not a CAS schema reference
+  // such as ProgramRegistration.parameters_schema/result_schema.
+  if (["parameters", "value", "answer", "value_schema"].includes(key))
     return structuredClone(value);
+  // PostgreSQL timestamptz values arrive as Date objects, unlike journal dates.
+  if (value instanceof Date) return value.toISOString();
   if (
     typeof value === "number" &&
     /(?:revision|sequence|journal_seq|bytes|version)$/.test(key)
