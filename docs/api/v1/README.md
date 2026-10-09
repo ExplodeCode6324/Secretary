@@ -28,11 +28,11 @@ Core 在 `127.0.0.1` 动态端口监听。发现文件 `core-endpoint.json` 和 
 
 ## 请求、受理与重试
 
-写入只能使用操作表列出的 POST，`Content-Type: application/json`，body 最大 1 MiB。每个命令必须有客户端持有的 UUID `request_id`；超时后保留原 ID、原路径和原 body。所有命令共享此数据域的 owner 请求命名空间。键排序后的 JSON 值、路径（含目标）、命令类型、CAS revision、审批显示 hash 和恢复 binding 全部绑定；相同 ID 改参数或改操作返回 `REQUEST_CONFLICT`。不自动过期或删除去重证据。
+写入只能使用操作表列出的 POST，`Content-Type: application/json`，body 最大 1 MiB。每个命令必须有客户端持有的 UUID `request_id`；超时后保留原 ID、原路径和原 body。所有命令共享此数据域的 owner 请求命名空间。键排序后的 JSON 值、路径（含目标）、命令类型、CAS revision、审批显示 hash 和恢复 binding 全部绑定；相同 ID 改参数或改操作返回 `REQUEST_CONFLICT`。历史内部工作决定的 answer_request_id 也保留其占用身份，包括重启回放后；不能被新 API 操作重新使用。不自动过期或删除去重证据。
 
 HTTP 202 表示持久受理；不表示任务、模型或外部操作成功。短命令的 ApiCommand 与首个领域变更在同一 fsync journal frame 内提交。后续初始化等仍由原领域恢复逻辑负责；回执提供资源链接，必须读取领域资源判断业务进度。没有变化的命令也持久保存回执，NO_CHANGES 可在 `requests/{id}.result` 查看。
 
-取消、整理、恢复、文件结果核验与数据库初始化先提交 QUEUED 意图，再异步调用原领域入口。执行前记录 RUNNING，完成记录 COMPLETED 和可用结果；进程在 RUNNING 中断后恢复为 UNKNOWN，不自动重发潜在副作用。QUEUED 尚未开始，可在重启后推进。领域拒绝可能在异步结果中出现；UNKNOWN 的 `error_code` 和关联领域对象用于对账，不能凭新 request ID 自动重试。记忆恢复保留原先一次性 authorization_id、issued_at、expires_at 及全部来源/配置/模型 hash 校验；API 受理不能延长其有效期。
+取消、整理、恢复、文件结果核验与数据库初始化先提交 QUEUED 意图，再异步调用原领域入口。执行前记录 RUNNING，完成记录 COMPLETED 和可用结果；进程在 RUNNING 中断后恢复为 UNKNOWN，不自动重发潜在副作用。QUEUED 尚未开始，可在重启后推进，但仍须通过原领域的授权与前置条件校验。领域拒绝可能在异步结果中出现；UNKNOWN 的 `error_code` 和关联领域对象用于对账，不能凭新 request ID 自动重试。记忆恢复保留原先一次性 authorization_id、issued_at、expires_at 及全部来源/配置/模型 hash 校验；API 受理不能延长其有效期。恢复票据绑定当前 Store 实例；重启前受理但尚未消费的票据不能在重启后获得隐式续期，须重新 preflight、重新明确确认。旧命令按失败原因对账，不自动替换票据重发。
 
 `GET requests/{id}` 返回受理回执、领域资源当前 revision/state 和结果。404 表示尚无受理证据；该查询不重新执行。ACCEPTED、COMPLETED 等是传输命令状态；Task/Execution/Operation 的原状态机仍是业务权威。
 
@@ -40,7 +40,7 @@ HTTP 202 表示持久受理；不表示任务、模型或外部操作成功。�
 
 响应为 `{ "api_version": "1", "data": ... }`；错误为 `{ "api_version": "1", "error": { "code": "...", "message": "..." } }`。不能按中文消息分支。常用映射：请求/格式/版本错误 400，认证 401，权限/Origin 403，未找到/旧路由 404，方法 405，冲突/陈旧/过期 409，归档产物 410，请求过大 413，媒体类型 415，能力未配置/业务忙 503；未知内部错误 500，HTTP 不返回栈或本机路径。
 
-revision、journal/event sequence、World version、字节长度使用十进制字符串；数量与分页 limit 使用有界整数；时间为 UTC ISO 8601。Swift 不将 revision 解码为 Double。未知响应字段可忽略；未知状态/能力枚举显示保守状态且不开放动作；未知请求字段、命令、版本拒绝。
+revision、journal/event sequence、World version、字节长度使用十进制字符串；数量与分页 limit 使用有界整数；时间为 UTC ISO 8601，包括 PostgreSQL 返回的时间；可空时间保持 null。predicate 的 value_schema 是完整的领域 JSON Schema，其 properties/required 等键和值原样输出，不按内部元数据字段名删改。Swift 不将 revision 解码为 Double。未知响应字段可忽略；未知状态/能力枚举显示保守状态且不开放动作；未知请求字段、命令、版本拒绝。
 
 普通列表默认 30、最大 100；timeline 最大 200 且不超过既有 1 MiB 页面预算。默认向历史查询，`direction=after` 向后续查询。`cursor` 不透明，与查询范围、页版本及实例绑定；修改参数、数据版本变化或重启可返回 CURSOR_EXPIRED，客户端重新载入。时间线游标使用投影 generation 与排序锚点；它不是 #9 的持久事件水位。World 返回独立 `world_version`，不宣称与 journal 形成跨存储原子快照。
 
@@ -66,4 +66,4 @@ revision、journal/event sequence、World version、字节长度使用十进制�
 
 本次新增持久记录，不修改或清空已有记录，也不运行生产数据迁移。固定旧版本基线 `f8dbddcf4338914c1d264efff0fd26d5bc07c2cb` 对应的运行时；切换前停止旧 writer，备份整个数据目录及配套 PostgreSQL，并记录版本、配置、备份校验。未完成 Settings 要求其原运行时恢复，不能跳过现有保护。使用隔离备份验证回放后才由操作者决定切换。
 
-新版开始写入后，旧版本不认识新增 schema，不能直接降级读取同一目录。回退必须同时恢复经核验的旧数据备份和配套数据库、原代码及配置，先对账新旧期间的外部副作用，不能用旧备份重复执行不明操作。两个版本不能同时写同一数据域。此次分支只完成离线和隔离数据库验证，未操作现有实例或真实模型。
+新版开始写入后，旧版本不认识新增 schema，不能直接降级读取同一目录。回退必须同时恢复经核验的旧数据备份和配套数据库、原代码及配置，先对账新旧期间的外部副作用，不能用旧备份重复执行不明操作。两个版本不能同时写同一数据域。本分支使用隔离数据验证；当前验证结果与有界真实模型测试的范围见 [验证记录](verification.md)。未操作现有实例。

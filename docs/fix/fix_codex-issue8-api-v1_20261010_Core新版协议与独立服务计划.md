@@ -2,11 +2,11 @@
 
 日期：2026-10-10。关联：[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)、[实施起点 #8](https://github.com/ExplodeCode6324/Secretary/issues/8)。
 
-状态：**IMPLEMENTED / BRANCH_ONLY / WAITING_FOR_MASTER_FINAL_REVIEW**。
+状态：**BRANCH_ONLY / WAITING_FOR_PERRI_REVIEW**。四项审计缺陷已修复，当前验证结果和 online 未通过项见第 11 节；PERRI 独立复审后仍需 Master 终审。
 
 2026-10-10 Master 已明确授权“领取 issue8 开干”，在 `codex/issue8-api-v1` 实现与验证，终审后才可合并。启动基线 `f8dbddcf4338914c1d264efff0fd26d5bc07c2cb`；远端 main `38daab6cbbccf9f6a85071ff5933eaa198d77de8`。类型检查通过；runtime 基线 167 项，162 通过、5 跳过、0 失败。首次缺少固定 Pi 子模块导致的类型错误单独保留，初始化仓库锁定的子模块后检查通过。
 
-本计划落实 Master 的规划修订授权及“领取首个 issue、写 fix 计划，授权后执行”的要求。此前规划轮只领取和编写文档；本轮获准业务实现、合同生成与隔离验证。部署、现有实例和真实模型操作不在本轮范围。新版 TUI 暂不做，设备访问限制不变。
+本计划落实 Master 的规划修订授权及“领取首个 issue、写 fix 计划，授权后执行”的要求。此前规划轮只领取和编写文档；本轮获准业务实现、合同生成与隔离验证。最初实现授权不含部署、现有实例和真实模型操作；本次复审追加授权的有界真实模型验证见第 11 节。新版 TUI 暂不做，设备访问限制不变。
 
 2026-10-10 设计补充已获准纳入本计划：[客户端页面、组件与行为规范 v0.3](../native-client-design-v0.3.md)。取消固定三比一分栏，采用较小默认字号与优先占据剩余空间的对话区；本阶段落实其后端合同，实际 SwiftUI 布局和显示验收属于 #10。此前设计修订本身不等同业务实施授权；本轮按页首 Master 的明确开工授权执行。
 
@@ -201,3 +201,26 @@
 已知边界：本分支没有部署现有实例、真实模型调用、生产数据迁移、设备操作、可靠 ChangeFeed 或原生 UI。来源缺少明确事件绑定时返回 unavailable，不从 hash 或文字推断来源；原领域有 source_batch 的承诺保留明确事件 ID。长命令 UNKNOWN 需要原领域证据对账，不自动重复操作。
 
 交付停在工作分支与待终审 PR；未经 Master 终审，不合并 main、不关闭 #8。
+
+
+## 11. PERRI 复审修复（2026-10-10）
+
+本轮基线为 `a1b69ec35436d1c727748c4ad2e6c0c206424769`，沿用 `codex/issue8-api-v1` 和 draft PR #15。Master 已授权修复并增加有界真实 online 验证；最终仍须 PERRI 独立复审及 Master 终审，不合并、不关闭 Issue、不部署。
+
+1. R1：API 受理前除 CommandReceipt 外，还检查历史 DecisionRequest.answer_request_id。索引从 journal 重建；不改变 Host 使用的 hasReceipt 语义，原 API 完全相同请求仍先走回执重放。永久回归覆盖 MAIN/MASTER 和关闭重开前后，验证 HTTP 409、配置不变、journal 不新增。
+2. R2：公开投影将 PostgreSQL Date 转为 UTC ISO 字符串，保留 null。用真实隔离 PostgreSQL 加 HTTP 比对 entity created_at/updated_at、fact received_at/valid_from 等，不只检查数组长度。
+3. R3：predicate value_schema 按领域 JSON 原样输出。自定义 schema 包含 entrypoint/workspace/payload_ref 等合法业务键，验证结构完全相同且仍可用于验证值。Program 的 parameters_schema/result_schema 仍是 CAS 引用，继续隐藏路径；不取消元数据过滤。
+4. R4：仅在生成过程中使用 object namespace，使所有公开定义可导出；保持线上 schema 和 ApiV1 根联合语义。外部 TypeScript 消费者编译所有操作 request/response 及所有命名定义，正反类型断言防止以 any 占位。
+
+首次永久回归在修复前 7 项全部失败，四个原因均与独立复审描述一致；原日志与文件哈希在私有本地证据目录保留。后续将按相同断言检查转绿及完整回归，不削弱既有测试。
+
+后续工作边界：#9 负责可靠 ChangeFeed/SSE、水位/断线恢复及跨存储快照；#10 负责 SwiftUI 与原生 DTO 消费，不承担本轮漏导出的 TS 合同；#11 负责设备身份、凭据与真实观察数据；#12 负责 EVENT 调度；#13 负责远程工具租约及结果；#14 负责设备模拟界面。本轮不因这些后续 Issue 推迟 #8 的公开合同修复。
+
+memory/recovery 的 QUEUED 重启边界另行检查：恢复授权使用绑定 Store 实例的临时票据，重启后不能隐式延长；不存在已消费的持久恢复回执时，旧票据须拒绝并重新 preflight。该项目前属于边界说明，不冒充本轮已复现的第五个缺陷。
+
+online 由独立 Astra/high 子代理使用现有配置在全新合成数据目录执行；上限 12 次实际 provider HTTP 尝试（含重试）、15 分钟、单次 90 秒、4096 输出 token、80 KB 请求上下文。验证 API v1 主会话、两段同任务执行、Settings instructions apply、compaction 及 Store reopen 后事实/语言规则；不使用生产数据、真实设备或外部操作。保留每次失败，真实账单费用不可获得时仅报告 SDK 目录估算。
+
+
+修复代码提交：`ee386efe953b8319f4e83a5a44e263062f55e590`。最终独立复跑：runtime 159 通过/8 跳过，API 30 通过/2 个 PG 单独执行，Issue #2–#5 181 通过/2 跳过；隔离 PG 14/14。类型、外部 DTO 消费、生成一致性、Swift 和 diff 检查通过，docs 49 项继承错误无新增。首次高并发运行的 5 个失败保留，未更改断言或时限。
+
+online 达到 12 次实际请求上限，26,647 token，SDK 目录估算 USD 0.007705772，账单不可用。主会话、首个任务、设置影响和显式重试后的整理通过；完整任务链未通过，重开后真实回忆因预算耗尽未验证。结论为 NOT PASSED / PARTIAL COVERAGE，不能写作全面验收通过。逐轮失败、模型明细、源码哈希匹配和未测边界见 [验证记录](../api/v1/verification.md)。PERRI 原始归档未能通过当前 executor 的工具物化，此次 red/green 为本机独立永久回归。

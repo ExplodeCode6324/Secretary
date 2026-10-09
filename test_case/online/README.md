@@ -27,3 +27,25 @@
 ## 当前活动有界验收
 
 `node --import tsx test_case/online/test-activity-live.ts <报告路径>` 在独立 Store 中运行合成聊天、一次小规模设置应用及排队输入。默认读取现有主模型凭据，调用上限 12 次、总时限 15 分钟；工具调用结果会被拒绝，task 角色为 fixture。报告标记 running/complete/failed，只在全部断言完成后设置 pass。它不部署服务或修改现用会话。具体证据见[活动验收](../reports/activity-20261005/README.md)。
+
+## API v1 有界真实调用
+
+`test-api-v1-live.ts` 使用认证的 `/api/v1` 命令和查询，验证合成主会话、两个关联任务、说明设置应用、真实整理及 Store 重开后的事实和语言承接。只改隔离数据；任务模型只允许 `submit_result`，主模型只允许只读工具。它不测试 World/PostgreSQL、设备或可靠 SSE。
+
+先明确授权付费调用，并显式指定当前可用的角色模型与已有凭据文件：
+
+```sh
+SECRETARY_MODE=live \
+SECRETARY_MAIN_PROVIDER=opencode-go SECRETARY_MAIN_MODEL='<当前主模型>' \
+SECRETARY_TASK_PROVIDER=opencode-go SECRETARY_TASK_MODEL='<当前任务模型>' \
+SECRETARY_CREDENTIALS_FILE='<已有私密凭据文件>' \
+node --import tsx test_case/online/test-api-v1-live.ts --live --evidence '<仓库外全新私密目录>'
+```
+
+总上限为 12 次实际 provider HTTP 请求、15 分钟、每请求 90 秒、每次输出 4096 token、上下文 80000 bytes。SDK 重试也计入实际 HTTP 请求；首次 provider 失败阻断后续调用。协调后的再次运行需设置 `SECRETARY_ONLINE_ATTEMPT_BUDGET` 和 `SECRETARY_ONLINE_TOTAL_MS` 为剩余请求及时间预算，累计不得超过 12 次和 15 分钟。失败目录拒绝覆盖；原始请求、响应及运行标识仅保存在私密证据目录，公开报告只发布脱敏聚合结果。费用为 SDK 目录估算，账单费用不可用。`--self-check` 仅验证 oracle 正负对照，0 次线上调用。
+
+测试进程在打开隔离 App 前把主/任务输出上限及整理/整理重试预算统一设为 4096，保持生产请求预算与最终 payload 的精确断言一致；不会编辑部署配置。Loopback API 请求使用 `Connection: close`，不增加自动重试。`--memory-settings-only` 只跑主会话、设置和记忆，不能报告任务链通过。
+
+`--retry-compaction-from '<此前私密证据目录>'` 仅供明确授权后的失败整理重试：检查前次是本脚本合成 memory/settings 运行且有 `SUMMARY_PRIOR_BOUND_EXCEEDED`，把合成 Store 复制到新的证据目录，保留原失败目录，继续用 API 整理并重开回忆。只有该显式重试允许生产流程的 `previous_error` 重试；所有 HTTP 请求仍计入剩余预算。原始 summary/prompt/校验规则不变，预算耗尽仍报告未通过。
+
+2026-10-10 有界运行结果为 **未通过完整线上验收**：总计 12 次真实调用、26647 token、90.863 秒执行时间，SDK 目录费用估算 $0.007705772，实际账单不可用。主模型 `opencode-go / deepseek-v4.1-flash` 调用 11 次（25814 token），任务模型 `opencode-go / gpt-5.6-luna` 调用 1 次（833 token）。主会话、设置应用及其事实/语言影响、显式重试后的整理有证据；第一个任务通过 API 和持久状态核验，但完整任务链未通过。Store 重开保留会话，重开后的真实回忆在 provider 发送前被测试预算拦截，未验证。首次测试预算对齐错误、loopback fetch 失败及随后真实整理的 `SUMMARY_PRIOR_BOUND_EXCEEDED` 均保留，失败记录不改写为通过；原始与聚合证据均存于仓库外私密目录。
