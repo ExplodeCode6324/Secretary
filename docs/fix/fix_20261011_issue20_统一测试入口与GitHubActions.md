@@ -2,20 +2,20 @@
 
 - 日期：2026-10-11
 - 关联 Issue：[#20](https://github.com/ExplodeCode6324/Secretary/issues/20)
-- 文档状态：待 Master 确认（已按 Claude 审查修订）
+- 文档状态：待验收（本地实施与验证完成，待 Master 审查）
 
 ## 1. 目标与基线
 
 - 需求：[Issue #20](https://github.com/ExplodeCode6324/Secretary/issues/20)；领取顺序和共同约束：[Issue #7](https://github.com/ExplodeCode6324/Secretary/issues/7)。本批无前置依赖；#8 的 API 实现已随 PR #15 合入。
 - 2026-10-11（Asia/Hong_Kong）核对：Issue OPEN，assignee 为 `ExplodeCode6324`。审查来源：[Claude 对本计划的完整评论](https://github.com/ExplodeCode6324/Secretary/issues/20#issuecomment-6103200256)。
 - 业务代码基线与当日远端 main：`9623095a34f01933feeb74995dbb4d49edc8300e`；本次修订起点为仅增加计划和文档整理的 `1f17b4f3a5127e35ec5e8e9b1cdff7701f928325`。Pi 子模块固定提交为 `16787ad5b2dc748047f314ca1bfe7708f30f54f3`。
-- 工作统一在 `secretary-core` 主工作目录及 `codex/issue20-unified-verify` 分支进行，fix 文档统一放 `docs/fix/`，不另建独立工作区。
+- 工作统一在 `secretary-core` 主工作目录及 `codex/issue20-ci-implementation` 分支进行，fix 文档统一放 `docs/fix/`，不另建独立工作区。
 - 目标：本地和 CI 使用同一 `npm run verify`，执行类型检查、文档检查和全部当前离线测试；本地缺 DSN 时明确跳过数据库测试，CI 缺 DSN 时直接失败。
 - 范围限于测试入口、必要测试适配、CI 和文档。#19 尚未实施，本批保留 issue4 的运行回归；Host、Scheduler、Authorization 和 Context 业务语义留给后续 issue。
 
 ## 2. 现状与原因
 
-以下是基线源码的静态核查，测试执行留待 Master 批准后。
+以下保留实施前的基线核查；实际实现和验证结果见第 7 节。
 
 | 位置                                | 已确认现状                                                                                  | 处理                                                         |
 | ----------------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
@@ -86,7 +86,7 @@
 
 ## 4. 实施步骤
 
-Master 确认后执行：
+Master 已批准按以下步骤执行：
 
 1. **记录基线。** 重新核对远端 main、issue、源码提交及工作树差异；初始化固定子模块、npm ci。保留现有 check、docs:check、当前有效离线套件的首次结果，数据库测试使用专用隔离环境。
 2. **收敛入口。** 迁出 historical，更新引用，使用原生 glob 和汇总；扩大当前测试类型范围，按条件处理 issue4 临时排除；AUD14 改 todo，删除三项退役 UI 测试。
@@ -109,7 +109,7 @@ Master 确认后执行：
 | PR 故障验收          | 发布获准后，在临时验收 PR 引入一次类型错误或测试失败，保留真实红色检查记录；移除故障后验证绿色，故障不合入 main |
 | main CI              | 获准合并后真实 workflow 成功，PG 实际执行且零 PG skip，再结项                                                   |
 
-不另外编写原生 runner 的合成自测；故障传播通过 Issue #20 要求的真实 PR 红色检查验证。Issue #20 实施、运行测试仍待 Master 确认；远端验收在 main CI 完成前保持未完成。
+不另外编写原生 runner 的合成自测；故障传播通过 Issue #20 要求的真实 PR 红色检查验证。Master 已批准本地实施和测试；远端验收在真实 PR 检查与 main CI 完成前保持未完成。
 
 ## 6. 风险与回退
 
@@ -124,3 +124,47 @@ Master 确认后执行：
 - 2026-10-11：认领 Issue #20，完成静态核查与首版计划。
 - 2026-10-11：按 Master 要求，工作及计划统一回 secretary-core/docs/fix，统一文档格式。
 - 2026-10-11：读取远端 Claude 审查评论，核对 Node 官方文档及 Context/恢复源码；采纳 8 项建议。取消自定义 runner、固定 PG 计数、归档类型维护与逐文件散列；issue4 限于最小适配，增加 npm 缓存与受限手动清理。原计划中的“历史误报”改为 AUD14 待处理的字段语义问题。仅更新计划，尚未实施或运行测试。
+
+- 2026-10-11：Master 批准在新分支实施、测试后汇报，审查后再合并。实施分支为 `codex/issue20-ci-implementation`，起点 `894200d`；仍在 secretary-core 主工作目录操作。
+
+### 7.1 实现与范围
+
+实现提交：`ebedbcaa878b028476a21ce8fa3568c9d44b98ff`。
+
+- verify 使用原生 glob 与计数，顺序为 check、docs:check、测试。没有新增 runner 或 reporter。
+- 全部当前 offline TypeScript 检查通过，包括 issue4，因此未使用临时类型排除。
+- historical 整体迁到 test_case/historical/offline，源码原样保留，只更新归档说明与链接；不进入执行或类型检查。
+- PostgreSQL 按场景分配空库，worker 使用场景 DSN。settings 的四个崩溃阶段原先在一个测试里循环，现注册成独立场景，各自有空库；原业务断言保持。
+- helper 保持一条场景连接，覆盖 App.close 到重新打开的间隙，避免手动清理将进行中的恢复场景当作孤儿库。增加 helper 的并发隔离、失败清理、缺 DSN 行为回归。
+- 删除三项退休 UI 合同及两个当前 Python PG 入口；保留 web-render 的全部纯 DOM 安全与大输入回归。AUD14 保留断言，标记 todo。
+- 新增 GitHub Actions，固定 Actions 提交，启用 npm 缓存和 PostgreSQL 18 service。应用业务源码、API、DTO、SQL 和依赖锁未改动。
+- 相对批准计划提交，代码（含测试/脚本，识别重命名后）新增 344 行、删除 407 行，净减 63 行；业务 src 净变化为 0。此口径不含 Markdown、JSON 和 YAML。
+
+### 7.2 首轮基线与环境处置
+
+环境为 Node 22.22.0、Python 3.9.6、PostgreSQL 18.6。npm ci 成功，现有及扩大范围后的类型检查均通过。
+
+- 旧入口等价离线集合：422 项，405 通过、16 跳过、1 失败。失败为 activity 的真实 SIGKILL 用例等待 IN_FLIGHT 超时。初轮离线和 PG 基线同时运行；保留首败，未放宽等待条件或业务断言。之后单独运行完整 verify，该用例通过。
+- 旧 PG 专项均通过。期间旧 PG 进程的绝对数据路径仍指向仓库改名前的位置，检查点报告 pg_control 路径不存在并退出。保存日志后，用当前目录和 socket 路径启动同一份 PG 数据目录；未更改数据库业务 schema 或持久配置，继续使用独立测试库。
+- docs:check 初始 17 处断链全部来自一份未跟踪的旧隔离报告快照。将快照原样移入本机私密证据目录后检查通过；检查器未改动。
+- 手动清理的独立验证首次因验证脚本 OWNER 语法、随后因本地 peer 认证失败；修正验证脚本并采用当前会话的临时角色后通过，未修改认证配置。首次失败记录保留。
+
+### 7.3 验证结果
+
+| 验证                                  | 结果                                                                                             |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| 无 DSN 的完整 npm run verify          | 425 项：407 pass、0 fail、17 skip、1 todo；跳过均有 PG 缺 DSN 原因                               |
+| CI=true + PG 18 的完整 npm run verify | 425 项：424 pass、0 fail、0 skip、1 todo；退出码 0，数据库测试全部实际执行                       |
+| PG 接入专项                           | 43 pass、0 fail、0 skip，含 helper 并发隔离、回调失败清理和恢复测试                              |
+| CI 缺 DSN、连接被拒绝、非法 DSN       | 三种场景均非零退出，未静默跳过，未输出合成口令                                                   |
+| 手动孤儿库清理                        | 默认预览不删除；apply 只删除本角色空闲候选，保留连接库、忙碌库、其他角色库、非字面前缀库和普通库 |
+| Workflow 静态检查                     | actionlint 1.7.12 通过                                                                           |
+| 文档及差异检查                        | docs:check、git diff --check 通过                                                                |
+
+完整 PostgreSQL verify 针对实现提交 `ebedbca` 运行，约 251 秒；无 DSN 的完整回归约 226 秒。最终测试库残留数量为 0。原始输出保存在本机私密证据目录；这里只记录合成结果与提交身份。
+
+### 7.4 待 Master 审查及远端验收
+
+本轮本地提交不合并 main。GitHub 上真实 PR 故障标红、恢复绿色和 main 首次 CI 尚未执行，Issue #20 保持 OPEN。Master 审查后继续办理发布及合并阶段的验收；main required check 配置另由 Master 决定。
+
+- 2026-10-11：本地实施及上述验证完成，提交验收记录供 Master 审查。未推送、未合并、未关闭 Issue；真实 GitHub CI 验收保留为后续步骤。
