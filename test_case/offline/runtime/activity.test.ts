@@ -1,3 +1,4 @@
+import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -90,60 +91,34 @@ test("independent activities, stable snapshot, short history and session isolati
   }
 });
 
-test("model lifetime visible before response; activity SSE works without preview and authenticates", async () => {
+test("model lifetime visible before response; API v1 activity detail authenticates without leaking input", async () => {
   const dir = temp(),
     app = await App.open(dir, {
       model: fixtureModel,
       stream: delayedStream(70),
     }),
-    server = await serve(app),
-    controller = new AbortController();
+    server = await serve(app);
   try {
-    const client = (await api(server.endpoint, "/api/client", {})).client;
+    const client = new CoreClient(server.endpoint);
     assert.equal(
-      (await fetch(server.endpoint.url + "/api/activity?client=" + client))
-        .status,
+      (await fetch(server.endpoint.url + "/api/v1/timeline")).status,
       401,
     );
-    const response = await fetch(
-      server.endpoint.url + `/api/stream?client=${client}&activity=1&preview=0`,
-      {
-        headers: { Authorization: `Bearer ${server.endpoint.token}` },
-        signal: controller.signal,
-      },
-    );
-    let output = "";
-    const consume = (async () => {
-      try {
-        for await (const chunk of response.body!)
-          output += new TextDecoder().decode(chunk);
-      } catch {}
-    })();
     app.host.accept("PRIVATE_INPUT");
     const work = app.host.drain();
     await until(() =>
       app.activitySnapshot().activities.some((a) => a.kind === "model"),
     );
-    const snapshot = await api(
-      server.endpoint,
-      "/api/activity?client=" + client,
-    );
-    assert(snapshot.activities.some((a: any) => a.phase === "正在思考"));
-    assert(!JSON.stringify(snapshot).includes("PRIVATE_INPUT"));
-    const same = await api(
-      server.endpoint,
-      `/api/activity?client=${client}&instance=${snapshot.server_instance_id}&since=${snapshot.activity_revision}`,
-    );
-    assert.equal(same.unchanged, true);
+    const active = app
+      .activitySnapshot()
+      .activities.find((a) => a.kind === "model")!;
+    const view: any = await client.query("activities/" + active.id);
+    assert.equal(view.phase, "正在思考");
+    assert(!JSON.stringify(view).includes("PRIVATE_INPUT"));
+    assert(!JSON.stringify(view).includes("PRIVATE_SIGNATURE"));
     await work;
-    await until(() => output.includes("正在思考"));
-    assert(!output.includes("event: preview"));
-    assert(!output.includes("PRIVATE_SIGNATURE"));
     assert(!app.activitySnapshot().activities.some((a) => a.kind === "model"));
-    controller.abort();
-    await consume;
   } finally {
-    controller.abort();
     await server.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -415,7 +390,7 @@ test("actual SIGKILL in model/settings restores honest activity without replayin
   }
 });
 
-test("activity endpoint remains responsive while same client's command is running", async () => {
+test("API v1 activity remains responsive while another query waits on World", async () => {
   const dir = temp(),
     app = await App.open(dir, {
       model: fixtureModel,
@@ -425,10 +400,10 @@ test("activity endpoint remains responsive while same client's command is runnin
     release = gate();
   Object.defineProperty(app, "world", {
     value: {
-      read: async () => {
+      catalogPage: async () => {
         entered.release();
         await release.promise;
-        return {};
+        return { items: [], world_version: "0", next_cursor: null };
       },
       drain: async () => {},
       close: async () => {},
@@ -436,12 +411,9 @@ test("activity endpoint remains responsive while same client's command is runnin
   });
   const server = await serve(app);
   try {
-    const client = (await api(server.endpoint, "/api/client", {})).client;
+    const client = new CoreClient(server.endpoint);
     let done = false;
-    const work = api(server.endpoint, "/api/command", {
-      client,
-      line: "/world-read",
-    }).then(() => {
+    const work = client.query("world/catalog").then(() => {
       done = true;
     });
     await entered.promise;
@@ -450,12 +422,12 @@ test("activity endpoint remains responsive while same client's command is runnin
     await until(() =>
       app.activitySnapshot().activities.some((a) => a.kind === "model"),
     );
-    const snapshot = await api(
-      server.endpoint,
-      "/api/activity?client=" + client,
-    );
+    const active = app
+      .activitySnapshot()
+      .activities.find((a) => a.kind === "model")!;
+    const view: any = await client.query("activities/" + active.id);
     assert(!done);
-    assert(snapshot.activities.some((a: any) => a.kind === "model"));
+    assert.equal(view.phase, "正在思考");
     release.release();
     await work;
     await modelWork;

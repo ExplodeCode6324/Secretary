@@ -204,44 +204,40 @@ test("expiry TUI: displays expiry, rejects stale first consumption, and replays 
   });
 });
 
-test("expiry HTTP: authenticated first consumption expires and consumed replay stays idempotent", async (t) => {
-  const { serve } = await import("../../../src/pi_secretary/src/backend.ts");
-  const { api } = await import("../../../src/pi_secretary/src/ui-client.ts");
+test("expiry API v1: expired first consumption is rejected by owner; consumed replay stays idempotent", async (t) => {
+  const { serveCore } = await import("../../../src/pi_secretary/src/api-v1.ts");
+  const { CoreClient } =
+    await import("../../../src/pi_secretary/src/core-client.ts");
+  const { reconciled } = await import("../issue8/helpers.ts");
   await fixture(async (f) => {
     let clock = Date.now();
     t.mock.method(Date, "now", () => clock);
-    const backend = await serve(f.app());
+    const backend = await serveCore(f.app(), 0, undefined, { pump: false });
+    const client = new CoreClient(backend.endpoint);
+    const preflight = async () =>
+      (await client.query<any>("memory/recovery")).items[0];
     try {
-      const client = (await api(backend.endpoint, "/api/client", {})).client;
-      const preflight = async () =>
-        (
-          await api(backend.endpoint, "/api/memory/recovery?client=" + client)
-        )[0];
       const group = await preflight(),
         request = { request_id: id(), ...group.binding };
       assert.equal(group.status, "READY");
       clock = Date.parse(request.expires_at);
-      await assert.rejects(
-        api(backend.endpoint, "/api/memory/recovery", { client, ...request }),
-        expiryError,
+      await client.command("memory/recovery", request);
+      const expired = await reconciled(client, request.request_id);
+      assert.equal(expired.receipt.state, "UNKNOWN");
+      assert.match(
+        expired.receipt.error_code,
+        /EXTRACTION_RECOVERY_AUTHORIZATION_(EXPIRED|BINDING_MISMATCH)/,
       );
       assert.equal(f.counts.extraction, 1);
       const fresh = { request_id: id(), ...(await preflight()).binding };
       f.succeed();
-      const first = await api(backend.endpoint, "/api/memory/recovery", {
-        client,
-        ...fresh,
-      });
-      assert.equal(first.status, "SUCCEEDED");
-      assert.equal(first.owner_committed, true);
+      await client.command("memory/recovery", fresh);
+      const first = await reconciled(client, fresh.request_id);
+      assert.equal(first.result.status, "SUCCEEDED");
+      assert.equal(first.result.owner_committed, true);
       clock += TTL + 1;
-      assert.deepEqual(
-        await api(backend.endpoint, "/api/memory/recovery", {
-          client,
-          ...fresh,
-        }),
-        first,
-      );
+      await client.command("memory/recovery", fresh);
+      assert.deepEqual(await reconciled(client, fresh.request_id), first);
       assert.equal(f.counts.extraction, 2);
     } finally {
       await backend.close();

@@ -2,11 +2,11 @@
 
 服务端加载 snapshot 后按 object_type 校验并执行状态 guards；revision 必须 +1。
 
-来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/Mutation)。此页自动生成；行为以调用模块为准。
+来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/Mutation)。此页自动生成，描述内部合同；客户端使用 [API v1 DTO](../api/v1/README.md)。字段存在不等于全部语义已实现，行为以调用模块为准。
 
 | 字段 | 类型 / 值域 | 必填 | 说明与约束 |
 | --- | --- | --- | --- |
-| `object_type` | Session / Input / Context / ModelCall / Consciousness / CompactionJob / TaskPlan / Execution / Dispatch / WorkerReceipt / Checkpoint / TaskResult / Feedback / DecisionRequest / Operation / AuthorizationRequest / AuthorizationRule / SafetyRule / ProgramRegistration / Notification / ArchiveManifest / WorldCommand / UserInstructions / MainPromptSnapshot / SettingsDraft / SettingsApplication / ExtractionRecovery | 是 |  |
+| `object_type` | Session / Input / Context / ModelCall / Consciousness / CompactionJob / TaskPlan / Execution / Dispatch / WorkerReceipt / Checkpoint / TaskResult / Feedback / DecisionRequest / Operation / AuthorizationRequest / AuthorizationRule / SafetyRule / ProgramRegistration / Notification / ArchiveManifest / WorldCommand / UserInstructions / MainPromptSnapshot / SettingsDraft / SettingsApplication / ExtractionRecovery / CoreIdentity / AssistantProfile / ClientRegistration / ApiCommand | 是 |  |
 | `object_id` | ID | 是 |  关联：[ID](ID.md) |
 | `expected_revision` | integer | 是 |  {"minimum": 0, "maximum": 9007199254740991} |
 | `new_revision` | integer | 是 |  {"minimum": 1, "maximum": 9007199254740991} |

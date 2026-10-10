@@ -621,6 +621,83 @@ export class World {
       db.release();
     }
   }
+  async slot(subject: string, predicate: string, scope: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(subject) || !predicate)
+      throw Error("INVALID_SLOT");
+    const db = await this.pool.connect();
+    try {
+      await db.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      const worldVersion = (
+        await db.query(
+          "SELECT count(*)::text AS version FROM wm.change_receipt",
+        )
+      ).rows[0].version;
+      const row = (
+        await db.query(
+          "SELECT slot_id,subject_id,predicate_key,scope_key,revision::text FROM wm.fact_slot WHERE subject_id=$1 AND predicate_key=$2 AND scope_key=$3",
+          [subject, predicate, scope],
+        )
+      ).rows[0];
+      await db.query("COMMIT");
+      return { slot: row ?? null, world_version: worldVersion };
+    } catch (e) {
+      await db.query("ROLLBACK").catch(() => {});
+      throw e;
+    } finally {
+      db.release();
+    }
+  }
+  async catalogPage(kind: string, cursor?: string, limit = 30) {
+    const tables: Record<string, [string, string]> = {
+      entities: ["entity", "entity_id"],
+      predicates: ["predicate", "predicate_key"],
+      sources: ["source", "source_key"],
+    };
+    if (!tables[kind] || !Number.isInteger(limit) || limit < 1 || limit > 100)
+      throw Error("INVALID_CATALOG_QUERY");
+    const [table, key] = tables[kind];
+    const db = await this.pool.connect();
+    try {
+      await db.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      const version = (
+        await db.query(
+          "SELECT count(*)::text AS version FROM wm.change_receipt",
+        )
+      ).rows[0].version;
+      const saved = cursor
+        ? JSON.parse(Buffer.from(cursor, "base64url").toString())
+        : null;
+      if (
+        saved &&
+        (saved.kind !== kind ||
+          saved.version !== version ||
+          typeof saved.key !== "string")
+      )
+        throw Error("WORLD_PAGE_STALE");
+      const rows = (
+        await db.query(
+          `SELECT * FROM wm.${table} WHERE ($1::text IS NULL OR ${key}::text>$1) ORDER BY ${key}::text LIMIT $2`,
+          [saved?.key ?? null, limit + 1],
+        )
+      ).rows;
+      await db.query("COMMIT");
+      return {
+        items: rows.slice(0, limit),
+        world_version: version,
+        next_cursor:
+          rows.length > limit
+            ? Buffer.from(
+                JSON.stringify({ kind, version, key: rows[limit - 1][key] }),
+              ).toString("base64url")
+            : null,
+      };
+    } catch (e) {
+      await db.query("ROLLBACK").catch(() => {});
+      throw e;
+    } finally {
+      db.release();
+    }
+  }
   async catalogList() {
     const [entities, predicates, sources] = await Promise.all([
       this.pool.query(

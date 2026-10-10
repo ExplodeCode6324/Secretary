@@ -5,7 +5,7 @@
 | 工具 | 代码职责 |
 | --- | --- |
 | task_propose | 提交带目标、材料、约束和验收项的任务 |
-| task_query | 查询计划、执行和结果；详情查询会刷新留存 |
+| task_query | 查询计划、执行和结果；纯读取，不刷新留存 |
 | task_control | 按当前协议控制任务，不产生授权决定 |
 | memory_read | 读取受支持的记忆、原件或 World 数据 |
 | memory_propose_change | 提交 World 变更提案，不能直接绕过授权提交 |
@@ -15,44 +15,21 @@
 
 ## 执行 Agent 工具
 
-`read` / `write` 限制任务 workspace 的相对路径并检查越界；write 走最终授权 gate。`bash` 为真实 shell，默认在工作目录执行，以当前用户运行且可访问网络，不能当作沙箱。`request_decision` 保存工作决定并等待；它不替代授权。`submit_result` 必须提交每项验收评估、局限和产物，普通文本回复不完成任务。
+`read` / `write` 限制任务 workspace 的相对路径并检查越界；write 走最终授权 gate。`bash` 为真实 shell，默认在工作目录执行，以当前用户运行且可访问网络，不能当作沙箱。`request_decision` 保存工作决定并等待；它不替代授权。`submit_result` 必须提交每项验收评估、局限和 artifacts 列表（允许为空，不代表已生成文件），普通文本回复不完成任务。
 
 shell 默认 120 秒，允许 0.1–3600 秒；stdout/stderr 各限 4 MiB。超时、取消或超限终止进程组并保留未知结果。正常退出保存 exit_code，非零码仍是失败证据。子进程环境采用明确白名单，不继承模型 API key。
 
-## Master 操作入口
+## Master 操作入口与本机 HTTP API
 
-TUI `/help` 列出命令；常用 `/status`、`/tasks`、`/show`、`/task`、`/program`、`/auth`、`/approval`、`/approve`、`/reject`、`/revoke`、`/decisions`、`/answer`、`/cancel`、`/verify`、`/memory`、`/compact`、`/resume`、`/world`、`/register`、`/rule`。A1/D1 等是客户端内短编号，不能跨重启当作持久 ID。
+新版 Core 使用 [API v1 合同](api/v1/README.md)、[schema](api/v1/schema.json) 和[操作表](api/v1/operations.json)。请求体、返回值和错误均以这些版本化文件为准；旧 `/api/command`、`/api/client`、`/api/poll` 和 Web 静态路由不再注册。
 
-批准前必须展示完整请求，版本/内容变化后重新展示。聊天文字不能代替批准按钮或命令。终端与 Web 的通用命令共用 TerminalController；World 管理及说明草稿使用受认证的专用 API，并共用 Settings 后端。TUI 状态和提示符显示设置应用阶段及输入排队状态，`/web` 可进入管理与恢复页面。
+Core 生命周期由 `npm run core -- start|attach|status|stop` 管理。所有 API 仅监听 loopback，校验 Host/Origin 与 bearer token；服务端可信 local-owner principal 才能提交审批、Settings、管理或停机操作。
 
-## 本机 HTTP API
-
-[backend.ts](../src/pi_secretary/src/backend.ts) 仅监听 127.0.0.1，校验 Host / Origin；API 使用 endpoint 文件的 bearer token，不是公开服务或多用户权限系统。
-
-| 路径 | 用途 |
-| --- | --- |
-| /api/health | 读取实例、模型模式 |
-| /api/client | POST 创建 UI 客户端状态 |
-| /api/state / /api/poll | 读取状态和输出 |
-| /api/message / /api/command | POST 输入或 Master 命令 |
-| /api/approval / /api/presented | POST 批准决定或通知展示回报 |
-| /api/instructions | 读取有效说明或 POST 保存说明草稿 |
-| /api/world | GET 分页查询当前/历史事实及管理目录 |
-| /api/settings、/draft、/apply、/retry、/restore | 草稿及统一生效管理；完整路径与请求见 [设置规范](settings-activation.md) |
-| /api/memory/recovery | GET 只读分组预检，POST 显式一次恢复或已有结果对账；TUI/Web 共用 Host |
-| /api/migrate / /api/shutdown | POST 迁移或正常停机 |
-
-客户端请求体上限 1 MiB，闲置客户端约一小时清理。具体 body 字段以 backend 分支和 web/app.js 调用为准；没有承诺稳定的外部 HTTP SDK。
-
-记忆提取恢复：GET 携带已认证 `client`，返回分组、旧 attempt/owner、状态、原因与 `binding`，不消费授权或写日志。POST 携带 `client`、UUID `request_id` 及预检完整绑定：`group_key`、`attempt_id`、`expected_revision`、`policy`、`implementation_version`、`config_hash`、`source_hash`、可空的 `model_call_id`、`model_request_hash`、`actual_payload_hash`。后面三个字段绑定旧调用及已有实际 payload 证据，缺证据时为 null，不凭同 loop_id 猜测。session 由当前 Host 确定，来源由服务端固定证据重建，客户端不能提供替换文本。相同请求 ID 与相同绑定只对账，同 ID 改参拒绝；旧预检失效须重新读取。该接口仅面向用户操作，不注册到主模型工具。
-
-预检还返回服务端签发并保存在当前 Store 实例内的 `authorization_id`、`issued_at`、`expires_at`。首次消费须在签发后 5 分钟内完成，且完整凭证及绑定原样匹配；客户端延长期限、缺凭证、过期或服务重启后的未消费凭证均拒绝。重新 GET 可取得新凭证，不修改 journal，也不消费授权。期限只限制首次消费；已经消费的原 request_id 与原参数仍按持久回执对账，过期或重启不能使该请求再次发送。新增字段在存储契约中可缺省，仅为读取旧回执；新消费必须具备有效凭证。
-
-TUI `/memory-recovery [group]` 只读预检，`/memory-recover <JSON>` 提交显式请求；JSON 为新 request_id 加返回的 binding。`/memory-resolve` 仅处理承诺账本状态，不能授权提取。恢复状态 `SUCCEEDED` 仍应结合原 owner 提交回执判断是否已进入工作记忆；其他未授权分组、过期来源或未知执行可能继续阻塞提交。
+记忆恢复仍保留 Host 的完整来源、模型、配置和一次性授权 binding，首次消费受 5 分钟期限限制。使用 `GET /api/v1/memory/recovery` 取得 binding，`POST` 持久受理后通过 `GET /api/v1/requests/{request_id}` 对账，不能把 HTTP 202 当作恢复成功或延长期限。
 
 ## 登记程序
 
-`/register-example` 登记示例；`/register {"entrypoint":"绝对路径","name":"名称"}` 登记 Node 脚本。派发前检查 revision 与代码 SHA-256。stdin 接收 ProgramInvocation JSON，stdout 输出 ProgramResult JSON，stderr 保存日志。授权以整个程序执行范围为单位，当前 `supports_resume=false`，没有任意程序现场恢复。
+`POST /api/v1/admin/programs` 使用 request_id、entrypoint、name 登记 Node 脚本。派发前检查 revision 与代码 SHA-256。stdin 接收 ProgramInvocation JSON，stdout 输出 ProgramResult JSON，stderr 保存日志。授权以整个程序执行范围为单位，当前 `supports_resume=false`，没有任意程序现场恢复。
 
 ## 同任务接续
 
@@ -62,6 +39,15 @@ TUI `/memory-recovery [group]` 只读预检，`/memory-recover <JSON>` 提交显
 
 回执仍包含 TaskPlan，并增加 acceptance 关联（request_id、task_id、occurrence_key、proposal_ref、execution_id 与当前状态）。尚未分派的 execution_id 为 null；旧版回执可能只有计划关联。同 ID 重投返回原受理，不重新接受。
 
-`task_query` 无参数提供可读任务列表；task_id 返回计划基线、最近执行要求、结果、产物、待决定事项、can_continue 与阻止原因；execution_id 保持执行详情入口。两个 ID 同时传入返回 `AMBIGUOUS_QUERY`。列表不刷新留存，具体热执行详情刷新；RETIRED 不重新激活。受理端重新验证权限和接续条件。
+`task_query` 无参数提供可读任务列表；task_id 返回计划基线、最近执行要求、结果、产物、待决定事项、can_continue 与阻止原因；execution_id 保持执行详情入口。两个 ID 同时传入返回 `AMBIGUOUS_QUERY`。查询不刷新留存，用户明确访问通过 `POST /api/v1/executions/{id}/viewed` 续留；RETIRED 不重新激活。受理端重新验证权限和接续条件。
 
 `task_control` 增加 `cancel_request`，id 为已受理即时请求的 request_id。未分派时原子移除待执行项、释放 parent 并登记取消原因；已分派则进入现有执行取消流程。重复取消幂等；已取消请求重投不会再次执行。AT / INTERVAL 的计划请求不使用此入口。
+
+
+## 读模型与尚未提供的入口
+
+客户端通过 API v1 时间线、任务/执行、审批/决定、Settings/World、记忆、产物、related 和 attention 查询。临时预览仅在 timeline 的 streaming=true 时出现，可见思考须 thinking=true。所有 GET 不写业务状态，Notification 的旧 presented/SENT 回执没有对应的新版公开命令；主会话已生成通知不等于当前客户端已确认送达。
+
+显示名使用 assistant/profile，只有显示身份变化，不运行记忆整理。人格说明使用 settings/draft + settings/apply，必须经过完整生效流程。World 目录支持分页，设备/附件上传/可靠同步仍未实现。具体 request/response 使用[操作清单](api/v1/operations.json)，不得将内部 TaskProposal、SettingsPayload 或 Store ObjectRef 直接当作公开 DTO。
+
+产物 API 只能读取已被 TaskResult 固定的 CAS 内容；工作目录中存在文件不等于已发表产物。TaskResult.verified_by 目前为 NOT_VERIFIED，独立验证应核对真实操作回执、下载字节与宿主 oracle，不能依据 summary 或非空 artifacts 声称内容正确。

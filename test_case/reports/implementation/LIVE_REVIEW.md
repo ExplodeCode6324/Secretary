@@ -1,3 +1,5 @@
+> 历史测试记录：本文保留原运行版本、失败和结论，不作为当前 Core/原生客户端已经验收的证明。旧路径或命令仅供追溯；当前证据见 [API v1 验证记录](../../../docs/api/v1/verification.md)。
+
 # OpenCode Go 真实链路复核
 
 后续界面已改为终端 TUI；本报告记录先前模型链路测试，不作为 TUI 交互验证。当前 TUI 检查见 [REVIEW.md](REVIEW.md)。
@@ -6,21 +8,21 @@
 
 两把密钥按角色隔离：第一把仅用于主会话（及 Consciousness），第二把仅用于执行 agent。每个模型都分别作为主会话和执行者完成一套场景，再测试 DeepSeek 主会话 + Luna 执行者组合。
 
-最终 11 个场景全部通过，早期两次失败报告保留；不是反复执行同一未知操作，而是在修复代码后使用新的隔离测试数据重测。该轮离线回归 22 项通过；独立 PostgreSQL 集成测试通过。完整索引见 [summary.json](../pi/live/summary.json)。
+最终 11 个场景全部通过，早期两次失败报告保留；不是反复执行同一未知操作，而是在修复代码后使用新的隔离测试数据重测。该轮离线回归 22 项通过；独立 PostgreSQL 集成测试通过。完整索引见 summary.json（原附件 `../pi/live/summary.json`；当前仓库未提供）。
 
 | 主会话 | 执行 agent | 场景 | 结果 | 证据 |
 |---|---|---|---|---|
-| deepseek-v4.1-flash | deepseek-v4.1-flash | 完整执行、批准恢复、插入消息、材料干扰 | PASS | [报告](../pi/live/deepseek-v4.1-flash-chain-1790062592221.json) |
-| deepseek-v4.1-flash | deepseek-v4.1-flash | 缺失输入，停下等待决定 | PASS | [报告](../pi/live/deepseek-v4.1-flash-missing-1790062403555.json) |
-| deepseek-v4.1-flash | deepseek-v4.1-flash | 拒绝批准，不执行写入 | PASS | [报告](../pi/live/deepseek-v4.1-flash-reject-1790062774434.json) |
-| deepseek-v4.1-flash | deepseek-v4.1-flash | 注入传输失败，不误报完成 | PASS | [报告](../pi/live/deepseek-v4.1-flash-transport-1790062752676.json) |
-| deepseek-v4.1-flash | deepseek-v4.1-flash | 写入后丢失回执，停止且不重派 | PASS | [报告](../pi/live/deepseek-v4.1-flash-unknown-1790062647936.json) |
-| deepseek-v4.1-flash | gpt-5.6-luna | 完整执行、批准恢复、插入消息、材料干扰 | PASS | [报告](../pi/live/deepseek-v4.1-flash_task-gpt-5.6-luna-chain-1790062797579.json) |
-| gpt-5.6-luna | gpt-5.6-luna | 完整执行、批准恢复、插入消息、材料干扰 | PASS | [报告](../pi/live/gpt-5.6-luna-chain-1790062497046.json) |
-| gpt-5.6-luna | gpt-5.6-luna | 缺失输入，停下等待决定 | PASS | [报告](../pi/live/gpt-5.6-luna-missing-1790062569907.json) |
-| gpt-5.6-luna | gpt-5.6-luna | 拒绝批准，不执行写入 | PASS | [报告](../pi/live/gpt-5.6-luna-reject-1790062705124.json) |
-| gpt-5.6-luna | gpt-5.6-luna | 注入传输失败，不误报完成 | PASS | [报告](../pi/live/gpt-5.6-luna-transport-1790062689990.json) |
-| gpt-5.6-luna | gpt-5.6-luna | 写入后丢失回执，停止且不重派 | PASS | [报告](../pi/live/gpt-5.6-luna-unknown-1790062673451.json) |
+| deepseek-v4.1-flash | deepseek-v4.1-flash | 完整执行、批准恢复、插入消息、材料干扰 | PASS | 报告（原附件 `../pi/live/deepseek-v4.1-flash-chain-1790062592221.json`；当前仓库未提供） |
+| deepseek-v4.1-flash | deepseek-v4.1-flash | 缺失输入，停下等待决定 | PASS | 报告（原附件 `../pi/live/deepseek-v4.1-flash-missing-1790062403555.json`；当前仓库未提供） |
+| deepseek-v4.1-flash | deepseek-v4.1-flash | 拒绝批准，不执行写入 | PASS | 报告（原附件 `../pi/live/deepseek-v4.1-flash-reject-1790062774434.json`；当前仓库未提供） |
+| deepseek-v4.1-flash | deepseek-v4.1-flash | 注入传输失败，不误报完成 | PASS | 报告（原附件 `../pi/live/deepseek-v4.1-flash-transport-1790062752676.json`；当前仓库未提供） |
+| deepseek-v4.1-flash | deepseek-v4.1-flash | 写入后丢失回执，停止且不重派 | PASS | 报告（原附件 `../pi/live/deepseek-v4.1-flash-unknown-1790062647936.json`；当前仓库未提供） |
+| deepseek-v4.1-flash | gpt-5.6-luna | 完整执行、批准恢复、插入消息、材料干扰 | PASS | 报告（原附件 `../pi/live/deepseek-v4.1-flash_task-gpt-5.6-luna-chain-1790062797579.json`；当前仓库未提供） |
+| gpt-5.6-luna | gpt-5.6-luna | 完整执行、批准恢复、插入消息、材料干扰 | PASS | 报告（原附件 `../pi/live/gpt-5.6-luna-chain-1790062497046.json`；当前仓库未提供） |
+| gpt-5.6-luna | gpt-5.6-luna | 缺失输入，停下等待决定 | PASS | 报告（原附件 `../pi/live/gpt-5.6-luna-missing-1790062569907.json`；当前仓库未提供） |
+| gpt-5.6-luna | gpt-5.6-luna | 拒绝批准，不执行写入 | PASS | 报告（原附件 `../pi/live/gpt-5.6-luna-reject-1790062705124.json`；当前仓库未提供） |
+| gpt-5.6-luna | gpt-5.6-luna | 注入传输失败，不误报完成 | PASS | 报告（原附件 `../pi/live/gpt-5.6-luna-transport-1790062689990.json`；当前仓库未提供） |
+| gpt-5.6-luna | gpt-5.6-luna | 写入后丢失回执，停止且不重派 | PASS | 报告（原附件 `../pi/live/gpt-5.6-luna-unknown-1790062673451.json`；当前仓库未提供） |
 
 ## 实现补全
 
@@ -33,9 +35,9 @@
 ## 真实测试发现并修复的问题
 
 1. **Luna 的可选参数兼容性。** Responses 工具参数约束使模型填入空字符串/零，导致提案 schema 被拒绝。已将未指定字段明确设为可空并规范化，补充可空字段的 Pi 工具验证回归；同时改进契约错误信息，避免显示无关类型的缺字段错误。失败记录：
-   [Luna 初次失败](../pi/live/gpt-5.6-luna-chain-1790062353240.json)。
+   Luna 初次失败（原附件 `../pi/live/gpt-5.6-luna-chain-1790062353240.json`；当前仓库未提供）。
 2. **未知结果后的任务漂移。** DeepSeek 没有重做原写入，却自行新建只读核验任务，并在父执行关联被拒后去掉关联重新提交。新工作区又不能读原工作区，违背“只派发一个任务”的要求。修复为：仅由 UNKNOWN 反馈触发的主会话轮次禁止自主 task_propose，允许查询和通知，等待 Master 新指示；Scheduler 原有未知作用停止规则继续有效。这个限制不冻结 Master 发起的其他独立工作。失败记录：
-   [DeepSeek 初次失败](../pi/live/deepseek-v4.1-flash-unknown-1790062511891.json)。
+   DeepSeek 初次失败（原附件 `../pi/live/deepseek-v4.1-flash-unknown-1790062511891.json`；当前仓库未提供）。
 
 ## 测试方法与证据范围
 
@@ -43,7 +45,7 @@
 
 授权由测试驾驶器代行 Master，只批准本次约定的 result.mjs 写入，并测试错误展示 hash 被拒。拒绝场景不批准写入。未知场景在真实文件写入后、成功回执提交前注入异常；传输场景在执行 agent 的首次网络调用前注入错误，主会话仍使用真实模型。这些属于真实模型链路加可控故障注入，不是宣称供应商实际发生了故障。
 
-报告保存可见回复、工具调用、状态和用量；provider 推理内容/签名不进入公开报告，完整原始运行材料只留在本地 Operation Log。密钥未写入 Context、报告或仓库。连接探测见 [connectivity.json](../pi/live/connectivity.json)，路由依据为 [OpenCode Go 官方说明](https://opencode.ai/docs/go/#endpoints)。
+报告保存可见回复、工具调用、状态和用量；provider 推理内容/签名不进入公开报告，完整原始运行材料只留在本地 Operation Log。密钥未写入 Context、报告或仓库。连接探测见 connectivity.json（原附件 `../pi/live/connectivity.json`；当前仓库未提供），路由依据为 [OpenCode Go 官方说明](https://opencode.ai/docs/go/#endpoints)。
 
 ## 尚不能下结论的范围
 

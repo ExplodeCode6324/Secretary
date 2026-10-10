@@ -1,3 +1,4 @@
+import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -22,42 +23,17 @@ const directory = () =>
   fs.mkdtempSync(path.join(os.tmpdir(), "secretary-stream-"));
 
 test("preview arrives before durable completion; final history is linked and thinking is opt-in", async () => {
-  const dir = directory();
-  const app = await App.open(dir, {
-    model: fixtureModel,
-    stream: delayedStream(100),
-  });
-  const server = await serve(app);
-  const abort = new AbortController();
+  const dir = directory(),
+    app = await App.open(dir, {
+      model: fixtureModel,
+      stream: delayedStream(100),
+    }),
+    server = await serve(app);
   try {
-    const client = (await api(server.endpoint, "/api/client", {})).client;
-    assert.equal(
-      (await fetch(server.endpoint.url + "/api/stream?client=" + client))
-        .status,
-      401,
-    );
-    const response = await fetch(
-      server.endpoint.url + `/api/stream?client=${client}&thinking=1`,
-      {
-        headers: { Authorization: `Bearer ${server.endpoint.token}` },
-        signal: abort.signal,
-      },
-    );
-    const reader = response.body!.getReader();
-    const snapshots: string[] = [];
-    const consume = (async () => {
-      try {
-        while (true) {
-          const part = await reader.read();
-          if (part.done) break;
-          snapshots.push(new TextDecoder().decode(part.value));
-        }
-      } catch {}
-    })();
-    await api(server.endpoint, "/api/message", {
-      client,
-      text: "test",
+    const client = new CoreClient(server.endpoint);
+    await client.command("messages", {
       request_id: crypto.randomUUID(),
+      text: "test",
     });
     const draining = app.host.drain();
     for (
@@ -78,8 +54,12 @@ test("preview arrives before durable completion; final history is linked and thi
       ),
     );
     assert(!conversation(app, true).some((m) => m.role === "secretary"));
+    const preview: any = await client.query(
+      "timeline?streaming=true&thinking=true",
+    );
+    assert(preview.items.some((m: any) => m.call_id === early[0].id));
+    assert(!JSON.stringify(preview).includes("PRIVATE_SIGNATURE"));
     await draining;
-    await new Promise((r) => setTimeout(r, 110));
     const history = conversation(app, true).filter(
       (m) => m.role === "secretary",
     );
@@ -87,30 +67,12 @@ test("preview arrives before durable completion; final history is linked and thi
     assert.equal(history[0].thinking, "检查输入信息。");
     assert.equal(history[0].text, "这是逐段输出的正文。");
     assert.equal(history[0].call_id, early[0].id);
-    assert(!JSON.stringify(conversation(app)).includes("检查输入信息"));
-    assert(!snapshots.join("").includes("PRIVATE_SIGNATURE"));
-    assert(snapshots.join("").includes("thinking"));
-    const hidden = await api(
-      server.endpoint,
-      `/api/state?client=${client}&thinking=0`,
-    );
-    assert(!JSON.stringify(hidden.messages).includes("检查输入信息"));
-    const second = (await api(server.endpoint, "/api/client", {})).client;
-    const reconnect = await fetch(
-      server.endpoint.url + `/api/stream?client=${second}&thinking=0`,
-      {
-        headers: { Authorization: `Bearer ${server.endpoint.token}` },
-        signal: abort.signal,
-      },
-    );
-    const next = await reconnect.body!.getReader().read();
-    const text = new TextDecoder().decode(next.value);
-    assert(text.includes(early[0].id));
-    assert(!text.includes('"type":"thinking"'));
-    abort.abort();
-    await consume;
+    const visible: any = await client.query("timeline?thinking=true");
+    assert(visible.items.some((m: any) => m.thinking === "检查输入信息。"));
+    const hidden: any = await new CoreClient(server.endpoint).query("timeline");
+    assert(!JSON.stringify(hidden).includes("检查输入信息"));
+    assert(!JSON.stringify(hidden).includes("PRIVATE_SIGNATURE"));
   } finally {
-    abort.abort();
     await server.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -286,9 +248,8 @@ test("multiple main calls have distinct identities and persisted thinking surviv
   });
   let server = await serve(app);
   try {
-    const client = (await api(server.endpoint, "/api/client", {})).client;
-    await api(server.endpoint, "/api/message", {
-      client,
+    const client = new CoreClient(server.endpoint);
+    await client.command("messages", {
       text: "test",
       request_id: crypto.randomUUID(),
     });
@@ -336,9 +297,8 @@ test("thinking-only and failed responses remain visible without pretending compl
     });
     const server = await serve(app);
     try {
-      const client = (await api(server.endpoint, "/api/client", {})).client;
-      await api(server.endpoint, "/api/message", {
-        client,
+      const client = new CoreClient(server.endpoint);
+      await client.command("messages", {
         text: "test",
         request_id: crypto.randomUUID(),
       });

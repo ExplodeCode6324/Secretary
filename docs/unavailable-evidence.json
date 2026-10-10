@@ -1,0 +1,286 @@
+{
+  "purpose": "历史证据可用性说明；不重建缺失证据，不重新判断当时运行结果。",
+  "baseline": "aa47ad5a2c74e788cfcdff3e9c8c52310bb4a0a5",
+  "missing_migration_destinations": [
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/instructions-20260923/deployment.json",
+      "expected_destination": "test_case/reports/pi/instructions-20260923/deployment.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/instructions-20260923/live-second-attempt.json",
+      "expected_destination": "test_case/reports/pi/instructions-20260923/live-second-attempt.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/instructions-20260923/live.json",
+      "expected_destination": "test_case/reports/pi/instructions-20260923/live.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/instructions-20260923/live-third-attempt.json",
+      "expected_destination": "test_case/reports/pi/instructions-20260923/live-third-attempt.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/instructions-20260923/live-first-attempt.json",
+      "expected_destination": "test_case/reports/pi/instructions-20260923/live-first-attempt.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/deployment.json",
+      "expected_destination": "test_case/reports/pi/memory-20260922/deployment.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/live-applied.json",
+      "expected_destination": "test_case/reports/pi/memory-20260922/live-applied.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/live-isolated.json",
+      "expected_destination": "test_case/reports/pi/memory-20260922/live-isolated.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/integrity.json",
+      "expected_destination": "test_case/reports/pi/memory-20260922/integrity.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/source-before/contracts.ts",
+      "expected_destination": "test_case/reports/pi/memory-20260922/source-before/contracts.ts",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/source-before/tui.ts",
+      "expected_destination": "test_case/reports/pi/memory-20260922/source-before/tui.ts",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/source-before/context.ts",
+      "expected_destination": "test_case/reports/pi/memory-20260922/source-before/context.ts",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/source-before/model.ts",
+      "expected_destination": "test_case/reports/pi/memory-20260922/source-before/model.ts",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/source-before/contracts.schema.json",
+      "expected_destination": "test_case/reports/pi/memory-20260922/source-before/contracts.schema.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/source-before/host.ts",
+      "expected_destination": "test_case/reports/pi/memory-20260922/source-before/host.ts",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/source-before/transport.ts",
+      "expected_destination": "test_case/reports/pi/memory-20260922/source-before/transport.ts",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/memory-20260922/source-before/backend.ts",
+      "expected_destination": "test_case/reports/pi/memory-20260922/source-before/backend.ts",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/summary.json",
+      "expected_destination": "test_case/reports/pi/live/summary.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/deepseek-v4.1-flash-chain-1790062592221.json",
+      "expected_destination": "test_case/reports/pi/live/deepseek-v4.1-flash-chain-1790062592221.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/gpt-5.6-luna-chain-1790062353240.json",
+      "expected_destination": "test_case/reports/pi/live/gpt-5.6-luna-chain-1790062353240.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/gpt-5.6-luna-missing-1790062569907.json",
+      "expected_destination": "test_case/reports/pi/live/gpt-5.6-luna-missing-1790062569907.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/deepseek-v4.1-flash-transport-1790062752676.json",
+      "expected_destination": "test_case/reports/pi/live/deepseek-v4.1-flash-transport-1790062752676.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/gpt-5.6-luna-reject-1790062705124.json",
+      "expected_destination": "test_case/reports/pi/live/gpt-5.6-luna-reject-1790062705124.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/connectivity.json",
+      "expected_destination": "test_case/reports/pi/live/connectivity.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/deepseek-v4.1-flash-unknown-1790062647936.json",
+      "expected_destination": "test_case/reports/pi/live/deepseek-v4.1-flash-unknown-1790062647936.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/deepseek-v4.1-flash-reject-1790062774434.json",
+      "expected_destination": "test_case/reports/pi/live/deepseek-v4.1-flash-reject-1790062774434.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/deepseek-v4.1-flash_task-gpt-5.6-luna-chain-1790062797579.json",
+      "expected_destination": "test_case/reports/pi/live/deepseek-v4.1-flash_task-gpt-5.6-luna-chain-1790062797579.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/gpt-5.6-luna-unknown-1790062673451.json",
+      "expected_destination": "test_case/reports/pi/live/gpt-5.6-luna-unknown-1790062673451.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/deepseek-v4.1-flash-chain-1790062261908.json",
+      "expected_destination": "test_case/reports/pi/live/deepseek-v4.1-flash-chain-1790062261908.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/deepseek-v4.1-flash-missing-1790062403555.json",
+      "expected_destination": "test_case/reports/pi/live/deepseek-v4.1-flash-missing-1790062403555.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/gpt-5.6-luna-transport-1790062689990.json",
+      "expected_destination": "test_case/reports/pi/live/gpt-5.6-luna-transport-1790062689990.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/deepseek-v4.1-flash-unknown-1790062511891.json",
+      "expected_destination": "test_case/reports/pi/live/deepseek-v4.1-flash-unknown-1790062511891.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    },
+    {
+      "legacy_source": "demo_pi/pi_secretary/reports/live/gpt-5.6-luna-chain-1790062497046.json",
+      "expected_destination": "test_case/reports/pi/live/gpt-5.6-luna-chain-1790062497046.json",
+      "availability": "not_in_checkout",
+      "note": "原迁移记录中的目标当前不可用；保留映射供追溯，不证明附件仍存在或原结论已重新验证。"
+    }
+  ],
+  "unavailable_markdown_references": [
+    {
+      "document": "test_case/reports/settings-deployment-20260928/README.md",
+      "original_link": "live-api-first-attempt.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/summary.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/deepseek-v4.1-flash-chain-1790062592221.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/deepseek-v4.1-flash-missing-1790062403555.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/deepseek-v4.1-flash-reject-1790062774434.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/deepseek-v4.1-flash-transport-1790062752676.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/deepseek-v4.1-flash-unknown-1790062647936.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/deepseek-v4.1-flash_task-gpt-5.6-luna-chain-1790062797579.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/gpt-5.6-luna-chain-1790062497046.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/gpt-5.6-luna-missing-1790062569907.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/gpt-5.6-luna-reject-1790062705124.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/gpt-5.6-luna-transport-1790062689990.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/gpt-5.6-luna-unknown-1790062673451.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/gpt-5.6-luna-chain-1790062353240.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/deepseek-v4.1-flash-unknown-1790062511891.json",
+      "availability": "not_in_checkout"
+    },
+    {
+      "document": "test_case/reports/implementation/LIVE_REVIEW.md",
+      "original_link": "../pi/live/connectivity.json",
+      "availability": "not_in_checkout"
+    }
+  ]
+}

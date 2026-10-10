@@ -1,6 +1,8 @@
 import * as fs from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import * as path from "node:path";
+if (process.argv.includes("--web"))
+  throw Error("LEGACY_UI_RETIRED: use npm run start:live for Core API v1");
 // Machine-local deployment settings are optional and never contain model keys.
 const runtimeFile =
   process.env.SECRETARY_RUNTIME_FILE ??
@@ -69,9 +71,8 @@ const child = spawn(
   [
     "--import",
     "tsx",
-    process.argv.includes("--web")
-      ? "src/pi_secretary/src/web.ts"
-      : "src/pi_secretary/src/client-tui.ts",
+    "src/pi_secretary/src/core-cli.ts",
+    "start",
     ...process.argv.slice(2).filter((arg) => arg !== "--web"),
   ],
   { env, stdio: "inherit" },

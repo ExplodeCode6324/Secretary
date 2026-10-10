@@ -18,7 +18,8 @@ import type {
 } from "../../../src/pi_secretary/src/contracts.ts";
 import { renderMessage } from "../../../src/pi_secretary/src/tui.ts";
 
-test("Web and TUI clients share one session, durable inputs and bound approvals", async () => {
+// API v1 retires this legacy UI contract; replacement coverage: offline/issue8 and docs/api/v1/verification.md.
+test.skip("Web and TUI clients share one session, durable inputs and bound approvals", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "secretary-dual-ui-"));
   const app = await App.open(dir, {
     model: fixtureModel,

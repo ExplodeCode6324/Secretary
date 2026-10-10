@@ -1,6 +1,6 @@
 # Secretary
 
-Secretary 是面向 Master 的持续个人助理。当前已完成基本架构搭建，基于固定版本 Pi 实现唯一主会话、任务调度、执行 Agent、授权、工作记忆、可选 PostgreSQL World Model，以及共享后台的 TUI / WebUI。当前仍处于原型完善阶段。
+Secretary 是面向 Master 的持续个人助理。当前已完成基本架构搭建，基于固定版本 Pi 实现唯一主会话、任务调度、执行 Agent、授权、工作记忆、可选 PostgreSQL World Model，以及 UI 无关的 Core API v1。SwiftUI 仍在后续实施阶段，旧 TUI/WebUI 不兼容新版服务。当前仍处于原型完善阶段。
 
 ## QuickStart
 
@@ -12,23 +12,18 @@ npm ci --ignore-scripts
 npm start
 ```
 
-默认使用离线 fixture 模型，执行真实 Pi loop，但回复来自固定测试适配器。输入 `task: 整理一份测试报告` 可体验任务流；`/help` 查看命令。`npm run start:web` 打开同一后台的 WebUI，`/quit` 只退出客户端。
+默认使用离线 fixture 模型。`npm start` 启动独立 Core，不打开 UI；`npm run core -- status` 查询，`npm run core -- attach` 附着，`npm run stop` 显式停止。客户端退出不停止 Core。结构化请求、认证、数据目录、迁移与回退见 [API v1](docs/api/v1/README.md)。
 
-真实模型：在本地 `.demo-data/live-credentials.json` 配置独立的 `main` / `task` 密钥，权限设为 `0600`，然后执行 `npm run start:live` 或 `npm run start:web:live`；这会调用真实 API。模型、数据库、停止后台与恢复说明见 [运行手册](docs/operations.md)。macOS 双击入口位于 [src](src)。
+真实模型入口 `npm run start:live` 沿用本地独立 main/task 密钥和运行配置，启动 Core，会调用真实 API。本分支已使用隔离合成数据进行有界真实模型验证；初轮为部分覆盖，已补齐同任务真实工具执行、API 产物下载与独立验算，并通过整理后 OS 进程重启真实回忆场景，具体覆盖边界与保留失败见 [API v1 验证记录](docs/api/v1/verification.md)。live wrapper 默认使用 `.demo-data/interactive-live`，停止时使用 `SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop`。未部署现有实例。旧 Web/TUI 启动方式及 macOS 双击 UI 入口不适用于新版服务，源码清理由 #10 完成。
 
 ```sh
 npm run verify
-# 停止默认真实模型后台
+npm run test:issue5
+# 当前 SECRETARY_DATA 对应的数据目录，默认 .demo-data
 npm run stop
-# 停止默认离线后台
-SECRETARY_DATA=.demo-data npm run stop
 ```
 
-WebUI 主会话支持流式正文和可见思考内容，两项默认开启，可在「显示设置」独立关闭。思考区使用更小字号，实际内容取决于供应商是否返回。开关只影响当前浏览器显示；详见[运行手册](docs/operations.md#流式输出与思考显示)。
-
-WebUI 在消息之间展示活动与可展开步骤，历史来自已有 journal/CAS，支持刷新、重启恢复及向前分页；输入区保留排队与当前活动跳转入口。TUI 保留输入区状态及 `/activity`。活动独立于正文显示开关；详见[当前活动](docs/operations.md#当前活动)。
-
-WebUI 已提供 World Model 管理：实体与事实查询、登记、更正、撤回和历史记录。修改先保存草稿，一键应用时完整摘要工作上下文并重建 context；Secretary 说明遵循同一规则。使用及恢复边界见[设置生效规范](docs/settings-activation.md)。
+Core 保留任务、审批、工作决定、Settings/World、记忆恢复和活动/时间线能力，均通过新版结构化协议访问。可靠 ChangeFeed 属于 #9，原生客户端属于 #10；本阶段不提供新的 TUI。
 
 ## 仓库分类
 
@@ -57,7 +52,7 @@ Secretary 的原型基础已搭建，当前仍处于架构、可靠性与日常�
 
 1. **完善 task（任务）系统**：继续验证日常使用中的任务归并、长任务接续与失败恢复边界。
 2. **改进 system prompt（系统提示词）**：进一步突出 Secretary 的架构特性、主会话职责和模型需要重点关注的内容；结合实际模型能力与可用上下文预算，提升需求理解、工作组织和授权范围内的主动推进能力。
-3. **主会话工具与原生客户端**：继续补充工具能力；以 SwiftUI 原生薄客户端为主要交互方向，按[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)先完成 Core 公共 API 与可靠同步，再完成原生迁移。所有客户端的数据、命令、事件、游标与回执统一按新版协议设计；迁移完成后不兼容旧 TUI/WebUI 的路由、文本输出或缓存，不建设长期兼容层。迁移中的旧客户端也不要求适配新版 Core；切换前保留旧版本作为回退基线，历史数据转换、证据保留与回退单独验收。WebUI 在原生日常流程验收后退役，不将规划或客户端迁移等同于后端能力已经完成。
+3. **主会话工具与原生客户端**：继续补充工具能力；以 SwiftUI 原生薄客户端为主要交互方向，按[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)先完成 Core 公共 API 与可靠同步，再完成原生迁移。所有客户端的数据、命令、事件、游标与回执统一按新版协议设计；迁移完成后不兼容旧 TUI/WebUI 的路由、文本输出或缓存，不建设长期兼容层。迁移中的旧客户端也不要求适配新版 Core；切换前保留旧版本作为回退基线，历史数据转换、证据保留与回退单独验收。新版 Core 已停止提供旧 WebUI 协议；旧运行版本可以作为独立回退基线保留，旧界面源码清理由 #10 完成，不将规划或客户端迁移等同于后端能力已经完成。
 4. **优化 agent loop（智能体执行循环）**：使执行循环更适配 Secretary 的工作模式。
 5. **完善 online（真实模型接入）回归用例**：覆盖更接近日常使用的场景，持续衡量行为稳定性。
 6. **可选新版 TUI（后续，暂不实现）**：未来如保留终端交互入口，必须使用新版 Core 公共数据协议、身份、命令回执和同步机制；不解析旧 Web/TUI 输出，不直接访问内部 Store，也不建立另一套业务状态。新版 TUI 不属于本轮迁移的交付或验收前提。旧 TUI 启动入口随迁移退役；Core 启停、状态和必要排障由独立管理入口提供。

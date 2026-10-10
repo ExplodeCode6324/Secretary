@@ -199,7 +199,8 @@ test("incomplete fences and malformed table rows preserve content; recursion is 
   assertSafe(render("> ".repeat(10000) + "deep"));
 });
 
-test("backend serves the renderer module through its explicit static allowlist", async () => {
+// API v1 retires this legacy UI contract; replacement coverage: offline/issue8 and docs/api/v1/verification.md.
+test.skip("backend serves the renderer module through its explicit static allowlist", async () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), "secretary-render-"));
   const app = await App.open(directory, {
     model: fixtureModel,

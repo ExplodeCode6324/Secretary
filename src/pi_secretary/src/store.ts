@@ -107,6 +107,25 @@ export class Store {
     return this.read<import("./contracts.ts").TaskPlan>(ref);
   }
   private receipts = new Map<string, { hash: string; value: unknown }>();
+  // Scheduler.answer historically binds identity in DecisionRequest rather
+  // than CommandReceipt. Rebuild this index on every journal replay, retaining
+  // identities from all committed revisions without changing receipt semantics.
+  private decisionAnswerRequests = new Set<string>();
+  private admission?: (records: Stored[]) => Stored;
+  // Synchronous admission only. The first authoritative mutation and its public
+  // request binding share one fsynced journal transaction, including replay.
+  withAdmission<T>(
+    admission: (records: Stored[]) => Stored,
+    action: () => T,
+  ): T {
+    if (this.admission) throw Error("NESTED_ADMISSION");
+    this.admission = admission;
+    try {
+      return action();
+    } finally {
+      this.admission = undefined;
+    }
+  }
   private constructor(dir: string, owner: JournalOwner) {
     this.dir = dir;
     this.owner = owner;
@@ -216,6 +235,9 @@ export class Store {
   hasReceipt(request: string) {
     return this.receipts.has(request);
   }
+  hasRequestIdentity(request: string) {
+    return this.hasReceipt(request) || this.decisionAnswerRequests.has(request);
+  }
   receipt<T>(
     request: string,
     digest: string,
@@ -263,6 +285,11 @@ export class Store {
     receipt?: { request: string; hash: string; value: string },
   ) {
     if (this.closed || !this.healthy) throw Error("STORE_NOT_OWNER");
+    if (this.admission) {
+      const admission = this.admission;
+      this.admission = undefined;
+      records = [...records, admission(records)];
+    }
     try {
       this.owner.assertOwner();
     } catch (error) {
@@ -481,6 +508,8 @@ export class Store {
       if (m.object_type === "TaskPlan")
         this.planHistory.set(`${m.object_id}:${m.new_revision}`, m.snapshot);
     for (const r of staged) {
+      if (r.record_type === "DecisionRequest" && r.answer_request_id)
+        this.decisionAnswerRequests.add(r.answer_request_id);
       this.records.set(r.record_type + ":" + r.id, r);
       let bucket = this.recordsByType.get(r.record_type);
       if (!bucket) {

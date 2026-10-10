@@ -1,3 +1,5 @@
+> 历史测试记录：本文保留原运行版本、失败和结论，不作为当前 Core/原生客户端已经验收的证明。旧路径或命令仅供追溯；当前证据见 [API v1 验证记录](../../../docs/api/v1/verification.md)。
+
 # 仓库整理验证 · 2026-09-24
 
 本次将 Secretary 自有实现归入 src，测试拆为 offline / online / reports，文档以当前 Pi 实现重写。根 npm 配置成为唯一命令入口；子模块路径、运行时 schema/SQL、测试 import、子进程路径、在线报告输出和 macOS 启动脚本均同步调整。

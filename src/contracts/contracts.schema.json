@@ -5289,7 +5289,11 @@
             "MainPromptSnapshot",
             "SettingsDraft",
             "SettingsApplication",
-            "ExtractionRecovery"
+            "ExtractionRecovery",
+            "CoreIdentity",
+            "AssistantProfile",
+            "ClientRegistration",
+            "ApiCommand"
           ],
           "description": ""
         },
@@ -6207,6 +6211,205 @@
         "actual_payload_hash"
       ],
       "additionalProperties": false
+    },
+    "CoreIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "CoreIdentity"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/ID"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "owner_id"
+      ]
+    },
+    "AssistantProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "AssistantProfile"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "name"
+      ]
+    },
+    "ClientRegistration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "ClientRegistration"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "owner_id": {
+          "$ref": "#/$defs/ID"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "name",
+        "owner_id"
+      ]
+    },
+    "ApiCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "ApiCommand"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "command": {
+          "type": "string"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "state": {
+          "enum": [
+            "ACCEPTED",
+            "QUEUED",
+            "RUNNING",
+            "COMPLETED",
+            "FAILED",
+            "UNKNOWN"
+          ]
+        },
+        "arguments_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "resource_ids": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string"
+              },
+              "id": {
+                "$ref": "#/$defs/ID"
+              }
+            },
+            "required": [
+              "type",
+              "id"
+            ]
+          }
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "result_ref": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ObjectRef"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "owner_id",
+        "command",
+        "request_hash",
+        "state",
+        "arguments_ref",
+        "resource_ids",
+        "error_code",
+        "result_ref"
+      ]
     }
   },
   "oneOf": [
@@ -6341,6 +6544,18 @@
     },
     {
       "$ref": "#/$defs/ExtractionRecovery"
+    },
+    {
+      "$ref": "#/$defs/CoreIdentity"
+    },
+    {
+      "$ref": "#/$defs/AssistantProfile"
+    },
+    {
+      "$ref": "#/$defs/ClientRegistration"
+    },
+    {
+      "$ref": "#/$defs/ApiCommand"
     }
   ]
 }

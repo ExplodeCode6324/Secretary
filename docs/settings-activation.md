@@ -1,26 +1,26 @@
 # World Model 管理与设置生效规范
 
-本规范对应 [Settings](../src/pi_secretary/src/settings.ts)、[完整来源整理](../src/pi_secretary/src/settings-memory.ts)、[World](../src/pi_secretary/src/world.ts) 和 [WebUI](../src/pi_secretary/web/app.js)。实现计划及验收记录见 [本次更新计划](fix/fix_20260928_world_model管理与统一设置生效.md)。
+当前通过认证 local-owner 的 [Core API v1](api/v1/README.md)访问 Settings 与 World。实现依据：[Settings](../src/pi_secretary/src/settings.ts)、[完整来源整理](../src/pi_secretary/src/settings-memory.ts)、[World](../src/pi_secretary/src/world.ts) 和 [ApplicationService](../src/pi_secretary/src/application-service.ts)。旧 Web/TUI 不是当前操作入口，原界面报告只提供历史证据。
 
 ## 统一规则
 
 凡改变 Secretary 模型行为、提示词或有效 World 知识的设置，必须先完整整理当前工作上下文的未摘要部分，再初始化 context，完成后才处理下一轮输入。新设置入口必须接入 Settings 协调器，不能直接修改有效记录后声称下一轮自然生效。
 
-当前接入范围：WebUI World 管理、Secretary 说明，以及通过 TUI/模型提交并获准的 WorldCommand。启动时检测主/任务模型身份与容量、基础和执行提示词、数据库连接配置哈希及模型预算/整理/并发选项变化，自动排入同一流程。凭据原文不放入设置记录或摘要；界面布局、主题不触发整理。授权撤销和安全阻断仍按原守卫立即执行。
+当前接入范围：API Settings 草稿内的 World 修改和 Secretary 说明，以及模型提出并获准的 WorldCommand。助手显示名属于 AssistantProfile，不触发本流程。启动时检测主/任务模型身份与容量、基础和执行提示词、数据库连接配置哈希及模型预算/整理/并发选项变化，自动排入同一流程。凭据原文不放入设置记录或摘要；界面布局、主题不触发整理。授权撤销和安全阻断仍按原守卫立即执行。
 
 首次空会话记录运行配置哈希；已有上下文的旧数据目录缺少哈希时会执行一次切换。若存在未完成应用，必须先用原运行配置完成恢复，再更换模型或数据库；启动时拒绝用不同配置恢复一个提交结果未完成确认的批次。主会话与新任务调度在切换完成前暂停领取工作，已有异步任务不被重启。更换模型不会使旧任务 checkpoint 自动兼容新 provider。
 
-## 页面与数据语义
+## 公共查询与数据语义
 
-管理页提供实体/属性筛选、分页、当前和历史事实、详情与来源、更正和撤回；表单根据属性类型及实体类型约束录入。可以先创建实体草稿，再为它登记同批事实。实体类型不可修改，停用实体时如存在 ACTIVE / SUPPORTING / CONTESTED 状态的事实或关系引用，整批拒绝并列出引用，不级联删除。
+World API 提供目录/事实分页、当前和历史事实、详情与来源；更正/撤回通过 Settings 草稿提交。类型、引用和 revision 由领域代码校验，客户端表单尚待实现。可以先创建实体草稿，再为它登记同批事实。实体类型不可修改，停用实体时如存在 ACTIVE / SUPPORTING / CONTESTED 状态的事实或关系引用，整批拒绝并列出引用，不级联删除。
 
 事实撤回将 `wm.assertion_state.status` 改为 `RETRACTED`；更正新增 assertion 并将旧陈述标为 `SUPERSEDED`。原始内容、证据、来源、回执和历史上下文仍保留在原存储。默认查询排除撤回和被替代记录，并检查有效时间；历史查询同时解除状态及有效时间筛选。撤回不表示相反事实，也不是彻底删除个人信息。
 
-管理页每页默认 30 条，上限 100；游标绑定筛选、查询时间和数据库变更计数。期间数据变化时要求从首页重查，避免将混合版本展示为一组稳定结果。实体和属性选择目录当前一次加载，没有实体目录分页。旧 `World.read()` 工具路径仍最多返回 100 条；管理页分页不表示模型工具已支持无限遍历。
+`world/facts` 与 `world/catalog` 默认每页 30 条、上限 100，catalog 支持 entities/predicates/sources。事实游标绑定查询范围及数据库读版本，API 再按服务实例签名；版本变化或重启后可能需要从首页重查。World.read() 模型工具仍有独立读取边界，客户端分页不表示模型可以无限遍历。
 
-草稿保存为 SettingsDraft，最多 50 项 World 修改，可同时携带一份 Secretary 说明。草稿 CAS 防止多页覆盖；说明最多 2000 个 Unicode 字符，空文关闭自定义部分，相同有效说明不产生变更。应用冻结批次，清空工作草稿供下一批编辑；失败批次的原内容仍在 SettingsApplication，可以重试或恢复为草稿，但不能借此清除承诺提取来源的失败/未知结果，具体限制见下文。页面对同一事实范围或实体的草稿编辑采用替换，后端对显式批次按给定顺序执行并检查 revision。
+草稿保存为 SettingsDraft，领域校验最多 50 项 World 修改（公开 DraftCommand.edits 结构上限为 100，但 SettingsPayload 的 50 项限制仍会执行），可同时携带一份 Secretary 说明。草稿 CAS 防止多页覆盖；说明最多 2000 个 Unicode 字符，空文关闭自定义部分，相同有效说明不产生变更。应用冻结批次，清空工作草稿供下一批编辑；失败批次的原内容仍在 SettingsApplication，可以重试或恢复为草稿，但不能借此清除承诺提取来源的失败/未知结果，具体限制见下文。保存命令整份替换草稿 payload，后端对批次按给定顺序执行并检查 revision；前端如何合并编辑不属于当前已实现能力。
 
-Master 点击应用即明确提交本批内容，后端保存 MASTER_UI 证据，不再要求第二张授权卡。模型和 TUI 的原始 World 提案仍经 Operation/Authorization，不能使用管理接口冒充 Master。
+local-owner 提交 settings/apply 即明确应用本批内容，领域证据仍使用 MASTER_UI 标记，不再为同一人工批次建立第二张授权卡。该标记沿用内部命名，不意味着旧界面仍在运行；模型提案仍经 Operation/Authorization，不能冒充 owner 管理命令。
 
 ## 切换顺序
 
@@ -50,27 +50,30 @@ Master 点击应用即明确提交本批内容，后端保存 MASTER_UI 证据�
 | COMMITTING / REBUILDING 重启 | 自动从持久阶段恢复；先查询回执，不能盲目重写 |
 | SUMMARIZING 重启 | 用固定来源和持久候选继续剩余分片，不提前更新有效记忆 |
 
-查批次回执使用与提交相同的数据库事务锁；必须等待正在进行的提交结束，才可判定回执不存在。不存在且能确认结果时可报告 FAILED；数据库不可访问时保持 BLOCKED。模型 WorldCommand 遇到可确认回滚的暂时数据库错误时保留 RETRYABLE_ERROR，人工重试仍查回执并复核原许可，不消费为永久业务拒绝。提交成功后不能通过取消、清空记录或删除历史伪装回滚；恢复旧设置应再提交一次反向变更。当前页面不提供取消正在应用批次的按钮。
+查批次回执使用与提交相同的数据库事务锁；必须等待正在进行的提交结束，才可判定回执不存在。不存在且能确认结果时可报告 FAILED；数据库不可访问时保持 BLOCKED。模型 WorldCommand 遇到可确认回滚的暂时数据库错误时保留 RETRYABLE_ERROR，人工重试仍查回执并复核原许可，不消费为永久业务拒绝。提交成功后不能通过取消、清空记录或删除历史伪装回滚；恢复旧设置应再提交一次反向变更。当前 API 不提供取消正在应用 Settings 批次的命令。
 
-承诺提取另有持久化的来源级保护：同一来源的 FAILED/未知结果不会随设置批次重新排队而解除。`settings.retry`、`/compact` 和进程重启都不提供解除入口；再次遇到该来源仍停止提取并报告 `COMMITMENT_EXTRACTION_REPLAY_BLOCKED`。新增来源、改账本或恢复为草稿也不能绕过该限制；成功来源则复用已有结果。Issue 4 的独立显式恢复入口只授权预检选中的一个失败分组，精确绑定旧 attempt、来源、配置与 revision，不能把设置应用的“可重试”理解为允许重新调用失败来源。已有提取 attempt 的 FAILED 应用，普通 retry 保持原 FAILED 记录，并在 error 中明确返回 `MEMORY_EXTRACTION_RECOVERY_REQUIRED`，保留固定候选并引导到该独立入口；即使提取已经成功而后续提交失败，也只做原批次确定性对账，不清空来源重新摘要。恢复使用原 SettingsApplication 的固定来源与候选，先对账 World 批次回执，不重复提交 World，不重新生成摘要或扩大到未授权来源。跨设置/主流程身份、未知结果与旧来源歧义处理见[容量与记忆规范](memory-and-prompts.md)。
+承诺提取另有持久化的来源级保护：同一来源的 FAILED/未知结果不会随设置批次重新排队而解除。`settings.retry`、`POST /api/v1/session/compact` 和进程重启都不提供解除入口；再次遇到该来源仍停止提取并报告 `COMMITMENT_EXTRACTION_REPLAY_BLOCKED`。新增来源、改账本或恢复为草稿也不能绕过该限制；成功来源则复用已有结果。Issue 4 的独立显式恢复入口只授权预检选中的一个失败分组，精确绑定旧 attempt、来源、配置与 revision，不能把设置应用的“可重试”理解为允许重新调用失败来源。已有提取 attempt 的 FAILED 应用，普通 retry 保持原 FAILED 记录，并在 error 中明确返回 `MEMORY_EXTRACTION_RECOVERY_REQUIRED`，保留固定候选并引导到该独立入口；即使提取已经成功而后续提交失败，也只做原批次确定性对账，不清空来源重新摘要。恢复使用原 SettingsApplication 的固定来源与候选，先对账 World 批次回执，不重复提交 World，不重新生成摘要或扩大到未授权来源。跨设置/主流程身份、未知结果与旧来源歧义处理见[容量与记忆规范](memory-and-prompts.md)。
 
 普通人工修改失败时可继续旧配置下的工作。启动配置已经变化但重建失败时仍保持 gate，需重试成功或恢复原配置，不能在失败后直接使用新模型。切换运行配置前如有未恢复的主会话轮次，应先在原配置下恢复它。
 
-普通单来源 `/compact` 使用 CompactionJob 的 WORKING_MEMORY 增量更新，并仅在容量阈值到达时另记 CONTEXT_COMPACTION 裁剪；发现多个 pending_raw_refs 时转完整来源流程。自动、手动整理与设置应用不能并发提交记忆。`/memory` 显示最近设置应用成功时间和 SETTINGS_APPLIED；它不等于证明模型摘要语义质量合格。
+普通单来源 `POST /api/v1/session/compact` 使用 CompactionJob 的 WORKING_MEMORY 增量更新，并仅在容量阈值到达时另记 CONTEXT_COMPACTION 裁剪；发现多个 pending_raw_refs 时转完整来源流程。自动、手动整理与设置应用不能并发提交记忆。`GET /api/v1/memory` 返回维护状态，`GET /api/v1/settings` 返回应用状态；成功状态不等于模型摘要语义质量合格。
 
 ## HTTP API
 
-所有路径沿用 localhost Host/Origin、bearer token 与 client 校验。POST 请求体上限 1 MiB。
+所有请求按 Core 的 loopback Host/Origin 与 bearer owner 认证；client 登记不是权限来源。POST body 上限 1 MiB，必须包含 UUID request_id。revision 在公开 DTO 中为十进制字符串，新增 World 资源用 "0"。下表路径均有 `/api/v1` 前缀，准确字段以[操作表](api/v1/operations.json)和[schema](api/v1/schema.json)为准。
 
 | 方法与路径 | 请求与返回 |
 | --- | --- |
-| GET `/api/world` | `subject`、`predicate`、`history`、`cursor`、`limit`；返回 rows、next_cursor、version 和实体/属性/来源目录 |
-| GET `/api/settings` | 草稿及 payload、最近 30 次应用记录、blocked、world_available、effective_instructions |
-| POST `/api/settings/draft` | `client`、`expected_revision`、`payload`；整份替换草稿。payload 为 SettingsPayload，Master 不可设置 command_ids |
-| POST `/api/settings/apply` | `client`、`expected_revision`、UUID `request_id`；返回持久应用记录，或 NO_CHANGES；HTTP 202 不是已生效证明 |
-| POST `/api/settings/retry` | `client`、`application_id`；重新排队 FAILED/BLOCKED，不重复提交已完成批次，也不清除承诺提取来源的失败/未知结果 |
-| POST `/api/settings/restore` | `client`、`application_id`、`expected_revision`；将 FAILED 人工批次恢复到空草稿，模型命令需重新提案 |
-| GET/POST `/api/instructions` | GET 返回有效说明和 management；POST 用 `content`、有效说明 `expected_revision`、`draft_revision` 保存草稿，`applies=SUMMARY_AND_REBUILD` |
+| GET `/world/catalog` | kind=entities/predicates/sources，limit/cursor；返回分页目录和 World 版本 |
+| GET `/world/facts` | subject/predicate/history/limit/cursor；返回 items、world_version、next_cursor |
+| GET `/world/slot` | subject/predicate/scope，精确查询 slot revision |
+| GET `/settings` | 共享草稿、payload、最近应用、blocked、world_available、有效说明 |
+| POST `/settings/draft` | request_id、草稿 expected_revision、整份 payload；instructions/edits/command_ids 必须出现，人工 command_ids=[] |
+| POST `/settings/apply` | request_id、草稿 expected_revision；回执可能记录 NO_CHANGES，202 不是已生效证明 |
+| POST `/settings/applications/{id}/retry` | request_id；按领域规则重排/对账，不清除提取失败保护 |
+| POST `/settings/applications/{id}/restore-draft` | request_id、目标草稿 expected_revision；恢复 FAILED 人工批次到空草稿 |
+
+Secretary 说明是 payload.instructions，包含 content 与有效说明 expected_revision；null 表示不更改说明。没有旧 `/api/instructions` 或 `/api/settings/*` 接口。异步业务进度从 settings/applications/{id}、settings 与 requests/{id} 读取；SettingsApplication 状态是生效权威。
 
 新增设置时必须补充：草稿/有效版本的契约、影响范围、摘要与重建入口、运行中工作边界、失败与恢复测试、文档和实际模型证据范围。
 

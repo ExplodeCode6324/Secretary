@@ -44,7 +44,11 @@ export type SecretaryDemoV1 =
   | MainPromptSnapshot
   | SettingsDraft
   | SettingsApplication
-  | ExtractionRecovery;
+  | ExtractionRecovery
+  | CoreIdentity
+  | AssistantProfile
+  | ClientRegistration
+  | ApiCommand;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -1618,7 +1622,11 @@ export interface Mutation {
     | "MainPromptSnapshot"
     | "SettingsDraft"
     | "SettingsApplication"
-    | "ExtractionRecovery";
+    | "ExtractionRecovery"
+    | "CoreIdentity"
+    | "AssistantProfile"
+    | "ClientRegistration"
+    | "ApiCommand";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -1796,6 +1804,49 @@ export interface RecoveryRequest {
   model_call_id: ID | null;
   model_request_hash: Digest | null;
   actual_payload_hash: Digest | null;
+}
+export interface CoreIdentity {
+  schema_version: 1;
+  record_type: "CoreIdentity";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  owner_id: ID;
+}
+export interface AssistantProfile {
+  schema_version: 1;
+  record_type: "AssistantProfile";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  name: string;
+}
+export interface ClientRegistration {
+  schema_version: 1;
+  record_type: "ClientRegistration";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  name: string;
+  owner_id: ID;
+}
+export interface ApiCommand {
+  schema_version: 1;
+  record_type: "ApiCommand";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  owner_id: ID;
+  command: string;
+  request_hash: Digest;
+  state: "ACCEPTED" | "QUEUED" | "RUNNING" | "COMPLETED" | "FAILED" | "UNKNOWN";
+  arguments_ref: ObjectRef;
+  resource_ids: {
+    type: string;
+    id: ID;
+  }[];
+  error_code: string | null;
+  result_ref: ObjectRef | null;
 }
 
 export type Contract = SecretaryDemoV1;
