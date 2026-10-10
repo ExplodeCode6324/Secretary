@@ -1,3 +1,5 @@
+> 历史测试记录：本文保留原运行版本、失败和结论，不作为当前 Core/原生客户端已经验收的证明。旧路径或命令仅供追溯；当前证据见 [API v1 验证记录](../../../docs/api/v1/verification.md)。
+
 # Pi Secretary 实现复核
 
 本轮交付是可运行的实现验证原型。BrainStorm v3 与根目录的状态机、JSON、World Model schema 仍是设计依据；本页明确实现路径和验证边界。

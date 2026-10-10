@@ -50,7 +50,7 @@ AuthorizationRequest：PENDING → APPROVED / REJECTED；撤销与其他合法�
 | ModelCall | PREPARED → IN_FLIGHT → RESPONSE_SAVED / FAILED / INTERRUPTED |
 | DecisionRequest | OPEN → ANSWERED；任务结束时未决请求变 OBSOLETE |
 | Feedback | QUEUED → DELIVERED（关联 Input）→ HANDLED |
-| Notification | QUEUED → SENT（UI presented） |
+| Notification | Host 创建 QUEUED；旧控制器 presented 可转 SENT，当前 API 无公开确认命令 |
 | CompactionJob | SUMMARIZING → COMMITTED / STALE / FAILED；最多两次摘要尝试 |
 | MemoryCommitment | OPEN → COMPLETED / CANCELLED；宿主保留来源与处理记录 |
 | Execution.retention_state | HOT → RETIRED；已终结且无待处理工作才可归档 |
@@ -81,3 +81,12 @@ AuthorizationRequest：PENDING → APPROVED / REJECTED；撤销与其他合法�
 预检不修改持久 Store；只在当前进程内签发有效期 5 分钟的凭证。新消费先核验服务端签发记录、完整绑定和有效期；过期、客户端延长、服务重启后的未消费凭证拒绝，允许重新预检。已消费 request_id 的持久回执优先对账，期限不恢复发送权。
 
 RECONCILE 是用户显式发起的写操作，记录请求和对账结果，但不产生模型调用。提取成功与原批次提交是不同检查点：后者仍需完整来源、候选、任务事实和版本校验，设置路径还须核查 World 回执。
+
+
+## API 命令状态与能力
+
+[ApiCommand](data/ApiCommand.md) 是传输命令受理状态，不替代 Execution、Operation 或 SettingsApplication。短命令保持 ACCEPTED；后续业务初始化或执行由资源本身反映。包括 NO_CHANGES 在内的成功受理均可重放回执，不能要求所有短命令最终出现 COMPLETED。
+
+长命令实际路径为 QUEUED → RUNNING → COMPLETED；派发异常或重启发现 RUNNING 时转 UNKNOWN，保留 error_code 及资源。FAILED 虽在 schema 枚举中，目前 ApplicationService 不以它表示派发异常。首次接收前格式/冲突等拒绝可以没有 ApiCommand，HTTP 错误不能凭空算一次成功受理。
+
+Core capabilities 中 devices、attachments、reliable_sync 为 not_supported；world 未配置为 not_configured。能力存在与具体资源/权限可执行性分别判断，不以页面已画出或数据为空推断 supported。通知送达仍缺新版公开确认入口，因此不能凭 GET timeline 自动完成依赖 SENT 证据的承诺。

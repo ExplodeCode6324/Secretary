@@ -1,3 +1,5 @@
+> 实施记录：#8 已完成代码与严格验收，Master 已确认复审完成；本轮全量文档修订仍待复核。下文原计划、阶段状态和失败按当时记录保留，当前行为见 [文档索引](../README.md) 与 [API v1](../api/v1/README.md)。
+
 # Issue #8：Core 新版协议与独立应用服务计划
 
 日期：2026-10-10。关联：[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)、[实施起点 #8](https://github.com/ExplodeCode6324/Secretary/issues/8)。

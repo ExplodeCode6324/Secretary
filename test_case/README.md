@@ -2,13 +2,15 @@
 
 - [offline](offline/README.md)：无真实模型 API 的运行回归、隔离 PostgreSQL 测试和历史探针。
 - [online](online/README.md)：显式调用真实模型的链路、说明与记忆探针。
-- [reports](reports/README.md)：历次 test report 和原始证据，本次整理报告单独保存。
+- [reports](reports/README.md)：历次脱敏报告与可公开附件；私密原始会话/凭据/运行身份不入库。
 
 入口统一从仓库根目录运行；完整范围、证据边界及 online 日常稳定性回归规划见 [测试策略](../docs/testing.md)。Online test 需要后续优化，现有短链路不能替代持续日常使用回归。
 
-## Memory Regression Harness（记忆回归测试框架）
+当前 Core 合同与工具产物验收见 [API v1 验证记录](../docs/api/v1/verification.md)，当前执行命令以测试策略为准；旧 UI 探针保留为历史，不代表新客户端已实现。
 
-Memory Regression Harness 用于把“Secretary 是否保持连续记忆”从主观体验转换为可重复、可归因的回归测试。它**仅属于 online 模式**：必须由真实模型参与记忆生成、检索、回答和恢复验证；offline fixture 不用于评价长期记忆质量，也不应以固定输出模拟通过此类用例。
+## Memory Regression Harness（记忆回归测试框架，后续建设）
+
+以下是后续 online 框架要求，尚未完整实现。已有合成记忆/进程重启场景仅覆盖其中部分链路。Memory Regression Harness 用于把“Secretary 是否保持连续记忆”从主观体验转换为可重复、可归因的回归测试。它**仅属于 online 模式**：必须由真实模型参与记忆生成、检索、回答和恢复验证；offline fixture 不用于评价长期记忆质量，也不应以固定输出模拟通过此类用例。
 
 后续补充的复杂 online 用例应尽量贴近真实长期使用场景，例如：跨多轮对话形成事实、随后纠正旧事实；经历 context 退出、Consciousness 重组或重启后再次查询；在大量无关活动之间保持未完成事项；从 Operation Log 中找回已退出活动上下文的原始证据；必要时更换模型或记忆版本后检查连续性。
 

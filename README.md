@@ -14,7 +14,7 @@ npm start
 
 默认使用离线 fixture 模型。`npm start` 启动独立 Core，不打开 UI；`npm run core -- status` 查询，`npm run core -- attach` 附着，`npm run stop` 显式停止。客户端退出不停止 Core。结构化请求、认证、数据目录、迁移与回退见 [API v1](docs/api/v1/README.md)。
 
-真实模型入口 `npm run start:live` 沿用本地独立 main/task 密钥和运行配置，启动 Core，会调用真实 API。本分支已使用隔离合成数据进行有界真实模型验证；初轮为部分覆盖，已补齐同任务真实工具执行、API 产物下载与独立验算，并通过整理后 OS 进程重启真实回忆场景，具体覆盖边界与保留失败见 [API v1 验证记录](docs/api/v1/verification.md)。未部署现有实例。旧 Web/TUI 启动方式及 macOS 双击 UI 入口不适用于新版服务，源码清理由 #10 完成。
+真实模型入口 `npm run start:live` 沿用本地独立 main/task 密钥和运行配置，启动 Core，会调用真实 API。本分支已使用隔离合成数据进行有界真实模型验证；初轮为部分覆盖，已补齐同任务真实工具执行、API 产物下载与独立验算，并通过整理后 OS 进程重启真实回忆场景，具体覆盖边界与保留失败见 [API v1 验证记录](docs/api/v1/verification.md)。live wrapper 默认使用 `.demo-data/interactive-live`，停止时使用 `SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop`。未部署现有实例。旧 Web/TUI 启动方式及 macOS 双击 UI 入口不适用于新版服务，源码清理由 #10 完成。
 
 ```sh
 npm run verify
@@ -52,7 +52,7 @@ Secretary 的原型基础已搭建，当前仍处于架构、可靠性与日常�
 
 1. **完善 task（任务）系统**：继续验证日常使用中的任务归并、长任务接续与失败恢复边界。
 2. **改进 system prompt（系统提示词）**：进一步突出 Secretary 的架构特性、主会话职责和模型需要重点关注的内容；结合实际模型能力与可用上下文预算，提升需求理解、工作组织和授权范围内的主动推进能力。
-3. **主会话工具与原生客户端**：继续补充工具能力；以 SwiftUI 原生薄客户端为主要交互方向，按[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)先完成 Core 公共 API 与可靠同步，再完成原生迁移。所有客户端的数据、命令、事件、游标与回执统一按新版协议设计；迁移完成后不兼容旧 TUI/WebUI 的路由、文本输出或缓存，不建设长期兼容层。迁移中的旧客户端也不要求适配新版 Core；切换前保留旧版本作为回退基线，历史数据转换、证据保留与回退单独验收。WebUI 在原生日常流程验收后退役，不将规划或客户端迁移等同于后端能力已经完成。
+3. **主会话工具与原生客户端**：继续补充工具能力；以 SwiftUI 原生薄客户端为主要交互方向，按[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)先完成 Core 公共 API 与可靠同步，再完成原生迁移。所有客户端的数据、命令、事件、游标与回执统一按新版协议设计；迁移完成后不兼容旧 TUI/WebUI 的路由、文本输出或缓存，不建设长期兼容层。迁移中的旧客户端也不要求适配新版 Core；切换前保留旧版本作为回退基线，历史数据转换、证据保留与回退单独验收。新版 Core 已停止提供旧 WebUI 协议；旧运行版本可以作为独立回退基线保留，旧界面源码清理由 #10 完成，不将规划或客户端迁移等同于后端能力已经完成。
 4. **优化 agent loop（智能体执行循环）**：使执行循环更适配 Secretary 的工作模式。
 5. **完善 online（真实模型接入）回归用例**：覆盖更接近日常使用的场景，持续衡量行为稳定性。
 6. **可选新版 TUI（后续，暂不实现）**：未来如保留终端交互入口，必须使用新版 Core 公共数据协议、身份、命令回执和同步机制；不解析旧 Web/TUI 输出，不直接访问内部 Store，也不建立另一套业务状态。新版 TUI 不属于本轮迁移的交付或验收前提。旧 TUI 启动入口随迁移退役；Core 启停、状态和必要排障由独立管理入口提供。

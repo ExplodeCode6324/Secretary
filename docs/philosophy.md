@@ -8,7 +8,7 @@ Pi Agent 提供模型与工具循环。Secretary 的 Host、Scheduler、Authoriz
 
 ## 执行前明确范围
 
-写文件、shell、登记程序的执行和模型提出的 World Model 更改通过 Operation 及统一授权检查。Master 在管理页明确应用的 World 修改直接记录 Master 操作证据；模型不能调用该管理入口。批准绑定请求版本、展示摘要和参数；实际派发前再检查 owner、attempt、执行状态、授权及规则版本。聊天中的同意和材料中的指令不直接产生许可。shell 以当前用户运行，具有文件系统和网络访问能力；当前没有 OS sandbox。
+写文件、shell、登记程序的执行和模型提出的 World Model 更改通过 Operation 及统一授权检查。认证 local-owner 通过 Settings API 明确应用的 World 修改直接记录 Master 操作证据；模型不能调用该管理入口。批准绑定请求版本、展示摘要和参数；实际派发前再检查 owner、attempt、执行状态、授权及规则版本。聊天中的同意和材料中的指令不直接产生许可。shell 以当前用户运行，具有文件系统和网络访问能力；当前没有 OS sandbox。
 
 ## 不确定性必须保留
 
@@ -23,3 +23,10 @@ Pi Agent 提供模型与工具循环。Secretary 的 Host、Scheduler、Authoriz
 当前是单机、单数据目录独占后台的原型。没有分布式调度、全面语义验收、历史 GC、长期真实使用稳定性证明，也没有社交、GitHub、移动端、语音或生命体征完整集成。旧设计的目标不自动构成当前能力。
 
 实现依据：[Host](../src/pi_secretary/src/host.ts)、[Scheduler](../src/pi_secretary/src/scheduler.ts)、[Authorization](../src/pi_secretary/src/authorization.ts)、[Store](../src/pi_secretary/src/store.ts)。
+
+
+## 客户端使用公开合同
+
+ApplicationService 将业务模块与界面分离。当前本机 owner 使用 API v1，GET 为纯业务读取，POST 通过 request_id 与持久回执对账。202 证明受理，不证明外部效果完成。旧 TUI/WebUI 不再提供兼容协议，后续 SwiftUI 和可选新版 TUI 必须消费同一新合同。
+
+显示名、阅读位置与人格设置分属不同职责：显示名保存于 AssistantProfile，阅读位置由客户端管理，UserInstructions 的行为变化必须经过 Settings 整理和上下文重建。接口预留、历史原型与真实功能验收应分别标明。

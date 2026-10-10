@@ -5,7 +5,7 @@
 | 工具 | 代码职责 |
 | --- | --- |
 | task_propose | 提交带目标、材料、约束和验收项的任务 |
-| task_query | 查询计划、执行和结果；详情查询会刷新留存 |
+| task_query | 查询计划、执行和结果；纯读取，不刷新留存 |
 | task_control | 按当前协议控制任务，不产生授权决定 |
 | memory_read | 读取受支持的记忆、原件或 World 数据 |
 | memory_propose_change | 提交 World 变更提案，不能直接绕过授权提交 |
@@ -15,7 +15,7 @@
 
 ## 执行 Agent 工具
 
-`read` / `write` 限制任务 workspace 的相对路径并检查越界；write 走最终授权 gate。`bash` 为真实 shell，默认在工作目录执行，以当前用户运行且可访问网络，不能当作沙箱。`request_decision` 保存工作决定并等待；它不替代授权。`submit_result` 必须提交每项验收评估、局限和产物，普通文本回复不完成任务。
+`read` / `write` 限制任务 workspace 的相对路径并检查越界；write 走最终授权 gate。`bash` 为真实 shell，默认在工作目录执行，以当前用户运行且可访问网络，不能当作沙箱。`request_decision` 保存工作决定并等待；它不替代授权。`submit_result` 必须提交每项验收评估、局限和 artifacts 列表（允许为空，不代表已生成文件），普通文本回复不完成任务。
 
 shell 默认 120 秒，允许 0.1–3600 秒；stdout/stderr 各限 4 MiB。超时、取消或超限终止进程组并保留未知结果。正常退出保存 exit_code，非零码仍是失败证据。子进程环境采用明确白名单，不继承模型 API key。
 
@@ -42,3 +42,12 @@ Core 生命周期由 `npm run core -- start|attach|status|stop` 管理。所有 
 `task_query` 无参数提供可读任务列表；task_id 返回计划基线、最近执行要求、结果、产物、待决定事项、can_continue 与阻止原因；execution_id 保持执行详情入口。两个 ID 同时传入返回 `AMBIGUOUS_QUERY`。查询不刷新留存，用户明确访问通过 `POST /api/v1/executions/{id}/viewed` 续留；RETIRED 不重新激活。受理端重新验证权限和接续条件。
 
 `task_control` 增加 `cancel_request`，id 为已受理即时请求的 request_id。未分派时原子移除待执行项、释放 parent 并登记取消原因；已分派则进入现有执行取消流程。重复取消幂等；已取消请求重投不会再次执行。AT / INTERVAL 的计划请求不使用此入口。
+
+
+## 读模型与尚未提供的入口
+
+客户端通过 API v1 时间线、任务/执行、审批/决定、Settings/World、记忆、产物、related 和 attention 查询。临时预览仅在 timeline 的 streaming=true 时出现，可见思考须 thinking=true。所有 GET 不写业务状态，Notification 的旧 presented/SENT 回执没有对应的新版公开命令；主会话已生成通知不等于当前客户端已确认送达。
+
+显示名使用 assistant/profile，只有显示身份变化，不运行记忆整理。人格说明使用 settings/draft + settings/apply，必须经过完整生效流程。World 目录支持分页，设备/附件上传/可靠同步仍未实现。具体 request/response 使用[操作清单](api/v1/operations.json)，不得将内部 TaskProposal、SettingsPayload 或 Store ObjectRef 直接当作公开 DTO。
+
+产物 API 只能读取已被 TaskResult 固定的 CAS 内容；工作目录中存在文件不等于已发表产物。TaskResult.verified_by 目前为 NOT_VERIFIED，独立验证应核对真实操作回执、下载字节与宿主 oracle，不能依据 summary 或非空 artifacts 声称内容正确。

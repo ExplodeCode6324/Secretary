@@ -2,7 +2,7 @@
 
 实体登记、名称修订、无有效状态引用时停用，以及不可变来源登记。模型提案经过授权后进入统一设置生效流程；谓词目录由迁移维护。
 
-来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/WorldCatalogChange)。此页自动生成；行为以调用模块为准。
+来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/WorldCatalogChange)。此页自动生成，描述内部合同；客户端使用 [API v1 DTO](../api/v1/README.md)。字段存在不等于全部语义已实现，行为以调用模块为准。
 
 | 字段 | 类型 / 值域 | 必填 | 说明与约束 |
 | --- | --- | --- | --- |

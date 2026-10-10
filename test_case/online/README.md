@@ -24,7 +24,7 @@
 
 `npm run test:task-reuse:live -- deepseek-v4.1-flash` 运行 O01–O06：直接分析、生成后修改、解释依据、压缩报告、重启续改、独立交付。凭据从 SECRETARY_CREDENTIALS_FILE 或本地 .demo-data/live-credentials.json 读取，主会话与任务角色均为真实模型。使用独立 Store、workspace 和会话，最多每角色 48 次模型调用、100 次工具调用和 12 分钟。只代行两个指定报告文件的隔离写入批准；其他动作失败停止。输出在 reports/task-reuse-20260929/，保留逐次运行和失败，不覆盖首次记录。
 
-## 当前活动有界验收
+## 历史活动有界验收（旧 UI 适配须另核对）
 
 `node --import tsx test_case/online/test-activity-live.ts <报告路径>` 在独立 Store 中运行合成聊天、一次小规模设置应用及排队输入。默认读取现有主模型凭据，调用上限 12 次、总时限 15 分钟；工具调用结果会被拒绝，task 角色为 fixture。报告标记 running/complete/failed，只在全部断言完成后设置 pass。它不部署服务或修改现用会话。具体证据见[活动验收](../reports/activity-20261005/README.md)。
 
@@ -91,3 +91,12 @@ node --import tsx test_case/online/test-api-v1-artifacts-live.ts --live --eviden
 明确授权后的全新第二轮通过全部严格断言：`opencode-go / gpt-5.6-luna` 共 7 次实际 HTTP 请求，均为 HTTP 200 / stopReason=toolUse，耗时 124.724 秒，34354 token，SDK 目录估算 $0.005207920，实际账单不可用。真实工具计数为 read 1、write 2、bash 2、submit_result 2；一个任务的两个成功执行各发布两件非空产物，四项操作回执、API 下载字节、续接输入哈希与宿主独立重执行均通过。57 项源文件哈希与运行前冻结值一致，生产代码未改动。
 
 两轮分别获得授权，合计 14 次请求；每轮各 7 次，均未超过各自 12 次上限。已知用量合计 57402 token、目录估算 $0.009083000，第一轮失败请求用量仍不可用，因此这不是完整总用量或账单。第一轮失败与 1114 份更早历史证据均保留且哈希未变。第二轮通过不删除、覆盖或改写任何首次失败。
+
+
+## 当前与历史接口范围
+
+API v1 的当前专用入口是 test-api-v1-live.ts / api-v1-online-worker.ts 和 test-api-v1-artifacts-live.ts。task-reuse/test-live 等直接领域用例保留其原覆盖，不能宣称所有旧脚本都已迁移到 API v1。早期 streaming/activity 浏览器服务与部分在线 UI 驾驶器仍引用退休路由；执行前按源码确认，不能用旧命令证明新版 SSE 或客户端存在。
+
+本页各带日期结果是其当时源码的历史运行事实；本次文档修订没有新模型调用、设备操作或部署。真实费用未知、失败请求缺usage及原始事实仍在上下文的边界继续保留。
+
+原始严格验收的57项源码清单对应当时提交；本轮文档生成器说明文字更新后，该清单仅 generate-docs.py 不再逐字匹配，另外56项仍一致。原始清单保留，版本差异见[验证记录](../../docs/api/v1/verification.md#文档对齐后的证据版本说明)。

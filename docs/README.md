@@ -1,29 +1,26 @@
 # 项目文档
 
-- [Core API v1 合同、生命周期与迁移](api/v1/README.md)
+当前实现基线是 PR #15 的 Core API v1（代码 `aa47ad5`）。Master 已确认该实现完成复审；本轮文档修订仍待 Master 复核，未合并或部署。实现事实以源码和公开合同为准，验证结论以对应版本的报告为准。本次修改清单与复核重点见[全量文档对齐记录](fix/fix_codex-issue8-api-v1_20261010_全量文档与实现对齐.md)。
 
-本目录的当前文档以 `src/pi_secretary` 的 Pi 实现为准。文档说明实现事实与边界；测试通过范围以 [测试报告](../test_case/reports/README.md) 为准。
-
-| 文档 | 用途 |
+| 阅读入口 | 内容与权威来源 |
 | --- | --- |
-| [设计哲学](philosophy.md) | 职责、授权、事实与模型判断的边界 |
-| [架构](architecture.md) | 模块职责、Pi 复用、组件依赖 |
-| [状态机](state-machines.md) | 代码实际状态变化、恢复与等待 |
-| [数据流](data-flow.md) | 输入、任务、授权、记忆与 World Model 数据流 |
-| [数据所有权与关联](data-model.md) | 实际写入者、ID 关联、预留字段边界 |
-| [结构化数据](data/README.md) | 完整字段索引、逐结构字段与约束 |
-| [数据库 schema](database.md) | PostgreSQL 表、字段、约束与事务 |
-| [持久化与恢复](persistence.md) | JSONL、对象库、幂等、恢复边界 |
-| [工具与接口](interfaces.md) | 主会话、执行 Agent、UI API 和程序协议 |
-| [设置生效规范](settings-activation.md) | World 管理、草稿、完整摘要、上下文重建与恢复 |
-| [更新计划](fix/fix_20260928_world_model管理与统一设置生效.md) | 本次实施进度及验收 |
-| [提示词与记忆](memory-and-prompts.md) | prompt 快照、工作记忆与承诺 |
-| [运行手册](operations.md) | 安装、启动、停止、配置、排障 |
-| [测试策略](testing.md) | offline / online 入口、证据层次、回归规划 |
-| [整理说明](repository-layout.md) | 迁移规则、旧路径和运行数据注意事项 |
+| [运行手册](operations.md) | Core 启停、fixture/live 配置、迁移与排障 |
+| [Core API v1](api/v1/README.md) | 当前客户端唯一 HTTP 合同、认证、命令回执、分页和精度 |
+| [架构](architecture.md) | ApplicationService、领域模块、持久化与读投影 |
+| [工具与接口](interfaces.md) | 模型工具、owner 命令、任务接续与程序执行 |
+| [数据流](data-flow.md) | 输入受理、授权、工具产物、Settings/World 与反馈 |
+| [数据所有权](data-model.md) | 领域记录和 API 记录的写入者、身份、版本 |
+| [状态机](state-machines.md) | 实际流转、未知结果及恢复边界 |
+| [持久化](persistence.md) | journal/CAS、独占 writer、API 回执与回退 |
+| [内部数据字段](data/README.md) | 从当前运行 schema 生成；不是客户端 DTO |
+| [数据库](database.md) | 从现行 SQL 生成的 World 表、约束与事务 |
+| [设置生效](settings-activation.md) | 草稿、完整整理、World 提交与上下文重建 |
+| [提示词与记忆](memory-and-prompts.md) | 请求容量、原文来源、承诺与显式恢复 |
+| [设计哲学](philosophy.md) | 宿主状态、模型声明、许可和事实的边界 |
+| [测试策略](testing.md) | 当前可执行套件、历史 UI 探针、online 边界 |
+| [API v1 验证记录](api/v1/verification.md) | 四项复审修复、真实工具/API 产物/独立验算及保留失败 |
+| [仓库与历史资料](repository-layout.md) | 目录、生成流程、旧路径与不可用附件 |
 
-原生客户端后续设计：[页面、组件与行为规范 v0.3](native-client-design-v0.3.md)。这是待实施的界面与协议需求，不是当前 TUI/WebUI 的实现说明。
+[客户端 v0.3](native-client-design-v0.3.md) 保留已确认的界面设计：正文 13 pt、默认 200 pt 可收起右栏；SwiftUI 尚未实现，不能将设计图、DTO 或后端能力当作 UI 验收。Core 已有任务、记忆、产物和设置接口；可靠同步、设备、附件上传等仍按能力状态和后续路线处理。
 
-[BrainStorm](BrainStorm_Baseline_v3.md) 是项目开工前的原始设计，不是当前实现规范。[old](old/README.md) 存放设计阶段原始设计及早期说明，和当前代码不构成证据对应。引用 Go 实现的旧设计按 Master 要求丢弃；OpenCode Go 是模型服务名称，与被丢弃的 Go 语言实现无关。
-
-本次部署计划与结果：[World Model 部署与效果验证](fix/fix_20260928_world_model部署与效果验证.md)。
+[BrainStorm](BrainStorm_Baseline_v3.md)、[old](old/README.md)、[fix](fix/) 和带日期的[测试报告](../test_case/reports/README.md)记录原设计或当时的计划/验证，不覆盖当前手册。旧 TUI/WebUI、旧 HTTP/SSE、旧双击脚本不适用于新版 Core。历史内容保留原始失败和完成边界；缺失附件见[不可用证据清单](unavailable-evidence.json)，不以占位文件伪造证据。

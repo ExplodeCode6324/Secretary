@@ -4,7 +4,7 @@
 
 主会话使用 [instructions.ts](../src/pi_secretary/src/instructions.ts) 的 BASE_SYSTEM 与 Master 自定义说明。执行 Agent 使用 [task-prompt.ts](../src/pi_secretary/src/task-prompt.ts) 的 `secretary.agent-task.v1` JSON 包。记忆和设置整理共用 [summary.ts](../src/pi_secretary/src/summary.ts) 的有界摘要流程；三者不共享任意可编辑 system prompt。
 
-Web「Secretary 说明」先保存 SettingsDraft，统一应用成功后更新 UserInstructions：最多 2000 个 Unicode 字符、revision CAS、同文不增版本、空文关闭自定义部分。模型工具不能修改此设置。Host 领取输入时保存 MainPromptSnapshot（完整 system/工具声明、说明版本及 hash）；修改说明经过[统一设置流程](settings-activation.md)，中断轮次仍使用原快照恢复。
+认证 owner 通过 `POST /api/v1/settings/draft` 保存 Secretary 说明为 SettingsDraft，统一应用成功后更新 UserInstructions：最多 2000 个 Unicode 字符、revision CAS、同文不增版本、空文关闭自定义部分。模型工具不能修改此设置。Host 领取输入时保存 MainPromptSnapshot（完整 system/工具声明、说明版本及 hash）；修改说明经过[统一设置流程](settings-activation.md)，中断轮次仍使用原快照恢复。
 
 ## 恢复记录与实际请求
 
@@ -20,7 +20,7 @@ CHECKPOINT 保存完整原件，即使超出模型容量也能保存；MODEL_REQ
 
 `CONTEXT_COMPACTION` 单独记录可裁剪的 canonical 前缀及替代内容，60% 可用输入占用时在安全边界处理，80% 强制阶段也必须先评估后发送。历史须先进入成功记忆；已覆盖来源不重复摘要/提取。目标占用为可用输入的 30%，保留原始 Master 输入锚点、有效 system/tools、当前轮次和完整工具协议。保留内容过大时目标可能不可达；硬预算超限显示 CAPACITY_BLOCKED，保留证据，不伪报达标。
 
-`/compact` 是显式维护入口；多来源历史转设置完整整理。维护期间新 ACCEPTED 输入排队，不单独使固定来源 STALE；基准记忆或用于摘要的任务事实变化仍会使候选过期。旧 journal 不改写，旧 last_job_id 裁剪语义仅用于尚未迁移至 maintenance_version=3 的记录；设置成功同时初始化独立边界。
+`POST /api/v1/session/compact` 是显式维护入口；多来源历史转设置完整整理。维护期间新 ACCEPTED 输入排队，不单独使固定来源 STALE；基准记忆或用于摘要的任务事实变化仍会使候选过期。旧 journal 不改写，旧 last_job_id 裁剪语义仅用于尚未迁移至 maintenance_version=3 的记录；设置成功同时初始化独立边界。
 
 ## 摘要与承诺
 
@@ -28,9 +28,9 @@ CHECKPOINT 保存完整原件，即使超出模型容量也能保存；MODEL_REQ
 
 摘要完成后才执行独立承诺提取。完整 user/assistant 消息保留说话人及事件 ID，过大完整消息不能安全装入提取请求时显式阻塞，不截断条件。每个来源的提取尝试持久化；成功复用，失败/未知结果不自动再调用，后续新增消息或账本变化也不能绕过。工具正文不能成为新承诺引文证据；引文在解码原始文本后核验，支持引号和换行。
 
-设置整理与主流程共用事件来源身份；仅用于显示的助手 `display_call_id` 不会把同一消息变成第二个来源，文本相同但事件 ID 不同仍是独立来源。`settings.retry` 会重新排队设置整理，`/compact` 会重新请求维护，但两者都不会清除承诺提取的来源级失败/未知结果；重复调用仍保持失败并报告 `COMMITMENT_EXTRACTION_REPLAY_BLOCKED`，重启也不解除此保护。旧设置的哈希来源通过已持久化的历史设置快照映射到事件，成功结果可复用；若部分旧快照无法区分多个完全相同消息对象对应的事件，则报告 `COMMITMENT_EXTRACTION_LEGACY_IDENTITY_AMBIGUOUS` 并停止提取，需另行核验证据后修复，不自动猜测或重试。
+设置整理与主流程共用事件来源身份；仅用于显示的助手 `display_call_id` 不会把同一消息变成第二个来源，文本相同但事件 ID 不同仍是独立来源。`settings.retry` 会重新排队设置整理，`POST /api/v1/session/compact` 会重新请求维护，但两者都不会清除承诺提取的来源级失败/未知结果；重复调用仍保持失败并报告 `COMMITMENT_EXTRACTION_REPLAY_BLOCKED`，重启也不解除此保护。旧设置的哈希来源通过已持久化的历史设置快照映射到事件，成功结果可复用；若部分旧快照无法区分多个完全相同消息对象对应的事件，则报告 `COMMITMENT_EXTRACTION_LEGACY_IDENTITY_AMBIGUOUS` 并停止提取，需另行核验证据后修复，不自动猜测或重试。
 
-commitments 是宿主账本，含稳定 ID、原文、状态、来源与处理凭证。摘要遗漏不能删除承诺；狭义结果汇报承诺只有匹配任务结果及来源之后的 SENT 通知才可自动完成。一般承诺由 `/memory-resolve <完整ID> <COMPLETED|CANCELLED> <说明>` 明确处理。
+commitments 是宿主账本，含稳定 ID、原文、状态、来源与处理凭证。摘要遗漏不能删除承诺；狭义结果汇报承诺只有匹配任务结果及来源之后的 SENT 通知才可自动完成。一般承诺由 `POST /api/v1/memory/commitments/{id}/resolve`（state 与 note） 明确处理。
 
 Issue 4 增加独立的用户显式单次提取恢复服务；每来源最多一次**自动**提取的约束不变。先只读预检失败分组，冻结旧 attempt、session、来源原件/边界、policy、实现与运行配置版本、工作记忆 revision，再以 request_id 和完整绑定请求授权所选分组。旧 attempt 不修改或删除，新恢复记录关联 parent_attempt 和精确 ModelCall；同 ID 同参数对账，同 ID 改参拒绝。授权消费在发送前落盘，来源拥有者和领取代次阻止并发发送及迟到提交。
 
@@ -58,7 +58,7 @@ Issue 4 增加独立的用户显式单次提取恢复服务；每来源最多一
 
 参数均校验，纳入设置 runtimeHash。旧 SECRETARY_COMPACTION_BYTES 不再触发维护。当前 live 硬门禁支持实际验证的 openai-completions 和 openai-responses；最终 payload 的模型、输出字段和完整体积发送前再核验。不支持的路径明确阻塞，供应商失败不自动重试。task 同样门禁，超限保留检查点及失败原因，本次不新增 task 自动压缩。
 
-Web/TUI 容量展示最近 MAIN MODEL_REQUEST 的估算和 O/T/S，与恢复 CHECKPOINT 分开；下一请求发送前重算。真实 usage 属于对应已完成调用，不混加 input/cache 指标。不变化的查询复用已存预算和 usage。
+内部状态和历史显示投影保留最近 MAIN MODEL_REQUEST 的预算与 usage，与恢复 CHECKPOINT 分开；下一请求发送前重算。当前 API 的 session 仅公开身份/状态/revision/recovery_error，不能把遗留 UI 的完整容量面板当作新版已实现接口。真实 usage 属于对应已完成调用，不混加 input/cache 指标。
 
 ## 升级与验证
 
@@ -67,3 +67,12 @@ Web/TUI 容量展示最近 MAIN MODEL_REQUEST 的估算和 O/T/S，与恢复 CHE
 验收计划与覆盖矩阵见 [Issue #2 计划](fix/fix_20261005_issue2_上下文容量与记忆分离计划.md)。合成回归、HTTP 捕获、真实模型、浏览器及部署是不同证据；本次运行报告会分别记录，不能用离线绿灯代替部署证明。
 
 恢复对账还核对精确 ModelCall 的完整 session/task/execution scope、Context 与调用/loop/用途/revision 的关联，以及原始 system 和完整请求证据；不能因 user 来源文本相同就接受不同 system 请求。该校验针对证据完整性，不意味着存在正常用户入口可以修改持久记录。预检签发的未消费凭证在 5 分钟后或服务重启时失效，须重新预检；已消费的幂等回执仍可对账，不重新调用模型。
+
+
+## 新版读入口与验证边界
+
+`GET /api/v1/memory` 返回维护状态；summary 与 commitments 分页接口返回有界摘要、承诺和来源投影，不透传 PromptSnapshot 或完整 Consciousness。来源无明确事件绑定时为 locator_state=unavailable；承诺有 source_batch 才公开其 source_event_ids，不用同内容 hash 猜来源。
+
+显式提取恢复使用 `GET /api/v1/memory/recovery` 取得完整 binding，再 POST 同路径持久受理并通过 requests 对账；不再通过旧终端命令。TaskResult 的完成与 Notification SENT 的送达证明不同，当前 API 尚未提供 presented 确认命令，不能把普通读取当成自动完成承诺的依据。
+
+已验收的合成记忆场景证明整理后两个真实 OS 进程之间的持久连续性，重启后确有真实 provider 请求；原始事实仍在请求上下文中，不能宣称仅凭摘要回忆。详见[API 验证记录](api/v1/verification.md)。

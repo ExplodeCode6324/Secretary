@@ -6,9 +6,9 @@
 
 ## 迁移与事务
 
-World.migrate 使用 advisory lock 串行化迁移；不存在 schema_version 时执行基线，再应用 predicate seed 并记录版本 2，最后执行增加 settings_batch_receipt 的版本 3 迁移。基线/seed 自带事务；migrate 在失败时 rollback 并释放锁。仅显式 --migrate / API 调用迁移。
+World.migrate 使用 advisory lock 串行化迁移；不存在 schema_version 时执行基线，再应用 predicate seed 并记录版本 2，最后执行增加 settings_batch_receipt 的版本 3 迁移。基线/seed 自带事务；migrate 在失败时 rollback 并释放锁。当前入口为 owner 显式 POST /api/v1/admin/world/migrate，再按请求回执确认；Core CLI 不处理 --migrate。
 
-变更通过 Settings 协调器先摘要并预检 context。Master 管理页记录明确应用证据；模型提案仍经授权。数据库事务检查实体、predicate 与 slot revision；整批原子提交并保存 settings_batch_receipt。change_id/request_id/request_hash 支持回执去重和冲突检查。assertion、状态投影、冲突、证据、change_receipt 与 audit_outbox 在事务中提交；JSONL 审计导出属于独立可恢复桥接。
+变更通过 Settings 协调器先摘要并预检 context。认证 local-owner 的 Settings API 记录明确应用证据；模型提案仍经授权。数据库事务检查实体、predicate 与 slot revision；整批原子提交并保存 settings_batch_receipt。change_id/request_id/request_hash 支持回执去重和冲突检查。assertion、状态投影、冲突、证据、change_receipt 与 audit_outbox 在事务中提交；JSONL 审计导出属于独立可恢复桥接。
 
 ## 关系图
 

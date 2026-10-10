@@ -8,7 +8,7 @@
 | objects/<sha256> | 原始输入、上下文、参数、stdout/stderr、结果等不可变字节 |
 | workspaces/<task_id>/work | 任务可变工作文件 |
 | owner.lock | Python fcntl helper 持有的进程级互斥 |
-| ui-endpoint.json / ui-backend.log | 本机 UI 连接元数据与后台日志；endpoint 包含秘密 token |
+| core-endpoint.json / core.log | 本机 Core 发现元数据与日志；endpoint 包含秘密 token |
 
 对象先写临时文件并 fsync，rename 后同步目录；事务写入 journal 并同步后才确认。Store 校验 JSON Schema、版本与对象引用；读取对象验证 SHA-256 和长度，拒绝对象符号链接。重放可处理不完整尾帧，中段损坏或引用原件缺失会拒绝恢复，不创建假空会话。
 
@@ -43,3 +43,14 @@ Store 重放时建立 TaskPlan 历史版本索引。旧 Execution 缺少 proposa
 新增字段是向前读取兼容，不保证旧代码读取升级后的 journal。部署前必须备份完整目录并保留兼容读取版本；产生新执行或副作用后不能仅退回旧代码或恢复旧备份。应停止新派发，使用支持新契约的修复版本继续核验和恢复，保留全部操作回执。尚未产生新操作时，可在另一个隔离副本验证升级前备份；不得借回滚重放已发生的外部操作。
 
 主会话在 Scheduler 已提交回执、Host 工具结果尚未保存的窗口中断时，仅对具有持久回执的 task_propose 重建结果。其他未确认工具仍进入 RECOVERY_BLOCKED。接续材料的来源与派生证据由 TaskProposal.source_context_refs 区分；checkpoint 原件保留，模型输入只投影直接 parent 的 assistant/toolResult 证据，不递归嵌入旧分派包。
+
+
+## API v1 持久边界
+
+CoreIdentity、AssistantProfile、ClientRegistration 和 ApiCommand 写入现有 journal/CAS，不另建业务数据库。owner/data_domain 身份持久保存，服务 instance_id 和游标签名密钥每次启动变化。发现文件由 backend 启动时以私密权限原子替换，关闭只移除本实例的记录；不是权威业务存储。旧 ui-endpoint.json 不用于新客户端发现。
+
+短命令的 ApiCommand 与首个领域变更同一帧提交，NO_CHANGES 也保存回执；request_id 绑定 owner、路径和规范化完整 body。Store 重放同时恢复旧 Scheduler.answer 的请求身份占用，跨操作复用冲突。短命令 ACCEPTED 可长期保留，业务完成读对应资源，不等待虚构的统一 COMPLETED。
+
+长命令先 QUEUED，执行前 RUNNING，正常结束 COMPLETED；异常或重启中断为 UNKNOWN。QUEUED 可在新进程继续，但领域授权/版本/票据门禁仍有效；RUNNING 不自动再次派发。memory/recovery 的未消费票据在服务重启后失效，持久 ApiCommand 不延长许可；已消费请求按 ExtractionRecovery 和 ModelCall 证据对账。
+
+新增持久记录不保证旧二进制可读，协议也不兼容旧 TUI/WebUI。旧数据回放中的默认字段承接是领域兼容读取，不是旧客户端兼容层。迁移与回退详见[API 切换说明](api/v1/README.md#切换与回退)。

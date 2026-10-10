@@ -1,3 +1,5 @@
+> 历史测试记录：本文保留原运行版本、失败和结论，不作为当前 Core/原生客户端已经验收的证明。旧路径或命令仅供追溯；当前证据见 [API v1 验证记录](../../../docs/api/v1/verification.md)。
+
 # World Model 现用部署验收
 
 部署开始于 2026-09-28，完成于 2026-09-29（Asia/Hong_Kong）。Master 已授权部署与效果验证，见[部署计划](../../../docs/fix/fix_20260928_world_model部署与效果验证.md)。实际项目位置为 Secretary；环境提示中的 Secretary_Simplified 已不存在。
@@ -21,7 +23,7 @@
 
 真实服务验收通过后，合成事实已撤回、合成实体已停用；当前事实为 0，历史保留 SUPERSEDED / RETRACTED 各一条。没有更改原 Secretary 说明，没有新增或重启原任务，没有批准历史授权请求。此次真实模型结果是短场景验收，不等同长期 REAL_USE 稳定性证明。
 
-第一次驾驶脚本误读 `value_json`，实际 API 字段是 `value`；该脚本失败原件保留在 [first-attempt](live-api-first-attempt.json)。修正后复用同一合成实体继续测试，没有重复创建验收资料。没有隐去失败或将它算作通过。
+第一次驾驶脚本误读 `value_json`，实际 API 字段是 `value`；该脚本失败原件保留在 first-attempt（原附件 `live-api-first-attempt.json`；当前仓库未提供）。修正后复用同一合成实体继续测试，没有重复创建验收资料。没有隐去失败或将它算作通过。
 
 本轮没有可用的浏览器自动交互工具，页面验证限于真实 HTTP 资源与管理 API；实际浏览器交互证据见上一轮[开发验收](../settings-20260928/README.md)。Master 可在现用页面复核表单与视觉效果。
 

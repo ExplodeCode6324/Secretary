@@ -1,3 +1,5 @@
+> 历史测试记录：本文保留原运行版本、失败和结论，不作为当前 Core/原生客户端已经验收的证明。旧路径或命令仅供追溯；当前证据见 [API v1 验证记录](../../../docs/api/v1/verification.md)。
+
 # 文档与代码核对记录
 
 日期：2026-09-28。范围是仓库自有 Markdown；第三方 `src/pi_resource` 不作为 Secretary 规范修改。逐文件范围及内容摘要哈希见 [清单](documentation-inventory.json)。

@@ -2,7 +2,7 @@
 
 相对 data_root 或 workspace_root；运行时拒绝绝对路径、..、符号链接越界。
 
-来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/RelativePath)。此页自动生成；行为以调用模块为准。
+来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/RelativePath)。此页自动生成，描述内部合同；客户端使用 [API v1 DTO](../api/v1/README.md)。字段存在不等于全部语义已实现，行为以调用模块为准。
 
 ```json
 {

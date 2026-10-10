@@ -1,129 +1,93 @@
 # 运行手册
 
-> API v1 分支说明：当前启停、认证与 HTTP 合同见 [API v1](api/v1/README.md)。本文保留领域流程与历史 UI 使用记录；旧 TUI/WebUI 路由不适用于新版 Core。
+当前入口是独立 Core API v1，命令从仓库根目录运行。需要 Node.js ≥22.19、npm、Python 3；World 可选，隔离数据库验证使用 PostgreSQL 18。此处描述代码行为，不表示已经部署现用实例。
 
-所有命令均从仓库根目录执行。依赖 Node.js ≥22.19、npm 和 Python 3；World Model 测试使用 PostgreSQL 18。
+## 安装与离线 Core
 
 ```sh
 git submodule update --init --recursive
 npm ci --ignore-scripts
 npm start
-npm run start:web
-```
-
-默认 fixture 不调用真实模型；TUI 与 Web 连接同一数据目录后台。`/quit` 或 Ctrl+C 关闭客户端，后台继续运行。关闭默认 fixture 后台：
-
-```sh
-SECRETARY_DATA=.demo-data npm run stop
-```
-
-## 真实模型
-
-本地 `.demo-data/live-credentials.json` 格式是 `{"main":"主会话密钥","task":"任务密钥"}`，使用真实值时只保存在本地并 `chmod 600`。不要把密钥放入聊天、任务材料或 Git。
-
-```sh
-npm run start:live
-npm run start:web:live
+npm run core -- status
+npm run core -- attach
 npm run stop
 ```
 
-start-live 脚本使用 opencode-go provider，默认 main 为 deepseek-v4.1-flash、task 为 gpt-5.6-luna；live 数据默认 `.demo-data/interactive-live`。这些是当前代码配置，不代表已重新核验服务商可用性。macOS 的启动与停止 `.command` 位于 `src/`，脚本自行切换到仓库根目录。
+这些命令默认访问 `.demo-data`，默认 fixture 不调用真实模型。`start` 启动或附着独占 Core；`status` 和 `attach` 只连接既有实例，不启动新进程。无实例时输出 STOPPED，status/attach 退出 1、stop 退出 0。启动器退出后 Core 继续运行；停止必须显式执行。
 
-.demo-data/interactive-live 默认会话的 live 启动器读取可选的本地 `.demo-data/live-runtime.json`（可用 `SECRETARY_RUNTIME_FILE` 指定）。自定义 `SECRETARY_DATA` 不自动继承默认会话的数据库配置，需显式指定运行配置或 DSN。`database_url` 提供 World DSN；显式 `SECRETARY_DATABASE_URL` 优先。若未指定环境 DSN 且配置含 `local_postgres_data`，启动器通过 PATH 中的 `pg_ctl` 检查并启动该既有集群，不自动建库或迁移。此配置不提交 Git，也不包含模型密钥。2026-09-28 的本机部署使用 `.demo-data/world-postgres` 与私有 `.demo-data/pg-socket`，禁用 PostgreSQL TCP 监听。正常关闭 Secretary 后台不关闭数据库；需要全部停机时再执行 `pg_ctl -D .demo-data/world-postgres -m fast -w stop`，后续 live 启动器会重新启动它。
+自定义目录时，各条命令使用同一 `SECRETARY_DATA` 和匹配的 `SECRETARY_MODE`。发现文件为该目录的 `core-endpoint.json`，日志为 `core.log`；endpoint 含秘密 token，不应公开。CLI 只打印 Core 状态或回执，不打印 token。完整鉴权、响应与错误语义见 [API v1](api/v1/README.md)。
 
-| 环境变量 | 行为 / 默认值 |
-| --- | --- |
-| SECRETARY_DATA | 数据目录；普通入口 `.demo-data`，live wrapper / stop `.demo-data/interactive-live` |
-| SECRETARY_MODE | `live` 启用真实模型，其余走 fixture |
-| SECRETARY_CREDENTIALS_FILE | live wrapper / 在线测试密钥文件；默认 `.demo-data/live-credentials.json` |
-| SECRETARY_MAIN_MODEL / SECRETARY_TASK_MODEL | 两个角色独立模型 |
-| SECRETARY_MAIN_PROVIDER / SECRETARY_TASK_PROVIDER | 直接入口的 provider；live wrapper 固定 opencode-go |
-| SECRETARY_MAIN_API_KEY / SECRETARY_TASK_API_KEY | 直接 live 入口的角色密钥；wrapper 从本地文件注入 |
-| SECRETARY_PROVIDER / SECRETARY_MODEL | 直接入口兼容的共享默认 provider/model；不共享角色密钥 |
-| SECRETARY_DATABASE_URL | 可选 PostgreSQL DSN |
-| SECRETARY_MAX_WORKERS | 默认 2 个任务执行者 |
-| SECRETARY_MAX_OUTPUT_TOKENS | 普通模型回复上限默认 4096 |
-| SECRETARY_COMPACTION_BYTES | 自动整理阈值，默认 32768 bytes |
-| SECRETARY_COMPACTION_OUTPUT_TOKENS | 普通单来源整理的基础输出预算默认 8192；设置完整整理使用 8192/16384 两次尝试预算，均受模型 maxTokens 限制 |
-| SECRETARY_COLOR / NO_COLOR | 终端颜色设置 |
+`npm run start:web` 返回旧界面退役错误；`npm run start:web:live` 拒绝 `--web`。旧 TUI/Web 的双击启动器和 `src/停止Secretary后台.command` 仍依赖旧入口/旧发现文件，不适用于新版 Core。当前没有可用 SwiftUI 或新版 TUI，不能用这些遗留脚本完成新版界面验收。
 
-每个 loop 限制模型调用次数，传输设置 120 秒中断信号；这不是任意任务的完整端到端 SLA。
+## 真实模型 Core
 
-## 流式输出与思考显示
-
-主会话正文支持有限 Markdown：标题、嵌套列表、引用、围栏代码、表格和安全链接。原始 HTML 与图片语法作为文本显示，不执行或自动加载；链接只允许 HTTP(S) 与无查询参数的 mailto，使用新窗口及 `noopener noreferrer`。不支持的语法保留可读文本。流式预览和完成后回答使用同一 DOM 渲染器，长代码与宽表格在各自容器内横向滚动。
-
-WebUI 主会话顶部「显示设置」提供两个独立开关，初次打开均为开启：
-
-| 流式输出 | 显示思考过程 | 展示行为 |
-| --- | --- | --- |
-| 开 | 开 | 正文和可见思考内容逐段出现 |
-| 开 | 关 | 仅正文逐段出现 |
-| 关 | 开 | 当前模型响应完成后展示正文及思考内容 |
-| 关 | 关 | 当前模型响应完成后只展示正文 |
-
-偏好保存于当前浏览器的站点存储，刷新后保留；更换浏览器或站点端口可能使用默认值。运行中也可切换，关闭思考会立即隐藏并清理页面中的思考文本，重新开启可读取已保存内容。这些显示偏好即时生效，不需要「应用全部更改并重建上下文」，不改变模型推理强度，也不表示关闭模型内部推理。
-
-思考区在对应回复正文之前，采用 12px 字体（正文默认 14px）及现有暗色配色，可点击标题折叠。它仅展示供应商返回的可见思考文本或摘要；未返回时显示说明，不补写或推测内部过程。Task Agent、记忆整理和设置重建的内部内容不进入主会话思考区。TUI 仍保持完成后展示正文。
-
-实时连接中断后自动重连，恢复当前预览；页面关闭不终止后台任务，不重新发送模型请求。未完成输出显示「未完成」。预览长度有界，截断时有提示，最终正文以已保存响应为准。后台重启会丢失临时预览，但已保存的正文与可见思考可恢复；后台端口和 token 可能变化，重启后用 `npm run start:web:live`（fixture 用 `npm run start:web`）重新打开页面。
-
-升级后端代码须在会话和任务空闲时正常重启后台，再重新打开 WebUI。仅更新静态页面时刷新即可。若暂不需要增量显示，关闭「流式输出」即可恢复完成后展示。
-
-## World Model
-
-配置专用数据库后执行：
+启动 wrapper 读取现有私密凭据文件，JSON 包含独立 `main`、`task` 两项；文件应限制为本机用户读取，不放入 Git、任务材料或公开日志。
 
 ```sh
-SECRETARY_DATABASE_URL='postgresql://localhost/secretary' npm start -- --migrate
+npm run start:live
+# wrapper 默认数据目录与模式不同于普通 npm start；管理时必须明确匹配。
+SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run core -- status
+SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 ```
 
-后台按版本读取 `src/schema/001_world_model.sql` 、`002_predicates.sql` 和 `003_settings.sql`；不自动 drop 数据。运行中的后台不会因另开客户端修改环境变量，变更模型或 DSN 前先恢复未完成轮次和设置应用，再正常停止相同数据目录的后台；新配置启动后自动摘要并重建 context，成功前不领取新输入。
+`start-live.ts` 固定两个角色的 provider 为 opencode-go，默认 main=deepseek-v4.1-flash、task=gpt-5.6-luna；模型可由角色环境变量覆盖。这是源码默认值，不是服务商可用性或价格保证。wrapper 默认数据目录为 `.demo-data/interactive-live`，凭据路径为 `.demo-data/live-credentials.json`。
 
-## 排障与迁移
+默认 live 目录会读取可选 `.demo-data/live-runtime.json`，或显式 `SECRETARY_RUNTIME_FILE`。自定义数据目录不自动继承默认 runtime 文件。runtime 的 `database_url` 提供 DSN；环境 `SECRETARY_DATABASE_URL` 优先。未提供环境 DSN 且配置 `local_postgres_data` 时，wrapper 可用 `pg_ctl` 启动该既有集群；不会建库或自动迁移。Core 停止会关闭自身数据库连接，不会停止 PostgreSQL 服务。生产数据库启停与备份按实际部署单独处理。
 
-- OWNER_BUSY：该目录已有实例或独占检查正在运行，先确认现有后台。
-- BACKEND_MODE_MISMATCH：同一目录混用了 fixture/live，使用匹配模式或另一数据目录。
-- CORRUPT_OBJECT / journal 损坏：保留完整副本，核对备份与缺失原件，不能删除日志假装恢复。
-- RESULT_UNKNOWN：查看操作和回执，文件写入可用 `/verify`；其他作用需要针对性核验，不直接重跑。
-- 更换 checkout 路径后，旧 ProgramRegistration 的绝对 entrypoint 可能无效，重新登记新程序并复核相关任务。
+直接 `SECRETARY_MODE=live npm start` 不读取 wrapper 的凭据 JSON；须由环境提供角色 provider/model/API key。不要将密钥写入命令历史或文档示例。
 
-目录整理已把旧 `demo_pi/.demo-data` 原样迁到根目录 `.demo-data`；未更改历史 journal / credential 内容。本次未自动重启 live 后台。自定义的外部绝对路径、外部快捷方式仍需指向新目录。新位置映射见 [整理说明](repository-layout.md)。
+| 配置 | 当前代码行为 |
+| --- | --- |
+| SECRETARY_DATA | CLI/start/stop 默认 `.demo-data`；live wrapper 默认 `.demo-data/interactive-live` |
+| SECRETARY_MODE | `live` 使用 provider，其他值走 fixture；附着须与运行实例匹配 |
+| SECRETARY_CREDENTIALS_FILE | live wrapper 读取已有 main/task 凭据 |
+| SECRETARY_MAIN_PROVIDER / SECRETARY_TASK_PROVIDER | 直接 Core 的角色 provider；wrapper 固定 opencode-go |
+| SECRETARY_MAIN_MODEL / SECRETARY_TASK_MODEL | 角色模型；wrapper 有上述默认值 |
+| SECRETARY_MAIN_API_KEY / SECRETARY_TASK_API_KEY | 直接 Core 使用角色密钥；wrapper 从凭据文件注入 |
+| SECRETARY_PROVIDER / SECRETARY_MODEL | 直接入口的共享 provider/model fallback，不共享角色密钥 |
+| SECRETARY_DATABASE_URL | 可选 World DSN；已配置不等于数据库可用/已迁移 |
+| SECRETARY_MAX_WORKERS | 默认 2 个任务执行者 |
+| SECRETARY_MAX_OUTPUT_TOKENS | 普通调用输出目标 4096 |
+| SECRETARY_COMPACTION_OUTPUT_TOKENS / SECRETARY_COMPACTION_RETRY_OUTPUT_TOKENS | 摘要目标 16384 / 32768，受模型及部署上限约束 |
+| SECRETARY_MAIN_* / SECRETARY_TASK_* 容量上限 | CONTEXT_WINDOW、INPUT_TOKENS、OUTPUT_TOKENS；完整参数见[容量规范](memory-and-prompts.md#容量与配置) |
+| SECRETARY_MEMORY_UPDATE_TURNS / SECRETARY_MEMORY_UPDATE_SECONDS / SECRETARY_MEMORY_MIN_INTERVAL_SECONDS | 记忆维护默认 8 个完成轮次 / 60 秒 / 120 秒最小间隔 |
 
-目录迁移也可能使历史 shell Operation 的绝对 cwd/resource 指向旧目录。历史记录保持原样；待执行操作需复核并重新提出适用的任务/授权，不能改写旧许可后继续执行。
+旧 SECRETARY_COMPACTION_BYTES 不再触发自动维护。旧终端颜色参数不属于 Core API 配置。模型传输的默认 120 秒中断信号不是任务端到端 SLA；online harness 另有更严格预算。
 
-## 管理 World Model 与应用设置
+## 通过 API 操作与对账
 
-在 WebUI 打开「World Model 管理」，创建或修改实体、登记/更正/撤回事实，保存草稿后点击「应用全部更改并重建上下文」。Secretary 说明使用同一草稿和应用批次。等待显示已生效；失败可重试，版本冲突应刷新数据并修正草稿。BLOCKED 时查看错误并恢复原数据库/模型连接，不能删除 journal 或重新创建会话规避。当前历史没有物理删除入口。
+使用 [CoreClient](../src/pi_secretary/src/core-client.ts) 或实现同等合同的本机调用方。命令必须有新 UUID request_id；重试同一意图保留原路径、ID 和完整 body，先用 `GET /api/v1/requests/{id}` 对账。202 仅为持久受理；任务看 Execution/Operation，设置看 SettingsApplication，不把 ACCEPTED 当成业务成功。
 
-已有数据库须显式运行迁移以增加版本 3 批次回执表。升级前正常停机，并同时备份完整数据目录与 PostgreSQL；新代码生成的新记录不保证旧二进制可读。完整步骤、容量限制和恢复边界见[设置生效规范](settings-activation.md)。这份实现交付不自动迁移或重启现用服务。
+| 操作 | 新版入口（均以 `/api/v1` 为前缀） |
+| --- | --- |
+| 输入和时间线 | POST `/messages`；GET `/timeline`、`/timeline/around`、`/messages/{id}/content` |
+| 提交/续接任务 | POST `/task-requests`；GET `/tasks/{id}`、`/executions/{id}` |
+| 批准副作用 | GET `/authorizations/{id}` 完整展示；POST `/authorizations/{id}/decision` 带 revision 和 display_hash |
+| 工作决定 | POST `/decisions/{id}/answer`，与审批分离 |
+| 显式访问执行 | POST `/executions/{id}/viewed`；GET 不续留 |
+| 设置草稿/应用 | GET `/settings`；POST `/settings/draft`、`/settings/apply` |
+| 记忆维护/承诺 | POST `/session/compact`、`/memory/commitments/{id}/resolve` |
+| 提取恢复 | GET `/memory/recovery`；POST `/memory/recovery` 带完整 binding |
+| 未知文件写入核验 | POST `/operations/{id}/verify-write`；shell 无通用自动核验 |
+| World 迁移 | POST `/admin/world/migrate`，随后按请求回执与领域结果确认 |
 
-## 任务接续与升级
+CLI 只支持 start/attach/status/stop；`npm start -- --migrate` 不执行数据库迁移，旧 `/compact`、`/verify` 等终端文本也不是 Core 命令。World 迁移读取现行 SQL 版本，不 drop 数据。草稿/应用/重试的字段以[操作表](api/v1/operations.json)和[设置规范](settings-activation.md)为准。
 
-已结束任务的修改由主会话查询原任务后提交接续；只解释结果无需新增执行。新轮次使用同一 work 目录，但旧产物可从原 TaskResult 对象读取。尚未分派的接续可通过 task_control 的 cancel_request 取消，request_id 在任务查询的 latest_request 中；已经分派则进入原执行取消流程。
+只读预检签发的恢复 binding 有效期 5 分钟且绑定当前服务实例。过期或重启后未消费票据应重新预检；已消费请求仍沿用原 ID 对账。BLOCKED、UNKNOWN、设置重试和换 ID 都不授权盲目重发模型或外部动作。
 
-本次新增持久字段支持读取旧数据，不支持将新 journal 直接交给旧版代码。部署前在完整隔离副本验证升级，备份代码及完整数据目录，并复核活跃/未知执行；部署和现用数据迁移应单独安排。出现问题时停止新派发并保留回执，按[恢复规则](persistence.md)使用兼容版本恢复，不能回滚历史后重复外部操作。
+## 观察与故障处理
 
-## 当前活动
+时间线可显式请求 `streaming=true`、`thinking=true`，仅显示供应商提供的可见内容。预览只在内存中，不是可靠 SSE；新版没有旧 `/api/state`、`/api/stream`、`/api/poll`。客户端缓存、阅读位置、字体和显示开关仍由未来客户端实现。当前 API 无通知 presented/已读命令，普通读取不会生成 SENT 回执。
 
-WebUI 在相关消息之间展示主会话、设置/记忆和各后台任务的活动；点击活动可展开阶段与操作入口。输入区保留排队、连接提示及当前/待处理活动跳转入口。TUI 保留输入区状态，`/activity` 可查看当前活动和近期步骤。任务以短执行 ID 区分，多个活动并列更新。活动与流式正文、可见思考开关独立，关闭两个显示开关仍可看到活动。
+- OWNER_BUSY：先确认同一目录的 writer，不并行打开另一个 App 或删除锁。
+- CORE_MODE_MISMATCH / UNSAFE_ENDPOINT：核对目录、模式、发现文件 owner/权限，不能以旧 ui-endpoint.json 替代。
+- CAPACITY_BLOCKED / RECOVERY_BLOCKED：保留原件和错误，按模型预算、来源证据及恢复入口对账。
+- journal/CAS 损坏：保留完整副本，不能删日志或创建空会话伪装恢复。
+- RESULT_UNKNOWN / ApiCommand UNKNOWN：核对领域回执；取消或换 request_id 不证明未发生作用。
+- Settings BLOCKED：先确认原数据库、配置与批次回执，不清空本地记录绕过 gate。
 
-设置整理显示当前段、已完成段数及尝试次数；承诺提取与校验完成前不增加完成数。已持久化但未领取的用户消息显示待处理数量，已领取消息和任务反馈另计；排队消息可能批量处理。健康检查通过或主会话 IDLE 不代表设置已生效或消息可以立即处理。
+## 升级与回退
 
-耗时来自实际起止时间，终态停止累计；旧工具结果若没有准确开始时间，显示「耗时未知」。心跳不会充当业务进展。活动不提供百分比或预计完成时间，也不展示工具参数、原始错误、提示词或私密材料。完成活动保留在原位置，模型请求工具不等于工具已执行，等待授权不会标成执行成功。
+停止旧 writer，备份完整数据目录及对应 PostgreSQL、代码与配置并记录校验。先在隔离副本验证回放；新旧版本不能同时写同一数据域。未完成 Settings 要用其原配置恢复，不能直接换模型/DSN。
 
-断线时实时状态标记为不可确认，恢复连接后刷新已加载历史，不重新提交消息。WebUI 后台更换端口/token 后仍需通过启动入口重新打开；TUI 可重新连接同一数据目录中已启动的替代后台，活动轮询不会启动新后台。
-
-第三版 Web 首次查询最新 200 条，向上或向下滚动按需翻页；也可点击「加载更早记录」「加载较新记录」和失败重试入口。默认最多缓存 2000 条及 16 MiB 内容，达到预算后释放远端缓存，需要时重新读取，不删除服务器历史。只挂载视口附近的记录；浏览器原生查找不覆盖全部历史。查看旧记录时新消息不抢滚动，可点击「回到最新消息」；输入区活动入口能定位窗口外任务。大正文显示字符范围及继续/前一段入口，每次替换当前片段，原文仍完整保存在服务器。文字选择或主动展开详情与预算冲突时，结束选择/关闭详情后重试加载。
-
-任务和授权/决定面板一次查询最多 20 项，可按需翻页；批准流程仍要求阅读完整参数。每个活动最多保留 12 个阶段摘要。TUI 和旧活动 API 的近期记录及分页规则保持兼容。未落盘的细阶段不能恢复，旧 IN_FLIGHT 不冒充正在思考。没有新增数据迁移；本功能交付不自动重启现用实例。
-
-## 失败记忆提取的显式恢复
-
-Web 的记忆提取恢复入口与 TUI `/memory-recovery [group]` 先显示只读预检。选择来源分组，核对旧 attempt、原批次、版本和阻塞原因；`READY` 才可明确授权一次新调用，`RECONCILE`/`SUCCEEDED` 执行已有结果对账及原批次提交。TUI 使用 `/memory-recover <JSON>`，JSON 由新的 UUID `request_id` 和预检 `binding` 原样组成；同一次请求重放沿用该 ID。
-
-`BLOCKED` 不是“再点一次即可恢复”。超时或未知调用无法确认旧执行静止/隔离时必须停发；改参数、换 ID、重启、设置重试和普通整理均不能消除未知证据。一次授权最多一次新调用，不能保证供应商网络 exactly-once，重新调用可能再次计费。成功结果会复用；若另有未授权分段或固定版本已变，原批次仍可能不能提交，界面会保留原因。
-
-旧版本缺少精确 attempt/ModelCall/来源绑定的失败记录不能自动升级为可恢复。保留完整 journal 和对象，不删除记录或篡改状态来清锁。新契约生成的 journal 应由兼容版本读取；本次代码交付不迁移现用数据、不重启后台、不连接现用数据库。
-
-预检凭证有效期为 5 分钟，Web 显示截止时间，TUI 的 binding 显示 `expires_at`。首次提交前过期或服务已重启，应刷新预检并明确提交新请求。提交后未收到结果时保留原请求 ID 和完整参数用于对账，不因超时或到期换 ID 推定未发送；新预检也不会解除未知执行的 BLOCKED。
+新版会生成旧版本不认识的持久记录，不支持旧 TUI/Web 协议。回退须使用经核验的旧代码、配置和匹配的数据备份，先对账升级后外部作用，禁止用旧备份重复执行。旧 ProgramRegistration 的绝对入口和 shell cwd/resource 在迁移后可能失效，不能修改历史许可来掩盖变化。详见[持久化](persistence.md)和[API 切换说明](api/v1/README.md#切换与回退)。

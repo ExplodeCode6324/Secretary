@@ -2,7 +2,7 @@
 
 由 `npm run docs:generate` 从运行时 JSON Schema 生成。逐字段说明包括继承字段；required 表示必须出现，nullable 是否允许 null 由类型/组合约束决定。完整条件约束见各页引用的 Schema。
 
-Schema 是结构校验来源，TypeScript contracts.ts 是生成类型。字段存在不代表所有语义已实现：例如 Context 的 source_event_ids / omitted_refs / wm_fact_versions 当前没有完整填充；状态 catalog 也不是全局运行时 guard。
+这里是内部持久化/领域合同，客户端 DTO 另见 [API v1](../api/v1/README.md)。Schema 是结构校验来源，TypeScript contracts.ts 是生成类型。字段存在不代表所有语义已实现：例如 Context 的 source_event_ids / omitted_refs / wm_fact_versions 当前没有完整填充；状态 catalog 也不是全局运行时 guard。
 
 所有持久化记录由 Store.shape 校验，普通请求与嵌套定义由调用点 shape/shapeDefinition 或宿主逻辑校验。`record_type + id` 定位记录，revision 用于版本检查，ObjectRef 用 SHA-256 引用不可变原件。
 
@@ -93,3 +93,7 @@ Schema 是结构校验来源，TypeScript contracts.ts 是生成类型。字段�
 | [ExtractionRecovery](ExtractionRecovery.md) | 20 | Explicit single-use recovery authorization; immutable request binding and generation fence, never automatic retry. |
 | [RecoveryBinding](RecoveryBinding.md) | 13 |  |
 | [RecoveryRequest](RecoveryRequest.md) | 14 |  |
+| [CoreIdentity](CoreIdentity.md) | 6 |  |
+| [AssistantProfile](AssistantProfile.md) | 6 |  |
+| [ClientRegistration](ClientRegistration.md) | 7 |  |
+| [ApiCommand](ApiCommand.md) | 13 |  |
