@@ -1,14 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { App } from "../../../src/pi_secretary/src/app.ts";
-import { serve } from "../../../src/pi_secretary/src/backend.ts";
-import {
-  fixtureModel,
-  fixtureStream,
-} from "../../../src/pi_secretary/src/model.ts";
 
 const source = fs.readFileSync(
   new URL("../../../src/pi_secretary/web/markdown.js", import.meta.url),
@@ -197,51 +189,6 @@ test("incomplete fences and malformed table rows preserve content; recursion is 
   assert(root.textContent.includes("[open](https://exam"));
   assert.equal(root.all("a").length, 0);
   assertSafe(render("> ".repeat(10000) + "deep"));
-});
-
-// API v1 retires this legacy UI contract; replacement coverage: offline/issue8 and docs/api/v1/verification.md.
-test.skip("backend serves the renderer module through its explicit static allowlist", async () => {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "secretary-render-"));
-  const app = await App.open(directory, {
-    model: fixtureModel,
-    stream: fixtureStream,
-  });
-  const backend = await serve(app);
-  try {
-    const response = await fetch(backend.endpoint.url + "/markdown.js");
-    assert.equal(response.status, 200);
-    assert.match(response.headers.get("content-type")!, /text\/javascript/);
-    assert.match(
-      response.headers.get("content-security-policy")!,
-      /script-src 'self'/,
-    );
-    assert.equal(await response.text(), source);
-    assert.equal((await fetch(backend.endpoint.url + "/other.js")).status, 404);
-    const appSource = await (
-      await fetch(backend.endpoint.url + "/app.js")
-    ).text();
-    assert.match(
-      appSource,
-      /import \{ TimelineView \} from "\.\/timeline-view.js"/,
-    );
-    const timelineResponse = await fetch(
-      backend.endpoint.url + "/timeline-view.js",
-    );
-    assert.equal(timelineResponse.status, 200);
-    const timelineSource = await timelineResponse.text();
-    assert.match(
-      timelineSource,
-      /import \{ renderMarkdown \} from "\.\/markdown.js"/,
-    );
-    assert.match(timelineSource, /renderMarkdown\(body, item.text\)/);
-    assert.equal(
-      (await fetch(backend.endpoint.url + "/timeline-window.js")).status,
-      200,
-    );
-  } finally {
-    await backend.close();
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
 });
 
 test("large unfinished inline delimiters remain literal without quadratic retries", () => {

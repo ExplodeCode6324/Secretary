@@ -1,3 +1,4 @@
+import { testPostgres } from "../helpers/postgres.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -258,15 +259,14 @@ test("new inputs during settings summary queue beyond a fixed boundary; long sou
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
-test(
+testPostgres(
   "World UI batch commits atomically, corrects/retracts history, rejects entity references, and recovers after commit",
-  { skip: !process.env.SECRETARY_TEST_DATABASE_URL },
-  async () => {
+  async (dsn) => {
     const dir = tmp();
     const app = await App.open(
       dir,
       { model: fixtureModel, stream: fixtureStream },
-      process.env.SECRETARY_TEST_DATABASE_URL,
+      dsn,
     );
     try {
       await app.world!.migrate();
@@ -409,10 +409,9 @@ test(
   },
 );
 
-test(
+testPostgres(
   "database commit followed by SIGKILL restores the same batch before consuming queued inputs",
-  { skip: !process.env.SECRETARY_TEST_DATABASE_URL },
-  async () => {
+  async (dsn) => {
     const { spawn } = await import("node:child_process");
     const { fileURLToPath } = await import("node:url");
     const dir = tmp(),
@@ -430,7 +429,10 @@ test(
           dir,
           entity,
         ],
-        { stdio: "pipe" },
+        {
+          stdio: "pipe",
+          env: { ...process.env, SECRETARY_TEST_DATABASE_URL: dsn },
+        },
       );
       let stderr = "";
       child.stderr.on("data", (b) => (stderr += b));
@@ -442,7 +444,7 @@ test(
       app = await App.open(
         dir,
         { model: fixtureModel, stream: fixtureStream },
-        process.env.SECRETARY_TEST_DATABASE_URL,
+        dsn,
       );
       assert.equal(app.settings.blocked, true);
       assert.equal(getInstructions(app.store).revision, 1);
@@ -484,15 +486,14 @@ test(
   },
 );
 
-test(
+testPostgres(
   "historical time filters, more than 100 facts, stable cursor and mutation invalidation",
-  { skip: !process.env.SECRETARY_TEST_DATABASE_URL },
-  async () => {
+  async (dsn) => {
     const dir = tmp(),
       app = await App.open(
         dir,
         { model: fixtureModel, stream: fixtureStream },
-        process.env.SECRETARY_TEST_DATABASE_URL,
+        dsn,
       );
     try {
       await app.world!.migrate();
@@ -690,66 +691,64 @@ test("failed runtime switch keeps new model blocked until successful summary ret
   }
 });
 
-test(
-  "SIGKILL at summary checkpoint, before database, before and after local activation is recoverable",
-  { skip: !process.env.SECRETARY_TEST_DATABASE_URL },
-  async () => {
+for (const stage of [
+  "summary-checkpoint",
+  "before-database",
+  "before-local",
+  "after-local",
+])
+  testPostgres(`SIGKILL at ${stage} is recoverable`, async (dsn) => {
     const { spawn } = await import("node:child_process"),
       { fileURLToPath } = await import("node:url");
-    for (const stage of [
-      "summary-checkpoint",
-      "before-database",
-      "before-local",
-      "after-local",
-    ]) {
-      const dir = tmp(),
-        entity = id();
-      let app: App | undefined;
-      try {
-        const child = spawn(
-          process.execPath,
-          [
-            "--import",
-            "tsx",
-            fileURLToPath(
-              new URL("./helpers/settings-crash.ts", import.meta.url),
-            ),
-            dir,
-            entity,
-            stage,
-          ],
-          { stdio: "pipe" },
-        );
-        let stderr = "";
-        child.stderr.on("data", (b) => (stderr += b));
-        const signal = await new Promise<string | null>((resolve, reject) => {
-          child.once("error", reject);
-          child.once("close", (_code, sig) => resolve(sig));
-        });
-        assert.equal(signal, "SIGKILL", stage + stderr);
-        app = await App.open(
+    const dir = tmp(),
+      entity = id();
+    let app: App | undefined;
+    try {
+      const child = spawn(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          fileURLToPath(
+            new URL("./helpers/settings-crash.ts", import.meta.url),
+          ),
           dir,
-          { model: fixtureModel, stream: fixtureStream },
-          process.env.SECRETARY_TEST_DATABASE_URL,
-        );
-        await app.settings.tick();
-        const a = app.settings.applications().at(-1)!;
-        assert.equal(a.state, "APPLIED", stage + ": " + a.error);
-        assert.equal(getInstructions(app.store).revision, 2);
-        assert.equal(
-          (
-            await app.world!.pool.query(
-              "SELECT count(*) FROM wm.entity WHERE entity_id=$1",
-              [entity],
-            )
-          ).rows[0].count,
-          "1",
-        );
-        assert.equal(app.settings.applications().length, 1);
-      } finally {
-        await app?.close();
-        fs.rmSync(dir, { recursive: true, force: true });
-      }
+          entity,
+          stage,
+        ],
+        {
+          stdio: "pipe",
+          env: { ...process.env, SECRETARY_TEST_DATABASE_URL: dsn },
+        },
+      );
+      let stderr = "";
+      child.stderr.on("data", (b) => (stderr += b));
+      const signal = await new Promise<string | null>((resolve, reject) => {
+        child.once("error", reject);
+        child.once("close", (_code, sig) => resolve(sig));
+      });
+      assert.equal(signal, "SIGKILL", stage + stderr);
+      app = await App.open(
+        dir,
+        { model: fixtureModel, stream: fixtureStream },
+        dsn,
+      );
+      await app.settings.tick();
+      const a = app.settings.applications().at(-1)!;
+      assert.equal(a.state, "APPLIED", stage + ": " + a.error);
+      assert.equal(getInstructions(app.store).revision, 2);
+      assert.equal(
+        (
+          await app.world!.pool.query(
+            "SELECT count(*) FROM wm.entity WHERE entity_id=$1",
+            [entity],
+          )
+        ).rows[0].count,
+        "1",
+      );
+      assert.equal(app.settings.applications().length, 1);
+    } finally {
+      await app?.close();
+      fs.rmSync(dir, { recursive: true, force: true });
     }
-  },
-);
+  });

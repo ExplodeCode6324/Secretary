@@ -1,43 +1,55 @@
 # 测试策略
 
-当前测试入口以 package.json 和代码为准。以下命令不会调用真实模型；数据库套件须使用新建隔离库，历史报告不等于当前代码重新通过。
+从仓库根目录执行唯一的完整离线验收入口：
 
 ```sh
+git submodule update --init --recursive
+npm ci
 npm run verify
-npm run test:issue5
-node --import tsx --test test_case/offline/issue2/*.test.ts test_case/offline/issue3/*.test.ts test_case/offline/issue4/*.test.ts
-npm run test:review
-npm run docs:generate
-npm run api:generate
-npm run docs:check
 ```
+
+需要 Node.js ≥ 22.19、Python 3 和固定 Pi 子模块。verify 顺序为 `check → docs:check → npm test`；任一阶段失败立即返回非零。测试只用合成 fixture，不调用真实模型。
 
 ## 当前自动回归
 
-| 套件 | 当前范围与边界 |
-| --- | --- |
-| npm run check | 主源码、scripts/*.ts、runtime、issue5、issue8 和 online TypeScript；Issue 2–4 不在默认 tsconfig include |
-| npm test | runtime：Store、Host、Scheduler、授权、shell、记忆、设置及读投影；含保留的纯 TUI/DOM 单元测试 |
-| npm run test:api | issue8：认证/幂等/旧请求身份冲突、纯查询/viewed、Core 生命周期、Unicode/游标、任务/产物/待处理、World 时间/schema 与外部 DTO 消费 |
-| npm run verify | check + npm test + test:api；不包含 Issue 2–5 全部专项、review 或真实模型 |
-| npm run test:issue5 | 空提取、证据匹配、设置后原文跨压缩/重启进入实际 stream；fixture 不评价真实模型长期记忆质量 |
-| Issue 2–4 专项 | 请求容量/来源、承诺证据、提取恢复、期限与中断保护；另做 strict 类型检查 |
-| npm run test:review | 额外审计，明确排除历史误报 AUD14；不是“所有历史探针全部通过” |
+`npm test` 直接运行 `tsx --test "test_case/offline/**/*.test.ts"`。新增当前离线测试按 `*.test.ts` 命名即自动纳入；helper、worker、浏览器探针和 benchmark 不作为测试入口。使用 Node 原生 pass/fail/skip/todo 汇总和退出码。
 
-旧 UI 三项断言显式 skip：dual-ui 的旧 TUI 双进程、web 的旧双 UI 合同、web-render 的旧静态路由。领域和安全 DOM 测试仍运行；新版生命周期/协议由 issue8 替代，不能把跳过项说成新版界面已测。数据库测试缺少 SECRETARY_TEST_DATABASE_URL 时另有条件跳过，必须单列。
+- 类型检查覆盖全部 `test_case/offline/**/*.ts`，含 issue2–5、issue8、audit 和 helper。本次 issue4 类型检查通过，没有临时排除。
+- runtime、issue2–5、issue8、audit 及新增套件均在默认入口；定向调试可用 `npm run test:api`、`npm run test:issue5`、`npm run test:review`。
+- AUD14 保留回调和断言，使用 Node 原生 todo。当前 `tools_schema` 存放 system 消息而该断言按顶层工具定义读取；#19 删除恢复哈希消费者，#24 处理字段语义及 Context 编码。todo 会执行、独立计数，不使 verify 失败。
+- 三项已退役 UI 合同用例已删除：dual-ui 的旧 TUI 双进程、web 的旧双 UI 合同、web-render 的旧静态路由。领域与 Markdown DOM 安全测试保留，生命周期/协议由 issue8 覆盖。
+- 历史探针位于 [historical/offline](../test_case/historical/offline/README.md)，不参与默认执行或类型检查，不随当前接口重构维护。
 
-`streaming.test.ts` 当前覆盖内存预览、API v1 timeline 的 streaming/thinking 投影、响应持久化先于工具、取消/失败、字段过滤和重开恢复；不再证明旧 SSE 可用。activity/history/timeline 测试保留读模型、稳定身份与分页断言，并转用 API v1。实例与游标变化、attention 到期无需 journal 变化的复核由 issue8 覆盖。
+`streaming.test.ts` 覆盖内存预览、API v1 timeline 的 streaming/thinking 投影、响应持久化先于工具、取消/失败、字段过滤和重开恢复。activity/history/timeline 测试保留读模型、稳定身份与分页断言，并使用 API v1。
 
 ## PostgreSQL
 
+设置 `SECRETARY_TEST_DATABASE_URL` 指向**专用测试 PostgreSQL**，角色须有 CREATEDB。CI 使用 PostgreSQL 18 service；本地可使用已有 PG 18 的专用测试连接。
+
 ```sh
-python3 test_case/offline/test-postgres.py --pg-bin /path/to/postgresql/bin
-python3 test_case/offline/audit/run-world.py --pg-bin /path/to/postgresql/bin
-# 以下 DSN 必须指向新的隔离数据库；此命令补充 API v1 的数据库合同验收。
-SECRETARY_TEST_DATABASE_URL='<隔离测试 DSN>' node --import tsx --test --test-concurrency=1 test_case/offline/issue8/world.test.ts
+SECRETARY_TEST_DATABASE_URL='<专用测试 DSN>' npm run verify
 ```
 
-test-postgres.py 创建临时 Unix socket 集群，只运行 runtime/settings.test.ts 和 world.test.ts，结束停止并清理，不包括 issue8 的 PG 用例。不同套件不得复用已有合成 outbox/source_key 作为新基线，也不连接应用数据库。Settings 覆盖原子回滚、提交后恢复、分页和配置切换；API 专项实际验证 PostgreSQL 日期 ISO 投影、合法 predicate JSON Schema 原样保留与 CAS 元数据隔离。
+所有 PG 测试通过 `test_case/offline/helpers/postgres.ts` 的 `testPostgres` 注册。每个场景创建一个 `secretary_test_` 前缀的空数据库，同一场景的崩溃、重开、重试复用该库；worker 显式继承场景 DSN。helper 保持一条场景连接，在 App 关闭到重新打开的间隙也保持“使用中”。finally 只清理本次创建的库，不清空输入 DSN 所指库。
+
+本地缺 DSN 时 PG 用例以明确原因 skip，计入 Node 汇总；CI 模式缺 DSN 时注册直接抛错。已配置 DSN 后，连接、建库或业务断言失败均按失败处理，不转为 skip。不维护固定 PG 场景数量。CI 中 PG 必须实际执行，skip 为零；AUD14 todo 单列。
+
+中断可能留下孤儿库，使用显式手动清理入口：
+
+```sh
+# 默认仅列出候选与忙碌库
+SECRETARY_TEST_DATABASE_URL='<专用测试 DSN>' npm run test:db:clean
+# 确认列表后执行
+SECRETARY_TEST_DATABASE_URL='<专用测试 DSN>' npm run test:db:clean -- --apply
+```
+
+仅匹配字面前缀 `secretary_test_`、当前角色所有且无活动连接的数据库，排除连接库及模板库；删除不用 FORCE，扫描后新来的连接也会阻止删除。自动清理可以强制关闭本场景库中遗留的连接。旧的两个 Python PG 入口已删除，所有场景统一使用共享 helper；Python 3 继续用于 journal 锁助手。
+
+## GitHub Actions
+
+`.github/workflows/verify.yml` 在 main push 和所有 PR 上运行同一个 verify：Ubuntu、Node 22、Python 3、固定 Pi 子模块、PG 18 service、npm ci。setup-node 缓存 npm 下载内容；Actions 固定提交，仓库权限只读，不提供模型凭据，不容忍 Linux verify 失败。Swift 可选 job 留到 #10。
+
+CI 标红不等于仓库已阻止合并；main 的分支保护和 required check 由 Master 决定。PR 故障标红与 main 首次通过按实际 GitHub 运行记录验收。
 
 ## API、合同和文档验证
 
@@ -49,14 +61,14 @@ test-postgres.py 创建临时 Unix socket 集群，只运行 runtime/settings.te
 
 真实调用会消耗 provider 配额，必须在明确场景和预算内运行，使用新建私密合成目录，保留源码散列、首次失败和实际 HTTP 尝试数。入口和参数见 [online README](../test_case/online/README.md)。普通 npm test 不运行 online。
 
-| 场景 | 覆盖与限制 |
-| --- | --- |
-| test-api-v1-artifacts-live.ts | 真实 write/bash/read、同任务两轮、API 四件产物、回执与独立字节/程序验算；精确程序许可，不评价通用编程能力 |
-| test-api-v1-live.ts --scenario task-chain | 历史 summary-only 数值和执行关系；无产物，不能当作工具验收 |
-| test-api-v1-live.ts --scenario memory-restart | 真实整理后退出旧 OS 进程，新 PID/Core instance 打开同一 Store 并真实回忆；原事实仍在请求上下文 |
-| test-task-reuse-live.ts | 原 O01–O06 多轮任务；受限报告文件写入、不可变产物和接续，不执行 shell；旧证据保留 |
-| test-live.ts | chain/missing/unknown/transport/reject；场景限定许可与受限程序 oracle；原故障注入不是 provider 自然故障 |
-| test-instructions-live.ts / test-settings-live.ts / verify-memory-live.ts | 说明、World/设置和记忆探针；有的入口改变指定隔离 Store，不用于现用数据 |
+| 场景                                                                      | 覆盖与限制                                                                                                |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| test-api-v1-artifacts-live.ts                                             | 真实 write/bash/read、同任务两轮、API 四件产物、回执与独立字节/程序验算；精确程序许可，不评价通用编程能力 |
+| test-api-v1-live.ts --scenario task-chain                                 | 历史 summary-only 数值和执行关系；无产物，不能当作工具验收                                                |
+| test-api-v1-live.ts --scenario memory-restart                             | 真实整理后退出旧 OS 进程，新 PID/Core instance 打开同一 Store 并真实回忆；原事实仍在请求上下文            |
+| test-task-reuse-live.ts                                                   | 原 O01–O06 多轮任务；受限报告文件写入、不可变产物和接续，不执行 shell；旧证据保留                         |
+| test-live.ts                                                              | chain/missing/unknown/transport/reject；场景限定许可与受限程序 oracle；原故障注入不是 provider 自然故障   |
+| test-instructions-live.ts / test-settings-live.ts / verify-memory-live.ts | 说明、World/设置和记忆探针；有的入口改变指定隔离 Store，不用于现用数据                                    |
 
 严格产物场景可先执行零模型调用自检：
 

@@ -1,3 +1,4 @@
+import { testPostgres } from "../helpers/postgres.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -12,11 +13,9 @@ import {
 } from "../../../src/pi_secretary/src/model.ts";
 import { id } from "../../../src/pi_secretary/src/store.ts";
 import { Ajv2020 } from "ajv/dist/2020.js";
-const dsn = process.env.SECRETARY_TEST_DATABASE_URL;
-test(
+testPostgres(
   "isolated PostgreSQL: new schema stages World CAS edits, exact slot and versioned bounded catalogs",
-  { skip: !dsn },
-  async () => {
+  async (dsn) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "secretary-api-world-"));
     const app = await App.open(
       dir,
@@ -166,10 +165,9 @@ test(
   },
 );
 
-test(
+testPostgres(
   "R3: PostgreSQL custom predicate value_schema survives HTTP verbatim and still validates",
-  { skip: !dsn },
-  async () => {
+  async (dsn) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "secretary-api-schema-"));
     const app = await App.open(
       dir,
