@@ -61,10 +61,33 @@ node --import tsx test_case/online/test-api-v1-live.ts --live --scenario memory-
 
 两个场景各限 12 次实际 provider HTTP 请求、10 分钟，单请求限 90 秒、4096 输出 token、80000 字节上下文。`api-v1-online-worker.ts` 在独立 OS 子进程中启动隔离 API v1 服务，凭据仅在子进程内读入现有 `roleModel`。调用计数与用量写入私密账本，重启后继续累计；生产 summary 校验与正常 `previous_error` 重试保持原样。
 
-任务场景通过 API 请求先计算 42，再在同一任务、明确父执行上计算 84；验证两个不同执行均成功，任务身份、父执行和结果一致，且任务角色确有真实传输。通过正常 Scheduler tick/idle 推进，主会话通知消费和自动整理不属于该场景。
+历史 `task-chain` 场景通过 API 请求先返回 42，再在同一任务、明确父执行上返回 84；其数值断言只匹配模型 summary，两个 TaskResult.artifacts 均为空，verified_by 均为 NOT_VERIFIED。因此通过范围仅为真实任务模型传输、两个成功执行及其任务/父执行身份，不证明文件写入、shell 执行、产物下载或独立计算。它遗漏了原 `test-live.ts` 的独立程序验算和 `test-task-reuse-live.ts` 的非空产物/不可变性核验，下节新增严格产物用例补齐。主会话通知消费和自动整理仍不属于该任务场景。
 
-记忆场景先完成合成事实主会话、设置应用和独立事实/语言 oracle，再要求真实整理 `COMMITTED`。准备阶段最多使用 10 次请求，硬性保留两次给重启后回忆。关闭必须得到旧子进程退出码 0，并确认旧 PID 已退出；随后以新 PID、新 Core instance 打开同一 Store，检查会话/数据身份，再实际调用主模型验证同一 oracle。没有给 probe 注入正确事实值；原始用户锚点可能保留，因此是产品连续性验证，不是仅靠摘要回忆的证明。
+记忆场景先完成合成事实主会话、设置应用和独立事实/语言 oracle，再要求真实整理 `COMMITTED`。准备阶段最多使用 10 次请求，硬性保留两次给重启后回忆。关闭必须得到旧子进程退出码 0，并确认旧 PID 已退出；随后以新 PID、新 Core instance 打开同一 Store，检查会话/数据身份，再实际调用主模型验证同一 oracle。没有给 probe 注入正确事实值；独立审计确认原始事实仍在重启后的真实模型请求上下文中，因此是产品持久连续性验证，不是仅靠摘要回忆的证明。
 
 初轮失败分类补充：第二个任务的持久错误是 `LIVE_BUDGET_EXHAUSTED`，源于预算对齐失败后测试共享 gate 关闭；不是任务模型拒绝。`SUMMARY_PRIOR_BOUND_EXCEEDED` 的候选原始 items 为 1971 字节，未超 prompt 宣告的 2048 字节限制；Host 补入 WorkItem 元数据后超过原 prior bound。原生产第二次更紧限制的重试随后成功，未放宽断言。初轮 `fetch failed` 没有捕获 cause，具体原因仍未知。
 
-后续分别授权的两个独立场景均通过：任务链 2 次真实请求、2228 token、SDK 估算 $0.00071245；记忆与 OS 进程重启 7 次真实请求、14390 token、SDK 估算 $0.00474465。合计新增 9 次、16618 token、估算 $0.00545710，实际账单不可用。任务模型为 `opencode-go / gpt-5.6-luna`，主模型为 `opencode-go / deepseek-v4.1-flash`。记忆准备阶段使用 6 次请求，重启后的实际回忆使用 1 次；旧进程退出、新 PID/Core instance、同一数据域/会话及精确事实/英语 oracle 全部核验。初轮失败证据完整保留；后续通过不改写初轮结论。
+后续分别授权的两个独立场景按上述原有断言通过：历史 summary-only 任务链 2 次真实请求、2228 token、SDK 估算 $0.00071245；记忆与 OS 进程重启 7 次真实请求、14390 token、SDK 估算 $0.00474465。合计新增 9 次、16618 token、估算 $0.00545710，实际账单不可用。任务模型为 `opencode-go / gpt-5.6-luna`，主模型为 `opencode-go / deepseek-v4.1-flash`。记忆准备阶段使用 6 次请求，重启后的实际回忆使用 1 次；旧进程退出、新 PID/Core instance、同一数据域/会话及精确事实/英语 oracle 全部核验。初轮失败证据完整保留；后续通过不改写初轮结论。
+
+## API v1 真实工具与产物字节验收
+
+`test-api-v1-artifacts-live.ts` 新增严格用例，不改写旧结果。显式授权后，用既有 `SECRETARY_CREDENTIALS_FILE`、`SECRETARY_MODE=live`、`SECRETARY_TASK_PROVIDER=opencode-go` 和当前任务模型运行：
+
+```sh
+node --import tsx test_case/online/test-api-v1-artifacts-live.ts --self-check
+node --import tsx test_case/online/test-api-v1-artifacts-live.ts --live --evidence '<仓库外全新私密目录>'
+```
+
+每轮限 12 次实际 provider HTTP 请求、600 秒，单次限 90 秒、4096 输出 token 和 80000 字节上下文。请求开始时间至少间隔 20 秒；请求等待同样计入时间预算。失败不覆盖、无静默重发，任何未知效果或授权范围外动作停止。
+
+模型仅可写两份完整内容已审核的小程序，分别用精确 `/usr/bin/python3 -I -S -B stage1.py`、`stage2.py` 命令执行，timeout 必须为 10 秒。文件、命令、工作目录、非符号链接和已有文件集均在实际工具执行及 API 授权前核对。第一程序实时计算 `sum([17,25])`，第二程序读取实际 `first.json` 字节并记录输入 SHA256，再将其结果乘 2；程序没有预填 42/84 输出。模型在续接执行中还必须实际读取第一产物。JSON 输出只由程序以排他创建方式生成，不允许模型直接写入。
+
+验收要求同一任务的两个执行及父关系正确，四个写入/执行 Operation 均明确成功；错误 display_hash 必须被 API 拒绝。两阶段各提交程序和 JSON 两件真实产物，通过产品 API 列表、元数据和下载取得四件产物，并记录 HTTP 状态、长度、ETag、SHA256 和执行归属。第二阶段结束后再下载第一产物验证不可变。宿主只用 API 下载的字节独立算术验证，再将已核对的下载程序放入全新 oracle 目录重执行；第二次宿主执行的输入来自 API 下载的第一 JSON，而不是宿主预填结果。另核对真实 shell stdout 与下载输出字节完全一致，以及成功 read 工具结果包含第一 JSON。Store/工作目录比较仅为补充证据。
+
+产品 `verified_by=NOT_VERIFIED` 保持原值，宿主验算证据另行记录；shell 生成产物的 `producing_operation_id` 可以为空，使用执行归属、精确代码/命令、成功 shell 回执及 API 内容哈希共同追溯。主会话通知消费、设备、部署、World 与 SSE 不在该用例范围。
+
+严格用例第一轮在第 7 次请求失败：provider 返回 HTTP 200，但模型 stopReason=error，原因是 token rate limit。前六次为 toolUse，四项操作均 SUCCEEDED/APPLIED、无未知效果；第二输出虽已生成，但缺少最终 submit_result，第二 TaskResult 无产物，严格验收仍失败。六次有用量请求合计 23048 token、SDK 估算 $0.00387508，第七次用量不可用，不能按零计算。该轮源码和证据保持不可变；随后新增的 20 秒节流仅改变测试请求节奏，不改生产代码、批准范围或 oracle。
+
+明确授权后的全新第二轮通过全部严格断言：`opencode-go / gpt-5.6-luna` 共 7 次实际 HTTP 请求，均为 HTTP 200 / stopReason=toolUse，耗时 124.724 秒，34354 token，SDK 目录估算 $0.005207920，实际账单不可用。真实工具计数为 read 1、write 2、bash 2、submit_result 2；一个任务的两个成功执行各发布两件非空产物，四项操作回执、API 下载字节、续接输入哈希与宿主独立重执行均通过。57 项源文件哈希与运行前冻结值一致，生产代码未改动。
+
+两轮分别获得授权，合计 14 次请求；每轮各 7 次，均未超过各自 12 次上限。已知用量合计 57402 token、目录估算 $0.009083000，第一轮失败请求用量仍不可用，因此这不是完整总用量或账单。第一轮失败与 1114 份更早历史证据均保留且哈希未变。第二轮通过不删除、覆盖或改写任何首次失败。

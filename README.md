@@ -14,7 +14,7 @@ npm start
 
 默认使用离线 fixture 模型。`npm start` 启动独立 Core，不打开 UI；`npm run core -- status` 查询，`npm run core -- attach` 附着，`npm run stop` 显式停止。客户端退出不停止 Core。结构化请求、认证、数据目录、迁移与回退见 [API v1](docs/api/v1/README.md)。
 
-真实模型入口 `npm run start:live` 沿用本地独立 main/task 密钥和运行配置，启动 Core，会调用真实 API。本分支已使用隔离合成数据进行有界真实模型验证；初轮为部分覆盖，现已通过追加的同任务完整接续与整理后 OS 进程重启真实回忆场景，具体覆盖边界与保留失败见 [API v1 验证记录](docs/api/v1/verification.md)。未部署现有实例。旧 Web/TUI 启动方式及 macOS 双击 UI 入口不适用于新版服务，源码清理由 #10 完成。
+真实模型入口 `npm run start:live` 沿用本地独立 main/task 密钥和运行配置，启动 Core，会调用真实 API。本分支已使用隔离合成数据进行有界真实模型验证；初轮为部分覆盖，已补齐同任务真实工具执行、API 产物下载与独立验算，并通过整理后 OS 进程重启真实回忆场景，具体覆盖边界与保留失败见 [API v1 验证记录](docs/api/v1/verification.md)。未部署现有实例。旧 Web/TUI 启动方式及 macOS 双击 UI 入口不适用于新版服务，源码清理由 #10 完成。
 
 ```sh
 npm run verify

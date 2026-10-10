@@ -245,3 +245,26 @@ Master 已授权继续补齐 #8 验收缺口。继续使用 `codex/issue8-api-v1
 追加结果：任务场景 2 次真实 gpt-5.6-luna 请求，两个执行均成功且父执行关联正确、42→84；记忆场景 7 次真实 deepseek-v4.1-flash 请求（准备 6、重启后 1），整理 COMMITTED，旧进程正常退出，新 PID/Core instance 对同一 Store 的真实回忆通过原事实及语言 oracle。两场景共 16,618 token，SDK 目录估算 USD 0.005457100，账单费用不可用；各自低于 12 次/600 秒上限。没有新增生产代码改动。
 
 745 份原始证据 SHA-256 未变，初轮 12 次调用及失败继续保留。本轮类型、online 离线自检、API 30 通过/2 PG 条件跳过，docs 49 项继承错误无新增。覆盖边界及逐模型用量详见 [验证记录](../api/v1/verification.md)；最终仍等待 PERRI 独立复审与 Master 终审。
+
+
+## 13. 追加验收：真实工具、API 产物与独立验算（2026-10-10）
+
+Master 通过产物验收交接明确授权本轮补齐。基线为 `b4549eb2c85908bad4c6cfdf0976dfc1f073060a`，沿用本分支与 draft PR #15。上一节算术场景仅证明任务执行关系和模型 summary，两个 TaskResult.artifacts 为空且 verified_by=NOT_VERIFIED；不构成工具或产物验收。本轮保留全部旧测试、失败与报告，新增严格场景。
+
+原断言映射：`test-task-reuse-live.ts` 覆盖受限文件写入、同任务 continuation_of、非空产物和首段产物不可变，但明确不执行 shell，并从 Store/工作目录读取；`test-live.ts` 覆盖错误 display_hash 拒绝、受限写入、无重复任务/意外副作用及对模型生成程序的独立执行，但未通过产品 API 获取产物。新增场景保留这些相关保障，以 API 下载内容为独立 oracle 的唯一产物来源，不用模型 summary 或预填结果替代。原完整多轮用例保持原样，新两段场景不宣称替代其全部覆盖。
+
+在全新隔离目录中，由真实任务模型依次写入两个精确批准的 Python 小程序，通过真实 shell.run 执行：第一段计算 sum([17, 25]) 并以独占创建写入 first.json；第二段通过真实 read 工具读取 first.json，再执行读取该文件、记录输入散列并乘二的程序生成 second.json。只准两个指定文件写入和两个 `/usr/bin/python3 -I -S -B` 精确命令，cwd 固定为该合成任务目录、timeout=10 秒；不允许其他路径、命令、代码或重复 shell 执行。每次审批前核对实际参数和文件状态；未知副作用、权限或安全阻断立即停止，不绕过或重发。
+
+通过 API 查询列表、元信息和下载两个程序及两个 JSON，核验 HTTP 200、字节长度、内容散列、ETag、task/execution 归属及结果引用。宿主用 API 下载字节独立计算，并在另一个全新目录执行下载程序；第二段 oracle 使用 API 下载的 first.json。核验同一任务、两个成功执行、parent_execution_id 与 continuation_of、工具调用及成功回执、第一段产物不可变。shell 生成产物的 producing_operation_id 可能为空，以精确代码、shell 回执/stdout 和下载内容散列关联，不伪造产品字段。产品 verified_by 仍如实为 NOT_VERIFIED，宿主验证单列。
+
+沿用已授权 Astra/high 子代理与现有任务模型 opencode-go/gpt-5.6-luna，每轮最多 12 次实际 provider HTTP 尝试（含重试）、600 秒，单次 90 秒、4096 输出 token、80000 bytes 上下文。先审查脚本、离线负例与类型检查再启动真实调用；达到边界先定位阻碍，保留失败。记录 provider/model/stopReason、请求/用量/SDK 估算与捕获源码散列。生产代码若未变，按基线散列证明。
+
+记忆进程重启场景已获独立审计确认，本轮不重跑；其原始事实仍在回忆请求上下文中，只证明真实进程重启后的持久连续性，不声称仅依靠摘要回忆。完成后等待 PERRI 独立复审和 Master 终审，不合并、不关闭、不部署。
+
+
+首次严格场景在第 7 次模型请求遇到 provider token 速率限制（HTTP 200、stopReason=error），保留为 FAILED。四项实际写入/执行均 SUCCEEDED/APPLIED，无 UNKNOWN；第二阶段缺少最终 submit_result，不能用已生成的文件冒充验收完成。保留首轮源码和证据后，仅给 harness 增加至少 20 秒请求开始间隔，在全新目录执行第二轮相同严格断言，仍受每轮 12 次/600 秒边界约束。
+
+
+第二轮严格验收 PASS：7 次真实 opencode-go/gpt-5.6-luna 请求均 stopReason=toolUse，34,354 token、SDK 目录估算 USD 0.005207920、124.724 秒。一个任务的两个成功执行有正确双重父关系，真实 read/write/bash、四项成功操作、四件 API 产物、首段不可变性、API 字节算术 oracle 与下载程序独立复跑全部通过；产品 verified_by 保持 NOT_VERIFIED。首次7次调用中的限流失败及未知用量如实保留，两轮共14次请求，有usage部分57,402token/估算USD0.009083000，另1次用量和费用未知。
+
+生产64个基线文件未改，原1,114份证据及首轮339份原始文件散列不变；成功运行捕获源码与交付一致，首轮源码另存并明确仅追加节流。类型、严格离线自检、API30通过/2个PG条件跳过，docs49项既有错误无新增。详细工具/API/宿主证据和产物散列见[验证记录](../api/v1/verification.md)。等待 PERRI 独立复审与 Master 终审，保持 draft。

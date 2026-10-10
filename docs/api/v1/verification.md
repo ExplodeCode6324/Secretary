@@ -1,6 +1,6 @@
 # Issue #8 验证与边界
 
-当前状态：追加的任务链和整理后 OS 进程重启回忆场景均通过，详见末节。初轮失败完整保留；PR 仍等待 PERRI 独立复审和 Master 终审。
+当前状态：已补齐真实工具执行、API 产物下载和独立验算，严格补充验收通过，详见末节。此前记忆进程重启结论保留。初轮失败完整保留；PR 仍等待 PERRI 独立复审和 Master 终审。
 
 改动前固定分支 HEAD 为 `f8dbddcf4338914c1d264efff0fd26d5bc07c2cb`，远端 main 为 `38daab6cbbccf9f6a85071ff5933eaa198d77de8`。固定 Pi 子模块 `16787ad5b2dc748047f314ca1bfe7708f30f54f3`。首次缺少子模块的类型失败与初始化后结果分别保留。runtime 基线 167 项：162 通过、5 跳过、0 失败；类型检查通过。
 
@@ -92,7 +92,7 @@ PERRI 提供的原始复现 ZIP 未能导入：当前 Mac executor 无 Library m
 #9 的持久同步，#10 的 SwiftUI，#11 的真实设备接入，#12 的 EVENT，#13 的远程执行及 #14 的模拟界面仍是独立后续范围；本轮四项缺陷全部在 #8 修复。交付保持 draft、等待独立复审，不合并、不关闭 Issue。
 
 
-## 追加验收：两个缺口已通过独立场景补齐
+## 前次追加验收：执行关系与进程重启（产物覆盖不足）
 
 基线 `e150e37c47a044a3835567044b43914ad55ffa4a`，仍由独立 Astra/high 子代理在 Mac 使用已有 OpenCode 配置执行。此次仅修改 harness、worker 与文档；生产源码、公共 schema、依赖和原业务断言未变，原四项修复代码仍是 `ee386efe953b8319f4e83a5a44e263062f55e590`。两次运行的完整生产及 harness 源码哈希均与交付文件一致。
 
@@ -109,17 +109,17 @@ PERRI 提供的原始复现 ZIP 未能导入：当前 Mac executor 无 Library m
 
 | 场景 | 精确 provider/model | 实际请求 / 上限 | Token | SDK 目录估算 USD | 执行耗时 | 结果 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 同任务完整两段执行 | opencode-go / gpt-5.6-luna（task） | 2 / 12 | 2,228 | 0.000712450 | 10.092 秒 | PASS |
+| 同任务两段执行关系（仅 summary） | opencode-go / gpt-5.6-luna（task） | 2 / 12 | 2,228 | 0.000712450 | 10.092 秒 | PASS |
 | 整理后进程重启及真实回忆 | opencode-go / deepseek-v4.1-flash（main） | 7 / 12（prepare 6、recall 1） | 14,390 | 0.004744650 | 48.170 秒 | PASS |
 | 本轮合计 | | 9 / 24 | 16,618 | 0.005457100 | 58.262 秒 | 两个场景通过 |
 
 任务场景 usage：input 729、output 202、cache-read 0、cache-write 1297；记忆场景 input 8643、output 5747、cache-read/write 均 0。所有真实请求均有 usage，费用只为 SDK 目录估算，实际账单不可用。与初轮合计 21 次请求、43,265 token、目录估算 USD 0.013162872；没有在追加验收通过后继续调用。
 
-任务场景通过 API 创建任务、提交父执行关联的接续和查询结果，按正常 Scheduler.tick/idle 推进；核验只有一个任务、两个不同执行，均为 SUCCEEDED，父执行 ID 精确一致，结果 42→84，两个执行均有真实 task provider 请求。聚焦任务生命周期，主会话通知消费与自动维护不在该场景覆盖范围。
+任务场景通过 API 创建任务、提交父执行关联的接续和查询结果，按正常 Scheduler.tick/idle 推进；核验只有一个任务、两个不同执行，均为 SUCCEEDED，父执行 ID 精确一致，summary 为 42→84，两个执行均有真实 task provider 请求；当时未生成产物。聚焦任务生命周期，主会话通知消费与自动维护不在该场景覆盖范围。
 
 记忆场景通过 API 发送合成事实、保存并应用说明、执行真实整理，确认 APPLIED/COMMITTED 与整理前事实/英文 oracle。旧 worker 正常关闭 Core/App 并退出 0，确认旧 PID 已不存在；新 worker 使用不同 PID 和 Core instance，打开同一 Store，session/data domain 保持不变。此后确实发出一条 main provider 请求，独立 oracle 再次校验项目名、代码、日期与当前英文规则。不是同一进程 App.close/open，也不是重启整台 Mac；使用 harness worker 的 Core 服务，不替代完整 CLI 部署验收。
 
-两个场景均断言 Operation 和 AuthorizationRequest 为零。未验证 World、设备、可靠 SSE、自然长期记忆质量或仅摘要回忆；原始用户输入锚点可能仍由 Host 保留。没有更换模型、密钥或部署配置，没有放宽业务断言。
+两个场景均断言 Operation 和 AuthorizationRequest 为零。未验证 World、设备、可靠 SSE、自然长期记忆质量或仅摘要回忆；独立审计确认原始事实仍在回忆请求上下文中。没有更换模型、密钥或部署配置，没有放宽业务断言。
 
 ### 交付复核
 
@@ -127,4 +127,51 @@ PERRI 提供的原始复现 ZIP 未能导入：当前 Mac executor 无 Library m
 
 745 份原始失败与汇总证据逐文件 SHA-256 均未变化。新报告和真实运行身份保存在私有证据目录，公开版本仅保留本节汇总；精确本地路径交给 Master/PERRI，不提交 raw 会话、凭据、PID 或任务 ID。README 已移除“本分支未进行真实模型验证”的错误陈述。
 
-本次要求补齐的两个 online 场景均通过，原失败仍保留。交付状态为 WAITING_FOR_PERRI_REVIEW，独立复审后仍由 Master 终审；不合并、不关闭 #8、不部署。
+上述两个限定场景通过；任务真实工具执行、非空产物与 API 下载独立验算当时尚未覆盖，不构成完整产物验收。原失败仍保留。交付状态为 WAITING_FOR_PERRI_REVIEW，独立复审后仍由 Master 终审；不合并、不关闭 #8、不部署。
+
+
+## 严格补充验收：真实工具、API 下载与宿主独立验算
+
+独立审计对 `b4549eb2c85908bad4c6cfdf0976dfc1f073060a` 确认：前次两段算术任务的产物为空，verified_by=NOT_VERIFIED，42/84 来自模型 summary。正确的执行父关系与 Store 对象散列不能证明工具执行或产物内容正确。本次保留该结果的有限覆盖和所有原报告，新增 `test_case/online/test-api-v1-artifacts-live.ts`。
+
+| 原始断言 | 旧用例保障 | 新增场景对应证据 |
+| --- | --- | --- |
+| 真实工具执行 | task-reuse 仅 file.write，明确禁止命令；test-live 写出程序后由宿主执行 | 模型真实 write + bash；精确源码/命令/cwd/10 秒审批，持久 Operation 成功回执与 stdout |
+| 审批保护 | test-live 使用错误 display_hash 后正确批准 | 新版 API 拒绝错误哈希，操作仍 WAIT_AUTH 且无回执，再批准精确动作 |
+| 产物存在与身份 | task-reuse 检查非空产物、工作文件与 CAS 一致 | 每阶段程序和 JSON 两项；API 列表/元信息/内容、结果引用、task/execution、长度/ETag/SHA-256 |
+| 独立验算 | test-live 在受限 VM 执行生成的 result.mjs，验证 total 三组输入 | 只以 API 下载字节进行独立算术验算和新目录程序复跑；第二段使用下载的 first.json |
+| 接续与保留 | task-reuse 同任务 continuation_of、首段不可变及更多轮次/重开/独立任务 | 两成功执行、parent_execution_id 与 continuation_of、read 实际首段产物、续接后 API 重新读取首段确认不变 |
+| 意外效果/结构化结果 | 原脚本精确写入许可、输出与结构化结果检查 | 精确文件/命令/源码许可、四项预期操作和产物、禁止重复 shell 或 UNKNOWN 重发 |
+
+旧测试原样保留；新两段场景不替代原多轮/重开/独立任务覆盖，也不验证通用代码生成能力。预先批准的程序只包含运算及文件读写，不含 42/84 结果常量；产物不预填，必须由真实模型请求产品工具生成。产品 verified_by 仍为 NOT_VERIFIED；宿主验算属于独立测试证据。shell 生成 JSON 的 producing_operation_id 可为空，来源依据执行作用域、精确获批程序、shell 回执 stdout 与 API 下载散列共同确认。
+
+本轮不重跑已通过独立审计的记忆场景。原始事实仍在重启后的真实请求上下文中，结论是进程重启后的持久连续性，不是仅凭摘要回忆。
+
+
+本轮首次严格场景保留为 FAILED：7 次真实 opencode-go/gpt-5.6-luna 请求均收到 HTTP 200，但第 7 次模型 stopReason=error，provider 明确报告 token rate limit exceeded；此前 6 次 stopReason=toolUse。两次 file.write 与两次 shell.run 均有 SUCCEEDED/APPLIED 回执，没有 UNKNOWN；首段结果含两项产物并通过 API/独立算术检查，第二段 shell 已执行，但最终模型 submit_result 未完成，失败结果产物为空，因此不能计为完整通过。前 6 次已知用量 23,048 token、SDK 估算 USD 0.003875080；失败请求无可用 usage，不能把其用量或费用记为零。
+
+定位为 provider 限流后，下一轮仅在 harness 加入请求开始间隔至少 20 秒，在全新 Store/工作区重新执行同一严格场景；不重放失败任务、不复制其产物，不改变任何业务或验收断言。每轮仍最多 12 次实际 HTTP 尝试/600 秒，单次 90 秒/4096 输出 token/80000 bytes 上下文。第一次失败源码与报告单独保存。
+
+
+### 最终严格场景结果
+
+第二轮 PASS：真实 `opencode-go / gpt-5.6-luna` 调用 7 次，均 HTTP 200、stopReason=toolUse，耗时 124.724 秒。用量为 input 21、output 854、cache-read 18221、cache-write 15258，共 34,354 token；SDK 目录估算 USD 0.005207920，账单费用不可用。实际请求开始间隔均至少 20 秒。两轮共 14 次实际请求；有 usage 的 13 次合计 57,402 token、目录估算 USD 0.009083000，另 1 次限流请求用量/费用未知。每轮均低于各自 12 次/600 秒边界，成功后未继续调用。
+
+- 一个 TaskPlan、两个不同 Execution 均 SUCCEEDED；第二段 parent_execution_id 和 continuation_of 同时指向第一段。
+- 模型真实工具链为 write → bash → submit_result；续接为 read(first.json) → write → bash → submit_result。四项 Operation 均 SUCCEEDED/APPLIED，两个 shell exit_code=0、无 timeout/signal/truncation，stdout 与 API JSON 下载字节完全一致。
+- 错误 display_hash 返回 HTTP 409，未授权或执行；四次正确批准仅开放精确合成操作。两阶段各两项 TaskResult 产物，API 结果引用、列表/元信息/下载 HTTP 200、长度/ETag/SHA-256 及任务/执行归属全部吻合。
+- API 下载的 first.json 独立验算为 17+25=42；second.json 的 source_sha256 等于实际第一文件 SHA-256，source_result=42，独立验算为 42×2=84。下载程序在全新 oracle 目录重执行，生成结果与下载字节逐字相同，第二次 oracle 明确使用 API 下载的 first.json。续接后重新下载第一产物仍相同。
+- 协调宿主另用独立 Python 核验下载字节、元信息、工具 stdout、执行父关系与 57 项运行时源码散列；未使用模型 summary 作为数值 oracle。产品 verified_by 仍为 NOT_VERIFIED，不把宿主验证写回产品字段。
+
+| API 产物 | 字节 | SHA-256 |
+| --- | ---: | --- |
+| `stage1.py` | 303 | `6e5a7d114c6269a691c7061d069e629594f123efb524b11f8a5dcdd5866c46d2` |
+| `first.json` | 51 | `18f774bcb0ae5c7b953669fca1e15b39e527bc2113cd56208def17f73fe923bc` |
+| `stage2.py` | 656 | `72dd171fe387fca9f73790ef80416e5e6aed7fdadbdba6b7f0a75613c0d68569` |
+| `second.json` | 181 | `353cc5170bf63a60d4213db1db4b4716be822ce6514b8e118ed56f32ae9adb22` |
+
+成功运行捕获的 harness SHA-256：`5d1ce0c514289f64befb50245f7ce535e13dceca709c46086522723adcd93c2e`，与交付源码一致。首次失败版本 SHA-256：`7f08f654d052df504f4893cdbe0c7802a3a336f0e444af9be5eac6411f97d639`；其完整源码私有归档，差异只有请求节流、对应自检和报告字段，未修改业务或验收 oracle。
+
+本轮类型检查、精确权限/路径/输出篡改/输入散列/排他创建及节流离线正负自检通过；API 回归 32 项中 30 通过、2 个 PostgreSQL 条件跳过、0 失败。64 个生产/schema/依赖基线文件 SHA-256 与 b4549eb 一致；旧 online 测试未改。此前 1,114 份证据及本次首轮 339 份原始文件逐一散列不变，失败未删除、覆盖或改为通过。docs 仍有 49 项既有错误，无新增。完整 runtime/Issue #2–#5/隔离 PG 的前次结果保留，本轮未重复运行也不声称重跑。
+
+私密证据包含两轮报告、逐调用 usage/stopReason、API HTTP 审计、产物下载与 provenance、独立复核和源码清单；公开记录不含运行身份、原始 prompt、凭据或私密数据。交付状态仍为 WAITING_FOR_PERRI_REVIEW，之后由 Master 终审；不合并、不关闭 #8、不部署。
