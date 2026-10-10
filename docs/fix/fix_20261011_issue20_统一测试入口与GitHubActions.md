@@ -1,33 +1,35 @@
 # Issue #20：统一测试入口与 GitHub Actions
 
-状态：**待 Master 确认；仅完成认领、静态核查与本计划。实施及测试尚未开始。**
+- 日期：2026-10-11
+- 关联 Issue：[#20](https://github.com/ExplodeCode6324/Secretary/issues/20)
+- 文档状态：待 Master 确认
 
 ## 1. 目标与基线
 
 - 需求：[Issue #20](https://github.com/ExplodeCode6324/Secretary/issues/20)；总约束与领取顺序：[Issue #7](https://github.com/ExplodeCode6324/Secretary/issues/7)。本批是路线图第一批，无前置依赖；#8 的 API 实现已随 PR #15 合入。
 - 2026-10-11（Asia/Hong_Kong）实时核对：Issue OPEN，已将 assignee 设为 `ExplodeCode6324`，由本 Codex 会话执行。
 - 实际分支基线与远端 main：`9623095a34f01933feeb74995dbb4d49edc8300e`。Pi 子模块固定提交：`16787ad5b2dc748047f314ca1bfe7708f30f54f3`。
-- 独立分支：`codex/issue20-unified-verify`。原工作区的历史证据与未跟踪文件保持原状。
+- 工作目录：`secretary-core`；分支：`codex/issue20-unified-verify`。在主工作目录继续本批工作，历史证据与未跟踪文件保持原状。
 - 目标：本地与 CI 使用同一 `npm run verify`，运行类型检查、全部当前离线回归和文档检查；无 DSN 时明确计数数据库跳过，有 DSN 时实际执行数据库测试。
 - 本批只改测试基础设施、必要的测试适配与使用说明。Scheduler、Authorization、Host 的后续架构工作仍归各自 issue；#19 尚未实施，本批保留有效的 issue4 回归。
 
-## 2. 静态核查结果
+## 2. 现状与原因
 
 以下来自上述提交的源码阅读与文件盘点，尚无本轮测试结果。
 
-| 位置 | 已确认现状 | 对计划的影响 |
-| --- | --- | --- |
-| `package.json` | verify 为 check + runtime + issue8；issue5、issue2–4、audit 均未完整纳入 | 统一离线发现与执行，避免继续手写套件链 |
-| `tsconfig.json` | offline 只 include runtime、issue5、issue8 | 扩为 `test_case/offline/**/*.ts`，保留原源码、scripts、online 的类型检查 |
-| `test_case/offline/` | 当前套件共 52 个 `*.test.ts`：runtime 23、issue2 6、issue3 5、issue4 7、issue5 2、issue8 4、audit 5 | 初始发现清单必须能逐项对账；清理旧测试后同步记录变化 |
-| `test_case/offline/historical/` | 另有 7 个历史测试文件；README 明确不是当前默认回归 | 执行发现排除此归档目录，类型检查仍覆盖其中 TS；不把历史负载探针加入 verify |
-| `test:review` | 只运行 audit 的 4 个文件，漏掉 `world-extra.test.ts`；排除 AUD14 | audit 全部进入统一发现；AUD14 排除收窄到已知用例并独立计数 |
-| 数据库用例 | runtime/settings、runtime/world、issue4/independent、issue8/world、audit/world-extra 共 5 个文件；源码展开后为 13 个条件用例 | PG 验收需包含 issue4 与 audit，不只补 issue8 |
-| `issue4/independent.test.ts:128` 起 | 两项 PG 用例要求 `ISSUE4_ISOLATED_POSTGRES=1` 且 socket 前缀为 `/tmp/sec-issue4-sock-` | CI TCP service 无法满足；改为共享测试夹具创建独立空库的实际隔离保证 |
-| `world.ts:492`、`audit/world-extra.test.ts:14` | World 扫描全部未导出 outbox；audit 会 DROP `wm` schema | 单纯全局串行不消除残留数据；不同测试 Store 必须隔离 |
-| 旧 UI | dual-ui、web、web-render 各一项 `test.skip`，源码注明 API v1 已替代 | 删除已失效合同用例，保留同文件仍有效的领域与 DOM 安全测试 |
-| `.github/workflows` | 当前提交没有 workflow | 新增 Linux 必需检查 |
-| `check-docs.py` | 检查 README/docs/test_case 链接、迁移目标及 offline 凭据引用 | 纳入 verify；失败修正文档或真实路径，不放宽检查器 |
+| 位置                                           | 已确认现状                                                                                                                   | 对计划的影响                                                               |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `package.json`                                 | verify 为 check + runtime + issue8；issue5、issue2–4、audit 均未完整纳入                                                     | 统一离线发现与执行，避免继续手写套件链                                     |
+| `tsconfig.json`                                | offline 只 include runtime、issue5、issue8                                                                                   | 扩为 `test_case/offline/**/*.ts`，保留原源码、scripts、online 的类型检查   |
+| `test_case/offline/`                           | 当前套件共 52 个 `*.test.ts`：runtime 23、issue2 6、issue3 5、issue4 7、issue5 2、issue8 4、audit 5                          | 初始发现清单必须能逐项对账；清理旧测试后同步记录变化                       |
+| `test_case/offline/historical/`                | 另有 7 个历史测试文件；README 明确不是当前默认回归                                                                           | 执行发现排除此归档目录，类型检查仍覆盖其中 TS；不把历史负载探针加入 verify |
+| `test:review`                                  | 只运行 audit 的 4 个文件，漏掉 `world-extra.test.ts`；排除 AUD14                                                             | audit 全部进入统一发现；AUD14 排除收窄到已知用例并独立计数                 |
+| 数据库用例                                     | runtime/settings、runtime/world、issue4/independent、issue8/world、audit/world-extra 共 5 个文件；源码展开后为 13 个条件用例 | PG 验收需包含 issue4 与 audit，不只补 issue8                               |
+| `issue4/independent.test.ts:128` 起            | 两项 PG 用例要求 `ISSUE4_ISOLATED_POSTGRES=1` 且 socket 前缀为 `/tmp/sec-issue4-sock-`                                       | CI TCP service 无法满足；改为共享测试夹具创建独立空库的实际隔离保证        |
+| `world.ts:492`、`audit/world-extra.test.ts:14` | World 扫描全部未导出 outbox；audit 会 DROP `wm` schema                                                                       | 单纯全局串行不消除残留数据；不同测试 Store 必须隔离                        |
+| 旧 UI                                          | dual-ui、web、web-render 各一项 `test.skip`，源码注明 API v1 已替代                                                          | 删除已失效合同用例，保留同文件仍有效的领域与 DOM 安全测试                  |
+| `.github/workflows`                            | 当前提交没有 workflow                                                                                                        | 新增 Linux 必需检查                                                        |
+| `check-docs.py`                                | 检查 README/docs/test_case 链接、迁移目标及 offline 凭据引用                                                                 | 纳入 verify；失败修正文档或真实路径，不放宽检查器                          |
 
 初始关键文件 SHA-256（实施时扩展为完整受影响文件清单）：
 
@@ -40,7 +42,7 @@ e6f323d4458b5782ae2f6c2aeee06fb6dea2f64d352b2bf424379a9502f90e0b  docs/testing.m
 48dc419f051476c2a64eedc7de2083712592677201ec10f5322bef596662e1cb  src/pi_secretary/scripts/check-docs.py
 ```
 
-## 3. 方案
+## 3. 方案与修改范围
 
 ### 3.1 单一入口与测试发现
 
@@ -89,7 +91,7 @@ e6f323d4458b5782ae2f6c2aeee06fb6dea2f64d352b2bf424379a9502f90e0b  docs/testing.m
 
 本批没有公共 API/持久化 schema 变化，因此无预期 DTO 变化；如果测试适配暴露合同问题，先定位再决定范围。docs:check 的基线按本次干净 checkout 实测，不沿用历史错误数；缺失私密证据的链接按现有缺失附件记录规范修正，不复制私密文件到仓库。
 
-## 4. 实施顺序与验收
+## 4. 实施步骤
 
 Master 确认后执行：
 
@@ -99,21 +101,30 @@ Master 确认后执行：
 4. **新增 workflow 与使用说明。** 在等价隔离环境验证完整 verify。
 5. **形成提交与评审材料。** 文件差异、首次失败与修复映射、删除清单、源码净增减行数、测试汇总；公开内容仅用合成数据与脱敏结果。
 
-| 验收 | 预期 |
-| --- | --- |
-| 本地无 DSN，单次 verify | 全部当前 offline 文件进入发现，类型与 docs 检查执行；数据库 skip 明确统计，AUD14 独立列出 |
-| 本地配置隔离 PG 18 | 当前 13 个 PG 场景均实际运行；PG skip=0；任一失败使 verify 非零 |
-| 同一服务连续两轮 verify | 新建空库，结果不依赖上轮残留；正常及失败清理只影响本轮创建的库 |
-| 扩大类型检查 | issue2–4、audit 和所有 offline TS 出现在编译输入；合成类型错误可使 check 失败 |
-| 自动发现与失败传播 | 新的合成 offline 测试自动纳入；故意失败使 verify 非零；验证后删除合成故障 |
-| 文档 | docs:check 通过；单一入口说明与 package.json 一致 |
-| PR CI | 发布获准后，在同一个临时验收 PR 的两个提交分别注入类型错误和失败断言，记录真实红色检查，再移除故障验证绿色；故障提交不合入 main |
-| main CI | 获准合并后观察 main 的真实 workflow 成功，PG 场景执行且零 PG 跳过，再结项 |
+## 5. 验收标准
+
+| 验收                    | 预期                                                                                                                            |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 本地无 DSN，单次 verify | 全部当前 offline 文件进入发现，类型与 docs 检查执行；数据库 skip 明确统计，AUD14 独立列出                                       |
+| 本地配置隔离 PG 18      | 当前 13 个 PG 场景均实际运行；PG skip=0；任一失败使 verify 非零                                                                 |
+| 同一服务连续两轮 verify | 新建空库，结果不依赖上轮残留；正常及失败清理只影响本轮创建的库                                                                  |
+| 扩大类型检查            | issue2–4、audit 和所有 offline TS 出现在编译输入；合成类型错误可使 check 失败                                                   |
+| 自动发现与失败传播      | 新的合成 offline 测试自动纳入；故意失败使 verify 非零；验证后删除合成故障                                                       |
+| 文档                    | docs:check 通过；单一入口说明与 package.json 一致                                                                               |
+| PR CI                   | 发布获准后，在同一个临时验收 PR 的两个提交分别注入类型错误和失败断言，记录真实红色检查，再移除故障验证绿色；故障提交不合入 main |
+| main CI                 | 获准合并后观察 main 的真实 workflow 成功，PG 场景执行且零 PG 跳过，再结项                                                       |
 
 本轮授权范围截止本计划。确认计划后开展本地实现与隔离测试；推送、PR 故障演练、合并与关闭 issue 在对应阶段形成可审阅结果后办理，不预先操作。Issue #20 的远端验收在 main CI 完成前保持未完成。
 
-## 5. 工作量与主要风险
+## 6. 风险与回退
 
 **中等难度，估计 1–2 人日**，不等同于代理墙钟时间。高于 issue 的 0.5–1 人日粗估，主要增加量是 PG 场景隔离、issue4 的旧 socket 假设以及新纳入类型检查的测试适配。
 
 最大不确定性是尚未执行的全套类型/离线基线是否暴露真实业务缺陷。先按等价断言记录首败，再区分测试适配与业务缺陷；若需要超出本批范围的业务修改，向 Master 提交具体原因与计划补充。实现保持小型 runner 与单一 PG helper，不新增业务守卫、业务错误码或状态。
+
+工作量估计包含本地实现和隔离验证。若需要回退，撤销本批测试入口、夹具与 workflow 的提交；本批不迁移业务数据。
+
+## 7. 执行记录
+
+- 2026-10-11：已认领 Issue #20，完成静态核查与计划。
+- 2026-10-11：按 Master 要求，将分支及计划迁回 `secretary-core`，对齐最新远端 main；统一 fix 文档格式。Issue #20 实现和测试继续等待确认。

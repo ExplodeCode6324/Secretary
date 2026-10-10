@@ -1,6 +1,10 @@
-> 历史计划与实施记录：以下命令、界面、状态和验证结论对应原版本，不是当前 Core API v1 操作规范。原范围与失败保留；当前实现见 [文档索引](../README.md)，当前验证见 [API 记录](../api/v1/verification.md)。
-
 # World Model 部署与效果验证
+
+- 日期：2026-09-28
+- 关联 Issue：未关联 Issue
+- 文档状态：历史计划与实施记录
+
+> 历史计划与实施记录：以下命令、界面、状态和验证结论对应原版本，不是当前 Core API v1 操作规范。原范围与失败保留；当前实现见 [文档索引](../README.md)，当前验证见 [API 记录](../api/v1/verification.md)。
 
 - 授权：Master 要求“部署好，然后验证一下效果。完成之后通知我复核”。
 - 实际目录：Secretary；环境中的 Secretary_Simplified 已不存在，不创建替代仓库。
