@@ -16,10 +16,11 @@ npm run docs:check
 
 | 套件 | 当前范围与边界 |
 | --- | --- |
-| npm run check | 主源码、scripts/*.ts、runtime、issue5、issue8 和 online TypeScript；Issue 2–4 不在默认 tsconfig include |
+| npm run check | 主源码、scripts/*.ts、runtime、issue5、issue8、issue9 和 online TypeScript；Issue 2–4 不在默认 tsconfig include |
 | npm test | runtime：Store、Host、Scheduler、授权、shell、记忆、设置及读投影；含保留的纯 TUI/DOM 单元测试 |
+| npm run test:sync | issue9：真实 journal/HTTP/SSE、跨进程 SIGKILL、双端投递、分片/慢端、World SQL/export 窗口与记忆展示证据；数据库项需隔离 DSN |
 | npm run test:api | issue8：认证/幂等/旧请求身份冲突、纯查询/viewed、Core 生命周期、Unicode/游标、任务/产物/待处理、World 时间/schema 与外部 DTO 消费 |
-| npm run verify | check + npm test + test:api；不包含 Issue 2–5 全部专项、review 或真实模型 |
+| npm run verify | check + npm test + test:api + test:sync；不包含 Issue 2–5 全部专项、review 或真实模型 |
 | npm run test:issue5 | 空提取、证据匹配、设置后原文跨压缩/重启进入实际 stream；fixture 不评价真实模型长期记忆质量 |
 | Issue 2–4 专项 | 请求容量/来源、承诺证据、提取恢复、期限与中断保护；另做 strict 类型检查 |
 | npm run test:review | 额外审计，明确排除历史误报 AUD14；不是“所有历史探针全部通过” |
@@ -83,3 +84,7 @@ runtime/helpers 中的 streaming-web、activity-web、timeline-window-web、浏�
 静态设计检查、OFFLINE_RUNTIME、POSTGRES_RUNTIME、LIVE_MODEL、REAL_USE 互不替代。报告记录确切代码版本、配置/范围、首次失败、退出状态、未运行项；原始会话、凭据和真实运行身份保持私密，只发布脱敏汇总。
 
 后续仍需长期对话、更正和事实保持、多次整理/模型迁移、并发任务/取消/重复命令、原生客户端断线与缓存，以及重复样本的失败分布/延迟/成本。合成逻辑日和一次成功链路不证明长期稳定性；原始输入仍在请求里时不声称“只靠摘要记住”。可靠 ChangeFeed 和原生 UI 分属 #9、#10，设备与远程执行另行验收。
+
+## Issue #9 隔离同步验收
+
+`SECRETARY_TEST_DATABASE_URL` 必须指向专用测试集群；Issue9 World 套件在其中另建随机临时数据库并在结束后删除，需要相应建库权限。不得用生产 DSN。新增同步套件不调用真实模型、不连接设备。失败、首次通过与覆盖限制见[同步验证记录](api/v1/sync-verification.md)。旧 streaming 回归不能替代持久游标、SIGKILL 和目标回执测试。

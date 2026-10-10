@@ -1,3 +1,9 @@
+import { SyncService } from "./sync-service.ts";
+import {
+  initializeSync,
+  resetSyncHistory,
+  syncMetadata,
+} from "./notification-service.ts";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -47,9 +53,11 @@ const longRoutes = new Set([
   "memory/recovery",
   "operations/:id/verify-write",
   "admin/world/migrate",
+  "admin/world/reset-history",
 ]);
 /** Admission and public projections only. Domain owners retain business state machines. */
 export class ApplicationService {
+  readonly synchronization: SyncService;
   readonly instanceID = id();
   readonly identity: CoreIdentity;
   readonly principal: OwnerPrincipal;
@@ -93,6 +101,11 @@ export class ApplicationService {
       kind: "local-owner",
       owner_id: identity.owner_id,
     });
+    this.synchronization = new SyncService(
+      app,
+      identity.owner_id,
+      this.instanceID,
+    );
     if (!store.find("AssistantProfile", PROFILE))
       store.commit([
         {
@@ -190,14 +203,31 @@ export class ApplicationService {
       error_code: r.error_code,
     };
   }
-  command(principal: OwnerPrincipal, path: string, body: unknown): Receipt {
+  command(
+    principal: OwnerPrincipal,
+    path: string,
+    body: unknown,
+    binding?: string,
+  ): Receipt {
     this.authorize(principal);
     if (this.closed) throw new ApiError("CORE_STOPPING", 503);
     const route = commandRoute(path);
     if (!route) throw new ApiError("NOT_FOUND", 404);
     validate(route.schema, body);
+    const client = this.synchronization.notifications.authenticate(
+      binding,
+      principal.owner_id,
+      path.startsWith("deliveries/"),
+    );
+    if (path.startsWith("deliveries/") && path.endsWith("/ack"))
+      this.synchronization.notifications.deliveryFor(route.target!, client!);
     const requestID = body.request_id as string;
-    const digest = fingerprint({ owner: principal.owner_id, path, body });
+    const digest = fingerprint({
+      owner: principal.owner_id,
+      path,
+      body,
+      ...(path.startsWith("deliveries/") ? { client } : {}),
+    });
     const store = this.app.store,
       old = store.find<ApiCommand>("ApiCommand", requestID);
     if (old) {
@@ -255,7 +285,7 @@ export class ApplicationService {
           return request;
         },
         () => {
-          result = this.dispatch(path, body);
+          result = this.dispatch(path, body, client);
         },
       );
     } catch (error) {
@@ -312,11 +342,36 @@ export class ApplicationService {
       .finally(() => this.running.delete(job));
     this.running.add(job);
   }
-  private dispatch(path: string, b: Record<string, unknown>): unknown {
+  private dispatch(
+    path: string,
+    b: Record<string, unknown>,
+    client: string | null = null,
+  ): unknown {
     const { route, target } = commandRoute(path)!;
     const { host, scheduler, settings, authorization, store } = this.app;
     const requestID = b.request_id as string;
     switch (route) {
+      case "sync/initialize":
+        return initializeSync(store);
+      case "sync/reset-history":
+        return resetSyncHistory(store);
+      case "clients/:id/notification-target":
+        return this.synchronization.notifications.configure(
+          target!,
+          this.identity.owner_id,
+          b.enabled as boolean,
+          b.rotate_binding === true,
+        );
+      case "deliveries/claim":
+        return this.synchronization.notifications.claimUnrouted(client!);
+      case "deliveries/:id/ack":
+        return this.synchronization.notifications.ack(
+          target!,
+          client!,
+          b.kind as "received" | "presented" | "read",
+          b.content_version as string,
+        );
+
       case "assistant/profile": {
         const p = store.get<AssistantProfile>("AssistantProfile", PROFILE);
         if (p.revision !== revision(b.expected_revision))
@@ -423,6 +478,9 @@ export class ApplicationService {
         if (op.scope.execution_id) this.execution(op.scope.execution_id);
         return scheduler.verifyWrite(target!);
       }
+      case "admin/world/reset-history":
+        if (!this.app.world) throw new ApiError("WORLD_UNAVAILABLE", 503);
+        return this.app.world.resetHistory();
       case "admin/world/migrate":
         if (!this.app.world) throw new ApiError("WORLD_UNAVAILABLE", 503);
         return this.app.world.migrate();
@@ -539,8 +597,71 @@ export class ApplicationService {
     principal: OwnerPrincipal,
     path: string,
     q = new URLSearchParams(),
+    binding?: string,
   ): Promise<unknown> {
     this.authorize(principal);
+    const sync = this.synchronization;
+    const client = sync.notifications.authenticate(
+      binding,
+      principal.owner_id,
+      path === "deliveries" || path.startsWith("deliveries/"),
+    );
+    if (
+      path.startsWith("sync/") ||
+      path.startsWith("notifications") ||
+      path.startsWith("deliveries")
+    ) {
+      const allowed =
+        path === "sync/changes"
+          ? ["after", "page"]
+          : path === "sync/snapshot" || path.endsWith("/content")
+            ? ["cursor"]
+            : path === "notifications" || path === "deliveries"
+              ? ["cursor", "limit"]
+              : [];
+      for (const key of q.keys())
+        if (!allowed.includes(key) || q.getAll(key).length !== 1)
+          throw new ApiError("INVALID_QUERY");
+      if (path === "sync/bootstrap") return sync.bootstrap(client);
+      if (path === "sync/snapshot") {
+        if (!q.get("cursor")) throw new ApiError("INVALID_QUERY");
+        return sync.snapshotPage(client, q.get("cursor")!);
+      }
+      if (path === "sync/changes") {
+        if (!q.get("after")) throw new ApiError("SYNC_CURSOR_REQUIRED");
+        return sync.changes(
+          q.get("after")!,
+          client,
+          q.get("page") ?? undefined,
+        );
+      }
+      if (path === "notifications" || path === "deliveries")
+        return sync.listNotifications(client, q, path === "deliveries");
+      const parts = path.split("/");
+      if (
+        parts[0] === "notifications" &&
+        parts.length === 3 &&
+        parts[2] === "content"
+      )
+        return sync.notificationContent(parts[1], q, client);
+      if (parts[0] === "notifications" && parts.length === 2)
+        return sync.notificationView(
+          this.app.store.get("Notification", parts[1]),
+        );
+      if (parts[0] === "deliveries" && parts.length === 2)
+        return sync.notificationView(
+          sync.notifications.deliveryFor(parts[1], client!),
+        );
+      throw new ApiError("NOT_FOUND", 404);
+    }
+    if (/^clients\/[^/]+\/notification-target$/.test(path)) {
+      const id = path.split("/")[1];
+      return {
+        client_id: id,
+        enabled: sync.notifications.target(id)?.enabled ?? false,
+        binding: sync.notifications.binding(id, principal.owner_id),
+      };
+    }
     this.sync();
     const { store, host, settings, scheduler } = this.app,
       sid = host.sessionID;
@@ -619,9 +740,9 @@ export class ApplicationService {
             reason: "UPLOAD_NOT_IMPLEMENTED",
           },
           reliable_sync: {
-            state: "not_supported",
-            allowed: false,
-            reason: "CHANGEFEED_NOT_IMPLEMENTED",
+            state: syncMetadata(store) ? "supported" : "not_configured",
+            allowed: !!syncMetadata(store),
+            reason: syncMetadata(store) ? null : "SYNC_NOT_INITIALIZED",
           },
         },
       };
@@ -1015,6 +1136,7 @@ export class ApplicationService {
         return {
           items: project(page.rows),
           world_version: page.version,
+          world_history_id: page.world_history_id,
           next_cursor: page.next_cursor
             ? this.cursors.encode(scope, page.next_cursor)
             : null,

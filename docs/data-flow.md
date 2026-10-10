@@ -22,7 +22,7 @@ sequenceDiagram
   A-->>C: 当前领域状态与有界读投影
 ```
 
-GET 不表示展示/已读，不写 Notification SENT。旧 TerminalController 的 presented 回执仍有领域代码，但新版 Core 不加载它，也没有对应公开命令。工具日志和摘要不能冒充新的 Master 输入。
+GET 不表示展示/已读，不写 Notification SENT。旧 TerminalController 的 presented 回执仍有领域代码，但新版 Core 不加载它；新版通过 deliveries/{id}/ack 显式记录各目标的 received/presented/read。工具日志和摘要不能冒充新的 Master 输入。
 
 ## 任务与作用
 

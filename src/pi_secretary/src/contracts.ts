@@ -48,7 +48,11 @@ export type SecretaryDemoV1 =
   | CoreIdentity
   | AssistantProfile
   | ClientRegistration
-  | ApiCommand;
+  | ApiCommand
+  | SyncMetadata
+  | DeliveryTarget
+  | NotificationRouting
+  | NotificationDelivery;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -1626,7 +1630,11 @@ export interface Mutation {
     | "CoreIdentity"
     | "AssistantProfile"
     | "ClientRegistration"
-    | "ApiCommand";
+    | "ApiCommand"
+    | "SyncMetadata"
+    | "DeliveryTarget"
+    | "NotificationRouting"
+    | "NotificationDelivery";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -1847,6 +1855,51 @@ export interface ApiCommand {
   }[];
   error_code: string | null;
   result_ref: ObjectRef | null;
+}
+export interface SyncMetadata {
+  schema_version: 1;
+  record_type: "SyncMetadata";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  history_id: ID;
+  secret: Digest;
+  projection_version: "1";
+  legacy_through: number;
+}
+export interface DeliveryTarget {
+  schema_version: 1;
+  record_type: "DeliveryTarget";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  enabled: boolean;
+  binding_nonce: ID;
+  owner_id: ID;
+}
+export interface NotificationRouting {
+  schema_version: 1;
+  record_type: "NotificationRouting";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  notification_id: ID;
+  state: "UNROUTED" | "ROUTED";
+}
+export interface NotificationDelivery {
+  schema_version: 1;
+  record_type: "NotificationDelivery";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  notification_id: ID;
+  client_id: ID;
+  session_id: ID;
+  content_version: Digest;
+  created_at: Time;
+  received_at: Time | null;
+  presented_at: Time | null;
+  read_at: Time | null;
 }
 
 export type Contract = SecretaryDemoV1;

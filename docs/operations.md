@@ -91,3 +91,7 @@ CLI 只支持 start/attach/status/stop；`npm start -- --migrate` 不执行数�
 停止旧 writer，备份完整数据目录及对应 PostgreSQL、代码与配置并记录校验。先在隔离副本验证回放；新旧版本不能同时写同一数据域。未完成 Settings 要用其原配置恢复，不能直接换模型/DSN。
 
 新版会生成旧版本不认识的持久记录，不支持旧 TUI/Web 协议。回退须使用经核验的旧代码、配置和匹配的数据备份，先对账升级后外部作用，禁止用旧备份重复执行。旧 ProgramRegistration 的绝对入口和 shell cwd/resource 在迁移后可能失效，不能修改历史许可来掩盖变化。详见[持久化](persistence.md)和[API 切换说明](api/v1/README.md#切换与回退)。
+
+## 显式启用可靠同步
+
+Issue #9 新服务切换时，先按既有停机、完整备份和隔离回放流程，再由 owner 使用 API `sync/initialize`（request_id）初始化；World 使用 `admin/world/migrate` 并按原 request_id 对账，应用 SQL 004。客户端登记后显式启用 notification-target，保存 binding 并按[协议](api/v1/sync.md)完成 bootstrap/ACK。正常重启不重置同步历史；数据恢复需要显式更新 journal/World 数据代次。此步骤尚未在生产执行，不能把隔离测试当作部署完成。

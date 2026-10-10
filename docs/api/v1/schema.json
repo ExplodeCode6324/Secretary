@@ -509,6 +509,22 @@
         },
         "message": {
           "type": "string"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reason",
+            "recovery"
+          ],
+          "properties": {
+            "reason": {
+              "type": "string"
+            },
+            "recovery": {
+              "type": "string"
+            }
+          }
         }
       },
       "required": [
@@ -2273,6 +2289,9 @@
               "type": "null"
             }
           ]
+        },
+        "world_history_id": {
+          "type": "string"
         }
       },
       "required": [
@@ -2321,6 +2340,9 @@
           ]
         },
         "world_version": {
+          "type": "string"
+        },
+        "world_history_id": {
           "type": "string"
         }
       },
@@ -2938,6 +2960,590 @@
         "next_cursor"
       ],
       "additionalProperties": true
+    },
+    "DeliveryTargetCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "rotate_binding": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "request_id",
+        "enabled"
+      ]
+    },
+    "DeliveryAckCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "kind": {
+          "enum": [
+            "received",
+            "presented",
+            "read"
+          ]
+        },
+        "content_version": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "required": [
+        "request_id",
+        "kind",
+        "content_version"
+      ]
+    },
+    "SyncChange": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "resource_type": {
+          "type": "string"
+        },
+        "resource_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "query": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "resource_type",
+        "resource_id",
+        "revision",
+        "query"
+      ]
+    },
+    "SyncBatch": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "transaction_id": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "string"
+        },
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "final": {
+          "type": "boolean"
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SyncChange"
+          }
+        },
+        "cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "transaction_id",
+        "sequence",
+        "index",
+        "final",
+        "changes",
+        "cursor"
+      ]
+    },
+    "SyncPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "batches": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SyncBatch"
+          }
+        },
+        "next_cursor": {
+          "type": "string"
+        },
+        "next_page": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "has_more": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "batches",
+        "next_cursor",
+        "next_page",
+        "has_more"
+      ]
+    },
+    "SyncSnapshotPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SyncChange"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "cursor",
+        "next_cursor"
+      ]
+    },
+    "SyncWorld": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "availability": {
+          "enum": [
+            "available",
+            "unavailable",
+            "not_configured"
+          ]
+        },
+        "world_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "world_history_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pending_exports": {
+          "type": "string"
+        },
+        "oldest_pending_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_exported_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "export_state": {
+          "type": "string"
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "as_of": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "availability",
+        "world_version",
+        "world_history_id"
+      ]
+    },
+    "SyncJournal": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "session": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string"
+            },
+            "revision": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "state",
+            "revision"
+          ]
+        },
+        "assistant": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "actor_id": {
+              "const": "assistant"
+            },
+            "display_name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "actor_id",
+            "display_name"
+          ]
+        },
+        "resources": {
+          "$ref": "#/$defs/SyncSnapshotPage"
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "as_of": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "session",
+        "assistant",
+        "resources",
+        "queries",
+        "as_of"
+      ]
+    },
+    "SyncBootstrap": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "history_id": {
+          "type": "string"
+        },
+        "projection_version": {
+          "const": "1"
+        },
+        "instance_id": {
+          "type": "string"
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "journal": {
+          "$ref": "#/$defs/SyncJournal"
+        },
+        "world": {
+          "$ref": "#/$defs/SyncWorld"
+        }
+      },
+      "required": [
+        "history_id",
+        "projection_version",
+        "instance_id",
+        "cursor",
+        "journal",
+        "world"
+      ]
+    },
+    "NotificationInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "content_version": {
+          "type": "string"
+        },
+        "bytes": {
+          "type": "string"
+        },
+        "requested_at": {
+          "type": "string"
+        },
+        "legacy": {
+          "type": "boolean"
+        },
+        "legacy_state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "content_query": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "content_version",
+        "bytes",
+        "requested_at",
+        "legacy",
+        "legacy_state",
+        "content_query"
+      ]
+    },
+    "DeliveryInfo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "notification_id": {
+          "type": "string"
+        },
+        "client_id": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "content_version": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": "string"
+        },
+        "received_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "presented_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "read_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "notification_id",
+        "client_id",
+        "revision",
+        "content_version",
+        "created_at",
+        "received_at",
+        "presented_at",
+        "read_at"
+      ]
+    },
+    "NotificationPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/NotificationInfo"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ]
+    },
+    "DeliveryPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/DeliveryInfo"
+          }
+        },
+        "version": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ]
+    },
+    "NotificationContent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "content_version": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "content_version",
+        "text",
+        "next_cursor"
+      ]
+    },
+    "DeliveryBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "client_id": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "binding": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "client_id",
+        "enabled",
+        "binding"
+      ]
+    },
+    "SyncTransient": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "instance_id": {
+          "type": "string"
+        },
+        "preview_revision": {
+          "type": "string"
+        },
+        "activity_revision": {
+          "type": "string"
+        },
+        "previews": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Json"
+          }
+        },
+        "activities": {
+          "$ref": "#/$defs/Json"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "instance_id",
+        "preview_revision",
+        "activity_revision",
+        "previews",
+        "activities",
+        "truncated"
+      ]
+    },
+    "SyncStreamEvent": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/SyncBatch"
+        },
+        {
+          "$ref": "#/$defs/SyncTransient"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "action"
+          ],
+          "properties": {
+            "code": {
+              "type": "string"
+            },
+            "action": {
+              "const": "bootstrap"
+            }
+          }
+        }
+      ]
     }
   },
   "oneOf": [

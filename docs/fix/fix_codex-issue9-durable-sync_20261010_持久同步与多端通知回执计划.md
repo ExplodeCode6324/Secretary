@@ -1,3 +1,7 @@
+> 2026-10-10 实施记录：Master 已确认“按计划执行 Issue9，完成实现和隔离测试后汇报”。本分支进入 IMPLEMENTED / ISOLATED_TESTS_PASSED；当前协议见[同步合同](../api/v1/sync.md)，完整结果与保留失败见[验证记录](../api/v1/sync-verification.md)。下文原 PLAN_ONLY 状态仅记录规划时点。
+>
+> 实施细化：快照采用固定水位的资源版本目录和有界续页，完整资源内容由明确的当前查询加载；不声称未加载内容属于原快照。旧通知通过持久切换边界区分，原对象零重写；未路由新意图用独立、每批最多100条的 claim 命令领取。SSE 用持久位置轮询避免依赖内存发布；World 增加事务版本时钟及独立代次。没有新增 UI、旧协议兼容、生产迁移或设备操作。
+
 # Issue #9：持久同步与多端通知回执计划
 
 日期：2026-10-10。状态：**PLAN_ONLY / WAITING_FOR_MASTER_APPROVAL / NOT_IMPLEMENTED / NOT_TESTED**。

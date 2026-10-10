@@ -2,11 +2,11 @@
 
 当前 World Model 使用 `wm` schema；Session、Task、授权规则、Context 与 Consciousness 存储在本地 journal，不是 PostgreSQL 表。
 
-权威 SQL：[001_world_model.sql](../src/schema/001_world_model.sql)、[002_predicates.sql](../src/schema/002_predicates.sql)、[003_settings.sql](../src/schema/003_settings.sql)、[queries.sql](../src/schema/queries.sql)。执行仓储：[world.ts](../src/pi_secretary/src/world.ts)。
+权威 SQL：[001_world_model.sql](../src/schema/001_world_model.sql)、[002_predicates.sql](../src/schema/002_predicates.sql)、[003_settings.sql](../src/schema/003_settings.sql)、[004_sync.sql](../src/schema/004_sync.sql)、[queries.sql](../src/schema/queries.sql)。执行仓储：[world.ts](../src/pi_secretary/src/world.ts)。
 
 ## 迁移与事务
 
-World.migrate 使用 advisory lock 串行化迁移；不存在 schema_version 时执行基线，再应用 predicate seed 并记录版本 2，最后执行增加 settings_batch_receipt 的版本 3 迁移。基线/seed 自带事务；migrate 在失败时 rollback 并释放锁。当前入口为 owner 显式 POST /api/v1/admin/world/migrate，再按请求回执确认；Core CLI 不处理 --migrate。
+World.migrate 使用 advisory lock 串行化迁移；不存在 schema_version 时执行基线，再应用 predicate seed 并记录版本 2，再执行增加 settings_batch_receipt 的版本 3 和 sync_clock 的版本 4 迁移。sync_clock 以事务触发器覆盖目录/事实/receipt 写入，保存独立 history_id 与版本；回滚也回滚版本。基线/seed 自带事务；migrate 在失败时 rollback 并释放锁。当前入口为 owner 显式 POST /api/v1/admin/world/migrate，再按请求回执确认；Core CLI 不处理 --migrate。
 
 变更通过 Settings 协调器先摘要并预检 context。认证 local-owner 的 Settings API 记录明确应用证据；模型提案仍经授权。数据库事务检查实体、predicate 与 slot revision；整批原子提交并保存 settings_batch_receipt。change_id/request_id/request_hash 支持回执去重和冲突检查。assertion、状态投影、冲突、证据、change_receipt 与 audit_outbox 在事务中提交；JSONL 审计导出属于独立可恢复桥接。
 
@@ -200,6 +200,14 @@ application_id uuid PRIMARY KEY,
     request_hash text NOT NULL,
     result jsonb NOT NULL,
     committed_at timestamptz NOT NULL DEFAULT now()
+```
+
+### wm.sync_clock
+
+```sql
+singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),
+ history_id uuid NOT NULL DEFAULT gen_random_uuid(),
+ version bigint NOT NULL DEFAULT 0 CHECK(version>=0)
 ```
 
 ## 索引、触发器与读模型

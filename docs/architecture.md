@@ -61,11 +61,11 @@ HTTP POST 返回 202 只证明持久受理。短命令受理与首个领域变�
 
 `durableStream` 单消费者观察供应商增量，将可见文本放入内存预览；完整响应写入 ModelCall/Context 成功后才交给 Agent 执行工具。预览最多保留 8 个调用，每调用 128 个块、32768 字符；不投影签名、redacted 内容或工具参数。预览不进入记忆、授权和业务判断，重启丢失临时内容。
 
-当前客户端用 `GET /api/v1/timeline?streaming=true&thinking=true` 显式读取预览与可见思考；默认不返回思考。临时预览和持久消息用 call_id 关联。没有 `/api/stream`、旧 activity SSE 或可靠事件补发；查询开关不表示改变模型内部推理。
+当前客户端用 `GET /api/v1/timeline?streaming=true&thinking=true` 显式读取预览与可见思考；默认不返回思考。临时预览和持久消息用 call_id 关联。没有 `/api/stream` 或旧 activity SSE；新版 `sync/stream` 提供可靠事件补发；查询开关不表示改变模型内部推理。
 
 时间线复用 activity-history/timeline 的可重建索引，以稳定消息/事件 ID、排序锚点和 generation 查询。每页最多 200 项且受 1 MiB 页面预算约束；around 定位、正文 opaque cursor、任务/产物/待处理查询各有独立作用域。GET 不续留、不读后标记已读；明确打开执行才提交 viewed。
 
-索引预热和 Store 重放仍随历史增长；单个大 CAS 消息可能先完整读取/解析再分片。列表分页不等于跨存储快照或常数内存扫描。World 使用独立版本，可靠持久水位/恢复由后续 #9 实现。
+索引预热和 Store 重放仍随历史增长；单个大 CAS 消息可能先完整读取/解析再分片。列表分页不等于跨存储快照或常数内存扫描。World 使用独立版本，本分支已实现[持久同步水位和恢复](api/v1/sync.md)。
 
 ## 任务与证据
 
@@ -78,3 +78,7 @@ Host 创建的 Notification 与已读确认不同。旧 TerminalController 曾�
 [src/UPSTREAM.json](../src/UPSTREAM.json) 固定 Pi v0.87.0 与子模块 commit。Agent、read/write 工具、NodeExecutionEnv 使用子模块源码，模型传输包与其版本匹配。上游 CLI/扩展不构成 Secretary 的权限入口，上游文档不属于本仓库自有文档维护范围。
 
 `ui-client.ts`、`client-tui.ts`、`tui.ts`、`web.ts`、`src/pi_secretary/web` 及旧 `.command` 仍是待 #10 清理的遗留实现。SwiftUI 按[客户端规范](native-client-design-v0.3.md)消费新版合同；可选新版 TUI 只保留在开发路线，不维护旧协议兼容层。
+
+## 持久同步投影
+
+SyncService 从 Store 的已提交事务构建可重建资源版本索引；bootstrap 捕获固定 journal 位置，World 独立一致读。SSE 与 HTTP catch-up 共享同一读取循环，投递缓冲有界，读取不写业务状态。NotificationService 原子保存通知和目标 Delivery，ACK 通过原 ApplicationService 幂等入口；原记忆证据校验只接受真实 presented。详见[协议与故障边界](api/v1/sync.md)。

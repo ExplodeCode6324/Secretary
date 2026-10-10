@@ -34,7 +34,8 @@ const operations = JSON.parse(
 const paths = {};
 for (const operation of operations) {
   const response =
-    operation.response === "binary"
+    operation.response === "binary" ||
+    operation.media_type === "text/event-stream"
       ? { type: "string", format: "binary" }
       : {
           type: "object",
@@ -45,6 +46,9 @@ for (const operation of operations) {
           },
         };
   (paths[operation.path] ??= {})[operation.method.toLowerCase()] = {
+    ...(operation.media_type === "text/event-stream"
+      ? { "x-event-schema": { $ref: "./schema.json#/$defs/SyncStreamEvent" } }
+      : {}),
     operationId:
       operation.method.toLowerCase() +
       "_" +
@@ -79,8 +83,11 @@ for (const operation of operations) {
       [operation.status]: {
         description: "Accepted command receipt or read model",
         content: {
-          [operation.response === "binary"
-            ? "application/octet-stream"
+          [operation.response === "binary" ||
+          operation.media_type === "text/event-stream"
+            ? operation.media_type === "text/event-stream"
+              ? "text/event-stream"
+              : "application/octet-stream"
             : "application/json"]: { schema: response },
         },
       },

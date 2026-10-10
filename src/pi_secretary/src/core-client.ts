@@ -5,7 +5,10 @@ import { fileURLToPath } from "node:url";
 import type { CoreEndpoint } from "./api-v1.ts";
 import type { Core, Receipt, Assistant } from "./api/contracts.ts";
 export class CoreClient {
-  constructor(readonly endpoint: CoreEndpoint) {}
+  constructor(
+    readonly endpoint: CoreEndpoint,
+    readonly binding?: string,
+  ) {}
   async query<T = unknown>(route: string): Promise<T> {
     return this.request<T>("GET", route);
   }
@@ -14,6 +17,18 @@ export class CoreClient {
     body: { request_id: string; [key: string]: unknown },
   ): Promise<Receipt> {
     return this.request<Receipt>("POST", route, body);
+  }
+  bootstrap() {
+    return this.query<import("./api/contracts.ts").SyncBootstrap>(
+      "sync/bootstrap",
+    );
+  }
+  changes(after: string, page?: string) {
+    return this.query<import("./api/contracts.ts").SyncPage>(
+      "sync/changes?after=" +
+        encodeURIComponent(after) +
+        (page ? "&page=" + encodeURIComponent(page) : ""),
+    );
   }
   core() {
     return this.query<Core>("core");
@@ -31,6 +46,7 @@ export class CoreClient {
       method,
       headers: {
         Authorization: `Bearer ${this.endpoint.token}`,
+        ...(this.binding ? { "X-Secretary-Client": this.binding } : {}),
         "Content-Type": "application/json",
         "X-Secretary-API-Version": "1",
       },

@@ -23,7 +23,7 @@ npm run test:issue5
 npm run stop
 ```
 
-Core 保留任务、审批、工作决定、Settings/World、记忆恢复和活动/时间线能力，均通过新版结构化协议访问。可靠 ChangeFeed 属于 #9，原生客户端属于 #10；本阶段不提供新的 TUI。
+Core 保留任务、审批、工作决定、Settings/World、记忆恢复和活动/时间线能力，均通过新版结构化协议访问。本分支已实现 [#9 持久 ChangeFeed 与通知回执](docs/api/v1/sync.md)，需显式初始化；原生客户端属于 #10，不提供新的 TUI。
 
 ## 仓库分类
 

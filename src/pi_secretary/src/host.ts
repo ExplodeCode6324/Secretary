@@ -1,3 +1,7 @@
+import {
+  NotificationService,
+  presentedNotification,
+} from "./notification-service.ts";
 import { projectContext, buildCompaction } from "./context-projection.ts";
 import { assertRequestBudget, requestBudget, budgetConfig } from "./budget.ts";
 import {
@@ -1017,32 +1021,10 @@ export class Host {
           "Save a normal notification to Master. Does not grant authorization.",
         parameters: Type.Object({ message: Type.String() }),
         execute: async (call, args) => {
-          const n: Notification = {
-            schema_version: 1,
-            record_type: "Notification",
-            ...base(),
-            state: "QUEUED",
-            session_id: this.sessionID,
-            channel: "local-ui",
-            message: this.store.put(args.message, "text/plain"),
-            delivery_key: call,
-            receipt: null,
-            requested_at: now(),
-          };
-          this.store.commit(
-            [n],
-            [
-              this.store.event(
-                "notification.queued",
-                n,
-                {
-                  session_id: this.sessionID,
-                  task_id: null,
-                  execution_id: null,
-                },
-                "MAIN",
-              ),
-            ],
+          const n = new NotificationService(this.store).create(
+            this.sessionID,
+            args.message,
+            call,
           );
           return result({ notification_id: n.id });
         },
@@ -1411,15 +1393,16 @@ export class Host {
           delivered_notifications: this.store.logs
             .filter(
               (l) =>
-                l.event_type === "notification.result" &&
-                l.sequence <= sourceEnd,
+                ["notification.result", "notification.presented"].includes(
+                  l.event_type,
+                ) && l.sequence <= sourceEnd,
             )
             .map((l) => {
-              const n = this.store.read<Notification>(l.payload);
-              return n.session_id === this.sessionID
+              const n = presentedNotification(this.store, l);
+              return n?.session_id === this.sessionID
                 ? {
                     event_id: l.event_id,
-                    state: n.state,
+                    state: "PRESENTED",
                     message: this.store.bytes(n.message).toString(),
                   }
                 : null;

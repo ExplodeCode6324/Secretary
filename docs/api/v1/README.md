@@ -60,7 +60,7 @@ revision、journal/event sequence、World version、字节长度使用十进制�
 - `attention` 从审批/决定原状态投影计数与有界列表，具有相同 version、session_id、as_of、valid_until。到 valid_until 必须刷新，即使没有 journal 变化；查询不代表批准或已读。
 - 管理能力包括程序登记、授权规则登记/禁用、Operation 查询与 `operations/{id}/verify-write` 核验未知写入结果。程序登记是完整程序权限确认，不能供未来设备 principal 直接复用。
 
-服务端能力与客户端本地页面是否实现是不同维度。字体、旁栏宽度、滚动、未发送草稿不保存到 Core Settings。设备/上传/可靠同步明确尚不支持；#9 接入持久同步，#10 实现原生界面。
+服务端能力与客户端本地页面是否实现是不同维度。字体、旁栏宽度、滚动、未发送草稿不保存到 Core Settings。设备/上传仍不支持；本分支已实现 #9 持久同步，需显式初始化。#10 实现原生界面。详见[持久同步与通知回执](sync.md)。
 
 ## 切换与回退
 
@@ -71,7 +71,7 @@ revision、journal/event sequence、World version、字节长度使用十进制�
 
 ## 当前明确边界
 
-- 59 项操作（36 GET、23 POST；去重后使用47种 request/response DTO）以 operations.json 为完整入口清单；没有旧 SSE、公开 capacity 面板或 Notification presented/已读命令。Host 仍可创建 QUEUED 通知，旧 TerminalController 曾写 SENT；当前 GET 不会产生该回执，也不能自动满足依赖送达证据的承诺。
+- 入口全集以 operations.json 为准。新版同步 SSE、Notification/Delivery 查询及显式 ACK 已实现，旧 SSE 路由仍不注册。GET 不产生回执；只有可验证 presented 证据可供原狭义承诺履约，received 不足以证明展示。
 - 短命令 ApiCommand 保持 ACCEPTED，不承诺统一转 COMPLETED；读取 resource_ids 所指领域状态。长命令派发异常与中断统一保留 UNKNOWN，不以 schema 中的 FAILED 枚举推断已实现该分支。
 - 公共 TaskCommand 的字段为 acceptance（字符串数组），不是内部 TaskProposal.acceptance_criteria；公开可选字段的缺省与内部工具的 null 语义不能混用，提交前按公开 schema 校验。
 - DraftCommand.edits 的结构上限是100，但 SettingsPayload 领域层仍限制50；实际可提交批次应遵守更严格的50项。公开 DTO 合法不保证领域前提、权限和资源版本通过。

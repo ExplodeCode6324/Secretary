@@ -46,7 +46,7 @@ Core 生命周期由 `npm run core -- start|attach|status|stop` 管理。所有 
 
 ## 读模型与尚未提供的入口
 
-客户端通过 API v1 时间线、任务/执行、审批/决定、Settings/World、记忆、产物、related 和 attention 查询。临时预览仅在 timeline 的 streaming=true 时出现，可见思考须 thinking=true。所有 GET 不写业务状态，Notification 的旧 presented/SENT 回执没有对应的新版公开命令；主会话已生成通知不等于当前客户端已确认送达。
+客户端通过 API v1 时间线、任务/执行、审批/决定、Settings/World、记忆、产物、related 和 attention 查询。临时预览仅在 timeline 的 streaming=true 时出现，可见思考须 thinking=true。所有 GET 不写业务状态，通知使用新版 deliveries/{id}/ack 显式确认 received/presented/read，旧 SENT 保留原历史语义；主会话已生成通知不等于当前客户端已确认送达。
 
 显示名使用 assistant/profile，只有显示身份变化，不运行记忆整理。人格说明使用 settings/draft + settings/apply，必须经过完整生效流程。World 目录支持分页，设备/附件上传/可靠同步仍未实现。具体 request/response 使用[操作清单](api/v1/operations.json)，不得将内部 TaskProposal、SettingsPayload 或 Store ObjectRef 直接当作公开 DTO。
 

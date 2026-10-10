@@ -1,0 +1,68 @@
+{
+  "bootstrap": {
+    "history_id": "11111111-1111-4111-8111-111111111111",
+    "projection_version": "1",
+    "instance_id": "22222222-2222-4222-8222-222222222222",
+    "cursor": "synthetic-opaque-cursor",
+    "journal": {
+      "session": {
+        "id": "11111111-1111-4111-8111-111111111111",
+        "state": "IDLE",
+        "revision": "1"
+      },
+      "assistant": {
+        "actor_id": "assistant",
+        "display_name": "secretary"
+      },
+      "resources": {
+        "items": [],
+        "version": "1",
+        "cursor": "synthetic-opaque-cursor",
+        "next_cursor": null
+      },
+      "queries": [
+        "timeline",
+        "attention"
+      ],
+      "as_of": "2026-10-10T00:00:00.000Z"
+    },
+    "world": {
+      "availability": "not_configured",
+      "world_version": null,
+      "world_history_id": null
+    }
+  },
+  "batch": {
+    "transaction_id": "11111111-1111-4111-8111-111111111111:2",
+    "sequence": "2",
+    "index": 0,
+    "final": true,
+    "changes": [
+      {
+        "resource_type": "input",
+        "resource_id": "11111111-1111-4111-8111-111111111111",
+        "revision": "1",
+        "query": "timeline",
+        "state": "ACCEPTED"
+      }
+    ],
+    "cursor": "synthetic-next-cursor"
+  },
+  "delivery": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "notification_id": "11111111-1111-4111-8111-111111111111",
+    "client_id": "11111111-1111-4111-8111-111111111111",
+    "revision": "1",
+    "content_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "created_at": "2026-10-10T00:00:00.000Z",
+    "received_at": null,
+    "presented_at": null,
+    "read_at": null
+  },
+  "content": {
+    "id": "11111111-1111-4111-8111-111111111111",
+    "content_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "text": "合成通知😀é",
+    "next_cursor": null
+  }
+}

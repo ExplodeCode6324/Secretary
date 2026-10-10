@@ -7,7 +7,7 @@
     "test": "tsx --test test_case/offline/runtime/*.test.ts",
     "test:issue5": "tsx --test test_case/offline/issue5/*.test.ts",
     "start": "tsx src/pi_secretary/src/core-cli.ts start",
-    "verify": "npm run check && npm test && npm run test:api",
+    "verify": "npm run check && npm test && npm run test:api && npm run test:sync",
     "format:check": "prettier --check \"src/pi_secretary/src/**/*.ts\" \"test_case/offline/runtime/**/*.ts\"",
     "start:live": "tsx src/pi_secretary/scripts/start-live.ts",
     "test:live": "tsx test_case/online/test-live.ts",
@@ -25,7 +25,8 @@
     "core": "tsx src/pi_secretary/src/core-cli.ts",
     "start:core": "tsx src/pi_secretary/src/core-cli.ts start",
     "test:api": "tsx --test test_case/offline/issue8/*.test.ts",
-    "api:generate": "node src/pi_secretary/scripts/generate-api.mjs"
+    "api:generate": "node src/pi_secretary/scripts/generate-api.mjs",
+    "test:sync": "tsx --test test_case/offline/issue9/*.test.ts"
   },
   "dependencies": {
     "@earendil-works/chord": "0.87.0",

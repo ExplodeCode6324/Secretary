@@ -87,10 +87,15 @@ export class Store {
   private recordsByType = new Map<string, Map<string, Stored>>();
   readonly logs: OperationLogRecord[] = [];
   // Validated immutable references for disposable read projections. No second journal.
-  readonly projectionFrames: Pick<
+  readonly projectionFrames: (Pick<
     JournalTransaction,
-    "sequence" | "committed_at" | "mutations" | "log_records"
-  >[] = [];
+    | "sequence"
+    | "txn_id"
+    | "committed_at"
+    | "mutations"
+    | "log_records"
+    | "receipts"
+  > & { digest: string })[] = [];
   private owner: JournalOwner;
   private closed = false;
   private healthy = true;
@@ -437,6 +442,40 @@ export class Store {
         if (old.call_id && old.call_id !== r.call_id)
           throw Error("EXTRACTION_RECOVERY_CALL_CHANGED");
       }
+      if (
+        old?.record_type === "NotificationDelivery" &&
+        r.record_type === "NotificationDelivery"
+      ) {
+        for (const key of [
+          "notification_id",
+          "client_id",
+          "session_id",
+          "content_version",
+          "created_at",
+        ] as const)
+          if (old[key] !== r[key]) throw Error("DELIVERY_IDENTITY_CHANGED");
+        for (const key of ["received_at", "presented_at", "read_at"] as const)
+          if (old[key] && old[key] !== r[key])
+            throw Error("DELIVERY_FACT_IMMUTABLE");
+      }
+      if (
+        r.record_type === "NotificationDelivery" &&
+        ((r.presented_at && !r.received_at) || (r.read_at && !r.presented_at))
+      )
+        throw Error("DELIVERY_FACT_ORDER");
+      if (
+        old?.record_type === "NotificationRouting" &&
+        r.record_type === "NotificationRouting" &&
+        (old.notification_id !== r.notification_id ||
+          (old.state === "ROUTED" && r.state !== "ROUTED"))
+      )
+        throw Error("ROUTING_IDENTITY_CHANGED");
+      if (
+        old?.record_type === "DeliveryTarget" &&
+        r.record_type === "DeliveryTarget" &&
+        old.owner_id !== r.owner_id
+      )
+        throw Error("TARGET_OWNER_CHANGED");
       staged.push(r);
     }
     const candidate = new Map(this.records);
@@ -454,7 +493,40 @@ export class Store {
       )
         throw Error("MISSING_SESSION");
     }
+    if (staged.some((r) => r.record_type === "NotificationDelivery")) {
+      const deliveries = new Set<string>();
+      for (const r of candidate.values())
+        if (r.record_type === "NotificationDelivery") {
+          const key = r.notification_id + ":" + r.client_id;
+          if (deliveries.has(key)) throw Error("DUPLICATE_DELIVERY");
+          deliveries.add(key);
+        }
+    }
     for (const r of staged) {
+      if (r.record_type === "DeliveryTarget") {
+        const client = candidate.get("ClientRegistration:" + r.id);
+        if (
+          client?.record_type !== "ClientRegistration" ||
+          client.owner_id !== r.owner_id
+        )
+          throw Error("INVALID_TARGET_REFERENCE");
+      }
+      if (
+        r.record_type === "NotificationRouting" &&
+        (r.id !== r.notification_id ||
+          !candidate.has("Notification:" + r.notification_id))
+      )
+        throw Error("INVALID_ROUTING_REFERENCE");
+      if (r.record_type === "NotificationDelivery") {
+        const n = candidate.get("Notification:" + r.notification_id);
+        if (
+          n?.record_type !== "Notification" ||
+          n.session_id !== r.session_id ||
+          n.message.sha256 !== r.content_version ||
+          !candidate.has("DeliveryTarget:" + r.client_id)
+        )
+          throw Error("INVALID_DELIVERY_REFERENCE");
+      }
       if (r.record_type !== "ExtractionRecovery") continue;
       const peers = [...candidate.values()].filter(
         (other): other is import("./contracts.ts").ExtractionRecovery =>
@@ -500,6 +572,9 @@ export class Store {
   private install(txn: JournalTransaction, digest: string, staged: Stored[]) {
     this.projectionFrames.push({
       sequence: txn.sequence,
+      txn_id: txn.txn_id,
+      digest,
+      receipts: txn.receipts,
       committed_at: txn.committed_at,
       mutations: txn.mutations,
       log_records: txn.log_records,

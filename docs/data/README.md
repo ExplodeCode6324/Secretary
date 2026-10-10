@@ -97,3 +97,7 @@
 | [AssistantProfile](AssistantProfile.md) | 6 |  |
 | [ClientRegistration](ClientRegistration.md) | 7 |  |
 | [ApiCommand](ApiCommand.md) | 13 |  |
+| [SyncMetadata](SyncMetadata.md) | 9 |  |
+| [DeliveryTarget](DeliveryTarget.md) | 8 |  |
+| [NotificationRouting](NotificationRouting.md) | 7 |  |
+| [NotificationDelivery](NotificationDelivery.md) | 13 |  |

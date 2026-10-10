@@ -16,6 +16,7 @@ export class ApiError extends Error {
   constructor(
     readonly code: string,
     readonly status = 400,
+    readonly details?: { reason: string; recovery: string },
   ) {
     super(code);
   }

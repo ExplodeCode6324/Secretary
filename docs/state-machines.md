@@ -50,7 +50,7 @@ AuthorizationRequest：PENDING → APPROVED / REJECTED；撤销与其他合法�
 | ModelCall | PREPARED → IN_FLIGHT → RESPONSE_SAVED / FAILED / INTERRUPTED |
 | DecisionRequest | OPEN → ANSWERED；任务结束时未决请求变 OBSOLETE |
 | Feedback | QUEUED → DELIVERED（关联 Input）→ HANDLED |
-| Notification | Host 创建 QUEUED；旧控制器 presented 可转 SENT，当前 API 无公开确认命令 |
+| Notification | Host 创建 QUEUED；旧控制器 presented 可转 SENT；新通知 Delivery 的 received/presented/read 由显式 ACK 单调保存 |
 | CompactionJob | SUMMARIZING → COMMITTED / STALE / FAILED；最多两次摘要尝试 |
 | MemoryCommitment | OPEN → COMPLETED / CANCELLED；宿主保留来源与处理记录 |
 | Execution.retention_state | HOT → RETIRED；已终结且无待处理工作才可归档 |
@@ -89,4 +89,4 @@ RECONCILE 是用户显式发起的写操作，记录请求和对账结果，但�
 
 长命令实际路径为 QUEUED → RUNNING → COMPLETED；派发异常或重启发现 RUNNING 时转 UNKNOWN，保留 error_code 及资源。FAILED 虽在 schema 枚举中，目前 ApplicationService 不以它表示派发异常。首次接收前格式/冲突等拒绝可以没有 ApiCommand，HTTP 错误不能凭空算一次成功受理。
 
-Core capabilities 中 devices、attachments、reliable_sync 为 not_supported；world 未配置为 not_configured。能力存在与具体资源/权限可执行性分别判断，不以页面已画出或数据为空推断 supported。通知送达仍缺新版公开确认入口，因此不能凭 GET timeline 自动完成依赖 SENT 证据的承诺。
+Core capabilities 中 devices、attachments 为 not_supported；reliable_sync 在显式初始化前为 not_configured，初始化后 supported；world 未配置为 not_configured。能力存在与具体资源/权限可执行性分别判断，不以页面已画出或数据为空推断 supported。通知送达通过显式 Delivery ACK；GET timeline 或 received 不能自动完成依赖展示证据的承诺。

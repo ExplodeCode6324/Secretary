@@ -5,6 +5,8 @@
 | 数据组 | 主要关联 | 写入方与消费方 |
 | --- | --- | --- |
 | CoreIdentity / AssistantProfile / ClientRegistration | owner_id、profile revision、client resource ID | ApplicationService 初始化持久身份/显示名并登记 owner 客户端；不授予远程权限 |
+| SyncMetadata / DeliveryTarget | history_id、持久签名材料、client_id 与 binding nonce | owner 显式初始化/目标管理；不公开签名材料 |
+| NotificationRouting / NotificationDelivery | notification_id、目标 client_id、content_version、三类 ACK 时间 | NotificationService 原子路由与显式 ACK；查询只读 |
 | ApiCommand | owner_id、request_hash、arguments_ref、resource_ids、result_ref | ApplicationService 持久受理、重放与长命令恢复；同 ID 还检查历史内部请求身份 |
 | Session / Input | session_id、claimed_input_ids、active_loop_id | Host 接收和领取；Input 原文对象持久化后确认 |
 | MainPromptSnapshot / Context / ModelCall | loop_id、context_id、call_id、raw_context、system_prompt_hash | Host/context/transport 保存；恢复与调试读取 |
@@ -16,7 +18,7 @@
 | DecisionRequest | execution_id、deadline、answer_source | 执行者请求缺失信息；回答不能替代授权许可 |
 | WorldChange / WorldCommand | change_id、request_hash、operation_id、evidence | World 接受提案，经过许可后进入数据库事务 |
 | SettingsDraft / SettingsApplication | payload_ref、source_ref、candidate_ref、context_id、runtime_settings_hash | Settings 管理待应用内容、覆盖清单、候选进度和生效回执；Session/Context 关联生效版本 |
-| Notification | state、内容对象、来源 | Host 创建；旧控制器可写 presented/SENT，新版 API 尚无公开确认命令 |
+| Notification | state、内容对象、来源 | Host 创建；旧控制器的 SENT 仅作历史证据；新版 Delivery ACK 单独保存各目标事实 |
 | JournalTransaction / OperationLogRecord | sequence、事件 ID、对象引用 | Store 在同帧提交对象状态、日志与幂等回执 |
 
 ## 身份、版本和原件

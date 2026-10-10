@@ -5293,7 +5293,11 @@
             "CoreIdentity",
             "AssistantProfile",
             "ClientRegistration",
-            "ApiCommand"
+            "ApiCommand",
+            "SyncMetadata",
+            "DeliveryTarget",
+            "NotificationRouting",
+            "NotificationDelivery"
           ],
           "description": ""
         },
@@ -6410,6 +6414,216 @@
         "error_code",
         "result_ref"
       ]
+    },
+    "SyncMetadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "SyncMetadata"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "history_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "secret": {
+          "$ref": "#/$defs/Digest"
+        },
+        "projection_version": {
+          "const": "1"
+        },
+        "legacy_through": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "history_id",
+        "secret",
+        "projection_version",
+        "legacy_through"
+      ]
+    },
+    "DeliveryTarget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "DeliveryTarget"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "binding_nonce": {
+          "$ref": "#/$defs/ID"
+        },
+        "owner_id": {
+          "$ref": "#/$defs/ID"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "enabled",
+        "binding_nonce",
+        "owner_id"
+      ]
+    },
+    "NotificationRouting": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "NotificationRouting"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "notification_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "state": {
+          "enum": [
+            "UNROUTED",
+            "ROUTED"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "notification_id",
+        "state"
+      ]
+    },
+    "NotificationDelivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "NotificationDelivery"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "notification_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "client_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "content_version": {
+          "$ref": "#/$defs/Digest"
+        },
+        "created_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "received_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "presented_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "read_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "notification_id",
+        "client_id",
+        "session_id",
+        "content_version",
+        "created_at",
+        "received_at",
+        "presented_at",
+        "read_at"
+      ]
     }
   },
   "oneOf": [
@@ -6556,6 +6770,18 @@
     },
     {
       "$ref": "#/$defs/ApiCommand"
+    },
+    {
+      "$ref": "#/$defs/SyncMetadata"
+    },
+    {
+      "$ref": "#/$defs/DeliveryTarget"
+    },
+    {
+      "$ref": "#/$defs/NotificationRouting"
+    },
+    {
+      "$ref": "#/$defs/NotificationDelivery"
     }
   ]
 }

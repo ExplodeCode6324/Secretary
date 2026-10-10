@@ -30,7 +30,7 @@ CHECKPOINT 保存完整原件，即使超出模型容量也能保存；MODEL_REQ
 
 设置整理与主流程共用事件来源身份；仅用于显示的助手 `display_call_id` 不会把同一消息变成第二个来源，文本相同但事件 ID 不同仍是独立来源。`settings.retry` 会重新排队设置整理，`POST /api/v1/session/compact` 会重新请求维护，但两者都不会清除承诺提取的来源级失败/未知结果；重复调用仍保持失败并报告 `COMMITMENT_EXTRACTION_REPLAY_BLOCKED`，重启也不解除此保护。旧设置的哈希来源通过已持久化的历史设置快照映射到事件，成功结果可复用；若部分旧快照无法区分多个完全相同消息对象对应的事件，则报告 `COMMITMENT_EXTRACTION_LEGACY_IDENTITY_AMBIGUOUS` 并停止提取，需另行核验证据后修复，不自动猜测或重试。
 
-commitments 是宿主账本，含稳定 ID、原文、状态、来源与处理凭证。摘要遗漏不能删除承诺；狭义结果汇报承诺只有匹配任务结果及来源之后的 SENT 通知才可自动完成。一般承诺由 `POST /api/v1/memory/commitments/{id}/resolve`（state 与 note） 明确处理。
+commitments 是宿主账本，含稳定 ID、原文、状态、来源与处理凭证。摘要遗漏不能删除承诺；狭义结果汇报承诺只有匹配任务结果及来源之后的可验证展示证据才可自动完成（旧 SENT+presented receipt 或新版 NotificationDelivery presented）。一般承诺由 `POST /api/v1/memory/commitments/{id}/resolve`（state 与 note） 明确处理。
 
 Issue 4 增加独立的用户显式单次提取恢复服务；每来源最多一次**自动**提取的约束不变。先只读预检失败分组，冻结旧 attempt、session、来源原件/边界、policy、实现与运行配置版本、工作记忆 revision，再以 request_id 和完整绑定请求授权所选分组。旧 attempt 不修改或删除，新恢复记录关联 parent_attempt 和精确 ModelCall；同 ID 同参数对账，同 ID 改参拒绝。授权消费在发送前落盘，来源拥有者和领取代次阻止并发发送及迟到提交。
 
@@ -73,6 +73,6 @@ Issue 4 增加独立的用户显式单次提取恢复服务；每来源最多一
 
 `GET /api/v1/memory` 返回维护状态；summary 与 commitments 分页接口返回有界摘要、承诺和来源投影，不透传 PromptSnapshot 或完整 Consciousness。来源无明确事件绑定时为 locator_state=unavailable；承诺有 source_batch 才公开其 source_event_ids，不用同内容 hash 猜来源。
 
-显式提取恢复使用 `GET /api/v1/memory/recovery` 取得完整 binding，再 POST 同路径持久受理并通过 requests 对账；不再通过旧终端命令。TaskResult 的完成与 Notification SENT 的送达证明不同，当前 API 尚未提供 presented 确认命令，不能把普通读取当成自动完成承诺的依据。
+显式提取恢复使用 `GET /api/v1/memory/recovery` 取得完整 binding，再 POST 同路径持久受理并通过 requests 对账；不再通过旧终端命令。TaskResult 的完成与 Notification SENT 的送达证明不同，当前 API 通过 deliveries/{id}/ack 提供显式 presented 确认，不能把普通读取当成自动完成承诺的依据。
 
 已验收的合成记忆场景证明整理后两个真实 OS 进程之间的持久连续性，重启后确有真实 provider 请求；原始事实仍在请求上下文中，不能宣称仅凭摘要回忆。详见[API 验证记录](api/v1/verification.md)。

@@ -47,10 +47,14 @@ Store 重放时建立 TaskPlan 历史版本索引。旧 Execution 缺少 proposa
 
 ## API v1 持久边界
 
-CoreIdentity、AssistantProfile、ClientRegistration 和 ApiCommand 写入现有 journal/CAS，不另建业务数据库。owner/data_domain 身份持久保存，服务 instance_id 和游标签名密钥每次启动变化。发现文件由 backend 启动时以私密权限原子替换，关闭只移除本实例的记录；不是权威业务存储。旧 ui-endpoint.json 不用于新客户端发现。
+CoreIdentity、AssistantProfile、ClientRegistration 和 ApiCommand 写入现有 journal/CAS，不另建业务数据库。owner/data_domain 身份持久保存，服务 instance_id 和普通分页游标签名密钥每次启动变化；SyncMetadata 的同步签名密钥与 history_id 持久保存。发现文件由 backend 启动时以私密权限原子替换，关闭只移除本实例的记录；不是权威业务存储。旧 ui-endpoint.json 不用于新客户端发现。
 
 短命令的 ApiCommand 与首个领域变更同一帧提交，NO_CHANGES 也保存回执；request_id 绑定 owner、路径和规范化完整 body。Store 重放同时恢复旧 Scheduler.answer 的请求身份占用，跨操作复用冲突。短命令 ACCEPTED 可长期保留，业务完成读对应资源，不等待虚构的统一 COMPLETED。
 
 长命令先 QUEUED，执行前 RUNNING，正常结束 COMPLETED；异常或重启中断为 UNKNOWN。QUEUED 可在新进程继续，但领域授权/版本/票据门禁仍有效；RUNNING 不自动再次派发。memory/recovery 的未消费票据在服务重启后失效，持久 ApiCommand 不延长许可；已消费请求按 ExtractionRecovery 和 ModelCall 证据对账。
 
 新增持久记录不保证旧二进制可读，协议也不兼容旧 TUI/WebUI。旧数据回放中的默认字段承接是领域兼容读取，不是旧客户端兼容层。迁移与回退详见[API 切换说明](api/v1/README.md#切换与回退)。
+
+## Issue #9 同步与通知
+
+新增 SyncMetadata、DeliveryTarget、NotificationRouting 和 NotificationDelivery；均复用 journal/CAS。初始化显式记录旧数据切换边界，历史对象不重写。Delivery 目标/内容身份不可变，received/presented/read 只能单调添加。新通知与投递意图同事务；ACK 与 ApiCommand 同事务。同步 cursor 校验 sequence/digest/history；只有完整事务才推进。SQL 004 增加独立 World 数据代次和事务内版本时钟，outbox 仍是原权威桥接。备份/回退、显式代次更新与未知副作用规则见[同步恢复说明](api/v1/sync.md)。

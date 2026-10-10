@@ -1,166 +1,5 @@
 [
   {
-    "method": "POST",
-    "path": "/api/v1/assistant/profile",
-    "request": "ProfileCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/clients",
-    "request": "ClientCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/messages",
-    "request": "MessageCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/task-requests",
-    "request": "TaskCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/task-requests/{id}/cancel",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/executions/{id}/cancel",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/executions/{id}/viewed",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/decisions/{id}/answer",
-    "request": "AnswerCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/authorizations/{id}/decision",
-    "request": "ApprovalCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/settings/draft",
-    "request": "DraftCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/settings/apply",
-    "request": "RevisionCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/settings/applications/{id}/retry",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/settings/applications/{id}/restore-draft",
-    "request": "RevisionCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/session/compact",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/session/resume",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/memory/commitments/{id}/resolve",
-    "request": "ResolveCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/memory/recovery",
-    "request": "RecoveryCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/operations/{id}/verify-write",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/admin/world/migrate",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/admin/programs",
-    "request": "ProgramCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/admin/authorization-rules",
-    "request": "RuleCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/admin/authorization-rules/{id}/disable",
-    "request": "RevisionCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/core/stop",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
     "method": "GET",
     "path": "/api/v1/core",
     "response": "Core",
@@ -949,5 +788,401 @@
     "path": "/api/v1/artifacts/{id}/content",
     "response": "binary",
     "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/bootstrap",
+    "response": "SyncBootstrap",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "X-Secretary-Client",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/snapshot",
+    "response": "SyncSnapshotPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "X-Secretary-Client",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/changes",
+    "response": "SyncPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "after",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "X-Secretary-Client",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/stream",
+    "response": "SyncStreamEvent",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "after",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "thinking",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "Last-Event-ID",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "X-Secretary-Client",
+        "in": "header",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "media_type": "text/event-stream"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notifications",
+    "response": "NotificationPage",
+    "status": 200,
+    "parameters": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notifications/{id}",
+    "response": "NotificationInfo",
+    "status": 200,
+    "parameters": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notifications/{id}/content",
+    "response": "NotificationContent",
+    "status": 200,
+    "parameters": []
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deliveries",
+    "response": "DeliveryPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "X-Secretary-Client",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/deliveries/{id}",
+    "response": "DeliveryInfo",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "X-Secretary-Client",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/clients/{id}/notification-target",
+    "response": "DeliveryBinding",
+    "status": 200,
+    "parameters": []
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sync/initialize",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/sync/reset-history",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/clients/{id}/notification-target",
+    "request": "DeliveryTargetCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/deliveries/claim",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202,
+    "parameters": [
+      {
+        "name": "X-Secretary-Client",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/deliveries/{id}/ack",
+    "request": "DeliveryAckCommand",
+    "response": "Receipt",
+    "status": 202,
+    "parameters": [
+      {
+        "name": "X-Secretary-Client",
+        "in": "header",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/assistant/profile",
+    "request": "ProfileCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/clients",
+    "request": "ClientCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/messages",
+    "request": "MessageCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/task-requests",
+    "request": "TaskCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/task-requests/{id}/cancel",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/executions/{id}/cancel",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/executions/{id}/viewed",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/decisions/{id}/answer",
+    "request": "AnswerCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/authorizations/{id}/decision",
+    "request": "ApprovalCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/settings/draft",
+    "request": "DraftCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/settings/apply",
+    "request": "RevisionCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/settings/applications/{id}/retry",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/settings/applications/{id}/restore-draft",
+    "request": "RevisionCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/session/compact",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/session/resume",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/memory/commitments/{id}/resolve",
+    "request": "ResolveCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/memory/recovery",
+    "request": "RecoveryCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/operations/{id}/verify-write",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/world/migrate",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/world/reset-history",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/programs",
+    "request": "ProgramCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/authorization-rules",
+    "request": "RuleCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/admin/authorization-rules/{id}/disable",
+    "request": "RevisionCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/core/stop",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
   }
 ]

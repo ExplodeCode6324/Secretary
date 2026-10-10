@@ -1,3 +1,4 @@
+import { openSyncStream } from "./sync-stream.ts";
 import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
@@ -74,7 +75,17 @@ export async function serveCore(
       )
         throw new ApiError("UNSUPPORTED_VERSION", 400);
       const route = url.pathname.slice("/api/v1/".length);
+      const binding = req.headers["x-secretary-client"];
+      if (Array.isArray(binding)) throw new ApiError("INVALID_CLIENT_BINDING");
       if (req.method === "GET") {
+        if (route === "sync/stream")
+          return await openSyncStream(
+            service,
+            req,
+            res,
+            url.searchParams,
+            binding,
+          );
         const artifact = /^artifacts\/([^/]+)\/content$/.exec(route);
         if (artifact) {
           const entry = service.artifact(artifact[1]);
@@ -132,6 +143,7 @@ export async function serveCore(
           service.principal,
           route,
           url.searchParams,
+          binding,
         );
         return send(200, { api_version: "1", data });
       }
@@ -153,14 +165,18 @@ export async function serveCore(
       } catch {
         throw new ApiError("INVALID_JSON");
       }
-      const data = service.command(service.principal, route, body);
+      const data = service.command(service.principal, route, body, binding);
       send(202, { api_version: "1", data });
     } catch (error) {
       const e = errorOf(error);
       if (!res.headersSent)
         send(e.status, {
           api_version: "1",
-          error: { code: e.code, message: e.code },
+          error: {
+            code: e.code,
+            message: e.code,
+            ...(e.details ? { details: e.details } : {}),
+          },
         });
       else res.destroy();
     }

@@ -1,5 +1,10 @@
 /** The only accepted write routes. Body schemas reject unknown authority fields. */
 export const commands = [
+  ["sync/initialize", "EmptyCommand"],
+  ["sync/reset-history", "EmptyCommand"],
+  ["clients/:id/notification-target", "DeliveryTargetCommand"],
+  ["deliveries/claim", "EmptyCommand"],
+  ["deliveries/:id/ack", "DeliveryAckCommand"],
   ["assistant/profile", "ProfileCommand"],
   ["clients", "ClientCommand"],
   ["messages", "MessageCommand"],
@@ -19,6 +24,7 @@ export const commands = [
   ["memory/recovery", "RecoveryCommand"],
   ["operations/:id/verify-write", "EmptyCommand"],
   ["admin/world/migrate", "EmptyCommand"],
+  ["admin/world/reset-history", "EmptyCommand"],
   ["admin/programs", "ProgramCommand"],
   ["admin/authorization-rules", "RuleCommand"],
   ["admin/authorization-rules/:id/disable", "RevisionCommand"],

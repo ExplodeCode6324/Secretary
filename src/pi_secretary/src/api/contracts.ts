@@ -82,6 +82,17 @@ export type TimelineItem =
       activity: Activity;
       [k: string]: unknown;
     };
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncStreamEvent".
+ */
+export type SyncStreamEvent =
+  | SyncBatch
+  | SyncTransient
+  | {
+      code: string;
+      action: "bootstrap";
+    };
 
 export interface ApiV1Definitions {}
 /**
@@ -146,6 +157,10 @@ export interface ResourceLink {
 export interface Error {
   code: string;
   message: string;
+  details?: {
+    reason: string;
+    recovery: string;
+  };
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -734,6 +749,7 @@ export interface WorldPage {
   items: Json[];
   world_version: string;
   next_cursor: string | null;
+  world_history_id?: string;
   [k: string]: unknown;
 }
 /**
@@ -750,6 +766,7 @@ export interface WorldSlot {
     [k: string]: unknown;
   } | null;
   world_version: string;
+  world_history_id?: string;
   [k: string]: unknown;
 }
 /**
@@ -925,4 +942,190 @@ export interface RulePage {
   version: string;
   next_cursor: string | null;
   [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "DeliveryTargetCommand".
+ */
+export interface DeliveryTargetCommand {
+  request_id: string;
+  enabled: boolean;
+  rotate_binding?: boolean;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "DeliveryAckCommand".
+ */
+export interface DeliveryAckCommand {
+  request_id: string;
+  kind: "received" | "presented" | "read";
+  content_version: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncChange".
+ */
+export interface SyncChange {
+  resource_type: string;
+  resource_id: string;
+  revision: string;
+  query: string;
+  state?: string;
+  client_id?: string;
+  request_id?: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncBatch".
+ */
+export interface SyncBatch {
+  transaction_id: string;
+  sequence: string;
+  index: number;
+  final: boolean;
+  changes: SyncChange[];
+  cursor: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncPage".
+ */
+export interface SyncPage {
+  batches: SyncBatch[];
+  next_cursor: string;
+  next_page: string | null;
+  has_more: boolean;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncSnapshotPage".
+ */
+export interface SyncSnapshotPage {
+  items: SyncChange[];
+  version: string;
+  cursor: string;
+  next_cursor: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncWorld".
+ */
+export interface SyncWorld {
+  availability: "available" | "unavailable" | "not_configured";
+  world_version: string | null;
+  world_history_id: string | null;
+  pending_exports?: string;
+  oldest_pending_at?: string | null;
+  last_exported_at?: string | null;
+  export_state?: string;
+  error_code?: string | null;
+  as_of?: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncJournal".
+ */
+export interface SyncJournal {
+  session: {
+    id: string;
+    state: string;
+    revision: string;
+  };
+  assistant: {
+    actor_id: "assistant";
+    display_name: string;
+  };
+  resources: SyncSnapshotPage;
+  queries: string[];
+  as_of: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncBootstrap".
+ */
+export interface SyncBootstrap {
+  history_id: string;
+  projection_version: "1";
+  instance_id: string;
+  cursor: string;
+  journal: SyncJournal;
+  world: SyncWorld;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "NotificationInfo".
+ */
+export interface NotificationInfo {
+  id: string;
+  revision: string;
+  content_version: string;
+  bytes: string;
+  requested_at: string;
+  legacy: boolean;
+  legacy_state: string | null;
+  content_query: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "DeliveryInfo".
+ */
+export interface DeliveryInfo {
+  id: string;
+  notification_id: string;
+  client_id: string;
+  revision: string;
+  content_version: string;
+  created_at: string;
+  received_at: string | null;
+  presented_at: string | null;
+  read_at: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "NotificationPage".
+ */
+export interface NotificationPage {
+  items: NotificationInfo[];
+  version: string;
+  next_cursor: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "DeliveryPage".
+ */
+export interface DeliveryPage {
+  items: DeliveryInfo[];
+  version: string;
+  next_cursor: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "NotificationContent".
+ */
+export interface NotificationContent {
+  id: string;
+  content_version: string;
+  text: string;
+  next_cursor: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "DeliveryBinding".
+ */
+export interface DeliveryBinding {
+  client_id: string;
+  enabled: boolean;
+  binding: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncTransient".
+ */
+export interface SyncTransient {
+  instance_id: string;
+  preview_revision: string;
+  activity_revision: string;
+  previews: Json[];
+  activities: Json;
+  truncated: boolean;
 }

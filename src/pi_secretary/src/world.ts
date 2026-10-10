@@ -15,6 +15,8 @@ import type {
 export class World {
   readonly pool: Pool;
   readonly configurationHash: string;
+  private exporting?: Promise<void>;
+  private exportError: string | null = null;
   coordinate?: (command: WorldCommand) => void;
   constructor(
     readonly store: Store,
@@ -22,7 +24,12 @@ export class World {
     dsn: string,
   ) {
     this.configurationHash = hash(dsn);
-    this.pool = new Pool({ connectionString: dsn, max: 2 });
+    this.pool = new Pool({
+      connectionString: dsn,
+      max: 2,
+      connectionTimeoutMillis: 2000,
+      statement_timeout: 5000,
+    });
   }
   async migrate() {
     const db = await this.pool.connect();
@@ -55,6 +62,9 @@ export class World {
       }
       await db.query(
         fs.readFileSync(path.join(root, "src/schema/003_settings.sql"), "utf8"),
+      );
+      await db.query(
+        fs.readFileSync(path.join(root, "src/schema/004_sync.sql"), "utf8"),
       );
     } catch (error) {
       await db.query("ROLLBACK").catch(() => {});
@@ -486,10 +496,25 @@ export class World {
       slot_revision: c.expected_revision + 1,
     };
   }
-  async export() {
+  export() {
+    if (!this.exporting)
+      this.exporting = this.exportBatch()
+        .then(() => {
+          this.exportError = null;
+        })
+        .catch((error) => {
+          this.exportError = "WORLD_EXPORT_FAILED";
+          throw error;
+        })
+        .finally(() => {
+          this.exporting = undefined;
+        });
+    return this.exporting;
+  }
+  private async exportBatch() {
     const rows = (
       await this.pool.query(
-        "SELECT * FROM wm.audit_outbox WHERE exported_at IS NULL ORDER BY created_at,event_id",
+        "SELECT * FROM wm.audit_outbox WHERE exported_at IS NULL ORDER BY created_at,event_id LIMIT 100",
       )
     ).rows;
     for (const row of rows) {
@@ -621,17 +646,68 @@ export class World {
       db.release();
     }
   }
+  async resetHistory() {
+    await this.pool.query(
+      "UPDATE wm.sync_clock SET history_id=gen_random_uuid() WHERE singleton",
+    );
+  }
+  async syncStatus() {
+    let db: PoolClient | undefined;
+    try {
+      db = await this.pool.connect();
+      await db.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+      const clock = (
+        await db.query(
+          "SELECT version::text,history_id::text FROM wm.sync_clock WHERE singleton",
+        )
+      ).rows[0];
+      const status = (
+        await db.query(
+          "SELECT count(*) FILTER (WHERE exported_at IS NULL)::text AS pending, min(created_at) FILTER (WHERE exported_at IS NULL) AS oldest, max(exported_at) AS last FROM wm.audit_outbox",
+        )
+      ).rows[0];
+      await db.query("COMMIT");
+      return {
+        availability: "available",
+        world_version: clock.version,
+        world_history_id: clock.history_id,
+        pending_exports: status.pending,
+        oldest_pending_at: status.oldest?.toISOString() ?? null,
+        last_exported_at: status.last?.toISOString() ?? null,
+        export_state: this.exportError
+          ? "failed"
+          : status.pending !== "0"
+            ? "pending"
+            : "reconciled",
+        error_code: this.exportError,
+        as_of: now(),
+      };
+    } catch {
+      await db?.query("ROLLBACK").catch(() => {});
+      return {
+        availability: "unavailable",
+        world_version: null,
+        world_history_id: null,
+        error_code: "WORLD_UNAVAILABLE",
+        as_of: now(),
+      };
+    } finally {
+      db?.release();
+    }
+  }
   async slot(subject: string, predicate: string, scope: string) {
     if (!/^[0-9a-f-]{36}$/i.test(subject) || !predicate)
       throw Error("INVALID_SLOT");
     const db = await this.pool.connect();
     try {
       await db.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-      const worldVersion = (
+      const clock = (
         await db.query(
-          "SELECT count(*)::text AS version FROM wm.change_receipt",
+          "SELECT version::text,history_id::text FROM wm.sync_clock WHERE singleton",
         )
-      ).rows[0].version;
+      ).rows[0];
+      const version = clock.version;
+      const worldHistory = clock.history_id;
       const row = (
         await db.query(
           "SELECT slot_id,subject_id,predicate_key,scope_key,revision::text FROM wm.fact_slot WHERE subject_id=$1 AND predicate_key=$2 AND scope_key=$3",
@@ -639,7 +715,11 @@ export class World {
         )
       ).rows[0];
       await db.query("COMMIT");
-      return { slot: row ?? null, world_version: worldVersion };
+      return {
+        slot: row ?? null,
+        world_version: version,
+        world_history_id: worldHistory,
+      };
     } catch (e) {
       await db.query("ROLLBACK").catch(() => {});
       throw e;
@@ -659,17 +739,20 @@ export class World {
     const db = await this.pool.connect();
     try {
       await db.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-      const version = (
+      const clock = (
         await db.query(
-          "SELECT count(*)::text AS version FROM wm.change_receipt",
+          "SELECT version::text,history_id::text FROM wm.sync_clock WHERE singleton",
         )
-      ).rows[0].version;
+      ).rows[0];
+      const version = clock.version;
+      const worldHistory = clock.history_id;
       const saved = cursor
         ? JSON.parse(Buffer.from(cursor, "base64url").toString())
         : null;
       if (
         saved &&
         (saved.kind !== kind ||
+          saved.history !== worldHistory ||
           saved.version !== version ||
           typeof saved.key !== "string")
       )
@@ -684,10 +767,16 @@ export class World {
       return {
         items: rows.slice(0, limit),
         world_version: version,
+        world_history_id: worldHistory,
         next_cursor:
           rows.length > limit
             ? Buffer.from(
-                JSON.stringify({ kind, version, key: rows[limit - 1][key] }),
+                JSON.stringify({
+                  kind,
+                  version,
+                  history: worldHistory,
+                  key: rows[limit - 1][key],
+                }),
               ).toString("base64url")
             : null,
       };
@@ -735,14 +824,18 @@ export class World {
     const db = await this.pool.connect();
     try {
       await db.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-      const version = (
+      const clock = (
         await db.query(
-          "SELECT count(*)::text AS version FROM wm.change_receipt",
+          "SELECT version::text,history_id::text FROM wm.sync_clock WHERE singleton",
         )
-      ).rows[0].version;
+      ).rows[0];
+      const version = clock.version;
+      const worldHistory = clock.history_id;
       if (
         cursor &&
-        (cursor.version !== version || cursor.signature !== signature)
+        (cursor.history !== worldHistory ||
+          cursor.version !== version ||
+          cursor.signature !== signature)
       )
         throw Error("WORLD_PAGE_STALE: reload first page");
       const at = cursor?.at ?? now();
@@ -777,11 +870,13 @@ export class World {
       return {
         rows: page,
         version,
+        world_history_id: worldHistory,
         next_cursor: more
           ? Buffer.from(
               JSON.stringify({
                 signature,
                 version,
+                history: worldHistory,
                 at,
                 slot: last.slot_id,
                 assertion: last.assertion_id,
