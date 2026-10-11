@@ -2,7 +2,7 @@
 
 - 日期：2026-10-12（Asia/Hong_Kong）
 - 关联 Issue：[#16](https://github.com/ExplodeCode6324/Secretary/issues/16)、[#18](https://github.com/ExplodeCode6324/Secretary/issues/18)；共同约束：[#7](https://github.com/ExplodeCode6324/Secretary/issues/7)
-- 文档状态：**已批准，实施中**
+- 文档状态：**已实施，待 Master 复核；PR 不合并**
 - 修订：2026-10-12 完成 Ayanami 审查逐项核实；S2 已由 Master 确认“仅 DIRECTORY 串行，NONE 可并行”，Master 已于 2026-10-12 授权按修订计划实施、验证并提交 PR，暂不合并。
 - N1 修订：采纳 Master 转述的无重连恢复方案；macOS 做真实进程验证，Linux 由 CI 覆盖。
 - 领取：两项均已指派给 `ExplodeCode6324`，执行者 Codex，按同一批次共同验收。
@@ -20,7 +20,7 @@ Master 管理工作范围；主会话为任务选择范围；Scheduler 固定每
 
 ## 2. 当前源码与修复依据
 
-以下为上述基线的静态核对；本轮只制定计划，行为验证在授权实施后执行。
+以下为制定计划时对上述基线的静态核对；实施验证见执行记录和关联 PR。
 
 | 已核对位置 | 当前行为与影响 | 修改方向 |
 | --- | --- | --- |
@@ -269,6 +269,15 @@ git diff --numstat
 - 2026-10-12：核实 N1 与 POSIX 进程组/kill 语义后修订 B2 和验收矩阵；N1 来源为 Master 本轮消息，原审查报告文件尚未包含该条。仅修改计划，未执行生产代码或真实进程测试。
 
 - 2026-10-12：Master 授权开始实施，完成验证并提交 PR/CI 后通知复核，先不合并。两个 PR 使用堆叠分支满足本轮要求。实施基线 cc1a976；本地首次完整 verify 日志单独保留。
+
+### 实施记录（2026-10-12）
+
+- #18 已提交 [PR #32](https://github.com/ExplodeCode6324/Secretary/pull/32)，含裁定、冻结请求恢复、受控进程管理；macOS 全量含专用 PG 验证通过，Linux CI 通过。新增真实 wrapper 非正常退出与管道持有场景，未知停止仍保留占用。
+- #16 实现 Scope 管理、创建时绑定、DIRECTORY 串行、NONE 并行、范围快照和共享笔记；Issue 正文已同步 Master 批准的 S2 合同。使用以 #18 为 base 的堆叠分支，两个 Issue 均待联合复核，不自动关闭。
+- 活动执行回答或模型恢复短暂返回 READY 时，以既有 started_at 保留已取得的目录槽；不增加锁表。目录安全检查阻塞后的授权恢复继续处理原 Operation，不创建替代操作。
+- 同一任务接续校验未来执行使用的 Scope 配置和任务元数据；旧 Execution 绑定保持不变。改根后移除旧目录、DIRECTORY 转 NONE 均有定向覆盖；历史 NONE workspace 损坏仍拒绝接续。
+- 联合版本本机完整 verify 已达到 417 tests、416 pass、0 fail、0 skip、1 既有 AUD14 todo；后补根切换及 verify-write 绑定测试，最终统计以 PR 验证记录为准。第一次失败及历次复跑原始日志在本机私有工作目录保留，不进入公开 PR。
+- #18 手写生产代码分函数归类：裁定/收束 +124/-34；模型恢复/重启分类 +129/-25；进程管理 +421/-52，共净增 563 行。#16 当前手写生产代码 +486/-77，净增 409 行；schema、生成代码、测试、文档另计。
 
 ### PR #32/#33 审查处理（2026-10-12）
 

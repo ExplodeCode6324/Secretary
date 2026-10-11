@@ -1,4 +1,9 @@
-import { Scopes, relativePath, processStopped } from "./scopes.ts";
+import {
+  Scopes,
+  relativePath,
+  processStopped,
+  directoryRoot,
+} from "./scopes.ts";
 import { activitiesFor } from "./activity.ts";
 import { EXECUTOR_SYSTEM, executionPrompt } from "./task-prompt.ts";
 import * as fs from "node:fs";
@@ -412,6 +417,19 @@ export class Scheduler {
       .all<Execution>("Execution")
       .filter((e) => e.task_id === p.id)
       .at(-1);
+    const future = p.scope_id ? this.scopes.get(p.scope_id) : null;
+    if (future?.kind === "DIRECTORY") {
+      directoryRoot(this.store, future.root_path!);
+      return;
+    }
+    if (
+      previous?.workspace_binding?.kind === "DIRECTORY" &&
+      future?.kind === "NONE"
+    ) {
+      // The first NONE execution creates its private work directory at binding.
+      relativePath(root, "work/workspace-validation");
+      return;
+    }
     if (previous) this.safePath(previous, "workspace-validation");
     else relativePath(root, "workspace-validation");
   }
