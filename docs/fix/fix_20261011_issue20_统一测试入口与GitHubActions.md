@@ -2,7 +2,7 @@
 
 - 日期：2026-10-11
 - 关联 Issue：[#20](https://github.com/ExplodeCode6324/Secretary/issues/20)
-- 文档状态：待验收（Master 已审查，正在补充真实 PR CI 验收）
+- 文档状态：待验收（真实 PR CI 与故障恢复已通过，待 Master 审查合并）
 
 ## 1. 目标与基线
 
@@ -165,7 +165,7 @@ Master 已批准按以下步骤执行：
 
 ### 7.4 待 Master 审查及远端验收
 
-本轮本地提交不合并 main。GitHub 上真实 PR 故障标红、恢复绿色和 main 首次 CI 尚未执行，Issue #20 保持 OPEN。Master 已批准继续 CI 验收：创建 PR、保留真实红色检查并恢复绿色；合并仍等待 Master 审查。main required check 配置另由 Master 决定。
+正式 PR 的真实 CI、临时 PR 的故障标红和恢复绿色均已完成，证据见第 7.6 节。尚未合并 main，main 首次 CI 尚未执行，Issue #20 保持 OPEN。Master 已批准继续 CI 验收：创建 PR、保留真实红色检查并恢复绿色；合并仍等待 Master 审查。main required check 配置另由 Master 决定。
 
 - 2026-10-11：本地实施及上述验证完成，提交验收记录供 Master 审查。随后按 Master 指示推送至 GitHub，远端提交为 `d2f675b`；未合并、未关闭 Issue。
 
@@ -175,3 +175,20 @@ Master 已批准按以下步骤执行：
 - 保留通用 `CI` 开关；专用变量为可选建议，本轮不改变已验证的缺 DSN 失败行为。
 - 测试沿用 Node 默认文件并发，重点观察首次 GitHub PR 的 activity SIGKILL 用例；若出现并发不稳定，使用原生 `--test-concurrency=1` 并记录首败，不放宽断言。
 - 已核对 main 无分支保护或 ruleset；CI 标红与阻止合并分别验收。
+
+### 7.6 真实 GitHub CI 验收
+
+正式实现与审查 PR：[#29](https://github.com/ExplodeCode6324/Secretary/pull/29)。检查器补充提交为 `b88777f3869d1ff3cd2430ed9704c9a7a4a2f136`。本轮没有改业务源码、测试断言、等待超时或默认并发。
+
+| 场景 | 提交 | 真实运行与结果 |
+| --- | --- | --- |
+| 正式 PR 首轮 CI | `b88777f` | [成功运行](https://github.com/ExplodeCode6324/Secretary/actions/runs/38124659329)：426 tests、425 pass、0 fail、0 skip、1 todo |
+| 临时 PR #30 故意失败 | `22dca57` | [失败运行](https://github.com/ExplodeCode6324/Secretary/actions/runs/38124682195)：临时 probe 的 TS2322 在 check 阶段失败，verify 退出码 2 |
+| 临时 PR #30 撤销故障 | `7f5d843` | [恢复成功](https://github.com/ExplodeCode6324/Secretary/actions/runs/38124781795)：426 tests、425 pass、0 fail、0 skip、1 todo；文件内容与 `b88777f` 完全一致 |
+
+- 实际 GitHub 环境：Node 22.23.3、Python 3.14.8、PostgreSQL 18.6。类型检查、201 份 Git 跟踪 Markdown 的文档检查及全部当前离线测试均通过。
+- 两次绿色运行的 PG 场景均实际执行且零跳过；唯一 todo 仍为 AUD14。新增文档检查回归使总数从 425 增至 426，不以此数量作为门槛。
+- 两次运行中 activity 的真实 SIGKILL 用例均通过。继续保留首轮本地负载下的超时记录；当前没有为此串行化或放宽断言，两次通过也不等于长期稳定性证明。
+- [临时 PR #30](https://github.com/ExplodeCode6324/Secretary/pull/30) 仅用于故障验收，恢复后关闭、不合并；红色运行记录保留。故障提交从未进入正式实现分支。
+- main 当前无分支保护/ruleset，已向 Master 提交是否启用 required verify 与 PR 合并要求的选项，未擅自更改。CI 标红能力已验收，阻止合并能力尚未配置。
+- 剩余验收：Master 审查后决定合并；合并后记录 main 的首次真实 CI，再办理 Issue #20 结项。此次不合并、不关闭 Issue。
