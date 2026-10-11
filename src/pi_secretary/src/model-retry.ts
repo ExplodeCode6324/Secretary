@@ -46,11 +46,15 @@ export function transportFailure(
   if (cancelled) return "CANCELLED" as const;
   if (/CAPACITY_|BUDGET_|PAYLOAD_|MODEL_CALL_LIMIT/.test(text))
     return "LOCAL" as const;
+  const sdkStatus =
+    error && typeof error === "object" && "status" in error
+      ? error.status
+      : undefined;
   const code =
-    status ??
-    (error && typeof error === "object" && "status" in error
-      ? Number(error.status)
-      : undefined) ??
+    [status, sdkStatus].find(
+      (value): value is number =>
+        typeof value === "number" && Number.isFinite(value),
+    ) ??
     Number(text.match(/(?:HTTP\s*|status[=: ]+|^Error:\s*)([45]\d\d)\b/i)?.[1]);
   if ([408, 409, 429].includes(code) || (code >= 500 && code <= 599))
     return "TRANSIENT" as const;

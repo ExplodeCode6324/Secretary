@@ -116,9 +116,7 @@ export function durableStream(
         maxTokens: budget.effective_output_tokens,
       }),
     );
-    const prior = store
-      .all<ModelCall>("ModelCall")
-      .filter((c) => c.logical_key === key);
+    const prior = store.modelCallsFor(key);
     let last = prior.at(-1);
     const observe = (update: PreviewUpdate) => {
       try {

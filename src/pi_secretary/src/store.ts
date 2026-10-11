@@ -10,6 +10,7 @@ import type {
   ObjectRef,
   OperationLogRecord,
   JournalTransaction,
+  ModelCall,
 } from "./contracts.ts";
 
 export const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -85,6 +86,7 @@ export class Store {
   eventSequence = 0;
   private records = new Map<string, Stored>();
   private recordsByType = new Map<string, Map<string, Stored>>();
+  private modelCallsByLogicalKey = new Map<string, Map<string, ModelCall>>();
   readonly logs: OperationLogRecord[] = [];
   // Validated immutable references for disposable read projections. No second journal.
   readonly projectionFrames: Pick<
@@ -175,6 +177,12 @@ export class Store {
         ? (this.recordsByType.get(type)?.values() ?? [])
         : this.records.values()),
     ]) as T[];
+  }
+  // Clone only this request's attempts, in insertion order; revisions keep their position.
+  modelCallsFor(logicalKey: string): ModelCall[] {
+    return structuredClone([
+      ...(this.modelCallsByLogicalKey.get(logicalKey)?.values() ?? []),
+    ]);
   }
   get<T extends Stored>(type: T["record_type"], recordID: string): T {
     const r = this.records.get(type + ":" + recordID);
@@ -458,6 +466,22 @@ export class Store {
     for (const r of staged) {
       if (r.record_type === "DecisionRequest" && r.answer_request_id)
         this.decisionAnswerRequests.add(r.answer_request_id);
+      if (r.record_type === "ModelCall") {
+        const previous = this.records.get("ModelCall:" + r.id) as
+          ModelCall | undefined;
+        if (previous?.logical_key && previous.logical_key !== r.logical_key) {
+          const old = this.modelCallsByLogicalKey.get(previous.logical_key)!;
+          old.delete(r.id);
+          if (!old.size)
+            this.modelCallsByLogicalKey.delete(previous.logical_key);
+        }
+        if (r.logical_key) {
+          let calls = this.modelCallsByLogicalKey.get(r.logical_key);
+          if (!calls)
+            this.modelCallsByLogicalKey.set(r.logical_key, (calls = new Map()));
+          calls.set(r.id, r);
+        }
+      }
       this.records.set(r.record_type + ":" + r.id, r);
       let bucket = this.recordsByType.get(r.record_type);
       if (!bucket) {
