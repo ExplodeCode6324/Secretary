@@ -23,6 +23,7 @@
 | `receipt` | ObjectRef 或 null | 是 |  关联：[ObjectRef](ObjectRef.md) |
 | `effect` | NOT_STARTED / APPLIED / NOT_APPLIED / PARTIAL / UNKNOWN | 是 |  |
 | `error` | string 或 null | 是 |  |
+| `process` | object | 否 |  {"additionalProperties": false} |
 
 ## 组合约束
 

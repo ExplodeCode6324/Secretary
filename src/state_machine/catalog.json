@@ -557,14 +557,6 @@
           "commit": "不自动重试"
         },
         {
-          "id": "Execution-17",
-          "from": "RESULT_UNKNOWN",
-          "event": "found_running",
-          "to": "RUNNING",
-          "guard": "identity_verified",
-          "commit": "接回原 worker，不新起重复者"
-        },
-        {
           "id": "Execution-18",
           "from": "CANCEL_REQUESTED",
           "event": "stopped",
@@ -715,6 +707,22 @@
           "to": "CANCEL_REQUESTED",
           "guard": "deadline_elapsed",
           "commit": "先核实分派，不把超时当未发生"
+        },
+        {
+          "id": "Execution-resolved_stopped",
+          "event": "resolved_stopped",
+          "from": "RESULT_UNKNOWN",
+          "to": "FAILED",
+          "guard": "no_unknown_and_group_stopped",
+          "commit": "中断执行收束；裁定不代表任务成功"
+        },
+        {
+          "id": "Execution-model_recovery",
+          "event": "model_recovery",
+          "from": "RUNNING",
+          "to": "READY",
+          "guard": "durable_model_request_and_no_unknown_effect",
+          "commit": "恢复同一请求，不刷新执行包"
         }
       ]
     },
@@ -894,6 +902,22 @@
           "to": "CANCELLED",
           "guard": "no_inflight_effect",
           "commit": "未分派；撤下批准请求或使批准不可消费"
+        },
+        {
+          "id": "Operation-owner_applied",
+          "event": "owner_applied",
+          "from": "RESULT_UNKNOWN",
+          "to": "SUCCEEDED",
+          "guard": "owner_revision_matches",
+          "commit": "记录 Master 裁定与原回执"
+        },
+        {
+          "id": "Operation-owner_closed",
+          "event": "owner_closed",
+          "from": "RESULT_UNKNOWN",
+          "to": "FAILED",
+          "guard": "owner_revision_matches",
+          "commit": "NOT_APPLIED/PARTIAL/UNVERIFIED；保留原回执"
         }
       ]
     },

@@ -18,6 +18,7 @@ export const commands = [
   ["memory/commitments/:id/resolve", "ResolveCommand"],
   ["memory/extraction/retry", "EmptyCommand"],
   ["operations/:id/verify-write", "EmptyCommand"],
+  ["operations/:id/resolve", "OperationResolveCommand"],
   ["admin/world/migrate", "EmptyCommand"],
   ["admin/programs", "ProgramCommand"],
   ["admin/authorization-rules", "RuleCommand"],

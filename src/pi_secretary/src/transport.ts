@@ -45,6 +45,7 @@ export function durableStream(
     onPrepared?: (call: ModelCall) => void;
     maxTokens?: number;
     requestKey?: string;
+    resumeCallID?: string;
     generation?: number;
     requestMetadata?: () => {
       sourceContextID?: string | null;
@@ -57,6 +58,18 @@ export function durableStream(
 ): StreamFn {
   let count = 0;
   return async (model, context, options) => {
+    const resume =
+      count === 0 && metadata.resumeCallID
+        ? store.get<ModelCall>("ModelCall", metadata.resumeCallID)
+        : null;
+    if (resume) {
+      if (
+        JSON.stringify(resume.scope) !== JSON.stringify(scope) ||
+        !resume.logical_key
+      )
+        throw Error("MODEL_RECOVERY_IDENTITY_MISMATCH");
+      context = store.read<Parameters<StreamFn>[1]>(resume.request);
+    }
     options = {
       ...options,
       signal: AbortSignal.any([
@@ -66,9 +79,15 @@ export function durableStream(
     };
     if (++count > 20) throw Error("MODEL_CALL_LIMIT");
     const requestMetadata = metadata.requestMetadata?.();
+    const frozenBudget = resume
+      ? store.get<Context>("Context", resume.context_id).request_budget
+      : undefined;
     const budgetOptions = {
       role: purpose === "TASK" ? ("task" as const) : ("main" as const),
-      maxTokens: metadata.maxTokens ?? options?.maxTokens,
+      maxTokens:
+        frozenBudget?.effective_output_tokens ??
+        metadata.maxTokens ??
+        options?.maxTokens,
     };
     let budget: RequestBudget;
     try {
@@ -116,6 +135,8 @@ export function durableStream(
         maxTokens: budget.effective_output_tokens,
       }),
     );
+    if (resume && key !== resume.logical_key)
+      throw Error("MODEL_RECOVERY_IDENTITY_MISMATCH");
     const prior = store.modelCallsFor(key);
     let last = prior.at(-1);
     const observe = (update: PreviewUpdate) => {

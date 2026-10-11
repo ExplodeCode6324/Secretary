@@ -2551,6 +2551,49 @@
             "intent_id"
           ],
           "additionalProperties": true
+        },
+        "effect": {
+          "type": "string"
+        },
+        "resolution": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "outcome": {
+              "enum": [
+                "APPLIED",
+                "NOT_APPLIED",
+                "PARTIAL",
+                "UNVERIFIED"
+              ]
+            },
+            "resolved_by": {
+              "const": "MASTER_UI"
+            },
+            "note": {
+              "type": "string"
+            },
+            "resolved_at": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "outcome",
+            "resolved_by",
+            "note",
+            "resolved_at"
+          ]
+        },
+        "process_state": {
+          "enum": [
+            "STARTING",
+            "RUNNING",
+            "STOPPED",
+            "UNCONFIRMED",
+            null
+          ]
         }
       },
       "required": [
@@ -2736,6 +2779,38 @@
         "next_cursor"
       ],
       "additionalProperties": true
+    },
+    "OperationResolveCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "outcome": {
+          "enum": [
+            "APPLIED",
+            "NOT_APPLIED",
+            "PARTIAL",
+            "UNVERIFIED"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 65536
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_revision",
+        "outcome",
+        "note"
+      ]
     }
   },
   "oneOf": [

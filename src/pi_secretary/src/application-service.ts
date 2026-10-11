@@ -390,6 +390,22 @@ export class ApplicationService {
         );
       case "memory/extraction/retry":
         return host.retryExtractions(requestID);
+      case "operations/:id/resolve": {
+        const op = store.get<import("./contracts.ts").Operation>(
+          "Operation",
+          target!,
+        );
+        if (op.scope.execution_id) this.execution(op.scope.execution_id);
+        const resolved = authorization.resolve(
+          target!,
+          revision(b.expected_revision),
+          b.outcome as "APPLIED" | "NOT_APPLIED" | "PARTIAL" | "UNVERIFIED",
+          b.note as string,
+        );
+        if (resolved.scope.execution_id)
+          scheduler.settleUnknownExecution(resolved.scope.execution_id);
+        return resolved.id;
+      }
       case "operations/:id/verify-write": {
         const op = store.get<import("./contracts.ts").Operation>(
           "Operation",
@@ -990,14 +1006,39 @@ export class ApplicationService {
       }
     }
     if (path === "operations")
-      return this.page(path, project(store.all("Operation")), q);
+      return this.page(
+        path,
+        store
+          .all<import("./contracts.ts").Operation>("Operation")
+          .map((op) => this.operationView(op)),
+        q,
+      );
     if (parts[0] === "operations" && parts.length === 2)
-      return project(store.get("Operation", target));
+      return this.operationView(store.get("Operation", target));
     if (path === "admin/programs")
       return this.page(path, project(store.all("ProgramRegistration")), q);
     if (path === "admin/authorization-rules")
       return this.page(path, project(store.all("AuthorizationRule")), q);
     throw new ApiError("NOT_FOUND", 404);
+  }
+  private operationView(op: import("./contracts.ts").Operation) {
+    const { process: control, ...fields } = op;
+    const receipt = op.receipt
+      ? this.app.store.read<Record<string, unknown>>(op.receipt)
+      : null;
+    return project({
+      ...fields,
+      process_state: control?.state ?? null,
+      resolution:
+        receipt?.resolved_by === "MASTER_UI"
+          ? {
+              outcome: receipt.outcome,
+              resolved_by: receipt.resolved_by,
+              note: receipt.note,
+              resolved_at: receipt.resolved_at,
+            }
+          : null,
+    });
   }
   private sourceView(ref: ObjectRef) {
     return { ...project(ref), event_ids: [], locator_state: "unavailable" };

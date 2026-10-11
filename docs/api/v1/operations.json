@@ -127,6 +127,13 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/operations/{id}/resolve",
+    "request": "OperationResolveCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/admin/world/migrate",
     "request": "EmptyCommand",
     "response": "Receipt",

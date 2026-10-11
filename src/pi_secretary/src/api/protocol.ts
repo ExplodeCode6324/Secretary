@@ -162,7 +162,7 @@ export function errorOf(error: unknown) {
   const code = /^[A-Z][A-Z0-9_]+/.exec(raw)?.[0] ?? "INTERNAL_ERROR";
   const status = /NOT_FOUND$/.test(code)
     ? 404
-    : /CONFLICT|STALE|EXPIRED|RESET_REQUIRED|NOT_OPEN|INVALID_TRANSITION/.test(
+    : /CONFLICT|STALE|EXPIRED|RESET_REQUIRED|NOT_OPEN|NOT_UNKNOWN|INVALID_TRANSITION/.test(
           code,
         )
       ? 409

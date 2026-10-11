@@ -2,7 +2,14 @@ import { activitiesFor } from "./activity.ts";
 import { EXECUTOR_SYSTEM, executionPrompt } from "./task-prompt.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { spawn, type ChildProcess } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
+import {
+  launchProcess,
+  requestStop,
+  stopProcess,
+  inspectProcess,
+  persistStop,
+} from "./process-control.ts";
 import { Type } from "typebox";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { createWriteTool } from "../../pi_resource/packages/agent/src/harness/tools/write.ts";
@@ -46,6 +53,8 @@ import type {
   Scope,
   Precondition,
   ConditionResult,
+  ModelCall,
+  Notification,
 } from "./contracts.ts";
 export const stableID = (text: string) => {
   const h = hash(text);
@@ -70,6 +79,8 @@ export class Scheduler {
     { agent?: Agent; child?: ChildProcess; promise: Promise<void> }
   >();
   private closed = false;
+  private processWork?: Promise<void>;
+  private processCheckAt = 0;
   settingsBlocked: () => boolean = () => false;
   constructor(
     readonly store: Store,
@@ -809,6 +820,23 @@ export class Scheduler {
   tick(at = Date.now()) {
     if (this.settingsBlocked()) return;
     if (this.closed) return;
+    if (
+      !this.processWork &&
+      at >= this.processCheckAt &&
+      this.store
+        .all<Operation>("Operation")
+        .some(
+          (o) =>
+            o.process &&
+            o.process.state !== "STOPPED" &&
+            !this.running.has(o.scope.execution_id ?? ""),
+        )
+    ) {
+      this.processCheckAt = at + 5000;
+      this.processWork = this.recoverProcesses().finally(() => {
+        this.processWork = undefined;
+      });
+    }
     for (let p of this.store.all<TaskPlan>("TaskPlan")) {
       // Repair duplicate queue representations before busy checks, including active executions.
       for (const item of p.pending_requests ?? []) {
@@ -1105,7 +1133,10 @@ export class Scheduler {
         )
           this.finish(eid, "FAILED", { error: String(error) });
       })
-      .finally(() => this.running.delete(eid));
+      .finally(() => {
+        this.running.delete(eid);
+        this.settleUnknownExecution(eid);
+      });
     await entry.promise;
   }
   private async execute(
@@ -1243,9 +1274,17 @@ export class Scheduler {
         saved.provider_profile !== this.model.id)
     )
       throw Error("INCOMPATIBLE_CONTEXT");
-    const messages = saved?.raw_context
-      ? this.store.read<AgentMessage[]>(saved.raw_context)
-      : [];
+    const recoveryCall = e.recovery_call_id
+      ? this.store.get<ModelCall>("ModelCall", e.recovery_call_id)
+      : null;
+    const recoveryRequest = recoveryCall
+      ? this.store.read<Parameters<StreamFn>[1]>(recoveryCall.request)
+      : null;
+    const messages = recoveryRequest
+      ? (recoveryRequest.messages as AgentMessage[])
+      : saved?.raw_context
+        ? this.store.read<AgentMessage[]>(saved.raw_context)
+        : [];
     const agent = new Agent({
       initialState: {
         model: this.model,
@@ -1253,7 +1292,23 @@ export class Scheduler {
         messages,
         tools: this.tools(e),
       },
-      streamFn: durableStream(this.store, this.stream, scopeOf(e), eid, "TASK"),
+      streamFn: durableStream(
+        this.store,
+        this.stream,
+        scopeOf(e),
+        eid,
+        "TASK",
+        {
+          resumeCallID: recoveryCall?.id,
+          onPrepared: (call) => {
+            const current = this.store.get<Execution>("Execution", eid);
+            if (current.recovery_call_id) {
+              const { recovery_call_id: _, ...cleared } = current;
+              this.store.commit([revise(cleared, {})]);
+            }
+          },
+        },
+      ),
       toolExecution: "sequential",
     });
     agent.finishTurn = () => {
@@ -1320,7 +1375,8 @@ export class Scheduler {
         ),
       ],
     );
-    await agent.prompt(packet);
+    if (recoveryRequest) await agent.continue();
+    else await agent.prompt(packet);
     e = this.store.get<Execution>("Execution", eid);
     if (["WAIT_AUTH", "WAIT_DECISION", "RESULT_UNKNOWN"].includes(e.state))
       return;
@@ -1574,13 +1630,36 @@ export class Scheduler {
         const current = this.store.get<Execution>("Execution", e.id);
         if (current.state !== "RUNNING" || current.cancel_requested)
           return jsonTool({ state: current.state, blocked: true }, true);
-        return activitiesFor(this.store).tool(
+        const key = `${e.id}:${call}:${t.name}:${hash(JSON.stringify(args))}`;
+        const prior = this.store.logs.find(
+          (l) =>
+            l.event_type === "executor.tool.result" &&
+            l.scope.execution_id === e.id &&
+            this.store.read<{ key: string }>(l.payload).key === key,
+        );
+        if (prior)
+          return this.store.read<{
+            result: Awaited<ReturnType<typeof t.execute>>;
+          }>(prior.payload).result;
+        const value = await activitiesFor(this.store).tool(
           "tool:" + e.id + ":" + call,
           scopeOf(e),
           t.name,
           args,
           () => t.execute(call, args, signal, update),
         );
+        this.store.commit(
+          [],
+          [
+            this.store.event(
+              "executor.tool.result",
+              { key, result: value },
+              scopeOf(e),
+              "EXECUTOR",
+            ),
+          ],
+        );
+        return value;
       },
     }));
   }
@@ -1603,21 +1682,19 @@ export class Scheduler {
       stderr = "",
       timed_out = false,
       truncated = false;
-    const child = spawn(
-      "/bin/bash",
-      ["--noprofile", "--norc", "-c", params.command],
+    const launched = await launchProcess(
+      this.store,
+      op.id,
+      ["/bin/bash", "--noprofile", "--norc", "-c", params.command],
+      cwd,
       {
-        cwd,
-        env: {
-          PATH: process.env.PATH,
-          HOME: process.env.HOME,
-          TMPDIR: process.env.TMPDIR,
-          LANG: "en_US.UTF-8",
-        },
-        stdio: ["ignore", "pipe", "pipe"],
-        detached: process.platform !== "win32",
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        TMPDIR: process.env.TMPDIR,
+        LANG: "en_US.UTF-8",
       },
     );
+    const child = launched.child;
     entry.child = child;
     const limit = 4 * 1024 * 1024;
     const capture = (b: Buffer, stream: "stdout" | "stderr") => {
@@ -1628,22 +1705,22 @@ export class Scheduler {
       } else if (stream === "stdout") stdout += b.toString();
       else stderr += b.toString();
     };
-    child.stdout.on("data", (b) => capture(b, "stdout"));
-    child.stderr.on("data", (b) => capture(b, "stderr"));
+    child.stdout!.on("data", (b) => capture(b, "stdout"));
+    child.stderr!.on("data", (b) => capture(b, "stderr"));
     const timer = setTimeout(() => {
       timed_out = true;
       this.stopChild(child);
     }, params.timeout * 1000);
     try {
-      const result = await new Promise<{
-        exit_code: number | null;
-        signal: string | null;
-      }>((resolve, reject) => {
-        child.once("error", reject);
-        child.once("close", (exit_code, signal) =>
-          resolve({ exit_code, signal }),
-        );
-      });
+      if (this.store.get<Execution>("Execution", eid).cancel_requested)
+        requestStop(child);
+      else launched.start();
+      const result = await launched.closed;
+      persistStop(
+        this.store,
+        op.id,
+        inspectProcess(this.store.get<Operation>("Operation", op.id).process!),
+      );
       const receipt = {
         command: params.command,
         cwd,
@@ -1755,25 +1832,75 @@ export class Scheduler {
       },
       "APPLIED",
     );
-    if (
-      !this.store
-        .all<Operation>("Operation")
-        .some(
-          (o) => o.scope.execution_id === e.id && o.state === "RESULT_UNKNOWN",
-        )
-    ) {
-      this.store.commit([
-        revise(this.store.get<Execution>("Execution", e.id), {
-          unknown_operation_ids: [],
-        }),
-      ]);
-      this.finish(e.id, "FAILED", {
-        reason:
-          "Execution interrupted; file postcondition verified. Continue with a follow-up task.",
-        evidence,
-      });
-    }
+    this.settleUnknownExecution(e.id);
     return { verified: true, evidence };
+  }
+  processStopped(eid: string): boolean {
+    return !this.store
+      .all<Operation>("Operation")
+      .some(
+        (o) =>
+          o.scope.execution_id === eid &&
+          ["shell.run", "program.run"].includes(o.action.action) &&
+          (o.process
+            ? o.process.state !== "STOPPED"
+            : o.state === "RESULT_UNKNOWN" || o.state === "DISPATCHED"),
+      );
+  }
+  settleUnknownExecution(eid: string) {
+    const e = this.store.get<Execution>("Execution", eid);
+    if (e.state !== "RESULT_UNKNOWN" || this.running.has(eid)) return;
+    const operations = this.store
+      .all<Operation>("Operation")
+      .filter((o) => o.scope.execution_id === eid);
+    const unknown = operations
+      .filter((o) => o.state === "RESULT_UNKNOWN")
+      .map((o) => o.id);
+    if (JSON.stringify(unknown) !== JSON.stringify(e.unknown_operation_ids))
+      this.store.commit([revise(e, { unknown_operation_ids: unknown })]);
+    if (unknown.length || !this.processStopped(eid)) return;
+    this.finish(eid, "FAILED", {
+      reason:
+        "Execution interrupted; results resolved or verified. Continue with a follow-up task.",
+      resolutions: operations
+        .filter((o) => o.receipt)
+        .map((o) => ({
+          operation_id: o.id,
+          state: o.state,
+          effect: o.effect,
+          receipt: this.store.read(o.receipt!),
+        })),
+    });
+  }
+  private processNotice(op: Operation) {
+    const key = stableID(op.id + ":process-stop-unconfirmed");
+    if (
+      this.store
+        .all<Notification>("Notification")
+        .some((n) => n.delivery_key === key)
+    )
+      return;
+    const proposal = this.proposalFor(
+      this.store.get<Execution>("Execution", op.scope.execution_id!),
+    );
+    this.store.commit([
+      {
+        schema_version: 1,
+        record_type: "Notification",
+        ...base(),
+        state: "QUEUED",
+        session_id: proposal.session_id,
+        channel: "local-ui",
+        message: this.store.put({
+          text: "Execution process stop could not be confirmed; inspect and stop the original process group before continuing.",
+          execution_id: op.scope.execution_id,
+          operation_id: op.id,
+        }),
+        delivery_key: key,
+        receipt: null,
+        requested_at: now(),
+      },
+    ]);
   }
   registerProgram(entrypoint: string, name: string) {
     const absolute = path.resolve(entrypoint);
@@ -1831,17 +1958,19 @@ export class Scheduler {
       )
     )
       throw Error("INVALID_PROGRAM_PARAMETERS");
-    const child = spawn(process.execPath, [program.entrypoint], {
-      cwd: path.join(this.workspace, e.task_id, "work"),
-      env: { PATH: process.env.PATH, LANG: "en_US.UTF-8" },
-      stdio: ["pipe", "pipe", "pipe"],
-      detached: process.platform !== "win32",
-    });
+    const launched = await launchProcess(
+      this.store,
+      opID,
+      [process.execPath, program.entrypoint],
+      path.join(this.workspace, e.task_id, "work"),
+      { PATH: process.env.PATH, LANG: "en_US.UTF-8" },
+    );
+    const child = launched.child;
     entry.child = child;
     let output = "",
       error = "";
     let overflow = false;
-    child.stdout.on("data", (b) => {
+    child.stdout!.on("data", (b) => {
       this.store.commit(
         [],
         [
@@ -1858,7 +1987,7 @@ export class Scheduler {
         this.stopChild(child);
       } else output += String(b);
     });
-    child.stderr.on("data", (b) => {
+    child.stderr!.on("data", (b) => {
       this.store.commit(
         [],
         [
@@ -1872,12 +2001,18 @@ export class Scheduler {
       );
       if (error.length < 4 * 1024 * 1024) error += String(b);
     });
-    child.stdin.on("error", () => {});
-    child.stdin.end(JSON.stringify({ execution_id: eid, parameters: params }));
-    const code = await new Promise<number | null>((resolve, reject) => {
-      child.once("error", reject);
-      child.once("close", resolve);
-    });
+    child.stdin!.on("error", () => {});
+    child.stdin!.end(JSON.stringify({ execution_id: eid, parameters: params }));
+    if (this.store.get<Execution>("Execution", eid).cancel_requested)
+      requestStop(child);
+    else launched.start();
+    const { exit_code: code } = await launched.closed;
+    persistStop(
+      this.store,
+      opID,
+      inspectProcess(this.store.get<Operation>("Operation", opID).process!),
+    );
+    entry.child = undefined;
     try {
       if (code !== 0 || overflow) throw Error("PROGRAM_EFFECT_UNCONFIRMED");
       const result = JSON.parse(output);
@@ -1926,6 +2061,10 @@ export class Scheduler {
   ) {
     const e = this.store.get<Execution>("Execution", eid);
     if (terminal(e)) return;
+    if (!this.processStopped(eid)) {
+      this.setState(eid, "RESULT_UNKNOWN");
+      return;
+    }
     const ref = this.store.put(detail);
     const agentDetail =
       this.proposalFor(e).executor.kind === "AGENT" ? detail : undefined;
@@ -2102,20 +2241,7 @@ export class Scheduler {
     );
   }
   private stopChild(child: ChildProcess) {
-    if (child.exitCode !== null || child.signalCode !== null) return;
-    const signal = (name: NodeJS.Signals) => {
-      try {
-        if (process.platform !== "win32" && child.pid)
-          process.kill(-child.pid, name);
-        else child.kill(name);
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
-      }
-    };
-    signal("SIGTERM");
-    const timer = setTimeout(() => signal("SIGKILL"), 200);
-    timer.unref();
-    child.once("close", () => clearTimeout(timer));
+    requestStop(child);
   }
   cancel(eid: string) {
     const e = this.store.get<Execution>("Execution", eid);
@@ -2170,7 +2296,22 @@ export class Scheduler {
       );
     }
   }
-  recover() {
+  private async recoverProcesses() {
+    for (const op of this.store.all<Operation>("Operation")) {
+      if (
+        !op.scope.execution_id ||
+        this.running.has(op.scope.execution_id) ||
+        !["shell.run", "program.run"].includes(op.action.action)
+      )
+        continue;
+      if (op.process && op.process.state !== "STOPPED")
+        persistStop(this.store, op.id, await stopProcess(op.process));
+      if (!this.processStopped(op.scope.execution_id)) this.processNotice(op);
+      else this.settleUnknownExecution(op.scope.execution_id);
+    }
+  }
+  async recover() {
+    await this.recoverProcesses();
     for (const e of this.store.all<Execution>("Execution")) {
       if (!e.proposal_ref)
         this.store.commit([
@@ -2218,22 +2359,56 @@ export class Scheduler {
         );
     }
     for (const e of this.store.all<Execution>("Execution")) {
-      if (["RUNNING", "DISPATCHING", "CANCEL_REQUESTED"].includes(e.state)) {
-        this.setState(e.id, "RESULT_UNKNOWN", {
-          unknown_operation_ids: this.store
-            .all<Operation>("Operation")
-            .filter(
-              (o) =>
-                o.scope.execution_id === e.id && o.state === "RESULT_UNKNOWN",
-            )
-            .map((o) => o.id),
-        });
-        this.feedback(
-          e.id,
-          "UNKNOWN",
-          "Execution interrupted; verify before resuming",
-          this.store.put({ execution_id: e.id, reason: "restart" }),
-        );
+      if (
+        [
+          "RUNNING",
+          "DISPATCHING",
+          "CANCEL_REQUESTED",
+          "RESULT_UNKNOWN",
+        ].includes(e.state)
+      ) {
+        const unknown = this.store
+          .all<Operation>("Operation")
+          .filter(
+            (o) =>
+              o.scope.execution_id === e.id && o.state === "RESULT_UNKNOWN",
+          )
+          .map((o) => o.id);
+        const call = this.store
+          .all<ModelCall>("ModelCall")
+          .filter((c) => c.scope.execution_id === e.id)
+          .at(-1);
+        if (
+          e.state !== "RESULT_UNKNOWN" &&
+          !e.cancel_requested &&
+          !unknown.length &&
+          this.processStopped(e.id) &&
+          this.proposalFor(e).executor.kind === "AGENT" &&
+          call?.logical_key
+        ) {
+          this.setState(e.id, "READY", {
+            recovery_call_id: call.id,
+            unknown_operation_ids: [],
+          });
+        } else {
+          this.setState(e.id, "RESULT_UNKNOWN", {
+            unknown_operation_ids: unknown,
+          });
+          this.settleUnknownExecution(e.id);
+          if (
+            this.store.get<Execution>("Execution", e.id).state ===
+              "RESULT_UNKNOWN" &&
+            !this.store
+              .all<Feedback>("Feedback")
+              .some((f) => f.execution_id === e.id && f.kind === "UNKNOWN")
+          )
+            this.feedback(
+              e.id,
+              "UNKNOWN",
+              "Execution interrupted; verify before resuming",
+              this.store.put({ execution_id: e.id, reason: "restart" }),
+            );
+        }
       }
       if (
         terminal(e) &&
@@ -2249,6 +2424,7 @@ export class Scheduler {
   }
   async idle() {
     await Promise.all([...this.running.values()].map((r) => r.promise));
+    await this.processWork;
   }
   async close() {
     this.closed = true;

@@ -227,7 +227,7 @@ git diff --check
 git diff --numstat
 ```
 
-本地无 DSN 的 skip 单独报告；完整验收在配置专用 `SECRETARY_TEST_DATABASE_URL`、`SECRETARY_REQUIRE_PG=1` 的隔离环境/CI 执行。保留现有 AUD14 todo 的归属，不把它改成通过。证据记录在 `test_case/reports/issue16-18/`，首次失败原样保留；公开 PR 仅提交合成 fixture、脱敏结果与必要摘要。
+本地无 DSN 的 skip 单独报告；完整验收在配置专用 `SECRETARY_TEST_DATABASE_URL`、`CI=true` 的隔离环境/CI 执行。保留现有 AUD14 todo 的归属，不把它改成通过。证据记录在 `test_case/reports/issue16-18/`，首次失败原样保留；公开 PR 仅提交合成 fixture、脱敏结果与必要摘要。
 
 ## 6. 工作量、风险与回退
 
@@ -252,7 +252,7 @@ git diff --numstat
 | N1 无重连恢复 | 采纳 Master 本轮转述：删除重连 wrapper，明确四种恢复分支；补两次信号分别核验、ESRCH/EPERM 区分与 POSIX 复用保证的适用范围。macOS 真实验证、Linux CI；保留 5–8 人日及三部分行数报告 |
 | S1 推迟绑定 | 不采纳；与 Issue 创建时绑定的多处要求及派发前 RESOURCE_PRESENT 语义冲突，保留旧绑定冲突处理 |
 | S2 NONE 并行 | 已由 Master 明确选择“仅 DIRECTORY 串行，NONE 可并行”；正文与验收已修改，实施前同步 Issue 合同 |
-| S3 两个 PR | 采纳；#18 独立交付在先，#16 基于其合入后 main，共同验收后结项 |
+| S3 两个 PR | 采纳；#18 独立交付在先，#16 本轮使用堆叠 PR，获准合入 #18 后再调整 base，共同验收后结项 |
 | 小问题 1：mkdir | 纠正原计划；实际导入的 harness write / NodeExecutionEnv 已自动创建父目录，无须新增机制或推迟到 #17 |
 | 小问题 2：resource | 采纳；写明规范物理绝对路径、历史格式依据、不改审批哈希及历史未知操作回归 |
 | 小问题 3：笔记边界 | 采纳；复用 JSON 包的数据字段与固定 authority 标记，增加注入文本边界场景，不新造模板协议 |

@@ -90,3 +90,13 @@ RECONCILE 是用户显式发起的写操作，记录请求和对账结果，但�
 长命令实际路径为 QUEUED → RUNNING → COMPLETED；派发异常或重启发现 RUNNING 时转 UNKNOWN，保留 error_code 及资源。FAILED 虽在 schema 枚举中，目前 ApplicationService 不以它表示派发异常。首次接收前格式/冲突等拒绝可以没有 ApiCommand，HTTP 错误不能凭空算一次成功受理。
 
 Core capabilities 中 devices、attachments、reliable_sync 为 not_supported；world 未配置为 not_configured。能力存在与具体资源/权限可执行性分别判断，不以页面已画出或数据为空推断 supported。通知送达仍缺新版公开确认入口，因此不能凭 GET timeline 自动完成依赖 SENT 证据的承诺。
+
+## 未知效果与进程恢复
+
+owner 通过 `operations/{id}/resolve` 裁定 RESULT_UNKNOWN：APPLIED → SUCCEEDED/APPLIED，其余 → FAILED（NOT_APPLIED、PARTIAL、UNKNOWN）。UNVERIFIED 终结操作但不证明进程停止。裁定保留原回执引用；相同 request_id 重放原受理结果。
+
+Scheduler 在无剩余未知操作、且整组停止已确认后，将中断 Execution 收束为 FAILED，补齐一次 TaskResult 和终结 Feedback。verify-write 复用这一入口。shell/program 的未知效果只拦截同一执行；未知文件写入继续按绝对文件路径跨执行拦截。
+
+shell/program 使用 Python 3 gated wrapper：身份先持久化，再放行命令；Core 通道 EOF 触发进程组清理。恢复不重连 wrapper，按同机启动标识变更、进程组 ESRCH、身份匹配、无法确认四分支处理；后者保留占用并去重通知。TERM/KILL 各自重新核验身份，有界复查；POSIX 不提供原子身份核验加组信号，因此保留检查到发送间的系统调用竞态边界。主动脱离进程组的程序不在此管理合同内。
+
+TASK 在可证明的模型请求边界恢复原 Execution 与冻结请求；成功响应不重发，失败沿用原三次传输预算。PROGRAM、取消和缺少可靠请求证据的中断不重跑；工具结果按持久意图及已保存返回值对账。

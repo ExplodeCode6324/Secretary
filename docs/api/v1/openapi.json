@@ -1238,6 +1238,78 @@
         }
       }
     },
+    "/api/v1/operations/{id}/resolve": {
+      "post": {
+        "operationId": "post__api_v1_operations__id__resolve",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "./schema.json#/$defs/OperationResolveCommand"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Receipt"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/admin/world/migrate": {
       "post": {
         "operationId": "post__api_v1_admin_world_migrate",
