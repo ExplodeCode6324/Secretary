@@ -2,7 +2,7 @@
 
 - 日期：2026-10-11
 - 关联 Issue：[#20](https://github.com/ExplodeCode6324/Secretary/issues/20)
-- 文档状态：待验收（本地实施与验证完成，待 Master 审查）
+- 文档状态：待验收（Master 已审查，正在补充真实 PR CI 验收）
 
 ## 1. 目标与基线
 
@@ -82,7 +82,7 @@
 
 基线记录源码 commit SHA、固定子模块 SHA、环境版本和首次失败日志即可，不再列逐文件 SHA-256。对尚未提交的工作用 git diff 记录差异，验证结果写明对应提交或工作树差异。本批没有预期公共 API、DTO 或持久 schema 变化。
 
-当前主工作目录的既有本地报告快照会产生 docs:check 断链，上一轮文档整理前后均为 17 项，提交文件集检查通过。实施时重新定位；保留私密材料，修正本地快照布局或引用，不放宽检查器、不为通过而公开原始证据，也不把历史数量作为门槛。
+docs:check 使用 `git ls-files -z` 枚举 README、docs 和 test_case 中受 Git 跟踪的 Markdown，排除未跟踪本地报告；新增文档先 git add。受跟踪文件的坏链接仍须失败。此前移动快照只处理了当时的本地报错，未完成复审要求，现补齐检查器和回归。
 
 ## 4. 实施步骤
 
@@ -165,6 +165,13 @@ Master 已批准按以下步骤执行：
 
 ### 7.4 待 Master 审查及远端验收
 
-本轮本地提交不合并 main。GitHub 上真实 PR 故障标红、恢复绿色和 main 首次 CI 尚未执行，Issue #20 保持 OPEN。Master 审查后继续办理发布及合并阶段的验收；main required check 配置另由 Master 决定。
+本轮本地提交不合并 main。GitHub 上真实 PR 故障标红、恢复绿色和 main 首次 CI 尚未执行，Issue #20 保持 OPEN。Master 已批准继续 CI 验收：创建 PR、保留真实红色检查并恢复绿色；合并仍等待 Master 审查。main required check 配置另由 Master 决定。
 
-- 2026-10-11：本地实施及上述验证完成，提交验收记录供 Master 审查。未推送、未合并、未关闭 Issue；真实 GitHub CI 验收保留为后续步骤。
+- 2026-10-11：本地实施及上述验证完成，提交验收记录供 Master 审查。随后按 Master 指示推送至 GitHub，远端提交为 `d2f675b`；未合并、未关闭 Issue。
+
+### 7.5 审查后补充
+
+- 修正 docs:check 的 Git 跟踪范围，增加隔离 Git fixture 回归，验证未跟踪坏链接被忽略、已跟踪坏链接阻断检查。
+- 保留通用 `CI` 开关；专用变量为可选建议，本轮不改变已验证的缺 DSN 失败行为。
+- 测试沿用 Node 默认文件并发，重点观察首次 GitHub PR 的 activity SIGKILL 用例；若出现并发不稳定，使用原生 `--test-concurrency=1` 并记录首败，不放宽断言。
+- 已核对 main 无分支保护或 ruleset；CI 标红与阻止合并分别验收。

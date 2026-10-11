@@ -55,7 +55,7 @@ CI 标红不等于仓库已阻止合并；main 的分支保护和 required check
 
 `api:generate` 从公开 schema/operations 生成 OpenAPI 与 TS DTO；外部消费者回归导入所有公开命名定义及各操作类型。Swift 的合成解码示例在 docs/api/v1；它不构成 SwiftUI 验收。`docs:generate` 从运行 schema/SQL 生成内部字段与数据库文档，不能手工维护生成页后让下次生成覆盖修订。
 
-文档检查核对本地链接和迁移目的地，不证明运行行为。当前资料可用性见[仓库说明](repository-layout.md)与[缺失附件清单](unavailable-evidence.json)。不放宽检查器来掩盖错误，不创建虚假的报告让链接变绿。
+文档检查通过 `git ls-files` 枚举 README、docs 和 test_case 中受 Git 跟踪的 Markdown，核对本地链接和迁移目的地；未跟踪的本地报告不参与，新增文档须先 git add。检查不证明运行行为。当前资料可用性见[仓库说明](repository-layout.md)与[缺失附件清单](unavailable-evidence.json)。不放宽检查器来掩盖错误，不创建虚假的报告让链接变绿。
 
 ## 显式 online
 
