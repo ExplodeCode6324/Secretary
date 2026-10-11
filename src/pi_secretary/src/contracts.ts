@@ -49,7 +49,8 @@ export type SecretaryDemoV1 =
   | AssistantProfile
   | ClientRegistration
   | ApiCommand
-  | MemoryExtractionJob;
+  | MemoryExtractionJob
+  | WorkScope;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -181,6 +182,12 @@ export type Execution = {
   unknown_operation_ids: ID[];
   proposal_ref?: ObjectRef3;
   recovery_call_id?: ID;
+  scope_id?: ID | null;
+  workspace_binding?: {
+    kind: "DIRECTORY" | "NONE";
+    root_path: string;
+    notes_path: string | null;
+  };
 };
 /**
  * 状态枚举对应 src/state_machine/catalog.json 的 Execution
@@ -311,6 +318,24 @@ export type WorldCommandState =
   | "CONFLICT"
   | "REJECTED"
   | "RETRYABLE_ERROR";
+export type WorkScope = {
+  [k: string]: unknown;
+} & {
+  schema_version: 1;
+  record_type: "Scope";
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  name: string;
+  description: string;
+  kind: "DIRECTORY" | "NONE";
+  root_path: string | null;
+  notes_path: string | null;
+  state: "ACTIVE" | "ARCHIVED";
+};
 
 /**
  * 逻辑主会话；状态变化由宿主单写，进程停止仍保留。
@@ -711,6 +736,7 @@ export interface TaskProposal {
    * 正式提供的来源材料引用；接续只继承这些来源，再装配直接 parent 的执行证据。context_refs 包含本轮全部来源及派生历史证据。旧提案按 checkpoint/result 原件关联识别来源。
    */
   source_context_refs?: ObjectRef[];
+  scope_id?: ID | null;
 }
 /**
  * 运行前提只引用已登记检查器，禁止运行模型提交的表达式。
@@ -781,6 +807,7 @@ export interface TaskPlan {
     due_at: Time;
     proposal_ref: ObjectRef;
   }[];
+  scope_id?: ID | null;
 }
 export interface ConditionResult {
   condition_id: ID;
@@ -825,7 +852,10 @@ export interface Dispatch {
   owner_epoch: number;
   plan_revision: number;
   executor: ExecutorSpec;
-  workspace: RelativePath;
+  /**
+   * Execution-bound root; legacy relative task/work retained
+   */
+  workspace: string;
   resume_checkpoint_id: ID | null;
   /**
    * @minItems 0
@@ -927,6 +957,7 @@ export interface TaskResult {
   needs_action: boolean;
   verified_by: "PROGRAM_CHECK" | "MAIN_REVIEW" | "NOT_VERIFIED";
   observed_at: Time;
+  scope_id?: ID | null;
 }
 export interface Artifact {
   artifact_id: ID;
@@ -957,6 +988,7 @@ export interface Feedback {
   decision_request_id: ID | null;
   input_id: ID | null;
   created_at: Time;
+  scope_id?: ID | null;
 }
 /**
  * 普通决定通过 TaskControl；授权走独立接口。
@@ -1646,7 +1678,8 @@ export interface Mutation {
     | "AssistantProfile"
     | "ClientRegistration"
     | "ApiCommand"
-    | "MemoryExtractionJob";
+    | "MemoryExtractionJob"
+    | "Scope";
   object_id: ID;
   expected_revision: number;
   new_revision: number;

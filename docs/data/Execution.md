@@ -32,6 +32,8 @@
 | `unknown_operation_ids` | array<ID> | 是 |  {"minItems": 0} 关联：[ID](ID.md) |
 | `proposal_ref` | ObjectRef | 否 | 本轮不可变有效提案。旧执行按 plan_revision 从 journal 历史计划固定；不能读取最新计划代替。 关联：[ObjectRef](ObjectRef.md) |
 | `recovery_call_id` | ID | 否 |  关联：[ID](ID.md) |
+| `scope_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
+| `workspace_binding` | object | 否 |  {"additionalProperties": false} |
 
 ## 组合约束
 

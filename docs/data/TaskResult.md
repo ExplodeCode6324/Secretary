@@ -22,6 +22,7 @@
 | `needs_action` | boolean | 是 |  |
 | `verified_by` | PROGRAM_CHECK / MAIN_REVIEW / NOT_VERIFIED | 是 |  |
 | `observed_at` | Time | 是 |  关联：[Time](Time.md) |
+| `scope_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
 
 ## 组合约束
 

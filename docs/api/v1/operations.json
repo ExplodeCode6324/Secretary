@@ -921,5 +921,38 @@
     "path": "/api/v1/artifacts/{id}/content",
     "response": "binary",
     "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/scopes",
+    "response": "ScopePage",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/scopes/{id}",
+    "response": "Scope",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/scopes",
+    "request": "ScopeCreateCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/scopes/{id}",
+    "request": "ScopeUpdateCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/scopes/{id}/archive",
+    "request": "RevisionCommand",
+    "response": "Receipt",
+    "status": 202
   }
 ]

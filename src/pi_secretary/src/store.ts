@@ -48,7 +48,10 @@ export function shape(record: unknown): asserts record is Contract {
   if (!validate(record)) {
     const kind = (record as { record_type?: string })?.record_type;
     const specific = kind
-      ? ajv.getSchema("urn:secretary:contracts:v1#/$defs/" + kind)
+      ? ajv.getSchema(
+          "urn:secretary:contracts:v1#/$defs/" +
+            (kind === "Scope" ? "WorkScope" : kind),
+        )
       : undefined;
     if (specific) specific(record);
     throw Error(
@@ -417,6 +420,14 @@ export class Store {
         old.proposal_ref.sha256 !== r.proposal_ref?.sha256
       )
         throw Error("EXECUTION_PROPOSAL_IMMUTABLE");
+      if (
+        old?.record_type === "Execution" &&
+        r.record_type === "Execution" &&
+        (JSON.stringify(old.workspace_binding) !==
+          JSON.stringify(r.workspace_binding) ||
+          (old.scope_id ?? null) !== (r.scope_id ?? null))
+      )
+        throw Error("EXECUTION_WORKSPACE_IMMUTABLE");
       staged.push(r);
     }
     const candidate = new Map(this.records);

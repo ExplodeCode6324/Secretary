@@ -1,3 +1,4 @@
+import { Scopes, relativePath, processStopped } from "./scopes.ts";
 import { activitiesFor } from "./activity.ts";
 import { EXECUTOR_SYSTEM, executionPrompt } from "./task-prompt.ts";
 import * as fs from "node:fs";
@@ -74,6 +75,7 @@ const jsonTool = (value: unknown, terminate = false) => ({
 });
 export class Scheduler {
   readonly workspace: string;
+  readonly scopes: Scopes;
   private running = new Map<
     string,
     { agent?: Agent; child?: ChildProcess; promise: Promise<void> }
@@ -88,6 +90,7 @@ export class Scheduler {
     readonly model: Model<Api>,
     readonly stream: StreamFn,
   ) {
+    this.scopes = new Scopes(store, (eid) => this.running.has(eid));
     this.workspace = path.join(store.dir, "workspaces");
     fs.mkdirSync(this.workspace, { recursive: true });
     this.workspace = fs.realpathSync(this.workspace);
@@ -97,6 +100,7 @@ export class Scheduler {
     requestID = id(),
     sessionID: string,
     options: {
+      scopeID?: string | null;
       reuse?: string | null;
       programID?: string | null;
       at?: string | null;
@@ -132,12 +136,15 @@ export class Scheduler {
       acceptance: options.acceptance ?? undefined,
       deadline: options.deadline ?? undefined,
     };
-    const legacy = options.reuse
-      ? []
-      : [
-          legacyOptions,
-          ...(options.preconditions == null ? [hostOptions] : []),
-        ].map((options) => hash(JSON.stringify({ goal, options, sessionID })));
+    const legacy =
+      options.reuse || options.scopeID != null
+        ? []
+        : [
+            legacyOptions,
+            ...(options.preconditions == null ? [hostOptions] : []),
+          ].map((options) =>
+            hash(JSON.stringify({ goal, options, sessionID })),
+          );
     const old = this.store.receipt<string>(requestID, fingerprint, legacy);
     if (old) return this.store.get<TaskPlan>("TaskPlan", old);
     if (options.at && !Number.isFinite(Date.parse(options.at)))
@@ -160,6 +167,7 @@ export class Scheduler {
         options,
         fingerprint,
       );
+    const workScope = this.scopes.active(options.scopeID);
     const program = options.programID
       ? this.store.get<ProgramRegistration>(
           "ProgramRegistration",
@@ -181,6 +189,7 @@ export class Scheduler {
     const proposal: TaskProposal = {
       schema_version: 1,
       record_type: "TaskProposal",
+      scope_id: workScope?.id ?? null,
       request_id: requestID,
       request_hash: fingerprint,
       submitted_at: now(),
@@ -267,6 +276,7 @@ export class Scheduler {
     const plan: TaskPlan = {
       schema_version: 1,
       record_type: "TaskPlan",
+      scope_id: proposal.scope_id ?? null,
       ...base(taskID),
       state: "INITIALIZING",
       proposal_request_id: requestID,
@@ -383,11 +393,7 @@ export class Scheduler {
   private validateWorkspace(p: TaskPlan) {
     if (p.workspace !== p.id) throw Error("WORKSPACE_OWNER");
     const root = path.join(this.workspace, p.workspace);
-    for (const dir of [
-      root,
-      path.join(root, "work"),
-      path.join(root, "executions"),
-    ]) {
+    for (const dir of [root, path.join(root, "executions")]) {
       if (
         !fs.existsSync(dir) ||
         !fs.lstatSync(dir).isDirectory() ||
@@ -402,7 +408,12 @@ export class Scheduler {
     )
       throw Error("WORKSPACE_OWNER");
     // Also validate the ancestors using the same policy as execution file tools.
-    this.safePath(p.id, "workspace-validation");
+    const previous = this.store
+      .all<Execution>("Execution")
+      .filter((e) => e.task_id === p.id)
+      .at(-1);
+    if (previous) this.safePath(previous, "workspace-validation");
+    else relativePath(root, "workspace-validation");
   }
   private continuationParent(p: TaskPlan, parentID: string, sessionID: string) {
     this.assertAccess(p, sessionID);
@@ -452,6 +463,9 @@ export class Scheduler {
     if (options.at != null || options.interval != null)
       throw Error("REUSE_TRIGGER_NOT_ALLOWED");
     const p = this.store.get<TaskPlan>("TaskPlan", options.reuse!);
+    if (options.scopeID != null && options.scopeID !== p.scope_id)
+      throw Error("SCOPE_CHANGE_NOT_ALLOWED");
+    this.scopes.active(p.scope_id);
     const parent = this.continuationParent(p, options.parent, sessionID);
     const original = this.proposalFor(parent);
     if (
@@ -699,6 +713,7 @@ export class Scheduler {
       const latest = es.at(-1);
       let reason: string | null = null;
       try {
+        this.scopes.active(p.scope_id);
         if (!latest) throw Error("NO_PARENT_EXECUTION");
         this.continuationParent(p, latest.id, sessionID);
       } catch (error) {
@@ -721,6 +736,7 @@ export class Scheduler {
         : null;
       return {
         task_id: p.id,
+        scope_id: p.scope_id ?? null,
         state: p.state,
         goal: baseline.goal,
         latest_execution_id: latest?.id ?? null,
@@ -773,6 +789,7 @@ export class Scheduler {
     const p = this.store.get<TaskPlan>("TaskPlan", taskID);
     this.assertAccess(p, sessionID);
     try {
+      this.scopes.active(p.scope_id);
       if (!executionID) throw Error("NO_PARENT_EXECUTION");
       this.continuationParent(p, executionID, sessionID);
       return { allowed: true, reason: null };
@@ -785,7 +802,8 @@ export class Scheduler {
     if (!["INITIALIZING", "INIT_FAILED"].includes(p.state)) return;
     try {
       const dir = path.join(this.workspace, taskID);
-      fs.mkdirSync(path.join(dir, "work"), { recursive: true });
+      if (!p.scope_id || this.scopes.get(p.scope_id).kind !== "DIRECTORY")
+        fs.mkdirSync(path.join(dir, "work"), { recursive: true });
       fs.mkdirSync(path.join(dir, "executions"), { recursive: true });
       const manifest = path.join(dir, "workspace.json");
       if (
@@ -963,6 +981,11 @@ export class Scheduler {
         schema_version: 1,
         record_type: "Execution",
         ...base(),
+        scope_id: p.scope_id ?? null,
+        workspace_binding: this.scopes.binding(
+          p.scope_id ?? null,
+          path.join(this.workspace, p.id, "work"),
+        ),
         task_id: p.id,
         state: "CREATED",
         retention_state: "HOT",
@@ -1069,7 +1092,7 @@ export class Scheduler {
             this.store.get<Execution>("Execution", c.target).state ===
             "SUCCEEDED";
         else if (c.kind === "RESOURCE_PRESENT")
-          met = fs.existsSync(this.safePath(e.task_id, c.target));
+          met = fs.existsSync(this.safePath(e, c.target));
         else if (c.kind === "DEVICE_AVAILABLE") met = c.target === "local";
       } catch {}
       return {
@@ -1098,13 +1121,55 @@ export class Scheduler {
       this.running.size >= Number(process.env.SECRETARY_MAX_WORKERS ?? 2)
     )
       return;
+    const current = this.store.get<Execution>("Execution", eid);
+    if (
+      !["READY", "WAIT_AUTH"].includes(current.state) ||
+      this.store.get<TaskPlan>("TaskPlan", current.task_id).state !== "ACTIVE"
+    )
+      return;
+    if (
+      current.state === "WAIT_AUTH" &&
+      this.store
+        .all<Operation>("Operation")
+        .some((o) => o.scope.execution_id === eid && o.state === "WAIT_AUTH")
+    )
+      return;
+    let reason: string | null;
+    try {
+      reason = this.scopes.dispatchReason(current);
+      this.rootFor(current);
+    } catch (error) {
+      reason = (error as Error).message;
+    }
+    if (reason) {
+      this.setState(eid, "WAIT_PRECONDITION", {
+        condition_results: [
+          ...this.conditions(current),
+          {
+            condition_id: stableID(eid + ":scope"),
+            status: "NOT_MET",
+            checked_at: now(),
+            evidence: [],
+            reason,
+          },
+        ],
+      });
+      return;
+    }
+    this.setState(eid, "DISPATCHING", {
+      started_at: current.started_at ?? now(),
+    });
     const entry: {
       agent?: Agent;
       child?: ChildProcess;
       promise: Promise<void>;
     } = { promise: Promise.resolve() };
     this.running.set(eid, entry);
-    entry.promise = this.execute(eid, entry)
+    entry.promise = this.execute(
+      eid,
+      entry,
+      current.state === "WAIT_AUTH" || current.waiting_request_ids.length > 0,
+    )
       .catch((error) => {
         const e = this.store.get<Execution>("Execution", eid);
         const inflight = this.store
@@ -1142,6 +1207,7 @@ export class Scheduler {
   private async execute(
     eid: string,
     entry: { agent?: Agent; child?: ChildProcess },
+    resumeAuth = false,
   ) {
     let e = this.store.get<Execution>("Execution", eid);
     const baseline = this.store.get<TaskPlan>("TaskPlan", e.task_id);
@@ -1151,9 +1217,8 @@ export class Scheduler {
       executor: effective.executor,
       safety_rule_id: effective.safety_rule_id,
     };
-    if (!["READY", "WAIT_AUTH"].includes(e.state) || p.state !== "ACTIVE")
-      return;
-    if (e.state === "WAIT_AUTH") {
+    if (e.state !== "DISPATCHING" || p.state !== "ACTIVE") return;
+    if (resumeAuth) {
       const ops = this.store
         .all<Operation>("Operation")
         .filter((o) => o.scope.execution_id === eid);
@@ -1199,7 +1264,7 @@ export class Scheduler {
       owner_epoch: this.store.epoch,
       plan_revision: p.revision,
       executor: p.executor,
-      workspace: p.id + "/work",
+      workspace: e.workspace_binding ? this.rootFor(e) : p.id + "/work",
       resume_checkpoint_id: e.checkpoint_id,
       operation_ids: [],
       issued_at: now(),
@@ -1364,6 +1429,7 @@ export class Scheduler {
           .all<DecisionRequest>("DecisionRequest")
           .filter((d) => d.execution_id === eid && d.state === "ANSWERED"),
       },
+      this.scopes.packet(e, this.rootFor(e)),
     );
     this.store.commit(
       [],
@@ -1390,33 +1456,11 @@ export class Scheduler {
         error: agent.state.errorMessage ?? "MISSING_STRUCTURED_RESULT",
       });
   }
-  private safePath(task: string, relative: string) {
-    if (
-      !relative ||
-      /^[ @~]/.test(relative) ||
-      path.isAbsolute(relative) ||
-      relative.split(/[\\/]/).some((p) => p === ".." || p === "")
-    )
-      throw Error("INVALID_PATH");
-    const root = path.join(this.workspace, task, "work");
-    const dest = path.resolve(root, relative);
-    if (!dest.startsWith(root + path.sep)) throw Error("INVALID_PATH");
-    // Include the workspace root and its parents, not only descendants.
-    for (
-      let ancestor = root;
-      ancestor !== path.dirname(ancestor);
-      ancestor = path.dirname(ancestor)
-    ) {
-      if (fs.lstatSync(ancestor).isSymbolicLink())
-        throw Error("SYMLINK_REJECTED");
-    }
-    let cur = root;
-    for (const part of relative.split("/")) {
-      cur = path.join(cur, part);
-      if (fs.existsSync(cur) && fs.lstatSync(cur).isSymbolicLink())
-        throw Error("SYMLINK_REJECTED");
-    }
-    return dest;
+  rootFor(e: Execution) {
+    return this.scopes.rootFor(e, path.join(this.workspace, e.task_id, "work"));
+  }
+  private safePath(e: Execution, relative: string) {
+    return relativePath(this.rootFor(e), relative);
   }
   private tools(e: Execution): AgentTool[] {
     const upstreamRead = createReadTool(),
@@ -1467,7 +1511,7 @@ export class Scheduler {
           )
             throw Error("UNRESOLVED_OPERATION");
           const artifacts = args.artifacts.map((relative) => {
-            const target = this.safePath(e.task_id, relative);
+            const target = this.safePath(e, relative);
             if (!fs.statSync(target).isFile()) throw Error("ARTIFACT_NOT_FILE");
             return {
               path: relative,
@@ -1493,14 +1537,14 @@ export class Scheduler {
         description: upstreamRead.description,
         parameters: upstreamRead.parameters,
         execute: async (call, args) => {
-          const target = this.safePath(e.task_id, args.path);
+          const target = this.safePath(e, args.path);
           return upstreamRead.execute(
             call,
             { ...args, path: target },
             () => {},
             {
               env: new NodeExecutionEnv({
-                cwd: path.join(this.workspace, e.task_id, "work"),
+                cwd: this.rootFor(e),
               }),
             },
             invocation(call),
@@ -1515,7 +1559,7 @@ export class Scheduler {
           upstreamWrite.description + " Requires Scheduler approval.",
         parameters: upstreamWrite.parameters,
         execute: async (_call, args) => {
-          const resource = this.safePath(e.task_id, args.path);
+          const resource = this.safePath(e, args.path);
           const intent = stableID(e.id + ":write:" + JSON.stringify(args));
           const op = this.auth.prepare(
             scopeOf(e),
@@ -1554,7 +1598,7 @@ export class Scheduler {
           timeout: Type.Optional(Type.Number({ minimum: 0.1, maximum: 3600 })),
         }),
         execute: async (call, args) => {
-          const cwd = path.join(this.workspace, e.task_id, "work");
+          const cwd = this.rootFor(e);
           const op = this.auth.prepare(
             scopeOf(e),
             "shell.run",
@@ -1671,8 +1715,8 @@ export class Scheduler {
       timeout: number;
       cwd: string;
     }>(op.action.parameters_ref);
-    const cwd = path.join(this.workspace, e.task_id, "work");
-    this.safePath(e.task_id, ".shell-path-check");
+    const cwd = this.rootFor(e);
+    this.safePath(e, ".shell-path-check");
     if (params.cwd !== cwd || op.action.resource !== cwd)
       throw Error("RESOURCE_CHANGED");
     if (this.conditions(e).some((c) => c.status !== "MET"))
@@ -1776,7 +1820,7 @@ export class Scheduler {
     const params = this.store.read<{ path: string; content: string }>(
       op.action.parameters_ref,
     );
-    const target = this.safePath(e.task_id, params.path);
+    const target = this.safePath(e, params.path);
     if (target !== op.action.resource) throw Error("RESOURCE_CHANGED");
     if (op.action.expected_resource_revision !== this.fileRevision(target))
       throw Error(
@@ -1793,7 +1837,7 @@ export class Scheduler {
         () => {},
         {
           env: new NodeExecutionEnv({
-            cwd: path.join(this.workspace, e.task_id, "work"),
+            cwd: this.rootFor(e),
           }),
         },
         invocation(op.id),
@@ -1822,7 +1866,7 @@ export class Scheduler {
     const params = this.store.read<{ path: string; content: string }>(
       op.action.parameters_ref,
     );
-    const target = this.safePath(e.task_id, params.path);
+    const target = this.safePath(e, params.path);
     if (
       target !== op.action.resource ||
       !fs.existsSync(target) ||
@@ -1842,16 +1886,7 @@ export class Scheduler {
     return { verified: true, evidence };
   }
   processStopped(eid: string): boolean {
-    return !this.store
-      .all<Operation>("Operation")
-      .some(
-        (o) =>
-          o.scope.execution_id === eid &&
-          ["shell.run", "program.run"].includes(o.action.action) &&
-          (o.process
-            ? o.process.state !== "STOPPED"
-            : o.state === "RESULT_UNKNOWN" || o.state === "DISPATCHED"),
-      );
+    return processStopped(this.store, eid);
   }
   settleUnknownExecution(eid: string) {
     const e = this.store.get<Execution>("Execution", eid);
@@ -1968,7 +2003,7 @@ export class Scheduler {
       this.store,
       opID,
       [process.execPath, program.entrypoint],
-      path.join(this.workspace, e.task_id, "work"),
+      this.rootFor(e),
       { PATH: process.env.PATH, LANG: "en_US.UTF-8" },
     );
     const child = launched.child;
@@ -2094,6 +2129,7 @@ export class Scheduler {
     const r: TaskResult = {
       schema_version: 1,
       record_type: "TaskResult",
+      scope_id: e.scope_id ?? null,
       ...base(),
       task_id: e.task_id,
       execution_id: eid,
@@ -2125,8 +2161,7 @@ export class Scheduler {
               (o) =>
                 o.scope.execution_id === eid &&
                 o.state === "SUCCEEDED" &&
-                o.action.resource ===
-                  path.join(this.workspace, e.task_id, "work", a.path),
+                o.action.resource === this.safePath(e, a.path),
             )?.id ?? null,
       })),
       detail_ref: ref,
@@ -2176,6 +2211,7 @@ export class Scheduler {
     const f: Feedback = {
       schema_version: 1,
       record_type: "Feedback",
+      scope_id: this.store.get<Execution>("Execution", eid).scope_id ?? null,
       ...base(),
       state: "QUEUED",
       task_id: e.task_id,

@@ -21,6 +21,7 @@
 | `decision_request_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `input_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `created_at` | Time | 是 |  关联：[Time](Time.md) |
+| `scope_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
 
 ## 组合约束
 

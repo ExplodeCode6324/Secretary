@@ -100,3 +100,13 @@ Scheduler 在无剩余未知操作、且整组停止已确认后，将中断 Exe
 shell/program 使用 Python 3 gated wrapper：身份先持久化，再放行命令；Core 通道 EOF 触发进程组清理。恢复不重连 wrapper，按同机启动标识变更、进程组 ESRCH、身份匹配、无法确认四分支处理；后者保留占用并去重通知。TERM/KILL 各自重新核验身份，有界复查；POSIX 不提供原子身份核验加组信号，因此保留检查到发送间的系统调用竞态边界。主动脱离进程组的程序不在此管理合同内。
 
 TASK 在可证明的模型请求边界恢复原 Execution 与冻结请求；成功响应不重发，失败沿用原三次传输预算。PROGRAM、取消和缺少可靠请求证据的中断不重跑；工具结果按持久意图及已保存返回值对账。
+
+## 工作范围 Scope
+
+Scope（内部定义 WorkScope，区别于调用归属元组 Scope）由 owner 创建、更新、归档，状态 ACTIVE → ARCHIVED。DIRECTORY 根必须与 Core 数据目录不重叠，与其他活动 Scope 和占槽执行的旧根不重叠；NONE 仅归类。
+
+Execution 创建时固定 scope_id 和 workspace_binding；Store 拒绝后续改写。DIRECTORY 不创建 task/work，元数据和产物 CAS 仍在数据目录。rootFor 统一读写、shell/program、预条件与产物路径；无绑定的历史执行回退到原 task/work。
+
+实际 run 在任何 await 前同步校验并提交 DISPATCHING。DIRECTORY 在 DISPATCHING/RUNNING/WAIT_AUTH/WAIT_DECISION/CANCEL_REQUESTED 时保留槽；回答或模型恢复短暂返回 READY 时，已有 started_at 继续保留。停止未确认或当前 run 尚未退出也保留槽。NONE 使用独立任务目录并受全局 worker 限额约束。排队旧根被别的 Scope 取得时等待 SCOPE_ROOT_CONFLICT，不重新绑定。归档阻止新提案和未开始的执行，已取得槽的执行继续。
+
+主会话每个新循环冻结最多 64 项、列表 JSON 最多 8 KiB 的 ACTIVE Scope 描述。执行包将 DIRECTORY 笔记作为 JSON 数据字段，最多读取 8 KiB，标明截断和不可信来源；写入使用既有 write 授权。Scope 描述和笔记均不改变权限。

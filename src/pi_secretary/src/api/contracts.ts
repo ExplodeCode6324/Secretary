@@ -230,6 +230,7 @@ export interface TaskCommand {
     target: string;
     required_revision: string | null;
   }[];
+  scope_id?: string | null;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -340,6 +341,7 @@ export interface TaskSummary {
   state: string;
   goal: string;
   active_execution_ids: string[];
+  scope_id?: string | null;
   [k: string]: unknown;
 }
 /**
@@ -356,6 +358,7 @@ export interface Result {
   needs_action: boolean;
   verified_by: string;
   observed_at: string;
+  scope_id?: string | null;
   [k: string]: unknown;
 }
 /**
@@ -366,6 +369,7 @@ export interface Proposal {
   goal: string;
   constraints: string[];
   acceptance_criteria: string[];
+  scope_id?: string | null;
   [k: string]: unknown;
 }
 /**
@@ -393,6 +397,7 @@ export interface TaskDetail {
   }[];
   pending_request_count: number;
   result: Result | null;
+  scope_id?: string | null;
   [k: string]: unknown;
 }
 /**
@@ -410,6 +415,7 @@ export interface Execution {
   unknown_operation_ids: string[];
   cancel_requested: boolean;
   result: Result | null;
+  scope_id?: string | null;
   [k: string]: unknown;
 }
 /**
@@ -769,6 +775,7 @@ export interface TaskRequestStatus {
   goal: string;
   constraints: string[];
   acceptance_criteria: string[];
+  scope_id?: string | null;
   [k: string]: unknown;
 }
 /**
@@ -818,6 +825,7 @@ export interface Operation {
     [k: string]: unknown;
   } | null;
   process_state?: "STARTING" | "RUNNING" | "STOPPED" | "UNCONFIRMED" | null;
+  scope_id?: string | null;
   [k: string]: unknown;
 }
 /**
@@ -887,4 +895,55 @@ export interface OperationResolveCommand {
   expected_revision: Revision;
   outcome: "APPLIED" | "NOT_APPLIED" | "PARTIAL" | "UNVERIFIED";
   note: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "Scope".
+ */
+export interface Scope {
+  id: string;
+  revision: Revision;
+  updated_at: string;
+  name: string;
+  description: string;
+  kind: "DIRECTORY" | "NONE";
+  root_path: string | null;
+  notes_path: string | null;
+  state: "ACTIVE" | "ARCHIVED";
+  [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "ScopeCreateCommand".
+ */
+export interface ScopeCreateCommand {
+  request_id: string;
+  name: string;
+  description?: string;
+  kind: "DIRECTORY" | "NONE";
+  root_path?: string | null;
+  notes_path?: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "ScopeUpdateCommand".
+ */
+export interface ScopeUpdateCommand {
+  request_id: string;
+  name?: string;
+  description?: string;
+  kind?: "DIRECTORY" | "NONE";
+  root_path?: string | null;
+  notes_path?: string | null;
+  expected_revision: Revision;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "ScopePage".
+ */
+export interface ScopePage {
+  items: Scope[];
+  version: string;
+  next_cursor: string | null;
+  [k: string]: unknown;
 }

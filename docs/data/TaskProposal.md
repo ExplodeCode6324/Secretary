@@ -25,6 +25,7 @@
 | `safety_rule_id` | ID | 是 |  关联：[ID](ID.md) |
 | `reuse_task_id` | ID 或 null | 是 | null 新建计划；非空在同一工作内按本轮正式要求创建新执行，parent 必须是该任务最新已结束执行。计划基线不变。 关联：[ID](ID.md) |
 | `source_context_refs` | array<ObjectRef> | 否 | 正式提供的来源材料引用；接续只继承这些来源，再装配直接 parent 的执行证据。context_refs 包含本轮全部来源及派生历史证据。旧提案按 checkpoint/result 原件关联识别来源。 关联：[ObjectRef](ObjectRef.md) |
+| `scope_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
 
 ## 组合约束
 
