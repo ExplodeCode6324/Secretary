@@ -21,7 +21,6 @@ import { EXECUTOR_SYSTEM } from "./task-prompt.ts";
 import { getInstructions, BASE_SYSTEM } from "./instructions.ts";
 import {
   settingsSource,
-  settingsExtractionEvidence,
   summarizeSettings,
   rebuiltMessages,
   type SettingsSource,
@@ -84,9 +83,6 @@ export class Settings {
       throw Error(
         "SETTINGS_RECOVERY_REQUIRES_ORIGINAL_RUNTIME: unfinished application belongs to an older policy or configuration; use the exact previous code version AND its model/database configuration against its backed-up store to finish/reconcile the application before upgrade. Changing environment variables alone cannot restore an older policy hash; never discard an application with an external receipt",
       );
-    host.extractionRuntimeHash = this.runtimeHash;
-    host.settingsRecoveryCheck = (ownerID) => this.checkRecovery(ownerID);
-    host.settingsRecoveryCommit = (ownerID) => this.recoverMemoryOwner(ownerID);
     host.settingsBlocked = () => this.blocked;
     host.scheduler.settingsBlocked = () => this.blocked;
     host.fullMemoryRefresh = () => {
@@ -256,21 +252,8 @@ export class Settings {
       applicationID,
     );
     if (!["FAILED", "BLOCKED"].includes(a.state)) return a;
-    // Ordinary retry must neither erase the frozen failed extraction owner nor
-    // silently authorize a new extraction request.
-    if (
-      a.state === "FAILED" &&
-      this.store.logs.some(
-        (event) =>
-          event.event_type === "memory.extraction.started" &&
-          this.store.read<{ loop_id?: string }>(event.payload).loop_id === a.id,
-      )
-    )
-      return this.update(a.id, {
-        error:
-          "COMMITMENT_EXTRACTION_REPLAY_BLOCKED: MEMORY_EXTRACTION_RECOVERY_REQUIRED: 原批次已有提取记录；请使用 /memory-recovery 或 Web 记忆提取恢复，对账并提交原批次。",
-      });
     const next = revise(a, {
+      summary_generation: (a.summary_generation ?? 0) + 1,
       state:
         a.state === "BLOCKED" ? ("COMMITTING" as const) : ("QUEUED" as const),
       error: null,
@@ -302,69 +285,7 @@ export class Settings {
       ).revision;
     return this.save(payload, expectedRevision);
   }
-  private checkRecovery(ownerID: string, executing = false) {
-    if (this.active && !executing)
-      throw Error("SETTINGS_APPLICATION_IN_PROGRESS");
-    const a = this.store.get<SettingsApplication>(
-      "SettingsApplication",
-      ownerID,
-    );
-    if (a.session_id !== this.host.sessionID)
-      throw Error("RECOVERY_OWNER_SESSION_MISMATCH");
-    if (a.state === "APPLIED") return;
-    if (
-      a.runtime_settings_hash !== this.runtimeHash ||
-      !a.source_ref ||
-      !a.candidate_ref ||
-      !["FAILED", "BLOCKED"].includes(a.state)
-    )
-      throw Error("RECOVERY_SETTINGS_EVIDENCE_UNAVAILABLE");
-    if (
-      this.applications().some(
-        (other) =>
-          other.id !== a.id && !["APPLIED", "FAILED"].includes(other.state),
-      )
-    )
-      throw Error("OTHER_SETTINGS_APPLICATION_IN_PROGRESS");
-    const source = this.store.read<SettingsSource>(a.source_ref);
-    const candidate = this.store.read<SettingsCandidate>(a.candidate_ref);
-    if (!source.plan || candidate.completed !== source.chunks.length)
-      throw Error("RECOVERY_SUMMARY_INCOMPLETE");
-    if (
-      this.store.get<Consciousness>("Consciousness", source.consciousness.id)
-        .revision !== source.consciousness.revision ||
-      this.host.session.last_context_id !== source.context_id
-    )
-      throw Error("SETTINGS_BASE_CONFLICT");
-    settingsExtractionEvidence(this.host, source);
-    const changes = source.changes as Changes;
-    if (
-      changes.instructions &&
-      getInstructions(this.store).revision !==
-        changes.instructions.expected_revision
-    )
-      throw Error("INSTRUCTIONS_CONFLICT");
-  }
-  private async recoverMemoryOwner(ownerID: string) {
-    this.checkRecovery(ownerID);
-    if (
-      this.store.get<SettingsApplication>("SettingsApplication", ownerID)
-        .state === "APPLIED"
-    )
-      return;
-    this.active = this.execute(ownerID, true).finally(() => {
-      this.active = undefined;
-    });
-    await this.active;
-    const a = this.store.get<SettingsApplication>(
-      "SettingsApplication",
-      ownerID,
-    );
-    if (a.state !== "APPLIED")
-      throw Error(a.error ?? "RECOVERY_SETTINGS_NOT_APPLIED");
-  }
   tick(): Promise<void> {
-    if (this.host.memoryRecoveryBusy) return Promise.resolve();
     if (this.active) return this.active;
     if (this.closing) return Promise.resolve();
     const next = this.applications().find(
@@ -521,7 +442,7 @@ export class Settings {
     }
     return { world, instructions: payload.instructions };
   }
-  private async execute(key: string, recoveryOnly = false) {
+  private async execute(key: string) {
     const activity = activitiesFor(this.store),
       activityID = "settings:" + key;
     activity.start(
@@ -537,7 +458,6 @@ export class Settings {
     ).state;
     try {
       await this.host.settingsIdle();
-      if (recoveryOnly) this.checkRecovery(key, true);
       activity.step(
         activityID,
         this.host.session.runtime_settings_hash !== this.runtimeHash
@@ -588,7 +508,6 @@ export class Settings {
           source,
           candidate,
           (c) => this.update(key, { candidate_ref: this.store.put(c) }),
-          recoveryOnly,
         );
         a = this.update(key, { candidate_ref: this.store.put(candidate) });
       }
@@ -705,7 +624,33 @@ export class Settings {
           source_end_sequence: source.end_sequence,
         }),
       ]);
+      activity.step(activityID, "正在补提承诺");
+      await this.host.extractPending();
     } catch (error) {
+      // Local merge failure after the atomic Settings commit cannot undo APPLIED.
+      if (
+        this.store.get<SettingsApplication>("SettingsApplication", key)
+          .state === "APPLIED"
+      ) {
+        this.store.commit(
+          [],
+          [
+            this.store.event(
+              "memory.extraction.merge_failed",
+              {
+                application_id: key,
+                error: String(error),
+              },
+              {
+                session_id: this.host.sessionID,
+                task_id: null,
+                execution_id: null,
+              },
+            ),
+          ],
+        );
+        return;
+      }
       let state: "FAILED" | "BLOCKED" = ["COMMITTING", "REBUILDING"].includes(
         stage,
       )

@@ -14,8 +14,8 @@ npm run verify
 
 `npm test` 直接运行 `tsx --test "test_case/offline/**/*.test.ts"`。新增当前离线测试按 `*.test.ts` 命名即自动纳入；helper、worker、浏览器探针和 benchmark 不作为测试入口。使用 Node 原生 pass/fail/skip/todo 汇总和退出码。
 
-- 类型检查覆盖全部 `test_case/offline/**/*.ts`，含 issue2–5、issue8、audit 和 helper。本次 issue4 类型检查通过，没有临时排除。
-- runtime、issue2–5、issue8、audit 及新增套件均在默认入口；定向调试可用 `npm run test:api`、`npm run test:issue5`、`npm run test:review`。
+- 类型检查覆盖全部 `test_case/offline/**/*.ts`，含 issue2、issue3、issue5、issue8、issue19、audit 和 helper；旧 issue4 恢复套件已退役，无临时类型排除。
+- runtime、issue2、issue3、issue5、issue8、issue19、audit 及新增套件均在默认入口；定向调试可用 `npm run test:api`、`npm run test:issue5`、`npm run test:review`。
 - AUD14 保留回调和断言，使用 Node 原生 todo。当前 `tools_schema` 存放 system 消息而该断言按顶层工具定义读取；#19 删除恢复哈希消费者，#24 处理字段语义及 Context 编码。todo 会执行、独立计数，不使 verify 失败。
 - 三项已退役 UI 合同用例已删除：dual-ui 的旧 TUI 双进程、web 的旧双 UI 合同、web-render 的旧静态路由。领域与 Markdown DOM 安全测试保留，生命周期/协议由 issue8 覆盖。
 - 历史探针位于 [historical/offline](../test_case/historical/offline/README.md)，不参与默认执行或类型检查，不随当前接口重构维护。
@@ -95,3 +95,9 @@ runtime/helpers 中的 streaming-web、activity-web、timeline-window-web、浏�
 静态设计检查、OFFLINE_RUNTIME、POSTGRES_RUNTIME、LIVE_MODEL、REAL_USE 互不替代。报告记录确切代码版本、配置/范围、首次失败、退出状态、未运行项；原始会话、凭据和真实运行身份保持私密，只发布脱敏汇总。
 
 后续仍需长期对话、更正和事实保持、多次整理/模型迁移、并发任务/取消/重复命令、原生客户端断线与缓存，以及重复样本的失败分布/延迟/成本。合成逻辑日和一次成功链路不证明长期稳定性；原始输入仍在请求里时不声称“只靠摘要记住”。可靠 ChangeFeed 和原生 UI 分属 #9、#10，设备与远程执行另行验收。
+
+## Issue #19 重试验收
+
+issue19 使用每 Store 注入的测试时钟验证三次传输、首次后再补试三轮维护及幂等重排；本地 HTTP 服务验证固定 Pi 适配器的 HTTP 状态、Retry-After 与物理发送次数。真实 SIGKILL 覆盖 MAIN 响应保存、工具响应保存、摘要和提取响应保存、传输失败写入边界。旧 ExtractionRecovery 合成 journal 保持可读；旧 issue4 中不依赖恢复票据的 journal ownership 回归迁入 issue19。
+
+旧测试中“两次即时候选”改为跨维护轮的显式时钟推进；失败来源不再永久阻塞 Settings。来源真实性、通知回执、不能从伪造/跨会话事件完成承诺的断言继续运行，来源 owner 改为 MemoryExtractionJob。

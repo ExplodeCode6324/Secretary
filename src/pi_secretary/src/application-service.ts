@@ -44,7 +44,6 @@ const longRoutes = new Set([
   "executions/:id/cancel",
   "session/compact",
   "session/resume",
-  "memory/recovery",
   "operations/:id/verify-write",
   "admin/world/migrate",
 ]);
@@ -105,22 +104,11 @@ export class ApplicationService {
     // An interrupted dispatch is reconciled through domain resources, never replayed.
     for (const request of store.all<ApiCommand>("ApiCommand")) {
       if (request.state === "RUNNING") {
-        const recovery =
-          request.command === "memory/recovery"
-            ? store.select<import("./contracts.ts").ExtractionRecovery>(
-                "ExtractionRecovery",
-                (r) => r.request_id === request.id,
-                1,
-              )
-            : [];
         store.commit([
           revise(request, {
             state: "UNKNOWN",
             error_code: "INTERRUPTED_DISPATCH",
-            resource_ids: [
-              ...request.resource_ids,
-              ...recovery.map((r) => ({ type: r.record_type, id: r.id })),
-            ],
+            resource_ids: request.resource_ids,
           }),
         ]);
       } else if (request.state === "QUEUED") this.schedule(request.id);
@@ -282,20 +270,10 @@ export class ApplicationService {
             r.command,
             s.read<Record<string, unknown>>(r.arguments_ref),
           );
-          const resources =
-            r.command === "memory/recovery"
-              ? s
-                  .select<import("./contracts.ts").ExtractionRecovery>(
-                    "ExtractionRecovery",
-                    (e) => e.request_id === requestID,
-                    1,
-                  )
-                  .map((e) => ({ type: e.record_type, id: e.id }))
-              : r.resource_ids;
           s.commit([
             revise(s.get<ApiCommand>("ApiCommand", requestID), {
               state: "COMPLETED",
-              resource_ids: resources,
+              resource_ids: r.resource_ids,
               result_ref: result === undefined ? null : s.put(result),
             }),
           ]);
@@ -410,11 +388,8 @@ export class ApplicationService {
           b.state as "COMPLETED" | "CANCELLED",
           b.note as string,
         );
-      case "memory/recovery":
-        return host.recoverMemory({
-          ...b,
-          expected_revision: revision(b.expected_revision),
-        } as Parameters<typeof host.recoverMemory>[0]);
+      case "memory/extraction/retry":
+        return host.retryExtractions(requestID);
       case "operations/:id/verify-write": {
         const op = store.get<import("./contracts.ts").Operation>(
           "Operation",
@@ -554,7 +529,6 @@ export class ApplicationService {
       ...(path.startsWith("messages/") ? ["thinking", "streaming"] : []),
       ...(path === "related" ? ["scope_type", "scope_id"] : []),
       ...(path === "artifacts" ? ["task_id"] : []),
-      ...(path === "memory/recovery" ? ["group_key"] : []),
       ...(path.startsWith("world/")
         ? ["subject", "predicate", "scope", "kind", "history"]
         : []),
@@ -723,12 +697,6 @@ export class ApplicationService {
         ),
       };
     }
-    if (path === "memory/recovery")
-      return this.page(
-        path,
-        project(host.memoryRecoveryPreflight(q.get("group_key") ?? undefined)),
-        q,
-      );
     if (path === "tasks") {
       const page = this.page(path, [...this.taskIDs], q);
       return {

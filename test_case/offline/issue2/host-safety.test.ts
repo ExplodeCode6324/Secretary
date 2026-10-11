@@ -235,7 +235,7 @@ test("HOST two tools retain canonical identity and MODEL_REQUEST links across re
     interrupt = false;
     app = await App.open(dir, { model: large, stream });
     stub();
-    await app.host.drain();
+    await app.host.resume();
     assert.equal(app.host.session.state, "IDLE");
     assert.equal(queries, 2);
     assert.deepEqual(
@@ -337,7 +337,7 @@ test("HOST appended new inputs cannot replay a failed source prefix automaticall
     await fixture(
       async (app) => {
         await turn(app);
-        assert.equal(summaries, 2);
+        assert.equal(summaries, 1);
         assert.equal(
           app.store.all<CompactionJob>("CompactionJob").at(-1)?.state,
           "FAILED",
@@ -347,7 +347,7 @@ test("HOST appended new inputs cannot replay a failed source prefix automaticall
           await turn(app, `Synthetic appended source ${i}`);
         app.host.maintainIfNeeded();
         await app.host.close();
-        assert.equal(summaries, 2);
+        assert.equal(summaries, 1);
         assert.equal(memory(app).covered_event_sequence, covered);
         assert.equal(app.store.all<CompactionJob>("CompactionJob").length, 1);
       },

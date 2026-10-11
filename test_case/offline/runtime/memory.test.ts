@@ -1,3 +1,4 @@
+import { retryRuntime } from "../../../src/pi_secretary/src/model-retry.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -131,6 +132,7 @@ test("invalid summary has one bounded retry and original context remains intact"
     const original = app.store.bytes(source);
     const inputs = app.store.all<Input>("Input").length;
     await app.host.compact();
+    await nextRound(app);
     const job = app.store.all<CompactionJob>("CompactionJob").at(-1)!;
     assert.equal(job.state, "COMMITTED");
     assert.equal(job.attempt, 2);
@@ -150,10 +152,10 @@ test("repeated summary failure is visible and automatic maintenance does not spi
     await app.host.compact();
     const state = app.host.memoryStatus();
     assert.equal(state.state, "FAILED");
-    assert.equal(state.attempt, 2);
-    assert.equal(state.errors.length, 2);
+    assert.equal(state.attempt, 1);
+    assert.equal(state.errors.length, 1);
     app.host.maintainIfNeeded();
-    assert.equal(calls, 2);
+    assert.equal(calls, 1);
     assert(app.store.logs.some((e) => e.event_type === "consciousness.failed"));
   }, stream);
 });
@@ -307,6 +309,7 @@ test("length-limited responses are classified as truncation and retried", async 
   };
   await fixture(async (app) => {
     await app.host.compact();
+    await nextRound(app);
     const job = app.store.all<CompactionJob>("CompactionJob").at(-1)!;
     assert.equal(job.state, "COMMITTED");
     assert.equal(job.attempt, 2);
@@ -385,3 +388,13 @@ test("repeated compaction keeps one current memory header while preserving origi
     );
     assert.equal(forged.consciousness_revision, null);
   }));
+
+async function nextRound(app: App) {
+  const job = app.store
+    .all<CompactionJob>("CompactionJob")
+    .findLast((j) => j.mode === "WORKING_MEMORY")!;
+  assert.equal(job.state, "FAILED");
+  assert(job.next_attempt_at);
+  retryRuntime.set(app.store, { now: () => Date.parse(job.next_attempt_at!) });
+  await app.host.compact(false);
+}

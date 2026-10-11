@@ -1,3 +1,4 @@
+import { modelLifetime } from "./model-retry.ts";
 import { activitiesFor } from "./activity.ts";
 import { activityHistoryFor } from "./activity-history.ts";
 import { Settings } from "./settings.ts";
@@ -113,6 +114,7 @@ export class App {
     await this.host.drain();
   }
   async close() {
+    modelLifetime(this.store).abort(Error("CORE_STOPPING"));
     await this.settings.close();
     await this.host.close();
     await this.scheduler.close();

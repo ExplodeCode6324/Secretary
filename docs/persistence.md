@@ -51,6 +51,6 @@ CoreIdentity、AssistantProfile、ClientRegistration 和 ApiCommand 写入现有
 
 短命令的 ApiCommand 与首个领域变更同一帧提交，NO_CHANGES 也保存回执；request_id 绑定 owner、路径和规范化完整 body。Store 重放同时恢复旧 Scheduler.answer 的请求身份占用，跨操作复用冲突。短命令 ACCEPTED 可长期保留，业务完成读对应资源，不等待虚构的统一 COMPLETED。
 
-长命令先 QUEUED，执行前 RUNNING，正常结束 COMPLETED；异常或重启中断为 UNKNOWN。QUEUED 可在新进程继续，但领域授权/版本/票据门禁仍有效；RUNNING 不自动再次派发。memory/recovery 的未消费票据在服务重启后失效，持久 ApiCommand 不延长许可；已消费请求按 ExtractionRecovery 和 ModelCall 证据对账。
+长命令先 QUEUED，执行前 RUNNING，正常结束 COMPLETED；异常或重启中断为 UNKNOWN。QUEUED 可在新进程继续，领域授权和版本门禁仍有效；RUNNING 不自动再次派发。提取 retry 是短命令，失败集合与 request_id 在同一帧固定；MemoryExtractionJob 的来源、轮次和进度独立于摘要水位。ExtractionRecovery 仅作历史读取。模型请求按 ModelCall 逻辑关联及尝试次数恢复，成功响应落盘后不重发。
 
 新增持久记录不保证旧二进制可读，协议也不兼容旧 TUI/WebUI。旧数据回放中的默认字段承接是领域兼容读取，不是旧客户端兼容层。迁移与回退详见[API 切换说明](api/v1/README.md#切换与回退)。

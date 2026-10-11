@@ -372,84 +372,6 @@
         "note"
       ]
     },
-    "RecoveryCommand": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "request_id": {
-          "type": "string",
-          "format": "uuid"
-        },
-        "group_key": {
-          "type": "string"
-        },
-        "attempt_id": {
-          "type": "string"
-        },
-        "policy": {
-          "type": "string"
-        },
-        "implementation_version": {
-          "type": "string"
-        },
-        "config_hash": {
-          "type": "string"
-        },
-        "source_hash": {
-          "type": "string"
-        },
-        "expected_revision": {
-          "type": "string",
-          "pattern": "^[1-9][0-9]*$"
-        },
-        "model_call_id": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "model_request_hash": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "actual_payload_hash": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "authorization_id": {
-          "type": "string",
-          "format": "uuid"
-        },
-        "issued_at": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "expires_at": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "request_id",
-        "group_key",
-        "attempt_id",
-        "policy",
-        "implementation_version",
-        "config_hash",
-        "source_hash",
-        "expected_revision",
-        "model_call_id",
-        "model_request_hash",
-        "actual_payload_hash",
-        "authorization_id",
-        "issued_at",
-        "expires_at"
-      ]
-    },
     "ProgramCommand": {
       "type": "object",
       "additionalProperties": false,
@@ -1818,6 +1740,69 @@
               "type": "null"
             }
           ]
+        },
+        "extraction": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "state": {
+                "enum": [
+                  "QUEUED",
+                  "RUNNING",
+                  "SUCCEEDED",
+                  "FAILED"
+                ]
+              },
+              "round": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 3
+              },
+              "next_attempt_at": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "state",
+              "round",
+              "next_attempt_at",
+              "error"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "next_attempt_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retry_round": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "extraction_pending_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "extraction_failed_count": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -2327,193 +2312,6 @@
       "required": [
         "slot",
         "world_version"
-      ],
-      "additionalProperties": true
-    },
-    "RecoveryBinding": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "group_key": {
-          "type": "string"
-        },
-        "attempt_id": {
-          "type": "string"
-        },
-        "policy": {
-          "type": "string"
-        },
-        "implementation_version": {
-          "type": "string"
-        },
-        "config_hash": {
-          "type": "string"
-        },
-        "source_hash": {
-          "type": "string"
-        },
-        "expected_revision": {
-          "type": "string",
-          "pattern": "^[1-9][0-9]*$"
-        },
-        "model_call_id": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "model_request_hash": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "actual_payload_hash": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "authorization_id": {
-          "type": "string",
-          "format": "uuid"
-        },
-        "issued_at": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "expires_at": {
-          "type": "string",
-          "format": "date-time"
-        }
-      },
-      "required": [
-        "group_key",
-        "attempt_id",
-        "policy",
-        "implementation_version",
-        "config_hash",
-        "source_hash",
-        "expected_revision",
-        "model_call_id",
-        "model_request_hash",
-        "actual_payload_hash",
-        "authorization_id",
-        "issued_at",
-        "expires_at"
-      ]
-    },
-    "RecoveryGroup": {
-      "type": "object",
-      "properties": {
-        "group_key": {
-          "type": "string"
-        },
-        "attempt_id": {
-          "type": "string"
-        },
-        "status": {
-          "type": "string"
-        },
-        "reason": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "binding": {
-          "anyOf": [
-            {
-              "$ref": "#/$defs/RecoveryBinding"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
-        "source_count": {
-          "type": "integer"
-        },
-        "sources": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "role": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              },
-              "sequence": {
-                "anyOf": [
-                  {
-                    "type": "string"
-                  },
-                  {
-                    "type": "null"
-                  }
-                ]
-              }
-            },
-            "required": [
-              "id",
-              "role",
-              "sequence"
-            ],
-            "additionalProperties": true
-          }
-        }
-      },
-      "required": [
-        "group_key",
-        "attempt_id",
-        "status",
-        "reason",
-        "binding",
-        "source_count",
-        "sources"
-      ],
-      "additionalProperties": true
-    },
-    "RecoveryPage": {
-      "type": "object",
-      "properties": {
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/RecoveryGroup"
-          }
-        },
-        "version": {
-          "type": "string"
-        },
-        "next_cursor": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        }
-      },
-      "required": [
-        "items",
-        "version",
-        "next_cursor"
       ],
       "additionalProperties": true
     },

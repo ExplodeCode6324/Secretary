@@ -409,34 +409,6 @@ export class Store {
         old.proposal_ref.sha256 !== r.proposal_ref?.sha256
       )
         throw Error("EXECUTION_PROPOSAL_IMMUTABLE");
-      if (
-        old?.record_type === "ExtractionRecovery" &&
-        r.record_type === "ExtractionRecovery"
-      ) {
-        const immutable = [
-          "session_id",
-          "group_key",
-          "attempt_id",
-          "parent_attempt_id",
-          "request_id",
-          "request_hash",
-          "binding_ref",
-          "binding_snapshot",
-          "request_snapshot",
-          "generation",
-          "owner_epoch",
-        ] as const;
-        if (
-          immutable.some(
-            (key) => JSON.stringify(old[key]) !== JSON.stringify(r[key]),
-          )
-        )
-          throw Error("EXTRACTION_RECOVERY_IDENTITY_CHANGED");
-        if (old.state !== "CLAIMED")
-          throw Error("EXTRACTION_RECOVERY_TERMINAL_IMMUTABLE");
-        if (old.call_id && old.call_id !== r.call_id)
-          throw Error("EXTRACTION_RECOVERY_CALL_CHANGED");
-      }
       staged.push(r);
     }
     const candidate = new Map(this.records);
@@ -453,30 +425,6 @@ export class Store {
         !candidate.has("Session:" + r.session_id)
       )
         throw Error("MISSING_SESSION");
-    }
-    for (const r of staged) {
-      if (r.record_type !== "ExtractionRecovery") continue;
-      const peers = [...candidate.values()].filter(
-        (other): other is import("./contracts.ts").ExtractionRecovery =>
-          other.record_type === "ExtractionRecovery" &&
-          other.session_id === r.session_id &&
-          other.group_key === r.group_key &&
-          other.id !== r.id,
-      );
-      if (peers.some((other) => other.generation === r.generation))
-        throw Error("EXTRACTION_RECOVERY_GENERATION_CONFLICT");
-      if (
-        r.state === "CLAIMED" &&
-        peers.some((other) => other.state === "CLAIMED")
-      )
-        throw Error("EXTRACTION_RECOVERY_SOURCE_CLAIMED");
-      const old = this.records.get("ExtractionRecovery:" + r.id);
-      if (
-        !old &&
-        r.generation !==
-          Math.max(0, ...peers.map((other) => other.generation)) + 1
-      )
-        throw Error("EXTRACTION_RECOVERY_GENERATION_CONFLICT");
     }
     const eventIDs = new Set<string>();
     for (const [index, e] of txn.log_records.entries()) {

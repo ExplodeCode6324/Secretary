@@ -1,3 +1,4 @@
+import { retryRuntime } from "../../../src/pi_secretary/src/model-retry.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -159,7 +160,7 @@ test("INV-02 C06 oversized main input is not sent and original accepted payload 
   );
 });
 
-test("INV-03 C08 failed summary has at most two attempts, no memory commit, immutable source", async () => {
+test("INV-03 C08 failed summary has one attempt per maintenance round, no memory commit, immutable source", async () => {
   let summaries = 0;
   await fixture(
     async (app) => {
@@ -176,12 +177,12 @@ test("INV-03 C08 failed summary has at most two attempts, no memory commit, immu
       );
       await app.host.compact();
       assert.equal(app.host.memoryStatus().state, "FAILED");
-      assert.equal(summaries, 2);
+      assert.equal(summaries, 1);
       assert.equal(memory(app).revision, before.revision);
       assert.deepEqual(app.store.bytes(source), bytes);
       app.host.maintainIfNeeded();
       await app.host.close();
-      assert.equal(summaries, 2);
+      assert.equal(summaries, 1);
     },
     (m, c, o) =>
       kind(c) === "summary"
@@ -197,6 +198,7 @@ test("INV-04 C08 low model output ceiling clamps both summary attempts", async (
     async (app) => {
       await turn(app);
       await app.host.compact();
+      await nextSummaryRound(app);
       assert.deepEqual(budgets, [4096, 4096]);
       assert.equal(app.host.memoryStatus().state, "COMMITTED");
     },
@@ -283,6 +285,7 @@ test("GOAL-03 C08 default summary budgets are 16384 then 32768 when model has ro
     async (app) => {
       await turn(app);
       await app.host.compact();
+      await nextSummaryRound(app);
       assert.equal(app.host.memoryStatus().state, "COMMITTED");
       assert.deepEqual(budgets, [16_384, 32_768]);
     },
@@ -496,7 +499,7 @@ test("GOAL-08 C09 new ACCEPTED input does not invalidate fixed older memory sour
   );
 });
 
-test("GOAL-09 C18 extraction failure cannot cause summary and extraction to run again", async () => {
+test("GOAL-09 C18 extraction failure preserves committed summary and separate backoff", async () => {
   let summaries = 0,
     extractions = 0;
   await fixture(
@@ -504,8 +507,11 @@ test("GOAL-09 C18 extraction failure cannot cause summary and extraction to run 
       await turn(app);
       const revision = memory(app).revision;
       await app.host.compact();
-      assert.equal(app.host.memoryStatus().state, "FAILED");
-      assert.equal(memory(app).revision, revision);
+      assert.equal(app.host.memoryStatus().state, "COMMITTED");
+      assert(
+        app.host.memoryStatus().extraction.some((j) => j.state === "FAILED"),
+      );
+      assert.equal(memory(app).revision, revision + 1);
       assert.deepEqual(
         { summaries, extractions },
         { summaries: 1, extractions: 1 },
@@ -525,3 +531,13 @@ test("GOAL-09 C18 extraction failure cannot cause summary and extraction to run 
     },
   );
 });
+
+async function nextSummaryRound(app: App) {
+  const failed = app.host.memoryStatus();
+  assert.equal(failed.state, "FAILED");
+  assert(failed.next_attempt_at);
+  retryRuntime.set(app.store, {
+    now: () => Date.parse(failed.next_attempt_at!),
+  });
+  await app.host.compact(false);
+}

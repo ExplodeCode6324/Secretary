@@ -1103,9 +1103,9 @@
         }
       }
     },
-    "/api/v1/memory/recovery": {
+    "/api/v1/memory/extraction/retry": {
       "post": {
-        "operationId": "post__api_v1_memory_recovery",
+        "operationId": "post__api_v1_memory_extraction_retry",
         "security": [
           {
             "localOwner": []
@@ -1117,7 +1117,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "./schema.json#/$defs/RecoveryCommand"
+                "$ref": "./schema.json#/$defs/EmptyCommand"
               }
             }
           }
@@ -1139,85 +1139,6 @@
                     },
                     "data": {
                       "$ref": "./schema.json#/$defs/Receipt"
-                    }
-                  }
-                }
-              }
-            }
-          },
-          "default": {
-            "description": "Stable error code; see README",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "api_version": {
-                      "const": "1"
-                    },
-                    "error": {
-                      "$ref": "./schema.json#/$defs/Error"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "operationId": "get__api_v1_memory_recovery",
-        "security": [
-          {
-            "localOwner": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "limit",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "minimum": 1,
-              "maximum": 100,
-              "default": 30
-            }
-          },
-          {
-            "name": "cursor",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "group_key",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Accepted command receipt or read model",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "required": [
-                    "api_version",
-                    "data"
-                  ],
-                  "properties": {
-                    "api_version": {
-                      "const": "1"
-                    },
-                    "data": {
-                      "$ref": "./schema.json#/$defs/RecoveryPage"
                     }
                   }
                 }

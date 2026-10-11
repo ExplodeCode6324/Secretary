@@ -20,6 +20,8 @@
 | `last_journal_seq` | integer | 是 |  {"minimum": 0, "maximum": 9007199254740991} |
 | `recovery_error` | string 或 null | 是 |  |
 | `runtime_settings_hash` | Digest | 否 |  关联：[Digest](Digest.md) |
+| `model_retry_generation` | integer | 否 |  {"minimum": 0, "maximum": 9007199254740991} |
+| `model_blocked_call` | ID 或 null | 否 |  关联：[ID](ID.md) |
 
 ## 组合约束
 

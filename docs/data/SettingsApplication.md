@@ -21,6 +21,7 @@
 | `request_hash` | Digest | 是 |  关联：[Digest](Digest.md) |
 | `context_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `runtime_settings_hash` | Digest | 是 | 本应用绑定的主/任务模型、提示词、数据库身份和运行选项哈希；未完成应用需原配置恢复。 关联：[Digest](Digest.md) |
+| `summary_generation` | integer | 否 |  {"minimum": 0, "maximum": 9007199254740991} |
 
 ## 组合约束
 

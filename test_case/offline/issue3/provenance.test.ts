@@ -401,10 +401,9 @@ test("Issue3 explicit source batch rejects missing owners and mismatched boundar
         "invalid explicit provenance must not fall back to any matching blob owner",
       );
     }
-    const owner = app.store.get<CompactionJob>(
-      "CompactionJob",
-      original.source_batch.owner_id,
-    );
+    const owner = app.store.get<
+      import("../../../src/pi_secretary/src/contracts.ts").MemoryExtractionJob
+    >("MemoryExtractionJob", original.source_batch.owner_id);
     app.store.commit([
       revise(owner, { candidate_ref: app.store.put({ commitments: [] }) }),
     ]);
@@ -414,10 +413,15 @@ test("Issue3 explicit source batch rejects missing owners and mismatched boundar
       "current owner candidate must retain the exact introduced commitment",
     );
     app.store.commit([
-      revise(app.store.get<CompactionJob>("CompactionJob", owner.id), {
-        candidate_ref: owner.candidate_ref,
-        source_event_ids: [],
-      }),
+      revise(
+        app.store.get<
+          import("../../../src/pi_secretary/src/contracts.ts").MemoryExtractionJob
+        >("MemoryExtractionJob", owner.id),
+        {
+          candidate_ref: owner.candidate_ref,
+          source_event_ids: [],
+        },
+      ),
     ]);
     assert.equal(
       resolve(app, delivery.event.event_id),

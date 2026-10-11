@@ -190,6 +190,13 @@ test("settings real chunks, retry, extraction and persisted queue; no duplicate 
       app.settings.draft().revision,
       id(),
     ) as SettingsApplication;
+    await app.settings.tick();
+    assert.equal(
+      app.store.get<SettingsApplication>("SettingsApplication", application.id)
+        .state,
+      "FAILED",
+    );
+    app.settings.retry(application.id);
     await until(() => entered >= 2);
     const request = id(),
       input = app.host.accept("queued", request);
@@ -200,13 +207,13 @@ test("settings real chunks, retry, extraction and persisted queue; no duplicate 
     assert.equal(snap.queue.blocked, true);
     assert(setting.progress!.total! >= 3);
     assert.equal(setting.progress!.completed, 0);
-    assert.equal(setting.progress!.attempt, 2);
+    assert.equal(setting.progress!.attempt, 1);
     summary.release();
     await until(() => extraction);
     setting = app
       .activitySnapshot()
       .activities.find((a) => a.kind === "settings")!;
-    assert.equal(setting.phase, "正在提取承诺");
+    assert.equal(setting.phase, "正在补提承诺");
     assert.equal(setting.progress!.completed, setting.progress!.total);
     extract.release();
     await app.settings.tick();

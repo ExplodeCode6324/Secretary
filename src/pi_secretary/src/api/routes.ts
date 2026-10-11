@@ -16,7 +16,7 @@ export const commands = [
   ["session/compact", "EmptyCommand"],
   ["session/resume", "EmptyCommand"],
   ["memory/commitments/:id/resolve", "ResolveCommand"],
-  ["memory/recovery", "RecoveryCommand"],
+  ["memory/extraction/retry", "EmptyCommand"],
   ["operations/:id/verify-write", "EmptyCommand"],
   ["admin/world/migrate", "EmptyCommand"],
   ["admin/programs", "ProgramCommand"],

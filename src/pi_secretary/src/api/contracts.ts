@@ -290,26 +290,6 @@ export interface ResolveCommand {
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
- * via the `definition` "RecoveryCommand".
- */
-export interface RecoveryCommand {
-  request_id: string;
-  group_key: string;
-  attempt_id: string;
-  policy: string;
-  implementation_version: string;
-  config_hash: string;
-  source_hash: string;
-  expected_revision: string;
-  model_call_id: string | null;
-  model_request_hash: string | null;
-  actual_payload_hash: string | null;
-  authorization_id: string;
-  issued_at: string;
-  expires_at: string;
-}
-/**
- * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
  * via the `definition` "ProgramCommand".
  */
 export interface ProgramCommand {
@@ -594,6 +574,17 @@ export interface MemoryStatus {
   pending_source_bytes: string;
   errors: string[];
   covered_event_sequence: string | null;
+  extraction?: {
+    id: string;
+    state: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+    round: number;
+    next_attempt_at: string | null;
+    error: string | null;
+  }[];
+  next_attempt_at?: string | null;
+  retry_round?: number;
+  extraction_pending_count?: number;
+  extraction_failed_count?: number;
   [k: string]: unknown;
 }
 /**
@@ -750,54 +741,6 @@ export interface WorldSlot {
     [k: string]: unknown;
   } | null;
   world_version: string;
-  [k: string]: unknown;
-}
-/**
- * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
- * via the `definition` "RecoveryBinding".
- */
-export interface RecoveryBinding {
-  group_key: string;
-  attempt_id: string;
-  policy: string;
-  implementation_version: string;
-  config_hash: string;
-  source_hash: string;
-  expected_revision: string;
-  model_call_id: string | null;
-  model_request_hash: string | null;
-  actual_payload_hash: string | null;
-  authorization_id: string;
-  issued_at: string;
-  expires_at: string;
-}
-/**
- * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
- * via the `definition` "RecoveryGroup".
- */
-export interface RecoveryGroup {
-  group_key: string;
-  attempt_id: string;
-  status: string;
-  reason: string | null;
-  binding: RecoveryBinding | null;
-  source_count: number;
-  sources: {
-    id: string;
-    role: string | null;
-    sequence: string | null;
-    [k: string]: unknown;
-  }[];
-  [k: string]: unknown;
-}
-/**
- * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
- * via the `definition` "RecoveryPage".
- */
-export interface RecoveryPage {
-  items: RecoveryGroup[];
-  version: string;
-  next_cursor: string | null;
   [k: string]: unknown;
 }
 /**

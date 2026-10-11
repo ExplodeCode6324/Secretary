@@ -50,7 +50,7 @@ function body(
       : { settings_changes: plan.extra }),
     previous_error: error,
     candidate_byte_limit: Math.floor(
-      plan.max_candidate_bytes * (attempt === 2 ? 0.8 : 1),
+      plan.max_candidate_bytes * (attempt > 1 ? 0.8 : 1),
     ),
   });
 }
@@ -184,6 +184,8 @@ export async function runSummary({
   candidate,
   checkpoint,
   progress,
+  round = 0,
+  generation = 0,
 }: {
   store: Store;
   model: Model<Api>;
@@ -196,6 +198,8 @@ export async function runSummary({
   commitments: MemoryCommitment[];
   candidate: SummaryCandidate;
   checkpoint: (candidate: SummaryCandidate) => void;
+  round?: number;
+  generation?: number;
   progress?: (index: number, attempt: number, error: string | null) => void;
 }): Promise<SummaryCandidate> {
   if (plan.version !== SUMMARY_POLICY)
@@ -206,13 +210,8 @@ export async function runSummary({
   for (let index = current.completed; index < plan.chunks.length; index++) {
     let error = current.previous_error ?? null;
     let done = false;
-    for (
-      let attempt = (current.attempts?.[String(index)] ?? 0) + 1;
-      attempt <= 2;
-      attempt++
-    ) {
-      if (Date.now() - plan.created_at > 20 * 60 * 1000)
-        throw Error("SUMMARY_JOB_TIME_LIMIT");
+    {
+      const attempt = round + 1;
       if (Buffer.byteLength(JSON.stringify(current.items)) > plan.prior_bytes)
         throw Error("SUMMARY_PRIOR_BOUND_EXCEEDED");
       current = {
@@ -228,7 +227,11 @@ export async function runSummary({
           { session_id: sessionID, task_id: null, execution_id: null },
           loopID,
           "COMPACTION",
-          { consciousnessRevision, maxTokens: plan.outputs[attempt - 1] },
+          {
+            consciousnessRevision,
+            maxTokens: plan.outputs[attempt > 1 ? 1 : 0],
+            requestKey: `summary:${plan.source_hash}:${generation}:${round}:${index}`,
+          },
         );
         let requested = false;
         const agent = new Agent({
@@ -275,7 +278,7 @@ export async function runSummary({
           throw Error("EMPTY_WORKING_MEMORY");
         if (
           Buffer.byteLength(JSON.stringify(parsed.items)) >
-          Math.floor(plan.max_candidate_bytes * (attempt === 2 ? 0.8 : 1))
+          Math.floor(plan.max_candidate_bytes * (attempt > 1 ? 0.8 : 1))
         )
           throw Error("SUMMARY_AGGREGATE_LIMIT");
         const items: WorkItem[] = parsed.items.map((v: object) => {
@@ -321,7 +324,6 @@ export async function runSummary({
         };
         checkpoint(current);
         done = true;
-        break;
       } catch (reason) {
         error = String(reason).slice(0, 512);
         current = { ...current, previous_error: error };

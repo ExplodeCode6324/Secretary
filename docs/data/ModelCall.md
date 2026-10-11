@@ -20,6 +20,9 @@
 | `started_at` | Time 或 null | 是 |  关联：[Time](Time.md) |
 | `completed_at` | Time 或 null | 是 |  关联：[Time](Time.md) |
 | `error` | string 或 null | 是 |  |
+| `logical_key` | Digest | 否 |  关联：[Digest](Digest.md) |
+| `failure_kind` | TRANSIENT / PERMANENT / CANCELLED / LOCAL | 否 |  |
+| `retry_at` | Time 或 null | 否 |  关联：[Time](Time.md) |
 
 ## 组合约束
 

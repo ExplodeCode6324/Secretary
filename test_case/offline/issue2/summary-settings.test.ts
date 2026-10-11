@@ -87,6 +87,8 @@ test("summary retry retains source and checkpoints prevent a third attempt on re
       },
     };
     await assert.rejects(runSummary({ ...args, candidate }));
+    assert.equal(packets.length, 1);
+    await assert.rejects(runSummary({ ...args, candidate, round: 1 }));
     assert.equal(packets.length, 2);
     assert.equal(packets[0].source_chunk, packets[1].source_chunk);
     assert.deepEqual(budgets, [16384, 32768]);
@@ -183,7 +185,7 @@ test("aggregate oversized candidate and tool continuations never become successf
       }),
       /SUMMARY_INCOMPLETE|SUMMARY_TOOL_CALL/,
     );
-    assert.equal(calls, 2);
+    assert.equal(calls, 1);
   }));
 test("commitment extraction failure is durable and success is reused by source identity", async () =>
   fixture(async (store) => {
@@ -200,17 +202,15 @@ test("commitment extraction failure is durable and success is reused by source i
       consciousnessRevision: 1,
       source: { complete: "If approved, I will review it." },
       existing: [],
-      extractionKey: "fixed-source",
     };
     await assert.rejects(extractNewCommitments(options));
     await assert.rejects(
       extractNewCommitments({ ...options, loopID: id() }),
-      /REPLAY_BLOCKED/,
+      /SyntaxError/,
     );
     assert.equal(calls, 1);
     const success = {
       ...options,
-      extractionKey: "new-source",
       source: {
         event_id: "different-event",
         complete: "If approved, I will review it.",
@@ -302,7 +302,7 @@ test("new messages and ledger changes cannot retry a failed extraction prefix", 
           { id: "event-two", text: "A newly arrived event" },
         ],
       }),
-      /REPLAY_BLOCKED/,
+      /SyntaxError/,
     );
     assert.equal(calls, 1);
   }));
@@ -394,7 +394,8 @@ test("retry reason is reset after each successful fragment", async () =>
         ? replyStream([{ type: "text", text: "bad json" }], m)
         : fixtureStream(m, c, o);
     };
-    await runSummary({
+    let candidate: SummaryCandidate = { items: [], completed: 0 };
+    const args = {
       store,
       model,
       stream,
@@ -404,9 +405,12 @@ test("retry reason is reset after each successful fragment", async () =>
       refs: [store.put("original evidence")],
       plan,
       commitments: [],
-      candidate: { items: [], completed: 0 },
-      checkpoint: () => {},
-    });
+      checkpoint: (c: SummaryCandidate) => {
+        candidate = c;
+      },
+    };
+    await assert.rejects(runSummary({ ...args, candidate }));
+    await runSummary({ ...args, candidate, round: 1 });
     assert(packets[1].previous_error);
     assert.equal(packets[2].previous_error, null);
   }));
@@ -448,7 +452,7 @@ test("successful source is not re-extracted when another event changes packing",
   }));
 
 test(
-  "a real Consciousness revision conflict remains stale and reuses successful extraction",
+  "delayed extraction preserves a newer Consciousness revision and reuses its success",
   { timeout: 10000 },
   async () => {
     const { revise } = await import("../../../src/pi_secretary/src/store.ts");
@@ -496,11 +500,11 @@ test(
         app.store
           .all<Job>("CompactionJob")
           .findLast((job) => job.mode === "WORKING_MEMORY")!.state,
-        "STALE",
+        "COMMITTED",
       );
       assert.equal(
         app.store.get<Memory>("Consciousness", key).revision,
-        newer.revision,
+        newer.revision + 1,
       );
       await app.host.compact();
       assert.equal(

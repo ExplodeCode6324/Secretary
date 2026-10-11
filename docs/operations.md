@@ -67,13 +67,13 @@ SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 | 显式访问执行 | POST `/executions/{id}/viewed`；GET 不续留 |
 | 设置草稿/应用 | GET `/settings`；POST `/settings/draft`、`/settings/apply` |
 | 记忆维护/承诺 | POST `/session/compact`、`/memory/commitments/{id}/resolve` |
-| 提取恢复 | GET `/memory/recovery`；POST `/memory/recovery` 带完整 binding |
+| 提取重排 | POST `/memory/extraction/retry`，body 为 `{request_id}`；GET `/memory` 查看状态 |
 | 未知文件写入核验 | POST `/operations/{id}/verify-write`；shell 无通用自动核验 |
 | World 迁移 | POST `/admin/world/migrate`，随后按请求回执与领域结果确认 |
 
 CLI 只支持 start/attach/status/stop；`npm start -- --migrate` 不执行数据库迁移，旧 `/compact`、`/verify` 等终端文本也不是 Core 命令。World 迁移读取现行 SQL 版本，不 drop 数据。草稿/应用/重试的字段以[操作表](api/v1/operations.json)和[设置规范](settings-activation.md)为准。
 
-只读预检签发的恢复 binding 有效期 5 分钟且绑定当前服务实例。过期或重启后未消费票据应重新预检；已消费请求仍沿用原 ID 对账。BLOCKED、UNKNOWN、设置重试和换 ID 都不授权盲目重发模型或外部动作。
+模型传输阻塞会产生通知；下一条新 Master 输入可恢复原输入批次，重复请求和后台反馈不触发。容量、来源损坏、未知工具结果等阻塞仍保持。session/resume 保留；提取重排独立于设置重试和 session/compact。
 
 ## 观察与故障处理
 

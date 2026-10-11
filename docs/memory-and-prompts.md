@@ -16,7 +16,7 @@ CHECKPOINT 保存完整原件，即使超出模型容量也能保存；MODEL_REQ
 
 ## 两种维护
 
-`CompactionJob.mode=WORKING_MEMORY` 更新 Consciousness 的事项/承诺和 covered_event_sequence，不删历史。完成回合累计 8 个或首个未覆盖完成回合等待 60 秒后到期；普通启动间隔至少 120 秒。已完成的 scheduler 反馈可绕过间隔。自然语言重要性不由关键词分类，普通回合批量覆盖。无新完成来源不调用模型；失败前缀自动停重试，新增输入不能绕过。
+`CompactionJob.mode=WORKING_MEMORY` 更新 Consciousness 的事项/承诺和 covered_event_sequence，不删历史。完成回合累计 8 个或首个未覆盖完成回合等待 60 秒后到期；普通启动间隔至少 120 秒。已完成的 scheduler 反馈可绕过间隔。自然语言重要性不由关键词分类，普通回合批量覆盖。无新完成来源不创建摘要任务；已有失败任务按持久到期时间重试，新增输入不能重置次数。
 
 `CONTEXT_COMPACTION` 单独记录可裁剪的 canonical 前缀及替代内容，60% 可用输入占用时在安全边界处理，80% 强制阶段也必须先评估后发送。历史须先进入成功记忆；已覆盖来源不重复摘要/提取。目标占用为可用输入的 30%，保留原始 Master 输入锚点、有效 system/tools、当前轮次和完整工具协议。保留内容过大时目标可能不可达；硬预算超限显示 CAPACITY_BLOCKED，保留证据，不伪报达标。
 
@@ -24,21 +24,23 @@ CHECKPOINT 保存完整原件，即使超出模型容量也能保存；MODEL_REQ
 
 ## 摘要与承诺
 
-默认摘要输出 16384，失败重试目标 32768，均受模型/部署上限约束。按较大重试预算冻结原始来源分段，不靠删除来源换取通过。最多 64 段，每段最多 2 次调用，计划总时限 20 分钟；候选整体字节、条目数量、工具调用及终止原因均检查。中断普通 job 标记失败并保留进度；设置流程按持久化候选恢复。
+默认摘要输出 16384，后续维护轮次目标 32768，均受模型/部署上限约束。冻结完整来源分段，最多 64 段；每段每轮只生成一个候选，协议不符留到下一轮。完整成功分段保存检查点，重启复用；容量、整体字节、工具调用及终止原因继续校验。
 
-摘要完成后才执行独立承诺提取。完整 user/assistant 消息保留说话人及事件 ID，过大完整消息不能安全装入提取请求时显式阻塞，不截断条件。每个来源的提取尝试持久化；成功复用，失败/未知结果不自动再调用，后续新增消息或账本变化也不能绕过。工具正文不能成为新承诺引文证据；引文在解码原始文本后核验，支持引号和换行。
+模型传输统一最多 3 次：首次立即，后两次前等待约 2 秒、10 秒，Retry-After 更长时服从服务端间隔。网络错误、单次超时、408 / 409 / 429 / 5xx 和明确过载可重试；认证、格式、容量和显式取消不重试。每次 ModelCall 留存尝试序号和诊断；只有 RESPONSE_SAVED 的成功响应可交给 Agent，失败诊断即使有 response 也不视为成功。重启复用已保存成功响应，未完成请求的已消耗次数不归零。
 
-设置整理与主流程共用事件来源身份；仅用于显示的助手 `display_call_id` 不会把同一消息变成第二个来源，文本相同但事件 ID 不同仍是独立来源。`settings.retry` 会重新排队设置整理，`POST /api/v1/session/compact` 会重新请求维护，但两者都不会清除承诺提取的来源级失败/未知结果；重复调用仍保持失败并报告 `COMMITMENT_EXTRACTION_REPLAY_BLOCKED`，重启也不解除此保护。旧设置的哈希来源通过已持久化的历史设置快照映射到事件，成功结果可复用；若部分旧快照无法区分多个完全相同消息对象对应的事件，则报告 `COMMITMENT_EXTRACTION_LEGACY_IDENTITY_AMBIGUOUS` 并停止提取，需另行核验证据后修复，不自动猜测或重试。
+正常摘要或提取初次失败后，再补试三轮，依次等待约 5 分钟、30 分钟、2 小时；第四次维护执行仍失败则停止。原始失败原因、轮次、到期时间保存在 journal；不需要新对话推动。不可重试的认证、容量和来源错误停止自动补试。`POST /api/v1/session/compact` 重置摘要退避；`POST /api/v1/memory/extraction/retry {request_id}` 对受理时的失败来源集合重排，重复 request_id 不再次重置。
+
+摘要覆盖进度与 MemoryExtractionJob 分开保存。成功摘要和 Settings 可独立提交；待补提任务保留来源事件 ID、完整原文引用及已完成分段，来源不会因覆盖水位前进而丢失。后台从 journal / CAS 补提，不依赖旧输入常驻主模型。完整消息超限时保留失败，绝不截断条件。补提按当前账本合并；成功终态和承诺合并同一事务落盘，已解决的状态不会退回 OPEN。
+
+设置与普通维护共用事件身份；显示用 display_call_id 不产生第二个来源，文本相同但事件 ID 不同仍独立。旧哈希来源通过历史设置快照映射；身份有歧义时保留明确错误，不猜测事件归属。`GET /api/v1/memory` 提供提取状态、轮次、下次到期时间与失败原因。
 
 commitments 是宿主账本，含稳定 ID、原文、状态、来源与处理凭证。摘要遗漏不能删除承诺；狭义结果汇报承诺只有匹配任务结果及来源之后的 SENT 通知才可自动完成。一般承诺由 `POST /api/v1/memory/commitments/{id}/resolve`（state 与 note） 明确处理。
 
-Issue 4 增加独立的用户显式单次提取恢复服务；每来源最多一次**自动**提取的约束不变。先只读预检失败分组，冻结旧 attempt、session、来源原件/边界、policy、实现与运行配置版本、工作记忆 revision，再以 request_id 和完整绑定请求授权所选分组。旧 attempt 不修改或删除，新恢复记录关联 parent_attempt 和精确 ModelCall；同 ID 同参数对账，同 ID 改参拒绝。授权消费在发送前落盘，来源拥有者和领取代次阻止并发发送及迟到提交。
+旧 ExtractionRecovery 的预检、绑定、票据和公开路由已退役；schema 保留历史记录读取，生产路径不再创建该类型。工具执行、World 提交与授权回执仍沿用原规则，未知外部副作用不自动重放。
 
-先复用已提交回执或已保存合法完整响应，执行确定性解析、证据校验和原 owner 提交，不重复摘要或模型提取。恢复不扩展到其他尚未提取分段。`FAILED` 只表示本地处理失败，不能证明供应商未收到请求；超时、无完整结果、旧执行不能确认静止或隔离、legacy 不能精确关联时保持 `BLOCKED`。重启仅对账，不重新发送不明调用。一次授权最多一次新调用，再失败仍需停发；不能承诺网络 exactly-once，允许新调用的明确授权也可能产生再次计费。主模型工具、设置重试、普通整理、消息到达及重启均不构成授权。
+新提取承诺同时保存 `source_batch`：实际创建它的 MemoryExtractionJob（历史记录可为 CompactionJob 或 SettingsApplication）、固定事件 ID 集合及结束序列。完成校验只使用该 owner 已提交候选中记录的这条承诺，并核对固定来源、事件批次、会话和时间；相同消息 blob 在另一个批次再次出现，不能借用旧批次的送达通知。设置来源即使含规范 Context，也必须通过当前绑定事件批次校验。旧记录缺少此字段时，不从 blob hash 猜测事件 owner；旧事件来源（含与 Context 同 hash 的已知事件证据）保守保持 OPEN，仍可按原有显式处理入口处理承诺状态；不存在该事件归属歧义的旧规范 Context 来源继续兼容。
 
-新提取承诺同时保存 `source_batch`：实际创建它的 CompactionJob 或 SettingsApplication、固定事件 ID 集合及结束序列。完成校验只使用该 owner 已提交候选中记录的这条承诺，并核对固定来源、事件批次、会话和时间；相同消息 blob 在另一个批次再次出现，不能借用旧批次的送达通知。设置来源即使含规范 Context，也必须通过当前绑定事件批次校验。旧记录缺少此字段时，不从 blob hash 猜测事件 owner；旧事件来源（含与 Context 同 hash 的已知事件证据）保守保持 OPEN，仍可按原有显式处理入口处理承诺状态（不清除提取失败记录，也不恢复提取重试）；不存在该事件归属歧义的旧规范 Context 来源继续兼容。
-
-设置的新承诺只使用本次冻结提取输入对应的完整证据快照，不能先按相同引文选用旧 Context。开始模型调用前校验每条输入与证据的角色、文本和完整消息身份；证据不匹配时报 `INVALID_SETTINGS_EXTRACTION_EVIDENCE`。早于固定计划格式、缺少 `plan` 或 `extraction_messages` 的旧待处理 SettingsSource 原本已无法直接运行当前摘要流程，现在明确报 `SETTINGS_SOURCE_UPGRADE_REQUIRED` 并保留失败状态，不自动转换旧来源或解除提取失败保护。
+设置的新承诺只使用本次冻结提取输入对应的完整证据快照，不能先按相同引文选用旧 Context。开始模型调用前校验每条输入与证据的角色、文本和完整消息身份；证据不匹配时报 `INVALID_SETTINGS_EXTRACTION_EVIDENCE`。早于固定计划格式、缺少 `plan` 或 `extraction_messages` 的旧待处理 SettingsSource 原本已无法直接运行当前摘要流程，现在明确报 `SETTINGS_SOURCE_UPGRADE_REQUIRED` 并保留失败状态，不猜测缺失的来源证据。
 
 ## 容量与配置
 
@@ -56,7 +58,7 @@ Issue 4 增加独立的用户显式单次提取恢复服务；每来源最多一
 | SECRETARY_COMPACTION_TARGET / THRESHOLD / FORCED_THRESHOLD | 0.30 / 0.60 / 0.80，严格有序 |
 | SECRETARY_MEMORY_UPDATE_TURNS / UPDATE_SECONDS / MIN_INTERVAL_SECONDS | 8 / 60 / 120 |
 
-参数均校验，纳入设置 runtimeHash。旧 SECRETARY_COMPACTION_BYTES 不再触发维护。当前 live 硬门禁支持实际验证的 openai-completions 和 openai-responses；最终 payload 的模型、输出字段和完整体积发送前再核验。不支持的路径明确阻塞，供应商失败不自动重试。task 同样门禁，超限保留检查点及失败原因，本次不新增 task 自动压缩。
+参数均校验，纳入设置 runtimeHash。旧 SECRETARY_COMPACTION_BYTES 不再触发维护。当前 live 硬门禁支持实际验证的 openai-completions 和 openai-responses；最终 payload 的模型、输出字段和完整体积发送前再核验。不支持的路径明确阻塞，可重试供应商错误按上述有界策略处理。task 同样门禁，超限保留检查点及失败原因，本次不新增 task 自动压缩。
 
 内部状态和历史显示投影保留最近 MAIN MODEL_REQUEST 的预算与 usage，与恢复 CHECKPOINT 分开；下一请求发送前重算。当前 API 的 session 仅公开身份/状态/revision/recovery_error，不能把遗留 UI 的完整容量面板当作新版已实现接口。真实 usage 属于对应已完成调用，不混加 input/cache 指标。
 
@@ -66,13 +68,13 @@ Issue 4 增加独立的用户显式单次提取恢复服务；每来源最多一
 
 验收计划与覆盖矩阵见 [Issue #2 计划](fix/fix_20261005_issue2_上下文容量与记忆分离计划.md)。合成回归、HTTP 捕获、真实模型、浏览器及部署是不同证据；本次运行报告会分别记录，不能用离线绿灯代替部署证明。
 
-恢复对账还核对精确 ModelCall 的完整 session/task/execution scope、Context 与调用/loop/用途/revision 的关联，以及原始 system 和完整请求证据；不能因 user 来源文本相同就接受不同 system 请求。该校验针对证据完整性，不意味着存在正常用户入口可以修改持久记录。预检签发的未消费凭证在 5 分钟后或服务重启时失效，须重新预检；已消费的幂等回执仍可对账，不重新调用模型。
+模型恢复按 session/task/execution scope、loop、调用位置、模型和持久请求身份关联。相同文本不构成跨调用缓存；成功响应复用，失败诊断与次数保留。手动恢复主会话或重排维护会建立新的重试代次，后台 tick 和重启不会重置预算。
 
 
 ## 新版读入口与验证边界
 
 `GET /api/v1/memory` 返回维护状态；summary 与 commitments 分页接口返回有界摘要、承诺和来源投影，不透传 PromptSnapshot 或完整 Consciousness。来源无明确事件绑定时为 locator_state=unavailable；承诺有 source_batch 才公开其 source_event_ids，不用同内容 hash 猜来源。
 
-显式提取恢复使用 `GET /api/v1/memory/recovery` 取得完整 binding，再 POST 同路径持久受理并通过 requests 对账；不再通过旧终端命令。TaskResult 的完成与 Notification SENT 的送达证明不同，当前 API 尚未提供 presented 确认命令，不能把普通读取当成自动完成承诺的依据。
+提取重排使用 `POST /api/v1/memory/extraction/retry`，只需稳定 request_id；通过 requests 与 memory 状态对账。TaskResult 的完成与 Notification SENT 的送达证明不同，当前 API 尚未提供 presented 确认命令，不能把普通读取当成自动完成承诺的依据。
 
 已验收的合成记忆场景证明整理后两个真实 OS 进程之间的持久连续性，重启后确有真实 provider 请求；原始事实仍在请求上下文中，不能宣称仅凭摘要回忆。详见[API 验证记录](api/v1/verification.md)。

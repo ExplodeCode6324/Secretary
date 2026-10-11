@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Generate field and SQL references from the contracts actually loaded by Pi."""
 from pathlib import Path
 import json,re
