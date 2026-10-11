@@ -71,7 +71,7 @@ revision、journal/event sequence、World version、字节长度使用十进制�
 
 ## 当前明确边界
 
-- 65 项操作（38 GET、27 POST）以 operations.json 为完整入口清单；没有旧 SSE、公开 capacity 面板或 Notification presented/已读命令。Host 仍可创建 QUEUED 通知，旧 TerminalController 曾写 SENT；当前 GET 不会产生该回执，也不能自动满足依赖送达证据的承诺。
+- 64 项操作（37 GET、27 POST）以 operations.json 为完整入口清单；没有旧 SSE、公开 capacity 面板或 Notification presented/已读命令。Host 仍可创建 QUEUED 通知，旧 TerminalController 曾写 SENT；当前 GET 不会产生该回执，也不能自动满足依赖送达证据的承诺。
 - 短命令 ApiCommand 保持 ACCEPTED，不承诺统一转 COMPLETED；读取 resource_ids 所指领域状态。长命令派发异常与中断统一保留 UNKNOWN，不以 schema 中的 FAILED 枚举推断已实现该分支。
 - 公共 TaskCommand 的字段为 acceptance（字符串数组），不是内部 TaskProposal.acceptance_criteria；公开可选字段的缺省与内部工具的 null 语义不能混用，提交前按公开 schema 校验。
 - DraftCommand.edits 的结构上限是100，但 SettingsPayload 领域层仍限制50；实际可提交批次应遵守更严格的50项。公开 DTO 合法不保证领域前提、权限和资源版本通过。
