@@ -107,6 +107,16 @@ export async function launchProcess(
       resolve(outcome ?? { exit_code: code, signal });
     });
   });
+  // An externally killed leader can leave descendants holding stdout/stderr.
+  // Do not wait forever for their pipe EOF; group identity remains unconfirmed.
+  child.once("exit", (_code, signal) => {
+    if (signal) {
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      (child.stdio[4] as Readable | null)?.destroy();
+      control.destroy();
+    }
+  });
   // Install rejection handling before awaiting readiness.
   void closed.catch(() => {});
   let buffer = "";
