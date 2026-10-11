@@ -85,8 +85,6 @@ const HELP = `直接输入消息与主会话交谈；命令只由 Master 的终�
 /rule <JSON>               添加授权规则，字段 action、resource、parameters
 /world [JSON]              查询 World Model，或提交变更提案
 /memory                    记忆整理状态、承诺 ID 与失败原因
-/memory-recovery [group]    只读查看提取失败分组及恢复预检
-/memory-recover <JSON>      使用预检绑定显式授权一次恢复
 /memory-resolve <id> <COMPLETED|CANCELLED> <说明>  明确处理承诺
 /compact  /resume          整理工作记忆／重试已中断模型调用
 /help  /quit               帮助／停止并退出
@@ -590,17 +588,6 @@ export class TerminalController {
         break;
       case "/memory":
         this.print(this.app.host.memoryStatus());
-        break;
-      case "/memory-recovery":
-        this.print(
-          this.app.host.memoryRecoveryPreflight(rest.trim() || undefined),
-        );
-        this.print(
-          '一次恢复：/memory-recover {"request_id":"新的UUID",...预检binding字段}；凭证5分钟内首次提交有效，以 expires_at 为准，过期或服务重启后重新预检。已消费请求沿用原ID对账。只授权该来源分组，一次至多一次新调用，可能重复计费；超时未知保持 BLOCKED；对账不调用模型。',
-        );
-        break;
-      case "/memory-recover":
-        this.print(await this.app.host.recoverMemory(JSON.parse(rest)));
         break;
       case "/memory-resolve": {
         const [commitment, state, ...note] = rest.split(/\s+/);

@@ -6,7 +6,7 @@
 
 | 字段 | 类型 / 值域 | 必填 | 说明与约束 |
 | --- | --- | --- | --- |
-| `owner_type` | CompactionJob / SettingsApplication | 是 |  |
+| `owner_type` | CompactionJob / SettingsApplication / MemoryExtractionJob | 是 |  |
 | `owner_id` | ID | 是 |  关联：[ID](ID.md) |
 | `source_event_ids` | array<ID> | 是 |  关联：[ID](ID.md) |
 | `source_end_sequence` | integer | 是 |  {"minimum": 0, "maximum": 9007199254740991} |

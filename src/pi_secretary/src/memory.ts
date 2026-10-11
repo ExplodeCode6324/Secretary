@@ -13,6 +13,7 @@ import type {
   SettingsApplication,
   OperationLogRecord,
   CommitmentSourceBatch,
+  MemoryExtractionJob,
 } from "./contracts.ts";
 
 // A quote blob alone is not provenance. Tie it back to a durable owner and
@@ -66,17 +67,24 @@ function sourcePrecedesDelivery(
     const owner =
       batch.owner_type === "CompactionJob"
         ? store.find<CompactionJob>("CompactionJob", batch.owner_id)
-        : store.find<SettingsApplication>(
-            "SettingsApplication",
-            batch.owner_id,
-          );
+        : batch.owner_type === "MemoryExtractionJob"
+          ? store.find<MemoryExtractionJob>(
+              "MemoryExtractionJob",
+              batch.owner_id,
+            )
+          : store.find<SettingsApplication>(
+              "SettingsApplication",
+              batch.owner_id,
+            );
     if (
       !owner ||
       owner.session_id !== cs.session_id ||
       !owner.candidate_ref ||
       (owner.record_type === "CompactionJob"
         ? owner.state !== "COMMITTED" || owner.mode !== "WORKING_MEMORY"
-        : owner.state !== "APPLIED")
+        : owner.record_type === "MemoryExtractionJob"
+          ? owner.state !== "SUCCEEDED" || !owner.merged
+          : owner.state !== "APPLIED")
     )
       return false;
     const saved = store.read<{ commitments?: MemoryCommitment[] }>(
@@ -97,6 +105,10 @@ function sourcePrecedesDelivery(
       refs = owner.source_refs;
       ids = owner.source_event_ids;
       end = owner.source_end_sequence ?? -1;
+    } else if (owner.record_type === "MemoryExtractionJob") {
+      refs = [owner.evidence_ref];
+      ids = owner.source_event_ids;
+      end = owner.source_end_sequence;
     } else {
       if (!owner.source_ref) return false;
       const source = store.read<import("./settings-memory.ts").SettingsSource>(
@@ -320,11 +332,26 @@ export function reconcileCommitments(
     for (const text of item.unfulfilled_commitments) {
       if (
         !original.some((body) => body.includes(text)) ||
-        ledger.some((c) => c.text === text)
+        ledger.some(
+          (c) =>
+            c.text === text &&
+            (sourceBatch?.owner_type !== "MemoryExtractionJob" ||
+              !c.source_batch ||
+              c.source_batch.source_event_ids.some((id) =>
+                sourceBatch.source_event_ids.includes(id),
+              ) ||
+              c.source_refs.some((ref) => ref.sha256 === source.sha256)),
+        )
       )
         continue;
       ledger.push({
-        id: commitmentID(cs.id + text),
+        id: commitmentID(
+          cs.id +
+            (sourceBatch?.owner_type === "MemoryExtractionJob"
+              ? JSON.stringify(sourceBatch.source_event_ids) + source.sha256
+              : "") +
+            text,
+        ),
         text,
         state: "OPEN",
         source_refs: [source],

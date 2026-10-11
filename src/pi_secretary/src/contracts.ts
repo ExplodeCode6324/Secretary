@@ -48,7 +48,8 @@ export type SecretaryDemoV1 =
   | CoreIdentity
   | AssistantProfile
   | ClientRegistration
-  | ApiCommand;
+  | ApiCommand
+  | MemoryExtractionJob;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -325,6 +326,8 @@ export interface Session {
   last_journal_seq: number;
   recovery_error: string | null;
   runtime_settings_hash?: Digest;
+  model_retry_generation?: number;
+  model_blocked_call?: ID | null;
 }
 /**
  * 外部输入；工具返回不创建此对象。
@@ -496,6 +499,9 @@ export interface ModelCall {
   started_at: Time | null;
   completed_at: Time | null;
   error: string | null;
+  logical_key?: Digest;
+  failure_kind?: "TRANSIENT" | "PERMANENT" | "CANCELLED" | "LOCAL";
+  retry_at?: Time | null;
 }
 /**
  * 日志定位：main 至少 session；task 必须 task 与 execution；跨域见语义校验。
@@ -602,7 +608,7 @@ export interface MemoryCommitment {
  * 新提取承诺的固定事件批次；缺省只按旧 Context 来源兼容，不能凭相同 blob 推断事件归属。
  */
 export interface CommitmentSourceBatch {
-  owner_type: "CompactionJob" | "SettingsApplication";
+  owner_type: "CompactionJob" | "SettingsApplication" | "MemoryExtractionJob";
   owner_id: ID;
   source_event_ids: ID[];
   source_end_sequence: number;
@@ -650,6 +656,9 @@ export interface CompactionJob {
    * 仅上下文裁剪：保留原文及当前协议后是否达到目标占用；false 不代表删除保留材料。
    */
   target_reached?: boolean;
+  retry_round?: number;
+  retry_generation?: number;
+  next_attempt_at?: Time | null;
 }
 /**
  * 主会话只提出任务；不接受 authorized、grant 等模型声明。
@@ -1626,7 +1635,8 @@ export interface Mutation {
     | "CoreIdentity"
     | "AssistantProfile"
     | "ClientRegistration"
-    | "ApiCommand";
+    | "ApiCommand"
+    | "MemoryExtractionJob";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -1730,9 +1740,10 @@ export interface SettingsApplication {
    * 已保存原始字节 SHA-256 小写十六进制。
    */
   runtime_settings_hash: string;
+  summary_generation?: number;
 }
 /**
- * Explicit single-use recovery authorization; immutable request binding and generation fence, never automatic retry.
+ * 历史提取恢复记录，仅保留读取旧 journal；生产路径不再创建。
  */
 export interface ExtractionRecovery {
   schema_version: 1;
@@ -1847,6 +1858,39 @@ export interface ApiCommand {
   }[];
   error_code: string | null;
   result_ref: ObjectRef | null;
+}
+/**
+ * 冻结的承诺提取来源与有界维护重试；独立于摘要覆盖水位。
+ */
+export interface MemoryExtractionJob {
+  schema_version: 1;
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  record_type: "MemoryExtractionJob";
+  session_id: ID;
+  source_keys: Digest[];
+  source_event_ids: ID[];
+  source_end_sequence: number;
+  source_ref: ObjectRef;
+  evidence_ref: ObjectRef;
+  existing_ref: ObjectRef | null;
+  candidate_ref: ObjectRef | null;
+  state: "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED";
+  merged: boolean;
+  round: number;
+  generation: number;
+  next_attempt_at: Time | null;
+  error: string | null;
+  quotes: string[];
+  call_id: ID | null;
+  owner_id?: ID;
+  progress_ref?: ObjectRef;
+  task_refs?: ID[];
+  policy_id?: string;
 }
 
 export type Contract = SecretaryDemoV1;

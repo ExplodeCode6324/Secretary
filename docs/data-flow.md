@@ -69,4 +69,4 @@ write/bash 或程序产生任务工作文件 → submit_result 指定文件 → 
 
 ## API 长命令
 
-POST 持久登记 ApiCommand QUEUED → 返回 202 → 调度为 RUNNING → 调用原领域入口 → COMPLETED 或 UNKNOWN。重启只推进未开始的 QUEUED；已 RUNNING 的中断转 UNKNOWN，不自动重发。memory/recovery 仍须通过当前实例的票据有效期及来源绑定，API 持久受理不会延长授权。
+POST 持久登记 ApiCommand QUEUED → 返回 202 → 调度为 RUNNING → 调用原领域入口 → COMPLETED 或 UNKNOWN。重启只推进未开始的 QUEUED；已 RUNNING 的中断转 UNKNOWN，不自动重发。memory/extraction/retry 属于幂等短命令：持久重排失败来源后，由维护周期推进。模型有界重试不重放工具或未知外部作用。

@@ -20,13 +20,16 @@
 | `covered_event_ids` | array<ID> | 是 |  {"minItems": 0} 关联：[ID](ID.md) |
 | `validation_errors` | array<string> | 是 |  {"minItems": 0} |
 | `memory_version` | 2 | 否 |  |
-| `attempt` | integer | 否 |  {"minimum": 1, "maximum": 2} |
+| `attempt` | integer | 否 |  {"minimum": 1, "maximum": 4} |
 | `source_end_sequence` | integer | 否 |  {"minimum": 0} |
 | `mode` | WORKING_MEMORY / CONTEXT_COMPACTION | 否 |  |
 | `policy_id` | string | 否 |  |
 | `progress_ref` | ObjectRef | 否 |  关联：[ObjectRef](ObjectRef.md) |
 | `source_start_sequence` | integer | 否 |  {"minimum": 0} |
 | `target_reached` | boolean | 否 | 仅上下文裁剪：保留原文及当前协议后是否达到目标占用；false 不代表删除保留材料。 |
+| `retry_round` | integer | 否 |  {"minimum": 0, "maximum": 3} |
+| `retry_generation` | integer | 否 |  {"minimum": 0, "maximum": 9007199254740991} |
+| `next_attempt_at` | Time 或 null | 否 |  关联：[Time](Time.md) |
 
 ## 组合约束
 

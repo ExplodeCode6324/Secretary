@@ -1,6 +1,6 @@
 import { contentText } from "@earendil-works/pi-ai";
 import { activitiesFor } from "./activity.ts";
-import { extractNewCommitments } from "./memory-extraction.ts";
+import { enqueueExtractions } from "./memory-extraction.ts";
 import { hash } from "./store.ts";
 import { messageIdentityHash } from "./message-identity.ts";
 import { historicalMasterText } from "./historical-inputs.ts";
@@ -245,7 +245,6 @@ export async function summarizeSettings(
   source: SettingsSource,
   candidate: SettingsCandidate | null,
   checkpoint: (candidate: SettingsCandidate) => void,
-  recoveryOnly = false,
 ) {
   // Pre-v2 saved settings sources have no frozen extraction evidence. Keep
   // them blocked rather than silently interpreting a historical Context as it.
@@ -262,40 +261,35 @@ export async function summarizeSettings(
   };
   const activity = activitiesFor(host.store),
     activityID = "settings:" + applicationID;
-  if (recoveryOnly && current.completed !== source.chunks.length)
-    throw Error("RECOVERY_SUMMARY_INCOMPLETE");
-  const summary = recoveryOnly
-    ? current
-    : await runSummary({
-        store: host.store,
-        model: host.model,
-        stream: host.stream,
-        sessionID: host.sessionID,
-        loopID: applicationID,
-        consciousnessRevision: source.consciousness.revision,
-        refs: source.refs,
-        plan: source.plan,
-        commitments: migrateCommitments(source.consciousness),
-        candidate: current,
-        checkpoint: (value) => {
-          current = { ...current, ...value };
-          checkpoint(current);
-        },
-        progress: (index, attempt, error) =>
-          activity.step(
-            activityID,
-            attempt > 1
-              ? `重试 2/2：${error ?? "上次摘要未完成"}`
-              : "正在重建设置上下文",
-            {
-              current: index + 1,
-              completed: current.completed,
-              total: source.chunks.length,
-              attempt,
-              max_attempts: 2,
-            },
-          ),
-      });
+  const summary = await runSummary({
+    store: host.store,
+    model: host.model,
+    stream: host.stream,
+    sessionID: host.sessionID,
+    loopID: applicationID,
+    generation:
+      host.store.find<import("./contracts.ts").SettingsApplication>(
+        "SettingsApplication",
+        applicationID,
+      )?.summary_generation ?? 0,
+    consciousnessRevision: source.consciousness.revision,
+    refs: source.refs,
+    plan: source.plan,
+    commitments: migrateCommitments(source.consciousness),
+    candidate: current,
+    checkpoint: (value) => {
+      current = { ...current, ...value };
+      checkpoint(current);
+    },
+    progress: (index, attempt) =>
+      activity.step(activityID, "正在重建设置上下文", {
+        current: index + 1,
+        completed: current.completed,
+        total: source.chunks.length,
+        attempt,
+        max_attempts: 1,
+      }),
+  });
   current = { ...current, ...summary };
   if (!current.extraction_complete && source.chunks.length) {
     activity.step(activityID, "正在提取承诺", {
@@ -303,22 +297,19 @@ export async function summarizeSettings(
       completed: current.completed,
       total: source.chunks.length,
     });
-    const quotes = await extractNewCommitments({
+    if (!evidence) throw Error("INVALID_SETTINGS_EXTRACTION_EVIDENCE");
+    enqueueExtractions({
       store: host.store,
-      model: host.model,
-      stream: host.stream,
       sessionID: host.sessionID,
       loopID: applicationID,
-      consciousnessRevision: source.consciousness.revision,
+      taskRefs: current.items[0]?.task_refs ?? [],
       source: null,
       completeMessages: source.extraction_messages,
-      extractionKey: applicationID + ":" + source.plan.source_hash,
-      runtimeConfigHash: host.extractionRuntimeHash,
-      recoveryOnly,
-      existing: current.commitments,
     });
     const proposed = structuredClone(current.items);
-    if (proposed.length) proposed[0].unfulfilled_commitments = quotes;
+    proposed.forEach((item) => {
+      item.unfulfilled_commitments = [];
+    });
     // settingsSource appends the complete current extraction evidence last.
     // Historical Context refs can contain the same quote from another event;
     // they must not claim a newly extracted commitment before its actual batch.

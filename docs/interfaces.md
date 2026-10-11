@@ -25,7 +25,7 @@ shell 默认 120 秒，允许 0.1–3600 秒；stdout/stderr 各限 4 MiB。超�
 
 Core 生命周期由 `npm run core -- start|attach|status|stop` 管理。所有 API 仅监听 loopback，校验 Host/Origin 与 bearer token；服务端可信 local-owner principal 才能提交审批、Settings、管理或停机操作。
 
-记忆恢复仍保留 Host 的完整来源、模型、配置和一次性授权 binding，首次消费受 5 分钟期限限制。使用 `GET /api/v1/memory/recovery` 取得 binding，`POST` 持久受理后通过 `GET /api/v1/requests/{request_id}` 对账，不能把 HTTP 202 当作恢复成功或延长期限。
+承诺提取通过 `POST /api/v1/memory/extraction/retry {request_id}` 重新排队受理时的失败来源集合；同 ID 重放不重置次数。`GET /api/v1/memory` 返回来源任务状态与退避信息，requests 用于受理对账。旧 memory/recovery 接口已移除。
 
 ## 登记程序
 

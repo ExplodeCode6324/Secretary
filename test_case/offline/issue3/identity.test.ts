@@ -107,7 +107,7 @@ async function failSettings(app: App) {
   await app.settings.tick();
   assert.equal(
     app.store.get<SettingsApplication>("SettingsApplication", request.id).state,
-    "FAILED",
+    "APPLIED",
   );
   return request.id;
 }
@@ -126,53 +126,38 @@ test("settings uses exactly the main event IDs despite assistant display metadat
     );
   }));
 
-test("failed settings extraction blocks main maintenance, explicit retries and restart", () =>
+test("failed settings extraction remains queued independently through Settings, compact and restart", () =>
   fixture(async ({ app, calls, fail, reopen }) => {
     const applicationID = await failSettings(app);
     assert.equal(calls.sources.length, 1);
     fail(false);
-    const previousTurns = process.env.SECRETARY_MEMORY_UPDATE_TURNS;
-    process.env.SECRETARY_MEMORY_UPDATE_TURNS = "1";
-    try {
-      app.host.maintainIfNeeded();
-      await app.host.compact(); // Wait for the maintenance started by the scheduler boundary.
-    } finally {
-      if (previousTurns === undefined)
-        delete process.env.SECRETARY_MEMORY_UPDATE_TURNS;
-      else process.env.SECRETARY_MEMORY_UPDATE_TURNS = previousTurns;
-    }
-    assert.equal(
-      calls.sources.length,
-      1,
-      "automatic maintenance must not replay a failed settings source",
-    );
     await app.host.compact();
-    assert.equal(
-      calls.sources.length,
-      1,
-      "explicit compact does not override the durable extraction stop",
-    );
     app.settings.retry(applicationID);
     await app.settings.tick();
     assert.equal(
-      calls.sources.length,
-      1,
-      "settings retry does not override the durable extraction stop",
+      app.store.get<SettingsApplication>("SettingsApplication", applicationID)
+        .state,
+      "APPLIED",
     );
-    const retried = app.store.get<SettingsApplication>(
-      "SettingsApplication",
-      applicationID,
-    );
-    assert.equal(retried.state, "FAILED");
-    assert.match(retried.error ?? "", /REPLAY_BLOCKED/);
-    app = await reopen();
-    await app.host.compact();
     assert.equal(
       calls.sources.length,
       1,
-      "restart retains source-level failure protection",
+      "compact and Settings do not reset extraction backoff",
     );
-    assert.equal(app.host.memoryStatus().state, "FAILED");
+    app = await reopen();
+    await app.host.compact();
+    assert.equal(calls.sources.length, 1);
+    assert(
+      app.host.memoryStatus().extraction.some((j) => j.state === "FAILED"),
+    );
+    app.host.retryExtractions(id());
+    await app.host.extractPending();
+    assert.equal(
+      calls.sources.length,
+      3,
+      "failed first segment plus both complete source segments on retry",
+    );
+    assert.equal(app.host.memoryStatus().extraction.length, 0);
   }));
 
 test("successful settings extraction is reused by main across a restart", () =>
@@ -180,6 +165,7 @@ test("successful settings extraction is reused by main across a restart", () =>
     fail(false);
     const source = settingsSource(app.host, { world: [], instructions: null });
     await summarizeSettings(app.host, id(), source, null, () => {});
+    await app.host.extractPending();
     const count = calls.sources.length;
     assert(count > 0);
     app = await reopen();
@@ -289,7 +275,7 @@ for (const succeeded of [false, true])
       fail(false);
       app = await reopen();
       await app.host.compact();
-      assert.equal(calls.sources.length, succeeded ? 2 : 1);
+      assert.equal(calls.sources.length, 2);
       if (succeeded) {
         assert(
           calls.sources[1].every((m) => m.role !== "assistant"),
@@ -297,10 +283,10 @@ for (const succeeded of [false, true])
         );
         assert.equal(app.host.memoryStatus().state, "COMMITTED");
       } else {
-        assert.equal(app.host.memoryStatus().state, "FAILED");
+        assert.equal(app.host.memoryStatus().state, "COMMITTED");
         app.settings.retry(request.id);
         await app.settings.tick();
-        assert.equal(calls.sources.length, 1);
+        assert.equal(calls.sources.length, 2);
       }
     }));
 

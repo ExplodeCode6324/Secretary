@@ -289,8 +289,10 @@ test("Issue3 event origins require the original session, sequence and exact snap
     const { event } = await deliver(app, result);
     const cs = memory(app);
     const job = app.store
-      .all<CompactionJob>("CompactionJob")
-      .findLast((j) => j.mode === "WORKING_MEMORY")!;
+      .all<
+        import("../../../src/pi_secretary/src/contracts.ts").MemoryExtractionJob
+      >("MemoryExtractionJob")
+      .find((j) => j.id === cs.commitments![0].source_batch!.owner_id)!;
     const original = app.store.logs.find(
       (event) => event.event_id === job.source_event_ids.at(-1),
     )!;
@@ -314,9 +316,14 @@ test("Issue3 event origins require the original session, sequence and exact snap
       "foreign event cannot vouch for source",
     );
     app.store.commit([
-      revise(app.store.get<CompactionJob>("CompactionJob", job.id), {
-        source_event_ids: [id()],
-      }),
+      revise(
+        app.store.get<
+          import("../../../src/pi_secretary/src/contracts.ts").MemoryExtractionJob
+        >("MemoryExtractionJob", job.id),
+        {
+          source_event_ids: [id()],
+        },
+      ),
     ]);
     assert.equal(
       resolve(app, event.event_id),

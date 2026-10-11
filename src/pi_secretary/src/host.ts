@@ -9,16 +9,13 @@ import {
 } from "./summary.ts";
 import { activitiesFor } from "./activity.ts";
 import { contentText } from "@earendil-works/pi-ai";
-import { extractNewCommitments } from "./memory-extraction.ts";
 import {
-  listExtractionRecoveryGroups,
-  recoverExtractionOnce,
-  type RecoveryBinding,
-} from "./memory-extraction-recovery.ts";
-import {
-  compactionRecoverySource,
-  commitRecoveredCompaction,
-} from "./host-memory-recovery.ts";
+  enqueueExtractions,
+  drainExtractions,
+  restoreExtractions,
+  retryExtractions,
+} from "./memory-extraction.ts";
+import { maintenanceRetryAt, retryNow } from "./model-retry.ts";
 import { migrateCommitments, reconcileCommitments } from "./memory.ts";
 import { Type } from "typebox";
 import {
@@ -46,6 +43,8 @@ import type {
   Consciousness,
   Feedback,
   CompactionJob,
+  ModelCall,
+  MemoryExtractionJob,
   Notification,
   WorldChange,
   WorldCatalogChange,
@@ -65,16 +64,12 @@ export class Host {
   readonly previews = new Previews();
   sessionID: string;
   private active?: Promise<void>;
-  memoryRecoveryBusy = false;
-  private recoveryDone?: Promise<void>;
-  extractionRuntimeHash?: string;
-  settingsRecoveryCheck?: (ownerID: string) => void;
-  settingsRecoveryCommit?: (ownerID: string) => Promise<void>;
   settingsBlocked: () => boolean = () => false;
   fullMemoryRefresh?: () => Promise<void>;
   private agent?: Agent;
   private closing = false;
   private maintenance?: Promise<void>;
+  private extraction?: Promise<void>;
   private pressureCache?: { key: string; pressured: boolean };
   private capacityAttemptKey?: string;
   constructor(
@@ -112,31 +107,13 @@ export class Host {
         ],
       );
     getInstructions(store);
-    for (const job of store.all<CompactionJob>("CompactionJob")) {
-      if (job.state === "SUMMARIZING")
-        store.commit(
-          [
-            revise(job, {
-              state: "FAILED",
-              validation_errors: ["PROCESS_INTERRUPTED"],
-            }),
-          ],
-          [
-            store.event("consciousness.failed", {
-              job_id: job.id,
-              error: "PROCESS_INTERRUPTED",
-            }),
-          ],
-        );
-    }
     const old = store.all<Session>("Session")[0];
     if (old) {
       this.sessionID = old.id;
       store.commit([
         revise(old, {
-          state: "IDLE",
+          state: old.state === "RUNNING" ? "IDLE" : old.state,
           owner_epoch: store.epoch,
-          recovery_error: null,
         }),
       ]);
     } else {
@@ -166,6 +143,7 @@ export class Host {
       };
       store.commit([cs, session]);
     }
+    restoreExtractions(store, this.sessionID);
   }
   get session() {
     return this.store.get<Session>("Session", this.sessionID);
@@ -194,7 +172,22 @@ export class Host {
       feedback_id: null,
     };
     this.store.commit(
-      [input],
+      [
+        input,
+        ...(producer === "MASTER" &&
+        this.session.state === "RECOVERY_BLOCKED" &&
+        this.session.model_blocked_call
+          ? [
+              revise(this.session, {
+                state: "IDLE",
+                recovery_error: null,
+                model_blocked_call: null,
+                model_retry_generation:
+                  (this.session.model_retry_generation ?? 0) + 1,
+              }),
+            ]
+          : []),
+      ],
       [
         this.store.event(
           "input.accepted",
@@ -261,19 +254,24 @@ export class Host {
   }
   resume() {
     this.store.commit([
-      revise(this.session, { state: "IDLE", recovery_error: null }),
+      revise(this.session, {
+        state: "IDLE",
+        recovery_error: null,
+        model_blocked_call: null,
+        model_retry_generation: (this.session.model_retry_generation ?? 0) + 1,
+      }),
     ]);
     return this.drain();
   }
   drain() {
-    if (this.memoryRecoveryBusy || this.settingsBlocked())
-      return this.active ?? Promise.resolve();
+    if (this.settingsBlocked()) return this.active ?? Promise.resolve();
     if (["RECOVERY_BLOCKED", "CAPACITY_BLOCKED"].includes(this.session.state))
       return Promise.resolve();
     if (this.active) return this.active;
     this.active = (async () => {
       await this.maintenance;
       await this.run();
+      if (!this.closing && !this.settingsBlocked()) await this.extractPending();
     })().finally(() => {
       this.active = undefined;
     });
@@ -555,6 +553,7 @@ export class Host {
             loopID,
             "MAIN",
             {
+              generation: this.session.model_retry_generation ?? 0,
               activityPhase: batch.some((i) => i.producer === "SCHEDULER")
                 ? "正在整理回复"
                 : undefined,
@@ -673,6 +672,12 @@ export class Host {
         this.finish(batch);
       } catch (error) {
         const text = String(error);
+        const failedID = text.match(
+          /MODEL_TRANSPORT_(?:TRANSIENT|PERMANENT):([a-f0-9-]{36}):/,
+        )?.[1];
+        const failed = failedID
+          ? this.store.find<ModelCall>("ModelCall", failedID)
+          : undefined;
         this.store.commit(
           [
             revise(this.session, {
@@ -680,10 +685,13 @@ export class Host {
                 ? "CAPACITY_BLOCKED"
                 : "RECOVERY_BLOCKED",
               recovery_error: text,
+              model_blocked_call:
+                failed?.scope.session_id === this.sessionID ? failed.id : null,
             }),
           ],
           [this.store.event("host.blocked", { error: text })],
         );
+        if (failed) this.notifyFailure("model:" + failed.logical_key, text);
         return;
       } finally {
         this.agent = undefined;
@@ -1081,6 +1089,7 @@ export class Host {
         l.event_type === "input.handled" &&
         l.sequence > start,
     );
+    if (this.pendingSummary()) return this.summaryDue();
     if (!turns.length) return false;
     const jobs = this.store
       .all<CompactionJob>("CompactionJob")
@@ -1088,16 +1097,7 @@ export class Host {
         (j) =>
           j.session_id === this.sessionID && j.mode !== "CONTEXT_COMPACTION",
       );
-    // A later message must not silently replay an already failed prefix.
-    if (
-      jobs.some(
-        (j) =>
-          j.state === "FAILED" &&
-          (j.source_start_sequence ?? 0) === start &&
-          j.policy_id === SUMMARY_POLICY,
-      )
-    )
-      return false;
+    if (this.pendingSummary()) return this.summaryDue();
     const critical = this.store.logs.some(
       (l) =>
         l.scope.session_id === this.sessionID &&
@@ -1126,7 +1126,6 @@ export class Host {
     return `${this.session.last_context_id}:${this.memory().revision}:${JSON.stringify(budgetConfig())}`;
   }
   maintainIfNeeded() {
-    if (this.memoryRecoveryBusy) return;
     if (this.active || this.maintenance || this.settingsBlocked()) return;
     const key = this.pressureKey();
     if (this.pressureCache?.key !== key)
@@ -1139,29 +1138,36 @@ export class Host {
       };
     const pressure =
       this.pressureCache.pressured && this.capacityAttemptKey !== key;
-    if (!this.memoryDue() && !pressure) return;
-    const cs = this.memory();
-    if (
-      this.store
-        .all<CompactionJob>("CompactionJob")
-        .some(
-          (j) =>
-            j.session_id === this.sessionID &&
-            j.state === "FAILED" &&
-            (j.source_start_sequence ?? 0) ===
-              (cs.covered_event_sequence ?? 0) &&
-            j.policy_id === SUMMARY_POLICY,
-        )
-    )
-      return;
-    void this.compact();
+    const extractionDue = this.store
+      .all<MemoryExtractionJob>("MemoryExtractionJob")
+      .some(
+        (j) =>
+          j.session_id === this.sessionID &&
+          !j.merged &&
+          (j.state !== "FAILED" ||
+            (!!j.next_attempt_at &&
+              Date.parse(j.next_attempt_at) <= retryNow(this.store))),
+      );
+    if (!this.memoryDue() && !pressure && !extractionDue) return;
+    if (this.pendingSummary() && !this.summaryDue() && !extractionDue) return;
+    void this.compact(false);
   }
-  compact() {
-    if (this.memoryRecoveryBusy)
-      return Promise.reject(Error("MEMORY_RECOVERY_IN_PROGRESS"));
+  compact(reset = true) {
     if (this.settingsBlocked())
       return Promise.reject(Error("SETTINGS_APPLICATION_IN_PROGRESS"));
     if (this.maintenance) return this.maintenance;
+    if (reset) {
+      const pending = this.pendingSummary();
+      if (pending && pending.state === "FAILED")
+        this.store.commit([
+          revise(pending, {
+            state: "SUMMARIZING",
+            retry_round: 0,
+            retry_generation: (pending.retry_generation ?? 0) + 1,
+            next_attempt_at: null,
+          }),
+        ]);
+    }
     const active = this.active;
     if (this.memory().pending_raw_refs.length > 1 && this.fullMemoryRefresh)
       return (async () => {
@@ -1171,6 +1177,7 @@ export class Host {
     this.maintenance = (async () => {
       await active;
       await this.maintain();
+      await this.extractPending();
       if (this.session.last_context_id) {
         const c = this.store.get<Context>(
           "Context",
@@ -1305,23 +1312,11 @@ export class Host {
     )
       return;
     const cs = this.memory(),
-      sourceRef = cs.pending_raw_refs[0],
-      sourceEnd = this.completedSequence();
+      pending = this.pendingSummary();
+    if (pending && !this.summaryDue(pending)) return;
+    const sourceRef = pending?.source_refs[0] ?? cs.pending_raw_refs[0];
+    const sourceEnd = pending?.source_end_sequence ?? this.completedSequence();
     if (!sourceRef || sourceEnd <= (cs.covered_event_sequence ?? 0)) return;
-    if (
-      inLoop &&
-      this.store
-        .all<CompactionJob>("CompactionJob")
-        .some(
-          (j) =>
-            j.session_id === this.sessionID &&
-            j.state === "FAILED" &&
-            (j.source_start_sequence ?? 0) ===
-              (cs.covered_event_sequence ?? 0) &&
-            j.policy_id === SUMMARY_POLICY,
-        )
-    )
-      return;
     const delta = this.store.logs.filter(
       (l) =>
         l.scope.session_id === this.sessionID &&
@@ -1333,25 +1328,37 @@ export class Host {
     const evidence = this.store.put(
       delta.map((l) => this.store.read<AgentMessage>(l.payload)),
     );
-    let job: CompactionJob = {
-      schema_version: 1,
-      record_type: "CompactionJob",
-      ...base(),
-      state: "SUMMARIZING",
-      session_id: this.sessionID,
-      base_revision: cs.revision,
-      source_event_ids: sources,
-      source_refs: [sourceRef, evidence],
-      candidate_ref: null,
-      covered_event_ids: [],
-      validation_errors: [],
-      memory_version: 2,
-      attempt: 1,
-      source_start_sequence: cs.covered_event_sequence ?? 0,
-      source_end_sequence: sourceEnd,
-      mode: "WORKING_MEMORY",
-      policy_id: SUMMARY_POLICY,
-    };
+    let job: CompactionJob = pending
+      ? revise(pending, {
+          state: "SUMMARIZING",
+          base_revision: cs.revision,
+          retry_round:
+            pending.state === "FAILED"
+              ? (pending.retry_round ?? 0) + 1
+              : (pending.retry_round ?? 0),
+          next_attempt_at: null,
+        })
+      : {
+          retry_round: 0,
+          retry_generation: 0,
+          schema_version: 1,
+          record_type: "CompactionJob",
+          ...base(),
+          state: "SUMMARIZING",
+          session_id: this.sessionID,
+          base_revision: cs.revision,
+          source_event_ids: sources,
+          source_refs: [sourceRef, evidence],
+          candidate_ref: null,
+          covered_event_ids: [],
+          validation_errors: [],
+          memory_version: 2,
+          attempt: 1,
+          source_start_sequence: cs.covered_event_sequence ?? 0,
+          source_end_sequence: sourceEnd,
+          mode: "WORKING_MEMORY",
+          policy_id: SUMMARY_POLICY,
+        };
     this.store.commit(
       [job],
       [
@@ -1392,67 +1399,52 @@ export class Host {
         }));
     const tasks = runtimeTasks();
     try {
-      const plan = createSummaryPlan({
-        model: this.model,
-        items: cs.items,
-        commitments: migrateCommitments(cs),
-        sources: delta.map((l) => ({
-          id: l.event_id,
-          text: JSON.stringify({
-            event_id: l.event_id,
-            sequence: l.sequence,
-            source_ref: l.payload,
-            message: this.store.read(l.payload),
-          }),
-        })),
-        extra: {
-          runtime_tasks: tasks,
-          source_end_sequence: sourceEnd,
-          delivered_notifications: this.store.logs
-            .filter(
-              (l) =>
-                l.event_type === "notification.result" &&
-                l.sequence <= sourceEnd,
-            )
-            .map((l) => {
-              const n = this.store.read<Notification>(l.payload);
-              return n.session_id === this.sessionID
-                ? {
-                    event_id: l.event_id,
-                    state: n.state,
-                    message: this.store.bytes(n.message).toString(),
-                  }
-                : null;
-            })
-            .filter(Boolean)
-            .slice(-12),
-        },
-      });
-      // A successful summary remains reusable if the separate extraction stage failed.
-      const previous = this.store
-        .all<CompactionJob>("CompactionJob")
-        .filter(
-          (j) =>
-            j.id !== job.id &&
-            j.session_id === this.sessionID &&
-            j.base_revision === cs.revision &&
-            j.source_end_sequence === sourceEnd &&
-            j.policy_id === SUMMARY_POLICY &&
-            j.progress_ref,
-        )
-        .at(-1);
-      const progress = previous?.progress_ref
-        ? this.store.read<{ plan: SummaryPlan; candidate: SummaryCandidate }>(
-            previous.progress_ref,
-          )
+      const saved = job.progress_ref
+        ? this.store.read<{
+            plan: SummaryPlan;
+            candidate: SummaryCandidate;
+            commitments?: ReturnType<typeof migrateCommitments>;
+          }>(job.progress_ref)
         : null;
-      const reusable =
-        progress &&
-        progress.plan.source_hash === plan.source_hash &&
-        progress.candidate.completed === progress.plan.chunks.length &&
-        JSON.stringify(progress.plan.extra) === JSON.stringify(plan.extra)
-          ? progress.candidate
-          : null;
+      const plan =
+        saved?.plan ??
+        createSummaryPlan({
+          model: this.model,
+          items: cs.items,
+          commitments: migrateCommitments(cs),
+          sources: delta.map((l) => ({
+            id: l.event_id,
+            text: JSON.stringify({
+              event_id: l.event_id,
+              sequence: l.sequence,
+              source_ref: l.payload,
+              message: this.store.read(l.payload),
+            }),
+          })),
+          extra: {
+            runtime_tasks: tasks,
+            source_end_sequence: sourceEnd,
+            delivered_notifications: this.store.logs
+              .filter(
+                (l) =>
+                  l.event_type === "notification.result" &&
+                  l.sequence <= sourceEnd,
+              )
+              .map((l) => {
+                const n = this.store.read<Notification>(l.payload);
+                return n.session_id === this.sessionID
+                  ? {
+                      event_id: l.event_id,
+                      state: n.state,
+                      message: this.store.bytes(n.message).toString(),
+                    }
+                  : null;
+              })
+              .filter(Boolean)
+              .slice(-12),
+          },
+        });
+      const commitmentsBefore = saved?.commitments ?? migrateCommitments(cs);
       const candidate = await runSummary({
         store: this.store,
         model: this.model,
@@ -1462,11 +1454,17 @@ export class Host {
         consciousnessRevision: cs.revision,
         refs: [sourceRef, evidence],
         plan,
-        commitments: migrateCommitments(cs),
-        candidate: reusable ?? { items: cs.items, completed: 0 },
+        commitments: commitmentsBefore,
+        round: job.retry_round ?? 0,
+        generation: job.retry_generation ?? 0,
+        candidate: saved?.candidate ?? { items: cs.items, completed: 0 },
         checkpoint: (candidate) => {
           job = revise(this.store.get<CompactionJob>("CompactionJob", job.id), {
-            progress_ref: this.store.put({ plan, candidate }),
+            progress_ref: this.store.put({
+              plan,
+              candidate,
+              commitments: commitmentsBefore,
+            }),
           });
           this.store.commit([job]);
         },
@@ -1493,21 +1491,17 @@ export class Host {
           );
           activity.step(activityID, "正在更新工作记忆", {
             attempt,
-            max_attempts: 2,
+            max_attempts: 4,
           });
         },
       });
       const items = candidate.items;
-      const quotes = await extractNewCommitments({
+      enqueueExtractions({
         store: this.store,
-        model: this.model,
-        stream: this.stream,
         sessionID: this.sessionID,
         loopID: job.id,
-        consciousnessRevision: cs.revision,
-        runtimeConfigHash: this.extractionRuntimeHash,
+        taskRefs: items[0]?.task_refs ?? [],
         source: null,
-        existing: migrateCommitments(cs),
         completeMessages: delta.flatMap((l) => {
           const m = this.store.read<AgentMessage>(l.payload);
           return m.role === "user" || m.role === "assistant"
@@ -1515,7 +1509,6 @@ export class Host {
             : [];
         }),
       });
-      if (items.length) items[0].unfulfilled_commitments = quotes;
       const current = this.memory(),
         latest = this.store.get<CompactionJob>("CompactionJob", job.id);
       if (
@@ -1578,6 +1571,11 @@ export class Host {
           revise(latest, {
             state: "FAILED",
             validation_errors: [...latest.validation_errors, String(error)],
+            next_attempt_at: maintenanceRetryAt(
+              this.store,
+              latest.retry_round ?? 0,
+              error,
+            ),
           }),
         ],
         [
@@ -1587,6 +1585,12 @@ export class Host {
           }),
         ],
       );
+      const failed = this.store.get<CompactionJob>("CompactionJob", job.id);
+      if (!failed.next_attempt_at)
+        this.notifyFailure(
+          `summary:${job.id}:${job.retry_generation ?? 0}`,
+          String(error),
+        );
     } finally {
       activity.end(
         activityID,
@@ -1597,280 +1601,66 @@ export class Host {
       );
     }
   }
-  private extractionRecoveryOptions() {
-    return {
+  retryExtractions(requestID: string) {
+    return retryExtractions(this.store, this.sessionID, requestID);
+  }
+  extractPending() {
+    if (this.extraction) return this.extraction;
+    this.extraction = drainExtractions({
       store: this.store,
       model: this.model,
+      stream: this.stream,
       sessionID: this.sessionID,
-      consciousnessRevision: this.memory().revision,
-      runtimeConfigHash: this.extractionRuntimeHash,
-    };
-  }
-  private checkRecoveryGroup(group: { loop_id: string; attempt_id: string }) {
-    this.checkRecoveryOwner(group.loop_id);
-    const currentOwner =
-      this.store.find<CompactionJob>("CompactionJob", group.loop_id) ??
-      this.store.get<import("./contracts.ts").SettingsApplication>(
-        "SettingsApplication",
-        group.loop_id,
-      );
-    let frozenOwner: typeof currentOwner | undefined;
-    let foundOriginal = false;
-    for (const frame of this.store.projectionFrames) {
-      for (const mutation of frame.mutations)
-        if (
-          mutation.object_type === currentOwner.record_type &&
-          mutation.object_id === currentOwner.id
-        )
-          frozenOwner = this.store.read<typeof currentOwner>(mutation.snapshot);
-      if (
-        frame.log_records.some((event) => {
-          if (
-            event.event_type !== "memory.extraction.started" ||
-            event.scope.session_id !== this.sessionID
-          )
-            return false;
-          const value = this.store.read<{
-            loop_id?: string;
-            parent_attempt_id?: string | null;
-          }>(event.payload);
-          return value.loop_id === group.loop_id && !value.parent_attempt_id;
-        })
-      ) {
-        foundOriginal = true;
-        break;
-      }
-    }
-    if (!foundOriginal || !frozenOwner)
-      throw Error("RECOVERY_FROZEN_OWNER_UNAVAILABLE");
-    const fields =
-      currentOwner.record_type === "CompactionJob"
-        ? [
-            "session_id",
-            "base_revision",
-            "source_refs",
-            "source_event_ids",
-            "source_start_sequence",
-            "source_end_sequence",
-            "mode",
-            "policy_id",
-            "progress_ref",
-          ]
-        : [
-            "session_id",
-            "source_ref",
-            "payload_ref",
-            "request_hash",
-            "runtime_settings_hash",
-          ];
-    for (const field of fields)
-      if (
-        JSON.stringify(
-          (currentOwner as unknown as Record<string, unknown>)[field],
-        ) !==
-        JSON.stringify(
-          (frozenOwner as unknown as Record<string, unknown>)[field],
-        )
-      )
-        throw Error("RECOVERY_FROZEN_OWNER_MISMATCH: " + field);
-    const start = this.store.logs.findLast(
-      (e) =>
-        e.event_type === "memory.extraction.started" &&
-        e.scope.session_id === this.sessionID &&
-        this.store.read<{ attempt_id?: string }>(e.payload).attempt_id ===
-          group.attempt_id,
-    );
-    const attempt = start
-      ? this.store.read<{ source_ref?: import("./contracts.ts").ObjectRef }>(
-          start.payload,
-        )
-      : null;
-    if (!attempt?.source_ref)
-      throw Error("RECOVERY_SOURCE_EVIDENCE_UNAVAILABLE");
-    const source = this.store.read<unknown>(attempt.source_ref);
-    if (!Array.isArray(source) || !source.length)
-      throw Error("RECOVERY_OWNER_SOURCE_MISMATCH");
-    const job = this.store.find<CompactionJob>("CompactionJob", group.loop_id);
-    let messages: { id: string; role?: string; text: string }[];
-    if (job) {
-      messages = job.source_event_ids.flatMap((eventID) => {
-        const event = this.store.logs.find(
-          (e) =>
-            e.event_id === eventID &&
-            e.scope.session_id === this.sessionID &&
-            e.event_type === "main.message",
-        );
-        if (!event) throw Error("RECOVERY_OWNER_SOURCE_MISMATCH");
-        const m = this.store.read<AgentMessage>(event.payload);
-        return m.role === "user" || m.role === "assistant"
-          ? [{ id: eventID, role: m.role, text: contentText(m.content) }]
-          : [];
-      });
-    } else {
-      const a = this.store.get<import("./contracts.ts").SettingsApplication>(
-        "SettingsApplication",
-        group.loop_id,
-      );
-      if (!a.source_ref) throw Error("RECOVERY_SOURCE_EVIDENCE_UNAVAILABLE");
-      messages = this.store.read<import("./settings-memory.ts").SettingsSource>(
-        a.source_ref,
-      ).extraction_messages;
-    }
-    let previous = -1;
-    for (const entry of source) {
-      const index = messages.findIndex(
-        (m, index) =>
-          index > previous &&
-          m.id === entry.id &&
-          m.role === entry.role &&
-          m.text === entry.text,
-      );
-      if (index < 0) throw Error("RECOVERY_OWNER_SOURCE_MISMATCH");
-      previous = index;
-    }
-  }
-  private checkRecoveryOwner(ownerID: string) {
-    if (this.store.find("CompactionJob", ownerID))
-      compactionRecoverySource(this, ownerID);
-    else if (
-      this.store.find("SettingsApplication", ownerID) &&
-      this.settingsRecoveryCheck
-    )
-      this.settingsRecoveryCheck(ownerID);
-    else throw Error("RECOVERY_OWNER_UNAVAILABLE");
-  }
-  memoryRecoveryPreflight(groupKey?: string) {
-    return listExtractionRecoveryGroups(this.extractionRecoveryOptions())
-      .filter((g) => !groupKey || g.group_key === groupKey)
-      .map((g) => {
-        const event = this.store.logs.findLast(
-          (e) =>
-            e.event_type === "memory.extraction.started" &&
-            this.store.read<{ attempt_id?: string }>(e.payload).attempt_id ===
-              g.attempt_id,
-        );
-        let sources: {
-          id: string;
-          role: string | null;
-          sequence: number | null;
-        }[] = [];
-        if (event) {
-          const saved = this.store.read<{
-            source_ref?: import("./contracts.ts").ObjectRef;
-          }>(event.payload);
-          if (saved.source_ref) {
-            const source = this.store.read<unknown>(saved.source_ref);
-            if (Array.isArray(source))
-              sources = source.map((m: { id?: string; role?: string }) => ({
-                id: String(m.id ?? ""),
-                role: m.role ?? null,
-                sequence:
-                  this.store.logs.find((e) => e.event_id === m.id)?.sequence ??
-                  null,
-              }));
-          }
-        }
-        const view = { ...g, source_count: sources.length, sources };
-        try {
-          this.checkRecoveryGroup(g);
-          return view;
-        } catch (error) {
-          return {
-            ...view,
-            status: "BLOCKED" as const,
-            reason: String(error),
-            binding: null,
-          };
-        }
-      });
-  }
-  async recoverMemory(request: RecoveryBinding & { request_id: string }) {
-    if (
-      !request ||
-      typeof request !== "object" ||
-      ![
-        "request_id",
-        "group_key",
-        "attempt_id",
-        "policy",
-        "implementation_version",
-        "config_hash",
-        "source_hash",
-      ].every(
-        (key) =>
-          typeof (request as unknown as Record<string, unknown>)[key] ===
-            "string" &&
-          String((request as unknown as Record<string, unknown>)[key]).length >
-            0,
-      ) ||
-      ![
-        request.model_call_id,
-        request.model_request_hash,
-        request.actual_payload_hash,
-      ].every((value) => value === null || typeof value === "string") ||
-      !Number.isSafeInteger(request.expected_revision)
-    )
-      throw Error("INVALID_RECOVERY_REQUEST");
-    if (
-      this.memoryRecoveryBusy ||
-      this.active ||
-      this.maintenance ||
-      this.closing
-    )
-      throw Error("MEMORY_RECOVERY_BUSY");
-    this.memoryRecoveryBusy = true;
-    let completeRecovery!: () => void;
-    this.recoveryDone = new Promise<void>((resolve) => {
-      completeRecovery = resolve;
+    }).finally(() => {
+      this.extraction = undefined;
     });
-    try {
-      const groups = listExtractionRecoveryGroups(
-        this.extractionRecoveryOptions(),
+    return this.extraction;
+  }
+  private notifyFailure(key: string, message: string) {
+    const recordID = stableID("model-maintenance-failure:" + key);
+    if (this.store.find("Notification", recordID)) return;
+    const n: Notification = {
+      schema_version: 1,
+      record_type: "Notification",
+      ...base(recordID),
+      state: "QUEUED",
+      session_id: this.sessionID,
+      channel: "local-ui",
+      message: this.store.put(message, "text/plain"),
+      delivery_key: recordID,
+      receipt: null,
+      requested_at: now(),
+    };
+    this.store.commit(
+      [n],
+      [
+        this.store.event("notification.queued", n, {
+          session_id: this.sessionID,
+          task_id: null,
+          execution_id: null,
+        }),
+      ],
+    );
+  }
+  private pendingSummary() {
+    const start = this.memory().covered_event_sequence ?? 0;
+    return this.store
+      .all<CompactionJob>("CompactionJob")
+      .findLast(
+        (j) =>
+          j.session_id === this.sessionID &&
+          j.mode === "WORKING_MEMORY" &&
+          (j.source_start_sequence ?? 0) === start &&
+          ["FAILED", "SUMMARIZING"].includes(j.state),
       );
-      const group = groups.find((g) => g.group_key === request.group_key);
-      if (!group) throw Error("RECOVERY_GROUP_NOT_FOUND");
-      this.checkRecoveryGroup(group);
-      const ownerCommitted =
-        this.store.find<CompactionJob>("CompactionJob", group.loop_id)
-          ?.state === "COMMITTED" ||
-        this.store.find<import("./contracts.ts").SettingsApplication>(
-          "SettingsApplication",
-          group.loop_id,
-        )?.state === "APPLIED";
-      const result = await recoverExtractionOnce({
-        ...this.extractionRecoveryOptions(),
-        stream: this.stream,
-        request,
-      });
-      if (result.status !== "SUCCEEDED") return result;
-      try {
-        const finalCheck = listExtractionRecoveryGroups(
-          this.extractionRecoveryOptions(),
-        ).find((g) => g.group_key === request.group_key);
-        if (!ownerCommitted && (!finalCheck || finalCheck.status === "BLOCKED"))
-          throw Error(
-            "EXTRACTION_RECOVERY_BLOCKED: " +
-              (finalCheck?.reason ?? "GROUP_MISSING"),
-          );
-        this.checkRecoveryGroup(group);
-        if (this.store.find("CompactionJob", group.loop_id))
-          await commitRecoveredCompaction(this, group.loop_id);
-        else await this.settingsRecoveryCommit!(group.loop_id);
-        return { ...result, owner_id: group.loop_id, owner_committed: true };
-      } catch (error) {
-        return {
-          ...result,
-          status: "BLOCKED" as const,
-          owner_id: group.loop_id,
-          owner_committed: false,
-          reason: String(error),
-        };
-      }
-    } finally {
-      this.memoryRecoveryBusy = false;
-      completeRecovery();
-      this.recoveryDone = undefined;
-    }
+  }
+  private summaryDue(job = this.pendingSummary()) {
+    return (
+      !!job &&
+      (job.state === "SUMMARIZING" ||
+        (!!job.next_attempt_at &&
+          Date.parse(job.next_attempt_at) <= retryNow(this.store)))
+    );
   }
   memoryStatus() {
     const cs = this.store.get<Consciousness>(
@@ -1889,6 +1679,34 @@ export class Host {
       activation && (!latest || activation.updated_at > latest.updated_at);
     return {
       revision: cs.revision,
+      extraction_pending_count: this.store
+        .all<MemoryExtractionJob>("MemoryExtractionJob")
+        .filter(
+          (j) =>
+            j.session_id === this.sessionID &&
+            !j.merged &&
+            (j.state !== "FAILED" || j.next_attempt_at !== null),
+        ).length,
+      extraction_failed_count: this.store
+        .all<MemoryExtractionJob>("MemoryExtractionJob")
+        .filter(
+          (j) =>
+            j.session_id === this.sessionID &&
+            j.state === "FAILED" &&
+            !j.next_attempt_at,
+        ).length,
+      extraction: this.store
+        .all<MemoryExtractionJob>("MemoryExtractionJob")
+        .filter((j) => j.session_id === this.sessionID && !j.merged)
+        .map((j) => ({
+          id: j.id,
+          state: j.state,
+          round: j.round,
+          next_attempt_at: j.next_attempt_at,
+          error: j.error,
+        })),
+      next_attempt_at: latest?.next_attempt_at ?? null,
+      retry_round: latest?.retry_round ?? 0,
       maintenance_mode: latest?.mode ?? "WORKING_MEMORY",
       compaction_target_reached:
         jobs.filter((j) => j.mode === "CONTEXT_COMPACTION").at(-1)
@@ -1940,6 +1758,7 @@ export class Host {
   async settingsIdle() {
     await this.active;
     await this.maintenance;
+    await this.extraction;
   }
   prepareSettingsContext(
     applicationID: string,
@@ -1987,8 +1806,8 @@ export class Host {
   async close() {
     this.closing = true;
     this.agent?.abort();
-    await this.recoveryDone;
     await this.active;
     await this.maintenance;
+    await this.extraction;
   }
 }

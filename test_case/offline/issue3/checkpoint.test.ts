@@ -108,7 +108,7 @@ for (const boundary of ["before-first", "after-first"] as const) {
       app.store.commit = commit;
       await app.close();
       app = await App.open(dir, { model, stream });
-      await app.host.drain();
+      await app.host.resume();
       assert.equal(
         app.host.session.state,
         "IDLE",
@@ -162,7 +162,7 @@ for (const boundary of ["before-first", "after-first"] as const) {
       const calls = extractionSources.length;
       await app.close();
       app = await App.open(dir, { model, stream });
-      await app.host.drain();
+      await app.host.resume();
       await app.host.compact();
       assert.deepEqual(
         userSources().map((e) => e.event_id),

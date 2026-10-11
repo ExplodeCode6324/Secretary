@@ -186,7 +186,7 @@ test("interrupted turn resumes its persisted prompt after settings update and re
     stageInstructions(app, "NEW_AFTER_RESTART", 1);
     await app.close();
     app = await App.open(dir, cfg());
-    await app.host.drain();
+    await app.host.resume();
     assert.equal(latest(app).loop_id, loop);
     assert.equal(latest(app).instructions_revision, 1);
     assert(
