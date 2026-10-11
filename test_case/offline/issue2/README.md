@@ -2,7 +2,7 @@
 
 This document describes the frozen 13-case `context-memory.test.ts` baseline only. Additional implementation suites now live beside it; their measured results, broader C01–C20 coverage and remaining gaps are recorded in [the implementation report](../../reports/memory-review-20261008/README.md). The frozen baseline assertions and original results are retained.
 
-This dedicated suite contains established safety invariants (`INV-*`) and observable desired behaviors (`GOAL-*`) from the issue #2 plan. It is intentionally outside `npm test`: desired behavior failures on unchanged code remain actual failures, never skips, TODOs, or expected-failure passes. No business implementation has been added by this suite.
+This dedicated suite contains established safety invariants (`INV-*`) and observable desired behaviors (`GOAL-*`) from the issue #2 plan. It is included in `npm test` and the root TypeScript check. Desired behavior failures remain actual failures, never skips, TODOs, or expected-failure passes. No business implementation has been added by this suite.
 
 From the repository root, use the same runner before and after changes, choosing a new output directory to preserve the original baseline (the runner refuses an existing results directory):
 
@@ -10,7 +10,7 @@ From the repository root, use the same runner before and after changes, choosing
 node test_case/offline/issue2/run-baseline.mjs test_case/reports/issue2-context-memory-after
 ```
 
-The runner removes inherited `SECRETARY_*` overrides, injects only synthetic Model/StreamFn implementations, creates fresh OS temporary storage per test, explicitly typechecks the suite (the root tsconfig excludes this directory), and saves TAP, stderr, test classification, first failure diagnostics, source/suite SHA-256 hashes, HEAD and submodule HEAD. Test timeout is 15 seconds; the summary-start gate has its own 5-second timeout and unconditional release; the subprocess ceiling is 180 seconds. The fixture cleans up its synthetic temporary storage. A nonzero exit means a real typecheck/test/harness failure. There are no provider credentials, database configuration, production directories, private conversations, real network requests, or paid model calls.
+The runner removes inherited `SECRETARY_*` overrides, injects only synthetic Model/StreamFn implementations, creates fresh OS temporary storage per test, explicitly typechecks the suite (the root tsconfig also includes this directory), and saves TAP, stderr, test classification, first failure diagnostics, source/suite SHA-256 hashes, HEAD and submodule HEAD. Test timeout is 15 seconds; the summary-start gate has its own 5-second timeout and unconditional release; the subprocess ceiling is 180 seconds. The fixture cleans up its synthetic temporary storage. A nonzero exit means a real typecheck/test/harness failure. There are no provider credentials, database configuration, production directories, private conversations, real network requests, or paid model calls.
 
 `App`, public Host methods, `durableStream`, and `saveContext` are the current Secretary-facing test entry points. The tests do not assert a Pi `prepareRequest` hook or require its original main loop. Direct transport inputs use the installed public `normalizeContext()` API: tool declarations actually reside in system transcript messages. If Secretary later replaces these entry points, adapt the small harness seam without changing the observable acceptance assertions; retain old and new harness hashes and document the migration.
 

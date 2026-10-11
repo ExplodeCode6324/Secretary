@@ -1,9 +1,10 @@
 """Check repository-owned Markdown links and migration destinations; no API calls."""
 from pathlib import Path
-import json,re,sys
+import json,re,subprocess,sys
 ROOT=Path(__file__).resolve().parents[3]
 errors=[];links=0
-files=[ROOT/'README.md',*(ROOT/'docs').rglob('*.md'),*(ROOT/'test_case').rglob('*.md')]
+tracked=subprocess.check_output(['git','ls-files','-z'],cwd=ROOT).decode().split('\0')
+files=[ROOT/name for name in tracked if name.endswith('.md') and (name=='README.md' or name.startswith(('docs/','test_case/')))]
 for p in files:
  for value in re.findall(r'\]\(([^)\s]+)\)',p.read_text()):
   target=value.split('#')[0]

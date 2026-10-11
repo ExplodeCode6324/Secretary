@@ -1,3 +1,4 @@
+import { testPostgres } from "../helpers/postgres.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -125,11 +126,7 @@ test("independent: concurrent different authorization IDs for same source dispat
   });
 });
 
-for (const interruptAfterDatabase of [false, true]) test(`independent PostgreSQL: settings extraction recovery preserves one World receipt${interruptAfterDatabase ? " across database/local crash boundary" : " on replay"}`, { skip: !process.env.SECRETARY_TEST_DATABASE_URL }, async () => {
-  // This opt-in test is run only by validation/postgres-issue4.py in a fresh Unix-socket cluster.
-  assert.equal(process.env.ISSUE4_ISOLATED_POSTGRES, "1");
-  const dsn = new URL(process.env.SECRETARY_TEST_DATABASE_URL!);
-  assert.match(dsn.searchParams.get("host") ?? "", /^\/tmp\/sec-issue4-sock-/);
+for (const interruptAfterDatabase of [false, true]) testPostgres(`independent PostgreSQL: settings extraction recovery preserves one World receipt${interruptAfterDatabase ? " across database/local crash boundary" : " on replay"}`, async (dsn) => {
   const { contentText } = await import("@earendil-works/pi-ai");
   const { emptySettings } = await import("../../../src/pi_secretary/src/settings-payload.ts");
   const { getInstructions } = await import("../../../src/pi_secretary/src/instructions.ts");
@@ -144,7 +141,7 @@ for (const interruptAfterDatabase of [false, true]) test(`independent PostgreSQL
     if (system.includes("CONSCIOUSNESS:")) summaries++;
     return system.includes("CONSCIOUSNESS:") ? fixtureStream(model, context, options) : replyStream([{ type: "text", text: quote }], model);
   };
-  let app = await App.open(dir, { model: fixtureModel, stream }, process.env.SECRETARY_TEST_DATABASE_URL);
+  let app = await App.open(dir, { model: fixtureModel, stream }, dsn);
   try {
     await app.world!.migrate();
     app.host.accept("Please report the synthetic result tomorrow."); await app.host.drain();
@@ -170,7 +167,7 @@ for (const interruptAfterDatabase of [false, true]) test(`independent PostgreSQL
     const receipt = await app.world!.batchReceipt(application.id); assert(receipt);
     const rows = (await app.world!.browse({ subject: entity, history: true })).rows; assert.equal(rows.length, 1);
     await app.close();
-    app = await App.open(dir, { model: fixtureModel, stream }, process.env.SECRETARY_TEST_DATABASE_URL);
+    app = await App.open(dir, { model: fixtureModel, stream }, dsn);
     app.world!.applyBatch = async () => { throw Error("existing World receipt must prevent duplicate applyBatch"); };
     for (let n = 0; n < 2; n++) assert.equal((await app.host.recoverMemory(request)).status, "SUCCEEDED");
     assert.equal(extractionCalls, 2); assert.equal(summaries, summaryCount);

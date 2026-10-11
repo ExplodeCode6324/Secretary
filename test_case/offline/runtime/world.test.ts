@@ -1,3 +1,4 @@
+import { testPostgres } from "../helpers/postgres.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
@@ -16,11 +17,9 @@ import type {
   WorldCommand,
   Operation,
 } from "../../../src/pi_secretary/src/contracts.ts";
-const dsn = process.env.SECRETARY_TEST_DATABASE_URL;
-test(
+testPostgres(
   "PostgreSQL implementation: authorized catalog/facts, conflict/CAS, receipt and outbox replay",
-  { skip: !dsn },
-  async () => {
+  async (dsn) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "secretary-world-"));
     const app = await App.open(
       dir,

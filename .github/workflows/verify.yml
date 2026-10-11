@@ -1,0 +1,53 @@
+name: Verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      SECRETARY_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/secretary_test_admin
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: secretary_test_admin
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d secretary_test_admin"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.x"
+      - run: npm ci
+      - name: Record verification environment
+        run: |
+          git rev-parse HEAD
+          git submodule status
+          node --version
+          python3 --version
+          node --input-type=module -e 'import { Client } from "pg"; const c = new Client({connectionString: process.env.SECRETARY_TEST_DATABASE_URL}); await c.connect(); console.log((await c.query("select version() as version")).rows[0].version); await c.end();'
+      - run: npm run verify

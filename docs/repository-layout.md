@@ -1,6 +1,6 @@
 # 仓库整理与路径迁移
 
-根 README 是产品入口，`src` 是实现，`test_case` 以 offline / online / reports 三类保存测试，`docs` 保存其余文档，`docs/fix` 保存每次更新计划及实施进度，命名为 `fix_yyyymmdd_具体功能描述.md`。根 package.json、package-lock.json 和 tsconfig.json 是全仓工具入口。
+根 README 是产品入口，`src` 是实现，`test_case` 以 offline / online / reports 三类保存测试，`docs` 保存其余文档，`docs/fix` 保存每次更新计划及实施进度。有 Issue 的计划命名为 `fix_YYYYMMDD_issueN_具体功能描述.md`，其余使用 `fix_YYYYMMDD_具体功能描述.md`；统一页首、正文结构与索引见 [Fix 文档规范](fix/README.md)。根 package.json、package-lock.json 和 tsconfig.json 是全仓工具入口。
 
 | 旧位置 | 新位置 |
 | --- | --- |
@@ -30,3 +30,5 @@
 - test_case 的入口README说明当前套件，带日期报告保留原内容与版本，仅补充适用范围及缺失附件标注。上游src/pi_resource的文档归上游维护，不纳入自有文档重写。
 
 此前文档检查的49项问题为16处缺失附件链接和33个缺失迁移目标。现保留原路径的可用性清单，取消误导性可点击链接，并将当前无法解析的迁移目标标为空；未新建虚构附件，未修改检查器或原测试断言。私有证据、原始live请求和凭据不为修复链接而重新公开。
+
+Issue #20 将历史离线探针迁到 `test_case/historical/offline/`；迁移表中旧 web/dual-ui 测试与两个当前 Python PG 入口的目标设为 null，原因是这些入口已按计划退役，替代范围与命令见[测试策略](testing.md)。

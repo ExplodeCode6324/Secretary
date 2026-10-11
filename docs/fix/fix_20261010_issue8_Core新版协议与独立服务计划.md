@@ -1,6 +1,10 @@
-> 实施记录：#8 已完成代码与严格验收，Master 已确认复审完成；本轮全量文档修订仍待复核。下文原计划、阶段状态和失败按当时记录保留，当前行为见 [文档索引](../README.md) 与 [API v1](../api/v1/README.md)。
-
 # Issue #8：Core 新版协议与独立应用服务计划
+
+- 日期：2026-10-10
+- 关联 Issue：[#8](https://github.com/ExplodeCode6324/Secretary/issues/8)
+- 文档状态：历史计划与实施记录
+
+> 实施记录：#8 已完成代码与严格验收，Master 已确认复审完成；本轮全量文档修订仍待复核。下文原计划、阶段状态和失败按当时记录保留，当前行为见 [文档索引](../README.md) 与 [API v1](../api/v1/README.md)。
 
 日期：2026-10-10。关联：[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)、[实施起点 #8](https://github.com/ExplodeCode6324/Secretary/issues/8)。
 
@@ -40,18 +44,18 @@
 
 ## 3. 拟修改模块
 
-| 模块 | 拟定变化 |
-| --- | --- |
-| `src/pi_secretary/src/application-service.ts`（新增） | 可信 principal、校验后命令/查询编排、公开结果投影；调用现有领域对象 |
-| `src/pi_secretary/src/api-v1.ts`（新增） | 仅承载 HTTP 方法/路径、schema 校验、统一错误与认证映射 |
-| `src/pi_secretary/src/api/`（新增） | DTO/schema 校验与身份/能力、公开记忆、产物目录、关联/定位、待处理读模型；不暴露 Store 对象图和 CAS 路径 |
-| `src/pi_secretary/src/backend.ts`、`app.ts` | 改为无 UI 的 Core 服务装配与后台推进；初始化只读接口所需的持久基础记录 |
-| `host.ts`、`scheduler.ts`、`authorization.ts`、`settings.ts` | 窄范围补齐幂等回执和纯查询；不改变任务接续、审批或记忆提取规则 |
-| `world.ts` | 有界目录/事实查询、精确槽查询、查询版本；复用既有 SQL 事务与 outbox |
-| `core-client.ts`、`core-cli.ts`（拟新增） | typed API 调用、发现/附着、启动/健康/停止；不是交互式 TUI |
-| `package.json`、运行文档 | 增加明确 Core 生命周期命令；阶段3完成默认 SwiftUI 入口切换 |
-| `docs/api/v1/`（拟新增） | 公开 schema、操作表、错误、合成样例与版本策略 |
-| 既有内部 schema 与生成脚本 | 仅在持久回执/受理意图确需扩展时修改源 schema，再生成类型；禁止手改生成文件 |
+| 模块                                                         | 拟定变化                                                                                                |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `src/pi_secretary/src/application-service.ts`（新增）        | 可信 principal、校验后命令/查询编排、公开结果投影；调用现有领域对象                                     |
+| `src/pi_secretary/src/api-v1.ts`（新增）                     | 仅承载 HTTP 方法/路径、schema 校验、统一错误与认证映射                                                  |
+| `src/pi_secretary/src/api/`（新增）                          | DTO/schema 校验与身份/能力、公开记忆、产物目录、关联/定位、待处理读模型；不暴露 Store 对象图和 CAS 路径 |
+| `src/pi_secretary/src/backend.ts`、`app.ts`                  | 改为无 UI 的 Core 服务装配与后台推进；初始化只读接口所需的持久基础记录                                  |
+| `host.ts`、`scheduler.ts`、`authorization.ts`、`settings.ts` | 窄范围补齐幂等回执和纯查询；不改变任务接续、审批或记忆提取规则                                          |
+| `world.ts`                                                   | 有界目录/事实查询、精确槽查询、查询版本；复用既有 SQL 事务与 outbox                                     |
+| `core-client.ts`、`core-cli.ts`（拟新增）                    | typed API 调用、发现/附着、启动/健康/停止；不是交互式 TUI                                               |
+| `package.json`、运行文档                                     | 增加明确 Core 生命周期命令；阶段3完成默认 SwiftUI 入口切换                                              |
+| `docs/api/v1/`（拟新增）                                     | 公开 schema、操作表、错误、合成样例与版本策略                                                           |
+| 既有内部 schema 与生成脚本                                   | 仅在持久回执/受理意图确需扩展时修改源 schema，再生成类型；禁止手改生成文件                              |
 
 新增文件名可以在不改变职责和验收的前提下调整；实际变更清单与理由须记录在报告中。
 
@@ -59,33 +63,33 @@
 
 以下路径是实施设计输入，尚未注册为运行接口。授权后先将完整字段、错误和例子写入 schema，再实现；冻结 DTO 后供后续 Swift 客户端使用。
 
-| 操作 | 路径草案 | 主要语义 |
-| --- | --- | --- |
-| Core 状态 | `GET /api/v1/core` | API 版本、服务端能力与原因码、稳定数据域身份、进程实例、唯一 session、运行状态 |
-| 助手显示配置 | `GET /api/v1/assistant`、`POST /api/v1/assistant/profile` | display_name、稳定显示主体 ID、revision；修改绑定 request_id/expected_revision，不触发模型或记忆重建 |
-| 连接登记 | `POST /api/v1/clients` | owner 认证后登记稳定客户端身份；连接实例与身份分开 |
-| 主会话/记忆 | `GET /api/v1/session`、`GET /api/v1/memory` | 有界公开状态，不读取即触发模型 |
-| 记忆内容 | `GET /api/v1/memory/summary`、`GET /api/v1/memory/commitments` | 只读摘要、版本、更新/覆盖状态、来源 ID；承诺有界分页，复用既有承诺处理命令 |
-| 消息提交 | `POST /api/v1/messages` | request_id、文本；返回受理回执与 input ID |
-| 时间线/活动 | `GET /api/v1/timeline`、`GET /api/v1/activities/{id}` | 有界读模型、稳定逻辑消息关联、活动详情 |
-| 记录定位 | `GET /api/v1/timeline/around` | message_id 或 event_id 二选一；返回有界周边记录、锚点状态和新游标，不扫描全历史 |
-| 关联资源 | `GET /api/v1/related` | scope_type=session/task/message/event 与 scope_id；明确关系依据、资源引用、有界分页；只读无模型调用 |
-| 待处理摘要 | `GET /api/v1/attention` | 同一权限范围内的待审批/待回答计数、有限条目、投影版本与查询时刻；复用原对象状态 |
-| 正文分片 | `GET /api/v1/messages/{id}/content` | 不透明分页游标、内容版本、UTF-8 JSON 完整文本片段，不向 Swift 暴露 JS 字符串偏移 |
-| 任务查询 | `GET /api/v1/tasks`、`GET /api/v1/tasks/{id}`、`GET /api/v1/executions/{id}` | 分页、要求、接续条件、结果/局限/待执行请求；不续留 |
-| 任务命令 | `POST /api/v1/task-requests`、`POST /api/v1/task-requests/{id}/cancel` | 沿用 reuse_task_id、parent、继承和未分派请求取消语义 |
-| 执行控制 | `POST /api/v1/executions/{id}/cancel`、`POST /api/v1/executions/{id}/viewed` | 取消申请与终结区分；显式访问才延长热保留 |
-| 工作决定 | `GET /api/v1/decisions`、`GET /api/v1/decisions/{id}`、`POST /api/v1/decisions/{id}/answer` | 回答类型、deadline、执行状态与原 request ID 绑定 |
-| 审批 | `GET /api/v1/authorizations`、`GET /api/v1/authorizations/{id}`、`POST /api/v1/authorizations/{id}/decision` | 完整展示、approve/reject/revoke；保留 revision、display_hash 与最终 gate |
-| Settings | `GET /api/v1/settings`、`POST /api/v1/settings/draft`、`POST /api/v1/settings/apply` | 共享草稿 CAS、公开有效状态、持久受理应用 |
-| Settings 恢复 | `POST /api/v1/settings/applications/{id}/retry`、`POST /api/v1/settings/applications/{id}/restore-draft` | 普通重试不越过记忆提取恢复授权 |
-| World | `GET /api/v1/world/catalog`、`GET /api/v1/world/facts`、`GET /api/v1/world/slot` | 所有集合有界；slot 用 subject/predicate/scope 精确查询并返回版本，World 更改经 Settings 草稿/apply |
-| 维护 | `POST /api/v1/session/compact`、`POST /api/v1/session/resume`、`POST /api/v1/memory/commitments/{id}/resolve` | 显式管理命令，沿用已有整理、恢复和承诺规则 |
-| 记忆提取恢复 | `GET /api/v1/memory/recovery`、`POST /api/v1/memory/recovery` | 原完整 preflight binding、一次授权与旧批次对账，不简化为裸重试 |
-| 产物目录 | `GET /api/v1/artifacts` | 当前主体可见范围内的分页目录、task_id 筛选、文件名、所属任务/结果、内容版本及可读状态；不用遍历全部任务历史 |
-| 产物 | `GET /api/v1/artifacts/{id}`、`GET /api/v1/artifacts/{id}/content` | 所属任务校验、metadata、内容流、不可用状态；不接受任意本机路径 |
-| 对账 | `GET /api/v1/requests/{request_id}` | 返回原受理结果与资源引用；业务进度从原领域对象投影，不重新执行 |
-| Core 停止 | `POST /api/v1/core/stop` | owner 管理动作；持久受理后关闭，可在后续启动对账，GET 不自动重启 |
+| 操作          | 路径草案                                                                                                      | 主要语义                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Core 状态     | `GET /api/v1/core`                                                                                            | API 版本、服务端能力与原因码、稳定数据域身份、进程实例、唯一 session、运行状态                              |
+| 助手显示配置  | `GET /api/v1/assistant`、`POST /api/v1/assistant/profile`                                                     | display_name、稳定显示主体 ID、revision；修改绑定 request_id/expected_revision，不触发模型或记忆重建        |
+| 连接登记      | `POST /api/v1/clients`                                                                                        | owner 认证后登记稳定客户端身份；连接实例与身份分开                                                          |
+| 主会话/记忆   | `GET /api/v1/session`、`GET /api/v1/memory`                                                                   | 有界公开状态，不读取即触发模型                                                                              |
+| 记忆内容      | `GET /api/v1/memory/summary`、`GET /api/v1/memory/commitments`                                                | 只读摘要、版本、更新/覆盖状态、来源 ID；承诺有界分页，复用既有承诺处理命令                                  |
+| 消息提交      | `POST /api/v1/messages`                                                                                       | request_id、文本；返回受理回执与 input ID                                                                   |
+| 时间线/活动   | `GET /api/v1/timeline`、`GET /api/v1/activities/{id}`                                                         | 有界读模型、稳定逻辑消息关联、活动详情                                                                      |
+| 记录定位      | `GET /api/v1/timeline/around`                                                                                 | message_id 或 event_id 二选一；返回有界周边记录、锚点状态和新游标，不扫描全历史                             |
+| 关联资源      | `GET /api/v1/related`                                                                                         | scope_type=session/task/message/event 与 scope_id；明确关系依据、资源引用、有界分页；只读无模型调用         |
+| 待处理摘要    | `GET /api/v1/attention`                                                                                       | 同一权限范围内的待审批/待回答计数、有限条目、投影版本与查询时刻；复用原对象状态                             |
+| 正文分片      | `GET /api/v1/messages/{id}/content`                                                                           | 不透明分页游标、内容版本、UTF-8 JSON 完整文本片段，不向 Swift 暴露 JS 字符串偏移                            |
+| 任务查询      | `GET /api/v1/tasks`、`GET /api/v1/tasks/{id}`、`GET /api/v1/executions/{id}`                                  | 分页、要求、接续条件、结果/局限/待执行请求；不续留                                                          |
+| 任务命令      | `POST /api/v1/task-requests`、`POST /api/v1/task-requests/{id}/cancel`                                        | 沿用 reuse_task_id、parent、继承和未分派请求取消语义                                                        |
+| 执行控制      | `POST /api/v1/executions/{id}/cancel`、`POST /api/v1/executions/{id}/viewed`                                  | 取消申请与终结区分；显式访问才延长热保留                                                                    |
+| 工作决定      | `GET /api/v1/decisions`、`GET /api/v1/decisions/{id}`、`POST /api/v1/decisions/{id}/answer`                   | 回答类型、deadline、执行状态与原 request ID 绑定                                                            |
+| 审批          | `GET /api/v1/authorizations`、`GET /api/v1/authorizations/{id}`、`POST /api/v1/authorizations/{id}/decision`  | 完整展示、approve/reject/revoke；保留 revision、display_hash 与最终 gate                                    |
+| Settings      | `GET /api/v1/settings`、`POST /api/v1/settings/draft`、`POST /api/v1/settings/apply`                          | 共享草稿 CAS、公开有效状态、持久受理应用                                                                    |
+| Settings 恢复 | `POST /api/v1/settings/applications/{id}/retry`、`POST /api/v1/settings/applications/{id}/restore-draft`      | 普通重试不越过记忆提取恢复授权                                                                              |
+| World         | `GET /api/v1/world/catalog`、`GET /api/v1/world/facts`、`GET /api/v1/world/slot`                              | 所有集合有界；slot 用 subject/predicate/scope 精确查询并返回版本，World 更改经 Settings 草稿/apply          |
+| 维护          | `POST /api/v1/session/compact`、`POST /api/v1/session/resume`、`POST /api/v1/memory/commitments/{id}/resolve` | 显式管理命令，沿用已有整理、恢复和承诺规则                                                                  |
+| 记忆提取恢复  | `GET /api/v1/memory/recovery`、`POST /api/v1/memory/recovery`                                                 | 原完整 preflight binding、一次授权与旧批次对账，不简化为裸重试                                              |
+| 产物目录      | `GET /api/v1/artifacts`                                                                                       | 当前主体可见范围内的分页目录、task_id 筛选、文件名、所属任务/结果、内容版本及可读状态；不用遍历全部任务历史 |
+| 产物          | `GET /api/v1/artifacts/{id}`、`GET /api/v1/artifacts/{id}/content`                                            | 所属任务校验、metadata、内容流、不可用状态；不接受任意本机路径                                              |
+| 对账          | `GET /api/v1/requests/{request_id}`                                                                           | 返回原受理结果与资源引用；业务进度从原领域对象投影，不重新执行                                              |
+| Core 停止     | `POST /api/v1/core/stop`                                                                                      | owner 管理动作；持久受理后关闭，可在后续启动对账，GET 不自动重启                                            |
 
 少用的程序登记与授权规则管理先盘点现有 TUI 能力，映射为受限新版管理 API 或明确 Core 管理子命令；不扩充新的授权规则产品，不让必要能力只剩旧 TUI 入口。该映射随 schema 一并冻结并在迁移清单中逐项列明。
 
@@ -158,19 +162,19 @@
 6. **切换与回归**：去除新版服务中的旧路由，验证明确拒绝；文档与生命周期命令更新。旧 UI 专属测试退出新版兼容验收，但须逐项记录其领域保障迁移到哪个新 API 测试，不能仅删除失败断言获取全绿。
 7. **汇报**：按固定提交记录命令、首次失败、修复后结果、跳过/未测及授权边界，提交实现 PR 供复核；不自动部署或关闭 issue。
 
-| 验收组 | 必须覆盖 |
-| --- | --- |
-| 无 UI 运行 | 直接启动、双客户端同 session、客户端退出后已受理工作继续、并发启动单 writer、stop/重启对账 |
-| 幂等 | 相同 ID 并发重投、响应丢失、重启、跨操作同 ID、改参、NO_CHANGES；仅一个业务效果 |
-| 长命令恢复 | 受理后未开始崩溃、开始后结果未知、结果已保存未回响应；不重做未知副作用 |
-| 审批/记忆 | 旧 revision、改 display_hash、过期绑定、草稿冲突、普通 retry 越权拒绝；原 recovery 证据不弱化 |
-| 查询 | 隔离后台推进后重复读取，业务 revision、留存、输入和模型调用不增加；显式 viewed 单独生效 |
-| 数据与产物 | 分页/字节上限、中文/emoji/组合字符无损、World 精确槽、越权/任意路径拒绝、归档与丢失内容可见 |
-| 新协议 | schema/TS/样例一致、错误代码、未知字段/枚举/版本处理；旧 UI 路由拒绝，不构造 TerminalController |
-| 显示身份/能力 | 名称未设置/空白/超长校验、更名 CAS/幂等和跨端读取；身份不变、无模型/记忆重建；能力未支持、未配置和权限拒绝可区分 |
-| 完整页面读模型 | 摘要/承诺有界读取与来源定位、World 独立版本、产物分页/任务筛选/重名/归档；不透传内部上下文或扫描全历史 |
-| 关联与待处理 | 明确范围和真实关系、每类上限、按 ID 定位锚点、无权限/不存在/归档；计数与条目同快照、deadline 到期重查、查询不回答/批准/已读/续留 |
-| 数据转换 | 需要转换的历史合成 fixture 保留来源、证据与 UNKNOWN；备份可校验，不能用旧 writer 打开新数据 |
+| 验收组         | 必须覆盖                                                                                                                         |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 无 UI 运行     | 直接启动、双客户端同 session、客户端退出后已受理工作继续、并发启动单 writer、stop/重启对账                                       |
+| 幂等           | 相同 ID 并发重投、响应丢失、重启、跨操作同 ID、改参、NO_CHANGES；仅一个业务效果                                                  |
+| 长命令恢复     | 受理后未开始崩溃、开始后结果未知、结果已保存未回响应；不重做未知副作用                                                           |
+| 审批/记忆      | 旧 revision、改 display_hash、过期绑定、草稿冲突、普通 retry 越权拒绝；原 recovery 证据不弱化                                    |
+| 查询           | 隔离后台推进后重复读取，业务 revision、留存、输入和模型调用不增加；显式 viewed 单独生效                                          |
+| 数据与产物     | 分页/字节上限、中文/emoji/组合字符无损、World 精确槽、越权/任意路径拒绝、归档与丢失内容可见                                      |
+| 新协议         | schema/TS/样例一致、错误代码、未知字段/枚举/版本处理；旧 UI 路由拒绝，不构造 TerminalController                                  |
+| 显示身份/能力  | 名称未设置/空白/超长校验、更名 CAS/幂等和跨端读取；身份不变、无模型/记忆重建；能力未支持、未配置和权限拒绝可区分                 |
+| 完整页面读模型 | 摘要/承诺有界读取与来源定位、World 独立版本、产物分页/任务筛选/重名/归档；不透传内部上下文或扫描全历史                           |
+| 关联与待处理   | 明确范围和真实关系、每类上限、按 ID 定位锚点、无权限/不存在/归档；计数与条目同快照、deadline 到期重查、查询不回答/批准/已读/续留 |
+| 数据转换       | 需要转换的历史合成 fixture 保留来源、证据与 UNKNOWN；备份可校验，不能用旧 writer 打开新数据                                      |
 
 验证命令按最终文件清单细化：`npm run check`、`npm run types:generate`（仅内部 schema 改动时）、公开 DTO 校验、相关 runtime/Issue 2–5 离线用例、隔离 PostgreSQL 的 Settings/World 用例，以及 `npm run docs:generate` / `npm run docs:check` 的基线比较。必要回归通过后不无理由重复长测试。
 
@@ -181,7 +185,6 @@
 #8 原估算为 6–10 人日，作为接口整理的量级参考；取消 TUI 适配后，仍须承担全操作幂等、长命令恢复和旧数据转换验证。v0.3 增加显示身份、记忆公开读模型、产物目录、关联/定位索引与待处理摘要，需要在合同盘点时独立拆分估算，不默认包含在原有上限内。若需要超出本计划的新领域语义或数据迁移范围，更新计划后复核。
 
 本计划请求批准的下一步是 **#8 的业务实现、合成数据下的离线故障验证与必要隔离 PostgreSQL 回归**。不含真实模型调用、运行实例切换、生产数据迁移、设备访问、TUI/SwiftUI 开发或后续阶段实现。
-
 
 ## 9. 分支实现与验收记录（2026-10-10）
 
@@ -204,7 +207,6 @@
 
 交付停在工作分支与待终审 PR；未经 Master 终审，不合并 main、不关闭 #8。
 
-
 ## 11. PERRI 复审修复（2026-10-10）
 
 本轮基线为 `a1b69ec35436d1c727748c4ad2e6c0c206424769`，沿用 `codex/issue8-api-v1` 和 draft PR #15。Master 已授权修复并增加有界真实 online 验证；最终仍须 PERRI 独立复审及 Master 终审，不合并、不关闭 Issue、不部署。
@@ -222,11 +224,9 @@ memory/recovery 的 QUEUED 重启边界另行检查：恢复授权使用绑定 S
 
 online 由独立 Astra/high 子代理使用现有配置在全新合成数据目录执行；上限 12 次实际 provider HTTP 尝试（含重试）、15 分钟、单次 90 秒、4096 输出 token、80 KB 请求上下文。验证 API v1 主会话、两段同任务执行、Settings instructions apply、compaction 及 Store reopen 后事实/语言规则；不使用生产数据、真实设备或外部操作。保留每次失败，真实账单费用不可获得时仅报告 SDK 目录估算。
 
-
 修复代码提交：`ee386efe953b8319f4e83a5a44e263062f55e590`。最终独立复跑：runtime 159 通过/8 跳过，API 30 通过/2 个 PG 单独执行，Issue #2–#5 181 通过/2 跳过；隔离 PG 14/14。类型、外部 DTO 消费、生成一致性、Swift 和 diff 检查通过，docs 49 项继承错误无新增。首次高并发运行的 5 个失败保留，未更改断言或时限。
 
 online 达到 12 次实际请求上限，26,647 token，SDK 目录估算 USD 0.007705772，账单不可用。主会话、首个任务、设置影响和显式重试后的整理通过；完整任务链未通过，重开后真实回忆因预算耗尽未验证。结论为 NOT PASSED / PARTIAL COVERAGE，不能写作全面验收通过。逐轮失败、模型明细、源码哈希匹配和未测边界见 [验证记录](../api/v1/verification.md)。PERRI 原始归档未能通过当前 executor 的工具物化，此次 red/green 为本机独立永久回归。
-
 
 ## 12. 追加验收：任务链与整理后进程重启（2026-10-10）
 
@@ -243,11 +243,9 @@ Master 已授权继续补齐 #8 验收缺口。继续使用 `codex/issue8-api-v1
 
 本轮先更正 README 的“未进行真实模型验证”旧陈述，再按实际追加结果更新验证记录与 PR。若查明需要修改生产代码，增加相应失败回归并复跑相关 offline；仅 harness/文档变化不冒充业务修复。等待 PERRI 独立复审后再由 Master 终审。
 
-
 追加结果：任务场景 2 次真实 gpt-5.6-luna 请求，两个执行均成功且父执行关联正确、42→84；记忆场景 7 次真实 deepseek-v4.1-flash 请求（准备 6、重启后 1），整理 COMMITTED，旧进程正常退出，新 PID/Core instance 对同一 Store 的真实回忆通过原事实及语言 oracle。两场景共 16,618 token，SDK 目录估算 USD 0.005457100，账单费用不可用；各自低于 12 次/600 秒上限。没有新增生产代码改动。
 
 745 份原始证据 SHA-256 未变，初轮 12 次调用及失败继续保留。本轮类型、online 离线自检、API 30 通过/2 PG 条件跳过，docs 49 项继承错误无新增。覆盖边界及逐模型用量详见 [验证记录](../api/v1/verification.md)；最终仍等待 PERRI 独立复审与 Master 终审。
-
 
 ## 13. 追加验收：真实工具、API 产物与独立验算（2026-10-10）
 
@@ -263,9 +261,7 @@ Master 通过产物验收交接明确授权本轮补齐。基线为 `b4549eb2c85
 
 记忆进程重启场景已获独立审计确认，本轮不重跑；其原始事实仍在回忆请求上下文中，只证明真实进程重启后的持久连续性，不声称仅依靠摘要回忆。完成后等待 PERRI 独立复审和 Master 终审，不合并、不关闭、不部署。
 
-
 首次严格场景在第 7 次模型请求遇到 provider token 速率限制（HTTP 200、stopReason=error），保留为 FAILED。四项实际写入/执行均 SUCCEEDED/APPLIED，无 UNKNOWN；第二阶段缺少最终 submit_result，不能用已生成的文件冒充验收完成。保留首轮源码和证据后，仅给 harness 增加至少 20 秒请求开始间隔，在全新目录执行第二轮相同严格断言，仍受每轮 12 次/600 秒边界约束。
-
 
 第二轮严格验收 PASS：7 次真实 opencode-go/gpt-5.6-luna 请求均 stopReason=toolUse，34,354 token、SDK 目录估算 USD 0.005207920、124.724 秒。一个任务的两个成功执行有正确双重父关系，真实 read/write/bash、四项成功操作、四件 API 产物、首段不可变性、API 字节算术 oracle 与下载程序独立复跑全部通过；产品 verified_by 保持 NOT_VERIFIED。首次7次调用中的限流失败及未知用量如实保留，两轮共14次请求，有usage部分57,402token/估算USD0.009083000，另1次用量和费用未知。
 

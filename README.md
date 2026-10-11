@@ -18,10 +18,11 @@ npm start
 
 ```sh
 npm run verify
-npm run test:issue5
 # 当前 SECRETARY_DATA 对应的数据目录，默认 .demo-data
 npm run stop
 ```
+
+verify 包含类型、文档及全部当前离线测试；数据库测试在本地缺 DSN 时明确跳过，在 CI 中缺 DSN 则失败。专用测试库、清理和定向命令见 [测试策略](docs/testing.md)。
 
 Core 保留任务、审批、工作决定、Settings/World、记忆恢复和活动/时间线能力，均通过新版结构化协议访问。可靠 ChangeFeed 属于 #9，原生客户端属于 #10；本阶段不提供新的 TUI。
 

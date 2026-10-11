@@ -1,12 +1,13 @@
 # Offline tests
 
-从仓库根目录执行 `npm run verify`。`runtime/` 是默认回归；`audit/` 是额外审计回归，入口 `npm run test:review`。PostgreSQL 使用 `python3 test_case/offline/test-postgres.py --pg-bin /path/to/postgresql/bin`，额外数据库审计使用 `python3 test_case/offline/audit/run-world.py --pg-bin /path/to/postgresql/bin`。
+从仓库根目录执行 `npm run verify`：依次运行类型检查、文档检查和 `tsx --test "test_case/offline/**/*.test.ts"`。全部当前套件及其 TypeScript helper 都在默认范围内，新增测试按 `*.test.ts` 命名即可。
 
-`historical/` 保存历史比较/审计探针，可能依赖原场景或已变更接口，不包含在默认测试，也不声明当前全通过。当前回归使用 runtime、issue2–5、issue8 与 audit；历史报告不能覆盖本轮实现证据。测试设计说明见 [docs/testing.md](../../docs/testing.md)。
+需要 Node.js ≥ 22.19、Python 3、固定 Pi 子模块与 `npm ci`。真实模型入口在 online 目录，普通 verify 不加载模型凭据。
 
-`issue5/` 是设置重建与历史输入投影的正式合成回归，使用 `npm run test:issue5`；已纳入 `npm run check` 的类型检查。覆盖空提取来源及原文跨压缩、重启和再次投影的实际主模型请求，不评价真实模型的长期记忆质量。
+数据库测试统一使用 [PostgreSQL helper](helpers/postgres.ts) 注册；本地无 `SECRETARY_TEST_DATABASE_URL` 时带原因 skip，CI 缺 DSN 直接失败。有 DSN 时，每个场景在专用 PG 上创建独立空库，测试角色需要 CREATEDB。同场景重启使用同一库，其他场景不得共享残留数据。
 
+Node 原生统计 pass/fail/skip/todo。AUD14 使用 todo 保留待 #24 处理的 Context 字段语义问题。旧 UI 三项合同测试已删除，有效领域与 DOM 安全回归保留，服务协议由 issue8 验证。issue4 仍运行且通过类型检查，下一批 #19 删除其旧恢复机制。
 
-`issue8/` 是当前 API v1/生命周期及复审缺陷的正式回归，入口 `npm run test:api`，已包含在 verify 和默认类型检查中。PG 条件用例须另用隔离数据库执行；普通 verify 的跳过不代表数据库验收。旧 UI 的三项合同测试显式 skip，保留领域/渲染测试并由新版 API 专项替代服务验收，详见[验证记录](../../docs/api/v1/verification.md)。
+[历史探针](../historical/offline/README.md) 已迁出 offline，不执行、不类型检查。runtime/helpers 中面向旧 UI 的浏览器/PTY 脚本仍是历史专项辅助，不是当前验收入口。
 
-runtime/helpers 内旧浏览器/PTY 服务仍可能依赖退休路由，不能照历史命令把结果称为新版客户端测试。此次文档核对没有修改业务测试、放宽断言或执行真实模型调用。
+完整命令、手动孤儿库清理、CI 及证据边界见 [测试策略](../../docs/testing.md)。
