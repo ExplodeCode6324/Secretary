@@ -2281,6 +2281,9 @@
         "proposal_ref": {
           "$ref": "#/$defs/ObjectRef",
           "description": "本轮不可变有效提案。旧执行按 plan_revision 从 journal 历史计划固定；不能读取最新计划代替。"
+        },
+        "recovery_call_id": {
+          "$ref": "#/$defs/ID"
         }
       },
       "required": [
@@ -3214,6 +3217,44 @@
             {
               "type": "null"
             }
+          ]
+        },
+        "process": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "token": {
+              "type": "string"
+            },
+            "state": {
+              "enum": [
+                "STARTING",
+                "RUNNING",
+                "STOPPED",
+                "UNCONFIRMED"
+              ]
+            },
+            "machine": {
+              "type": "string"
+            },
+            "boot": {
+              "type": "string"
+            },
+            "pid": {
+              "type": "integer",
+              "minimum": 2
+            },
+            "pgid": {
+              "type": "integer",
+              "minimum": 2
+            },
+            "start": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "token",
+            "state"
           ]
         }
       },

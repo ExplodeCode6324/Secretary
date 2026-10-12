@@ -28,19 +28,6 @@ export class Authorization {
     intent = id(),
     expectedResourceRevision: string | null = null,
   ): Operation {
-    if (
-      this.store
-        .all<Operation>("Operation")
-        .some(
-          (o) =>
-            o.state === "RESULT_UNKNOWN" &&
-            o.action.action === action &&
-            o.action.resource === resource,
-        )
-    )
-      throw Error(
-        "RELATED_EFFECT_UNKNOWN: verify before creating another operation",
-      );
     const ref = this.store.put(params);
     const existing = this.store
       .all<Operation>("Operation")
@@ -54,6 +41,21 @@ export class Authorization {
         throw Error("INTENT_CONFLICT");
       return existing;
     }
+    if (
+      this.store
+        .all<Operation>("Operation")
+        .some(
+          (o) =>
+            o.state === "RESULT_UNKNOWN" &&
+            (["shell.run", "program.run"].includes(action) && scope.execution_id
+              ? ["shell.run", "program.run"].includes(o.action.action) &&
+                o.scope.execution_id === scope.execution_id
+              : o.action.action === action && o.action.resource === resource),
+        )
+    )
+      throw Error(
+        "RELATED_EFFECT_UNKNOWN: verify before creating another operation",
+      );
     const op: Operation = {
       schema_version: 1,
       record_type: "Operation",
@@ -353,6 +355,37 @@ export class Authorization {
     const r = revise(o, { state, effect, receipt });
     this.store.commit([r], [this.store.event("operation.result", r, o.scope)]);
     return r;
+  }
+  resolve(
+    operationID: string,
+    expectedRevision: number,
+    outcome: "APPLIED" | "NOT_APPLIED" | "PARTIAL" | "UNVERIFIED",
+    note: string,
+  ) {
+    const op = this.store.get<Operation>("Operation", operationID);
+    if (op.revision !== expectedRevision) throw Error("REVISION_CONFLICT");
+    if (op.state !== "RESULT_UNKNOWN") throw Error("OPERATION_NOT_UNKNOWN");
+    const receipt = this.store.put({
+      outcome,
+      resolved_by: "MASTER_UI",
+      note,
+      resolved_at: now(),
+      original_receipt: op.receipt,
+    });
+    const resolved = revise(op, {
+      state:
+        outcome === "APPLIED" ? ("SUCCEEDED" as const) : ("FAILED" as const),
+      effect: outcome === "UNVERIFIED" ? ("UNKNOWN" as const) : outcome,
+      receipt,
+      ...(!op.process && ["shell.run", "program.run"].includes(op.action.action)
+        ? { process: { token: op.id, state: "UNCONFIRMED" as const } }
+        : {}),
+    });
+    this.store.commit(
+      [resolved],
+      [this.store.event("operation.resolved", resolved, op.scope, "MASTER_UI")],
+    );
+    return resolved;
   }
   recover() {
     for (const op of this.store.all<Operation>("Operation")) {

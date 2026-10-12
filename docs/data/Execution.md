@@ -31,6 +31,7 @@
 | `checkpoint_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `unknown_operation_ids` | array<ID> | 是 |  {"minItems": 0} 关联：[ID](ID.md) |
 | `proposal_ref` | ObjectRef | 否 | 本轮不可变有效提案。旧执行按 plan_revision 从 journal 历史计划固定；不能读取最新计划代替。 关联：[ObjectRef](ObjectRef.md) |
+| `recovery_call_id` | ID | 否 |  关联：[ID](ID.md) |
 
 ## 组合约束
 

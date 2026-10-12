@@ -809,6 +809,15 @@ export interface Operation {
     intent_id: string;
     [k: string]: unknown;
   };
+  effect?: string;
+  resolution?: {
+    outcome: "APPLIED" | "NOT_APPLIED" | "PARTIAL" | "UNVERIFIED";
+    resolved_by: "MASTER_UI";
+    note: string;
+    resolved_at: string;
+    [k: string]: unknown;
+  } | null;
+  process_state?: "STARTING" | "RUNNING" | "STOPPED" | "UNCONFIRMED" | null;
   [k: string]: unknown;
 }
 /**
@@ -868,4 +877,14 @@ export interface RulePage {
   version: string;
   next_cursor: string | null;
   [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "OperationResolveCommand".
+ */
+export interface OperationResolveCommand {
+  request_id: string;
+  expected_revision: Revision;
+  outcome: "APPLIED" | "NOT_APPLIED" | "PARTIAL" | "UNVERIFIED";
+  note: string;
 }

@@ -923,20 +923,15 @@ for (const stage of [
         assert.equal(executions(restored).length, 2);
         assert.equal(
           latest(restored).state,
-          stage === "after-dispatch" ? "RESULT_UNKNOWN" : "SUCCEEDED",
+          stage === "after-dispatch" ? "FAILED" : "SUCCEEDED",
         );
         assert.equal(restored.store.all<Operation>("Operation").length, 0);
-        if (stage === "after-dispatch")
-          assert.throws(
-            () =>
-              restored!.scheduler.propose(
-                "bypass",
-                id(),
-                restored!.host.sessionID,
-                { reuse: p.id, parent: latest(restored!).id },
-              ),
-            /BUSY/,
-          );
+        if (stage === "after-dispatch") {
+          // No ModelCall or Operation was started: #18 closes this interrupted
+          // execution as FAILED instead of keeping an unresolvable unknown.
+          assert.equal(restored.store.all<import("../../../src/pi_secretary/src/contracts.ts").ModelCall>("ModelCall").filter(c => c.scope.execution_id === latest(restored!).id).length, 0);
+          assert.equal(restored.scheduler.continuationStatus(p.id, latest(restored).id, restored.host.sessionID).allowed, true);
+        }
       } finally {
         await restored.close();
       }

@@ -180,6 +180,7 @@ export type Execution = {
    */
   unknown_operation_ids: ID[];
   proposal_ref?: ObjectRef3;
+  recovery_call_id?: ID;
 };
 /**
  * 状态枚举对应 src/state_machine/catalog.json 的 Execution
@@ -236,6 +237,15 @@ export type Operation = {
   receipt: ObjectRef | null;
   effect: "NOT_STARTED" | "APPLIED" | "NOT_APPLIED" | "PARTIAL" | "UNKNOWN";
   error: string | null;
+  process?: {
+    token: string;
+    state: "STARTING" | "RUNNING" | "STOPPED" | "UNCONFIRMED";
+    machine?: string;
+    boot?: string;
+    pid?: number;
+    pgid?: number;
+    start?: string;
+  };
 };
 /**
  * 状态枚举对应 src/state_machine/catalog.json 的 Operation

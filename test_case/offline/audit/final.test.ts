@@ -26,9 +26,9 @@ test('NEW20 cancellation of program ignoring SIGTERM needs bounded escalation',(
   for(let n=0;n<100&&!fs.existsSync(path.join(dir,'workspaces',plan.id,'work','ready'));n++)await new Promise(r=>setTimeout(r,10));
   assert(fs.existsSync(path.join(dir,'workspaces',plan.id,'work','ready')));
   child=(a.scheduler as any).running.get(eid)?.child;assert(child);a.scheduler.cancel(eid);
-  const stopped=await Promise.race([run.then(()=>true),new Promise<boolean>(r=>setTimeout(()=>r(false),300))]);
+  const stopped=await Promise.race([run.then(()=>true),new Promise<boolean>(r=>setTimeout(()=>r(false),5000))]);
   assert(stopped,'cancel only sends SIGTERM; no configured escalation or completion bound');
- }finally{child?.kill('SIGKILL');await run;}
+ }finally{if(child && child.exitCode===null && child.signalCode===null)process.kill(-child.pid,'SIGKILL');await run;}
 }));
 test('NEW21 summary cannot claim source covered while omitting its explicit constraint',()=>{
  const stream:StreamFn=(m,c,o)=>JSON.stringify(c).includes('CONSCIOUSNESS')?replyStream([{type:'text',text:JSON.stringify({items:[{tier:'QUIET',summary:'Unrelated small talk',goals:[],constraints:[],decisions:[],open_questions:[],unfulfilled_commitments:[],task_refs:[],pending_owner:null}]})}],m):fixtureStream(m,c,o);

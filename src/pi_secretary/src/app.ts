@@ -43,7 +43,7 @@ export class App {
       auth.recover();
       const world = dsn ? new World(store, auth, dsn) : undefined;
       const scheduler = new Scheduler(store, auth, task.model, task.stream);
-      scheduler.recover();
+      await scheduler.recover();
       const host = new Host(
         store,
         scheduler,
