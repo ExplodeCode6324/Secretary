@@ -87,24 +87,27 @@ export async function launchProcess(
   const control = child.stdio[3] as Writable;
   control.on("error", () => {});
   child.stdin!.on("error", () => {});
-  let outcome: { exit_code: number | null; signal: number | null } | undefined;
+  type Result = {
+    exit_code: number | null;
+    signal: number | string | null;
+    not_started?: true;
+  };
+  let outcome: Result | undefined;
   let readyResolve: () => void, readyReject: (e: Error) => void;
   const ready = new Promise<void>((resolve, reject) => {
     readyResolve = resolve;
     readyReject = reject;
   });
   let prepared = false;
-  const closed = new Promise<{
-    exit_code: number | null;
-    signal: number | string | null;
-  }>((resolve, reject) => {
+  const closed = new Promise<Result>((resolve, reject) => {
     child.once("error", (e) => {
       readyReject(e);
       reject(e);
     });
-    child.once("close", (code, signal) => {
+    child.once("close", (_code, signal) => {
       if (!prepared) readyReject(Error("PROCESS_NOT_READY"));
-      resolve(outcome ?? { exit_code: code, signal });
+      // A wrapper exit code is not evidence that the authorized command ran.
+      resolve(outcome ?? { exit_code: null, signal });
     });
   });
   // An externally killed leader can leave descendants holding stdout/stderr.
@@ -141,7 +144,21 @@ export async function launchProcess(
             // The caller installs output handlers before opening the gate.
             readyResolve();
           }
-          if (message.result) outcome = message.result;
+          if (message.result && !outcome) {
+            const result = message.result;
+            if (result.not_started === true)
+              outcome = { not_started: true, exit_code: null, signal: null };
+            else if (
+              (result.exit_code === null ||
+                (Number.isInteger(result.exit_code) &&
+                  result.exit_code >= 0)) &&
+              (result.signal === null ||
+                (Number.isInteger(result.signal) && result.signal > 0)) &&
+              !(result.exit_code !== null && result.signal !== null)
+            )
+              outcome = { exit_code: result.exit_code, signal: result.signal };
+            else throw Error("INVALID_PROCESS_RESULT");
+          }
         } catch (e) {
           control.end();
           readyReject(e as Error);

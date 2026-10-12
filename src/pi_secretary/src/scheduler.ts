@@ -1695,6 +1695,7 @@ export class Scheduler {
       },
     );
     const child = launched.child;
+    child.stdin!.end();
     entry.child = child;
     const limit = 4 * 1024 * 1024;
     const capture = (b: Buffer, stream: "stdout" | "stderr") => {
@@ -1731,11 +1732,16 @@ export class Scheduler {
         truncated,
       };
       const unknown =
-        timed_out ||
-        truncated ||
-        result.signal !== null ||
-        result.exit_code === null;
-      this.auth.finish(op.id, receipt, unknown ? "UNKNOWN" : "APPLIED");
+        !result.not_started &&
+        (timed_out ||
+          truncated ||
+          result.signal !== null ||
+          result.exit_code === null);
+      this.auth.finish(
+        op.id,
+        receipt,
+        result.not_started ? "NOT_APPLIED" : unknown ? "UNKNOWN" : "APPLIED",
+      );
       if (unknown) {
         this.setState(eid, "RESULT_UNKNOWN", {
           unknown_operation_ids: [op.id],
@@ -2006,13 +2012,25 @@ export class Scheduler {
     if (this.store.get<Execution>("Execution", eid).cancel_requested)
       requestStop(child);
     else launched.start();
-    const { exit_code: code } = await launched.closed;
+    const processResult = await launched.closed;
+    const { exit_code: code } = processResult;
     persistStop(
       this.store,
       opID,
       inspectProcess(this.store.get<Operation>("Operation", opID).process!),
     );
     entry.child = undefined;
+    if (processResult.not_started) {
+      this.auth.finish(
+        opID,
+        { ...processResult, stdout: output, stderr: error },
+        "NOT_APPLIED",
+      );
+      this.finish(eid, "CANCELLED", {
+        reason: "Program cancelled before start",
+      });
+      return;
+    }
     try {
       if (code !== 0 || overflow) throw Error("PROGRAM_EFFECT_UNCONFIRMED");
       const result = JSON.parse(output);

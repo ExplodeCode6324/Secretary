@@ -78,11 +78,15 @@ def run(token):
         if ready:
             chunk = os.read(3, 65536)
             if not chunk:
+                report({'result': {'not_started': True}})
                 return
             data += chunk
-    if stopping[0]:
+    first, _, pending = data.partition(b'\n')
+    if stopping[0] or first == b'STOP' or pending:
+        # STOP may arrive alone or in the same read as the start frame.
+        report({'result': {'not_started': True}})
         return
-    request = json.loads(data.split(b'\n', 1)[0])
+    request = json.loads(first)
     # Authorization and process identity are durable before Core sends this message.
     child = subprocess.Popen(request['argv'], close_fds=True)
     while child.poll() is None and not stopping[0]:

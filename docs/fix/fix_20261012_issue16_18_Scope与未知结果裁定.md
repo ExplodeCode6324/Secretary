@@ -269,3 +269,15 @@ git diff --numstat
 - 2026-10-12：核实 N1 与 POSIX 进程组/kill 语义后修订 B2 和验收矩阵；N1 来源为 Master 本轮消息，原审查报告文件尚未包含该条。仅修改计划，未执行生产代码或真实进程测试。
 
 - 2026-10-12：Master 授权开始实施，完成验证并提交 PR/CI 后通知复核，先不合并。两个 PR 使用堆叠分支满足本轮要求。实施基线 cc1a976；本地首次完整 verify 日志单独保留。
+
+### PR #32/#33 审查处理（2026-10-12）
+
+来源为 Master 提供的 `review_20261012_pr_issue18-16_PR32-33.md`，以下记录不代表审查方已复审通过。
+
+- B1 确认并修复：wrapper 在启动前收到 STOP/EOF 时明确报告 `not_started`；Core 将其记为 NOT_APPLIED。缺失结果帧一律保持 UNKNOWN，不再将 wrapper 自身退出码当作命令结果。shell/program 均覆盖 ready 落盘后、start 发送前取消；正常 program 输入也有回归。
+- B2 确认并修复：shell 在 start 前关闭 stdin，恢复即时 EOF；program 继续接收完整 JSON 输入。真实子进程测试覆盖 `cat >/dev/null; echo done`，要求 exit 0、APPLIED、未超时。
+- N1 确认并修复：Operation 列表先分页，再读取当前页回执。合成页外损坏 CAS 测试证明当前页可读，访问损坏页仍明确报错，不掩盖损坏。
+- N2 确认但本轮不修复：历史 Operation 的重复扫描具有 O(n²) 恢复成本，tick 也有全表扫描。它是报告明确允许后续处理的性能项；本轮未获得新的规模/延迟失败证据。完整索引需要同时覆盖 Store 提交、journal 重放与状态变更后的失效维护，应在可靠同步与长期历史规模工作前单独实现、验证；保留此限制，不宣称已消除。
+- N3 已将索引状态改为“待验收”。N4 不按 200 行目标裁减进程身份保护；本次 #18 手写生产源码相对 main 为 +724/-117，净增 607 行：裁定及查询 +130/-35（95），模型恢复 +129/-25（104），进程控制 +465/-57（408）。生成代码、测试和文档不计入该数。
+- 首次回归失败已单独保留：进程协议 5 项中 4 项失败（shell 取消误记 APPLIED、shell EOF 超时、program 取消 UNKNOWN、缺帧误用 wrapper exit 1），program 正常 JSON 输入通过；分页新增项因页外 CORRUPT_OBJECT 失败。修复后这 14 项定向测试全部通过。
+- #32 修复后的 macOS 完整 `npm run verify`（CI=true、专用 PostgreSQL 18）：408 tests、407 pass、0 fail、0 skip、1 既有 AUD14 todo（#24）；类型与文档检查均通过。原始日志与首次失败仅留本地，不进入公开提交。

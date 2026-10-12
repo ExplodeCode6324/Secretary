@@ -222,3 +222,33 @@ test("resolving one of several unknown effects preserves the remaining operation
     });
     assert.equal(app.store.get<Execution>("Execution", e.id).state, "FAILED");
   }));
+
+test("operations pagination reads only receipts on the requested page", () =>
+  fixture(async (app, api, dir) => {
+    const first = interrupted(app).op;
+    const second = interrupted(app).op;
+    const receipt = app.store.put({ synthetic: "off-page receipt" });
+    app.store.commit([revise(second, { receipt })]);
+    const file = path.join(dir, "objects", receipt.sha256);
+    const bytes = fs.readFileSync(file);
+    fs.writeFileSync(file, "corrupt");
+    try {
+      const page: any = await api.query(
+        api.principal,
+        "operations",
+        new URLSearchParams({ limit: "1" }),
+      );
+      assert.equal(page.items.length, 1);
+      assert.equal(page.items[0].id, first.id);
+      assert(page.next_cursor);
+      await assert.rejects(() =>
+        api.query(
+          api.principal,
+          "operations",
+          new URLSearchParams({ limit: "1", cursor: page.next_cursor }),
+        ),
+      );
+    } finally {
+      fs.writeFileSync(file, bytes);
+    }
+  }));

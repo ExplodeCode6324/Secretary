@@ -1005,14 +1005,19 @@ export class ApplicationService {
         };
       }
     }
-    if (path === "operations")
-      return this.page(
+    if (path === "operations") {
+      const page = this.page(
         path,
-        store
-          .all<import("./contracts.ts").Operation>("Operation")
-          .map((op) => this.operationView(op)),
+        store.all<import("./contracts.ts").Operation>("Operation"),
         q,
       );
+      return {
+        ...page,
+        items: page.items.map((op) =>
+          this.operationView(op as import("./contracts.ts").Operation),
+        ),
+      };
+    }
     if (parts[0] === "operations" && parts.length === 2)
       return this.operationView(store.get("Operation", target));
     if (path === "admin/programs")
