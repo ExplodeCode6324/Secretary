@@ -1,80 +1,65 @@
-# 当前架构
+# 架构
 
-Core API v1 是当前客户端入口。SwiftUI 尚未实现，旧 TUI/WebUI 的协议已退出当前服务；旧源码及部分领域/渲染测试仍在仓库，不代表存在可用的旧 HTTP 服务。
+Secretary 由独立 Core 进程承载。API v1 接收本机 owner 的命令，ApplicationService 组织领域调用，Host 处理主会话，Scheduler 推进任务，Store 保存本地状态。World 使用可选的 PostgreSQL 数据库。
 
 ```mermaid
 flowchart TD
-  C[API v1 调用方 / 后续原生客户端] --> HTTP[api-v1.ts 本机认证 HTTP]
-  CLI[core-cli.ts 启停与附着] --> CLIENT[core-client.ts]
-  CLIENT --> HTTP
-  HTTP --> AS[ApplicationService 命令受理与读投影]
-  AS --> APP[App 领域组合]
-  APP --> H[Host 唯一主会话]
-  APP --> S[Scheduler]
-  APP --> SET[Settings]
-  SET --> H
-  SET --> W[World 可选]
-  H --> M[Pi Agent 主会话]
-  H --> S
-  S --> TASK[Pi Agent / 登记程序]
-  S --> A[Authorization]
-  W --> A
-  W --> PG[(PostgreSQL wm)]
-  H --> ST[(Store journal + CAS)]
-  S --> ST
-  A --> ST
-  AS --> ST
+  Client[CoreClient / API 调用方] --> API[API v1]
+  API --> Service[ApplicationService]
+  Service --> Host[Host 主会话]
+  Service --> Scheduler[Scheduler 任务]
+  Service --> Settings[Settings 设置]
+  Host --> Scheduler
+  Scheduler --> Scopes[Scopes 工作范围]
+  Scheduler --> Executor[Pi Agent / 登记程序]
+  Executor --> Auth[Authorization]
+  Settings --> World[World]
+  World --> PG[(PostgreSQL)]
+  Host --> Store[(journal + CAS)]
+  Scheduler --> Store
+  Auth --> Store
+  Settings --> Store
 ```
 
-## 模块与边界
+## 模块
 
-以下路径相对于 `src/pi_secretary/src`。
+以下源码位于 `src/pi_secretary/src`。
 
-| 模块 | 当前职责 |
+| 模块 | 职责 |
 | --- | --- |
-| core-cli.ts / core-client.ts / backend.ts | detached Core 启动、发现文件与唯一 writer 竞争；附着/状态不启动进程，显式停止关闭 Core |
-| api-v1.ts | loopback、Host/Origin、Bearer token、JSON/大小门禁、错误封装、产物有界流读取及 300ms pump |
-| application-service.ts / api/protocol.ts / api/routes.ts | local-owner 身份、命令校验/幂等/受理、纯查询、分页与公开字段投影；不替代领域状态机 |
-| app.ts | 组合 Store、Authorization、Scheduler、Host、Settings 与可选 World；推进与关闭领域工作 |
-| host.ts | 输入领取、主会话循环、工具回执、工作记忆、显式恢复 |
-| scheduler.ts | 任务/执行身份、workspace、前提、授权后的工具执行、结果/反馈和留存 |
-| authorization.ts | 操作准备、规则/审批绑定、派发前复核、回执和未知作用保护 |
-| store.ts / lock.py | schema 校验、哈希对象、journal 同帧事务、请求身份索引及 OS 文件锁 |
-| settings.ts / settings-memory.ts / settings-payload.ts | 草稿、完整来源整理、World 批次、context 重建和恢复 |
-| world.ts | PostgreSQL 迁移、目录/事实分页、事务、版本与 outbox 桥接 |
-| model.ts / transport.ts / budget.ts | 双角色模型、fixture/live、请求容量硬门禁、调用原件与响应先持久化 |
-| context.ts / memory.ts / summary.ts | 完整恢复上下文、独立请求投影、摘要、承诺来源及确定性校验 |
-| preview.ts / activity.ts / activity-history.ts / timeline.ts | 有界临时预览、活动观察、可重建历史索引、时间线窗口与正文分片 |
-| instructions.ts / task-prompt.ts | 主会话基本说明与执行协议 |
-
-公开 DTO 来自 [API schema](api/v1/schema.json)，内部持久记录来自 [运行 schema](../src/contracts/contracts.schema.json)，两者独立生成类型。`ApiCommand`、`CoreIdentity`、`AssistantProfile`、`ClientRegistration` 也属于内部持久记录。revision 等大整数在 HTTP 上投影为字符串；CAS 路径、完整 prompt 和凭据不作为公共读模型输出。
+| core-cli / core-client / backend | 启动、发现、附着、状态查询和停止 Core |
+| api-v1 / application-service / api | HTTP 认证、命令幂等、异步受理、分页和公开 DTO |
+| app | 组合模块，推进 pump，协调关闭 |
+| host | 领取输入，运行主会话工具循环，维护记忆和反馈 |
+| scheduler / scopes | 创建执行、冻结工作根、检查前提、占用目录、接续与产物 |
+| authorization | 准备 Operation、匹配规则、审批、派发及效果裁定 |
+| process-control / process-runner.py | shell/program 启动门控、身份登记与进程组清理 |
+| model / transport / model-retry / budget | 双角色模型、持久请求、有界重试、请求容量 |
+| context / memory / summary / settings-memory | 上下文、工作摘要、承诺来源与分段整理 |
+| settings / settings-payload / world | 设置应用、World 批次、数据库回执和审计导出 |
+| store / store-lock / lock.py | schema 校验、对象哈希、事务日志和目录 writer 锁 |
+| preview / activity / activity-history / timeline | 临时模型预览、活动和可重建读索引 |
 
 ## 生命周期与并发
 
-一个数据目录只有一个持锁 Core writer；客户端登记不产生另一套业务会话。Host 串行处理主会话，Scheduler 默认最多两个任务执行者，同一任务最多一个活跃执行；Agent 工具顺序执行。pump 的 busy/running 门禁避免重复推进，但不是分布式队列或远程租约。
+一个数据目录对应一个持锁 Core writer、一个主会话。Host 串行处理输入批次；Scheduler 默认最多两个执行者，可由 `SECRETARY_MAX_WORKERS` 配置。同一 Task 的执行依次推进，同一 DIRECTORY Scope 也依次占用目录；NONE 范围中的不同任务使用各自目录并行运行。
 
-HTTP POST 返回 202 只证明持久受理。短命令受理与首个领域变更同帧保存；长命令先 QUEUED，再 RUNNING，成功 COMPLETED。中断或派发异常保持 UNKNOWN，不能自动重发副作用。详情见[状态机](state-machines.md)和[持久化](persistence.md)。
+Core 启动时打开 Store，恢复授权和受控进程，分类恢复 Execution，再构造 Host、Settings 并预热读索引。API 每 300 ms 推进一次 App pump；各模块用当前工作状态协调异步推进。显式停止关闭模型循环、执行者、数据库连接及 writer 锁。
 
-`SECRETARY_MODE=live` 使用实际 provider，其余代码路径使用 fixture。World 未配置时主会话、任务和本地 Store 可运行，World 能力为 not_configured；已配置不代表数据库健康或已迁移。服务器没有设备 principal、上传服务或可靠 ChangeFeed。
+## 模型与执行
 
-## 读模型、预览和时间线
+主会话使用六个已注册工具组织工作；执行 Agent 使用文件、shell、工作决定和结果提交工具。登记程序以 Node 子进程运行。DIRECTORY 执行采用创建时冻结的项目根，NONE 和无 Scope 执行采用任务目录。文件写入、shell、程序和模型提出的 World 修改由 Authorization 管理。
 
-`durableStream` 单消费者观察供应商增量，将可见文本放入内存预览；完整响应写入 ModelCall/Context 成功后才交给 Agent 执行工具。预览最多保留 8 个调用，每调用 128 个块、32768 字符；不投影签名、redacted 内容或工具参数。预览不进入记忆、授权和业务判断，重启丢失临时内容。
+shell/program 的 wrapper 先报告身份，Core 持久化后发送启动帧。启动前取消产生 NOT_APPLIED；命令结果来自结果帧，缺帧时记录 UNKNOWN。恢复过程中，效果裁定与进程停止分别记录，目录槽在运行结束且进程确认停止后释放。
 
-当前客户端用 `GET /api/v1/timeline?streaming=true&thinking=true` 显式读取预览与可见思考；默认不返回思考。临时预览和持久消息用 call_id 关联。没有 `/api/stream`、旧 activity SSE 或可靠事件补发；查询开关不表示改变模型内部推理。
+## 读模型与存储
 
-时间线复用 activity-history/timeline 的可重建索引，以稳定消息/事件 ID、排序锚点和 generation 查询。每页最多 200 项且受 1 MiB 页面预算约束；around 定位、正文 opaque cursor、任务/产物/待处理查询各有独立作用域。GET 不续留、不读后标记已读；明确打开执行才提交 viewed。
+内部记录由[运行 schema](../src/contracts/contracts.schema.json)描述，HTTP 读写由[API schema](api/v1/schema.json)描述。公开投影使用资源 ID、内容版本和字符串 revision；任务工作文件保留在工作根，发布的产物保存为 CAS 对象。
 
-索引预热和 Store 重放仍随历史增长；单个大 CAS 消息可能先完整读取/解析再分片。列表分页不等于跨存储快照或常数内存扫描。World 使用独立版本，可靠持久水位/恢复由后续 #9 实现。
+timeline 使用消息/事件 ID、排序锚点和 generation 分页。`streaming=true` 加入内存预览，`thinking=true` 加入供应商提供的可见思考。持久响应写入 ModelCall 后交给执行循环。GET 读取状态，用户访问执行通过 viewed 命令记录。
 
-## 任务与证据
+World 的事务回执经 outbox 导入 journal。当前 API 使用请求查询和分页读取；可靠 ChangeFeed 属于 #9。SwiftUI、通知呈现回执、设备和上传能力见 [README 路线](../README.md#开发路线)。
 
-TaskPlan 保存计划基线，Execution.proposal_ref 固定本轮要求。同任务接续复用 work 目录，生成新的 Execution；parent_execution_id 和 continuation_of 关联前一轮。TaskResult 的 CAS 产物保持不可变，工作文件可继续修改。模型 submit_result 与 `verified_by=NOT_VERIFIED` 不能代替独立验算，真实产物验收见[验证记录](api/v1/verification.md)。
+## 实现依赖
 
-Host 创建的 Notification 与已读确认不同。旧 TerminalController 曾通过 presented 写入 SENT 回执；当前 Core 不加载该控制器，也没有公共 notification presented 命令。普通时间线查询不会推进该状态；不能宣称已接通旧通知送达流程，依赖 SENT 的自动承诺完成规则仍需真实送达证据。
-
-## Pi 与后续客户端
-
-[src/UPSTREAM.json](../src/UPSTREAM.json) 固定 Pi v0.87.0 与子模块 commit。Agent、read/write 工具、NodeExecutionEnv 使用子模块源码，模型传输包与其版本匹配。上游 CLI/扩展不构成 Secretary 的权限入口，上游文档不属于本仓库自有文档维护范围。
-
-`ui-client.ts`、`client-tui.ts`、`tui.ts`、`web.ts`、`src/pi_secretary/web` 及旧 `.command` 仍是待 #10 清理的遗留实现。SwiftUI 按[客户端规范](native-client-design-v0.3.md)消费新版合同；可选新版 TUI 只保留在开发路线，不维护旧协议兼容层。
+Pi 版本和子模块提交固定在 [UPSTREAM.json](../src/UPSTREAM.json)。Secretary 使用其中的 Agent、工具及执行环境，模型传输依赖与其版本匹配。旧 Web/TUI 文件保留在源码目录，现行服务入口为 Core API v1，客户端清理由 #10 承接。

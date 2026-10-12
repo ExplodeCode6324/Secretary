@@ -1,88 +1,83 @@
 # Core API v1
 
-Issue #8 的本机 owner 协议。原生页面遵循 [客户端 v0.3](../../native-client-design-v0.3.md)。
+Core 为本机 owner 提供 64 项操作：37 GET、27 POST。公开合同包括 [JSON Schema](schema.json)、[操作表](operations.json)、生成的 [OpenAPI 3.1](openapi.json) 和 TypeScript DTO。客户端使用这些 DTO，内部 Store 记录另见[数据模型](../../data-model.md)。
 
-- [JSON Schema](schema.json) 定义独立于持久化 Store 的公开 DTO；[操作表](operations.json) 是 HTTP 路径、方法、命令 schema 和返回 schema 的冻结清单。
-- [OpenAPI 3.1](openapi.json) 与 TypeScript DTO 由 `npm run api:generate` 生成。Swift 可从公开 schema 建模；[示例](examples.json) 和 `decode-examples.swift` 覆盖精度、Unicode、未知字段。
-- `CoreClient` 返回结构化数据；未知查询显式为 `unknown`，调用者使用生成的 DTO。它不解析终端文本，不自动重试变更命令。
+[CoreClient](../../../src/pi_secretary/src/core-client.ts) 负责发现和请求，返回结构化数据。[examples.json](examples.json) 与 [Swift 解码示例](decode-examples.swift) 展示精度、Unicode 和未知字段处理。原生页面设计见[客户端 v0.3](../../native-client-design-v0.3.md)。
 
 ## 生命周期与连接
 
-```sh
-npm ci --ignore-scripts
-npm run start:core
-npm run core -- status
-npm run core -- attach
-npm run stop
-```
+从仓库根目录执行 `npm start` 启动或连接 Core，`npm run core -- status|attach` 连接已有实例，`npm run stop` 停止后台。完整配置见[运行手册](../../operations.md)。
 
-直接 Core CLI（包括 stop）的数据目录由 `SECRETARY_DATA` 指定，默认 `.demo-data`。live wrapper 默认 `.demo-data/interactive-live`，管理其状态/停止时应显式使用匹配目录和 `SECRETARY_MODE=live`，见[运行手册](../../operations.md)。`SECRETARY_MODE=fixture` 默认使用离线合成模型；沿用已有 live 模型配置必须由操作者明确设置。`SECRETARY_DATABASE_URL` 配置可选 World 数据库；首次建库可由 owner 提交 `admin/world/migrate` 并查询回执。CLI 不打印 token。
+服务监听 `127.0.0.1` 动态端口。数据目录中的 core-endpoint.json 保存地址、token、实例和模式，权限为 0600，新建数据目录为 0700。客户端附着时核对文件 owner、权限和模式。CoreIdentity 的 owner/data_domain_id 持久保存，instance_id 每次启动变化。
 
-Core 在 `127.0.0.1` 动态端口监听。发现文件 `core-endpoint.json` 和 `core.log` 权限为 0600，目录新建为 0700。附着验证本机文件 owner、权限、实例和模型模式。`status`/`attach` 不启动进程；`start` 的并发调用依靠既有 Store 文件锁竞争唯一 writer，失败的启动者附着到获胜者。客户端退出没有关闭业务的语义；显式 `core/stop` 受理落盘后关闭，重启仍可对账，重投旧 stop 不会再次关闭新实例。
+每个请求使用 `Authorization: Bearer <token>`，可带 `X-Secretary-API-Version: 1`。Host 使用发现地址，Origin 如存在也须匹配。认证产生 local-owner principal。ClientRegistration 用于登记客户端身份，权限由认证决定。
 
-`data_domain_id` 与 owner 是此数据目录持久身份；`instance_id` 每次启动变化。`clients` 返回持久 ClientRegistration 资源 ID，可携带 `client_id` 附着原登记及可选 `instance_id` 标识客户端进程。登记信息不能赋予权限。首次与重复登记均受 request ID 约束。首期没有远程或普通设备 principal，设备能力明确为 `not_supported`。
+Core stop 先持久受理再关闭；客户端退出后 Core 继续运行。旧 stop 请求在重启后仍返回原回执。当前入口均在 `/api/v1` 下，可靠同步、通知展示回执、设备和附件上传按后续路线扩展。
 
-所有请求带 `Authorization: Bearer <endpoint token>`。可带 `X-Secretary-API-Version: 1`。Host 必须为发现文件中的 loopback 地址；若存在 Origin，也必须匹配。服务端从认证产生 owner principal；body 的 actor、role、device_id 等未知字段被拒绝。停止、规则、程序登记等仅此 owner 可用。
+## 命令与幂等
 
-旧 `/api/client`、`/api/command`、`/api/poll`、静态 Web 路由均不注册。旧 Web/TUI 不兼容新版服务；源码最终退役属于 #10，未来 TUI 仅在 README 路线中。
+POST 使用 application/json，body 上限 1 MiB，包含 UUID request_id。同一请求的 owner、路径和规范化 body 共同确定幂等身份；原 ID 重投原内容返回原回执，变更内容返回 REQUEST_CONFLICT。响应丢失时用 `GET /requests/{id}` 查询，再决定下一步。
 
-## 请求、受理与重试
+HTTP 202 表示受理已持久保存。短命令将 ApiCommand 与首个领域变更写入同一帧，状态通常保持 ACCEPTED；关联资源提供业务进度。无变化的命令也保存 NO_CHANGES 回执。
 
-写入只能使用操作表列出的 POST，`Content-Type: application/json`，body 最大 1 MiB。每个命令必须有客户端持有的 UUID `request_id`；超时后保留原 ID、原路径和原 body。所有命令共享此数据域的 owner 请求命名空间。键排序后的 JSON 值、路径（含目标）、命令类型、CAS revision、审批显示 hash 和恢复 binding 全部绑定；相同 ID 改参数或改操作返回 `REQUEST_CONFLICT`。历史内部工作决定的 answer_request_id 也保留其占用身份，包括重启回放后；不能被新 API 操作重新使用。不自动过期或删除去重证据。
+长命令先 QUEUED，再 RUNNING，正常结束为 COMPLETED，异常或中断为 UNKNOWN。重启继续尚未开始的 QUEUED；UNKNOWN 通过关联领域回执对账。`memory/extraction/retry` 是短命令，固定当时失败的来源集合，后续由维护周期补提。
 
-HTTP 202 表示持久受理；不表示任务、模型或外部操作成功。短命令的 ApiCommand 与首个领域变更在同一 fsync journal frame 内提交。后续初始化等仍由原领域恢复逻辑负责；回执提供资源链接，必须读取领域资源判断业务进度。没有变化的命令也持久保存回执，NO_CHANGES 可在 `requests/{id}.result` 查看。
+## 响应与分页
 
-取消、整理、恢复、文件结果核验与数据库初始化先提交 QUEUED 意图，再异步调用原领域入口。执行前记录 RUNNING，完成记录 COMPLETED 和可用结果；进程在 RUNNING 中断后恢复为 UNKNOWN，不自动重发潜在副作用。QUEUED 尚未开始，可在重启后推进，但仍须通过原领域的授权与前置条件校验。领域拒绝可能在异步结果中出现；UNKNOWN 的 `error_code` 和关联领域对象用于对账，不能凭新 request ID 自动重试。记忆恢复保留原先一次性 authorization_id、issued_at、expires_at 及全部来源/配置/模型 hash 校验；API 受理不能延长其有效期。恢复票据绑定当前 Store 实例；重启前受理但尚未消费的票据不能在重启后获得隐式续期，须重新 preflight、重新明确确认。旧命令按失败原因对账，不自动替换票据重发。
+JSON 响应为 `{ "api_version": "1", "data": ... }`，错误为 `{ "api_version": "1", "error": { "code": "...", "message": "..." } }`。客户端按 code 处理错误。产物内容返回 application/octet-stream、Content-Length、ETag 和 attachment 文件名。
 
-`GET requests/{id}` 返回受理回执、领域资源当前 revision/state 和结果。404 表示尚无受理证据；该查询不重新执行。ACCEPTED、COMPLETED 等是传输命令状态；Task/Execution/Operation 的原状态机仍是业务权威。
+| HTTP | 常见含义 |
+| --- | --- |
+| 400 / 401 / 403 | 请求格式或版本错误 / 未认证 / 权限或 Origin 错误 |
+| 404 / 405 | 资源或路由不存在 / 方法错误 |
+| 409 / 410 | 冲突、版本陈旧或游标过期 / 产物归档 |
+| 413 / 415 | body 超限 / 媒体类型错误 |
+| 503 / 500 | 能力未配置或业务忙 / 内部错误 |
 
-## 读取、游标与精度
+revision、事件序号、World version 和字节长度使用十进制字符串；数量与 limit 使用有界整数，时间为 UTC ISO 8601。predicate.value_schema 保留完整领域 JSON Schema。响应可增加字段，客户端按已知字段解码；请求按命令 schema 校验。
 
-响应为 `{ "api_version": "1", "data": ... }`；错误为 `{ "api_version": "1", "error": { "code": "...", "message": "..." } }`。不能按中文消息分支。二进制产物内容是此 JSON envelope 的例外，返回 application/octet-stream、Content-Length、ETag 与 attachment 文件名。常用映射：请求/格式/版本 header 错误 400，认证 401，权限/Origin 403，未找到/旧路由/不支持的 URL 版本 404，方法 405，冲突/陈旧/过期 409，归档产物 410，请求过大 413，媒体类型 415，能力未配置/业务忙 503；未知内部错误 500，HTTP 不返回栈或本机路径。
+普通列表默认 30、上限 100；timeline 上限 200，并受 1 MiB 页面预算约束。cursor 是绑定查询范围、版本与实例的不透明值；CURSOR_EXPIRED 后重新载入。World 返回独立 world_version。当前游标用于分页，持久变更水位由 #9 补齐。
 
-revision、journal/event sequence、World version、字节长度使用十进制字符串；数量与分页 limit 使用有界整数；时间为 UTC ISO 8601，包括 PostgreSQL 返回的时间；可空时间保持 null。predicate 的 value_schema 是完整的领域 JSON Schema，其 properties/required 等键和值原样输出，不按内部元数据字段名删改。Swift 不将 revision 解码为 Double。未知响应字段可忽略；未知状态/能力枚举显示保守状态且不开放动作；未知请求字段、命令、版本拒绝。
+`timeline/around` 二选一 message_id 或 event_id，返回周边窗口。`messages/{id}/content` 用 next_cursor 续读，按顺序拼接 Unicode 分片。`streaming=true` 加入临时预览，`thinking=true` 加入模型提供的可见思考；预览与最终消息共享 call_id。
 
-普通列表默认 30、最大 100；timeline 最大 200 且不超过既有 1 MiB 页面预算。默认向历史查询，`direction=after` 向后续查询。`cursor` 不透明，与查询范围、页版本及实例绑定；改变受绑定的查询范围、数据版本变化或重启可返回 CURSOR_EXPIRED，客户端重新载入。普通列表的 limit 不写入游标绑定，不应据此宣称改变任意分页参数必然失效。时间线游标使用投影 generation 与排序锚点；它不是 #9 的持久事件水位。World 返回独立 `world_version`，不宣称与 journal 形成跨存储原子快照。
+GET 查询读取业务状态；用户打开执行详情时另提交 viewed 命令以续留 HOT 执行。
 
-`timeline/around` 必须二选一 `message_id` 或 `event_id`，返回有界周边窗口；无法定位返回 NOT_FOUND 类错误。`messages/{id}/content` 用 `next_cursor` 续读，无公开 JS UTF-16 偏移。分片不切开 Unicode scalar，可跨分片保留组合字符，按原顺序拼接得到原文。`thinking=true` 显式请求可见思考，`streaming=true` 包含临时预览；分片保留相同开关，版本变化须重载。预览与持久消息共享 call_id，临时预览不是可靠事件投递。
+## 资源与操作
 
-所有 GET 不写业务状态、不续留、不触发模型，也不标记通知已读。执行详情的用户打开行为使用 `executions/{id}/viewed`；RETIRED 不复活。Settings 共享草稿在 App 初始化时建立。
+所有路径均以前缀 `/api/v1` 开始，完整参数以[操作表](operations.json)为准。
 
-## 页面读模型与业务入口
+| 资源 | 当前行为 |
+| --- | --- |
+| assistant、assistant/profile | 查询与修改显示名；空白名称归一为 secretary，actor_id 固定为 assistant |
+| messages、timeline、session | 输入、历史、预览、整理与恢复 |
+| tasks、task-requests、executions | 计划基线、每轮要求、请求队列、结果、接续与取消 |
+| authorizations | 查询完整 display，按 expected_revision、display_hash 提交 APPROVE/REJECT/REVOKE |
+| decisions | 查询工作问题并提交回答 |
+| scopes | 创建、修改、归档和查询工作范围 |
+| operations | 查询作用与进程状态，核验文件写入或人工裁定 |
+| settings | 有效说明、共享草稿、最近应用及 apply/retry/restore-draft |
+| memory、memory/summary、memory/commitments | 维护状态、分页工作记忆、承诺及其来源 |
+| world/catalog、world/facts、world/slot | 目录、当前/历史事实与精确 slot 版本 |
+| artifacts | 分页产物目录、元信息及固定版本下载，可按 task_id 筛选 |
+| related | 按 session/task/message/event 范围查询已记录关系 |
+| attention | 审批与决定的计数和有界列表，附 version/as_of/valid_until |
+| admin | World 迁移、程序登记与授权规则登记/停用 |
+| requests、clients、core | 命令回执、客户端登记与服务状态/停止 |
 
-- `assistant` 的 actor_id 固定为 assistant。显示名 trim 后为空回退小写 secretary；修改显示配置不调用模型、不改人格与记忆。人格说明继续通过 Settings draft/apply。
-- `tasks/{id}` 提供基线要求、实际要求、接续条件、最近执行和结果摘要。历史执行与待执行请求分别从 `tasks/{id}/executions`、`tasks/{id}/requests` 分页。`task-requests/{id}` 提供请求的实际状态和取消原因。续接命令使用 reuse_task_id、parent_execution_id，材料和前置条件沿用原 Scheduler。
-- `authorizations/{id}` 包含完整 display；decision POST 必须提交 expected_revision、display_hash 和 APPROVE/REJECT/REVOKE。普通消息不具备审批语义。工作决定使用独立 `decisions/{id}/answer`，沿用 deadline/OPEN/WAIT_DECISION 校验。
-- `settings` 返回有效说明、共享草稿和最近应用。保存与 apply/retry/restore-draft 均有独立 request ID。World edit 的 expected_revision 也是字符串，新增资源用 "0"。`world/slot` 精确匹配 subject/predicate/scope；`world/catalog` 使用 kind=entities/predicates/sources；facts 支持 subject/predicate/history。
-- `memory/summary` 与 `memory/commitments` 是分页只读投影，不透传 PromptSnapshot 或整个 Consciousness。来源保留内容版本/媒体类型；缺乏明确事件绑定时 locator_state=unavailable，不把相同内容 hash 推断为相同来源。承诺如有原领域 source_batch，另提供明确 source_event_ids。
-- `artifacts` 为索引化分页目录，可加 task_id。ID 与文件名分离，重名不冲突。元数据包含 content_version、字节长度、media_type 和 available/archived。内容只从已知 TaskResult 的 CAS 引用读取，验证散列，拒绝任意路径和符号链接；通过 64 KiB 流读取，下载为 attachment，归档明确不可读。
-- `related` 接受 scope_type=session/task/message/event 和 scope_id，仅使用已有 scope 与 TaskResult 关系，不以关键词或模型猜测。默认唯一 session。普通滚动不自动改变作用域。
-- `attention` 从审批/决定原状态投影计数与有界列表，具有相同 version、session_id、as_of、valid_until。到 valid_until 必须刷新，即使没有 journal 变化；查询不代表批准或已读。
-- 管理能力包括程序登记、授权规则登记/禁用、Operation 查询与 `operations/{id}/verify-write` 核验未知写入结果。程序登记是完整程序权限确认，不能供未来设备 principal 直接复用。
+PublicTaskCommand 的验收字段是 `acceptance` 字符串数组；接续同时提供 reuse_task_id 与 parent_execution_id。Settings 草稿提交完整 instructions/edits/command_ids，World 新资源 revision 使用 "0"。公开 edits 结构上限 100，领域层实际批次上限 50。
 
-服务端能力与客户端本地页面是否实现是不同维度。字体、旁栏宽度、滚动、未发送草稿不保存到 Core Settings。设备/上传/可靠同步明确尚不支持；#9 接入持久同步，#10 实现原生界面。
+记忆来源提供内容版本、媒体类型和可用定位；明确 source_batch 时返回事件 ID。产物通过 TaskResult 关联的 CAS 内容读取，下载前核对散列和长度，再按 64 KiB 流输出。`verified_by` 当前为 NOT_VERIFIED，独立内容验算另行记录。
+
+## 工作范围与未知结果
+
+创建 Scope 必填 name/kind；description 默认空。DIRECTORY 提供已存在的物理 root_path，notes_path 默认 `.secretary/NOTES.md`；NONE 使用各任务独立目录。修改和归档带 expected_revision。范围从 ACTIVE 归档为 ARCHIVED，已有历史仍可查询。
+
+TaskCommand 可带 scope_id；接续省略或 null 时继承原任务范围。Execution 创建时固定目录绑定，同一 DIRECTORY 串行，NONE 可并行。condition_results 返回 condition_id、MET/NOT_MET/UNKNOWN、checked_at、evidence 和可空 reason，范围原因包括 SCOPE_BUSY、SCOPE_ARCHIVED、SCOPE_ROOT_CONFLICT。证据包含 content_version、字符串 bytes 和 media_type。
+
+`POST /operations/{id}/resolve` 接收 request_id、expected_revision、outcome、note。outcome 为 APPLIED / NOT_APPLIED / PARTIAL / UNVERIFIED，保存裁定后等待进程停止和其他未知项处理，再收束执行。`verify-write` 依据绑定目录和预期内容核验文件。Operation 查询公开 effect、resolution 摘要和 process_state，平台进程身份留在内部恢复记录。
 
 ## 切换与回退
 
-本次新增持久记录，不修改或清空已有记录，也不运行生产数据迁移。固定旧版本基线 `f8dbddcf4338914c1d264efff0fd26d5bc07c2cb` 对应的运行时；切换前停止旧 writer，备份整个数据目录及配套 PostgreSQL，并记录版本、配置、备份校验。未完成 Settings 要求其原运行时恢复，不能跳过现有保护。使用隔离备份验证回放后才由操作者决定切换。
+升级前备份完整 Store、World、代码及配置，在隔离副本验证重放。未完成 Settings 按原配置恢复。旧二进制的可读合同与当前版本不同，回退须使用匹配备份并对账期间已发生的作用；详见[持久化手册](../../persistence.md)。
 
-新版开始写入后，旧版本不认识新增 schema，不能直接降级读取同一目录。回退必须同时恢复经核验的旧数据备份和配套数据库、原代码及配置，先对账新旧期间的外部副作用，不能用旧备份重复执行不明操作。两个版本不能同时写同一数据域。本分支使用隔离数据验证；当前验证结果与有界真实模型测试的范围见 [验证记录](verification.md)。未操作现有实例。
-
-
-## 当前明确边界
-
-- 64 项操作（37 GET、27 POST）以 operations.json 为完整入口清单；没有旧 SSE、公开 capacity 面板或 Notification presented/已读命令。Host 仍可创建 QUEUED 通知，旧 TerminalController 曾写 SENT；当前 GET 不会产生该回执，也不能自动满足依赖送达证据的承诺。
-- 短命令 ApiCommand 保持 ACCEPTED，不承诺统一转 COMPLETED；读取 resource_ids 所指领域状态。长命令派发异常与中断统一保留 UNKNOWN，不以 schema 中的 FAILED 枚举推断已实现该分支。
-- 公共 TaskCommand 的字段为 acceptance（字符串数组），不是内部 TaskProposal.acceptance_criteria；公开可选字段的缺省与内部工具的 null 语义不能混用，提交前按公开 schema 校验。
-- DraftCommand.edits 的结构上限是100，但 SettingsPayload 领域层仍限制50；实际可提交批次应遵守更严格的50项。公开 DTO 合法不保证领域前提、权限和资源版本通过。
-- Artifact 有值与内容正确是不同结论。当前 TaskResult.verified_by 为 NOT_VERIFIED；shell 产物 producing_operation_id 可以为空，独立来源验算须结合执行作用域、成功回执及下载散列。
-
-Master 已确认 aa47ad5 实现完成复审；本轮文档对齐待 Master 复核，PR 保持 draft。此前完整验收记录保留在 verification.md，文档更新不等于重跑真实模型、部署或实现后续客户端。
-
-owner 可用 `operations/{id}/resolve`（request_id、expected_revision、outcome、note）裁定未知效果。Operation 查询返回 effect、resolution 摘要及 process_state，不公开平台进程身份。UNVERIFIED 保存 FAILED/UNKNOWN；它不证明任务成功或进程停止。原回执仍保留，裁定不重发副作用。
-
-## 工作范围
-
-`GET scopes`/`GET scopes/{id}` 返回 Scope；`POST scopes` 创建，`POST scopes/{id}` 修改，`POST scopes/{id}/archive` 归档。修改与归档必须带 expected_revision；全部写命令沿用 request_id 幂等与 local-owner 身份。name/kind 为创建必填，description 默认空；DIRECTORY 必须提供存在且安全的 root_path，notes_path 默认 `.secretary/NOTES.md`，NONE 不使用根或共享笔记。不能重新启用已归档范围。
-
-TaskCommand 可带 scope_id；reuse 省略或 null 时继承原任务范围，显式换范围须新建任务。Task、Execution、Result 和 Operation 查询提供 scope_id，Execution.condition_results 为必选的 ConditionResult 数组，包含 condition_id、status（MET/NOT_MET/UNKNOWN）、checked_at、evidence 和可空 reason；reason 可显示 SCOPE_BUSY、SCOPE_ARCHIVED 或 SCOPE_ROOT_CONFLICT。evidence 仅含 content_version、字符串 bytes、media_type，不公开 CAS 路径。目录绑定创建后不变；范围修改仅影响未来 Execution。模型可选已有范围，不能调用管理入口。ChangeFeed 仍由 #9 后续接入。
+版本化验证和首次失败保存在[验证记录](verification.md)；当前回归入口见[测试策略](../../testing.md)。

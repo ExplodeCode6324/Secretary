@@ -1,47 +1,40 @@
-# 数据所有权与关联
+# 数据模型
 
-字段全集见 [逐结构参考](data/README.md)。当前运行时权威校验来自 `src/contracts/contracts.schema.json`；schema 中的设计预留字段仍需结合创建和读取代码判断。尤其 RuntimeConfig 目前没有作为运行配置记录加载，实际启动配置来自环境变量和 live wrapper。
+Secretary 使用本地 journal/CAS 保存运行记录，使用可选 PostgreSQL World Model 保存结构化事实。客户端通过独立的 API DTO 读取它们。
 
-| 数据组 | 主要关联 | 写入方与消费方 |
-| --- | --- | --- |
-| CoreIdentity / AssistantProfile / ClientRegistration | owner_id、profile revision、client resource ID | ApplicationService 初始化持久身份/显示名并登记 owner 客户端；不授予远程权限 |
-| ApiCommand | owner_id、request_hash、arguments_ref、resource_ids、result_ref | ApplicationService 持久受理、重放与长命令恢复；同 ID 还检查历史内部请求身份 |
-| Session / Input | session_id、claimed_input_ids、active_loop_id | Host 接收和领取；Input 原文对象持久化后确认 |
-| MainPromptSnapshot / Context / ModelCall | loop_id、context_id、call_id、raw_context、system_prompt_hash | Host/context/transport 保存；恢复与调试读取 |
-| Consciousness / CompactionJob | consciousness_id、revision、covered_event_sequence | Host 维护摘要与覆盖边界；memory.ts 保留承诺身份 |
-| TaskProposal / TaskPlan | proposal_request_id、proposal_ref、workspace、trigger | Scheduler 把不可变提案对象转成可推进计划 |
-| Execution / Dispatch / Checkpoint | task_id、execution_id、attempt_id、owner_epoch、checkpoint_id | Scheduler 创建运行实例、执行交接和续接信息 |
-| TaskResult / Feedback | result_id、execution_id、input_id | Scheduler 保存结果并发反馈；Host 转成主会话输入 |
-| Operation / AuthorizationRequest | scope、authorization_id、action、parameters_hash、display_hash | Authorization 绑定请求与作用；Master UI 决定 |
-| DecisionRequest | execution_id、deadline、answer_source | 执行者请求缺失信息；回答不能替代授权许可 |
-| WorldChange / WorldCommand | change_id、request_hash、operation_id、evidence | World 接受提案，经过许可后进入数据库事务 |
-| SettingsDraft / SettingsApplication | payload_ref、source_ref、candidate_ref、context_id、runtime_settings_hash | Settings 管理待应用内容、覆盖清单、候选进度和生效回执；Session/Context 关联生效版本 |
-| Notification | state、内容对象、来源 | Host 创建；旧控制器可写 presented/SENT，新版 API 尚无公开确认命令 |
-| JournalTransaction / OperationLogRecord | sequence、事件 ID、对象引用 | Store 在同帧提交对象状态、日志与幂等回执 |
+## 核心记录
 
-## 身份、版本和原件
+| 记录 | 含义 |
+| --- | --- |
+| Session、Input、Notification | 主会话、输入队列与面向 Master 的通知 |
+| Context、ModelCall、MainPromptSnapshot | 恢复上下文、模型调用与一轮固定提示词 |
+| Consciousness、CompactionJob | 工作记忆、覆盖水位与整理进度 |
+| MemoryCommitment、MemoryExtractionJob | 承诺状态、来源与待补提工作 |
+| TaskPlan、Execution、TaskResult | 任务基线、单次执行与结果 |
+| Scope（WorkScope） | 可复用工作范围：DIRECTORY 或 NONE |
+| Operation、Authorization、AuthorizationRule | 一次作用、审批与匹配规则 |
+| Decision | 执行中需要 Master 回答的工作决定 |
+| SettingsDraft、SettingsApplication、UserInstructions | 共享草稿、应用进度与有效说明 |
+| CoreIdentity、AssistantProfile、ClientRegistration、ApiCommand | 数据域身份、显示名、客户端登记与 API 回执 |
 
-`id` 通常是宿主分配的 UUID；`revision` 是记录版本，不能代替任务 attempt 或 owner epoch。`ObjectRef` 保存 path、sha256、bytes、media_type，引用对象库原始字节。`request_id` 与请求 hash 共同支持重送幂等，不能用相同 ID 提交不同内容。
+内部 Schema 的 `WorkScope` 定义持久记录 `record_type=Scope`；旧 `Scope` 定义是事件与资源的关联字段组合。二者分别用于工作目录管理和记录关联。
 
-TaskPlan 的 ID 即 task_id，一个 plan 可产生多个周期 Execution；Execution.result_id 指向终结结果。Dispatch 记录具体尝试，TaskResult 的模型验收声明不能充当 Operation 已执行回执。Feedback 与 Notification 也不相同：前者把执行状态交给主会话，后者把主会话沟通交给 UI。
+## 身份、版本与原件
 
-## 实际使用限制
+`record_type + id` 定位记录，`revision` 支持版本检查。跨记录变更、事件和请求回执在一个 journal 帧中提交。ObjectRef 用 SHA-256、字节长度和媒体类型引用不可变原件；可变工作文件留在 Execution 的绑定目录。
 
-Context.messages 的 source_event_ids、omitted_refs 和 wm_fact_versions 当前未全面填充；tools_schema 保存系统消息集合，不能误解为另外一套独立、完整的工具 schema 注册表。精确的请求上下文还保存在 ModelCall.request 和主会话 prompt 快照中。
+TaskPlan 保存计划基线与排队请求，每个 Execution 用 `proposal_ref` 固定本轮要求。Execution 创建时冻结 `scope_id` 和 `workspace_binding`，后续修改范围只影响未来执行。TaskResult 的产物引用固定 CAS 版本；`verified_by` 当前为 `NOT_VERIFIED`，验收评估来自执行者，外部验算可单独记录。
 
-状态枚举的所有值由 schema 接受，不表示所有迁移已被运行时实现。字段上的来源说明和模型声明需要和原件、操作回执、数据库 receipt 对照；结构合法不等于内容真实。
+ModelCall 区分逻辑调用与物理尝试；成功响应和已保存工具结果用于恢复。MemoryExtractionJob 以固定来源及分段保存提取进度，承诺合并读取最新账本。旧 ExtractionRecovery 记录保留读取支持，新运行使用 MemoryExtractionJob。
 
-## 每轮任务要求
+## Context 的两种用途
 
-TaskPlan.proposal_ref 是计划基线；Execution.proposal_ref 是本轮不可变有效提案，不能互相替代。接续要求从指定最新 parent 的快照继承，显式修订形成新对象，E1 的要求和产物不随 E2 工作文件变化。TaskPlan.pending_requests 保存即时请求，周期时间点仍由 pending_occurrences 保存；省略新增字段的旧记录按[持久化兼容规则](persistence.md)读取。
+`CHECKPOINT` 保存恢复所需的完整上下文，`MODEL_REQUEST` 保存经过预算投影的实际模型输入。`source_context_id` 关联两者。目前 `source_event_ids`、`omitted_refs`、`wm_fact_versions` 尚未完整填充，`tools_schema` 存放 system 消息；相关编码和字段整理安排在 #24。实际模型请求仍由当前适配器构造并检查容量。
 
-TaskProposal.source_context_refs 标记正式来源，context_refs 则包含本轮全部来源和直接 parent 的派生证据。只继承来源可避免把旧提示包递归嵌入后续执行；完整原始 checkpoint 仍由持久引用保留。
+## World 与公开 DTO
 
+World 将实体、predicate、事实 slot、assertion、证据、冲突、状态投影和变更回执分开保存。更正新增 assertion 并替代旧陈述，撤回更新其投影状态，来源历史继续可查。
 
-## 公开 DTO 与内部记录
+API DTO 使用十进制字符串表示 revision、事件序号和字节长度，资源内容通过 ID 与版本读取。公开 TaskCommand 使用 `acceptance`；内部 TaskProposal 使用 `acceptance_criteria`。客户端类型从公开 schema 生成。
 
-[内部 schema](../src/contracts/contracts.schema.json) 用于持久化及领域校验；[API schema](api/v1/schema.json) 定义客户端读写合同。前者 revision/sequence/bytes 多为整数，后者投影为十进制字符串；PostgreSQL Date 转为 UTC ISO。公开 Source/Artifact 不暴露 ObjectRef.path。用户领域 JSON（审批 parameters、事实 value、决定 answer、predicate value_schema）原值保留，不能当作 Store 元数据过滤。
-
-CoreIdentity.owner_id 同时标识当前数据域；instance_id 是服务本次启动身份，重启变化。ClientRegistration 不持有独立授权或业务会话。AssistantProfile.name 为空白时公共显示名回退 secretary，与 UserInstructions 和人格设置分离。
-
-TaskResult.artifacts 的 artifact_id 独立于文件名，重名仍能定位原执行。文件工作副本变化不改写 CAS；归档产物在 API 上明确不可读。verified_by 保留 NOT_VERIFIED，submit_result 不自动生成外部验算证明。
+详细字段见[内部字段索引](data/README.md)，数据库见[SQL 参考](database.md)，客户端合同见 [API v1](api/v1/README.md)。

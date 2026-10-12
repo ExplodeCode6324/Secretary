@@ -1,56 +1,43 @@
 # 持久化与恢复
 
-[Store](../src/pi_secretary/src/store.ts) 是本地权威记录仓储。数据目录通常是根目录 `.demo-data`（fixture）或 `.demo-data/interactive-live`（live）。
+## 本地存储
 
-| 内容 | 作用 |
+| 路径 | 内容 |
 | --- | --- |
-| journal.jsonl | 哈希链事务帧，跨记录变更、事件和请求回执一起提交 |
-| objects/<sha256> | 原始输入、上下文、参数、stdout/stderr、结果等不可变字节 |
-| workspaces/<task_id>/work | 任务可变工作文件 |
-| owner.lock | Python fcntl helper 持有的进程级互斥 |
-| core-endpoint.json / core.log | 本机 Core 发现元数据与日志；endpoint 包含秘密 token |
+| journal.jsonl | 哈希链事务帧，包含记录变更、事件和幂等回执 |
+| objects/<sha256> | 输入、上下文、参数、输出与产物的不可变字节 |
+| workspaces/<task_id>/work | NONE 或未选 Scope 任务的可变工作文件 |
+| owner.lock | Python fcntl helper 持有的单目录写锁 |
+| core-endpoint.json / core.log | 当前 Core 的发现信息与日志 |
 
-对象先写临时文件并 fsync，rename 后同步目录；事务写入 journal 并同步后才确认。Store 校验 JSON Schema、版本与对象引用；读取对象验证 SHA-256 和长度，拒绝对象符号链接。重放可处理不完整尾帧，中段损坏或引用原件缺失会拒绝恢复，不创建假空会话。
+DIRECTORY 任务使用 Scope 的物理目录；Execution 记录创建时的完整绑定。Store 先持久化对象，再追加并同步 journal 帧，收到 fsync 确认后安装内存状态。记录通过 Schema 校验，对象读取时核对类型、长度和 SHA-256。
 
-请求 ID 与内容 hash 形成幂等回执；同 ID 不同内容报冲突。Scheduler 的 occurrence_key 限制重复周期实例；授权派发绑定 owner epoch / attempt。journal 的重放快照、不完整尾帧修复和追加均由持有 OS 锁的 helper 执行。JS Store 通过每次打开独有的本地通道提交事务，收到对应事务的 fsync 确认后才安装内存状态；helper 不可用或结果未知后不重试追加，新 owner 不接管旧通道。异步进程退出通知和缓存的 owner epoch 仅供辅助检查，不能代表写权限。此机制只负责单数据目录，没有分布式租约。
+Python helper 持有 OS 文件锁，负责重放、尾部不完整帧修复与追加。每次打开 Store 使用独有本地通道；通道失效后需重新打开并从 journal 确认结果。中段损坏或原件缺失会报告恢复错误，供维护者检查完整副本。
 
-## 恢复规则
+## 幂等与版本
 
-1. 正常关闭后台会停止 loop、处理任务中断、关闭数据库和文件锁。
-2. 重启先重放 Store，再恢复 Authorization 和 Scheduler，最后构造 Host 和 Settings，恢复待完成的设置切换。
-3. DISPATCHED 但无回执的操作标记未知；中断执行保留 checkpoint 和未知反馈。
-4. 主会话用持久化 prompt 与上下文续接中断轮；新的用户说明在完整摘要及 context 重建成功后才使用。
-5. `verifyWrite()` 核验写入目标和预期内容；任意 shell / 程序的外部效果必须另行核实。
+请求回执绑定 owner、路径、request_id 和规范化 body。相同请求重放原回执，相同 ID 的不同内容返回冲突。Task 的 occurrence_key 标识单次工作；授权派发绑定参数、版本和 owner epoch。
 
-备份时先停止后台，再完整复制数据目录；不能只复制 journal。登记程序入口为绝对路径，迁移目录后旧登记可能失效，需要重新登记并复核旧任务；不可通过篡改历史参数或回执掩盖变化。停止命令与数据路径见 [运行手册](operations.md)。
+TaskPlan.pending_requests 保存即时请求；Execution.proposal_ref 固定每轮提案。旧执行缺少该字段时，恢复从对应 plan_revision 的历史版本补齐。取消和分派移除队列项，同时保留原受理和移除事件。
 
-当前没有 journal 分段、快照加速、自动历史垃圾回收、任意程序现场恢复或断电硬件持久性证明。
+CoreIdentity 的 owner/data_domain 跨重启保持；instance_id 和游标签名密钥每次启动更新。发现文件含本机认证 token，采用私密权限，仅代表当前服务实例。
 
-目录迁移也可能使历史 shell Operation 的绝对 cwd/resource 指向旧目录。历史记录保持原样；待执行操作需复核并重新提出适用的任务/授权，不能改写旧许可后继续执行。
+## 启动恢复
 
-## 设置批次恢复
+Core 依次打开 Store，恢复 Authorization 和 Scheduler，再构造 Host、Settings 并恢复设置应用。已保存的模型响应和工具结果用于接续；剩余模型尝试次数随逻辑调用保存。MemoryExtractionJob 从已完成分段继续补提，旧 ExtractionRecovery 仅用于读取历史。
 
-PostgreSQL 的 settings_batch_receipt 确认事实批次是否提交，Store 的 SettingsApplication 确认摘要与 context 是否完成切换。跨域状态不假装原子提交：数据库结果未知时保持 gate，锁定回执查询后再恢复；确认数据库成功后必须完成本地重建。见[统一生效协议](settings-activation.md)。
+长 API 命令中，QUEUED 可继续派发，RUNNING 的中断记录为 UNKNOWN。shell/program 依据机器启动标识、进程组和身份确认是否停止；具体流程见[状态机](state-machines.md#进程生命周期)。未知文件写入可核验内容，其他作用由 owner 裁定。作用结论和进程状态分别保存。
 
-## 即时请求与要求快照兼容
+主会话在 task_propose 已受理、工具响应尚未保存的窗口中断时，可由持久回执重建工具结果。其他未确认工具进入恢复处理。接续材料保留直接 parent 的证据引用，原 checkpoint 仍可读取。
 
-TaskPlan.pending_requests 是即时请求的唯一待执行表示，每项记录 request_id、occurrence_key、due_at、proposal_ref。pending_occurrences 继续只保存周期时间点。新即时请求以 request_id 作为发生键，唯一性为 task_id + occurrence_key；Execution.proposal_ref 保存不可变的本轮完整提案。取消或分派后从队列移除，历史受理关联保留在 task.request.accepted 事件和回执中；移除原因保存在 task.request.removed。
+## PostgreSQL 桥接
 
-Store 重放时建立 TaskPlan 历史版本索引。旧 Execution 缺少 proposal_ref 时，Scheduler 按其 plan_revision 找到对应历史提案并持久固定，找不到则阻塞启动，不退回最新计划。旧 pending_requests 缺省为空，旧 once 仍只执行一次；新代码保留旧请求指纹的有限兼容读取。CREATED 中断恢复到 WAIT_PRECONDITION，DISPATCHING / RUNNING 中断保持 RESULT_UNKNOWN 守卫。
+World 事务同时提交事实、变更回执和 audit_outbox。Core 将 outbox 导出到 journal 后标记已导出；重启按回执去重继续。Settings 用 `settings_batch_receipt` 确认数据库提交，再完成本地记忆和 context 切换。两个存储各自提交，由持久回执连接恢复流程。
 
-暂停计划保留待执行接续；CLOSED 计划清除待执行项并释放 parent。请求取消、分派和子执行结束均更新 parent 的 pending_followup_ids，避免自身依赖。
+当前存储采用完整 journal 重放和 CAS 原件留存。分段、快照加速、历史回收与追加性能属于 #24；恢复和空闲 tick 的 Operation 扫描优化属于 #34。
 
-新增字段是向前读取兼容，不保证旧代码读取升级后的 journal。部署前必须备份完整目录并保留兼容读取版本；产生新执行或副作用后不能仅退回旧代码或恢复旧备份。应停止新派发，使用支持新契约的修复版本继续核验和恢复，保留全部操作回执。尚未产生新操作时，可在另一个隔离副本验证升级前备份；不得借回滚重放已发生的外部操作。
+## 备份与升级
 
-主会话在 Scheduler 已提交回执、Host 工具结果尚未保存的窗口中断时，仅对具有持久回执的 task_propose 重建结果。其他未确认工具仍进入 RECOVERY_BLOCKED。接续材料的来源与派生证据由 TaskProposal.source_context_refs 区分；checkpoint 原件保留，模型输入只投影直接 parent 的 assistant/toolResult 证据，不递归嵌入旧分派包。
+停止 Core 后备份完整数据目录、配套 PostgreSQL、代码和配置。先在隔离副本验证新版本重放，再切换运行目录。未完成 Settings 使用其原配置完成恢复。
 
-
-## API v1 持久边界
-
-CoreIdentity、AssistantProfile、ClientRegistration 和 ApiCommand 写入现有 journal/CAS，不另建业务数据库。owner/data_domain 身份持久保存，服务 instance_id 和游标签名密钥每次启动变化。发现文件由 backend 启动时以私密权限原子替换，关闭只移除本实例的记录；不是权威业务存储。旧 ui-endpoint.json 不用于新客户端发现。
-
-短命令的 ApiCommand 与首个领域变更同一帧提交，NO_CHANGES 也保存回执；request_id 绑定 owner、路径和规范化完整 body。Store 重放同时恢复旧 Scheduler.answer 的请求身份占用，跨操作复用冲突。短命令 ACCEPTED 可长期保留，业务完成读对应资源，不等待虚构的统一 COMPLETED。
-
-长命令先 QUEUED，执行前 RUNNING，正常结束 COMPLETED；异常或重启中断为 UNKNOWN。QUEUED 可在新进程继续，领域授权和版本门禁仍有效；RUNNING 不自动再次派发。提取 retry 是短命令，失败集合与 request_id 在同一帧固定；MemoryExtractionJob 的来源、轮次和进度独立于摘要水位。ExtractionRecovery 仅作历史读取。模型请求按 ModelCall 逻辑关联及尝试次数恢复，成功响应落盘后不重发。
-
-新增持久记录不保证旧二进制可读，协议也不兼容旧 TUI/WebUI。旧数据回放中的默认字段承接是领域兼容读取，不是旧客户端兼容层。迁移与回退详见[API 切换说明](api/v1/README.md#切换与回退)。
+程序登记入口和历史 Operation 可能包含绝对路径；迁移目录后重新登记适用程序，并检查待执行任务的绑定。旧记录保留原身份。回退以兼容代码和完整备份为基础，同时对账升级期间发生的外部作用；避免用旧状态重复执行已发生的操作。运行命令见[运行手册](operations.md)。
