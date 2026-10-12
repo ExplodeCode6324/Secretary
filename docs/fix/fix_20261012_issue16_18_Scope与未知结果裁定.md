@@ -290,3 +290,6 @@ git diff --numstat
 - N3 已将索引状态改为“待验收”。N4 不按 200 行目标裁减进程身份保护；本次 #18 手写生产源码相对 main 为 +724/-117，净增 607 行：裁定及查询 +130/-35（95），模型恢复 +129/-25（104），进程控制 +465/-57（408）。生成代码、测试和文档不计入该数。
 - 首次回归失败已单独保留：进程协议 5 项中 4 项失败（shell 取消误记 APPLIED、shell EOF 超时、program 取消 UNKNOWN、缺帧误用 wrapper exit 1），program 正常 JSON 输入通过；分页新增项因页外 CORRUPT_OBJECT 失败。修复后这 14 项定向测试全部通过。
 - #32 修复后的 macOS 完整 `npm run verify`（CI=true、专用 PostgreSQL 18）：408 tests、407 pass、0 fail、0 skip、1 既有 AUD14 todo（#24）；类型与文档检查均通过。原始日志与首次失败仅留本地，不进入公开提交。
+- B3 确认并修复：archive 仅允许 ACTIVE → ARCHIVED。最新 revision 的新请求再次归档返回 SCOPE_ARCHIVED，Scope revision 与归档事件数量均不变；原 request_id 重放仍返回原回执。
+- B4 确认并修复：公开 Execution 增加必选 condition_results，定义 ConditionResult 与证据元数据形状并重新生成 API 类型。OpenAPI 沿用外部 schema 引用，重新生成后文件内容不变；测试沿 GET Execution 的引用验证到该新字段，同时覆盖三个 Scope 原因、非法状态及禁止泄露原始 CAS 引用。
+- #33 已重放到本轮 #32 修复提交。两项新增测试的首次失败分别为重复归档未拒绝和 schema 缺少 condition_results；修复后两项及既有 Scope 核心测试共 6/6 通过。期间新增测试的 TypeScript narrowing 错误已改为使用生成的 PublicExecution 类型，未放宽合同断言。#16 手写生产净增现为 410 行（+487/-77）。

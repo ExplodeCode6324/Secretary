@@ -1164,6 +1164,12 @@
             "string",
             "null"
           ]
+        },
+        "condition_results": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConditionResult"
+          }
         }
       },
       "required": [
@@ -1176,7 +1182,8 @@
         "waiting_request_ids",
         "unknown_operation_ids",
         "cancel_requested",
-        "result"
+        "result",
+        "condition_results"
       ],
       "additionalProperties": true
     },
@@ -3035,6 +3042,67 @@
         "next_cursor"
       ],
       "additionalProperties": true
+    },
+    "ConditionResult": {
+      "type": "object",
+      "properties": {
+        "condition_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "MET",
+            "NOT_MET",
+            "UNKNOWN"
+          ]
+        },
+        "checked_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "content_version": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "bytes": {
+                "type": "string",
+                "pattern": "^[0-9]+$"
+              },
+              "media_type": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "content_version",
+              "bytes",
+              "media_type"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        }
+      },
+      "required": [
+        "condition_id",
+        "status",
+        "checked_at",
+        "evidence",
+        "reason"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [

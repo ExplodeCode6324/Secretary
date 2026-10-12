@@ -85,4 +85,4 @@ owner 可用 `operations/{id}/resolve`（request_id、expected_revision、outcom
 
 `GET scopes`/`GET scopes/{id}` 返回 Scope；`POST scopes` 创建，`POST scopes/{id}` 修改，`POST scopes/{id}/archive` 归档。修改与归档必须带 expected_revision；全部写命令沿用 request_id 幂等与 local-owner 身份。name/kind 为创建必填，description 默认空；DIRECTORY 必须提供存在且安全的 root_path，notes_path 默认 `.secretary/NOTES.md`，NONE 不使用根或共享笔记。不能重新启用已归档范围。
 
-TaskCommand 可带 scope_id；reuse 省略或 null 时继承原任务范围，显式换范围须新建任务。Task、Execution、Result 和 Operation 查询提供 scope_id，Execution.condition_results 显示 SCOPE_BUSY、SCOPE_ARCHIVED 或 SCOPE_ROOT_CONFLICT。目录绑定创建后不变；范围修改仅影响未来 Execution。模型可选已有范围，不能调用管理入口。ChangeFeed 仍由 #9 后续接入。
+TaskCommand 可带 scope_id；reuse 省略或 null 时继承原任务范围，显式换范围须新建任务。Task、Execution、Result 和 Operation 查询提供 scope_id，Execution.condition_results 为必选的 ConditionResult 数组，包含 condition_id、status（MET/NOT_MET/UNKNOWN）、checked_at、evidence 和可空 reason；reason 可显示 SCOPE_BUSY、SCOPE_ARCHIVED 或 SCOPE_ROOT_CONFLICT。evidence 仅含 content_version、字符串 bytes、media_type，不公开 CAS 路径。目录绑定创建后不变；范围修改仅影响未来 Execution。模型可选已有范围，不能调用管理入口。ChangeFeed 仍由 #9 后续接入。

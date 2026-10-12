@@ -416,7 +416,23 @@ export interface Execution {
   cancel_requested: boolean;
   result: Result | null;
   scope_id?: string | null;
+  condition_results: ConditionResult[];
   [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "ConditionResult".
+ */
+export interface ConditionResult {
+  condition_id: string;
+  status: "MET" | "NOT_MET" | "UNKNOWN";
+  checked_at: string;
+  evidence: {
+    content_version: string;
+    bytes: string;
+    media_type: string;
+  }[];
+  reason: string | null;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema

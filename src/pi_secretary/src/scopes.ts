@@ -153,6 +153,7 @@ export class Scopes {
   archive(id: string, revision: number) {
     const scope = this.get(id);
     if (scope.revision !== revision) throw Error("REVISION_CONFLICT");
+    if (scope.state !== "ACTIVE") throw Error("SCOPE_ARCHIVED");
     const record = revise(scope, { state: "ARCHIVED" });
     this.store.commit(
       [record],
