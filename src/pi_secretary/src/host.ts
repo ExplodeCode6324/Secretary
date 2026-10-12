@@ -456,7 +456,9 @@ export class Host {
             streamFn: this.stream,
             initialState: {
               model: this.model,
-              systemPrompt: composeInstructions(settings.content),
+              systemPrompt:
+                composeInstructions(settings.content) +
+                this.scheduler.scopes.promptContext(),
               tools: this.tools(loopID),
             },
           }).state.messages[0];
@@ -782,6 +784,7 @@ export class Host {
   private proposeTask(
     args: {
       goal: string;
+      scope_id?: string | null;
       reuse_task_id?: string | null;
       parent_execution_id?: string | null;
       program_id?: string | null;
@@ -796,6 +799,7 @@ export class Host {
   ) {
     return result({
       ...this.scheduler.propose(args.goal, call, this.sessionID, {
+        scopeID: args.scope_id,
         reuse: args.reuse_task_id ?? undefined,
         programID: args.program_id ?? undefined,
         at: args.at ?? undefined,
@@ -893,8 +897,9 @@ export class Host {
         name: "task_propose",
         label: "Propose task",
         description:
-          "Submit new AGENT task by default; PROGRAM only with a registered program_id. For revisions of existing work, use reuse_task_id and its latest ended parent_execution_id; query tasks when identity or requirements are unclear. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace that field, so preserve unchanged requirements. goal is this round's complete goal. No at/interval on reuse. Independent deliverables use a new task. Scheduler generates the executor packet. Include all relevant constraints and materials. Use null for unspecified optional fields; do not invent program IDs, dates or deadlines.",
+          "Choose scope_id when the request clearly belongs to an available scope; ask Master when uncertain. Conversation and pure explanations do not need tasks. Only Master manages scopes. Submit new AGENT task by default; PROGRAM only with a registered program_id. For revisions of existing work, use reuse_task_id and its latest ended parent_execution_id; query tasks when identity or requirements are unclear. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace that field, so preserve unchanged requirements. goal is this round's complete goal. No at/interval on reuse. Independent deliverables use a new task. Scheduler generates the executor packet. Include all relevant constraints and materials. Use null for unspecified optional fields; do not invent program IDs, dates or deadlines.",
         parameters: Type.Object({
+          scope_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
           goal: Type.String(),
           reuse_task_id: Type.Optional(
             Type.Union([Type.String(), Type.Null()]),
@@ -1772,7 +1777,8 @@ export class Host {
       streamFn: this.stream,
       initialState: {
         model: this.model,
-        systemPrompt: composeInstructions(content),
+        systemPrompt:
+          composeInstructions(content) + this.scheduler.scopes.promptContext(),
         tools: this.tools(loopID),
       },
     });

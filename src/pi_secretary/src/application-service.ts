@@ -295,6 +295,21 @@ export class ApplicationService {
     const { host, scheduler, settings, authorization, store } = this.app;
     const requestID = b.request_id as string;
     switch (route) {
+      case "scopes":
+      case "scopes/:id": {
+        const values = Object.fromEntries(
+          ["name", "description", "kind", "root_path", "notes_path"]
+            .filter((k) => k in b)
+            .map((k) => [k, b[k]]),
+        );
+        return scheduler.scopes.save(
+          values,
+          target,
+          target ? revision(b.expected_revision) : undefined,
+        );
+      }
+      case "scopes/:id/archive":
+        return scheduler.scopes.archive(target!, revision(b.expected_revision));
       case "assistant/profile": {
         const p = store.get<AssistantProfile>("AssistantProfile", PROFILE);
         if (p.revision !== revision(b.expected_revision))
@@ -326,6 +341,7 @@ export class ApplicationService {
         return host.accept(b.text as string, requestID, "MASTER");
       case "task-requests":
         return scheduler.propose(b.goal as string, requestID, host.sessionID, {
+          scopeID: b.scope_id as string | null | undefined,
           reuse: b.reuse_task_id as string | undefined,
           parent: b.parent_execution_id as string | undefined,
           programID: b.program_id as string | undefined,
@@ -577,6 +593,7 @@ export class ApplicationService {
             [
               "messages",
               "tasks",
+              "scopes",
               "memory",
               "settings",
               "artifacts",
@@ -615,6 +632,10 @@ export class ApplicationService {
           },
         },
       };
+    if (path === "scopes")
+      return this.page(path, project(store.all("Scope")), q);
+    if (parts[0] === "scopes" && parts.length === 2)
+      return project(scheduler.scopes.get(target));
     if (path === "assistant") {
       const p = store.get<AssistantProfile>("AssistantProfile", PROFILE);
       return {
@@ -721,6 +742,7 @@ export class ApplicationService {
           const p = this.task(id as string);
           return {
             id: p.id,
+            scope_id: p.scope_id ?? null,
             revision: String(p.revision),
             state: p.state,
             goal: store.read<TaskProposal>(p.proposal_ref).goal,
@@ -738,6 +760,7 @@ export class ApplicationService {
         effective = e ? scheduler.proposalFor(e) : null;
       return project({
         id: p.id,
+        scope_id: p.scope_id ?? null,
         revision: p.revision,
         state: p.state,
         goal: baseline.goal,
@@ -799,6 +822,7 @@ export class ApplicationService {
       const proposal = store.read<TaskProposal>(r.proposal_ref);
       return project({
         ...r,
+        scope_id: proposal.scope_id ?? null,
         goal: proposal.goal,
         constraints: proposal.constraints,
         acceptance_criteria: proposal.acceptance_criteria,
@@ -1033,6 +1057,10 @@ export class ApplicationService {
       : null;
     return project({
       ...fields,
+      scope_id: op.scope.execution_id
+        ? (this.app.store.get<Execution>("Execution", op.scope.execution_id)
+            .scope_id ?? null)
+        : null,
       process_state: control?.state ?? null,
       resolution:
         receipt?.resolved_by === "MASTER_UI"
@@ -1052,6 +1080,7 @@ export class ApplicationService {
     const r = this.app.store.get<TaskResult>("TaskResult", resultID);
     return {
       id: r.id,
+      scope_id: r.scope_id ?? null,
       revision: String(r.revision),
       outcome: r.outcome,
       summary: r.summary,
@@ -1068,6 +1097,8 @@ export class ApplicationService {
       id: e.id,
       revision: e.revision,
       task_id: e.task_id,
+      scope_id: e.scope_id ?? null,
+      condition_results: e.condition_results,
       state: e.state,
       retention_state: e.retention_state,
       last_activity_at: e.last_activity_at,

@@ -1945,6 +1945,16 @@
             "$ref": "#/$defs/ObjectRef"
           },
           "description": "正式提供的来源材料引用；接续只继承这些来源，再装配直接 parent 的执行证据。context_refs 包含本轮全部来源及派生历史证据。旧提案按 checkpoint/result 原件关联识别来源。"
+        },
+        "scope_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -2100,6 +2110,16 @@
             "additionalProperties": false
           },
           "description": "已受理即时请求的唯一待执行表示；旧记录缺省为空。周期时间点仍使用 pending_occurrences。"
+        },
+        "scope_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -2284,6 +2304,43 @@
         },
         "recovery_call_id": {
           "$ref": "#/$defs/ID"
+        },
+        "scope_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workspace_binding": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "enum": [
+                "DIRECTORY",
+                "NONE"
+              ]
+            },
+            "root_path": {
+              "type": "string",
+              "minLength": 1
+            },
+            "notes_path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "root_path",
+            "notes_path"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -2387,7 +2444,9 @@
           "$ref": "#/$defs/ExecutorSpec"
         },
         "workspace": {
-          "$ref": "#/$defs/RelativePath"
+          "type": "string",
+          "minLength": 1,
+          "description": "Execution-bound root; legacy relative task/work retained"
         },
         "resume_checkpoint_id": {
           "anyOf": [
@@ -2799,6 +2858,16 @@
         },
         "observed_at": {
           "$ref": "#/$defs/Time"
+        },
+        "scope_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -2902,6 +2971,16 @@
         },
         "created_at": {
           "$ref": "#/$defs/Time"
+        },
+        "scope_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -5391,7 +5470,8 @@
             "AssistantProfile",
             "ClientRegistration",
             "ApiCommand",
-            "MemoryExtractionJob"
+            "MemoryExtractionJob",
+            "Scope"
           ],
           "description": ""
         },
@@ -6676,6 +6756,109 @@
       ],
       "additionalProperties": false,
       "description": "冻结的承诺提取来源与有界维护重试；独立于摘要覆盖水位。"
+    },
+    "WorkScope": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Scope"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2048
+        },
+        "kind": {
+          "enum": [
+            "DIRECTORY",
+            "NONE"
+          ]
+        },
+        "root_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "notes_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "enum": [
+            "ACTIVE",
+            "ARCHIVED"
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "name",
+        "description",
+        "kind",
+        "root_path",
+        "notes_path",
+        "state"
+      ],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "NONE"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "root_path": {
+                "type": "null"
+              },
+              "notes_path": {
+                "type": "null"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "root_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "notes_path": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
     }
   },
   "oneOf": [
@@ -6825,6 +7008,9 @@
     },
     {
       "$ref": "#/$defs/MemoryExtractionJob"
+    },
+    {
+      "$ref": "#/$defs/WorkScope"
     }
   ]
 }

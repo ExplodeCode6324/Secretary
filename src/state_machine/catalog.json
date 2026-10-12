@@ -723,6 +723,14 @@
           "to": "READY",
           "guard": "durable_model_request_and_no_unknown_effect",
           "commit": "恢复同一请求，不刷新执行包"
+        },
+        {
+          "id": "Execution-scope-slot",
+          "from": "READY",
+          "event": "scope_unavailable",
+          "to": "WAIT_PRECONDITION",
+          "guard": "scope_busy_archived_or_root_conflict",
+          "commit": "保存明确等待原因，不重绑目录"
         }
       ]
     },
@@ -1429,6 +1437,35 @@
           "to": "BLOCKED",
           "guard": "settings_coordinator_and_durable_receipts",
           "commit": "见 docs/settings-activation.md；FAILED 为可重试记录，BLOCKED 保持领取 gate"
+        }
+      ]
+    },
+    "WorkScope": {
+      "owner": "local-owner",
+      "initial": "ACTIVE",
+      "terminal": [
+        "ARCHIVED"
+      ],
+      "states": [
+        "ACTIVE",
+        "ARCHIVED"
+      ],
+      "transitions": [
+        {
+          "id": "WorkScope-01",
+          "from": "ACTIVE",
+          "event": "update",
+          "to": "ACTIVE",
+          "guard": "owner_revision_and_root_conflict_checks",
+          "commit": "只影响将来创建的 Execution"
+        },
+        {
+          "id": "WorkScope-02",
+          "from": "ACTIVE",
+          "event": "archive",
+          "to": "ARCHIVED",
+          "guard": "owner_revision_matches",
+          "commit": "保留项目目录及已运行任务"
         }
       ]
     }

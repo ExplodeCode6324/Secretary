@@ -71,7 +71,7 @@ revision、journal/event sequence、World version、字节长度使用十进制�
 
 ## 当前明确边界
 
-- 59 项操作（35 GET、24 POST）以 operations.json 为完整入口清单；没有旧 SSE、公开 capacity 面板或 Notification presented/已读命令。Host 仍可创建 QUEUED 通知，旧 TerminalController 曾写 SENT；当前 GET 不会产生该回执，也不能自动满足依赖送达证据的承诺。
+- 64 项操作（37 GET、27 POST）以 operations.json 为完整入口清单；没有旧 SSE、公开 capacity 面板或 Notification presented/已读命令。Host 仍可创建 QUEUED 通知，旧 TerminalController 曾写 SENT；当前 GET 不会产生该回执，也不能自动满足依赖送达证据的承诺。
 - 短命令 ApiCommand 保持 ACCEPTED，不承诺统一转 COMPLETED；读取 resource_ids 所指领域状态。长命令派发异常与中断统一保留 UNKNOWN，不以 schema 中的 FAILED 枚举推断已实现该分支。
 - 公共 TaskCommand 的字段为 acceptance（字符串数组），不是内部 TaskProposal.acceptance_criteria；公开可选字段的缺省与内部工具的 null 语义不能混用，提交前按公开 schema 校验。
 - DraftCommand.edits 的结构上限是100，但 SettingsPayload 领域层仍限制50；实际可提交批次应遵守更严格的50项。公开 DTO 合法不保证领域前提、权限和资源版本通过。
@@ -80,3 +80,9 @@ revision、journal/event sequence、World version、字节长度使用十进制�
 Master 已确认 aa47ad5 实现完成复审；本轮文档对齐待 Master 复核，PR 保持 draft。此前完整验收记录保留在 verification.md，文档更新不等于重跑真实模型、部署或实现后续客户端。
 
 owner 可用 `operations/{id}/resolve`（request_id、expected_revision、outcome、note）裁定未知效果。Operation 查询返回 effect、resolution 摘要及 process_state，不公开平台进程身份。UNVERIFIED 保存 FAILED/UNKNOWN；它不证明任务成功或进程停止。原回执仍保留，裁定不重发副作用。
+
+## 工作范围
+
+`GET scopes`/`GET scopes/{id}` 返回 Scope；`POST scopes` 创建，`POST scopes/{id}` 修改，`POST scopes/{id}/archive` 归档。修改与归档必须带 expected_revision；全部写命令沿用 request_id 幂等与 local-owner 身份。name/kind 为创建必填，description 默认空；DIRECTORY 必须提供存在且安全的 root_path，notes_path 默认 `.secretary/NOTES.md`，NONE 不使用根或共享笔记。不能重新启用已归档范围。
+
+TaskCommand 可带 scope_id；reuse 省略或 null 时继承原任务范围，显式换范围须新建任务。Task、Execution、Result 和 Operation 查询提供 scope_id，Execution.condition_results 为必选的 ConditionResult 数组，包含 condition_id、status（MET/NOT_MET/UNKNOWN）、checked_at、evidence 和可空 reason；reason 可显示 SCOPE_BUSY、SCOPE_ARCHIVED 或 SCOPE_ROOT_CONFLICT。evidence 仅含 content_version、字符串 bytes、media_type，不公开 CAS 路径。目录绑定创建后不变；范围修改仅影响未来 Execution。模型可选已有范围，不能调用管理入口。ChangeFeed 仍由 #9 后续接入。

@@ -101,3 +101,12 @@ runtime/helpers 中的 streaming-web、activity-web、timeline-window-web、浏�
 issue19 使用每 Store 注入的测试时钟验证三次传输、首次后再补试三轮维护及幂等重排；本地 HTTP 服务验证固定 Pi 适配器的 HTTP 状态、Retry-After 与物理发送次数。真实 SIGKILL 覆盖 MAIN 响应保存、工具响应保存、摘要和提取响应保存、传输失败写入边界。旧 ExtractionRecovery 合成 journal 保持可读；旧 issue4 中不依赖恢复票据的 journal ownership 回归迁入 issue19。
 
 旧测试中“两次即时候选”改为跨维护轮的显式时钟推进；失败来源不再永久阻塞 Settings。来源真实性、通知回执、不能从伪造/跨会话事件完成承诺的断言继续运行，来源 owner 改为 MemoryExtractionJob。
+
+
+## Issue #16 / #18 工作范围与中断恢复
+
+`test_case/offline/issue16/` 验证 Scope owner 命令、物理根冲突/保留目录、不可变绑定、同 tick 占槽、NONE 并行、归档/接续、共享笔记授权/预算/不可信边界、CAS 和绑定根核验。主会话 fixture 验证 scope_id 选择及重试快照。真实 Core SIGKILL 加冻结 wrapper 验证清理完成前下一 DIRECTORY 程序不会启动。
+
+`test_case/offline/issue18/` 验证四种人工裁定、幂等/冲突、同执行未知操作拦截、最后一项收束及反馈修复。shell/program 真进程覆盖门控前后、Core 死亡、wrapper 冻结和 wrapper 先退出但子进程持有管道；身份/启动标识/权限分支另用确定性 fixture。模型发送、成功响应和工具结果落盘后 SIGKILL 验证冻结请求恢复及零重复成功调用/工具。
+
+macOS 本机执行真实进程场景，Linux 在既有 PG 18 CI 中执行同组测试；不通过重启工作站制造 boot-id 变化。不调用付费供应商，不部署。所有场景使用临时数据与合成文件；测试日志不作为公共提交。完整 verify 的 AUD14 是已有 #24 todo，仍保留；不将它计为成功。

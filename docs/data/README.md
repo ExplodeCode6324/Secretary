@@ -45,15 +45,15 @@
 | [WorkItem](WorkItem.md) | 12 | 事项不等于任务；未履行且无人承接的事项不退出。 |
 | [Consciousness](Consciousness.md) | 18 | 当前工作记忆；全部摘要提交与原文承接集合一次保存。 |
 | [CompactionJob](CompactionJob.md) | 24 | 固定范围摘要任务；新增输入不纳入覆盖集合。 |
-| [TaskProposal](TaskProposal.md) | 19 | 主会话只提出任务；不接受 authorized、grant 等模型声明。 |
-| [TaskPlan](TaskPlan.md) | 20 | id 即 task_id；先保存计划再建幂等目录，agent 在可执行时由 dispatch 拉起。 |
-| [Execution](Execution.md) | 26 | 执行生命周期与短期留存是独立维度；终结历史不可回到 RUNNING。 |
+| [TaskProposal](TaskProposal.md) | 20 | 主会话只提出任务；不接受 authorized、grant 等模型声明。 |
+| [TaskPlan](TaskPlan.md) | 21 | id 即 task_id；先保存计划再建幂等目录，agent 在可执行时由 dispatch 拉起。 |
+| [Execution](Execution.md) | 28 | 执行生命周期与短期留存是独立维度；终结历史不可回到 RUNNING。 |
 | [Dispatch](Dispatch.md) | 15 | Scheduler -> worker 固定分派；重复 attempt_id 返回既有回执，不重新起进程。 |
 | [WorkerReceipt](WorkerReceipt.md) | 15 | PID 仅线索；核对 worker_instance/attempt，不能凭 PID 判断同一进程。 |
 | [Checkpoint](Checkpoint.md) | 18 | 宿主保存原 context + 接续说明；恢复不执行历史工具。 |
 | [Artifact](Artifact.md) | 5 |  |
-| [TaskResult](TaskResult.md) | 16 | 完整结果先可查询，再反馈简要结论；PARTIAL/UNKNOWN 不意味着执行已结束。 |
-| [Feedback](Feedback.md) | 15 | 短结论与执行引用；主会话读到时详情已保存。 |
+| [TaskResult](TaskResult.md) | 17 | 完整结果先可查询，再反馈简要结论；PARTIAL/UNKNOWN 不意味着执行已结束。 |
+| [Feedback](Feedback.md) | 16 | 短结论与执行引用；主会话读到时详情已保存。 |
 | [DecisionRequest](DecisionRequest.md) | 16 | 普通决定通过 TaskControl；授权走独立接口。 |
 | [ActionScope](ActionScope.md) | 6 |  |
 | [Operation](Operation.md) | 18 | 最终 gate 的单位；权限、取消、对象版本在此核验。 |
@@ -98,3 +98,4 @@
 | [ClientRegistration](ClientRegistration.md) | 7 |  |
 | [ApiCommand](ApiCommand.md) | 13 |  |
 | [MemoryExtractionJob](MemoryExtractionJob.md) | 25 | 冻结的承诺提取来源与有界维护重试；独立于摘要覆盖水位。 |
+| [WorkScope](WorkScope.md) | 11 |  |

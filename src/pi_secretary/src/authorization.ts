@@ -247,7 +247,7 @@ export class Authorization {
       if (op.attempt_id !== execution.attempt_id) throw Error("STALE_ATTEMPT");
       if (
         execution.cancel_requested ||
-        !["RUNNING", "READY", "WAIT_AUTH"].includes(execution.state)
+        !["RUNNING", "READY", "WAIT_AUTH", "DISPATCHING"].includes(execution.state)
       )
         throw Error("EXECUTION_NOT_ACTIVE");
     }
@@ -298,7 +298,7 @@ export class Authorization {
       if (
         execution.cancel_requested ||
         execution.attempt_id !== op.attempt_id ||
-        !["RUNNING", "READY", "WAIT_AUTH"].includes(execution.state)
+        !["RUNNING", "READY", "WAIT_AUTH", "DISPATCHING"].includes(execution.state)
       )
         throw Error("EXECUTION_NOT_ACTIVE");
     }
