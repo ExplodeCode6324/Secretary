@@ -17,6 +17,7 @@
 | `root_path` | ['string', 'null'] | 是 |  |
 | `notes_path` | ['string', 'null'] | 是 |  |
 | `state` | ACTIVE / ARCHIVED | 是 |  |
+| `default_write` | allow / ask | 否 |  |
 
 ## 组合约束
 

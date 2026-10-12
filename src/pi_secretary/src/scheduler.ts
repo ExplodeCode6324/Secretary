@@ -1,3 +1,4 @@
+import { shellEnvironment, type ShellExecution } from "./shell-policy.ts";
 import {
   Scopes,
   relativePath,
@@ -1572,9 +1573,10 @@ export class Scheduler {
       }),
       tool({
         name: "write",
-        label: "Write with approval",
+        label: "Write in execution workspace",
         description:
-          upstreamWrite.description + " Requires Scheduler approval.",
+          upstreamWrite.description +
+          " Workspace policy or an existing rule may authorize writes; otherwise wait for Master approval. Never retry an unknown effect.",
         parameters: upstreamWrite.parameters,
         execute: async (_call, args) => {
           const resource = this.safePath(e, args.path);
@@ -1596,6 +1598,15 @@ export class Scheduler {
             return jsonTool({ state: "RESULT_UNKNOWN" }, true);
           }
           if (op.state !== "AUTHORIZED") {
+            if (op.state !== "WAIT_AUTH" || !op.authorization_id)
+              return jsonTool(
+                {
+                  operation_id: op.id,
+                  state: op.state,
+                  error: op.error ?? "WRITE_NOT_DISPATCHABLE",
+                },
+                true,
+              );
             this.setState(e.id, "WAIT_AUTH", {
               waiting_request_ids: op.authorization_id
                 ? [op.authorization_id]
@@ -1610,7 +1621,7 @@ export class Scheduler {
         name: "bash",
         label: "Run shell command with approval",
         description:
-          "Execute a real bash command as the local user, starting in the task workspace. Supports system inspection, files and network; not sandboxed. Requires Master approval. Returns durable stdout, stderr and exit_code receipts. Never repeat an unknown effect.",
+          "Execute a real bash command as the local user, starting in the task workspace. Supports system inspection, files and network; not sandboxed. Simple readonly commands or an existing rule may run automatically; otherwise wait for Master approval. Returns durable stdout, stderr and exit_code receipts. Never repeat an unknown effect.",
         parameters: Type.Object({
           command: Type.String({ minLength: 1 }),
           timeout: Type.Optional(Type.Number({ minimum: 0.1, maximum: 3600 })),
@@ -1621,7 +1632,13 @@ export class Scheduler {
             scopeOf(e),
             "shell.run",
             cwd,
-            { command: args.command, timeout: args.timeout ?? 120, cwd },
+            this.auth.shellParameters(
+              scopeOf(e),
+              args.command,
+              args.timeout ?? 120,
+              cwd,
+              stableID(e.id + ":bash:" + call),
+            ),
             stableID(e.id + ":bash:" + call),
           );
           if (op.receipt) return jsonTool(this.store.read(op.receipt));
@@ -1730,6 +1747,7 @@ export class Scheduler {
     const e = this.store.get<Execution>("Execution", eid);
     const params = this.store.read<{
       command: string;
+      execution?: ShellExecution;
       timeout: number;
       cwd: string;
     }>(op.action.parameters_ref);
@@ -1747,14 +1765,13 @@ export class Scheduler {
     const launched = await launchProcess(
       this.store,
       op.id,
-      ["/bin/bash", "--noprofile", "--norc", "-c", params.command],
+      op.rule_id === "builtin:readonly-shell"
+        ? params.execution!.argv
+        : ["/bin/bash", "--noprofile", "--norc", "-c", params.command],
       cwd,
-      {
-        PATH: process.env.PATH,
-        HOME: process.env.HOME,
-        TMPDIR: process.env.TMPDIR,
-        LANG: "en_US.UTF-8",
-      },
+      op.rule_id === "builtin:readonly-shell"
+        ? params.execution!.env
+        : shellEnvironment(),
     );
     const child = launched.child;
     child.stdin!.end();

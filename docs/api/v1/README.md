@@ -81,3 +81,11 @@ TaskCommand 可带 scope_id；接续省略或 null 时继承原任务范围。Ex
 升级前备份完整 Store、World、代码及配置，在隔离副本验证重放。未完成 Settings 按原配置恢复。旧二进制的可读合同与当前版本不同，回退须使用匹配备份并对账期间已发生的作用；详见[持久化手册](../../persistence.md)。
 
 版本化验证和首次失败保存在[验证记录](verification.md)；当前回归入口见[测试策略](../../testing.md)。
+
+## 授权规则与批准并记住
+
+`POST scopes` / `POST scopes/{id}` 接受 `default_write: allow|ask`，缺失按 allow。`GET authorization-rules` 与原 `GET admin/authorization-rules` 返回规则分页，包含实际 constraints、resource_prefixes、时效和 builtin_policies。match_count 按成功提交派发的唯一 Operation 计数，last_matched_at 为该派发事件时间；结果未知仍计数，重复查询不增加。
+
+批准时可传 remember，且只适用于 APPROVE：shell 使用 `{prefix_tokens: 2, expires_at: null}`，write 使用 `{path_prefix: "src", expires_at: null}`。shell 规则 cwd 范围固定为执行绑定根；write 的目录必须是目标祖先，`.` 明确覆盖全根。审批详情的 remember_context 提供根、动作、原始路径/命令 token，客户端据此在提交前展示范围。服务端复核原 revision/display_hash，在同一事务提交批准与规则；Authorization 的 remembered_rule_id 关联所建规则。撤销一次授权不会自动禁用持久规则，禁用仍走 admin/authorization-rules/{id}/disable。
+
+owner 规则创建入口接受 parameters（旧精确匹配）或 constraints（二选一）。结构化约束形状为 `{kind:"file-prefix"}`、`{kind:"command-prefix",command_prefix:["npm","test"]}`、`{kind:"program",program_id:"<UUID>"}`，并可设 valid_from/expires_at。world.change 继续精确参数规则。模型不能创建或扩大规则。

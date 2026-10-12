@@ -71,6 +71,13 @@ export type WorldEdit = {
 };
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "RuleCommand".
+ */
+export type RuleCommand = {
+  [k: string]: unknown;
+};
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
  * via the `definition` "TimelineItem".
  */
 export type TimelineItem =
@@ -249,6 +256,15 @@ export interface ApprovalCommand {
   expected_revision: string;
   display_hash: string;
   decision: "APPROVE" | "REJECT" | "REVOKE";
+  remember?:
+    | {
+        prefix_tokens: number;
+        expires_at: string | null;
+      }
+    | {
+        path_prefix: string;
+        expires_at: string | null;
+      };
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -297,16 +313,6 @@ export interface ProgramCommand {
   request_id: string;
   entrypoint: string;
   name: string;
-}
-/**
- * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
- * via the `definition` "RuleCommand".
- */
-export interface RuleCommand {
-  request_id: string;
-  action: "file.write" | "program.run" | "world.change";
-  resource: string;
-  parameters: Json;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -556,6 +562,13 @@ export interface Authorization {
     [k: string]: unknown;
   };
   display?: Json;
+  remembered_rule_id?: string | null;
+  remember_context?: null | {
+    root: string;
+    action: "file.write" | "shell.run";
+    path: string | null;
+    tokens: string[] | null;
+  };
   [k: string]: unknown;
 }
 /**
@@ -890,6 +903,26 @@ export interface AuthorizationRule {
   resource_prefixes: string[];
   valid_from: string;
   expires_at: string | null;
+  constraints:
+    | {
+        parameter_hash: string;
+      }
+    | {
+        kind: "file-prefix";
+      }
+    | {
+        kind: "command-prefix";
+        /**
+         * @minItems 1
+         */
+        command_prefix: string[];
+      }
+    | {
+        kind: "program";
+        program_id: string;
+      };
+  match_count: number;
+  last_matched_at: string | null;
   [k: string]: unknown;
 }
 /**
@@ -900,6 +933,13 @@ export interface RulePage {
   items: AuthorizationRule[];
   version: string;
   next_cursor: string | null;
+  builtin_policies: {
+    id: "builtin:workspace-write" | "builtin:readonly-shell";
+    revision: number;
+    description: string;
+    match_count: number;
+    last_matched_at: string | null;
+  }[];
   [k: string]: unknown;
 }
 /**
@@ -926,6 +966,7 @@ export interface Scope {
   root_path: string | null;
   notes_path: string | null;
   state: "ACTIVE" | "ARCHIVED";
+  default_write?: "allow" | "ask";
   [k: string]: unknown;
 }
 /**
@@ -939,6 +980,7 @@ export interface ScopeCreateCommand {
   kind: "DIRECTORY" | "NONE";
   root_path?: string | null;
   notes_path?: string | null;
+  default_write?: "allow" | "ask";
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -952,6 +994,7 @@ export interface ScopeUpdateCommand {
   root_path?: string | null;
   notes_path?: string | null;
   expected_revision: Revision;
+  default_write?: "allow" | "ask";
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema

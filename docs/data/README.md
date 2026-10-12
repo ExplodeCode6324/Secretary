@@ -57,8 +57,8 @@
 | [DecisionRequest](DecisionRequest.md) | 16 | 普通决定通过 TaskControl；授权走独立接口。 |
 | [ActionScope](ActionScope.md) | 6 |  |
 | [Operation](Operation.md) | 18 | 最终 gate 的单位；权限、取消、对象版本在此核验。 |
-| [AuthorizationRequest](AuthorizationRequest.md) | 16 | host/scheduler 私有记录，模型不可提交批准状态。 |
-| [ApprovalCommand](ApprovalCommand.md) | 7 | 仅已认证 Master UI 可调用；身份取服务端 session，不能从 body 信任。 |
+| [AuthorizationRequest](AuthorizationRequest.md) | 17 | host/scheduler 私有记录，模型不可提交批准状态。 |
+| [ApprovalCommand](ApprovalCommand.md) | 8 | 仅已认证 Master UI 可调用；身份取服务端 session，不能从 body 信任。 |
 | [AuthorizationRule](AuthorizationRule.md) | 13 | 手工确认的持续规则，主会话无写入口；每次操作匹配当前 revision。 |
 | [SafetyRule](SafetyRule.md) | 11 | 只能收紧执行条件；不能生成授权或改变未知停止要求。 |
 | [ProgramRegistration](ProgramRegistration.md) | 17 | 人工登记；dispatch 固定 revision+code digest，更新不改历史。 |
@@ -98,4 +98,4 @@
 | [ClientRegistration](ClientRegistration.md) | 7 |  |
 | [ApiCommand](ApiCommand.md) | 13 |  |
 | [MemoryExtractionJob](MemoryExtractionJob.md) | 25 | 冻结的承诺提取来源与有界维护重试；独立于摘要覆盖水位。 |
-| [WorkScope](WorkScope.md) | 11 |  |
+| [WorkScope](WorkScope.md) | 12 |  |

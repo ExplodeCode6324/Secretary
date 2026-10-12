@@ -15,7 +15,7 @@
 | `state` | OperationState | 是 |  关联：[OperationState](OperationState.md) |
 | `action` | ActionScope | 是 |  关联：[ActionScope](ActionScope.md) |
 | `authorization_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
-| `rule_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
+| `rule_id` | ID 或 null 或 builtin:workspace-write / builtin:readonly-shell | 是 |  关联：[ID](ID.md) |
 | `rule_revision` | integer 或 null | 是 |  |
 | `owner_epoch` | integer | 是 |  {"minimum": 1, "maximum": 9007199254740991} |
 | `attempt_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
