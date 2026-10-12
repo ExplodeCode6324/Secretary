@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { App } from "./app.ts";
-import { base, id, now, revise, type Stored } from "./store.ts";
+import { base, id, now, revise, type Store, type Stored } from "./store.ts";
 import type {
   ApiCommand,
   CoreIdentity,
@@ -31,6 +31,9 @@ import {
 } from "./api/protocol.ts";
 import { commandRoute } from "./api/routes.ts";
 import type { Receipt } from "./api/contracts.ts";
+import { SyncService } from "./sync-service.ts";
+import { Notifications } from "./notification-service.ts";
+import type { PageKey } from "./api/protocol.ts";
 import { timelineFor } from "./timeline.ts";
 import { activityHistoryFor } from "./activity-history.ts";
 export type OwnerPrincipal = Readonly<{
@@ -38,6 +41,19 @@ export type OwnerPrincipal = Readonly<{
   owner_id: string;
 }>;
 const IDENTITY = "995e1b45-b9e8-43e7-b0df-460814f2c7f1";
+/** The API and in-process terminal share the same durable local owner. */
+export function coreIdentity(store: Store): CoreIdentity {
+  const existing = store.find<CoreIdentity>("CoreIdentity", IDENTITY);
+  if (existing) return existing;
+  const identity: CoreIdentity = {
+    ...base(IDENTITY),
+    schema_version: 1,
+    record_type: "CoreIdentity",
+    owner_id: id(),
+  };
+  store.commit([identity]);
+  return identity;
+}
 const PROFILE = "1c5e07dd-0519-4266-8208-b00e9cbd997a";
 const longRoutes = new Set([
   "task-requests/:id/cancel",
@@ -51,6 +67,8 @@ const longRoutes = new Set([
 export class ApplicationService {
   readonly instanceID = id();
   readonly identity: CoreIdentity;
+  readonly changes: SyncService;
+  readonly notifications: Notifications;
   readonly principal: OwnerPrincipal;
   readonly cursors = new Cursors(randomUUID());
   private running = new Set<Promise<void>>();
@@ -77,17 +95,10 @@ export class ApplicationService {
     readonly stop?: () => void,
   ) {
     const store = app.store;
-    let identity = store.find<CoreIdentity>("CoreIdentity", IDENTITY);
-    if (!identity) {
-      identity = {
-        ...base(IDENTITY),
-        schema_version: 1,
-        record_type: "CoreIdentity",
-        owner_id: id(),
-      };
-      store.commit([identity]);
-    }
+    const identity = coreIdentity(store);
     this.identity = identity;
+    this.changes = new SyncService(app, identity.owner_id, this.instanceID);
+    this.notifications = new Notifications(store, identity.owner_id);
     this.principal = Object.freeze({
       kind: "local-owner",
       owner_id: identity.owner_id,
@@ -205,7 +216,9 @@ export class ApplicationService {
       request_hash: digest,
       state: longRoutes.has(route.route) ? "QUEUED" : "ACCEPTED",
       arguments_ref: store.put(body),
-      resource_ids: [],
+      resource_ids: route.route.startsWith("notifications/")
+        ? [{ type: "Notification", id: route.target! }]
+        : [],
       error_code: null,
       result_ref: null,
     };
@@ -236,9 +249,10 @@ export class ApplicationService {
     try {
       store.withAdmission(
         (records) => {
-          request.resource_ids = records
-            .filter((r) => !["SafetyRule", "Session"].includes(r.record_type))
-            .map((r) => ({ type: r.record_type, id: r.id }));
+          if (!route.route.startsWith("notifications/"))
+            request.resource_ids = records
+              .filter((r) => !["SafetyRule", "Session"].includes(r.record_type))
+              .map((r) => ({ type: r.record_type, id: r.id }));
           accepted = true;
           return request;
         },
@@ -295,6 +309,10 @@ export class ApplicationService {
     const { host, scheduler, settings, authorization, store } = this.app;
     const requestID = b.request_id as string;
     switch (route) {
+      case "notifications/:id/presented":
+        return this.notifications.presented(target!, b.client_id as string);
+      case "notifications/:id/read":
+        return this.notifications.read(target!);
       case "scopes":
       case "scopes/:id": {
         const values = Object.fromEntries(
@@ -550,9 +568,37 @@ export class ApplicationService {
     scope: string,
     values: unknown[],
     q: URLSearchParams,
-    version = String(this.app.store.sequence),
+    keyOf?: (value: any) => PageKey,
   ) {
-    return this.cursors.page(scope, values, q, version);
+    const types: Record<string, string> = {
+      scopes: "Scope",
+      tasks: "TaskPlan",
+      executions: "Execution",
+      decisions: "DecisionRequest",
+      authorizations: "AuthorizationRequest",
+      operations: "Operation",
+      notifications: "Notification",
+      clients: "ClientRegistration",
+      "authorization-rules": "AuthorizationRule",
+      "admin/authorization-rules": "AuthorizationRule",
+      "admin/programs": "ProgramRegistration",
+    };
+    const type = scope.includes("/executions")
+      ? "Execution"
+      : types[scope.split(":")[0]];
+    const key =
+      keyOf ??
+      ((value: any) => {
+        const identity = typeof value === "string" ? value : value.id;
+        return [
+          type ? this.app.store.firstSequence(type, identity) : 0,
+          identity,
+        ];
+      });
+    return {
+      ...this.cursors.page(scope, values, q, key),
+      version: String(this.app.store.sequence),
+    };
   }
   async query(
     principal: OwnerPrincipal,
@@ -560,6 +606,7 @@ export class ApplicationService {
     q = new URLSearchParams(),
   ): Promise<unknown> {
     this.authorize(principal);
+    if (path.startsWith("sync/")) return this.changes.query(path, q);
     this.sync();
     const { store, host, settings, scheduler } = this.app,
       sid = host.sessionID;
@@ -591,6 +638,20 @@ export class ApplicationService {
       throw new ApiError("INVALID_LIMIT");
     const parts = path.split("/"),
       target = parts[1];
+    if (path === "notifications") {
+      const page = this.page(path, store.all("Notification"), q);
+      return {
+        ...page,
+        items: page.items.map((n) =>
+          this.notifications.view(
+            n as import("./contracts.ts").Notification,
+            2048,
+          ),
+        ),
+      };
+    }
+    if (parts[0] === "notifications" && parts.length === 2)
+      return this.notifications.view(store.get("Notification", target), 65536);
     if (path === "core")
       return {
         api_version: "1",
@@ -638,9 +699,9 @@ export class ApplicationService {
             reason: "UPLOAD_NOT_IMPLEMENTED",
           },
           reliable_sync: {
-            state: "not_supported",
-            allowed: false,
-            reason: "CHANGEFEED_NOT_IMPLEMENTED",
+            state: "supported",
+            allowed: true,
+            reason: null,
           },
         },
       };
@@ -726,17 +787,12 @@ export class ApplicationService {
           }),
         ),
         q,
-        String(cs.revision),
+        (item) => [item.item_id],
       );
     }
     if (path === "memory/commitments") {
       const status = host.memoryStatus();
-      const page = this.page(
-        path,
-        status.commitments,
-        q,
-        String(status.revision),
-      );
+      const page = this.page(path, status.commitments, q, (item) => [item.id]);
       return {
         ...page,
         items: page.items.map((c: any) =>
@@ -808,7 +864,9 @@ export class ApplicationService {
     }
     if (parts[0] === "tasks" && parts[2] === "requests" && parts.length === 3) {
       const p = this.task(target),
-        page = this.page(path, p.pending_requests ?? [], q);
+        page = this.page(path, p.pending_requests ?? [], q, (r) => [
+          r.request_id,
+        ]);
       return {
         ...page,
         items: page.items.map((r: any) => {
@@ -932,7 +990,8 @@ export class ApplicationService {
         })),
       ];
       return {
-        ...this.page(path, items, q, fingerprint(items)),
+        ...this.page(path, items, q, (item) => [item.type, item.id]),
+        version: fingerprint(items),
         counts: {
           authorizations: approvals.length,
           decisions: decisions.length,
@@ -951,6 +1010,7 @@ export class ApplicationService {
           .filter((id) => !task || this.artifacts.get(id)!.task === task)
           .map((id) => this.artifactView(id)),
         q,
+        (item) => [item.id],
       );
     }
     if (parts[0] === "artifacts" && parts.length === 2)
@@ -990,6 +1050,7 @@ export class ApplicationService {
             .map(([id]) => ({ type: "artifact", id, basis: "task_result" })),
         ],
         q,
+        (item) => [item.type, item.id],
       );
     }
     if (path === "timeline" || path === "timeline/around")

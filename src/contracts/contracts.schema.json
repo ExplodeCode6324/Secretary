@@ -3951,6 +3951,16 @@
         },
         "requested_at": {
           "$ref": "#/$defs/Time"
+        },
+        "read_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [

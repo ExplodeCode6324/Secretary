@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "check": "tsc --noEmit",
-    "test": "tsx --test \"test_case/offline/**/*.test.ts\"",
+    "test": "tsx --test --test-concurrency=1 \"test_case/offline/**/*.test.ts\"",
     "test:issue5": "tsx --test test_case/offline/issue5/*.test.ts",
     "start": "tsx src/pi_secretary/src/core-cli.ts start",
     "verify": "npm run check && npm run docs:check && npm test",

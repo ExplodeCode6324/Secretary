@@ -3,7 +3,15 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { CoreEndpoint } from "./api-v1.ts";
-import type { Core, Receipt, Assistant } from "./api/contracts.ts";
+import type {
+  Core,
+  Receipt,
+  Assistant,
+  SyncCursor,
+  SyncPage,
+  NotificationPage,
+  Notification,
+} from "./api/contracts.ts";
 export class CoreClient {
   constructor(readonly endpoint: CoreEndpoint) {}
   async query<T = unknown>(route: string): Promise<T> {
@@ -20,6 +28,37 @@ export class CoreClient {
   }
   assistant() {
     return this.query<Assistant>("assistant");
+  }
+  syncCursor() {
+    return this.query<SyncCursor>("sync/cursor");
+  }
+  changes(after: string, limit = 100) {
+    return this.query<SyncPage>(
+      "sync/changes?" + new URLSearchParams({ after, limit: String(limit) }),
+    );
+  }
+  notifications(cursor?: string) {
+    return this.query<NotificationPage>(
+      "notifications" + (cursor ? "?cursor=" + encodeURIComponent(cursor) : ""),
+    );
+  }
+  notification(notificationID: string) {
+    return this.query<Notification>("notifications/" + notificationID);
+  }
+  async stream(after: string, signal: AbortSignal) {
+    const response = await fetch(this.endpoint.url + "/api/v1/sync/stream", {
+      headers: {
+        Authorization: `Bearer ${this.endpoint.token}`,
+        "X-Secretary-API-Version": "1",
+        "Last-Event-ID": after,
+      },
+      signal,
+    });
+    if (!response.ok) {
+      const error = (await response.json()) as { error?: { code: string } };
+      throw Error(error.error?.code ?? "CORE_REQUEST_FAILED");
+    }
+    return response.body!;
   }
   private async request<T>(
     method: string,

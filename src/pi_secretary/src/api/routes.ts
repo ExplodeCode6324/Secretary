@@ -2,6 +2,8 @@
 export const commands = [
   ["assistant/profile", "ProfileCommand"],
   ["clients", "ClientCommand"],
+  ["notifications/:id/presented", "PresentedCommand"],
+  ["notifications/:id/read", "EmptyCommand"],
   ["messages", "MessageCommand"],
   ["task-requests", "TaskCommand"],
   ["task-requests/:id/cancel", "EmptyCommand"],

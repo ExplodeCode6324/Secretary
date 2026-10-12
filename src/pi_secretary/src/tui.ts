@@ -9,7 +9,9 @@ import { fileURLToPath } from "node:url";
 import * as readline from "node:readline";
 import { stripVTControlCharacters } from "node:util";
 import { App } from "./app.ts";
-import { id, revise } from "./store.ts";
+import { base, id, revise } from "./store.ts";
+import { coreIdentity } from "./application-service.ts";
+import { Notifications } from "./notification-service.ts";
 import type {
   AuthorizationRequest,
   TaskPlan,
@@ -23,6 +25,7 @@ import type {
   Input,
   Feedback,
   OperationLogRecord,
+  ClientRegistration,
 } from "./contracts.ts";
 
 // Model/tool text is display data, never terminal commands or control sequences.
@@ -90,6 +93,8 @@ const HELP = `直接输入消息与主会话交谈；命令只由 Master 的终�
 /help  /quit               帮助／停止并退出
 Ctrl+C 退出；支持终端历史、方向键编辑与滚动回看。`;
 
+const TERMINAL_CLIENT = "e3b91a45-a645-42f0-b15a-d8c037ecbfa4";
+
 export class TerminalController {
   private viewed = new Map<string, { revision: number; hash: string }>();
   private aliases = new Map<string, string>();
@@ -102,6 +107,27 @@ export class TerminalController {
     readonly app: App,
     private emit: (text: string, tone: MessageTone) => void,
   ) {}
+  private notifications() {
+    const store = this.app.store,
+      owner = coreIdentity(store).owner_id;
+    const client = store.find<ClientRegistration>(
+      "ClientRegistration",
+      TERMINAL_CLIENT,
+    );
+    if (client && client.owner_id !== owner)
+      throw Error("TERMINAL_CLIENT_OWNER_MISMATCH");
+    if (!client)
+      store.commit([
+        {
+          ...base(TERMINAL_CLIENT),
+          schema_version: 1,
+          record_type: "ClientRegistration",
+          owner_id: owner,
+          name: "Local terminal",
+        },
+      ]);
+    return new Notifications(store, owner);
+  }
   private print(value: unknown, tone: MessageTone = "system") {
     this.emit(
       terminalText(typeof value === "string" ? value : display(value)),
@@ -295,10 +321,12 @@ export class TerminalController {
     for (const n of this.app.store
       .all<Notification>("Notification")
       .filter((n) => n.state === "QUEUED")) {
+      const notifications = this.notifications();
       this.print(
         "Secretary · 通知 › " + this.app.store.bytes(n.message).toString(),
         "secretary",
       );
+      const presented = notifications.presentationEvent(n.id, TERMINAL_CLIENT);
       const delivered = revise(n, {
         state: "SENT",
         receipt: this.app.store.put({
@@ -309,7 +337,10 @@ export class TerminalController {
       });
       this.app.store.commit(
         [delivered],
-        [this.app.store.event("notification.result", delivered)],
+        [
+          this.app.store.event("notification.result", delivered),
+          ...(presented ? [presented] : []),
+        ],
       );
     }
     const approvals = this.app.store

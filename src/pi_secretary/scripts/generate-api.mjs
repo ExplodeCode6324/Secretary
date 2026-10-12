@@ -33,9 +33,13 @@ const operations = JSON.parse(
 );
 const paths = {};
 for (const operation of operations) {
+  const streaming = operation.media_type === "text/event-stream";
   const response =
-    operation.response === "binary"
-      ? { type: "string", format: "binary" }
+    operation.response === "binary" || streaming
+      ? {
+          type: "string",
+          format: streaming ? "event-stream" : "binary",
+        }
       : {
           type: "object",
           required: ["api_version", "data"],
@@ -81,7 +85,9 @@ for (const operation of operations) {
         content: {
           [operation.response === "binary"
             ? "application/octet-stream"
-            : "application/json"]: { schema: response },
+            : streaming
+              ? "text/event-stream"
+              : "application/json"]: { schema: response },
         },
       },
       default: {

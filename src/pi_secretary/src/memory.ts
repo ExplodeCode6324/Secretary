@@ -1,4 +1,5 @@
 import { hash, type Store } from "./store.ts";
+import { presentedNotification } from "./notification-service.ts";
 import { messageIdentityHash } from "./message-identity.ts";
 import type { AgentMessage } from "./model.ts";
 import type {
@@ -370,7 +371,7 @@ export function reconcileCommitments(
     if (
       !c ||
       !event ||
-      event.event_type !== "notification.result" ||
+      event.event_type !== "notification.presented" ||
       (event.scope.session_id !== null &&
         event.scope.session_id !== cs.session_id) ||
       !/^(已向 Master 承诺：)?收到执行结果后汇报[；;]不轮询运行中任务[。.]?$/.test(
@@ -379,17 +380,8 @@ export function reconcileCommitments(
     )
       continue;
     if (!sourcePrecedesDelivery(store, cs, c, event)) continue;
-    const n = store.read<Notification>(event.payload);
-    if (n.state !== "SENT" || n.session_id !== cs.session_id || !n.receipt)
-      continue;
-    const saved = store.find<Notification>("Notification", n.id);
-    if (!saved || hash(JSON.stringify(saved)) !== event.payload.sha256)
-      continue;
-    const receipt = store.read<{ delivery_key?: string; presented?: boolean }>(
-      n.receipt,
-    );
-    if (receipt.delivery_key !== n.delivery_key || receipt.presented !== true)
-      continue;
+    const n = presentedNotification(store, event);
+    if (!n || n.session_id !== cs.session_id) continue;
     const text = store.bytes(n.message).toString();
     const result = store
       .all<TaskResult>("TaskResult")

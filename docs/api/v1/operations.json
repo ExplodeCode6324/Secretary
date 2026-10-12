@@ -15,6 +15,20 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/notifications/{id}/presented",
+    "request": "PresentedCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/notifications/{id}/read",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/messages",
     "request": "MessageCommand",
     "response": "Receipt",
@@ -981,5 +995,89 @@
         }
       }
     ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/cursor",
+    "response": "SyncCursor",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/changes",
+    "response": "SyncPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "after",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/sync/stream",
+    "response": "SyncTransaction",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "after",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "Last-Event-ID",
+        "in": "header",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ],
+    "media_type": "text/event-stream"
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notifications",
+    "response": "NotificationPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/notifications/{id}",
+    "response": "Notification",
+    "status": 200
   }
 ]

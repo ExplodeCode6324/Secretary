@@ -4,7 +4,20 @@
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
  * via the `definition` "ApiV1".
  */
-export type ApiV1 = Core | Assistant | Receipt | Error | Envelope;
+export type ApiV1 =
+  | Core
+  | Assistant
+  | Receipt
+  | Error
+  | Envelope
+  | SyncCursor
+  | SyncChange
+  | SyncTransaction
+  | SyncPage
+  | PresentedCommand
+  | NotificationContent
+  | Notification
+  | NotificationPage;
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
  * via the `definition` "Json".
@@ -17,6 +30,22 @@ export type Json =
   | unknown[]
   | {
       [k: string]: unknown;
+    };
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncChange".
+ */
+export type SyncChange =
+  | {
+      kind: "record";
+      resource_type: string;
+      resource_id: string;
+      revision: string;
+    }
+  | {
+      kind: "invalidate";
+      resource_type: string;
+      query: string;
     };
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -162,6 +191,80 @@ export interface Envelope {
   api_version: "1";
   data: Json;
   [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncCursor".
+ */
+export interface SyncCursor {
+  cursor: string;
+  sequence: string;
+  instance_id: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncTransaction".
+ */
+export interface SyncTransaction {
+  cursor: string;
+  changes: SyncChange[];
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SyncPage".
+ */
+export interface SyncPage {
+  transactions: SyncTransaction[];
+  next_cursor: string;
+  has_more: boolean;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "PresentedCommand".
+ */
+export interface PresentedCommand {
+  request_id: string;
+  client_id: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "NotificationContent".
+ */
+export interface NotificationContent {
+  text: string;
+  media_type: string;
+  content_version: string;
+  bytes: string;
+  truncated: boolean;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "Notification".
+ */
+export interface Notification {
+  id: string;
+  revision: string;
+  state: "QUEUED" | "SENDING" | "SENT" | "FAILED" | "DELIVERY_UNKNOWN";
+  session_id: string;
+  channel: string;
+  requested_at: string;
+  updated_at: string;
+  created_sequence: string;
+  read_at: string | null;
+  presented: {
+    client_id: string;
+    presented_at: string;
+  }[];
+  content: NotificationContent;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "NotificationPage".
+ */
+export interface NotificationPage {
+  items: Notification[];
+  version: string;
+  next_cursor: string | null;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema

@@ -6,7 +6,7 @@ import path from "node:path";
 import { contentText } from "@earendil-works/pi-ai";
 import { App } from "../../../src/pi_secretary/src/app.ts";
 import { base, id, now, revise } from "../../../src/pi_secretary/src/store.ts";
-import { TerminalController } from "../../../src/pi_secretary/src/tui.ts";
+import { ApplicationService } from "../../../src/pi_secretary/src/application-service.ts";
 import { emptySettings } from "../../../src/pi_secretary/src/settings-payload.ts";
 import { getInstructions } from "../../../src/pi_secretary/src/instructions.ts";
 import { reconcileCommitments } from "../../../src/pi_secretary/src/memory.ts";
@@ -140,11 +140,26 @@ async function deliver(app: App, result: TaskResult) {
   );
   const queued = app.store.all<Notification>("Notification").at(-1)!;
   assert.equal(queued.state, "QUEUED");
-  new TerminalController(app, () => {}).refresh();
+  const api = new ApplicationService(app);
+  const registration = api.command(api.principal, "clients", {
+    request_id: id(),
+    name: "Synthetic presentation fixture",
+  });
+  const clientID = registration.resource_ids.find(
+    (r) => r.type === "ClientRegistration",
+  )!.id;
+  api.command(api.principal, `notifications/${queued.id}/presented`, {
+    request_id: id(),
+    client_id: clientID,
+  });
+  await api.close();
   const event = app.store.logs.findLast(
-    (e) => e.event_type === "notification.result",
+    (e) => e.event_type === "notification.presented",
   )!;
-  return { event, notification: app.store.read<Notification>(event.payload) };
+  return {
+    event,
+    notification: app.store.get<Notification>("Notification", queued.id),
+  };
 }
 function resolve(app: App, eventID: string, cs = memory(app), end = Infinity) {
   return reconcileCommitments(

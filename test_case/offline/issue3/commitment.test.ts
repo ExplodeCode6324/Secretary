@@ -6,6 +6,7 @@ import path from "node:path";
 import { contentText } from "@earendil-works/pi-ai";
 import { App } from "../../../src/pi_secretary/src/app.ts";
 import { base, id, now, revise } from "../../../src/pi_secretary/src/store.ts";
+import { ApplicationService } from "../../../src/pi_secretary/src/application-service.ts";
 import { TerminalController } from "../../../src/pi_secretary/src/tui.ts";
 import { emptySettings } from "../../../src/pi_secretary/src/settings-payload.ts";
 import { getInstructions } from "../../../src/pi_secretary/src/instructions.ts";
@@ -21,6 +22,8 @@ import type {
   Notification,
   TaskResult,
   CompactionJob,
+  ClientRegistration,
+  CoreIdentity,
 } from "../../../src/pi_secretary/src/contracts.ts";
 
 const promise = "收到执行结果后汇报；不轮询运行中任务";
@@ -129,7 +132,7 @@ async function introduce(app: App) {
   assert.equal(app.host.memoryStatus().state, "COMMITTED");
   assert.equal(memory(app).commitments?.[0].state, "OPEN");
 }
-async function deliver(app: App, result: TaskResult) {
+async function queue(app: App, result: TaskResult) {
   const tool = (app.host as any)
     .tools(id())
     .find((t: any) => t.name === "MasterInteract");
@@ -141,11 +144,30 @@ async function deliver(app: App, result: TaskResult) {
   );
   const queued = app.store.all<Notification>("Notification").at(-1)!;
   assert.equal(queued.state, "QUEUED");
-  new TerminalController(app, () => {}).refresh();
+  return queued;
+}
+async function deliver(app: App, result: TaskResult) {
+  const queued = await queue(app, result);
+  const api = new ApplicationService(app);
+  const registration = api.command(api.principal, "clients", {
+    request_id: id(),
+    name: "Synthetic presentation fixture",
+  });
+  const clientID = registration.resource_ids.find(
+    (r) => r.type === "ClientRegistration",
+  )!.id;
+  api.command(api.principal, `notifications/${queued.id}/presented`, {
+    request_id: id(),
+    client_id: clientID,
+  });
+  await api.close();
   const event = app.store.logs.findLast(
-    (e) => e.event_type === "notification.result",
+    (e) => e.event_type === "notification.presented",
   )!;
-  return { event, notification: app.store.read<Notification>(event.payload) };
+  return {
+    event,
+    notification: app.store.get<Notification>("Notification", queued.id),
+  };
 }
 function resolve(app: App, eventID: string, cs = memory(app), end = Infinity) {
   return reconcileCommitments(
@@ -157,6 +179,112 @@ function resolve(app: App, eventID: string, cs = memory(app), end = Infinity) {
     end,
   )[0].state;
 }
+
+test("Issue9 TUI: actual presentation atomically records SENT and evidence; maintenance completes reporting after restart", async () => {
+  await fixture(async ({ app, result, propose, reopen }) => {
+    await introduce(app);
+    const queued = await queue(app, result);
+    const output: string[] = [];
+    const inputs = app.store.all("Input").length;
+    const calls = app.store.all("ModelCall").length;
+    const ui = new TerminalController(app, (text) => output.push(text));
+    ui.refresh();
+    assert(
+      output.some((text) => text.includes(`${result.task_id}: SUCCEEDED`)),
+    );
+    const event = app.store.logs.findLast(
+      (e) => e.event_type === "notification.presented",
+    );
+    assert(
+      event,
+      "a successful TUI display must persist presentation evidence",
+    );
+    const payload = app.store.read<{ client_id: string; presented_at: string }>(
+      event.payload,
+    );
+    const client = app.store.get<ClientRegistration>(
+      "ClientRegistration",
+      payload.client_id,
+    );
+    assert.equal(
+      client.owner_id,
+      app.store.all<CoreIdentity>("CoreIdentity")[0].owner_id,
+    );
+    const transaction = app.store.projectionFrames.find((t) =>
+      t.log_records.some((e) => e.event_id === event.event_id),
+    )!;
+    assert(
+      transaction.mutations.some(
+        (m) =>
+          m.object_type === "Notification" &&
+          m.object_id === queued.id &&
+          app.store.read<Notification>(m.snapshot).state === "SENT",
+      ),
+    );
+    assert.equal(app.store.all("Input").length, inputs);
+    assert.equal(app.store.all("ModelCall").length, calls);
+    assert.equal(memory(app).commitments![0].state, "OPEN");
+    const sequence = app.store.sequence;
+    ui.refresh();
+    assert.equal(
+      app.store.sequence,
+      sequence,
+      "refresh does not repeat presentation writes",
+    );
+    app = await reopen();
+    const sent = app.store.get<Notification>("Notification", queued.id);
+    app.store.commit([revise(sent, { state: "QUEUED" })]);
+    new TerminalController(app, () => {}).refresh();
+    const events = app.store.logs.filter(
+      (e) => e.event_type === "notification.presented",
+    );
+    assert.equal(
+      events.length,
+      1,
+      "the stable local client retains first evidence across restart",
+    );
+    assert.deepEqual(
+      app.store.read(events[0].payload),
+      app.store.read(event.payload),
+    );
+    assert.equal(
+      app.store.all<ClientRegistration>("ClientRegistration").length,
+      1,
+    );
+    propose(event.event_id);
+    app.host.accept("Review the displayed synthetic result.");
+    await app.host.drain();
+    await app.host.compact();
+    assert.equal(memory(app).commitments![0].state, "COMPLETED");
+    assert.deepEqual(memory(app).commitments![0].resolution_event_ids, [
+      event.event_id,
+    ]);
+  });
+});
+
+test("Issue9 TUI: a failed display does not mark SENT or fabricate presented evidence", async () => {
+  await fixture(async ({ app, result }) => {
+    const queued = await queue(app, result);
+    const ui = new TerminalController(app, (text) => {
+      if (text.startsWith("Secretary · 通知 › "))
+        throw Error("SYNTHETIC_DISPLAY_FAILURE");
+    });
+    assert.throws(() => ui.refresh(), /SYNTHETIC_DISPLAY_FAILURE/);
+    assert.equal(
+      app.store.get<Notification>("Notification", queued.id).state,
+      "QUEUED",
+    );
+    assert(
+      !app.store.logs.some((e) => e.event_type === "notification.presented"),
+    );
+    new TerminalController(app, () => {}).refresh();
+    assert.equal(
+      app.store.logs.filter((e) => e.event_type === "notification.presented")
+        .length,
+      1,
+    );
+  });
+});
 
 test("Issue3 event-source promise: extraction → maintenance → real notification delivery → completion survives restart", async () => {
   await fixture(async ({ app, result, propose, reopen }) => {
@@ -430,5 +558,107 @@ test("Issue3 identical settings event bodies retain distinct delivery boundaries
     );
     const delivered = await deliver(app, result);
     assert.equal(resolve(app, delivered.event.event_id, only), "COMPLETED");
+  });
+});
+
+test("Issue9 real presented evidence survives read/send progress, while unrelated result and malformed presentation remain open", async () => {
+  await fixture(async ({ app, result }) => {
+    await introduce(app);
+    const { event, notification } = await deliver(app, result);
+    const api = new ApplicationService(app);
+    try {
+      api.command(api.principal, `notifications/${notification.id}/read`, {
+        request_id: id(),
+      });
+      app.store.commit([
+        revise(app.store.get<Notification>("Notification", notification.id), {
+          state: "SENT",
+          receipt: app.store.put({ delivery_key: notification.delivery_key }),
+        }),
+      ]);
+      assert.equal(
+        resolve(app, event.event_id),
+        "COMPLETED",
+        "read/send progress preserves actual presentation",
+      );
+      assert.equal(
+        resolve(app, event.event_id, memory(app), event.sequence - 1),
+        "OPEN",
+        "sourceEnd stays fixed",
+      );
+      assert.throws(
+        () =>
+          app.store.commit([
+            revise(
+              app.store.get<Notification>("Notification", notification.id),
+              { message: app.store.put("changed content") },
+            ),
+          ]),
+        /NOTIFICATION_CONTENT_IMMUTABLE/,
+      );
+      const registration = api.command(api.principal, "clients", {
+        request_id: id(),
+        name: "Synthetic negative client",
+      });
+      const client_id = registration.resource_ids.find(
+        (r) => r.type === "ClientRegistration",
+      )!.id;
+      for (const message of [
+        `${id()}: SUCCEEDED`,
+        `${result.task_id}: FAILED`,
+      ]) {
+        const wrong: Notification = {
+          ...notification,
+          ...base(),
+          message: app.store.put(message, "text/plain"),
+        };
+        app.store.commit([wrong]);
+        api.command(api.principal, `notifications/${wrong.id}/presented`, {
+          request_id: id(),
+          client_id,
+        });
+        const wrongEvent = app.store.logs.findLast(
+          (e) => e.event_type === "notification.presented",
+        )!;
+        assert.equal(
+          resolve(app, wrongEvent.event_id),
+          "OPEN",
+          "real API presentation still needs matching result",
+        );
+      }
+      const original = app.store.read<Record<string, unknown>>(event.payload);
+      for (const payload of [
+        null,
+        { ...original, client_id: id() },
+        { ...original, presented_at: "2000-01-01T00:00:00.000Z" },
+        { ...original, unexpected: true },
+      ]) {
+        const malformed = app.store.event(
+          "notification.presented",
+          payload,
+          event.scope,
+          "MASTER_UI",
+        );
+        app.store.commit([], [malformed]);
+        assert.equal(
+          resolve(app, malformed.event_id),
+          "OPEN",
+          "malformed/forged presentation rejected",
+        );
+      }
+      const legacy = app.store.event(
+        "notification.result",
+        app.store.get("Notification", notification.id),
+        event.scope,
+      );
+      app.store.commit([], [legacy]);
+      assert.equal(
+        resolve(app, legacy.event_id),
+        "OPEN",
+        "legacy SENT alone is not new evidence",
+      );
+    } finally {
+      await api.close();
+    }
   });
 });
