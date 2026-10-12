@@ -34,7 +34,11 @@ export function directoryRoot(store: Store, root: string) {
     throw Error("SCOPE_ROOT_RESERVED");
   return canonical;
 }
-export function relativePath(root: string, relative: string) {
+export function relativePath(
+  root: string,
+  relative: string,
+  allowRoot = false,
+) {
   if (
     !relative ||
     /^[ @~]/.test(relative) ||
@@ -43,7 +47,8 @@ export function relativePath(root: string, relative: string) {
   )
     throw Error("INVALID_PATH");
   const target = path.resolve(root, relative);
-  if (!target.startsWith(root + path.sep)) throw Error("INVALID_PATH");
+  if (!(allowRoot && target === root) && !target.startsWith(root + path.sep))
+    throw Error("INVALID_PATH");
   noLinks(target);
   return target;
 }
@@ -81,7 +86,7 @@ export class Scopes {
   get(id: string) {
     const scope = this.store.find<WorkScope>("Scope", id);
     if (!scope) throw Error("SCOPE_NOT_FOUND");
-    return scope;
+    return { ...scope, default_write: scope.default_write ?? "allow" };
   }
   active(id?: string | null) {
     if (!id) return null;
@@ -123,6 +128,7 @@ export class Scopes {
         ...base(),
         state: "ACTIVE",
         description: "",
+        default_write: "allow",
         kind: "NONE",
         root_path: null,
         notes_path: null,

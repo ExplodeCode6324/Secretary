@@ -1,3 +1,4 @@
+import { approvalScope, taskRoot } from "../helpers/approval-scope.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
@@ -141,10 +142,15 @@ test("approved write preflight errors become visible failure instead of waiting 
   };
   const app = await App.open(dir, { model: fixtureModel, stream });
   try {
-    const plan = app.scheduler.propose("Write file", id(), app.host.sessionID);
+    const plan = app.scheduler.propose(
+      "Write file",
+      id(),
+      app.host.sessionID,
+      approvalScope(app),
+    );
     app.scheduler.tick();
     await app.scheduler.idle();
-    const file = path.join(dir, "workspaces", plan.id, "work", "proof.txt");
+    const file = path.join(taskRoot(app, plan.id), "proof.txt");
     fs.writeFileSync(file, "external change");
     const a = app.store.all<AuthorizationRequest>("AuthorizationRequest")[0];
     app.authorization.decide({

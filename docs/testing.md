@@ -61,3 +61,7 @@ docs:check 检查 Git 跟踪 Markdown 的本地路径与迁移目标，新文件
 历史 UI 探针和截图描述其原版本。当前 Core 使用 API v1，原生窗口、阅读位置、输入法与可访问性将随 #10 验收。已有真实模型结果统一收录在带日期的 [API 验证记录](api/v1/verification.md)。
 
 每份运行报告注明提交、环境、命令、实际通过/失败/skip/TODO 和未运行项目。公开仓库保留脱敏结论，原始会话及凭据留在私密证据目录。
+
+Issue #17 的 `test_case/offline/issue17/` 覆盖默认/显式授权、取消后继、remember 原子性与重启、只读命令正反例、Git argv 顺序及真实受控进程。历史审批回归显式使用 DIRECTORY + default_write=ask，继续断言未批准不写、路径替换拒绝和过期/版本冲突。
+
+`test_case/online/test-issue17-live.ts` 是单独执行的真实模型验收，需私有凭据及 `SECRETARY_ISSUE17_EVIDENCE` 目录。它使用隔离合成项目，验证默认放行、ask 停等/批准继续、合成未知结果不重复写入；模型调用有次数和时间预算，不加入默认 npm test。原始日志和凭据不提交。

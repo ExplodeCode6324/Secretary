@@ -298,7 +298,14 @@ export class ApplicationService {
       case "scopes":
       case "scopes/:id": {
         const values = Object.fromEntries(
-          ["name", "description", "kind", "root_path", "notes_path"]
+          [
+            "name",
+            "description",
+            "kind",
+            "root_path",
+            "notes_path",
+            "default_write",
+          ]
             .filter((k) => k in b)
             .map((k) => [k, b[k]]),
         );
@@ -376,6 +383,8 @@ export class ApplicationService {
           expected_revision: revision(b.expected_revision),
           display_hash: b.display_hash as string,
           decision: b.decision as "APPROVE" | "REJECT" | "REVOKE",
+          remember:
+            b.remember as import("./contracts.ts").ApprovalCommand["remember"],
         });
       case "settings/draft": {
         const payload = structuredClone(b.payload) as any;
@@ -443,6 +452,9 @@ export class ApplicationService {
           b.action as string,
           b.resource as string,
           b.parameters,
+          b.constraints,
+          (b.expires_at as string | null) ?? null,
+          b.valid_from as string | undefined,
         );
       case "admin/authorization-rules/:id/disable": {
         const r = store.get<AuthorizationRule>("AuthorizationRule", target!);
@@ -633,7 +645,15 @@ export class ApplicationService {
         },
       };
     if (path === "scopes")
-      return this.page(path, project(store.all("Scope")), q);
+      return this.page(
+        path,
+        project(
+          store
+            .all<import("./contracts.ts").WorkScope>("Scope")
+            .map((s) => ({ ...s, default_write: s.default_write ?? "allow" })),
+        ),
+        q,
+      );
     if (parts[0] === "scopes" && parts.length === 2)
       return project(scheduler.scopes.get(target));
     if (path === "assistant") {
@@ -866,7 +886,13 @@ export class ApplicationService {
       );
     if (parts[0] === "authorizations" && parts.length === 2) {
       const a = this.authorization(target);
-      return project({ ...a, display: store.read(a.display_ref) });
+      return project({
+        ...a,
+        display: store.read(a.display_ref),
+        remember_context: this.app.authorization.rememberContext(
+          store.get("Operation", a.operation_id),
+        ),
+      });
     }
     if (path === "attention") {
       const asOf = now();
@@ -1046,8 +1072,16 @@ export class ApplicationService {
       return this.operationView(store.get("Operation", target));
     if (path === "admin/programs")
       return this.page(path, project(store.all("ProgramRegistration")), q);
-    if (path === "admin/authorization-rules")
-      return this.page(path, project(store.all("AuthorizationRule")), q);
+    if (
+      path === "admin/authorization-rules" ||
+      path === "authorization-rules"
+    ) {
+      const view = this.app.authorization.rulesView();
+      return {
+        ...this.page(path, project(view.items), q),
+        builtin_policies: view.builtin_policies,
+      };
+    }
     throw new ApiError("NOT_FOUND", 404);
   }
   private operationView(op: import("./contracts.ts").Operation) {

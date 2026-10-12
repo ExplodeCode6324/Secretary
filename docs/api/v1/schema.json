@@ -260,6 +260,60 @@
             "REJECT",
             "REVOKE"
           ]
+        },
+        "remember": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "prefix_tokens": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "expires_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "prefix_tokens",
+                "expires_at"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path_prefix": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "expires_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "path_prefix",
+                "expires_at"
+              ]
+            }
+          ]
         }
       },
       "required": [
@@ -411,7 +465,8 @@
           "enum": [
             "file.write",
             "program.run",
-            "world.change"
+            "world.change",
+            "shell.run"
           ]
         },
         "resource": {
@@ -419,13 +474,103 @@
         },
         "parameters": {
           "$ref": "#/$defs/Json"
+        },
+        "constraints": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "file-prefix"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "command-prefix"
+                },
+                "command_prefix": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "kind",
+                "command_prefix"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "program"
+                },
+                "program_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "program_id"
+              ]
+            }
+          ]
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "valid_from": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": [
         "request_id",
         "action",
-        "resource",
-        "parameters"
+        "resource"
+      ],
+      "oneOf": [
+        {
+          "required": [
+            "parameters"
+          ],
+          "not": {
+            "required": [
+              "constraints"
+            ]
+          }
+        },
+        {
+          "required": [
+            "constraints"
+          ],
+          "not": {
+            "required": [
+              "parameters"
+            ]
+          }
+        }
       ]
     },
     "Error": {
@@ -1653,6 +1798,55 @@
         },
         "display": {
           "$ref": "#/$defs/Json"
+        },
+        "remembered_rule_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "remember_context": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "root": {
+                  "type": "string"
+                },
+                "action": {
+                  "enum": [
+                    "file.write",
+                    "shell.run"
+                  ]
+                },
+                "path": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tokens": {
+                  "type": [
+                    "array",
+                    "null"
+                  ],
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "required": [
+                "root",
+                "action",
+                "path",
+                "tokens"
+              ]
+            }
+          ]
         }
       },
       "required": [
@@ -2792,6 +2986,88 @@
               "type": "null"
             }
           ]
+        },
+        "constraints": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "parameter_hash": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                }
+              },
+              "required": [
+                "parameter_hash"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "file-prefix"
+                }
+              },
+              "required": [
+                "kind"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "command-prefix"
+                },
+                "command_prefix": {
+                  "type": "array",
+                  "minItems": 1,
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "kind",
+                "command_prefix"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "const": "program"
+                },
+                "program_id": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "required": [
+                "kind",
+                "program_id"
+              ]
+            }
+          ]
+        },
+        "match_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_matched_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -2801,7 +3077,10 @@
         "actions",
         "resource_prefixes",
         "valid_from",
-        "expires_at"
+        "expires_at",
+        "constraints",
+        "match_count",
+        "last_matched_at"
       ],
       "additionalProperties": true
     },
@@ -2826,12 +3105,53 @@
               "type": "null"
             }
           ]
+        },
+        "builtin_policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "enum": [
+                  "builtin:workspace-write",
+                  "builtin:readonly-shell"
+                ]
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "description": {
+                "type": "string"
+              },
+              "match_count": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "last_matched_at": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "id",
+              "revision",
+              "description",
+              "match_count",
+              "last_matched_at"
+            ]
+          }
         }
       },
       "required": [
         "items",
         "version",
-        "next_cursor"
+        "next_cursor",
+        "builtin_policies"
       ],
       "additionalProperties": true
     },
@@ -2912,6 +3232,12 @@
             "ACTIVE",
             "ARCHIVED"
           ]
+        },
+        "default_write": {
+          "enum": [
+            "allow",
+            "ask"
+          ]
         }
       },
       "additionalProperties": true,
@@ -2960,6 +3286,12 @@
             "string",
             "null"
           ]
+        },
+        "default_write": {
+          "enum": [
+            "allow",
+            "ask"
+          ]
         }
       },
       "required": [
@@ -3005,6 +3337,12 @@
         },
         "expected_revision": {
           "$ref": "#/$defs/Revision"
+        },
+        "default_write": {
+          "enum": [
+            "allow",
+            "ask"
+          ]
         }
       },
       "required": [

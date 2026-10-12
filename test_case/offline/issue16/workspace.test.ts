@@ -64,6 +64,7 @@ test("authorized notes write retains bound root across update/archive and captur
     const s = a.scheduler.scopes.save({
       name: "Project",
       kind: "DIRECTORY",
+      default_write: "ask",
       root_path: original,
     });
     const p = a.scheduler.propose(
@@ -94,6 +95,7 @@ test("authorized notes write retains bound root across update/archive and captur
         a.scheduler.scopes.save({
           name: "conflict",
           kind: "DIRECTORY",
+      default_write: "ask",
           root_path: original,
         }),
       /SCOPE_ROOT_CONFLICT/,
@@ -171,12 +173,14 @@ test("NONE and legacy records retain private workspace; reuse inherits scope and
     const dir = a.scheduler.scopes.save({
       name: "Directory",
       kind: "DIRECTORY",
+      default_write: "ask",
       root_path: directory(root),
     });
     assert.throws(
       () =>
         a.scheduler.scopes.save(
-          { kind: "DIRECTORY", root_path: dir.root_path },
+          { kind: "DIRECTORY",
+      default_write: "ask", root_path: dir.root_path },
           s.id,
           s.revision,
         ),
@@ -190,6 +194,7 @@ test("notes are bounded UTF-8 data, unsafe paths fail, and large scope lists sta
     const s = a.scheduler.scopes.save({
       name: "Notes",
       kind: "DIRECTORY",
+      default_write: "ask",
       root_path: project,
     });
     fs.mkdirSync(path.join(project, ".secretary"));
@@ -234,6 +239,7 @@ test("PROGRAM WAIT_AUTH and real process execute under original DIRECTORY bindin
     const s = a.scheduler.scopes.save({
       name: "Program",
       kind: "DIRECTORY",
+      default_write: "ask",
       root_path: original,
     });
     const script = path.join(root, "program.mjs");
@@ -268,6 +274,7 @@ test("approved write waits through unsafe root replacement and resumes the same 
     const s = a.scheduler.scopes.save({
       name: "Root guard",
       kind: "DIRECTORY",
+      default_write: "ask",
       root_path: project,
     });
     a.scheduler.propose("Write notes", id(), a.host.sessionID, {
@@ -297,6 +304,7 @@ test("rejecting the notes authorization creates neither directory nor file", () 
     const s = a.scheduler.scopes.save({
       name: "Rejected",
       kind: "DIRECTORY",
+      default_write: "ask",
       root_path: project,
     });
     a.scheduler.propose("Write notes", id(), a.host.sessionID, {

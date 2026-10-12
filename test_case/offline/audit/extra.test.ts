@@ -1,3 +1,4 @@
+import { approvalScope, taskRoot } from "../helpers/approval-scope.ts";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -31,7 +32,7 @@ test('NEW12 earlier read followed by WAIT_AUTH must stop model loop immediately'
   if(calls===1)return replyStream([{type:'toolCall',id:'read',name:'read',arguments:{path:'source.txt'}},{type:'toolCall',id:'write',name:'write',arguments:{path:'output.txt',content:'new'}}],m);
   return replyStream([{type:'text',text:'should not have been called while WAIT_AUTH'}],m);
  };
- await fixture(async(a,dir)=>{const p=a.scheduler.propose('read then write',id(),a.host.sessionID);fs.writeFileSync(path.join(dir,'workspaces',p.id,'work','source.txt'),'source');a.scheduler.tick();await a.scheduler.idle();assert.equal(a.store.all<Execution>('Execution')[0].state,'WAIT_AUTH');assert.equal(calls,1,'Pi requested another completion after durable authorization wait');},stream);
+ await fixture(async(a,dir)=>{const p=a.scheduler.propose('read then write',id(),a.host.sessionID,approvalScope(a));fs.writeFileSync(path.join(taskRoot(a,p.id),'source.txt'),'source');a.scheduler.tick();await a.scheduler.idle();assert.equal(a.store.all<Execution>('Execution')[0].state,'WAIT_AUTH');assert.equal(calls,1,'Pi requested another completion after durable authorization wait');},stream);
 });
 test('NEW13 approved workspace path must not follow a replaced work root symlink',async()=>{
  const stream:StreamFn=(m,c,o)=>isTask(c)&&!c.messages.some(x=>x.role==='toolResult')?replyStream([{type:'toolCall',id:'w',name:'write',arguments:{path:'sentinel.txt',content:'unauthorized replacement'}}],m):fixtureStream(m,c,o);
@@ -39,8 +40,8 @@ test('NEW13 approved workspace path must not follow a replaced work root symlink
   const outside=fs.mkdtempSync(path.join(os.tmpdir(),'sec-outside-sentinel-'));
   try{
    fs.writeFileSync(path.join(outside,'sentinel.txt'),'protected sentinel');
-   const p=a.scheduler.propose('write inside task workspace',id(),a.host.sessionID);a.scheduler.tick();await a.scheduler.idle();
-   const root=path.join(dir,'workspaces',p.id,'work');fs.renameSync(root,root+'-saved');fs.symlinkSync(outside,root);
+   const p=a.scheduler.propose('write inside task workspace',id(),a.host.sessionID,approvalScope(a));a.scheduler.tick();await a.scheduler.idle();
+   const root=taskRoot(a,p.id);fs.renameSync(root,root+'-saved');fs.symlinkSync(outside,root);
    const q=a.store.all<AuthorizationRequest>('AuthorizationRequest')[0];
    a.authorization.decide({schema_version:1,record_type:'ApprovalCommand',request_id:id(),authorization_id:q.id,expected_revision:q.revision,display_hash:q.display_hash,decision:'APPROVE'});
    await a.scheduler.run(a.store.all<Execution>('Execution')[0].id);

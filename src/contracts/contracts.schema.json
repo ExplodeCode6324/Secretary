@@ -3223,6 +3223,12 @@
             },
             {
               "type": "null"
+            },
+            {
+              "enum": [
+                "builtin:workspace-write",
+                "builtin:readonly-shell"
+              ]
             }
           ]
         },
@@ -3469,6 +3475,12 @@
               "type": "null"
             }
           ]
+        },
+        "remembered_rule_id": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -3551,6 +3563,60 @@
             "REVOKE"
           ],
           "description": ""
+        },
+        "remember": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "prefix_tokens": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "expires_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "prefix_tokens",
+                "expires_at"
+              ]
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "path_prefix": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "expires_at": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "path_prefix",
+                "expires_at"
+              ]
+            }
+          ]
         }
       },
       "required": [
@@ -6809,6 +6875,12 @@
           "enum": [
             "ACTIVE",
             "ARCHIVED"
+          ]
+        },
+        "default_write": {
+          "enum": [
+            "allow",
+            "ask"
           ]
         }
       },

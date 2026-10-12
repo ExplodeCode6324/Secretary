@@ -1,3 +1,4 @@
+import { approvalScope, taskRoot } from "../helpers/approval-scope.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
@@ -140,12 +141,13 @@ test("task write uses Pi source tool only after independent UI approval", () => 
       "Write a file",
       id(),
       app.host.sessionID,
+      approvalScope(app),
     );
     app.scheduler.tick();
     await app.scheduler.idle();
     let e = app.store.all<Execution>("Execution")[0];
     assert.equal(e.state, "WAIT_AUTH");
-    const file = path.join(dir, "workspaces", plan.id, "work", "report.txt");
+    const file = path.join(taskRoot(app, plan.id), "report.txt");
     assert(!fs.existsSync(file));
     const a = app.store.all<AuthorizationRequest>("AuthorizationRequest")[0];
     assert.throws(
@@ -316,16 +318,19 @@ test("later tool in same Pi batch is stopped when an earlier tool waits for appr
         )
       : replyStream([{ type: "text", text: "stopped" }], m);
   return fixture(async (app, dir) => {
-    const p = app.scheduler.propose("two effects", id(), app.host.sessionID);
+    const p = app.scheduler.propose(
+      "two effects",
+      id(),
+      app.host.sessionID,
+      approvalScope(app),
+    );
     app.scheduler.tick();
     await app.scheduler.idle();
     assert.equal(
       app.store.all<AuthorizationRequest>("AuthorizationRequest").length,
       1,
     );
-    assert(
-      !fs.existsSync(path.join(dir, "workspaces", p.id, "work", "two.txt")),
-    );
+    assert(!fs.existsSync(path.join(taskRoot(app, p.id), "two.txt")));
   }, stream);
 });
 test("declined grant cannot launch a program or be consumed", () =>
@@ -545,6 +550,7 @@ test("a busy main model does not block approval dispatch to a task agent", () =>
       "independent worker",
       id(),
       app.host.sessionID,
+      approvalScope(app),
     );
     app.scheduler.tick();
     await app.scheduler.idle();
@@ -558,7 +564,7 @@ test("a busy main model does not block approval dispatch to a task agent", () =>
       await app.scheduler.idle();
       assert.equal(
         fs.readFileSync(
-          path.join(dir, "workspaces", p.id, "work", "independent.txt"),
+          path.join(taskRoot(app, p.id), "independent.txt"),
           "utf8",
         ),
         "ok",
@@ -729,7 +735,12 @@ test("nullable optional proposal fields work through the real Pi tool validator"
 test("unknown effect feedback cannot create an autonomous replacement task", () =>
   fixture(
     async (app) => {
-      app.scheduler.propose("write once", id(), app.host.sessionID);
+      app.scheduler.propose(
+        "write once",
+        id(),
+        app.host.sessionID,
+        approvalScope(app),
+      );
       app.scheduler.tick();
       await app.scheduler.idle();
       const a = app.store.all<AuthorizationRequest>("AuthorizationRequest")[0];

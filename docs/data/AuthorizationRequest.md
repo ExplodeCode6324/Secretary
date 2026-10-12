@@ -22,6 +22,7 @@ host/scheduler 私有记录，模型不可提交批准状态。
 | `decided_at` | Time 或 null | 是 |  关联：[Time](Time.md) |
 | `decided_by` | "MASTER_UI" 或 null | 是 |  |
 | `consumed_at` | Time 或 null | 是 |  关联：[Time](Time.md) |
+| `remembered_rule_id` | ['string', 'null'] | 否 |  |
 
 ## 组合约束
 

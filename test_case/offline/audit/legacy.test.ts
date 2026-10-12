@@ -1,3 +1,4 @@
+import { approvalScope, taskRoot } from "../helpers/approval-scope.ts";
 // Copy into frozen demo_pi/pi_secretary/test; never changes production source.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -25,11 +26,11 @@ const decisionStream:StreamFn=(m,c)=>{
  return replyStream([{type:'toolCall',id:'audit-decision',name:'request_decision',arguments:{question:'Choose one'}}],m);
  return fixtureStream(m,c);
 };
-async function waiting(a:App){a.scheduler.propose('audit',id(),a.host.sessionID);a.scheduler.tick();await a.scheduler.idle();return a.store.all<Execution>('Execution')[0];}
+async function waiting(a:App){a.scheduler.propose('audit',id(),a.host.sessionID,approvalScope(a));a.scheduler.tick();await a.scheduler.idle();return a.store.all<Execution>('Execution')[0];}
 
 test('AUD01 target changed after approval must not be overwritten',()=>fixture(async(a,dir)=>{
  const e=await waiting(a);assert.equal(e.state,'WAIT_AUTH');approve(a);
- const file=path.join(dir,'workspaces',e.task_id,'work/report.txt');fs.writeFileSync(file,'concurrent edit');
+ const file=path.join(taskRoot(a,e.task_id),'report.txt');fs.writeFileSync(file,'concurrent edit');
  await a.scheduler.run(e.id);assert.equal(fs.readFileSync(file,'utf8'),'concurrent edit');
 },writeStream));
 test('AUD02 expired ordinary decision must be rejected',()=>fixture(async a=>{

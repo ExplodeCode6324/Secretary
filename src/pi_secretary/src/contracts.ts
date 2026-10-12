@@ -236,7 +236,7 @@ export type Operation = {
   state: OperationState;
   action: ActionScope;
   authorization_id: ID | null;
-  rule_id: ID | null;
+  rule_id: ID | null | ("builtin:workspace-write" | "builtin:readonly-shell");
   rule_revision: number | null;
   owner_epoch: number;
   attempt_id: ID | null;
@@ -291,6 +291,7 @@ export type AuthorizationRequest = {
   decided_at: Time | null;
   decided_by: "MASTER_UI" | null;
   consumed_at: Time | null;
+  remembered_rule_id?: string | null;
 };
 /**
  * 状态枚举对应 src/state_machine/catalog.json 的 Authorization
@@ -335,6 +336,7 @@ export type WorkScope = {
   root_path: string | null;
   notes_path: string | null;
   state: "ACTIVE" | "ARCHIVED";
+  default_write?: "allow" | "ask";
 };
 
 /**
@@ -1080,6 +1082,15 @@ export interface ApprovalCommand {
   expected_revision: number;
   display_hash: Digest;
   decision: "APPROVE" | "REJECT" | "REVOKE";
+  remember?:
+    | {
+        prefix_tokens: number;
+        expires_at: string | null;
+      }
+    | {
+        path_prefix: string;
+        expires_at: string | null;
+      };
 }
 /**
  * 手工确认的持续规则，主会话无写入口；每次操作匹配当前 revision。

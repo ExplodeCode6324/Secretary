@@ -1,3 +1,4 @@
+import { approvalScope, taskRoot } from "../helpers/approval-scope.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -761,7 +762,12 @@ test("A06/A15: shared files, immutable artifacts and independent single-use writ
     });
   };
   return fixture(async (app, dir) => {
-    const p = app.scheduler.propose("version one", id(), app.host.sessionID);
+    const p = app.scheduler.propose(
+      "version one",
+      id(),
+      app.host.sessionID,
+      approvalScope(app),
+    );
     app.scheduler.tick();
     await app.scheduler.idle();
     assert.equal(latest(app).state, "WAIT_AUTH");
@@ -783,20 +789,14 @@ test("A06/A15: shared files, immutable artifacts and independent single-use writ
     await app.scheduler.idle();
     assert.equal(latest(app).state, "WAIT_AUTH");
     assert.equal(
-      fs.readFileSync(
-        path.join(dir, "workspaces", p.id, "work", "report.txt"),
-        "utf8",
-      ),
+      fs.readFileSync(path.join(taskRoot(app, p.id), "report.txt"), "utf8"),
       "version one",
     );
     approveAll(app);
     await app.scheduler.run(latest(app).id);
     assert.equal(latest(app).state, "SUCCEEDED");
     assert.equal(
-      fs.readFileSync(
-        path.join(dir, "workspaces", p.id, "work", "report.txt"),
-        "utf8",
-      ),
+      fs.readFileSync(path.join(taskRoot(app, p.id), "report.txt"), "utf8"),
       "version two",
     );
     assert.equal(
@@ -929,8 +929,23 @@ for (const stage of [
         if (stage === "after-dispatch") {
           // No ModelCall or Operation was started: #18 closes this interrupted
           // execution as FAILED instead of keeping an unresolvable unknown.
-          assert.equal(restored.store.all<import("../../../src/pi_secretary/src/contracts.ts").ModelCall>("ModelCall").filter(c => c.scope.execution_id === latest(restored!).id).length, 0);
-          assert.equal(restored.scheduler.continuationStatus(p.id, latest(restored).id, restored.host.sessionID).allowed, true);
+          assert.equal(
+            restored.store
+              .all<
+                import("../../../src/pi_secretary/src/contracts.ts").ModelCall
+              >("ModelCall")
+              .filter((c) => c.scope.execution_id === latest(restored!).id)
+              .length,
+            0,
+          );
+          assert.equal(
+            restored.scheduler.continuationStatus(
+              p.id,
+              latest(restored).id,
+              restored.host.sessionID,
+            ).allowed,
+            true,
+          );
         }
       } finally {
         await restored.close();

@@ -13,6 +13,7 @@
 | `expected_revision` | integer | 是 |  {"minimum": 1, "maximum": 9007199254740991} |
 | `display_hash` | Digest | 是 |  关联：[Digest](Digest.md) |
 | `decision` | APPROVE / REJECT / REVOKE | 是 |  |
+| `remember` | object 或 object | 否 |  |
 
 ## 组合约束
 

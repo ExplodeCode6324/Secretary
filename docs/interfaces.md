@@ -38,3 +38,13 @@ shell 默认超时 120 秒，可设为 0.1–3600 秒；stdout、stderr 各限 4
 owner 可以创建、修改、归档 Scope，核验文件写入，或以 APPLIED / NOT_APPLIED / PARTIAL / UNVERIFIED 裁定未知 Operation。裁定保存说明和操作者，并在进程已停止、全部未知项已处理后收束 Execution。
 
 显示名通过 `assistant/profile` 更新；有效说明通过 Settings draft/apply 更新。当前所有 GET 为读取，执行访问有独立 viewed 命令。通知展示回执、可靠同步、设备和附件上传的客户端合同安排在后续路线。
+
+## Scope 授权策略与持久规则
+
+`file.write` 在 Execution 绑定根内默认通过 `builtin:workspace-write`。DIRECTORY Scope 可设 `default_write=ask`；此开关在准备与派发时读取，只关闭默认写入，已授予的有效用户规则继续生效。临时 workspace 默认放行。未知结果、文件版本、取消和执行身份检查保持优先。
+
+简单只读命令经固定命令/选项表及根内路径检查，通过 `builtin:readonly-shell` 以记录的 argv 直接启动；引号用于分词，glob 按字面传给工具。控制字符、根外路径、未知选项及 Git worktree/gitfile、alternates 形式回到审批。Git 配置了 filter 时回审批，其他情况下禁用外部 diff/textconv、pager、fsmonitor；rg 禁用用户配置。目录读取允许 `.`，写入不能以根本身为目标。具体首期表在 `shell-policy.ts`，扩充须代码审查。
+
+用户 shell 规则按完整 token 前缀匹配 cwd 范围，执行与单次批准同用 bash；它可以授予有副作用的操作，不是文件或网络沙箱。未引用的展开、注释与复杂 shell 不可记住。旧参数哈希规则仍精确匹配；新规则支持文件目录前缀、shell 命令前缀及登记 program_id。
+
+规则派发前失效以 RULE_CHANGED 取消尚未派发的操作。仅这种 NOT_STARTED 取消可在之后的实际工具调用创建确定性后继；旧操作不改写，后继以 retry_of 关联并重新授权。拒绝/撤销/未知结果不自动重建，重复调用与重启复用同一后继。
