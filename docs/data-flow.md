@@ -41,7 +41,7 @@ Agent 调用 read/write/bash，或 Scheduler 调用已登记程序。需要许�
 
 普通维护从固定来源整理 Consciousness，并更新覆盖水位；承诺提取由独立 MemoryExtractionJob 跟踪来源和分段，失败来源按退避计划补提。已完成的工作记忆更新继续有效。
 
-Settings 应用先固定全部未整理来源，完成摘要与新 context 容量检查，再提交 World 批次事务。PostgreSQL 保存批次回执和 audit_outbox；Core 将回执桥接到 journal，随后提交有效说明、Consciousness、新 Context 和 APPLIED 状态。期间到达的输入继续排队。
+Settings 应用先固定全部未整理来源，完成摘要与新 context 容量检查，存在 World 变更时再提交数据库批次事务，保存批次回执和 audit_outbox，并将回执桥接到 journal。最后提交有效说明、Consciousness、新 Context 和 APPLIED 状态；仅修改说明时直接进行本地重建。期间到达的输入继续排队。
 
 ## API 命令
 

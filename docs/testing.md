@@ -33,6 +33,7 @@ SECRETARY_TEST_DATABASE_URL='<专用测试 DSN>' npm run verify
 | runtime、audit | 调度、授权、工作目录、时间线、流式预览、Store 与模型适配 |
 | issue2、issue3、issue5 | 容量、工作记忆、来源身份、承诺与设置后的历史投影 |
 | issue8 | Core 生命周期、owner API、幂等、分页、公开 DTO 与产物读取 |
+| issue20 | 文档检查器和 PostgreSQL 测试数据库隔离/清理 |
 | issue19 | 三次传输上限、维护退避、来源补提、成功响应/工具结果的崩溃恢复 |
 | issue16 | Scope 管理、冻结绑定、DIRECTORY 串行、NONE 并行、归档和接续 |
 | issue18 | 四种裁定、未知执行收束、wrapper 门控、进程身份与停止恢复 |

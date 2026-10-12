@@ -10,7 +10,7 @@
 | owner.lock | Python fcntl helper 持有的单目录写锁 |
 | core-endpoint.json / core.log | 当前 Core 的发现信息与日志 |
 
-DIRECTORY 任务使用 Scope 的物理目录；Execution 记录创建时的完整绑定。Store 先持久化对象，再追加并同步 journal 帧，收到 fsync 确认后安装内存状态。记录通过 Schema 校验，对象读取时核对类型、长度和 SHA-256。
+DIRECTORY 任务使用 Scope 的物理目录；Execution 记录创建时的完整绑定。Store 先持久化对象，再追加并同步 journal 帧，收到 fsync 确认后安装内存状态。记录通过 Schema 校验，对象读取时检查路径格式和符号链接状态，核对长度和 SHA-256；media_type 作为元数据保存。
 
 Python helper 持有 OS 文件锁，负责重放、尾部不完整帧修复与追加。每次打开 Store 使用独有本地通道；通道失效后需重新打开并从 journal 确认结果。中段损坏或原件缺失会报告恢复错误，供维护者检查完整副本。
 

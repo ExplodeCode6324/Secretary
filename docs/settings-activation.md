@@ -12,7 +12,7 @@ payload.instructions 包含 content 和有效说明 expected_revision，null 表
 
 1. QUEUED 固定草稿、运行配置和待整理来源，暂停主会话与新任务领取。
 2. SUMMARIZING 整理未覆盖原文和旧工作记忆，验证来源与摘要，预先构建新 context 并检查容量。
-3. COMMITTING 在一个 World 事务内检查版本、执行全部 edits，保存批次回执和 outbox。
+3. 存在 World 变更时进入 COMMITTING，在一个数据库事务内检查版本、执行全部 edits，保存批次回执和 outbox；仅修改说明时直接进入 REBUILDING。
 4. REBUILDING 完成回执桥接，在一个 Store 事务中提交有效说明、工作记忆、context 指针、配置哈希和 APPLIED。
 5. 继续处理期间已持久化的新输入和任务反馈。
 

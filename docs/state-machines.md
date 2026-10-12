@@ -56,6 +56,6 @@ Core 断开后，wrapper 向进程组发 TERM，2 秒后仍存活则发 KILL。�
 
 WORKING_MEMORY 更新摘要与覆盖水位，CONTEXT_COMPACTION 保存模型输入裁剪结果。MemoryExtractionJob 独立维护固定来源、成功分段和补提次数；首次失败后依次等待约 5 分钟、30 分钟、2 小时补试三轮，耗尽后显示 FAILED。人工 extraction/retry 重排受理时的失败集合，同 request_id 重放原回执。
 
-SettingsApplication 顺序为 QUEUED → SUMMARIZING → COMMITTING → REBUILDING → APPLIED。提交前的确定失败为 FAILED；提交结果待确认或已提交但重建未完成为 BLOCKED。恢复根据数据库批次回执推进。详见[设置生效](settings-activation.md)。
+SettingsApplication 先从 QUEUED 进入 SUMMARIZING；包含 World 变更时经 COMMITTING 提交数据库事务，否则直接进入 REBUILDING，完成本地重建后为 APPLIED。提交前的确定失败为 FAILED；提交结果待确认或已提交但重建未完成为 BLOCKED。恢复根据数据库批次回执推进。详见[设置生效](settings-activation.md)。
 
 ApiCommand 的短命令状态通常保持 ACCEPTED，业务进度从关联资源读取。长命令为 QUEUED → RUNNING → COMPLETED，中断或派发异常记录 UNKNOWN。
