@@ -12,6 +12,79 @@ import type {
 } from "../../../src/pi_secretary/src/contracts.ts";
 import { emptySettings } from "../../../src/pi_secretary/src/settings-payload.ts";
 import { id } from "../../../src/pi_secretary/src/store.ts";
+testPostgres(
+  "E4/E6: in-flight search outage after World commit cannot activate a previously prepared exit receipt",
+  (dsn) =>
+    scenario(
+      dsn,
+      async (app) => {
+        await app.world!.migrate();
+        const original = "In-flight original " + "x".repeat(3000);
+        for (let n = 0; n < 5; n++)
+          await turn(
+            app,
+            n === 0 ? original : `In-flight ${n} ` + "x".repeat(3000),
+          );
+        assert.equal(memory(app).input_projection_ref, undefined);
+        const exportWorld = app.world!.export.bind(app.world!),
+          entityID = id();
+        let injected = false;
+        app.world!.export = async () => {
+          if (!injected) {
+            injected = true;
+            await app.world!.pool.query(
+              "CREATE FUNCTION mem.inject_inflight_failure() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'synthetic in-flight outage'; END $$; CREATE TRIGGER fail_inflight_projector BEFORE INSERT ON mem.checkpoint FOR EACH ROW EXECUTE FUNCTION mem.inject_inflight_failure()",
+            );
+            await app.world!.memorySearch.catchUp();
+            assert.equal(app.world!.memorySearch.state, "unavailable");
+          }
+          await exportWorld();
+        };
+        app.settings.save(
+          {
+            ...emptySettings(),
+            edits: [
+              {
+                kind: "ENTITY",
+                entity_id: entityID,
+                entity_kind: "PERSON",
+                display_name: "Synthetic in-flight person",
+                expected_revision: 0,
+              },
+            ],
+          },
+          app.settings.draft().revision,
+        );
+        const requested = app.settings.request(
+          app.settings.draft().revision,
+          id(),
+        ) as SettingsApplication;
+        await app.settings.tick();
+        assert(injected);
+        const applied = app.store.get<SettingsApplication>(
+          "SettingsApplication",
+          requested.id,
+        );
+        assert.equal(applied.state, "APPLIED", applied.error ?? "");
+        assert.equal(app.world!.memorySearch.state, "unavailable");
+        assert.equal(applied.input_projection_ref, undefined);
+        assert.equal(memory(app).input_projection_ref, undefined);
+        assert(
+          (await app.world!.catalogList()).entities.some(
+            (entity) => entity.entity_id === entityID,
+          ),
+        );
+        const context = app.store.get<Context>("Context", applied.context_id!);
+        assert(
+          JSON.stringify(app.store.read(context.raw_context)).includes(
+            original,
+          ),
+        );
+      },
+      shortStream,
+      { ...fixtureModel, contextWindow: 65536 },
+    ),
+);
 for (const phase of ["before", "after"] as const)
   testPostgres(
     `E4/E6: retry after failure ${phase} World commit cannot activate a stale exit receipt during a search outage`,

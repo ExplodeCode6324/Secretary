@@ -1,6 +1,6 @@
 # Settings 与 World 生效
 
-SettingsSource 冻结完整摘要/提取证据；新 Context 的原文窗口使用与普通整理相同的选择器，并计入实际 system 和工具声明。候选退出回执只有与 APPLIED 一起提交才生效；失败候选不改变退出事实。索引故障时承接最后回执，不回填已退出原文，也不新增退出。旧来源身份不明确时继续保护，已认证包装来源损坏时明确阻止发送。
+SettingsSource 冻结完整摘要/提取证据；新 Context 的原文窗口使用与普通整理相同的选择器，并计入实际 system 和工具声明。候选退出回执只有与 APPLIED 一起提交才生效；失败候选不改变退出事实。FAILED/BLOCKED 重试重建请求视图，APPLIED 前再次核对候选的检索水位；World 的已提交结果及回执继续保留。索引故障时承接最后回执，不回填已退出原文，也不新增退出。旧来源身份不明确时继续保护，已认证包装来源损坏时明确阻止发送。
 
 Settings 将有效说明、World 修改和运行配置切换统一为一次可恢复的应用。实现位于 [settings.ts](../src/pi_secretary/src/settings.ts)、[settings-memory.ts](../src/pi_secretary/src/settings-memory.ts) 和 [world.ts](../src/pi_secretary/src/world.ts)。
 
@@ -18,7 +18,7 @@ payload.instructions 包含 content 和有效说明 expected_revision，null 表
 4. REBUILDING 完成回执桥接，在一个 Store 事务中提交有效说明、工作记忆、context 指针、配置哈希和 APPLIED。
 5. 继续处理期间已持久化的新输入和任务反馈。
 
-现有异步任务继续按已固定的要求运行。承诺提取单独登记 MemoryExtractionJob，补提进度独立于有效设置。当前历史 Master 输入在新 context 中作为带来源的档案保留；检索与旧输入退出将由 #21/#28 完成。
+现有异步任务继续按已固定的要求运行。承诺提取单独登记 MemoryExtractionJob，补提进度独立于有效设置。历史 Master 输入在新 context 中保留未覆盖来源和近期原文窗口，完整来源仍可经检索及原事件分片读取。
 
 ## World 数据
 

@@ -26,7 +26,10 @@ import {
   type SettingsSource,
   type SettingsCandidate,
 } from "./settings-memory.ts";
-import { inputWindowConfig } from "./input-projection.ts";
+import {
+  inputWindowConfig,
+  type InputProjectionReceipt,
+} from "./input-projection.ts";
 import { budgetConfig } from "./budget.ts";
 import { SUMMARY_POLICY } from "./summary.ts";
 const DRAFT_ID = "21b45476-750e-44ae-82f9-5b6f49a7377c";
@@ -538,26 +541,46 @@ export class Settings {
       )
         throw Error("INSTRUCTIONS_CONFLICT");
       // Build and capacity-check before database writes. Orphan snapshots are immutable audit only.
-      if (!a.context_id) {
-        await this.world?.memorySearch.catchUp();
-        const projection = this.host.prepareSettingsInputs(
-          key,
-          source,
-          rebuiltMessages(source, candidate, key, current.revision + 1),
-          changes.instructions?.content ?? settings.content,
-        );
-        const context = this.host.prepareSettingsContext(
-          key,
-          changes.instructions?.content ?? settings.content,
-          changes.instructions ? settings.revision + 1 : settings.revision,
-          projection.messages,
-          current.revision + 1,
-        );
-        a = this.update(key, {
-          context_id: context.id,
-          input_projection_ref: projection.receiptRef,
-        });
-      }
+      const summary = candidate;
+      const prepareContext = async () => {
+        if (
+          a.context_id &&
+          a.input_projection_ref &&
+          a.input_projection_ref.sha256 !==
+            current.input_projection_ref?.sha256 &&
+          !(
+            this.world?.memorySearch.state === "ready" &&
+            this.world.memorySearch.indexedSequence >=
+              this.store.read<InputProjectionReceipt>(a.input_projection_ref)
+                .considered_journal_sequence
+          )
+        )
+          a = this.update(key, {
+            context_id: null,
+            input_projection_ref: undefined,
+          });
+        if (!a.context_id) {
+          await this.world?.memorySearch.catchUp();
+          const projection = this.host.prepareSettingsInputs(
+            key,
+            source,
+            rebuiltMessages(source, summary, key, current.revision + 1),
+            changes.instructions?.content ?? settings.content,
+          );
+          const context = this.host.prepareSettingsContext(
+            key,
+            changes.instructions?.content ?? settings.content,
+            changes.instructions ? settings.revision + 1 : settings.revision,
+            projection.messages,
+            current.revision + 1,
+          );
+          a = this.update(key, {
+            context_id: context.id,
+            input_projection_ref: projection.receiptRef,
+          });
+        }
+      };
+      await prepareContext();
       if (changes.world.length) {
         if (!this.world) throw Error("WORLD_UNAVAILABLE");
         activity.step(activityID, "正在提交设置");
@@ -589,6 +612,9 @@ export class Settings {
       activity.step(activityID, "正在重建上下文");
       a = this.update(key, { state: "REBUILDING" });
       stage = a.state;
+      // Retrieval may have failed while World committed/exported or during a
+      // restart. Only an already active receipt is safe to adopt without it.
+      await prepareContext();
       const mutations: Stored[] = [
         revise(current, {
           items: candidate.items,
