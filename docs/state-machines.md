@@ -19,19 +19,19 @@ TaskPlan 支持 IMMEDIATE、AT、INTERVAL。即时工作在 `pending_requests` �
 | WAIT_AUTH / WAIT_DECISION | 等待作用许可或工作回答 |
 | CANCEL_REQUESTED | 已收到取消，正在停止 |
 | RESULT_UNKNOWN | 一项或多项作用结果待确认 |
-| SUCCEEDED / FAILED / CANCELLED | 本次执行结束，生成结果与反馈 |
+| SUCCEEDED / FAILED / CANCELLED / EXPIRED | 本次执行结束，生成结果与反馈 |
 
 DIRECTORY 在 DISPATCHING、RUNNING、WAIT_AUTH、WAIT_DECISION、CANCEL_REQUESTED，以及已启动的 READY 阶段保持占用；待确认进程和仍在运行的调用也保持占用。取得占用与写入派发状态发生在异步启动之前。同一 DIRECTORY 串行，NONE 范围内各任务可并行；默认全局执行者为 2。
 
 Scope 从 ACTIVE 归档为 ARCHIVED。归档后停止接受该范围的新提案和未启动工作，已取得占用的执行继续完成。根目录、类型的更新影响未来 Execution；已创建的绑定保持原值。前置条件可返回 SCOPE_BUSY、SCOPE_ARCHIVED、SCOPE_ROOT_CONFLICT。
 
-结束执行先保留 HOT，满足留存条件后转 RETIRED；默认保留窗口 48 小时，显式 viewed 可续留。历史记录仍保存在 Store。
+结束执行先保留 HOT，满足留存条件后经 ARCHIVE_PENDING 转 RETIRED；默认保留窗口 48 小时，显式 viewed 可续留。历史记录仍保存在 Store。
 
 ## Operation 与未知结果
 
-Operation 在授权、派发和结果保存过程中记录 status 与 effect。状态表示处理进度，effect 表示作用结论。未知 shell/program 影响所属执行；未知文件写入还按绝对资源路径影响其他执行的写入。
+Operation 在授权、派发和结果保存过程中记录 state 与 effect。状态表示处理进度，effect 表示作用结论。未知 shell/program 影响所属执行；未知文件写入还按绝对资源路径影响其他执行的写入。
 
-| owner 裁定 | Operation status / effect | 含义 |
+| owner 裁定 | Operation state / effect | 含义 |
 | --- | --- | --- |
 | APPLIED | SUCCEEDED / APPLIED | 作用已发生 |
 | NOT_APPLIED | FAILED / NOT_APPLIED | 作用未发生 |
