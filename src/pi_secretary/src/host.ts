@@ -1,3 +1,4 @@
+import { presentedNotification } from "./notification-service.ts";
 import { projectContext, buildCompaction } from "./context-projection.ts";
 import { assertRequestBudget, requestBudget, budgetConfig } from "./budget.ts";
 import {
@@ -1432,12 +1433,12 @@ export class Host {
             delivered_notifications: this.store.logs
               .filter(
                 (l) =>
-                  l.event_type === "notification.result" &&
+                  l.event_type === "notification.presented" &&
                   l.sequence <= sourceEnd,
               )
               .map((l) => {
-                const n = this.store.read<Notification>(l.payload);
-                return n.session_id === this.sessionID
+                const n = presentedNotification(this.store, l);
+                return n?.session_id === this.sessionID
                   ? {
                       event_id: l.event_id,
                       state: n.state,

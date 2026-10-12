@@ -1,5 +1,11 @@
 # 测试与验证
 
+## Issue #9 同步与通知验收
+
+`npx tsx --test --test-concurrency=1 test_case/offline/issue9/*.test.ts` 覆盖持久位置/分叉、完整事务与字节退化、共同分页、最小客户端落盘/乱序、实际 SIGKILL、SSE/心跳/暂停 TCP/连接清理、瞬态预览、通知原子展示/幂等/Unicode、纯读与真实 PostgreSQL outbox。记忆来源和实际维护继续跑 issue3 commitment/provenance；原负例保持，新增展示证据负例纳入 issue9。高负载与崩溃用例串行运行。CI 必须提供专用 SECRETARY_TEST_DATABASE_URL（场景自动建独立库），World 不允许 skip。
+
+编译期穷尽性单独验证：正常 check 通过后临时删除 mutationMappings 必需键，记录 check 因缺键失败，再原样恢复并 check 通过。反例不提交。完整入口仍为 npm run verify；types/docs/api 生成重复应零差异，Swift decode-examples.swift 单独验证。证据、首次失败和实现限制见 [API 验证记录](api/v1/verification.md)。
+
 ## 统一入口
 
 ```sh

@@ -37,7 +37,7 @@ shell 默认超时 120 秒，可设为 0.1–3600 秒；stdout、stderr 各限 4
 
 owner 可以创建、修改、归档 Scope，核验文件写入，或以 APPLIED / NOT_APPLIED / PARTIAL / UNVERIFIED 裁定未知 Operation。裁定保存说明和操作者，并在进程已停止、全部未知项已处理后收束 Execution。
 
-显示名通过 `assistant/profile` 更新；有效说明通过 Settings draft/apply 更新。当前所有 GET 为读取，执行访问有独立 viewed 命令。通知展示回执、可靠同步、设备和附件上传的客户端合同安排在后续路线。
+显示名通过 `assistant/profile` 更新；有效说明通过 Settings draft/apply 更新。当前所有 GET 为读取，执行访问有独立 viewed 命令。可靠同步和通知展示/全局已读已提供，设备和附件上传仍在后续路线，详见 [API v1](api/v1/README.md)。
 
 ## Scope 授权策略与持久规则
 

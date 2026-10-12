@@ -1212,6 +1212,7 @@ export interface Notification {
   delivery_key: ID;
   receipt: ObjectRef | null;
   requested_at: Time;
+  read_at?: Time | null;
 }
 /**
  * 逻辑原始日志；MAIN/TASK 并列，不替代任务查询状态。

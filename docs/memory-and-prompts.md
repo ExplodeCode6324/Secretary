@@ -35,7 +35,7 @@ CHECKPOINT 保存完整恢复上下文；MODEL_REQUEST 保存经过预算投影�
 
 MemoryExtractionJob 独立保存完整来源引用、事件身份、成功分段和下次补提时间。摘要或 Settings 成功后，提取工作仍可从 journal/CAS 继续。成功提取按当前账本去重合并，已解决的承诺保持其状态。
 
-MemoryCommitment 保存稳定 ID、原文、状态、来源批次和处理凭证。结果汇报类承诺可由匹配 TaskResult 及其后的 SENT 通知完成；一般承诺通过 `memory/commitments/{id}/resolve` 明确处理。当前 API 提供通知内容读取，展示回执入口将在后续送达工作中补齐。
+MemoryCommitment 保存稳定 ID、原文、状态、来源批次和处理凭证。结果汇报类承诺只由匹配 TaskResult 与其后的真实 `notification.presented` 完成，并保留同会话、来源批次/事件先后、sourceEnd 和任务结果匹配约束。`resolution_event_ids` 引用展示事件；GET、read、旧 SENT/receipt 或渠道发送结果不足以新增履约。已完成历史承诺保留，一般/复合承诺仍通过 `memory/commitments/{id}/resolve` 明确处理。Host 的 delivered_notifications 使用同一展示校验。read_at/发送状态或 receipt 更新不改变证据；通知内容/session/delivery_key 创建后固定。展示命令不触发维护或模型，常规维护消费证据。
 
 来源按事件、批次、会话与完整消息身份关联；同一文本在不同事件中分别记录。旧来源无法唯一映射时返回具体原因，可从记忆状态查询并人工处理。旧 ExtractionRecovery 继续支持历史读取，新工作使用 MemoryExtractionJob。
 

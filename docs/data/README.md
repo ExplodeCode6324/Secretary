@@ -62,7 +62,7 @@
 | [AuthorizationRule](AuthorizationRule.md) | 13 | 手工确认的持续规则，主会话无写入口；每次操作匹配当前 revision。 |
 | [SafetyRule](SafetyRule.md) | 11 | 只能收紧执行条件；不能生成授权或改变未知停止要求。 |
 | [ProgramRegistration](ProgramRegistration.md) | 17 | 人工登记；dispatch 固定 revision+code digest，更新不改历史。 |
-| [Notification](Notification.md) | 12 | 主会话普通通知；独立于授权 UI 展示。 |
+| [Notification](Notification.md) | 13 | 主会话普通通知；独立于授权 UI 展示。 |
 | [OperationLogRecord](OperationLogRecord.md) | 14 | 逻辑原始日志；MAIN/TASK 并列，不替代任务查询状态。 |
 | [ArchiveManifest](ArchiveManifest.md) | 11 | 退出 Scheduler 前完整性检查；归档不删除长期历史。 |
 | [WorldChange](WorldChange.md) | 21 | 主会话或登记来源提案；SQL 内不保存授权范围。 |

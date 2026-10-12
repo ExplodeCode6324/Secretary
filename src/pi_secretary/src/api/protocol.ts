@@ -106,6 +106,20 @@ export function project(value: unknown, key = ""): any {
       .map(([k, v]) => [k, project(v, k)]),
   );
 }
+export type PageKey = readonly (number | string)[];
+const compareKeys = (a: PageKey, b: PageKey): number => {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    if (a[i] === b[i]) continue;
+    return a[i] === undefined
+      ? -1
+      : b[i] === undefined
+        ? 1
+        : a[i] < b[i]
+          ? -1
+          : 1;
+  }
+  return 0;
+};
 export class Cursors {
   constructor(private secret: string) {}
   encode(scope: string, value: unknown) {
@@ -137,21 +151,42 @@ export class Cursors {
       throw new ApiError("CURSOR_EXPIRED", 409);
     }
   }
-  page<T>(scope: string, values: T[], query: URLSearchParams, version: string) {
+  page<T>(
+    scope: string,
+    values: T[],
+    query: URLSearchParams,
+    keyOf: (value: T) => PageKey,
+  ) {
+    const parameters = [...query]
+      .filter(([k]) => !["cursor", "limit"].includes(k))
+      .sort();
+    scope += ":" + fingerprint(parameters);
     const cursor = query.get("cursor");
     const saved = cursor
-      ? this.decode<{ version: string; offset: number }>(scope, cursor)
-      : { version, offset: 0 };
-    if (saved.version !== version) throw new ApiError("CURSOR_EXPIRED", 409);
+      ? this.decode<{ last_key: PageKey }>(scope, cursor)
+      : null;
+    if (
+      saved &&
+      (!Array.isArray(saved.last_key) ||
+        !saved.last_key.length ||
+        saved.last_key.some(
+          (v) =>
+            typeof v !== "string" &&
+            (typeof v !== "number" || !Number.isSafeInteger(v)),
+        ))
+    )
+      throw new ApiError("CURSOR_EXPIRED", 409);
+    const ordered = values
+      .map((value) => ({ value, key: keyOf(value) }))
+      .sort((a, b) => compareKeys(a.key, b.key))
+      .filter((entry) => !saved || compareKeys(entry.key, saved.last_key) > 0);
     const limit = limitOf(query),
-      items = values.slice(saved.offset, saved.offset + limit),
-      end = saved.offset + items.length;
+      items = ordered.slice(0, limit);
     return {
-      items,
-      version,
+      items: items.map((entry) => entry.value),
       next_cursor:
-        end < values.length
-          ? this.encode(scope, { version, offset: end })
+        items.length < ordered.length
+          ? this.encode(scope, { last_key: items.at(-1)!.key })
           : null,
     };
   }

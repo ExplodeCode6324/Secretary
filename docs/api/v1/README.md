@@ -36,7 +36,7 @@ JSON 响应为 `{ "api_version": "1", "data": ... }`，错误为 `{ "api_version
 
 revision、事件序号、World version 和字节长度使用十进制字符串；数量与 limit 使用有界整数，时间为 UTC ISO 8601。predicate.value_schema 保留完整领域 JSON Schema。响应可增加字段，客户端按已知字段解码；请求按命令 schema 校验。
 
-普通列表默认 30、上限 100；timeline 上限 200，并受 1 MiB 页面预算约束。cursor 是绑定查询范围、版本与实例的不透明值；CURSOR_EXPIRED 后重新载入。World 返回独立 world_version。当前游标用于分页，持久变更水位由 #9 补齐。
+普通列表默认 30、上限 100；timeline 上限 200，并受 1 MiB 页面预算约束。普通列表 cursor 绑定查询范围、筛选、最后稳定键与实例；CURSOR_EXPIRED 后重新载入。World 返回独立 world_version。持久同步游标独立于分页游标，见下文。
 
 `timeline/around` 二选一 message_id 或 event_id，返回周边窗口。`messages/{id}/content` 用 next_cursor 续读，按顺序拼接 Unicode 分片。`streaming=true` 加入临时预览，`thinking=true` 加入模型提供的可见思考；预览与最终消息共享 call_id。
 
@@ -89,3 +89,19 @@ TaskCommand 可带 scope_id；接续省略或 null 时继承原任务范围。Ex
 批准时可传 remember，且只适用于 APPROVE：shell 使用 `{prefix_tokens: 2, expires_at: null}`，write 使用 `{path_prefix: "src", expires_at: null}`。shell 规则 cwd 范围固定为执行绑定根；write 的目录必须是目标祖先，`.` 明确覆盖全根。审批详情的 remember_context 提供根、动作、原始路径/命令 token，客户端据此在提交前展示范围。服务端复核原 revision/display_hash，在同一事务提交批准与规则；Authorization 的 remembered_rule_id 关联所建规则。撤销一次授权不会自动禁用持久规则，禁用仍走 admin/authorization-rules/{id}/disable。
 
 owner 规则创建入口接受 parameters（旧精确匹配）或 constraints（二选一）。结构化约束形状为 `{kind:"file-prefix"}`、`{kind:"command-prefix",command_prefix:["npm","test"]}`、`{kind:"program",program_id:"<UUID>"}`，并可设 valid_from/expires_at。world.change 继续精确参数规则。模型不能创建或扩大规则。
+
+## 持久同步与通知（Issue #9）
+
+先 `GET sync/cursor` 得到 S（cursor、十进制 sequence、instance_id），再加载资源，最后 `GET sync/changes?after=S` 追赶并连接 `GET sync/stream`。after 与 Last-Event-ID 二选一或完全相同；冲突为 INVALID_QUERY。同步 cursor 只绑定 owner_id、事务 sequence 和 journal digest，无签名；正常重启可续传，换数据域、短备份或分叉返回 HTTP 409 RESYNC_REQUIRED。此时重新加载，未确认命令继续按原 request_id 对账。
+
+changes 返回 transactions（每项 cursor、changes）、next_cursor、has_more，默认和最大检查 100 个事务，包括没有公开变化的事务。UTF-8 JSON 页面含外层最多 256 KiB。每事务完整交付，过大时退化为其全部相关资源类别的 invalidate；不拆片。kind=record 携带 resource_type/resource_id/revision；kind=invalidate 携带 resource_type/query，强制刷新，即使根 revision 相同。精确 query 如 tasks/{id} 刷新该聚合；集合 query 如 tasks/executions/notifications/world 刷新该类别已缓存的列表和详情（executions 为失效范围名，查询仍使用已有 tasks/{id}/executions 与 executions/{id}）。规则统计及 attention 依赖子资源和日志，不能只比较根记录 revision。分页 version 是观察水位，不能用作一致快照。
+
+普通列表按首次事务位置和 ID（少数内嵌身份按稳定元组）续页；cursor 绑定实例、查询范围/筛选和最后键，改变 limit 可继续，不因无关提交或根 revision 改变失效。集合变化由 S 后同步补齐，timeline/消息分片与 World 保留各自分页语义。
+
+SSE 为 text/event-stream，每完整事务一条 event: change，data 为 SyncTransaction，id 为事务后 cursor；空 changes 也推进。约 5 秒的注释心跳、event: transient 的 previews/activities 无 id。客户端保存的 Last-Event-ID 必须是已应用位置：刷新结果和水位一起落盘后才能推进。最后发起的刷新结果生效，较旧响应弃置；最新失败保留待刷新和旧水位。预览按 call_id 与最终保存消息合并。每连接待写预算 512 KiB、drain 最多 5 秒、最多 8 条流（BUSY/503）；慢连接独立断开，从已应用水位重连。
+
+GET notifications 和 notifications/{id} 返回同一全局集合；read_at 缺失投影为 null，presented 为客户端首次展示时间数组。created_sequence 是首次创建位置，S 前通知只装载列表，不弹新系统通知；历史通知后来的 read/presented 不改变创建位置。内容以内联 UTF-8 文本提供，列表每项最多 2 KiB，详情最多 64 KiB；content 包含 text/media_type/content_version/原始 bytes/truncated。截断 JSON 作为文本显示；原文不截断，本版本无通知内容分页端点。
+
+POST notifications/{id}/presented 接受 request_id/client_id，client 必须已在同一数据域注册。首个 notification.presented 日志事件与 ApiCommand 同事务保存；事件 ID 由通知/客户端确定，payload 只含通知 ID、客户端 ID 和服务端时间，未新增业务记录或快照。相同展示对换 request_id 为 NO_CHANGES；相同 request_id 沿用原回执和冲突语义。POST notifications/{id}/read 只接受 request_id，首次 read_at 全局单调保持。展示与已读分别上报，均不改变发送状态或触发 Input、模型和工具。展示证据不绑定通知 revision，内容/session/delivery_key 固定，read/发送进度不会使证据失效。
+
+所有同步/资源 GET 纯读；启动恢复和后台业务另计。SwiftUI 的缓存、水位、乱序刷新和真实系统展示由 #10 接入；#22 渠道状态不能代报 presented/read。

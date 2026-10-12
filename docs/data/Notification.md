@@ -18,6 +18,7 @@
 | `delivery_key` | ID | 是 |  关联：[ID](ID.md) |
 | `receipt` | ObjectRef 或 null | 是 |  关联：[ObjectRef](ObjectRef.md) |
 | `requested_at` | Time | 是 |  关联：[Time](Time.md) |
+| `read_at` | Time 或 null | 否 |  关联：[Time](Time.md) |
 
 ## 组合约束
 

@@ -6,6 +6,7 @@ import { pipeline } from "node:stream/promises";
 import type { App } from "./app.ts";
 import { ApplicationService } from "./application-service.ts";
 import { ApiError, errorOf } from "./api/protocol.ts";
+import { SyncStreams } from "./sync-stream.ts";
 export type CoreEndpoint = {
   api_version: "1";
   url: string;
@@ -27,6 +28,7 @@ export async function serveCore(
     else void close();
   });
   let pumping: Promise<void> | undefined;
+  const streams = new SyncStreams();
   const timer =
     options.pump === false
       ? undefined
@@ -75,6 +77,13 @@ export async function serveCore(
         throw new ApiError("UNSUPPORTED_VERSION", 400);
       const route = url.pathname.slice("/api/v1/".length);
       if (req.method === "GET") {
+        if (route === "sync/stream")
+          return await streams.open(
+            service.changes,
+            req,
+            res,
+            url.searchParams,
+          );
         const artifact = /^artifacts\/([^/]+)\/content$/.exec(route);
         if (artifact) {
           const entry = service.artifact(artifact[1]);
@@ -183,11 +192,12 @@ export async function serveCore(
   close = () =>
     (closing ??= (async () => {
       if (timer) clearInterval(timer);
+      streams.close();
       server.closeAllConnections();
       await new Promise<void>((r) => server.close(() => r()));
       await pumping;
       await service.close();
       await app.close();
     })());
-  return { endpoint, service, close };
+  return { endpoint, service, streams, close };
 }

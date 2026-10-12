@@ -361,7 +361,8 @@ test("artifact directory uses opaque IDs, supports duplicate names, verifies con
       "artifacts?limit=1&cursor=" + encodeURIComponent(list.next_cursor),
     );
     assert.equal(second.items[0].name, "result.txt");
-    assert.notEqual(second.items[0].id, a.artifact_id);
+    assert.notEqual(second.items[0].id, list.items[0].id);
+    assert([list.items[0].id, second.items[0].id].includes(a.artifact_id));
     const download = () =>
       fetch(
         server.endpoint.url + "/api/v1/artifacts/" + a.artifact_id + "/content",

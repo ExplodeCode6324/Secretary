@@ -92,10 +92,14 @@ export class Store {
   private modelCallsByLogicalKey = new Map<string, Map<string, ModelCall>>();
   readonly logs: OperationLogRecord[] = [];
   // Validated immutable references for disposable read projections. No second journal.
-  readonly projectionFrames: Pick<
+  readonly projectionFrames: (Pick<
     JournalTransaction,
     "sequence" | "committed_at" | "mutations" | "log_records"
-  >[] = [];
+  > & { digest: string })[] = [];
+  private firstSequences = new Map<string, number>();
+  firstSequence(type: string, objectID: string) {
+    return this.firstSequences.get(type + ":" + objectID) ?? 0;
+  }
   private owner: JournalOwner;
   private closed = false;
   private healthy = true;
@@ -438,6 +442,22 @@ export class Store {
     )
       throw Error("MULTIPLE_MAIN_SESSIONS");
     for (const r of staged) {
+      if (r.record_type === "Notification") {
+        const previous = this.records.get("Notification:" + r.id);
+        if (
+          previous?.record_type === "Notification" &&
+          (previous.session_id !== r.session_id ||
+            previous.delivery_key !== r.delivery_key ||
+            JSON.stringify(previous.message) !== JSON.stringify(r.message))
+        )
+          throw Error("NOTIFICATION_CONTENT_IMMUTABLE");
+        if (
+          previous?.record_type === "Notification" &&
+          previous.read_at &&
+          previous.read_at !== r.read_at
+        )
+          throw Error("NOTIFICATION_READ_MONOTONIC");
+      }
       if (
         "session_id" in r &&
         r.session_id &&
@@ -466,14 +486,19 @@ export class Store {
   }
   private install(txn: JournalTransaction, digest: string, staged: Stored[]) {
     this.projectionFrames.push({
+      digest,
       sequence: txn.sequence,
       committed_at: txn.committed_at,
       mutations: txn.mutations,
       log_records: txn.log_records,
     });
-    for (const m of txn.mutations)
+    for (const m of txn.mutations) {
+      const key = m.object_type + ":" + m.object_id;
+      if (!this.firstSequences.has(key))
+        this.firstSequences.set(key, txn.sequence);
       if (m.object_type === "TaskPlan")
         this.planHistory.set(`${m.object_id}:${m.new_revision}`, m.snapshot);
+    }
     for (const r of staged) {
       if (r.record_type === "DecisionRequest" && r.answer_request_id)
         this.decisionAnswerRequests.add(r.answer_request_id);

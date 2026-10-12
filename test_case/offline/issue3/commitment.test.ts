@@ -6,7 +6,7 @@ import path from "node:path";
 import { contentText } from "@earendil-works/pi-ai";
 import { App } from "../../../src/pi_secretary/src/app.ts";
 import { base, id, now, revise } from "../../../src/pi_secretary/src/store.ts";
-import { TerminalController } from "../../../src/pi_secretary/src/tui.ts";
+import { ApplicationService } from "../../../src/pi_secretary/src/application-service.ts";
 import { emptySettings } from "../../../src/pi_secretary/src/settings-payload.ts";
 import { getInstructions } from "../../../src/pi_secretary/src/instructions.ts";
 import { reconcileCommitments } from "../../../src/pi_secretary/src/memory.ts";
@@ -141,11 +141,26 @@ async function deliver(app: App, result: TaskResult) {
   );
   const queued = app.store.all<Notification>("Notification").at(-1)!;
   assert.equal(queued.state, "QUEUED");
-  new TerminalController(app, () => {}).refresh();
+  const api = new ApplicationService(app);
+  const registration = api.command(api.principal, "clients", {
+    request_id: id(),
+    name: "Synthetic presentation fixture",
+  });
+  const clientID = registration.resource_ids.find(
+    (r) => r.type === "ClientRegistration",
+  )!.id;
+  api.command(api.principal, `notifications/${queued.id}/presented`, {
+    request_id: id(),
+    client_id: clientID,
+  });
+  await api.close();
   const event = app.store.logs.findLast(
-    (e) => e.event_type === "notification.result",
+    (e) => e.event_type === "notification.presented",
   )!;
-  return { event, notification: app.store.read<Notification>(event.payload) };
+  return {
+    event,
+    notification: app.store.get<Notification>("Notification", queued.id),
+  };
 }
 function resolve(app: App, eventID: string, cs = memory(app), end = Infinity) {
   return reconcileCommitments(
@@ -430,5 +445,107 @@ test("Issue3 identical settings event bodies retain distinct delivery boundaries
     );
     const delivered = await deliver(app, result);
     assert.equal(resolve(app, delivered.event.event_id, only), "COMPLETED");
+  });
+});
+
+test("Issue9 real presented evidence survives read/send progress, while unrelated result and malformed presentation remain open", async () => {
+  await fixture(async ({ app, result }) => {
+    await introduce(app);
+    const { event, notification } = await deliver(app, result);
+    const api = new ApplicationService(app);
+    try {
+      api.command(api.principal, `notifications/${notification.id}/read`, {
+        request_id: id(),
+      });
+      app.store.commit([
+        revise(app.store.get<Notification>("Notification", notification.id), {
+          state: "SENT",
+          receipt: app.store.put({ delivery_key: notification.delivery_key }),
+        }),
+      ]);
+      assert.equal(
+        resolve(app, event.event_id),
+        "COMPLETED",
+        "read/send progress preserves actual presentation",
+      );
+      assert.equal(
+        resolve(app, event.event_id, memory(app), event.sequence - 1),
+        "OPEN",
+        "sourceEnd stays fixed",
+      );
+      assert.throws(
+        () =>
+          app.store.commit([
+            revise(
+              app.store.get<Notification>("Notification", notification.id),
+              { message: app.store.put("changed content") },
+            ),
+          ]),
+        /NOTIFICATION_CONTENT_IMMUTABLE/,
+      );
+      const registration = api.command(api.principal, "clients", {
+        request_id: id(),
+        name: "Synthetic negative client",
+      });
+      const client_id = registration.resource_ids.find(
+        (r) => r.type === "ClientRegistration",
+      )!.id;
+      for (const message of [
+        `${id()}: SUCCEEDED`,
+        `${result.task_id}: FAILED`,
+      ]) {
+        const wrong: Notification = {
+          ...notification,
+          ...base(),
+          message: app.store.put(message, "text/plain"),
+        };
+        app.store.commit([wrong]);
+        api.command(api.principal, `notifications/${wrong.id}/presented`, {
+          request_id: id(),
+          client_id,
+        });
+        const wrongEvent = app.store.logs.findLast(
+          (e) => e.event_type === "notification.presented",
+        )!;
+        assert.equal(
+          resolve(app, wrongEvent.event_id),
+          "OPEN",
+          "real API presentation still needs matching result",
+        );
+      }
+      const original = app.store.read<Record<string, unknown>>(event.payload);
+      for (const payload of [
+        null,
+        { ...original, client_id: id() },
+        { ...original, presented_at: "2000-01-01T00:00:00.000Z" },
+        { ...original, unexpected: true },
+      ]) {
+        const malformed = app.store.event(
+          "notification.presented",
+          payload,
+          event.scope,
+          "MASTER_UI",
+        );
+        app.store.commit([], [malformed]);
+        assert.equal(
+          resolve(app, malformed.event_id),
+          "OPEN",
+          "malformed/forged presentation rejected",
+        );
+      }
+      const legacy = app.store.event(
+        "notification.result",
+        app.store.get("Notification", notification.id),
+        event.scope,
+      );
+      app.store.commit([], [legacy]);
+      assert.equal(
+        resolve(app, legacy.event_id),
+        "OPEN",
+        "legacy SENT alone is not new evidence",
+      );
+    } finally {
+      await api.close();
+    }
   });
 });

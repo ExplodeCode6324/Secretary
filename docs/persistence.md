@@ -20,7 +20,7 @@ Python helper 持有 OS 文件锁，负责重放、尾部不完整帧修复与�
 
 TaskPlan.pending_requests 保存即时请求；Execution.proposal_ref 固定每轮提案。旧执行缺少该字段时，恢复从对应 plan_revision 的历史版本补齐。取消和分派移除队列项，同时保留原受理和移除事件。
 
-CoreIdentity 的 owner/data_domain 跨重启保持；instance_id 和游标签名密钥每次启动更新。发现文件含本机认证 token，采用私密权限，仅代表当前服务实例。
+CoreIdentity 的 owner/data_domain 跨重启保持；instance_id 和普通分页游标签名密钥每次启动更新。持久同步游标不使用签名密钥。发现文件含本机认证 token，采用私密权限，仅代表当前服务实例。
 
 ## 启动恢复
 
@@ -41,3 +41,9 @@ World 事务同时提交事实、变更回执和 audit_outbox。Core 将 outbox 
 停止 Core 后备份完整数据目录、配套 PostgreSQL、代码和配置。先在隔离副本验证新版本重放，再切换运行目录。未完成 Settings 使用其原配置完成恢复。
 
 程序登记入口和历史 Operation 可能包含绝对路径；迁移目录后重新登记适用程序，并检查待执行任务的绑定。旧记录保留原身份。回退以兼容代码和完整备份为基础，同时对账升级期间发生的外部作用；避免用旧状态重复执行已发生的操作。运行命令见[运行手册](operations.md)。
+
+## 同步位置与通知证据
+
+读取投影帧保留重放验证的 digest；同步游标校验 owner_id、sequence 和该帧 digest。首次事务位置按记录类型与 ID 派生，不随更新变化。两者均从原 journal 重建，不新增权威 journal/时钟或历史重置命令。同身份备份恢复后，只有仍属同一历史前缀的游标可继续。
+
+每对通知/客户端只有一个确定 ID 的 notification.presented 日志事件，与短命令 admission 原子提交；查询与幂等索引从日志重建。Notification 仅新增可选 read_at，旧缺失字段按未读投影，旧 SENT/receipt/result 不迁移。内容引用、session 和 delivery_key 固定；read/发送进度继续更新 revision。客户端必须原子保存刷新数据与已应用 cursor，Core 写出 SSE 不等于应用完成。升级可读旧 Store，回退旧二进制需恢复匹配备份。
