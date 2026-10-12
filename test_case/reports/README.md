@@ -1,22 +1,17 @@
-# Test reports
+# 验证报告索引
 
-历史报告保留原运行日期、失败记录、源代码指纹和当时的命令文本。报告里的旧路径是历史现场；新路径见 [迁移映射](../../docs/migration-map.json)，当前命令见 [测试策略](../../docs/testing.md)。不要把旧 hash 或旧 PASS 当作本次代码已经验证。
+本目录保存各次运行的日期、源码版本、命令、首次失败与结论。当前运行入口见[测试手册](../../docs/testing.md)，历史路径见[迁移映射](../../docs/migration-map.json)。
 
-| 目录 | 报告内容 |
+| 报告 | 范围 |
 | --- | --- |
-| [settings-20260928](settings-20260928/README.md) | World 管理、统一设置生效、数据库与模型验证 |
-| reorganization-20260924 | 本次目录、文档与启动入口整理验证 |
-| pi | 原 Pi runtime、live、memory、UI、用户说明报告及原始附件 |
-| audit | Pi 审计执行结果 |
-| pi-audit-20260922 / review | 原复核证据与说明 |
-| design / design-checks | 设计检查与历史比较报告；不是当前运行证明 |
-| implementation | 历次 Pi 功能复核与限制说明 |
+| [API v1 验证](../../docs/api/v1/verification.md) | 2026-10-10 的 Core、真实工具产物与跨进程记忆场景 |
+| [记忆复核](memory-review-20261008/README.md) | 2026-10-08 的 Issue #2–#5 合成回归和接管审查 |
+| [World 与 Settings](settings-20260928/README.md) | 数据库、设置和模型验证 |
+| [历史部署验收](settings-deployment-20260928/README.md) | 当时版本的升级、停启和现用模型效果 |
+| [目录整理](reorganization-20260924/README.md) | 路径、文档及启动入口迁移 |
+| [任务复用](task-reuse-20260929/README.md) | 多轮执行与产物验证 |
+| [流式输出](streaming-20260929/README.md) | 原 UI 版本的流式显示 |
+| [活动记录](activity-20261005/README.md) | 原 UI 版本的活动展示 |
+| [记忆早期记录](pi/memory-20260922/README.md) | Pi runtime 记忆与上下文验证 |
 
-新报告按日期/运行 ID 保留命令、环境、退出状态、源码指纹和未运行项；本目录只提交脱敏汇总与经审查附件。原始 live 会话、凭据和运行身份保留私密本地，不直接放入公开仓库。缺失附件见[清单](../../docs/unavailable-evidence.json)，保留旧路径不代表附件仍存在。Online 长期回归尚待完善。
-
-- [World Model 历史部署验收（2026-09-28/29）](settings-deployment-20260928/README.md)：升级完整性、真实现用模型效果、完整停启与复核入口。
-
-- [记忆体系修复候选复核（2026-10-08）](memory-review-20261008/README.md)：Issue 2–5 的合成验证、接管复核与未执行边界。
-
-
-当前 Core API v1 的实现与严格工具产物证据汇总见 [verification.md](../../docs/api/v1/verification.md)。旧 Web/TUI、SSE、浏览器滚动及 `.command` 报告仅对应原版本，不适用于新版 Core；不将旧截图或通过数重新签发为当前结果。Master 已确认 aa47ad5 复审完成，本轮文档对齐单独待复核。
+其他按日期命名的目录保留原始专项报告。旧 Web/TUI 截图和交互结论对应其当时实现。新报告记录实际 pass/fail/skip/TODO、运行环境与未运行项；公开仓库保存脱敏汇总，原始会话留在私密证据目录。不可解析的历史附件见[清单](../../docs/unavailable-evidence.json)。

@@ -1,112 +1,61 @@
-# 状态机与实际流转
+# 状态与调度
 
-运行时 [catalog](../src/state_machine/catalog.json) 被 Store 加载，但当前只有 `Authorization.decide` 使用 `next()` 查迁移表。其他模块直接提交状态，`shape()` 校验的是记录形状而不是全局迁移合法性。因此 catalog 的全部边不能解释为代码已实现或已测试的路径。
+状态枚举来自[内部 Schema](../src/contracts/contracts.schema.json)。各领域模块检查转换条件；Authorization.decide 使用状态目录的转换函数，其他模块以自己的业务逻辑推进。统一状态机校验安排在 #25。
 
-## 主会话与输入
+## 主会话与模型调用
 
-Host 构造时恢复会话及中断的整理任务。输入从 `ACCEPTED` 到 `CLAIMED`，领取与 prompt 快照一同提交，完成后为 `HANDLED`。Session 在正常处理时从 `IDLE` 进入 `RUNNING` 再回到 `IDLE`；容量或恢复故障进入 `CAPACITY_BLOCKED` / `RECOVERY_BLOCKED`。`resume()` 将状态置回 IDLE 后重试，不能修复缺失的对象字节。
+Input 受理后为 ACCEPTED，由 Host 组成固定批次处理，完成后为 HANDLED。处理中保存 MainPromptSnapshot、Context 和 ModelCall。恢复时复用已持久化的成功响应与工具结果，按逻辑调用的已用次数继续未完成请求。
 
-```mermaid
-stateDiagram-v2
-  ACCEPTED --> CLAIMED: 领取 batch
-  CLAIMED --> HANDLED: 本轮完成
-  CLAIMED --> CLAIMED: 中断后续接同一 loop
-```
+单次逻辑模型调用最多发送三次，重试间隔为 2 秒、10 秒；供应商更长的 Retry-After 优先。网络错误、超时、408/409/429/5xx 等暂时错误适用重试；认证、参数、容量或取消走对应错误处理。需要人工恢复的主会话可通过 session/resume 处理；新的 Master 输入也可唤醒传输失败后阻塞的原批次。
 
-## 任务执行
+## 任务与 Scope
 
-```mermaid
-stateDiagram-v2
-  CREATED --> WAIT_PRECONDITION: 创建 occurrence
-  WAIT_PRECONDITION --> READY: 前置条件满足
-  READY --> DISPATCHING: 持久化 dispatch
-  DISPATCHING --> RUNNING: 启动执行者
-  RUNNING --> WAIT_AUTH: 副作用等待许可
-  WAIT_AUTH --> READY: 许可完成并处理动作
-  RUNNING --> WAIT_DECISION: 缺少信息
-  WAIT_DECISION --> READY: 有效回答
-  RUNNING --> SUCCEEDED: submit_result 成功
-  RUNNING --> FAILED: 已知失败
-  RUNNING --> RESULT_UNKNOWN: 副作用不明或中断恢复
-  RUNNING --> CANCEL_REQUESTED: 请求取消
-  CANCEL_REQUESTED --> CANCELLED: 安全终结
-  CANCEL_REQUESTED --> RESULT_UNKNOWN: 无确定作用回执
-```
+TaskPlan 支持 IMMEDIATE、AT、INTERVAL。即时工作在 `pending_requests` 中保存 request_id、occurrence_key、due_at 和 proposal_ref，周期工作使用 `pending_occurrences`。Scheduler 按到期与前置条件创建、派发 Execution。
 
-图为主路径；详细分支以 Scheduler 的 `tick/execute/finish/cancel/recover` 为准。未知效果不能因取消直接变为无副作用；`RESULT_UNKNOWN` 不属于 terminal 集合。
-
-TaskPlan 初始化为 `INITIALIZING`，成功转 `ACTIVE`，失败为 `INIT_FAILED`。触发支持 IMMEDIATE / AT / INTERVAL；每个 task 同时一个非终结 occurrence，不同 task 可并发。INTERVAL 的 QUEUE 保存 pending occurrences；重启遇到已错过 AT 则暂停并记录 missed，周期严重迟到跳过窗口并记录 REPORT_ONLY，不能解释成补跑保证。
-
-## 操作与授权
-
-Operation：PREPARED → WAIT_AUTH 或 AUTHORIZED；批准后为 AUTHORIZED，拒绝/撤销为 CANCELLED；最终 gate 成功才写 DISPATCHED；回执为 SUCCEEDED / FAILED / RESULT_UNKNOWN。恢复时没有启动的操作重绑定 owner epoch，DISPATCHED 但无回执变为 RESULT_UNKNOWN。
-
-AuthorizationRequest：PENDING → APPROVED / REJECTED；撤销与其他合法边由 catalog 检查。dispatch 再核对许可状态、有效期、action 一致性后消费为 CONSUMED。版本冲突或展示摘要不同不会批准。
-
-## 其他持久状态
-
-| 对象 | 代码中的主要生命周期 |
+| 阶段 | 含义 |
 | --- | --- |
-| ModelCall | PREPARED → IN_FLIGHT → RESPONSE_SAVED / FAILED / INTERRUPTED |
-| DecisionRequest | OPEN → ANSWERED；任务结束时未决请求变 OBSOLETE |
-| Feedback | QUEUED → DELIVERED（关联 Input）→ HANDLED |
-| Notification | Host 创建 QUEUED；旧控制器 presented 可转 SENT，当前 API 无公开确认命令 |
-| CompactionJob | SUMMARIZING → COMMITTED / STALE / FAILED；最多两次摘要尝试 |
-| MemoryCommitment | OPEN → COMPLETED / CANCELLED；宿主保留来源与处理记录 |
-| Execution.retention_state | HOT → RETIRED；已终结且无待处理工作才可归档 |
+| CREATED / WAIT_PRECONDITION | 已创建，准备或等待前置条件 |
+| READY / DISPATCHING / RUNNING | 可派发、派发中或执行中 |
+| WAIT_AUTH / WAIT_DECISION | 等待作用许可或工作回答 |
+| CANCEL_REQUESTED | 已收到取消，正在停止 |
+| RESULT_UNKNOWN | 一项或多项作用结果待确认 |
+| SUCCEEDED / FAILED / CANCELLED / EXPIRED | 本次执行结束，生成结果与反馈 |
 
-48 小时留存阈值不是删除期限。归档保留证据，当前无历史 GC。状态字段的完整枚举见 [数据索引](data/README.md)，它们可能包含尚未走通的设计预留值。
+DIRECTORY 在 DISPATCHING、RUNNING、WAIT_AUTH、WAIT_DECISION、CANCEL_REQUESTED，以及已启动的 READY 阶段保持占用；待确认进程和仍在运行的调用也保持占用。取得占用与写入派发状态发生在异步启动之前。同一 DIRECTORY 串行，NONE 范围内各任务可并行；默认全局执行者为 2。
 
-## 设置应用
+Scope 从 ACTIVE 归档为 ARCHIVED。归档后停止接受该范围的新提案和未启动工作，已取得占用的执行继续完成。根目录、类型的更新影响未来 Execution；已创建的绑定保持原值。前置条件可返回 SCOPE_BUSY、SCOPE_ARCHIVED、SCOPE_ROOT_CONFLICT。
 
-`SettingsApplication` 由 Settings 协调器推进：QUEUED → SUMMARIZING → COMMITTING（有 World 写入时）→ REBUILDING → APPLIED。确定未提交时为 FAILED；结果未知或提交后重建未完成为 BLOCKED。来源与候选按不可变引用保存，最后一帧同时提交记忆、说明、context 指针和 APPLIED。详细并发、重启和配置变化规则见[设置生效规范](settings-activation.md)。
+结束执行先保留 HOT，满足留存条件后保存归档清单并转 RETIRED；默认保留窗口 48 小时，显式 viewed 可续留。历史记录仍保存在 Store。
 
-## 提取恢复
+## Operation 与未知结果
 
-`ExtractionRecovery` 是显式请求的持久记录，`CLAIMED` 表示一次授权已经消费；只有该来源当前领取代次可以推进结果。原 attempt 日志不可变，新 attempt 关联父 attempt 与请求。Store 的独占 owner 锁、同步 journal 提交及 revision CAS 提供本地串行化，不使用超时租约重新获得发送权。
+Operation 在授权、派发和结果保存过程中记录 state 与 effect。状态表示处理进度，effect 表示作用结论。未知 shell/program 影响所属执行；未知文件写入还按绝对资源路径影响其他执行的写入。
 
-| 磁盘证据与当前条件 | 预检/恢复行为 |
-| --- | --- |
-| 来源、owner、policy、配置、revision 不匹配，ModelCall/Context/请求证据不一致或 legacy 无精确证据 | BLOCKED，无发送 |
-| 旧进程中 attempt 仍活跃 | BLOCKED，不把点击当作隔离 |
-| 自动 attempt 已明确失败且尚未创建 ModelCall | READY，显式授权最多一次新调用 |
-| 精确关联的 ModelCall 仅 PREPARED，尚未 IN_FLIGHT | 可确认本地未发；尚未消费恢复授权时才可 READY |
-| started 无终态/无精确调用关联，或 IN_FLIGHT/INTERRUPTED 无完整终态 | BLOCKED，重启不发送 |
-| 已保存 error/aborted 响应 | BLOCKED，不把错误响应当供应商未执行证明 |
-| 已保存完整终态但输出不满足提取协议，且本地旧执行已结束 | READY，可明确授权新调用，显示再次计费边界 |
-| 已保存合法完整响应 | RECONCILE，确定性复用，零新调用 |
-| 已有提取成功或原 owner 已提交 | 复用结果/回执，不重复提取或提交 |
-| 恢复授权已消费而尚无完整结果 | 同请求只对账或 BLOCKED，不退还授权后再发送 |
+| owner 裁定 | Operation state / effect | 含义 |
+| --- | --- | --- |
+| APPLIED | SUCCEEDED / APPLIED | 作用已发生 |
+| NOT_APPLIED | FAILED / NOT_APPLIED | 作用未发生 |
+| PARTIAL | FAILED / PARTIAL | 部分发生 |
+| UNVERIFIED | FAILED / UNKNOWN | 已记录人工处理，效果仍未核实 |
 
-预检不修改持久 Store；只在当前进程内签发有效期 5 分钟的凭证。新消费先核验服务端签发记录、完整绑定和有效期；过期、客户端延长、服务重启后的未消费凭证拒绝，允许重新预检。已消费 request_id 的持久回执优先对账，期限不恢复发送权。
+裁定附原 revision、note 和 request_id，保留原始回执。文件写入还可通过 verify-write 比对绑定根与预期内容，确认 APPLIED。最后一个未知项处理后，Scheduler 等待进程停止，将原 RESULT_UNKNOWN 执行收束为 FAILED，并保存一份 TaskResult 与 Feedback。继续工作使用新的任务请求。
 
-RECONCILE 是用户显式发起的写操作，记录请求和对账结果，但不产生模型调用。提取成功与原批次提交是不同检查点：后者仍需完整来源、候选、任务事实和版本校验，设置路径还须核查 World 回执。
+## 进程生命周期
 
+shell/program 的 wrapper 先报告就绪身份；Core 持久保存后才发送启动指令。启动前 STOP 或通道断开会返回 not_started，作用记为 NOT_APPLIED。启动后以明确 outcome 帧记录命令结果；wrapper 自身的退出码和缺失的结果帧分别处理。
 
-## API 命令状态与能力
+Core 断开后，wrapper 向进程组发 TERM，2 秒后仍存活则发 KILL。重启恢复读取 journal 中的进程身份：
 
-[ApiCommand](data/ApiCommand.md) 是传输命令受理状态，不替代 Execution、Operation 或 SettingsApplication。短命令保持 ACCEPTED；后续业务初始化或执行由资源本身反映。包括 NO_CHANGES 在内的成功受理均可重放回执，不能要求所有短命令最终出现 COMPLETED。
+1. 系统启动标识已变，或进程组不存在：记录已停止。
+2. 进程组存在且身份一致：TERM，2 秒后仍在则 KILL，再次检查。
+3. 身份不一致或无权限检查：保留占用和待处理原因。
 
-长命令实际路径为 QUEUED → RUNNING → COMPLETED；派发异常或重启发现 RUNNING 时转 UNKNOWN，保留 error_code 及资源。FAILED 虽在 schema 枚举中，目前 ApplicationService 不以它表示派发异常。首次接收前格式/冲突等拒绝可以没有 ApiCommand，HTTP 错误不能凭空算一次成功受理。
+每次发信号前重新检查身份。恢复使用系统进程信息与 journal，不重连旧 wrapper。
 
-Core capabilities 中 devices、attachments、reliable_sync 为 not_supported；world 未配置为 not_configured。能力存在与具体资源/权限可执行性分别判断，不以页面已画出或数据为空推断 supported。通知送达仍缺新版公开确认入口，因此不能凭 GET timeline 自动完成依赖 SENT 证据的承诺。
+## 记忆与设置
 
-## 未知效果与进程恢复
+WORKING_MEMORY 更新摘要与覆盖水位，CONTEXT_COMPACTION 保存模型输入裁剪结果。MemoryExtractionJob 独立维护固定来源、成功分段和补提次数；首次失败后依次等待约 5 分钟、30 分钟、2 小时补试三轮，耗尽后显示 FAILED。人工 extraction/retry 重排受理时的失败集合，同 request_id 重放原回执。
 
-owner 通过 `operations/{id}/resolve` 裁定 RESULT_UNKNOWN：APPLIED → SUCCEEDED/APPLIED，其余 → FAILED（NOT_APPLIED、PARTIAL、UNKNOWN）。UNVERIFIED 终结操作但不证明进程停止。裁定保留原回执引用；相同 request_id 重放原受理结果。
+SettingsApplication 先从 QUEUED 进入 SUMMARIZING；包含 World 变更时经 COMMITTING 提交数据库事务，否则直接进入 REBUILDING，完成本地重建后为 APPLIED。提交前的确定失败为 FAILED；提交结果待确认或已提交但重建未完成为 BLOCKED。恢复根据数据库批次回执推进。详见[设置生效](settings-activation.md)。
 
-Scheduler 在无剩余未知操作、且整组停止已确认后，将中断 Execution 收束为 FAILED，补齐一次 TaskResult 和终结 Feedback。verify-write 复用这一入口。shell/program 的未知效果只拦截同一执行；未知文件写入继续按绝对文件路径跨执行拦截。
-
-shell/program 使用 Python 3 gated wrapper：身份先持久化，再放行命令；Core 通道 EOF 触发进程组清理。恢复不重连 wrapper，按同机启动标识变更、进程组 ESRCH、身份匹配、无法确认四分支处理；后者保留占用并去重通知。TERM/KILL 各自重新核验身份，有界复查；POSIX 不提供原子身份核验加组信号，因此保留检查到发送间的系统调用竞态边界。主动脱离进程组的程序不在此管理合同内。
-
-TASK 在可证明的模型请求边界恢复原 Execution 与冻结请求；成功响应不重发，失败沿用原三次传输预算。PROGRAM、取消和缺少可靠请求证据的中断不重跑；工具结果按持久意图及已保存返回值对账。
-
-## 工作范围 Scope
-
-Scope（内部定义 WorkScope，区别于调用归属元组 Scope）由 owner 创建、更新、归档，状态 ACTIVE → ARCHIVED。DIRECTORY 根必须与 Core 数据目录不重叠，与其他活动 Scope 和占槽执行的旧根不重叠；NONE 仅归类。
-
-Execution 创建时固定 scope_id 和 workspace_binding；Store 拒绝后续改写。DIRECTORY 不创建 task/work，元数据和产物 CAS 仍在数据目录。rootFor 统一读写、shell/program、预条件与产物路径；无绑定的历史执行回退到原 task/work。
-
-实际 run 在任何 await 前同步校验并提交 DISPATCHING。DIRECTORY 在 DISPATCHING/RUNNING/WAIT_AUTH/WAIT_DECISION/CANCEL_REQUESTED 时保留槽；回答或模型恢复短暂返回 READY 时，已有 started_at 继续保留。停止未确认或当前 run 尚未退出也保留槽。NONE 使用独立任务目录并受全局 worker 限额约束。排队旧根被别的 Scope 取得时等待 SCOPE_ROOT_CONFLICT，不重新绑定。归档阻止新提案和未开始的执行，已取得槽的执行继续。
-
-主会话每个新循环冻结最多 64 项、列表 JSON 最多 8 KiB 的 ACTIVE Scope 描述。执行包将 DIRECTORY 笔记作为 JSON 数据字段，最多读取 8 KiB，标明截断和不可信来源；写入使用既有 write 授权。Scope 描述和笔记均不改变权限。
+ApiCommand 的短命令状态通常保持 ACCEPTED，业务进度从关联资源读取。长命令为 QUEUED → RUNNING → COMPLETED，中断或派发异常记录 UNKNOWN。

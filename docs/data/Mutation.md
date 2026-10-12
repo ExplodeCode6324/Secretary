@@ -2,7 +2,7 @@
 
 服务端加载 snapshot 后按 object_type 校验并执行状态 guards；revision 必须 +1。
 
-来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/Mutation)。此页自动生成，描述内部合同；客户端使用 [API v1 DTO](../api/v1/README.md)。字段存在不等于全部语义已实现，行为以调用模块为准。
+来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/Mutation)。此页自动生成，描述内部合同；客户端使用 [API v1 DTO](../api/v1/README.md)。行为说明见 [数据模型](../data-model.md)。
 
 | 字段 | 类型 / 值域 | 必填 | 说明与约束 |
 | --- | --- | --- | --- |

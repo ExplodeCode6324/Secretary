@@ -1,93 +1,87 @@
 # 运行手册
 
-当前入口是独立 Core API v1，命令从仓库根目录运行。需要 Node.js ≥22.19、npm、Python 3；World 可选，隔离数据库验证使用 PostgreSQL 18。此处描述代码行为，不表示已经部署现用实例。
+从仓库根目录运行命令。需要 Node.js ≥22.19、npm、Python 3 和固定 Pi 子模块；World 可选使用 PostgreSQL。
 
-## 安装与离线 Core
+## 安装与启动
 
 ```sh
 git submodule update --init --recursive
-npm ci --ignore-scripts
+npm ci
 npm start
 npm run core -- status
 npm run core -- attach
 npm run stop
 ```
 
-这些命令默认访问 `.demo-data`，默认 fixture 不调用真实模型。`start` 启动或附着独占 Core；`status` 和 `attach` 只连接既有实例，不启动新进程。无实例时输出 STOPPED，status/attach 退出 1、stop 退出 0。启动器退出后 Core 继续运行；停止必须显式执行。
+默认模式为 fixture，数据目录为 `.demo-data`，使用合成模型。`start` 启动后台 Core 或附着已有实例；启动器结束后服务继续运行。`status`、`attach` 连接已有实例，无实例时退出 1；stop 无实例时退出 0。
 
-自定义目录时，各条命令使用同一 `SECRETARY_DATA` 和匹配的 `SECRETARY_MODE`。发现文件为该目录的 `core-endpoint.json`，日志为 `core.log`；endpoint 含秘密 token，不应公开。CLI 只打印 Core 状态或回执，不打印 token。完整鉴权、响应与错误语义见 [API v1](api/v1/README.md)。
+自定义目录使用 `SECRETARY_DATA`，各管理命令保持相同目录和模式。`core-endpoint.json` 保存端口、实例和本机 token，`core.log` 保存日志，两者权限为 0600。CLI 输出状态和回执。
 
-`npm run start:web` 返回旧界面退役错误；`npm run start:web:live` 拒绝 `--web`。旧 TUI/Web 的双击启动器和 `src/停止Secretary后台.command` 仍依赖旧入口/旧发现文件，不适用于新版 Core。当前没有可用 SwiftUI 或新版 TUI，不能用这些遗留脚本完成新版界面验收。
+当前交互入口为 Core API v1。旧 Web/TUI 启动命令已退役，SwiftUI 的实现安排在 #10。
 
-## 真实模型 Core
+## 真实模型模式
 
-启动 wrapper 读取现有私密凭据文件，JSON 包含独立 `main`、`task` 两项；文件应限制为本机用户读取，不放入 Git、任务材料或公开日志。
+`start:live` 读取已有凭据 JSON 的 `main`、`task` 两项，将其注入对应角色：
 
 ```sh
 npm run start:live
-# wrapper 默认数据目录与模式不同于普通 npm start；管理时必须明确匹配。
 SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run core -- status
 SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 ```
 
-`start-live.ts` 固定两个角色的 provider 为 opencode-go，默认 main=deepseek-v4.1-flash、task=gpt-5.6-luna；模型可由角色环境变量覆盖。这是源码默认值，不是服务商可用性或价格保证。wrapper 默认数据目录为 `.demo-data/interactive-live`，凭据路径为 `.demo-data/live-credentials.json`。
+该 wrapper 默认数据目录 `.demo-data/interactive-live`，凭据路径 `.demo-data/live-credentials.json`，两角色 provider 为 opencode-go。代码默认主模型 deepseek-v4.1-flash、任务模型 gpt-5.6-luna，可用角色环境变量覆盖模型名称。
 
-默认 live 目录会读取可选 `.demo-data/live-runtime.json`，或显式 `SECRETARY_RUNTIME_FILE`。自定义数据目录不自动继承默认 runtime 文件。runtime 的 `database_url` 提供 DSN；环境 `SECRETARY_DATABASE_URL` 优先。未提供环境 DSN 且配置 `local_postgres_data` 时，wrapper 可用 `pg_ctl` 启动该既有集群；不会建库或自动迁移。Core 停止会关闭自身数据库连接，不会停止 PostgreSQL 服务。生产数据库启停与备份按实际部署单独处理。
+默认 live 目录读取可选 `.demo-data/live-runtime.json`，也可显式指定 `SECRETARY_RUNTIME_FILE`。runtime 的 database_url 提供 World 连接；`SECRETARY_DATABASE_URL` 优先。未给环境 DSN 且配置 local_postgres_data 时，wrapper 可用 pg_ctl 启动已有集群；数据库初始化通过 API 的迁移命令完成。Core stop 关闭连接，PostgreSQL 继续运行。
 
-直接 `SECRETARY_MODE=live npm start` 不读取 wrapper 的凭据 JSON；须由环境提供角色 provider/model/API key。不要将密钥写入命令历史或文档示例。
+直接 `SECRETARY_MODE=live npm start` 使用环境中的角色配置；凭据 JSON 读取属于 start:live wrapper。凭据文件与运行数据保存在本机私密目录。
 
-| 配置 | 当前代码行为 |
+| 环境变量 | 用途 |
 | --- | --- |
-| SECRETARY_DATA | CLI/start/stop 默认 `.demo-data`；live wrapper 默认 `.demo-data/interactive-live` |
-| SECRETARY_MODE | `live` 使用 provider，其他值走 fixture；附着须与运行实例匹配 |
-| SECRETARY_CREDENTIALS_FILE | live wrapper 读取已有 main/task 凭据 |
-| SECRETARY_MAIN_PROVIDER / SECRETARY_TASK_PROVIDER | 直接 Core 的角色 provider；wrapper 固定 opencode-go |
-| SECRETARY_MAIN_MODEL / SECRETARY_TASK_MODEL | 角色模型；wrapper 有上述默认值 |
-| SECRETARY_MAIN_API_KEY / SECRETARY_TASK_API_KEY | 直接 Core 使用角色密钥；wrapper 从凭据文件注入 |
-| SECRETARY_PROVIDER / SECRETARY_MODEL | 直接入口的共享 provider/model fallback，不共享角色密钥 |
-| SECRETARY_DATABASE_URL | 可选 World DSN；已配置不等于数据库可用/已迁移 |
+| SECRETARY_DATA / SECRETARY_MODE | 数据目录与 fixture/live 模式 |
+| SECRETARY_CREDENTIALS_FILE | live wrapper 凭据文件 |
+| SECRETARY_RUNTIME_FILE | live wrapper 运行配置文件 |
+| SECRETARY_MAIN_PROVIDER / SECRETARY_TASK_PROVIDER | 直接 Core 的角色 provider |
+| SECRETARY_MAIN_MODEL / SECRETARY_TASK_MODEL | 角色模型 |
+| SECRETARY_MAIN_API_KEY / SECRETARY_TASK_API_KEY | 角色凭据 |
+| SECRETARY_PROVIDER / SECRETARY_MODEL | 直接 Core 的共享 provider/model 默认值 |
+| SECRETARY_DATABASE_URL | World PostgreSQL DSN |
 | SECRETARY_MAX_WORKERS | 默认 2 个任务执行者 |
-| SECRETARY_MAX_OUTPUT_TOKENS | 普通调用输出目标 4096 |
-| SECRETARY_COMPACTION_OUTPUT_TOKENS / SECRETARY_COMPACTION_RETRY_OUTPUT_TOKENS | 摘要目标 16384 / 32768，受模型及部署上限约束 |
-| SECRETARY_MAIN_* / SECRETARY_TASK_* 容量上限 | CONTEXT_WINDOW、INPUT_TOKENS、OUTPUT_TOKENS；完整参数见[容量规范](memory-and-prompts.md#容量与配置) |
-| SECRETARY_MEMORY_UPDATE_TURNS / SECRETARY_MEMORY_UPDATE_SECONDS / SECRETARY_MEMORY_MIN_INTERVAL_SECONDS | 记忆维护默认 8 个完成轮次 / 60 秒 / 120 秒最小间隔 |
 
-旧 SECRETARY_COMPACTION_BYTES 不再触发自动维护。旧终端颜色参数不属于 Core API 配置。模型传输的默认 120 秒中断信号不是任务端到端 SLA；online harness 另有更严格预算。
+容量和维护参数见[模型预算](memory-and-prompts.md#容量与配置)。
 
-## 通过 API 操作与对账
+## API 操作
 
-使用 [CoreClient](../src/pi_secretary/src/core-client.ts) 或实现同等合同的本机调用方。命令必须有新 UUID request_id；重试同一意图保留原路径、ID 和完整 body，先用 `GET /api/v1/requests/{id}` 对账。202 仅为持久受理；任务看 Execution/Operation，设置看 SettingsApplication，不把 ACCEPTED 当成业务成功。
+使用 [CoreClient](../src/pi_secretary/src/core-client.ts) 或遵循 [API v1](api/v1/README.md) 的本机客户端。写命令带 UUID request_id；同一意图重试保持路径、ID 和完整 body。202 是持久受理，`requests/{id}` 返回关联业务资源。
 
-| 操作 | 新版入口（均以 `/api/v1` 为前缀） |
+| 工作 | API 路径，前缀 `/api/v1` |
 | --- | --- |
-| 输入和时间线 | POST `/messages`；GET `/timeline`、`/timeline/around`、`/messages/{id}/content` |
-| 提交/续接任务 | POST `/task-requests`；GET `/tasks/{id}`、`/executions/{id}` |
-| 批准副作用 | GET `/authorizations/{id}` 完整展示；POST `/authorizations/{id}/decision` 带 revision 和 display_hash |
-| 工作决定 | POST `/decisions/{id}/answer`，与审批分离 |
-| 显式访问执行 | POST `/executions/{id}/viewed`；GET 不续留 |
-| 设置草稿/应用 | GET `/settings`；POST `/settings/draft`、`/settings/apply` |
-| 记忆维护/承诺 | POST `/session/compact`、`/memory/commitments/{id}/resolve` |
-| 提取重排 | POST `/memory/extraction/retry`，body 为 `{request_id}`；GET `/memory` 查看状态 |
-| 未知文件写入核验 | POST `/operations/{id}/verify-write`；shell 无通用自动核验 |
-| World 迁移 | POST `/admin/world/migrate`，随后按请求回执与领域结果确认 |
+| 对话 | POST messages；GET timeline、timeline/around |
+| 工作范围 | GET/POST scopes；GET/POST scopes/{id}；POST scopes/{id}/archive |
+| 任务与接续 | POST task-requests；GET tasks/{id}、executions/{id} |
+| 审批 | GET authorizations/{id}；POST authorizations/{id}/decision，带 revision/display_hash |
+| 工作回答 | POST decisions/{id}/answer |
+| 访问执行 | POST executions/{id}/viewed |
+| 设置 | GET settings；POST settings/draft、settings/apply |
+| 记忆 | POST session/compact、memory/extraction/retry、memory/commitments/{id}/resolve |
+| 未知结果 | POST operations/{id}/verify-write 或 operations/{id}/resolve |
+| World 初始化 | POST admin/world/migrate |
 
-CLI 只支持 start/attach/status/stop；`npm start -- --migrate` 不执行数据库迁移，旧 `/compact`、`/verify` 等终端文本也不是 Core 命令。World 迁移读取现行 SQL 版本，不 drop 数据。草稿/应用/重试的字段以[操作表](api/v1/operations.json)和[设置规范](settings-activation.md)为准。
+DIRECTORY Scope 选择已存在的物理根目录，和其他活动范围、Core 数据及仍占用的旧绑定保持分离。NONE 为分组，各任务使用独立目录。归档保留历史和已启动执行。
 
-模型传输阻塞会产生通知；下一条新 Master 输入可恢复原输入批次，重复请求和后台反馈不触发。容量、来源损坏、未知工具结果等阻塞仍保持。session/resume 保留；提取重排独立于设置重试和 session/compact。
+## 状态与处理
 
-## 观察与故障处理
+| 状态或错误 | 后续处理 |
+| --- | --- |
+| OWNER_BUSY | 查找该目录已运行的 Core，通过它连接或停止 |
+| CORE_MODE_MISMATCH / UNSAFE_ENDPOINT | 核对数据目录、模式、发现文件归属和权限 |
+| CAPACITY_BLOCKED | 查看模型容量、请求预算及需保留的来源 |
+| RECOVERY_BLOCKED | 根据恢复错误核对 checkpoint、调用与工具回执 |
+| RESULT_UNKNOWN | 核对作用结果，执行文件核验或 owner 裁定；进程停止后释放占用 |
+| Settings BLOCKED | 核对原配置、数据库批次回执，继续桥接和重建 |
+| journal/CAS 错误 | 保存完整副本，定位损坏帧或缺失对象 |
 
-时间线可显式请求 `streaming=true`、`thinking=true`，仅显示供应商提供的可见内容。预览只在内存中，不是可靠 SSE；新版没有旧 `/api/state`、`/api/stream`、`/api/poll`。客户端缓存、阅读位置、字体和显示开关仍由未来客户端实现。当前 API 无通知 presented/已读命令，普通读取不会生成 SENT 回执。
+时间线支持 streaming/thinking 开关；预览随当前进程存在，最终消息保存到 journal/CAS。可靠增量同步和通知展示回执安排在后续开发路线。
 
-- OWNER_BUSY：先确认同一目录的 writer，不并行打开另一个 App 或删除锁。
-- CORE_MODE_MISMATCH / UNSAFE_ENDPOINT：核对目录、模式、发现文件 owner/权限，不能以旧 ui-endpoint.json 替代。
-- CAPACITY_BLOCKED / RECOVERY_BLOCKED：保留原件和错误，按模型预算、来源证据及恢复入口对账。
-- journal/CAS 损坏：保留完整副本，不能删日志或创建空会话伪装恢复。
-- RESULT_UNKNOWN / ApiCommand UNKNOWN：核对领域回执；取消或换 request_id 不证明未发生作用。
-- Settings BLOCKED：先确认原数据库、配置与批次回执，不清空本地记录绕过 gate。
+## 备份与升级
 
-## 升级与回退
-
-停止旧 writer，备份完整数据目录及对应 PostgreSQL、代码与配置并记录校验。先在隔离副本验证回放；新旧版本不能同时写同一数据域。未完成 Settings 要用其原配置恢复，不能直接换模型/DSN。
-
-新版会生成旧版本不认识的持久记录，不支持旧 TUI/Web 协议。回退须使用经核验的旧代码、配置和匹配的数据备份，先对账升级后外部作用，禁止用旧备份重复执行。旧 ProgramRegistration 的绝对入口和 shell cwd/resource 在迁移后可能失效，不能修改历史许可来掩盖变化。详见[持久化](persistence.md)和[API 切换说明](api/v1/README.md#切换与回退)。
+停止 Core，备份完整数据目录、World 数据库、代码及配置，在隔离副本验证新版本重放。未完成设置使用原配置恢复，目录迁移时检查程序入口和待执行绑定。回退时一并对账升级期间的外部作用。详细存储布局和恢复机制见[持久化](persistence.md)。

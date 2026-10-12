@@ -1,72 +1,50 @@
 # 数据流
 
-## 输入与主会话
+## 一轮对话
 
 ```mermaid
 sequenceDiagram
-  participant C as local-owner 客户端
+  participant C as 客户端
   participant A as ApplicationService
-  participant H as Host
   participant S as Store
-  participant M as Pi 主会话
+  participant H as Host
+  participant M as Pi 模型
   C->>A: POST messages + request_id
-  A->>H: 校验身份/合同/幂等后 accept
-  H->>S: ApiCommand + Input ACCEPTED + 输入事件同帧
-  A-->>C: HTTP 202 持久受理
-  H->>S: 领取 batch + MainPromptSnapshot
-  H->>M: 工作记忆 + 受保护历史 + 本轮输入
-  M->>S: durableStream 保存 Context/ModelCall
-  M->>H: 工具调用 / 回复
-  H->>S: 工具回执 / Notification / Input HANDLED
-  C->>A: GET requests / timeline
-  A-->>C: 当前领域状态与有界读投影
+  A->>S: 同帧保存 ApiCommand、Input 与事件
+  A-->>C: 202 + 受理回执
+  H->>S: 领取输入并固定 MainPromptSnapshot
+  H->>M: 系统说明、工作记忆、历史与本轮输入
+  M-->>H: 回复或工具调用
+  H->>S: 保存响应、工具回执与通知
+  H->>S: 标记 Input HANDLED
+  C->>A: GET timeline / requests
+  A-->>C: 时间线与业务资源状态
 ```
 
-GET 不表示展示/已读，不写 Notification SENT。旧 TerminalController 的 presented 回执仍有领域代码，但新版 Core 不加载它，也没有对应公开命令。工具日志和摘要不能冒充新的 Master 输入。
+主会话工具可以提交任务、查询任务、读取记忆、提出 World 修改或创建通知。工具反馈和 Master 输入保留各自的来源类型。时间线按 `streaming`、`thinking` 开关加入内存预览；最终响应保存到 Store。
 
-## 任务与作用
+## 一次任务执行
 
-```mermaid
-flowchart LR
-  A[task_propose] --> B[TaskProposal 对象]
-  B --> C[TaskPlan + workspace]
-  C --> D[到期与前置条件]
-  D --> E[Execution + Dispatch]
-  E --> F[Pi 工具或 Program]
-  F --> G[Operation WAIT_AUTH]
-  G --> H[Master 完整展示后批准]
-  H --> I[派发前复核]
-  I --> J[作用 + 持久回执]
-  J --> K[恢复执行 / submit_result]
-  K --> L[TaskResult + Feedback]
-  L --> M[反馈转 Input]
-  M --> N[主会话查询详情并汇报]
-  J --> U[缺少确定回执: RESULT_UNKNOWN]
-```
+`task_propose` 保存完整目标、约束、验收项和材料，Scheduler 将提案固定为 `proposal_ref`。到期后创建 Execution，冻结 Scope 与工作目录，检查前置条件并取得执行名额。DIRECTORY 中同一范围串行；NONE 中各任务使用自己的目录，可以并行。
 
-提案的 goal、constraints、acceptance_criteria、materials 和 continuation 形成执行协议。材料标为不可信任务数据。结果的 artifacts 指向已保存对象；workspace 中工作文件仍可变。工具输出不等于独立验收。
+Agent 调用 read/write/bash，或 Scheduler 调用已登记程序。需要许可的 Operation 进入 WAIT_AUTH；批准后按绑定参数派发并保存结果。shell 和程序先由 wrapper 就绪、持久记录身份，再接收启动指令。结果缺失时记录 RESULT_UNKNOWN，后续核验或人工裁定与进程停止确认共同决定收束时机。
 
-## 记忆与知识
+`submit_result` 提交逐项验收评估、局限和产物。Scheduler 将文件保存为不可变 CAS 对象，生成 TaskResult 和 Feedback；Host 将反馈作为新输入，主会话读取结果并向 Master 汇报。产物下载按 artifact ID 读取固定版本。
 
-Consciousness 整理读取旧事项、原始输入/事件、任务状态和承诺，产生候选摘要；提交前检查版本和输入边界。成功更新覆盖游标，失败保留原记忆及未覆盖原文。
+## 同任务接续
 
-模型 World 提案先持久化 WorldCommand/Operation，批准后进入 Settings 协调器。经认证 local-owner 通过 settings/draft 保存草稿，settings/apply 记录明确的 Master 证据；两种入口均在完整摘要和 context 容量检查后执行 PostgreSQL 批次事务。事务写 change_receipt 与 audit_outbox；drain 将数据库事实提交回执桥接到 journal，再标记 outbox 已导出。这是两个持久化域的可恢复桥接，不是跨数据库和文件系统的原子事务。
+`reuse_task_id + parent_execution_id` 指向同一任务最新、已结束且仍为 HOT 的执行。受理事务同时保存新要求、待执行请求和 parent 关联；tick 消费请求后创建新 Execution。新执行沿用任务 Scope，使用该范围当前配置生成新的目录绑定。
 
-实现依据：[host.ts](../src/pi_secretary/src/host.ts)、[scheduler.ts](../src/pi_secretary/src/scheduler.ts)、[world.ts](../src/pi_secretary/src/world.ts)。
+重复 request ID 返回原回执。取消未派发请求会移出队列；已派发请求转入执行取消流程。任务基线、每轮要求和每轮结果分别保存。
 
-## 已完成任务的接续
+## 记忆与设置
 
-Master 补充要求 → Host 发现/查询原 Task → task_propose(reuse_task_id, parent_execution_id) → Scheduler 校验最新 parent、执行空闲、资料和 workspace → 固定有效提案 → 同一 journal 提交回执、pending_requests 与 parent 保护 → tick 原子消费并创建带 proposal_ref 的新 Execution → 现有授权与执行流程 → 保存新结果和不可变产物 → 释放 parent 保护并反馈。
+普通维护从固定来源整理 Consciousness，并更新覆盖水位；承诺提取由独立 MemoryExtractionJob 跟踪来源和分段，失败来源按退避计划补提。已完成的工作记忆更新继续有效。
 
-重复请求先重放回执，不能因已受理后任务繁忙而拒绝原请求。普通结果解释由主会话直接处理；新独立交付创建新 Task，parent-only 仍是新任务引用旧材料。
+Settings 应用先固定全部未整理来源，完成摘要与新 context 容量检查，存在 World 变更时再提交数据库批次事务，保存批次回执和 audit_outbox，并将回执桥接到 journal。最后提交有效说明、Consciousness、新 Context 和 APPLIED 状态；仅修改说明时直接进行本地重建。期间到达的输入继续排队。
 
+## API 命令
 
-## 产物与公开读取
+短命令在同一 journal 帧中保存受理与首个领域变更。长命令先保存 QUEUED，执行前转 RUNNING，结束为 COMPLETED；中断的 RUNNING 在恢复时转 UNKNOWN。客户端用原 request ID 查询回执，再读取关联领域资源。记忆提取 retry 属于短命令，实际补提由后续维护推进。
 
-write/bash 或程序产生任务工作文件 → submit_result 指定文件 → Scheduler 读取并保存 CAS → TaskResult 绑定 artifact_id/task/execution → ApplicationService 建立目录索引 → API 元信息与内容下载 → 调用方独立验证。shell 的 Operation.resource 是 cwd，生成文件的 producing_operation_id 可以为空；来源验证须结合执行作用域、获批代码/命令和成功回执。
-
-公开详情只返回产物 ID 与读模型，不能直接访问任意工作路径。下载先校验已知 CAS 引用、文件类型、长度及散列，再流式返回。HTTP 成功、模型结果与独立内容验算是不同证据层；实现验证见[产物验收](api/v1/verification.md)。
-
-## API 长命令
-
-POST 持久登记 ApiCommand QUEUED → 返回 202 → 调度为 RUNNING → 调用原领域入口 → COMPLETED 或 UNKNOWN。重启只推进未开始的 QUEUED；已 RUNNING 的中断转 UNKNOWN，不自动重发。memory/extraction/retry 属于幂等短命令：持久重排失败来源后，由维护周期推进。模型有界重试不重放工具或未知外部作用。
+实现入口：[ApplicationService](../src/pi_secretary/src/application-service.ts)、[Host](../src/pi_secretary/src/host.ts)、[Scheduler](../src/pi_secretary/src/scheduler.ts)、[Settings](../src/pi_secretary/src/settings.ts)。

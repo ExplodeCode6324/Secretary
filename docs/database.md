@@ -28,7 +28,7 @@ erDiagram
 
 ## 表字段与约束
 
-以下定义直接从当前 SQL 生成，保留默认值、外键、CHECK、UNIQUE 与延迟约束，避免字段文档和 DDL 漂移。
+以下定义直接从当前 SQL 生成，包含默认值、外键、CHECK、UNIQUE 与延迟约束。
 
 ### wm.schema_version
 
@@ -208,12 +208,12 @@ assertion_state 以部分唯一索引保证每个 slot 至多一个 ACTIVE；con
 
 validate_slot 检查 subject kind 与 SINGLE/MULTI 的 scope_key；validate_assertion 检查 slot revision、值类型与 ENTITY 引用。assertion、receipt、evidence 及证据关联禁止修改删除；source 身份字段不可改；延迟触发器要求每条 assertion 有证据。更正与撤回通过新的变更和投影表达。settings_batch_receipt 也禁止更新和删除，以保留批次幂等依据。
 
-SQL 本身不是全部业务守卫：World 仓储还用 Ajv 验证 predicate.value_schema、检查证据对象和 CAS；不能仅根据表约束宣称所有语义已验证。queries.sql 返回当前投影、冲突、来源及有效性信息，缺失和冲突保留，不用模型猜测补全。
+World 仓储使用 Ajv 验证 predicate.value_schema，并检查证据对象和 CAS。queries.sql 返回当前投影、冲突、来源及有效性信息。
 
 ## Predicate 初始目录
 
-初始十项：person.display_name、person.height、person.contact、person.member_of、preference.statement、goal.statement、project.constraint、resource.location、resource.depends_on、resource.observed_state。类型、基数、单位和 JSON 值约束以 002_predicates.sql 为准。关系型字段不代表已经接入社交软件或仓库同步。
+初始十项：person.display_name、person.height、person.contact、person.member_of、preference.statement、goal.statement、project.constraint、resource.location、resource.depends_on、resource.observed_state。类型、基数、单位和 JSON 值约束以 002_predicates.sql 为准。这些 predicate 描述 World 中可登记的事实类型。
 
-## 部署边界
+## 数据库配置
 
-DDL 撤销 PUBLIC 权限，但不创建完整部署角色、认证策略或运维备份系统；连接角色由部署者配置。不得把本机授权规则当作数据库行级权限。首次启用应使用专用数据库。
+World 使用专用数据库，连接角色和备份由部署环境配置。DDL 撤销 PUBLIC 权限；Core 的 owner 授权在应用层处理。

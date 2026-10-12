@@ -1,32 +1,23 @@
-# 设计哲学
+# 设计原则
 
-当前实现把持续沟通、工作执行和执行许可分开。Master 保留最终决定权；主会话负责理解输入、维护工作记忆、提案和汇报；Scheduler 管理任务生命周期；执行 Agent 或登记程序完成具体工作。职责在工具注册和宿主代码中落实，不能仅靠 system prompt 保证。
+Secretary 将持续沟通、工作执行与持久状态分开组织。Master 决定目标和权限；主会话理解需求、提案与汇报；Scheduler 安排执行；宿主代码保存状态和处理结果。
 
-## 模型负责判断，宿主负责状态
+## 判断与状态各有归属
 
-Pi Agent 提供模型与工具循环。Secretary 的 Host、Scheduler、Authorization 和 Store 持有输入、任务、许可和持久化状态。主会话只有六个注册工具，没有 bash、文件写入或批准工具。任务的 `submit_result` 是结构化声明，验收评估仍是模型主张，不是独立验收证明。
+模型负责语言理解和工作判断，Host、Scheduler、Authorization、Settings 管理相应生命周期。工具调用形成可查询的记录，客户端通过 Core API 获取进度。具体分工见[架构](architecture.md)。
 
-## 执行前明确范围
+## 工作有范围，结果有来源
 
-写文件、shell、登记程序的执行和模型提出的 World Model 更改通过 Operation 及统一授权检查。认证 local-owner 通过 Settings API 明确应用的 World 修改直接记录 Master 操作证据；模型不能调用该管理入口。批准绑定请求版本、展示摘要和参数；实际派发前再检查 owner、attempt、执行状态、授权及规则版本。聊天中的同意和材料中的指令不直接产生许可。shell 以当前用户运行，具有文件系统和网络访问能力；当前没有 OS sandbox。
+TaskPlan 表达持续计划，Execution 固定一次工作的要求和目录。授权关联操作参数、资源和版本；产物以不可变对象保存。后续修改可以沿用任务和工作文件，之前的执行要求与产物仍可查询。
 
-## 不确定性必须保留
+## 恢复依据已保存的事实
 
-动作已经发出但缺少持久回执时，结果是 `RESULT_UNKNOWN`。重启、超时与取消不能证明外部作用没有发生。实现保留回执和待核验状态，不把未知作用直接重放。文件写入有专用核验；任意 shell 和程序没有通用的自动恢复证明。
+成功模型响应和工具结果可以复用。缺少效果回执的操作进入 RESULT_UNKNOWN，文件写入可核验，Master 可通过裁定入口补充观察结果。进程停止状态单独判断，用于恢复调度和目录使用。
 
-## 记忆可追溯
+## 记忆分层保存
 
-原始输入、上下文、工具结果以哈希对象保存。Consciousness 是可替换的工作摘要；承诺由宿主保留和处理，不让摘要遗漏直接删除承诺。World Model 保留来源、证据、冲突和版本，摘要不能变成授权规则。
+原始输入和调用内容保存在 journal/CAS；Consciousness 维护当前事项与承诺；World 保存结构化知识、版本及来源。摘要、来源提取和设置应用分别保留进度，适合持续对话和中断恢复。
 
-## 已实现边界
+## 同一服务，多种读法
 
-当前是单机、单数据目录独占后台的原型。没有分布式调度、全面语义验收、历史 GC、长期真实使用稳定性证明，也没有社交、GitHub、移动端、语音或生命体征完整集成。旧设计的目标不自动构成当前能力。
-
-实现依据：[Host](../src/pi_secretary/src/host.ts)、[Scheduler](../src/pi_secretary/src/scheduler.ts)、[Authorization](../src/pi_secretary/src/authorization.ts)、[Store](../src/pi_secretary/src/store.ts)。
-
-
-## 客户端使用公开合同
-
-ApplicationService 将业务模块与界面分离。当前本机 owner 使用 API v1，GET 为纯业务读取，POST 通过 request_id 与持久回执对账。202 证明受理，不证明外部效果完成。旧 TUI/WebUI 不再提供兼容协议，后续 SwiftUI 和可选新版 TUI 必须消费同一新合同。
-
-显示名、阅读位置与人格设置分属不同职责：显示名保存于 AssistantProfile，阅读位置由客户端管理，UserInstructions 的行为变化必须经过 Settings 整理和上下文重建。接口预留、历史原型与真实功能验收应分别标明。
+命令以 request_id 对账，查询以资源 ID、版本和游标读取。客户端负责页面和阅读体验，Core 负责业务状态。当前实现细节见各模块手册，后续工作统一列在[开发路线](../README.md#开发路线)。
