@@ -1,5 +1,7 @@
 # Settings 与 World 生效
 
+SettingsSource 冻结完整摘要/提取证据；新 Context 的原文窗口使用与普通整理相同的选择器，并计入实际 system 和工具声明。候选退出回执只有与 APPLIED 一起提交才生效；失败候选不改变退出事实。索引故障时承接最后回执，不回填已退出原文，也不新增退出。旧来源身份不明确时继续保护，已认证包装来源损坏时明确阻止发送。
+
 Settings 将有效说明、World 修改和运行配置切换统一为一次可恢复的应用。实现位于 [settings.ts](../src/pi_secretary/src/settings.ts)、[settings-memory.ts](../src/pi_secretary/src/settings-memory.ts) 和 [world.ts](../src/pi_secretary/src/world.ts)。
 
 ## 草稿与应用

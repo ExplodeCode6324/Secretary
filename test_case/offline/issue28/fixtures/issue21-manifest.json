@@ -1,0 +1,6 @@
+{
+  "commit": "4f152a7",
+  "schema_sha256": "0a0f752212000a1f7e4babdc41ce6609dfa9df7bcfb3ecf01e5da982aa7ef81c",
+  "snapshot_sha256": "cc2ddc970948e55e1f98880f333415ffe810b25631fcb0b9142ff810772e078d",
+  "scope": "Strict Store contract reading boundary; synthetic companion Consciousness snapshot, no old runtime execution"
+}

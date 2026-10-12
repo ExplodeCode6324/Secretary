@@ -24,6 +24,7 @@
 | `memory_source_ref` | ObjectRef | 否 |  关联：[ObjectRef](ObjectRef.md) |
 | `memory_updated_at` | Time | 否 |  关联：[Time](Time.md) |
 | `context_compaction` | null 或 object | 否 |  关联：[ID](ID.md), [ObjectRef](ObjectRef.md) |
+| `input_projection_ref` | ObjectRef | 否 |  关联：[ObjectRef](ObjectRef.md) |
 
 ## 组合约束
 

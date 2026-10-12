@@ -26,6 +26,7 @@ import {
   type SettingsSource,
   type SettingsCandidate,
 } from "./settings-memory.ts";
+import { inputWindowConfig } from "./input-projection.ts";
 import { budgetConfig } from "./budget.ts";
 import { SUMMARY_POLICY } from "./summary.ts";
 const DRAFT_ID = "21b45476-750e-44ae-82f9-5b6f49a7377c";
@@ -46,6 +47,7 @@ export class Settings {
       JSON.stringify({
         policy_version: "settings-memory-v3",
         summary_policy: SUMMARY_POLICY,
+        input_window: inputWindowConfig(),
         main_budget: budgetConfig("main"),
         task_budget: budgetConfig("task"),
         model: [
@@ -533,14 +535,26 @@ export class Settings {
         throw Error("INSTRUCTIONS_CONFLICT");
       // Build and capacity-check before database writes. Orphan snapshots are immutable audit only.
       if (!a.context_id) {
+        await this.world?.memorySearch.catchUp();
+        const projection = this.host.prepareSettingsInputs(
+          key,
+          source,
+          rebuiltMessages(source, candidate, key, current.revision + 1),
+          changes.instructions?.content ?? settings.content,
+        );
         const context = this.host.prepareSettingsContext(
           key,
           changes.instructions?.content ?? settings.content,
           changes.instructions ? settings.revision + 1 : settings.revision,
-          rebuiltMessages(source, candidate, key, current.revision + 1),
+          projection.messages,
           current.revision + 1,
         );
-        a = this.update(key, { context_id: context.id });
+        a = this.update(key, {
+          context_id: context.id,
+          ...(projection.receiptRef
+            ? { input_projection_ref: projection.receiptRef }
+            : {}),
+        });
       }
       if (changes.world.length) {
         if (!this.world) throw Error("WORLD_UNAVAILABLE");
@@ -597,6 +611,9 @@ export class Settings {
           settings_application_id: key,
           maintenance_version: 3,
           context_compaction: null,
+          ...(a.input_projection_ref
+            ? { input_projection_ref: a.input_projection_ref }
+            : {}),
           memory_source_ref: this.store.get<import("./contracts.ts").Context>(
             "Context",
             a.context_id!,

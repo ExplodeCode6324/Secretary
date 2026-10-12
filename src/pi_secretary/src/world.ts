@@ -30,6 +30,9 @@ export class World {
       connectionTimeoutMillis: 5000,
     });
     this.memorySearch = new MemorySearch(store, this.pool);
+    // Idle connections can fail outside a query promise. Keep the disposable
+    // projection unavailable until a fresh connection validates its checkpoint.
+    this.pool.on("error", (error) => this.memorySearch.unavailable(error));
   }
   async migrate() {
     const db = await this.pool.connect();

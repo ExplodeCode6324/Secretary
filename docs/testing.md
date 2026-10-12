@@ -1,5 +1,7 @@
 # 测试与验证
 
+Issue #21/#28 联合验收包含 200 轮 Host、50 次累计覆盖、PG 故障/修复、Settings/重启、提取补试和固定 #21 合同回退边界。真实模型单独执行 [test-issue21-28-live.ts](../test_case/online/test-issue21-28-live.ts)，需要专用测试 DSN、已有凭据文件和私有证据目录；不以 fixture 或原文仍在请求中的回忆代替历史找回。该脚本最多 100 次发送、40 分钟总预算、单次 90 秒，保存实际 transport 和首轮失败。数据库由 withTestDatabase 创建并只清理本场景库。
+
 ## Issue #9 同步与通知验收
 
 `npx tsx --test --test-concurrency=1 test_case/offline/issue9/*.test.ts` 覆盖持久位置/分叉、完整事务与字节退化、共同分页、最小客户端落盘/乱序、实际 SIGKILL、SSE/心跳/暂停 TCP/连接清理、瞬态预览、通知原子展示/幂等/Unicode、纯读与真实 PostgreSQL outbox。记忆来源和实际维护继续跑 issue3 commitment/provenance；原负例保持，新增展示证据负例纳入 issue9。高负载与崩溃用例串行运行。CI 必须提供专用 SECRETARY_TEST_DATABASE_URL（场景自动建独立库），World 不允许 skip。

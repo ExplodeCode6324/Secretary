@@ -1666,6 +1666,9 @@
               "additionalProperties": false
             }
           ]
+        },
+        "input_projection_ref": {
+          "$ref": "#/$defs/ObjectRef"
         }
       },
       "required": [
@@ -5944,6 +5947,9 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9007199254740991
+        },
+        "input_projection_ref": {
+          "$ref": "#/$defs/ObjectRef"
         }
       },
       "required": [
@@ -6961,6 +6967,72 @@
           }
         }
       ]
+    },
+    "InputCoverageSnapshot": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "journal_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "journal_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "settings_application_id": {
+          "$ref": "#/$defs/ID"
+        }
+      },
+      "required": [
+        "version",
+        "session_id",
+        "journal_sequence",
+        "journal_digest"
+      ],
+      "additionalProperties": false
+    },
+    "InputProjectionReceipt": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "policy_id": {
+          "$ref": "#/$defs/Digest"
+        },
+        "considered_journal_sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "coverage_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "window_input_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "maxItems": 100,
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "version",
+        "session_id",
+        "policy_id",
+        "considered_journal_sequence",
+        "coverage_ref",
+        "window_input_ids"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [

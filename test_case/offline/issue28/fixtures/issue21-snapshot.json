@@ -1,0 +1,14 @@
+[
+  {
+    "schema_version": 1,
+    "record_type": "Consciousness",
+    "id": "00000000-0000-4000-8000-000000000001",
+    "revision": 1,
+    "updated_at": "2026-10-12T00:00:00Z",
+    "session_id": "00000000-0000-4000-8000-000000000002",
+    "items": [],
+    "pending_raw_refs": [],
+    "covered_event_ids": [],
+    "last_job_id": null
+  }
+]
