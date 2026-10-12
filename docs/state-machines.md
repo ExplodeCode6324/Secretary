@@ -25,7 +25,7 @@ DIRECTORY 在 DISPATCHING、RUNNING、WAIT_AUTH、WAIT_DECISION、CANCEL_REQUEST
 
 Scope 从 ACTIVE 归档为 ARCHIVED。归档后停止接受该范围的新提案和未启动工作，已取得占用的执行继续完成。根目录、类型的更新影响未来 Execution；已创建的绑定保持原值。前置条件可返回 SCOPE_BUSY、SCOPE_ARCHIVED、SCOPE_ROOT_CONFLICT。
 
-结束执行先保留 HOT，满足留存条件后经 ARCHIVE_PENDING 转 RETIRED；默认保留窗口 48 小时，显式 viewed 可续留。历史记录仍保存在 Store。
+结束执行先保留 HOT，满足留存条件后保存归档清单并转 RETIRED；默认保留窗口 48 小时，显式 viewed 可续留。历史记录仍保存在 Store。
 
 ## Operation 与未知结果
 
