@@ -1,6 +1,12 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { World } from "./world.ts";
-import type { Scope, WorldChange, WorldCommand } from "./contracts.ts";
+import type {
+  Input,
+  OperationLogRecord,
+  Scope,
+  WorldChange,
+  WorldCommand,
+} from "./contracts.ts";
 import { hash, id, now } from "./store.ts";
 import { stableID } from "./scheduler.ts";
 
@@ -167,14 +173,22 @@ export async function proposeWorld(
   if (!eventIDs.length) throw Error("EVIDENCE_REQUIRED");
   if (eventIDs.length > 20 || new Set(eventIDs).size !== eventIDs.length)
     throw Error("INVALID_SOURCE_EVENTS");
+  const isMasterStatement = (event: OperationLogRecord) => {
+    if (event.actor !== "MASTER_UI" || event.event_type !== "input.accepted")
+      return false;
+    const input = world.store.read<Input>(event.payload);
+    return input.record_type === "Input" && input.producer === "MASTER";
+  };
   const events = eventIDs.map((eventID) => {
     const event = world.store.logs.find((e) => e.event_id === eventID);
     if (!event || event.scope.session_id !== scope.session_id)
       throw Error("SOURCE_EVENT_MISMATCH");
     world.store.bytes(event.payload);
+    if (event.actor === "MASTER_UI" && !isMasterStatement(event))
+      throw Error("SOURCE_EVENT_NOT_STATEMENT");
     return event;
   });
-  const sourceKind = events.every((e) => e.actor === "MASTER_UI")
+  const sourceKind = events.every(isMasterStatement)
     ? "MASTER"
     : events.every((e) =>
           ["execution.finished", "feedback.delivered"].includes(e.event_type),

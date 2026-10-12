@@ -1026,7 +1026,7 @@ export class Host {
         name: "memory_read",
         label: "Read memory",
         description:
-          "Read working memory, original event text slices, or paginated World facts. Log offsets/lengths are Unicode code points; follow next_offset for full text. World subject accepts ID, name or alias; ambiguity returns candidates. Use predicate and cursor to reach facts beyond the first page.",
+          "Read working memory, original event text slices, or paginated World facts. Log offsets/lengths are Unicode code points; follow next_offset for full text. World subject accepts ID, name or alias; ambiguity returns candidates. Provide only one non-null subject or legacy subject_id selector. Use predicate and cursor to reach facts beyond the first page.",
         parameters: Type.Object({
           source: Type.Union([
             Type.Literal("world"),
@@ -1046,6 +1046,10 @@ export class Host {
           if (args.source === "world") {
             if (!this.world)
               throw Error("WORLD_UNAVAILABLE: PostgreSQL not configured");
+            if (args.subject !== undefined && args.subject_id != null)
+              throw Error(
+                "SELECTOR_CONFLICT: use only one World subject selector",
+              );
             return this.memoryToolResult(
               await readWorld(this.world, {
                 subject: args.subject ?? args.subject_id,
