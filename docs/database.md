@@ -1,12 +1,12 @@
 # PostgreSQL schema
 
-当前 World Model 使用 `wm` schema；Session、Task、授权规则、Context 与 Consciousness 存储在本地 journal，不是 PostgreSQL 表。
+World Model 权威事实使用 `wm` schema；可重建的历史正文索引使用 `mem` schema。Session、Task、授权规则、Context 与 Consciousness 存储在本地 journal，不是 PostgreSQL 表。
 
-权威 SQL：[001_world_model.sql](../src/schema/001_world_model.sql)、[002_predicates.sql](../src/schema/002_predicates.sql)、[003_settings.sql](../src/schema/003_settings.sql)、[queries.sql](../src/schema/queries.sql)。执行仓储：[world.ts](../src/pi_secretary/src/world.ts)。
+权威 SQL：[001_world_model.sql](../src/schema/001_world_model.sql)、[002_predicates.sql](../src/schema/002_predicates.sql)、[003_settings.sql](../src/schema/003_settings.sql)、[004_memory_search.sql](../src/schema/004_memory_search.sql)、[queries.sql](../src/schema/queries.sql)。执行仓储：[world.ts](../src/pi_secretary/src/world.ts)。
 
 ## 迁移与事务
 
-World.migrate 使用 advisory lock 串行化迁移；不存在 schema_version 时执行基线，再应用 predicate seed 并记录版本 2，最后执行增加 settings_batch_receipt 的版本 3 迁移。基线/seed 自带事务；migrate 在失败时 rollback 并释放锁。当前入口为 owner 显式 POST /api/v1/admin/world/migrate，再按请求回执确认；Core CLI 不处理 --migrate。
+World.migrate 使用 advisory lock 串行化迁移；不存在 schema_version 时执行基线，再应用 predicate seed 并记录版本 2，再执行 settings_batch_receipt 的版本 3 和 mem/aliases 的版本 4 迁移。基线/seed 自带事务；migrate 在失败时 rollback 并释放锁。当前入口为 owner 显式 POST /api/v1/admin/world/migrate，再按请求回执确认；Core CLI 不处理 --migrate。
 
 变更通过 Settings 协调器先摘要并预检 context。认证 local-owner 的 Settings API 记录明确应用证据；模型提案仍经授权。数据库事务检查实体、predicate 与 slot revision；整批原子提交并保存 settings_batch_receipt。change_id/request_id/request_hash 支持回执去重和冲突检查。assertion、状态投影、冲突、证据、change_receipt 与 audit_outbox 在事务中提交；JSONL 审计导出属于独立可恢复桥接。
 
@@ -202,6 +202,45 @@ application_id uuid PRIMARY KEY,
     committed_at timestamptz NOT NULL DEFAULT now()
 ```
 
+### mem.document
+
+```sql
+source_id text NOT NULL,
+    event_id uuid NOT NULL,
+    log_sequence bigint NOT NULL,
+    occurred_at timestamptz NOT NULL,
+    kind text NOT NULL CHECK (kind IN ('input','reply','task','notification')),
+    session_id uuid,
+    scope_id uuid,
+    task_id uuid,
+    body_hash text NOT NULL,
+    PRIMARY KEY (source_id,event_id)
+```
+
+### mem.chunk
+
+```sql
+source_id text NOT NULL,
+    event_id uuid NOT NULL,
+    chunk_index integer NOT NULL,
+    body_offset integer NOT NULL,
+    body text NOT NULL,
+    PRIMARY KEY (source_id,event_id,chunk_index),
+    FOREIGN KEY (source_id,event_id) REFERENCES mem.document ON DELETE CASCADE
+```
+
+### mem.checkpoint
+
+```sql
+singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+    source_id text NOT NULL,
+    policy_version integer NOT NULL,
+    journal_sequence bigint NOT NULL,
+    journal_digest text NOT NULL,
+    document_count bigint NOT NULL,
+    chunk_count bigint NOT NULL
+```
+
 ## 索引、触发器与读模型
 
 assertion_state 以部分唯一索引保证每个 slot 至多一个 ACTIVE；conflict 每个 slot 至多一个 OPEN。来源/slot 时间索引支持事实读取，pending_audit_exports 支持未导出事件扫描。
@@ -217,3 +256,13 @@ World 仓储使用 Ajv 验证 predicate.value_schema，并检查证据对象和 
 ## 数据库配置
 
 World 使用专用数据库，连接角色和备份由部署环境配置。DDL 撤销 PUBLIC 权限；Core 的 owner 授权在应用层处理。
+
+## 历史检索与别名
+
+版本 4 安装 pg_trgm，增加 wm.entity.aliases（非空 text[]，默认空数组），并建立 mem.document、mem.chunk 与 mem.checkpoint。别名经 Settings/WorldCatalogChange 授权维护；旧 ENTITY 编辑缺省保留已有别名。实体名称或别名有多个匹配时返回候选。
+
+检索投影从 journal 事务帧有界推进，完整正文按 Unicode 边界分块，正文与水位同事务提交。水位绑定来源、策略版本与 journal digest；重启发现来源不符或数据缺失则重建。wm 权威事实不受索引重建影响。
+
+正文使用 GIN pg_trgm 与参数化字面 ILIKE，按事件去重、时间倒序和稳定事件键返回。时间范围为 [from,to)，过滤联合生效；SQL 超时为 5 秒并返回 search_timeout。locale 决定 trigram 提取，中文命中与性能在实际 locale 下分别验证。两字模式可能退化为扫描。
+
+部署验收只读核对 server_version、datctype、datcollate、datlocprovider、datlocale 与 datcollversion；配置不同则在匹配隔离库重复中文验证。业务数据实例不用于测试。原文从 journal/CAS 分片读取，mem 可重建。

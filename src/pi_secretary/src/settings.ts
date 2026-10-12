@@ -388,6 +388,7 @@ export class Settings {
             entity_kind: edit.entity_kind!,
             display_name: edit.display_name!,
             external_key: edit.external_key ?? null,
+            ...(edit.aliases === undefined ? {} : { aliases: edit.aliases }),
             source_id: null,
             source_kind: null,
             source_key: null,

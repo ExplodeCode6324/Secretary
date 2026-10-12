@@ -5,6 +5,7 @@ import * as path from "node:path";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import { Store, base, id, now, hash, revise, shape, root } from "./store.ts";
 import { Authorization } from "./authorization.ts";
+import { MemorySearch } from "./memory-search.ts";
 import type {
   WorldChange,
   WorldCatalogChange,
@@ -14,6 +15,7 @@ import type {
 } from "./contracts.ts";
 export class World {
   readonly pool: Pool;
+  readonly memorySearch: MemorySearch;
   readonly configurationHash: string;
   coordinate?: (command: WorldCommand) => void;
   constructor(
@@ -22,7 +24,12 @@ export class World {
     dsn: string,
   ) {
     this.configurationHash = hash(dsn);
-    this.pool = new Pool({ connectionString: dsn, max: 2 });
+    this.pool = new Pool({
+      connectionString: dsn,
+      max: 2,
+      connectionTimeoutMillis: 5000,
+    });
+    this.memorySearch = new MemorySearch(store, this.pool);
   }
   async migrate() {
     const db = await this.pool.connect();
@@ -56,6 +63,12 @@ export class World {
       await db.query(
         fs.readFileSync(path.join(root, "src/schema/003_settings.sql"), "utf8"),
       );
+      await db.query(
+        fs.readFileSync(
+          path.join(root, "src/schema/004_memory_search.sql"),
+          "utf8",
+        ),
+      );
     } catch (error) {
       await db.query("ROLLBACK").catch(() => {});
       throw error;
@@ -63,6 +76,8 @@ export class World {
       await db.query("SELECT pg_advisory_unlock(784316092)").catch(() => {});
       db.release();
     }
+    this.memorySearch.invalidate();
+    await this.memorySearch.catchUp();
   }
 
   propose(change: WorldChange | WorldCatalogChange, scope: Scope) {
@@ -269,16 +284,27 @@ export class World {
       throw Error("REVISION_CONFLICT");
     if (!old.rowCount)
       await db.query(
-        "INSERT INTO wm.entity(entity_id,kind,display_name,external_key) VALUES($1,$2,$3,$4)",
-        [c.entity_id, c.entity_kind, c.display_name, c.external_key],
+        "INSERT INTO wm.entity(entity_id,kind,display_name,external_key,aliases) VALUES($1,$2,$3,$4,$5)",
+        [
+          c.entity_id,
+          c.entity_kind,
+          c.display_name,
+          c.external_key,
+          normalizedAliases(c.aliases ?? []),
+        ],
       );
     else {
       if (old.rows[0].retired_at) throw Error("ENTITY_RETIRED");
       if (old.rows[0].kind !== c.entity_kind)
         throw Error("ENTITY_KIND_IMMUTABLE");
       await db.query(
-        "UPDATE wm.entity SET display_name=$2,external_key=$3,revision=revision+1,updated_at=now() WHERE entity_id=$1",
-        [c.entity_id, c.display_name, c.external_key],
+        "UPDATE wm.entity SET display_name=$2,external_key=$3,aliases=COALESCE($4,aliases),revision=revision+1,updated_at=now() WHERE entity_id=$1",
+        [
+          c.entity_id,
+          c.display_name,
+          c.external_key,
+          c.aliases === undefined ? null : normalizedAliases(c.aliases),
+        ],
       );
     }
     return { entity_id: c.entity_id, revision: c.expected_revision + 1 };
@@ -817,6 +843,19 @@ export class World {
     ).rows;
   }
   async close() {
+    await this.memorySearch.idle();
     await this.pool.end();
   }
+}
+
+function normalizedAliases(aliases: string[]) {
+  const unique = new Map<string, string>();
+  for (const value of aliases) {
+    const alias = value.trim();
+    if (!alias) continue;
+    if (Array.from(alias).length > 128) throw Error("INVALID_ENTITY_ALIAS");
+    unique.set(alias.toLowerCase(), alias);
+  }
+  if (unique.size > 20) throw Error("TOO_MANY_ENTITY_ALIASES");
+  return [...unique.values()];
 }

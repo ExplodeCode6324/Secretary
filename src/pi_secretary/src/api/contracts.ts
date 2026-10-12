@@ -97,6 +97,12 @@ export type WorldEdit = {
   valid_from?: string;
   valid_to?: string | null;
   fresh_until?: string | null;
+  /**
+   * 实体别名；缺省时保留已有值，空数组清空。
+   *
+   * @maxItems 20
+   */
+  aliases?: string[];
 };
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema

@@ -22,6 +22,8 @@ payload.instructions 包含 content 和有效说明 expected_revision，null 表
 
 World 目录提供实体、predicate 和来源，facts 提供当前或历史陈述，slot 提供精确 revision。同批可创建实体并引用它登记事实。
 
+ENTITY 编辑可带 aliases（最多 20 个、每个最多 128 字）；去空白、去重后保存。缺省 aliases 保留已有值，空数组清空。名称/别名可用于主会话 World 查询，多个匹配会返回候选；新实体仍由 Settings 创建。
+
 更正新增 assertion，并把旧陈述标为 SUPERSEDED；撤回标为 RETRACTED。默认查询读取当前状态与有效时间，history 查询展开历史。实体类型保持固定；停用存在 ACTIVE / SUPPORTING / CONTESTED 引用的实体时返回关联冲突，便于先处理引用。
 
 World 事务保存来源、证据、变更回执和审计 outbox。字段与 SQL 约束见[数据库参考](database.md)。

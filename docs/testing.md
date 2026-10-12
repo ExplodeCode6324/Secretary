@@ -8,6 +8,8 @@
 
 ## 统一入口
 
+Issue #21 的 `test_case/offline/issue21/` 验证实际 PG 中文/字面查询、联合过滤、完整分块及分片、投影水位、重建和 World 结构化提案。`test_case/performance/memory-search.ts` 单独执行 10 万合成事件基线，要求专用测试 DSN 与 `SECRETARY_MEMORY_SEARCH_EVIDENCE` 私有输出路径；结果单列高命中两字查询、自然计划与延迟。该脚本的 first query 是批量写入后的首次查询，OS 冷缓存结果需由隔离集群另行记录。
+
 ```sh
 git submodule update --init --recursive
 npm ci

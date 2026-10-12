@@ -13,6 +13,7 @@ export type WorldEdit = {
     | "GOAL";
   display_name?: string;
   external_key?: string | null;
+  aliases?: string[];
   retire?: boolean;
   mode?: "ASSERT" | "CORRECT" | "RETRACT";
   subject_id?: string;

@@ -1,4 +1,10 @@
 import { presentedNotification } from "./notification-service.ts";
+import { readLog } from "./memory-search.ts";
+import {
+  proposeWorld,
+  readWorld,
+  recoveredWorldProposal,
+} from "./world-memory.ts";
 import { projectContext, buildCompaction } from "./context-projection.ts";
 import { assertRequestBudget, requestBudget, budgetConfig } from "./budget.ts";
 import {
@@ -47,8 +53,6 @@ import type {
   ModelCall,
   MemoryExtractionJob,
   Notification,
-  WorldChange,
-  WorldCatalogChange,
   MainPromptSnapshot,
 } from "./contracts.ts";
 import {
@@ -399,6 +403,28 @@ export class Host {
           );
           log = this.store.logs.at(-1)!;
         }
+        if (!log)
+          if (call.name === "memory_propose_change" && this.world) {
+            const recovered = recoveredWorldProposal(this.world, stableID(key));
+            if (recovered) {
+              this.store.commit(
+                [],
+                [
+                  this.store.event(
+                    "main.tool.result",
+                    { key, result: result(recovered) },
+                    {
+                      session_id: this.sessionID,
+                      task_id: null,
+                      execution_id: null,
+                    },
+                    "MAIN",
+                  ),
+                ],
+              );
+              log = this.store.logs.at(-1)!;
+            }
+          }
         if (!log)
           throw Error(
             "RECOVERY_BLOCKED: pending tool result requires reconciliation",
@@ -967,9 +993,40 @@ export class Host {
         },
       }),
       tool({
+        name: "memory_search",
+        label: "Search historical memory",
+        description:
+          "Search durable historical input, final replies, task summaries and notifications. Use it when past details are absent from context; cite event_id and read source slices as needed. Filters are optional; default searches all history. Unavailable/partial/timeout is not evidence of absence.",
+        parameters: Type.Object({
+          query: Type.String({ minLength: 1, maxLength: 256 }),
+          from: Type.Optional(Type.String()),
+          to: Type.Optional(Type.String()),
+          kinds: Type.Optional(
+            Type.Array(
+              Type.Union([
+                Type.Literal("input"),
+                Type.Literal("reply"),
+                Type.Literal("task"),
+                Type.Literal("notification"),
+              ]),
+            ),
+          ),
+          scope_id: Type.Optional(Type.String()),
+          task_id: Type.Optional(Type.String()),
+          limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
+        }),
+        execute: async (_call, args) =>
+          this.memoryToolResult(
+            this.world
+              ? await this.world.memorySearch.search(args)
+              : { status: "not_configured", hits: [] },
+          ),
+      }),
+      tool({
         name: "memory_read",
         label: "Read memory",
-        description: "Read working memory, logs or World Model.",
+        description:
+          "Read working memory, original event text slices, or paginated World facts. Log offsets/lengths are Unicode code points; follow next_offset for full text. World subject accepts ID, name or alias; ambiguity returns candidates. Use predicate and cursor to reach facts beyond the first page.",
         parameters: Type.Object({
           source: Type.Union([
             Type.Literal("world"),
@@ -977,31 +1034,37 @@ export class Host {
             Type.Literal("log"),
           ]),
           subject_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+          subject: Type.Optional(Type.String()),
+          predicate: Type.Optional(Type.String()),
+          cursor: Type.Optional(Type.String()),
+          limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
           event_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+          offset: Type.Optional(Type.Integer({ minimum: 0 })),
+          length: Type.Optional(Type.Integer({ minimum: 1, maximum: 4000 })),
         }),
         execute: async (_call, args) => {
           if (args.source === "world") {
             if (!this.world)
               throw Error("WORLD_UNAVAILABLE: PostgreSQL not configured");
-            return result(await this.world.read(args.subject_id ?? null));
+            return this.memoryToolResult(
+              await readWorld(this.world, {
+                subject: args.subject ?? args.subject_id,
+                predicate: args.predicate,
+                cursor: args.cursor,
+                limit: args.limit,
+              }),
+            );
           }
           if (args.source === "consciousness")
-            return result({
+            return this.memoryToolResult({
               ...this.store.get<Consciousness>(
                 "Consciousness",
                 this.session.consciousness_id,
               ),
               maintenance: this.memoryStatus(),
             });
-          return result(
-            args.event_id
-              ? this.store.logs
-                  .filter((e) => e.event_id === args.event_id)
-                  .map((e) => ({
-                    event: e,
-                    original: this.store.bytes(e.payload).toString(),
-                  }))
-              : this.store.logs.slice(-30),
+          return this.memoryToolResult(
+            readLog(this.store, args.event_id, args.offset, args.length),
           );
         },
       }),
@@ -1009,18 +1072,46 @@ export class Host {
         name: "memory_propose_change",
         label: "Propose World Model change",
         description:
-          "Submit a schema-valid WorldChange or WorldCatalogChange JSON. Backend authorization is mandatory.",
-        parameters: Type.Object({ change_json: Type.String() }),
-        execute: async (_call, args) => {
+          "Propose ASSERT, CORRECT or RETRACT facts using subject ID/name/alias and predicate key. ENTITY values use an entity selector. Correction/retraction requires target_fact_id. source_event_ids must reference real evidence; source_note is explanation only. Source registration and fact changes require owner authorization; use Settings to create missing entities.",
+        parameters: Type.Object({
+          intent: Type.Union([
+            Type.Literal("ASSERT"),
+            Type.Literal("CORRECT"),
+            Type.Literal("RETRACT"),
+          ]),
+          subject: Type.String(),
+          predicate: Type.String(),
+          value: Type.Optional(Type.Unknown()),
+          valid_from: Type.Optional(Type.String()),
+          target_fact_id: Type.Optional(Type.String()),
+          source_event_ids: Type.Optional(
+            Type.Array(Type.String(), { maxItems: 20 }),
+          ),
+          source_note: Type.Optional(Type.String({ maxLength: 2000 })),
+        }),
+        execute: async (call, args) => {
           if (!this.world) throw Error("WORLD_UNAVAILABLE");
-          const change = JSON.parse(args.change_json) as
-            WorldChange | WorldCatalogChange;
+          const inputs = new Set(
+            this.store
+              .all<Input>("Input")
+              .filter((i) => i.loop_id === loopID && i.producer === "MASTER")
+              .map((i) => i.id),
+          );
+          const events = this.store.logs
+            .filter(
+              (e) =>
+                e.event_type === "input.accepted" &&
+                inputs.has(this.store.read<Input>(e.payload).id),
+            )
+            .map((e) => e.event_id);
           return result(
-            this.world.propose(change, {
-              session_id: this.sessionID,
-              task_id: null,
-              execution_id: null,
-            }),
+            await proposeWorld(
+              this.world,
+              { session_id: this.sessionID, task_id: null, execution_id: null },
+              args,
+              call,
+              events,
+            ),
           );
         },
       }),
@@ -1062,6 +1153,53 @@ export class Host {
         },
       }),
     ]);
+  }
+  private memoryToolResult(value: unknown) {
+    const budget = requestBudget(
+      this.model,
+      this.agent?.state.messages ?? this.history(),
+    );
+    const remaining = Math.max(
+      0,
+      budget.usable_input_tokens - budget.estimated_tokens - 512,
+    );
+    const payload = structuredClone(value) as Record<string, any>;
+    const fits = () =>
+      Buffer.byteLength(JSON.stringify(payload)) + 256 <= remaining;
+    while (!fits()) {
+      if (
+        typeof payload.body === "string" &&
+        Array.from(payload.body).length > 32
+      ) {
+        payload.body = Array.from(payload.body)
+          .slice(0, Math.floor(Array.from(payload.body).length / 2))
+          .join("");
+        payload.next_offset = payload.offset + Array.from(payload.body).length;
+        payload.truncated = true;
+      } else if (Array.isArray(payload.hits) && payload.hits.length > 1) {
+        payload.hits.pop();
+        payload.truncated = true;
+      } else if (
+        payload.hits?.length === 1 &&
+        Array.from(payload.hits[0].snippet as string).length > 32
+      ) {
+        payload.hits[0].snippet = Array.from(payload.hits[0].snippet as string)
+          .slice(
+            0,
+            Math.floor(
+              Array.from(payload.hits[0].snippet as string).length / 2,
+            ),
+          )
+          .join("");
+        payload.truncated = true;
+      } else
+        return result({
+          status: "tool_result_capacity",
+          reason:
+            "Reduce length or limit; current request has no room for this memory result.",
+        });
+    }
+    return result(payload);
   }
   private memory() {
     return this.store.get<Consciousness>(
