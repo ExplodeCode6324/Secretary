@@ -1879,7 +1879,8 @@ export class Host {
       covered_event_sequence: cs.covered_event_sequence ?? null,
       input_projection_ref: cs.input_projection_ref ?? null,
       input_exit:
-        this.world?.memorySearch?.state === "ready"
+        this.world?.memorySearch?.state === "ready" &&
+        this.world.memorySearch.indexedSequence >= this.store.sequence
           ? "available"
           : "disabled_search_not_ready",
       search: this.world?.memorySearch?.status() ?? {

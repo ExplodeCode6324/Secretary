@@ -7,6 +7,26 @@ import type {
   Input,
 } from "../../../src/pi_secretary/src/contracts.ts";
 testPostgres(
+  "E6: a ready but stale index disables input-exit diagnostics until its watermark catches up",
+  (dsn) =>
+    scenario(dsn, async (app) => {
+      await app.world!.migrate();
+      await app.world!.memorySearch.catchUp();
+      assert.equal(app.host.memoryStatus().input_exit, "available");
+      app.host.accept("Synthetic watermark status source.");
+      assert.equal(app.world!.memorySearch.state, "ready");
+      assert(app.world!.memorySearch.indexedSequence < app.store.sequence);
+      const status = app.host.memoryStatus();
+      assert("partial" in status.search && status.search.partial === true);
+      assert.equal(
+        app.host.memoryStatus().input_exit,
+        "disabled_search_not_ready",
+      );
+      await app.world!.memorySearch.catchUp();
+      assert.equal(app.host.memoryStatus().input_exit, "available");
+    }),
+);
+testPostgres(
   "E6: real SQL projection failure freezes exits through new summary, Settings and restart; repair resumes indexing",
   (dsn) =>
     scenario(

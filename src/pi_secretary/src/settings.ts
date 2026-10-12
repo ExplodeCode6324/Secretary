@@ -259,8 +259,12 @@ export class Settings {
       state:
         a.state === "BLOCKED" ? ("COMMITTING" as const) : ("QUEUED" as const),
       error: null,
+      // Revalidate candidate exits against current retrieval availability. A
+      // BLOCKED retry retains its summary and World receipt, not its request view.
+      context_id: null,
+      input_projection_ref: undefined,
       ...(a.state === "FAILED"
-        ? { source_ref: null, candidate_ref: null, context_id: null }
+        ? { source_ref: null, candidate_ref: null }
         : {}),
     });
     this.store.commit([next]);
@@ -551,9 +555,7 @@ export class Settings {
         );
         a = this.update(key, {
           context_id: context.id,
-          ...(projection.receiptRef
-            ? { input_projection_ref: projection.receiptRef }
-            : {}),
+          input_projection_ref: projection.receiptRef,
         });
       }
       if (changes.world.length) {
