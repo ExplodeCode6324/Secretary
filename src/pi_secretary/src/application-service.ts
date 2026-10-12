@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import type { App } from "./app.ts";
-import { base, id, now, revise, type Stored } from "./store.ts";
+import { base, id, now, revise, type Store, type Stored } from "./store.ts";
 import type {
   ApiCommand,
   CoreIdentity,
@@ -41,6 +41,19 @@ export type OwnerPrincipal = Readonly<{
   owner_id: string;
 }>;
 const IDENTITY = "995e1b45-b9e8-43e7-b0df-460814f2c7f1";
+/** The API and in-process terminal share the same durable local owner. */
+export function coreIdentity(store: Store): CoreIdentity {
+  const existing = store.find<CoreIdentity>("CoreIdentity", IDENTITY);
+  if (existing) return existing;
+  const identity: CoreIdentity = {
+    ...base(IDENTITY),
+    schema_version: 1,
+    record_type: "CoreIdentity",
+    owner_id: id(),
+  };
+  store.commit([identity]);
+  return identity;
+}
 const PROFILE = "1c5e07dd-0519-4266-8208-b00e9cbd997a";
 const longRoutes = new Set([
   "task-requests/:id/cancel",
@@ -82,16 +95,7 @@ export class ApplicationService {
     readonly stop?: () => void,
   ) {
     const store = app.store;
-    let identity = store.find<CoreIdentity>("CoreIdentity", IDENTITY);
-    if (!identity) {
-      identity = {
-        ...base(IDENTITY),
-        schema_version: 1,
-        record_type: "CoreIdentity",
-        owner_id: id(),
-      };
-      store.commit([identity]);
-    }
+    const identity = coreIdentity(store);
     this.identity = identity;
     this.changes = new SyncService(app, identity.owner_id, this.instanceID);
     this.notifications = new Notifications(store, identity.owner_id);

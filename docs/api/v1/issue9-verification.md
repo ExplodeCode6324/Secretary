@@ -2,7 +2,7 @@
 
 批准计划见 [fix 文档](../../fix/fix_20261012_issue9_轻量增量同步与通知已读.md)。基线为 `main@e342fc48`，实施分支为 `codex/issue9-plan`。旧 `39abcd47` 未合并或 cherry-pick，其历史测试不计入本批证据。
 
-## 本地结果
+## 初次实施的本地结果（f9b375e）
 
 Node 22.22.0；使用本批独立 PostgreSQL cluster，所有数据库场景由 helpers/postgres.ts 创建/删除独立库。未连接正式 World。原有 393 个未跟踪资料均保留，原始日志、源码前后 SHA-256、第一次失败和数据库资料保存在仓库外，不提交运行身份或真实业务数据。
 
@@ -58,3 +58,21 @@ Issue #9 共 22 项全部通过；承诺/来源 16 项全部通过。以下计�
 统计以本批实施相对批准计划提交为准（不混入先前计划的初次创建）。PR 的完整差异另包含两次计划提交。Linux CI 的最终提交状态以 PR Checks 为准。合并、Issue 关闭、部署均未执行。没有修改 Pi 子模块或设备线。
 
 Core 的协议与最小测试客户端已验证；真实 SwiftUI 缓存/水位持久化、系统通知和实际展示由 #10 验收，渠道发送由 #22 接入。本批使用受控模型 fixture，不宣称真实模型效果。journal 全量重放与索引增长沿用现有边界，历史回收/大历史性能留待 #24。
+
+## PR #37 审查修复
+
+Master 指定 `review_20261012_pr_issue9.md`，审查 head 为 `f9b375e`。B1、N1、N2 均采纳：
+
+| 项目 | 评估与修复 |
+| --- | --- |
+| B1 TUI 展示证据缺失 | 可直接运行的进程内 TerminalController 仍在使用。实际输出成功后，复用 Notifications 的校验、幂等和事件构造，将 `notification.presented` 与 SENT 更新写在同一 journal 事务。API 和 TUI 复用同一 CoreIdentity；TUI 固定注册一个本地客户端，重启保留首次展示证据。输出抛错时不写 SENT 或展示事件，不自动写 read_at。 |
+| N1 最后一页多一字节 | `false` 比 `true` 多一字节，严格预算不能使用占位值。按实际 has_more 和 next_cursor 计算完整 API 包装的 UTF-8 字节数；恰好 256 KiB 可返回，多一字节则停在前一完整事务。 |
+| N2 重复序列化 | 每个候选事务只序列化一次并累计字节数，另计数组逗号与空事务数组的实际外层开销，避免反复遍历已经加入的事务。 |
+
+没有不合理的 finding。未采用 B1 的删除/降级 TUI 方案：入口和既有进程测试仍可使用，移除会扩大兼容性变动；补充共享展示证据可以直接修复退化。
+
+新增 3 项回归首次执行均失败：成功 TUI 展示没有事件、显示失败后恢复仍缺事件，以及预算超一字节却返回两笔事务。原始失败日志与源码指纹保存在仓库外。新增用例验证 TUI 原子事务、失败显示、重复刷新/重启、无新增 Input/ModelCall、常规维护完成承诺，以及精确字节边界/Unicode/后续分页。既有承诺来源、通知 API 和实际 TUI 子进程测试保持。
+
+本轮定向命令为 `npx tsx --test --test-concurrency=1 test_case/offline/issue3/commitment.test.ts test_case/offline/issue3/provenance.test.ts test_case/offline/issue9/changes.test.ts test_case/offline/issue9/notifications.test.ts test_case/offline/runtime/tui.test.ts`：32 pass / 0 fail / 0 skip / 0 TODO，含实际 TUI 子进程。
+
+新的独立 PostgreSQL cluster 下，`npm run verify` 通过：529 项，**528 pass / 0 fail / 0 skip / 1 原有 TODO**，约 550 秒。同步组 23 项、承诺/来源 18 项全部通过。编译、改动文件 Prettier、git diff --check 和文档链接检查通过。源代码与测试在全量执行期间保持；本轮手写生产代码净增 53 行，schema/生成文件不变。Linux CI 以 PR #37 新 head 的 Checks 为准；此前 525 pass 是审查前 `f9b375e` 的结果。

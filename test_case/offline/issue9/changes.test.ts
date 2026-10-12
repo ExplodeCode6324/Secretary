@@ -4,10 +4,61 @@ import { fixture } from "./helpers.ts";
 import { base, id, now, revise } from "../../../src/pi_secretary/src/store.ts";
 import { SYNC_PAGE_BYTES } from "../../../src/pi_secretary/src/sync-service.ts";
 import { validate } from "../../../src/pi_secretary/src/api/protocol.ts";
+import type { SyncTransaction } from "../../../src/pi_secretary/src/api/contracts.ts";
 import type {
   Notification,
   Execution,
 } from "../../../src/pi_secretary/src/contracts.ts";
+
+test("FEED: exact final JSON byte boundary includes false, UTF-8 and commas without dropping a transaction", () =>
+  fixture(async (f) => {
+    const sync = f.server.service.changes,
+      after = f.cursor(),
+      start = f.app.store.sequence;
+    f.app.store.commit([]);
+    f.app.store.commit([]);
+    // Isolate response packing from projection generation; both transactions fit its per-transaction bound.
+    const changes = [1, 2].map(() => ({
+      kind: "invalidate" as const,
+      resource_type: "notifications",
+      query: "😀".repeat(30000),
+    }));
+    const transactions: SyncTransaction[] = changes.map((change, i) => ({
+      cursor: sync.cursor(start + i + 1),
+      changes: [change],
+    }));
+    const final = {
+      api_version: "1",
+      data: {
+        transactions,
+        next_cursor: transactions[1].cursor,
+        has_more: false,
+      },
+    };
+    const padding = SYNC_PAGE_BYTES - Buffer.byteLength(JSON.stringify(final));
+    changes[0].query += "x".repeat(Math.floor(padding / 2));
+    changes[1].query += "x".repeat(Math.ceil(padding / 2));
+    sync.transaction = (sequence) => transactions[sequence - start - 1];
+    const exact = sync.changes(after);
+    assert.equal(exact.transactions.length, 2);
+    assert.equal(exact.has_more, false);
+    assert.equal(
+      Buffer.byteLength(JSON.stringify({ api_version: "1", data: exact })),
+      SYNC_PAGE_BYTES,
+    );
+    changes[1].query += "x";
+    const first = sync.changes(after);
+    assert.equal(first.transactions.length, 1);
+    assert.equal(first.has_more, true);
+    assert(
+      Buffer.byteLength(JSON.stringify({ api_version: "1", data: first })) <=
+        SYNC_PAGE_BYTES,
+    );
+    const rest = sync.changes(first.next_cursor);
+    assert.deepEqual(rest.transactions, [transactions[1]]);
+    assert.equal(rest.next_cursor, f.cursor());
+    assert.equal(rest.has_more, false);
+  }));
 
 test("FEED: mutation-only, log-only and private transactions are ordered and bounded by inspected count", () =>
   fixture(async (f) => {

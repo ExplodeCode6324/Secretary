@@ -78,7 +78,8 @@ export class Notifications {
     }
     return index.values;
   }
-  presented(notificationID: string, clientID: string) {
+  /** Prepare validated evidence so local channel updates can share its transaction. */
+  presentationEvent(notificationID: string, clientID: string) {
     const n = this.store.get<Notification>("Notification", notificationID);
     const client = this.store.find<ClientRegistration>(
       "ClientRegistration",
@@ -86,7 +87,7 @@ export class Notifications {
     );
     if (!client || client.owner_id !== this.owner)
       throw new ApiError("FORBIDDEN", 403);
-    if (this.index().get(n.id)?.has(clientID)) return { status: "NO_CHANGES" };
+    if (this.index().get(n.id)?.has(clientID)) return null;
     const presented_at = now();
     const e = this.store.event(
       "notification.presented",
@@ -96,6 +97,11 @@ export class Notifications {
     );
     e.event_id = presentationID(n.id, clientID);
     e.occurred_at = presented_at;
+    return e;
+  }
+  presented(notificationID: string, clientID: string) {
+    const e = this.presentationEvent(notificationID, clientID);
+    if (!e) return { status: "NO_CHANGES" };
     this.store.commit([], [e]);
   }
   read(notificationID: string) {

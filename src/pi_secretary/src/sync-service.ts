@@ -266,21 +266,33 @@ export class SyncService {
     let position = this.position(after);
     const transactions: SyncTransaction[] = [];
     let next_cursor = after;
+    let transactionBytes = 0;
     for (
       let count = 0;
       position < this.store.sequence && count < limit;
       count++
     ) {
       const transaction = this.transaction(position + 1);
-      const candidate = {
+      const has_more = position + 1 < this.store.sequence;
+      const candidateBytes =
+        transactionBytes +
+        (transactions.length ? 1 : 0) +
+        Buffer.byteLength(JSON.stringify(transaction));
+      // Serialize each transaction once; count the actual cursor/boolean wrapper and commas.
+      const envelope = {
         api_version: "1",
         data: {
-          transactions: [...transactions, transaction],
+          transactions: [],
           next_cursor: transaction.cursor,
-          has_more: true,
+          has_more,
         },
       };
-      if (Buffer.byteLength(JSON.stringify(candidate)) > SYNC_PAGE_BYTES) break;
+      if (
+        candidateBytes + Buffer.byteLength(JSON.stringify(envelope)) >
+        SYNC_PAGE_BYTES
+      )
+        break;
+      transactionBytes = candidateBytes;
       transactions.push(transaction);
       next_cursor = transaction.cursor;
       position++;

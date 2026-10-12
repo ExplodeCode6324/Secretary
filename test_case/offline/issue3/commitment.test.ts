@@ -7,6 +7,7 @@ import { contentText } from "@earendil-works/pi-ai";
 import { App } from "../../../src/pi_secretary/src/app.ts";
 import { base, id, now, revise } from "../../../src/pi_secretary/src/store.ts";
 import { ApplicationService } from "../../../src/pi_secretary/src/application-service.ts";
+import { TerminalController } from "../../../src/pi_secretary/src/tui.ts";
 import { emptySettings } from "../../../src/pi_secretary/src/settings-payload.ts";
 import { getInstructions } from "../../../src/pi_secretary/src/instructions.ts";
 import { reconcileCommitments } from "../../../src/pi_secretary/src/memory.ts";
@@ -21,6 +22,8 @@ import type {
   Notification,
   TaskResult,
   CompactionJob,
+  ClientRegistration,
+  CoreIdentity,
 } from "../../../src/pi_secretary/src/contracts.ts";
 
 const promise = "收到执行结果后汇报；不轮询运行中任务";
@@ -129,7 +132,7 @@ async function introduce(app: App) {
   assert.equal(app.host.memoryStatus().state, "COMMITTED");
   assert.equal(memory(app).commitments?.[0].state, "OPEN");
 }
-async function deliver(app: App, result: TaskResult) {
+async function queue(app: App, result: TaskResult) {
   const tool = (app.host as any)
     .tools(id())
     .find((t: any) => t.name === "MasterInteract");
@@ -141,6 +144,10 @@ async function deliver(app: App, result: TaskResult) {
   );
   const queued = app.store.all<Notification>("Notification").at(-1)!;
   assert.equal(queued.state, "QUEUED");
+  return queued;
+}
+async function deliver(app: App, result: TaskResult) {
+  const queued = await queue(app, result);
   const api = new ApplicationService(app);
   const registration = api.command(api.principal, "clients", {
     request_id: id(),
@@ -172,6 +179,112 @@ function resolve(app: App, eventID: string, cs = memory(app), end = Infinity) {
     end,
   )[0].state;
 }
+
+test("Issue9 TUI: actual presentation atomically records SENT and evidence; maintenance completes reporting after restart", async () => {
+  await fixture(async ({ app, result, propose, reopen }) => {
+    await introduce(app);
+    const queued = await queue(app, result);
+    const output: string[] = [];
+    const inputs = app.store.all("Input").length;
+    const calls = app.store.all("ModelCall").length;
+    const ui = new TerminalController(app, (text) => output.push(text));
+    ui.refresh();
+    assert(
+      output.some((text) => text.includes(`${result.task_id}: SUCCEEDED`)),
+    );
+    const event = app.store.logs.findLast(
+      (e) => e.event_type === "notification.presented",
+    );
+    assert(
+      event,
+      "a successful TUI display must persist presentation evidence",
+    );
+    const payload = app.store.read<{ client_id: string; presented_at: string }>(
+      event.payload,
+    );
+    const client = app.store.get<ClientRegistration>(
+      "ClientRegistration",
+      payload.client_id,
+    );
+    assert.equal(
+      client.owner_id,
+      app.store.all<CoreIdentity>("CoreIdentity")[0].owner_id,
+    );
+    const transaction = app.store.projectionFrames.find((t) =>
+      t.log_records.some((e) => e.event_id === event.event_id),
+    )!;
+    assert(
+      transaction.mutations.some(
+        (m) =>
+          m.object_type === "Notification" &&
+          m.object_id === queued.id &&
+          app.store.read<Notification>(m.snapshot).state === "SENT",
+      ),
+    );
+    assert.equal(app.store.all("Input").length, inputs);
+    assert.equal(app.store.all("ModelCall").length, calls);
+    assert.equal(memory(app).commitments![0].state, "OPEN");
+    const sequence = app.store.sequence;
+    ui.refresh();
+    assert.equal(
+      app.store.sequence,
+      sequence,
+      "refresh does not repeat presentation writes",
+    );
+    app = await reopen();
+    const sent = app.store.get<Notification>("Notification", queued.id);
+    app.store.commit([revise(sent, { state: "QUEUED" })]);
+    new TerminalController(app, () => {}).refresh();
+    const events = app.store.logs.filter(
+      (e) => e.event_type === "notification.presented",
+    );
+    assert.equal(
+      events.length,
+      1,
+      "the stable local client retains first evidence across restart",
+    );
+    assert.deepEqual(
+      app.store.read(events[0].payload),
+      app.store.read(event.payload),
+    );
+    assert.equal(
+      app.store.all<ClientRegistration>("ClientRegistration").length,
+      1,
+    );
+    propose(event.event_id);
+    app.host.accept("Review the displayed synthetic result.");
+    await app.host.drain();
+    await app.host.compact();
+    assert.equal(memory(app).commitments![0].state, "COMPLETED");
+    assert.deepEqual(memory(app).commitments![0].resolution_event_ids, [
+      event.event_id,
+    ]);
+  });
+});
+
+test("Issue9 TUI: a failed display does not mark SENT or fabricate presented evidence", async () => {
+  await fixture(async ({ app, result }) => {
+    const queued = await queue(app, result);
+    const ui = new TerminalController(app, (text) => {
+      if (text.startsWith("Secretary · 通知 › "))
+        throw Error("SYNTHETIC_DISPLAY_FAILURE");
+    });
+    assert.throws(() => ui.refresh(), /SYNTHETIC_DISPLAY_FAILURE/);
+    assert.equal(
+      app.store.get<Notification>("Notification", queued.id).state,
+      "QUEUED",
+    );
+    assert(
+      !app.store.logs.some((e) => e.event_type === "notification.presented"),
+    );
+    new TerminalController(app, () => {}).refresh();
+    assert.equal(
+      app.store.logs.filter((e) => e.event_type === "notification.presented")
+        .length,
+      1,
+    );
+  });
+});
 
 test("Issue3 event-source promise: extraction → maintenance → real notification delivery → completion survives restart", async () => {
   await fixture(async ({ app, result, propose, reopen }) => {
