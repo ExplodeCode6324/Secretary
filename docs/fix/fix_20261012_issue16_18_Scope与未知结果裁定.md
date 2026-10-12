@@ -2,7 +2,7 @@
 
 - 日期：2026-10-12（Asia/Hong_Kong）
 - 关联 Issue：[#16](https://github.com/ExplodeCode6324/Secretary/issues/16)、[#18](https://github.com/ExplodeCode6324/Secretary/issues/18)；共同约束：[#7](https://github.com/ExplodeCode6324/Secretary/issues/7)
-- 文档状态：**已实施，待 Master 复核；PR 不合并**
+- 文档状态：**已完成实现与验收，Master 已批准合并**
 - 修订：2026-10-12 完成 Ayanami 审查逐项核实；S2 已由 Master 确认“仅 DIRECTORY 串行，NONE 可并行”，Master 已于 2026-10-12 授权按修订计划实施、验证并提交 PR，暂不合并。
 - N1 修订：采纳 Master 转述的无重连恢复方案；macOS 做真实进程验证，Linux 由 CI 覆盖。
 - 领取：两项均已指派给 `ExplodeCode6324`，执行者 Codex，按同一批次共同验收。
@@ -293,3 +293,10 @@ git diff --numstat
 - B3 确认并修复：archive 仅允许 ACTIVE → ARCHIVED。最新 revision 的新请求再次归档返回 SCOPE_ARCHIVED，Scope revision 与归档事件数量均不变；原 request_id 重放仍返回原回执。
 - B4 确认并修复：公开 Execution 增加必选 condition_results，定义 ConditionResult 与证据元数据形状并重新生成 API 类型。OpenAPI 沿用外部 schema 引用，重新生成后文件内容不变；测试沿 GET Execution 的引用验证到该新字段，同时覆盖三个 Scope 原因、非法状态及禁止泄露原始 CAS 引用。
 - #33 已重放到本轮 #32 修复提交。两项新增测试的首次失败分别为重复归档未拒绝和 schema 缺少 condition_results；修复后两项及既有 Scope 核心测试共 6/6 通过。期间新增测试的 TypeScript narrowing 错误已改为使用生成的 PublicExecution 类型，未放宽合同断言。#16 手写生产净增现为 410 行（+487/-77）。
+
+### 验收与合并批准（2026-10-12）
+
+- r2 独立复审在 #32 c80074c、#33 b6edb83 上确认 B1–B4、N1、N3 均通过，无剩余阻断项；N2 接受单独跟踪，N4 的进程身份保护开销接受。
+- 审查方独立定向测试 48/48；独立全量 427 项、410 pass、0 fail、16 个无 PG DSN 的 skip、1 个既有 AUD14 todo。实施方 macOS 与 Linux CI 的含 PG 全量均为 427 项、426 pass、0 fail、0 skip、1 todo。
+- Master 已确认满足条件后可以合并，并要求 N2 另开性能 Issue。已创建 [#34](https://github.com/ExplodeCode6324/Secretary/issues/34)，明确恢复 O(n²)、空闲 tick 扫描、索引一致性、性能基准及安全不变量；与 #24 协调，在 #9 的长期历史规模工作前处理。
+- #32 已合入 main（ec2304d）。#33 已 rebase 到该 main，rebase 前后完整文件树一致；本次只补验收记录，按批准条件等待 main 基线上的 CI 再次通过后合入。实际合并结果以 PR 记录为准。
