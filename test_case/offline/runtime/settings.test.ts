@@ -492,7 +492,10 @@ testPostgres(
     const dir = tmp(),
       app = await App.open(
         dir,
-        { model: fixtureModel, stream: fixtureStream },
+        {
+          model: { ...fixtureModel, contextWindow: 65536 },
+          stream: fixtureStream,
+        },
         dsn,
       );
     try {
