@@ -31,8 +31,22 @@ struct Notice: Decodable {
     let created_sequence: String; let read_at: String?; let presented: [Presentation]
     let content: NotificationContent
 }
+struct OperationText: Decodable {
+    let state: String; let text: String; let bytes: String; let content_version: String?
+    let truncated: Bool; let next_cursor: String?; let unavailable_reason: String?
+}
+struct OperationDisplay: Decodable {
+    let parameters: OperationText; let stdout: OperationText
+    let stderr: OperationText; let reason: OperationText; let source_truncated: Bool?
+}
+struct Operation: Decodable { let id: UUID; let revision: String; let display: OperationDisplay }
+struct Artifact: Decodable {
+    let id: UUID; let bytes: String; let relative_path: String?; let path_base: String
+    let scope_id: UUID?; let path_unavailable_reason: String?
+}
 struct Examples: Decodable {
     let core: Core; let receipt: Receipt; let message: Message
+    let operation: Operation; let artifact: Artifact
     let sync_cursor: SyncCursor; let sync_page: SyncPage; let notification: Notice
 }
 let examples = try JSONDecoder().decode(Examples.self, from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])))
@@ -48,4 +62,10 @@ precondition(examples.notification.read_at == nil)
 precondition(examples.notification.presented.count == 1)
 precondition(examples.notification.content.truncated)
 precondition(examples.notification.content.text.contains("😀"))
+precondition(examples.operation.display.stdout.text == "中文 😀")
+precondition(examples.operation.display.stderr.state == "available")
+precondition(examples.operation.display.stderr.text.isEmpty)
+precondition(examples.operation.display.source_truncated == nil)
+precondition(examples.artifact.relative_path == "reports/result.txt")
+precondition(UInt64(examples.artifact.bytes) == 9007199254740993)
 print("API v1 Swift decoding passed")

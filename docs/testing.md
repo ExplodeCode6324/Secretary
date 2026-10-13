@@ -43,6 +43,7 @@ SECRETARY_TEST_DATABASE_URL='<专用测试 DSN>' npm run verify
 | runtime、audit | 调度、授权、工作目录、时间线、流式预览、Store 与模型适配 |
 | issue2、issue3、issue5 | 容量、工作记忆、来源身份、承诺与设置后的历史投影 |
 | issue8 | Core 生命周期、owner API、幂等、分页、公开 DTO 与产物读取 |
+| issue10 | 操作文本有界续读、原回执保留、Scope 筛选、产物相对定位及 Swift 合同样例 |
 | issue20 | 文档检查器和 PostgreSQL 测试数据库隔离/清理 |
 | issue19 | 三次传输上限、维护退避、来源补提、成功响应/工具结果的崩溃恢复 |
 | issue16 | Scope 管理、冻结绑定、DIRECTORY 串行、NONE 并行、归档和接续 |
@@ -75,3 +76,5 @@ docs:check 检查 Git 跟踪 Markdown 的本地路径与迁移目标，新文件
 Issue #17 的 `test_case/offline/issue17/` 覆盖默认/显式授权、取消后继、remember 原子性与重启、只读命令正反例、Git argv 顺序及真实受控进程。历史审批回归显式使用 DIRECTORY + default_write=ask，继续断言未批准不写、路径替换拒绝和过期/版本冲突。
 
 `test_case/online/test-issue17-live.ts` 是单独执行的真实模型验收，需私有凭据及 `SECRETARY_ISSUE17_EVIDENCE` 目录。它使用隔离合成项目，验证默认放行、ask 停等/批准继续、合成未知结果不重复写入；模型调用有次数和时间预算，不加入默认 npm test。原始日志和凭据不提交。
+
+Issue #10 A0 的定向入口为 `npx tsx --test test_case/offline/issue10/*.test.ts`，覆盖大文本、Unicode、来源校验、游标隔离和 HTTP 认证。macOS 上使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift docs/api/v1/decode-examples.swift docs/api/v1/examples.json` 验证公开样例；它仅证明 DTO 解码，不代表原生界面验收。

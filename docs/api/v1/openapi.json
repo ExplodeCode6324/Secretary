@@ -2482,6 +2482,15 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "scope_id",
+            "in": "query",
+            "required": false,
+            "description": "Scope UUID, none for unbound tasks, omitted for all tasks. Filter is applied before pagination and bound into the cursor.",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -4188,7 +4197,7 @@
                       "const": "1"
                     },
                     "data": {
-                      "$ref": "./schema.json#/$defs/Operation"
+                      "$ref": "./schema.json#/$defs/OperationDetail"
                     }
                   }
                 }
@@ -4944,6 +4953,90 @@
                     },
                     "data": {
                       "$ref": "./schema.json#/$defs/Notification"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/operations/{id}/content": {
+      "get": {
+        "operationId": "get__api_v1_operations__id__content",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "part",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "parameters",
+                "stdout",
+                "stderr",
+                "reason"
+              ]
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/OperationText"
                     }
                   }
                 }

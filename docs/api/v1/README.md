@@ -1,6 +1,6 @@
 # Core API v1
 
-Core 为本机 owner 提供 64 项操作：37 GET、27 POST。公开合同包括 [JSON Schema](schema.json)、[操作表](operations.json)、生成的 [OpenAPI 3.1](openapi.json) 和 TypeScript DTO。客户端使用这些 DTO，内部 Store 记录另见[数据模型](../../data-model.md)。
+Core 为本机 owner 提供 73 项操作：44 GET、29 POST。公开合同包括 [JSON Schema](schema.json)、[操作表](operations.json)、生成的 [OpenAPI 3.1](openapi.json) 和 TypeScript DTO。客户端使用这些 DTO，内部 Store 记录另见[数据模型](../../data-model.md)。
 
 [CoreClient](../../../src/pi_secretary/src/core-client.ts) 负责发现和请求，返回结构化数据。[examples.json](examples.json) 与 [Swift 解码示例](decode-examples.swift) 展示精度、Unicode 和未知字段处理。原生页面设计见[客户端 v0.3](../../native-client-design-v0.3.md)。
 
@@ -12,7 +12,7 @@ Core 为本机 owner 提供 64 项操作：37 GET、27 POST。公开合同包括
 
 每个请求使用 `Authorization: Bearer <token>`，可带 `X-Secretary-API-Version: 1`。Host 使用发现地址，Origin 如存在也须匹配。认证产生 local-owner principal。ClientRegistration 用于登记客户端身份，权限由认证决定。
 
-Core stop 先持久受理再关闭；客户端退出后 Core 继续运行。旧 stop 请求在重启后仍返回原回执。当前入口均在 `/api/v1` 下，可靠同步、通知展示回执、设备和附件上传按后续路线扩展。
+Core stop 先持久受理再关闭；客户端退出后 Core 继续运行。旧 stop 请求在重启后仍返回原回执。当前入口均在 `/api/v1` 下，可靠同步与通知展示回执已提供；设备和附件上传按后续路线扩展。
 
 ## 命令与幂等
 
@@ -75,6 +75,20 @@ PublicTaskCommand 的验收字段是 `acceptance` 字符串数组；接续同时
 TaskCommand 可带 scope_id；接续省略或 null 时继承原任务范围。Execution 创建时固定目录绑定，同一 DIRECTORY 串行，NONE 可并行。condition_results 返回 condition_id、MET/NOT_MET/UNKNOWN、checked_at、evidence 和可空 reason，范围原因包括 SCOPE_BUSY、SCOPE_ARCHIVED、SCOPE_ROOT_CONFLICT。证据包含 content_version、字符串 bytes 和 media_type。
 
 `POST /operations/{id}/resolve` 接收 request_id、expected_revision、outcome、note。outcome 为 APPLIED / NOT_APPLIED / PARTIAL / UNVERIFIED，保存裁定后等待进程停止和其他未知项处理，再收束执行。`verify-write` 依据绑定目录和预期内容核验文件。Operation 查询公开 effect、resolution 摘要和 process_state，平台进程身份留在内部恢复记录。
+
+## 原生客户端读取投影（Issue #10 A0）
+
+`GET tasks?scope_id=<UUID>` 先按范围筛选再稳定分页；`scope_id=none` 只取无范围绑定任务，省略则返回全部。筛选条件绑定 cursor，不能跨范围复用。
+
+`GET operations/{id}` 返回 OperationDetail，增加 display.parameters/stdout/stderr/reason。Operation 列表不内联这些长文本；列表当前页遇到损坏回执仍报错，不影响未读取的其他页。每段都有 state、text、十进制 bytes、content_version、truncated、next_cursor、unavailable_reason；bytes 和散列针对完整公开文本，空字符串 available 与没有记录的 unavailable 不同。首次 parameters 最多 16 KiB，stdout/stderr 各 32 KiB，reason 4 KiB；整个详情含响应外层最多 256 KiB，必要时缩小各段。超大的基础元信息返回 RESPONSE_TOO_LARGE，不返回超预算详情。
+
+`GET operations/{id}/content?part=parameters|stdout|stderr|reason&cursor=...` 每次最多 32 KiB UTF-8 文本，完整响应含 JSON 转义不超过 256 KiB，不接受 limit。顺序拼接后才能解析 parameters/reason 的 JSON；分片不拆 Unicode 码点。cursor 绑定操作、部分、内容版本、数据域和当前服务实例；CURSOR_EXPIRED 后从该部分首段重读。display.source_truncated 为执行器是否已截断源输出（未知为 null），与本页 truncated 不同，续读不能恢复源输出丢弃的尾部。
+
+parameters 公开动作使用的参数；shell 内部环境、program 内部入口和工作区、证据 CAS 定位路径不公开。业务 JSON 值中的同名键保留。reason 包含状态、effect、记录的错误及超时/信号/退出码；人工裁定后 stdout/stderr 仍来自原回执，完整裁定说明位于 reason.resolution_note。resolution.note 过长时显示真实前缀并标记 note_truncated。原始文件丢失、损坏、符号链接、无记录、过深结构或过长键分别返回明确 unavailable 原因；首次读取流式校验源散列，不执行模型、工具、命令或 viewed 操作。Core 实例内最多缓存 16 MiB / 64 项已校验的公开文本，单段最多 8 MiB；缓存命中复核源文件的设备、inode、长度、纳秒 mtime/ctime 和常规文件状态。来源变化、丢失或 symlink 会失效并重新校验，超出缓存容量或淘汰后回退到流式读取；不落盘、不跨实例共享。详情先生成一次有界首片，再按完整 JSON 大小缩片，不重新读取来源。
+
+Artifact 新增 relative_path、path_base（scope/task/unknown）、scope_id 和 path_unavailable_reason。只显示执行固定绑定下的安全相对路径；绝对路径、越界片段、超过 4 KiB 的路径和没有历史绑定的信息不猜测，返回 unknown。路径只是显示定位，下载仍使用受认证的 artifact ID，不能用该字段直接打开本机文件。
+
+这批接口为简洁的原生功能界面提供合同；后续客户端美学设计独立于接口语义。
 
 ## 切换与回退
 

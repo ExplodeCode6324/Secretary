@@ -124,6 +124,14 @@ export type TimelineItem =
       activity: Activity;
       [k: string]: unknown;
     };
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "OperationDetail".
+ */
+export type OperationDetail = Operation & {
+  display: OperationDisplay;
+  [k: string]: unknown;
+};
 
 export interface ApiV1Definitions {}
 /**
@@ -562,6 +570,10 @@ export interface Artifact {
   bytes: string;
   media_type: string;
   state: string;
+  relative_path: string | null;
+  path_base: "scope" | "task" | "unknown";
+  scope_id: string | null;
+  path_unavailable_reason: string | null;
   [k: string]: unknown;
 }
 /**
@@ -960,10 +972,38 @@ export interface Operation {
     resolved_by: "MASTER_UI";
     note: string;
     resolved_at: string;
+    note_truncated?: boolean;
     [k: string]: unknown;
   } | null;
   process_state?: "STARTING" | "RUNNING" | "STOPPED" | "UNCONFIRMED" | null;
   scope_id?: string | null;
+  display?: OperationDisplay;
+  [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "OperationDisplay".
+ */
+export interface OperationDisplay {
+  parameters: OperationText;
+  stdout: OperationText;
+  stderr: OperationText;
+  reason: OperationText;
+  source_truncated: boolean | null;
+  [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "OperationText".
+ */
+export interface OperationText {
+  state: "available" | "unavailable";
+  text: string;
+  bytes: string;
+  content_version: string | null;
+  truncated: boolean;
+  next_cursor: string | null;
+  unavailable_reason: string | null;
   [k: string]: unknown;
 }
 /**
