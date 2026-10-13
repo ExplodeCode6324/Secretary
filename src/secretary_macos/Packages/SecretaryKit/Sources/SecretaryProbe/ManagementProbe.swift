@@ -62,19 +62,27 @@ extension Probe {
     // A second client changes a shared Scope; the first client's watched projection converges via SSE.
     _ = try await engine.refresh(Route("scopes"))
     let scope = try await get(MScope.self, "scopes/" + scopeID)
-    let update = try ManagementCommand.scope(id:scopeID,revision:scope.revision,name:"Updated synthetic Scope",description:"second client",root:nil,notes:nil,defaultWrite:"ask")
-    _ = try await transport.request(update.route,body:update.body)
+    let update = try ManagementCommand.scope(
+      id: scopeID, revision: scope.revision, name: "Updated synthetic Scope",
+      description: "second client", root: nil, notes: nil, defaultWrite: "ask")
+    _ = try await transport.request(update.route, body: update.body)
     do {
       try await withThrowingTaskGroup(of: Void.self) { group in
         group.addTask {
           try await engine.runStream {
             if let projection = try await engine.cached(Route("scopes")),
-              try Contract.decode(MScopePage.self,from:projection.data).items.contains(where: { $0.id == scopeID && $0.name == "Updated synthetic Scope" }) {
+              try Contract.decode(MScopePage.self, from: projection.data).items.contains(where: {
+                $0.id == scopeID && $0.name == "Updated synthetic Scope"
+              })
+            {
               throw ProbeSignal.observed
             }
           }
         }
-        group.addTask { try await Task.sleep(for:.seconds(10)); throw ClientError.unavailable }
+        group.addTask {
+          try await Task.sleep(for: .seconds(10))
+          throw ClientError.unavailable
+        }
         defer { group.cancelAll() }
         _ = try await group.next()
       }
@@ -112,7 +120,9 @@ extension Probe {
     let rule = rules.items.first!
     _ = try await send(.revision(.disableRule(rule.id), rule.revision))
     let disabled = try await get(MRulePage.self, "authorization-rules")
-    try require(disabled.items.first(where: { $0.id == rule.id })?.state == "DISABLED", "shared rule disabled")
+    try require(
+      disabled.items.first(where: { $0.id == rule.id })?.state == "DISABLED", "shared rule disabled"
+    )
     let rejected = try await get(MAuthorization.self, "authorizations/" + approvals[2])
     _ = try await send(.approval(rejected, choice: .reject))
     let grant = try await get(MAuthorization.self, "authorizations/" + approvals[0])
@@ -254,6 +264,12 @@ extension Probe {
       artifact, destination: identity, cache: cache, progress: { _ in })
     try require(
       try String(contentsOf: file, encoding: .utf8) == "native artifact 中文", "artifact bytes")
+    let large = try await get(MArtifact.self, "artifacts/" + manifest["largeArtifact"].string!)
+    let largeFile = try await engine.download(
+      large, destination: identity, cache: cache, progress: { _ in })
+    try require(
+      try Data(contentsOf: largeFile) == Data(repeating: 120, count: 4 * 1024 * 1024),
+      "chunked 4 MiB artifact bytes")
     await engine.disconnect()
     let reopened = try ClientEngine(databaseURL: db)
     _ = try await reopened.connect(endpoint: endpoint, expectedMode: "fixture")

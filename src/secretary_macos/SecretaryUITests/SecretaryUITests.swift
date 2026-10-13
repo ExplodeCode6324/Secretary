@@ -341,7 +341,13 @@ final class SecretaryUITests: XCTestCase {
   @MainActor
   private func managementNavigate(_ app: XCUIApplication, path: String) {
     if path == "tasks" || path == "artifacts" {
-      app.buttons[path == "tasks" ? "任务" : "产物"].click()
+      let label = path == "tasks" ? "任务" : "产物"
+      if app.buttons[label].exists {
+        app.buttons[label].click()
+      } else {
+        app.popUpButtons["更多"].click()
+        app.menuItems[label].click()
+      }
     } else {
       app.popUpButtons["设置"].click()
       app.menuItems[path == "scopes" ? "Scope" : "业务设置"].click()
@@ -382,7 +388,19 @@ final class SecretaryUITests: XCTestCase {
     pasteExact("GUI scoped task", into: goal)
     let scope = app.popUpButtons["taskScope"]
     XCTAssertTrue(scope.exists)
-    scope.click()
+    let more = app.buttons["moreScopes"]
+    XCTAssertTrue(more.waitForExistence(timeout: 10), "Fixture has more than thirty scopes")
+    more.click()
+    XCTAssertTrue(app.buttons["返回首批 Scope"].waitForExistence(timeout: 10))
+    app.buttons["返回首批 Scope"].click()
+    for _ in 0..<3 {
+      scope.click()
+      if app.menuItems["GUI Synthetic Scope"].exists { break }
+      app.typeKey(.escape, modifierFlags: [])
+      XCTAssertTrue(more.exists)
+      more.click()
+    }
+    XCTAssertTrue(app.menuItems["GUI Synthetic Scope"].exists)
     app.menuItems["GUI Synthetic Scope"].click()
     app.buttons["提交任务"].click()
     confirmManagement(app)
@@ -449,7 +467,7 @@ final class SecretaryUITests: XCTestCase {
     confirmManagement(app)
   }
   @MainActor
-  func testManagementArtifactDownload() throws {
+  func testManagementArtifactDownload() async throws {
     continueAfterFailure = false
     let directory = try fixtureDirectory()
     let manifest = try XCTUnwrap(
@@ -457,6 +475,7 @@ final class SecretaryUITests: XCTestCase {
         with: Data(contentsOf: URL(fileURLWithPath: directory + "/manifest.json")))
         as? [String: Any])
     let artifact = try XCTUnwrap(manifest["artifact"] as? String)
+    let revisedVersion = try XCTUnwrap(manifest["revisedVersion"] as? String)
     let app = application()
     app.launchEnvironment["SECRETARY_NATIVE_TEST_DATA_DIR"] =
       directory + "/management-artifact-client"
@@ -480,6 +499,26 @@ final class SecretaryUITests: XCTestCase {
     open.click()
     XCTAssertTrue(FileManager.default.fileExists(atPath: cache + "/" + files[0]))
     app.activate()
+    let profile = try await fixtureAPI(directory, path: "assistant")
+    _ = try await fixtureAPI(
+      directory, path: "assistant/profile",
+      body: [
+        "request_id": UUID().uuidString.lowercased(),
+        "expected_revision": try XCTUnwrap(profile["revision"] as? String),
+        "name": "PR2c artifact refresh fixture",
+      ])
+    app.activate()
+    XCTAssertTrue(app.staticTexts[revisedVersion].waitForExistence(timeout: 10))
+    XCTAssertFalse(
+      app.buttons["用系统打开已验证文件"].exists, "New metadata must invalidate the old verified URL")
+    app.buttons["下载／重试"].click()
+    XCTAssertTrue(app.buttons["用系统打开已验证文件"].waitForExistence(timeout: 10))
+    let refreshedFiles = try FileManager.default.contentsOfDirectory(atPath: cache)
+    XCTAssertTrue(
+      try refreshedFiles.contains {
+        try String(contentsOfFile: cache + "/" + $0, encoding: .utf8)
+          == "native artifact revised 中文"
+      })
   }
 
 }

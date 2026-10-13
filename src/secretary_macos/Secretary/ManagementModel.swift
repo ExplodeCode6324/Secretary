@@ -16,6 +16,8 @@ struct ManagementLocation: Equatable {
   @Published var location = ManagementLocation(path: "tasks", title: "任务")
   @Published var data: Data?
   @Published var scopes: [MScope] = []
+  @Published var scopeNextCursor: String?
+  @Published var scopePageCursor: String?
   @Published var fields: [String: String] = [:]
   @Published var payload: JSONValue = .null
   @Published var status = "尚未加载"
@@ -62,6 +64,10 @@ struct ManagementLocation: Equatable {
   }
   func attach(_ core: Core) async throws {
     epoch += 1
+    // Opaque page cursors belong to a Core instance; reconnect starts from the first page.
+    location.query.removeValue(forKey: "cursor")
+    scopePageCursor = nil
+    scopeNextCursor = nil
     let next = Identity(owner: core.owner_id, domain: core.data_domain_id, session: core.session_id)
     if next != identity {
       if identity != nil { location = .init(path: "tasks", title: "任务") }
@@ -72,6 +78,8 @@ struct ManagementLocation: Equatable {
       confirmedAt = nil
       commandStatus = ""
       scopes = []
+      scopeNextCursor = nil
+      scopePageCursor = nil
       downloaded = nil
       confirmation = nil
     }
@@ -123,6 +131,8 @@ struct ManagementLocation: Equatable {
     location = value
     confirmation = nil
     if changed {
+      scopeNextCursor = nil
+      scopePageCursor = nil
       commandStatus = ""
       data = nil
       fragments = [:]
@@ -201,10 +211,16 @@ struct ManagementLocation: Equatable {
       if ["tasks", "new-task", "scopes", "new-scope"].contains(location.path)
         || location.path.hasPrefix("tasks/")
       {
+        var scopeQuery = ["limit": "30"]
+        if let cursor = scopePageCursor { scopeQuery["cursor"] = cursor }
         let page = try Contract.decode(
-          MScopePage.self, from: await engine.query(Route("scopes"), destination: identity))
+          MScopePage.self,
+          from: await engine.query(
+            Route("scopes", query: scopeQuery),
+            destination: identity))
         try check(e, t)
         scopes = page.items
+        scopeNextCursor = page.next_cursor
       }
       if fields.isEmpty { initializeEditor() }
       try await reconcile(e, t)
@@ -254,7 +270,18 @@ struct ManagementLocation: Equatable {
       } else if p.hasPrefix("scopes/") {
         try read(MScope.self)
       } else if p.hasPrefix("artifacts/") {
-        try read(MArtifact.self)
+        let next = try Contract.decode(MArtifact.self, from: result)
+        let previous = decode(MArtifact.self)
+        if previous?.id != next.id || previous?.content_version != next.content_version
+          || previous?.bytes != next.bytes
+        {
+          // A refresh can change the selected content without changing the page.
+          navigationEpoch += 1
+          downloadTask?.cancel()
+          downloaded = nil
+          downloadProgress = 0
+          downloadStatus = previous == nil ? "" : "产物版本已变化，请重新下载并校验"
+        }
       } else if p.hasPrefix("operations/") {
         let operation = try Contract.decode(MOperation.self, from: result)
         if let display = operation.display {
@@ -424,6 +451,10 @@ struct ManagementLocation: Equatable {
     target.query["cursor"] = cursor
     await navigate(target)
   }
+  func scopePage(_ cursor: String?) async {
+    scopePageCursor = cursor
+    await refresh()
+  }
   func moreOperation(_ part: String, initial: MOperationText, id: String) async {
     let current = fragments[part] ?? initial
     guard let cursor = current.next_cursor, let engine, let identity else { return }
@@ -466,7 +497,9 @@ struct ManagementLocation: Equatable {
         let url = try await engine.download(artifact, destination: identity, cache: cache) {
           progress in
           await MainActor.run {
-            if e == self.epoch && n == self.navigationEpoch { self.downloadProgress = progress }
+            if e == self.epoch && n == self.navigationEpoch {
+              self.downloadProgress = max(self.downloadProgress, progress)
+            }
           }
         }
         guard e == epoch, n == navigationEpoch, online else { return }

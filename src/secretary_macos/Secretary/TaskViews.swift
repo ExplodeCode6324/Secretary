@@ -21,8 +21,14 @@ struct TaskListView: View {
         Text("全部").tag("all")
         Text("未关联").tag("none")
         ForEach(model.scopes, id: \.id) { Text($0.name).tag($0.id) }
+        if let selected = model.location.query["scope_id"], selected != "none",
+          !model.scopes.contains(where: { $0.id == selected })
+        {
+          Text("已选 Scope " + selected).tag(selected)
+        }
       }.frame(maxWidth: 400)
     }
+    ScopeOptionsControls(model: model)
     if let page = model.decode(MTaskPage.self) {
       if page.items.isEmpty { Text("暂无任务") }
       ForEach(page.items, id: \.id) { task in
@@ -47,7 +53,13 @@ struct TaskEditor: View {
       Picker("Scope", selection: model.field("scope")) {
         Text("不关联 Scope").tag("")
         ForEach(model.scopes.filter { $0.state == "ACTIVE" }, id: \.id) { Text($0.name).tag($0.id) }
+        if let selected = model.fields["scope"], !selected.isEmpty,
+          !model.scopes.contains(where: { $0.id == selected && $0.state == "ACTIVE" })
+        {
+          Text("已选 Scope " + selected).tag(selected)
+        }
       }.pickerStyle(.menu).accessibilityIdentifier("taskScope").frame(maxWidth: 500)
+      ScopeOptionsControls(model: model)
     } else {
       DetailText("任务 Scope", task?.scope_id ?? "未关联")
     }
@@ -82,6 +94,20 @@ struct TaskEditor: View {
         acceptance: lines(model.fields["acceptance"]), at: model.fields["at"],
         deadline: model.fields["deadline"], interval: Int(model.fields["interval"] ?? ""))
     }
+  }
+}
+struct ScopeOptionsControls: View {
+  @ObservedObject var model: ManagementModel
+  var body: some View {
+    HStack {
+      if model.scopePageCursor != nil {
+        Button("返回首批 Scope") { Task { await model.scopePage(nil) } }
+      }
+      if let cursor = model.scopeNextCursor {
+        Button("更多 Scope") { Task { await model.scopePage(cursor) } }.accessibilityIdentifier(
+          "moreScopes")
+      }
+    }.disabled(model.busy || !model.online)
   }
 }
 struct TaskDetailView: View {

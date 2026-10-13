@@ -17,6 +17,7 @@ import { withTestDatabase } from "../offline/helpers/postgres.ts";
 import type {
   Execution,
   TaskResult,
+  AssistantProfile,
 } from "../../src/pi_secretary/src/contracts.ts";
 
 async function run(dsn?: string) {
@@ -30,6 +31,17 @@ async function run(dsn?: string) {
     dsn,
   );
   if (app.world) await app.world.migrate();
+  if (process.argv[2] === "--ui") {
+    for (let n = 0; n < 35; n++)
+      app.scheduler.scopes.save({
+        name: `Paged Scope ${n}`,
+        description: "synthetic",
+        kind: "NONE",
+        root_path: null,
+        notes_path: null,
+        default_write: "ask",
+      });
+  }
   const task = app.scheduler.propose(
     "Native management synthetic artifacts",
     id(),
@@ -49,11 +61,20 @@ async function run(dsn?: string) {
     workspace_path: "result.txt",
     producing_operation_id: null,
   };
+  const largeArtifact = {
+    ...artifact,
+    artifact_id: id(),
+    content: app.store.put("x".repeat(4 * 1024 * 1024), "text/plain"),
+  };
+  const revisedContent = app.store.put(
+    "native artifact revised 中文",
+    "text/plain",
+  );
   app.store.commit([
     {
       ...result,
       ...base(),
-      artifacts: [artifact, { ...artifact, artifact_id: id() }],
+      artifacts: [artifact, largeArtifact],
     },
   ]);
   const approvals: string[] = [];
@@ -137,6 +158,8 @@ async function run(dsn?: string) {
       decision: decision.id,
       operations,
       artifact: artifact.artifact_id,
+      largeArtifact: largeArtifact.artifact_id,
+      revisedVersion: revisedContent.sha256,
       execution: execution.id,
       task: task.id,
       world: !!app.world,
@@ -144,6 +167,31 @@ async function run(dsn?: string) {
     { mode: 0o600 },
   );
   let passed = false;
+  // Test-only control is owned by the fixture; the app continues to read public HTTP.
+  let refreshedArtifact = false;
+  const refreshTimer =
+    process.argv[2] === "--ui"
+      ? setInterval(() => {
+          if (
+            refreshedArtifact ||
+            !app.store
+              .all<AssistantProfile>("AssistantProfile")
+              .some((p) => p.name === "PR2c artifact refresh fixture")
+          )
+            return;
+          refreshedArtifact = true;
+          app.store.commit([
+            {
+              ...result,
+              ...base(),
+              artifacts: [
+                { ...artifact, content: revisedContent },
+                largeArtifact,
+              ],
+            },
+          ]);
+        }, 50)
+      : undefined;
   try {
     const executable = process.argv[2];
     assert.ok(
@@ -194,6 +242,7 @@ async function run(dsn?: string) {
     assert.equal(code, 0, "native management probe failed");
     passed = true;
   } finally {
+    if (refreshTimer) clearInterval(refreshTimer);
     await server.close();
     if (passed) fs.rmSync(root, { recursive: true });
     else console.log("Retained private management fixture:", root);

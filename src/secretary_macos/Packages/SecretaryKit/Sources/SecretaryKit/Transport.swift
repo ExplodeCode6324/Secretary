@@ -121,8 +121,10 @@ public final class HTTPTransport: CoreTransport, Sendable {
     var request = try urlRequest(route)
     request.setValue("application/octet-stream", forHTTPHeaderField: "Accept")
     request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
-    let (bytes, response) = try await session.bytes(for: request)
-    defer { bytes.task.cancel() }
+    // URLSession writes network chunks to disk; Swift never iterates the binary body byte by byte.
+    let delegate = DownloadProgress(expected: expected, report: progress)
+    let (temporary, response) = try await session.download(for: request, delegate: delegate)
+    defer { try? FileManager.default.removeItem(at: temporary) }
     guard let http = response as? HTTPURLResponse else { throw ClientError.invalidContract }
     guard http.statusCode == 200 else {
       try Self.check(http.statusCode, data: Data())
@@ -131,31 +133,27 @@ public final class HTTPTransport: CoreTransport, Sendable {
     guard http.expectedContentLength == expected,
       http.value(forHTTPHeaderField: "ETag") == "\"" + version + "\""
     else { throw ClientError.invalidContract }
-    let fd = open(to.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
-    guard fd >= 0 else { throw ClientError.storage }
-    let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
-    defer { try? handle.close() }
+    let sourceFD = open(temporary.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
+    guard sourceFD >= 0 else { throw ClientError.storage }
+    let source = FileHandle(fileDescriptor: sourceFD, closeOnDealloc: true)
+    defer { try? source.close() }
+    var info = stat()
+    guard fstat(sourceFD, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_size == expected
+    else { throw ClientError.invalidContract }
     var count: Int64 = 0
-    var chunk = Data()
     var digest = SHA256()
-    for try await byte in bytes {
+    while let chunk = try source.read(upToCount: 65_536), !chunk.isEmpty {
       try Task.checkCancellation()
-      count += 1
+      count += Int64(chunk.count)
       guard count <= expected else { throw ClientError.invalidContract }
-      chunk.append(byte)
-      if chunk.count == 65_536 {
-        digest.update(data: chunk)
-        try handle.write(contentsOf: chunk)
-        chunk.removeAll(keepingCapacity: true)
-        await progress(expected == 0 ? 1 : Double(count) / Double(expected))
-      }
+      digest.update(data: chunk)
     }
-    digest.update(data: chunk)
-    try handle.write(contentsOf: chunk)
-    try handle.synchronize()
     guard count == expected,
       digest.finalize().map({ String(format: "%02x", $0) }).joined() == version
     else { throw ClientError.invalidContract }
+    guard fchmod(sourceFD, 0o600) == 0 else { throw ClientError.storage }
+    try Task.checkCancellation()
+    try FileManager.default.moveItem(at: temporary, to: to)
     await progress(1)
   }
   static func check(_ status: Int, data: Data) throws {
@@ -262,4 +260,51 @@ public struct SSEDecoder: Sendable {
     }
     return nil
   }
+}
+
+/// Only the latest progress value is retained, with at most one async consumer.
+private final class DownloadProgress: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+  let expected: Int64
+  let report: @Sendable (Double) async -> Void
+  private let lock = NSLock()
+  private var latest: Double?
+  private var running = false
+  init(expected: Int64, report: @escaping @Sendable (Double) async -> Void) {
+    self.expected = expected
+    self.report = report
+  }
+  func urlSession(
+    _ session: URLSession, downloadTask: URLSessionDownloadTask,
+    didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64
+  ) {
+    guard totalBytesWritten <= expected,
+      totalBytesExpectedToWrite < 0 || totalBytesExpectedToWrite == expected
+    else {
+      downloadTask.cancel()
+      return
+    }
+    lock.lock()
+    latest = expected == 0 ? 1 : Double(totalBytesWritten) / Double(expected)
+    let start = !running
+    running = true
+    lock.unlock()
+    if start { Task { while let value = take() { await report(value) } } }
+  }
+  private func take() -> Double? {
+    lock.lock()
+    defer { lock.unlock() }
+    let value = latest
+    latest = nil
+    if value == nil { running = false }
+    return value
+  }
+  func urlSession(
+    _ session: URLSession, downloadTask: URLSessionDownloadTask,
+    didFinishDownloadingTo location: URL
+  ) {}
+  func urlSession(
+    _ session: URLSession, task: URLSessionTask,
+    willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
+    completionHandler: @escaping (URLRequest?) -> Void
+  ) { completionHandler(nil) }
 }
