@@ -1,0 +1,169 @@
+{
+  "core": {
+    "api_version": "1",
+    "data_domain_id": "10000000-0000-4000-8000-000000000001",
+    "owner_id": "10000000-0000-4000-8000-000000000001",
+    "instance_id": "10000000-0000-4000-8000-000000000002",
+    "session_id": "10000000-0000-4000-8000-000000000003",
+    "state": "IDLE",
+    "mode": "fixture",
+    "capabilities": {
+      "core": {
+        "state": "supported",
+        "allowed": true,
+        "reason": null
+      },
+      "devices": {
+        "state": "not_supported",
+        "allowed": false,
+        "reason": "DEVICE_API_NOT_IMPLEMENTED"
+      }
+    }
+  },
+  "assistant": {
+    "name": "secretary",
+    "actor_id": "assistant",
+    "revision": "1"
+  },
+  "receipt": {
+    "request_id": "10000000-0000-4000-8000-000000000004",
+    "command": "messages",
+    "acceptance": "ACCEPTED",
+    "state": "ACCEPTED",
+    "revision": "1",
+    "resource_ids": [
+      {
+        "type": "Input",
+        "id": "10000000-0000-4000-8000-000000000005"
+      }
+    ],
+    "error_code": null
+  },
+  "message": {
+    "id": "10000000-0000-4000-8000-000000000006",
+    "kind": "message",
+    "revision": "9007199254740993",
+    "role": "future_role",
+    "at": "2026-10-10T00:00:00.000Z",
+    "text": "中文 😀 é 𠮷\nSynthetic example",
+    "call_id": null,
+    "incomplete": false,
+    "next_cursor": null,
+    "future_field": "ignored by older clients"
+  },
+  "sync_cursor": {
+    "cursor": "opaque-synthetic-cursor",
+    "sequence": "9007199254740993",
+    "instance_id": "10000000-0000-4000-8000-000000000002"
+  },
+  "sync_page": {
+    "transactions": [
+      {
+        "cursor": "opaque-next-cursor",
+        "changes": [
+          {
+            "kind": "invalidate",
+            "resource_type": "tasks",
+            "query": "tasks/10000000-0000-4000-8000-000000000005"
+          }
+        ]
+      }
+    ],
+    "next_cursor": "opaque-next-cursor",
+    "has_more": false
+  },
+  "notification": {
+    "id": "10000000-0000-4000-8000-000000000008",
+    "revision": "2",
+    "state": "QUEUED",
+    "session_id": "10000000-0000-4000-8000-000000000003",
+    "channel": "local-ui",
+    "requested_at": "2026-10-12T00:00:00.000Z",
+    "updated_at": "2026-10-12T00:00:01.000Z",
+    "created_sequence": "9007199254740992",
+    "read_at": null,
+    "presented": [
+      {
+        "client_id": "10000000-0000-4000-8000-000000000009",
+        "presented_at": "2026-10-12T00:00:01.000Z"
+      }
+    ],
+    "content": {
+      "text": "中文 😀 é 𠮷\nSynthetic example",
+      "media_type": "text/plain",
+      "content_version": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "bytes": "1000000",
+      "truncated": true
+    }
+  },
+  "operation": {
+    "id": "10000000-0000-4000-8000-000000000011",
+    "revision": "9007199254740993",
+    "state": "RESULT_UNKNOWN",
+    "scope": {
+      "session_id": null,
+      "task_id": "10000000-0000-4000-8000-000000000012",
+      "execution_id": "10000000-0000-4000-8000-000000000013"
+    },
+    "action": {
+      "action": "shell.run",
+      "resource": "/synthetic/project",
+      "parameters_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "intent_id": "10000000-0000-4000-8000-000000000014"
+    },
+    "effect": "UNKNOWN",
+    "display": {
+      "parameters": {
+        "state": "available",
+        "text": "{\"command\":\"echo 中文 😀\"}",
+        "bytes": "30",
+        "content_version": "e1c0779ccbe77fbddba24c14a423f157e8ac493c6db74f35e2379f4ce4333f1c",
+        "truncated": false,
+        "next_cursor": null,
+        "unavailable_reason": null
+      },
+      "stdout": {
+        "state": "available",
+        "text": "中文 😀",
+        "bytes": "11",
+        "content_version": "417855369264e97d91225d5f34406bd9cb9d7729336c72e1ff1147e93b89d7a4",
+        "truncated": false,
+        "next_cursor": null,
+        "unavailable_reason": null
+      },
+      "stderr": {
+        "state": "available",
+        "text": "",
+        "bytes": "0",
+        "content_version": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "truncated": false,
+        "next_cursor": null,
+        "unavailable_reason": null
+      },
+      "reason": {
+        "state": "available",
+        "text": "{\"state\":\"RESULT_UNKNOWN\",\"effect\":\"UNKNOWN\"}",
+        "bytes": "45",
+        "content_version": "c77abd010c9fd4a66c2b9e3b321f6c96c4d4c6497292dbf237f7f88b70af1a46",
+        "truncated": false,
+        "next_cursor": null,
+        "unavailable_reason": null
+      },
+      "source_truncated": null
+    }
+  },
+  "artifact": {
+    "id": "10000000-0000-4000-8000-000000000015",
+    "name": "result.txt",
+    "task_id": "10000000-0000-4000-8000-000000000012",
+    "execution_id": "10000000-0000-4000-8000-000000000013",
+    "content_version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "bytes": "9007199254740993",
+    "media_type": "text/plain",
+    "state": "available",
+    "relative_path": "reports/result.txt",
+    "path_base": "task",
+    "scope_id": null,
+    "path_unavailable_reason": null
+  }
+}

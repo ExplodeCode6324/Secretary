@@ -8,3 +8,7 @@ __pycache__/
 *.pyc
 .demo-data/
 coverage/
+
+# Native macOS build products and per-user Xcode state
+.build/
+xcuserdata/

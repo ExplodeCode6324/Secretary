@@ -1,8 +1,8 @@
 # Issue #10：macOS 原生客户端与旧入口退役
 
-状态：**实施中 / A0_PR_REVIEW**。Core 公开合同与审计修复进入 PR1；最终本地全量及 CI 结果见 PR。后续客户端与退役尚未实施。
+状态：**实施中 / PR2a**。PR #40 已于 2026-10-13 合并，merge `857e827f2499d69cda008fd4f442f86f0b09aea8`；Issue #10 保持开放。PR2a 实施说明见 [原生连接底座](fix_20261013_issue10_PR2a原生连接底座.md)，后续业务界面与退役尚未实施。
 
-关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。工作分支：`codex/issue10-native-client`，在 secretary-core 原工作目录实施，不创建独立工作区。
+关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前工作分支：`codex/issue10-native-foundation`，在 secretary-core 原工作目录实施，不创建独立工作区。
 
 ## 1. 目标、授权与基线
 
@@ -10,7 +10,7 @@
 
 **Master 本轮设计要求：涉及 UI 时尽可能简洁，后续会在此基础上进一步做美学设计。首版以功能完整、信息清楚、操作可靠和可访问性为验收重点；使用朴素原生控件、文字导航与紧凑列表，不引入装饰性大卡片、复杂动效或独立品牌视觉。简洁不削减审批详情、失败说明、恢复入口和必要状态。后续修改设计规格、README 和操作文档时同步注明这一阶段定位。**
 
-本轮仅领取 issue、核查现状并制定计划。依 Issue #10 的实施约定，Master 确认后才编写业务代码和运行测试；规划阶段只做文档及静态差异检查。发布、合并、部署的状态单独记录。
+最初规划阶段只领取 issue、核查现状和编写文档；Master 已确认实施并于 2026-10-13 批准合并 PR #40、继续 PR2a。发布、合并、部署的状态分别记录。
 
 基线为 `main@108de834c1b8c298c546e06508c59cb052d43c43`，已核对与远端 main 一致。#9、#16、#17、#18、#19、#21、#28 均已关闭，其实现已在当前主线。#8 仍开放，正文尚保留未合并描述，但 PR #15 已于 2026-10-10 合并，合并提交 `9623095a34f01933feeb74995dbb4d49edc8300e` 是当前 HEAD 祖先；不把 issue 状态误当作 API 缺失，也不在本任务顺手关闭 #8。开工时复核公共合同及基线变化。
 
@@ -42,7 +42,7 @@
 
 Master 从 [Apple Developer Downloads](https://developer.apple.com/download/all/?q=Xcode%2016.4) 下载 Xcode 16.4，解压到 Applications，打开一次并完成许可与必要组件安装；本期只需 macOS，不需下载 iOS/watchOS/visionOS 模拟器。Apple 的 [Xcode 16.4 发布说明](https://developer.apple.com/documentation/xcode-release-notes/xcode-16_4-release-notes)列出的宿主范围包含本机 macOS 15.7.4。工具准备完成后再验证原生构建；这不替代 Master 对业务实施的确认。
 
-本地使用进程级 `DEVELOPER_DIR`，不要求全局 `xcode-select --switch`。以下是实施后约定入口，当前工程尚未创建、命令未执行；路径按 Master 实际安装名称调整：
+本地使用进程级 `DEVELOPER_DIR`，不要求全局 `xcode-select --switch`。以下为工程入口；PR2a 已完成 app 与 Package 构建，UI runner 实测受系统认证阻挡，详细验证见 PR2a 说明。路径按 Master 实际安装名称调整：
 
 ```sh
 export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
