@@ -1,8 +1,8 @@
 # Issue #10：macOS 原生客户端与旧入口退役
 
-状态：**PR2c 已合并 / PR3a 实施中**。PR #40、#41、#42、#43 已合并；最新主线 merge `89710d2ae3c5cca005e2c58c7683ea897bc674ac`，合并后三项 CI 均通过。Issue #10 保持开放。连接、聊天及日常管理见 [PR2a](fix_20261013_issue10_PR2a原生连接底座.md)、[PR2b](fix_20261013_issue10_PR2b聊天与导航.md)、[PR2c](fix_20261013_issue10_PR2c日常管理.md)；下一阶段见 [PR3 原生联合验收与旧入口退役](fix_20261014_issue10_PR3原生联合验收与旧入口退役.md)。下文保留各阶段最初规划与历史记录，当前基线、剩余验收和实施授权以 PR3 计划为准。
+状态：**PR3a 已合并 / PR3b 本地验收完成，待 PR/CI 复核**。PR #40–#44 已合并；最新主线 merge `4c61c30d921ae927ce57f65ea5d53e45c43d37e4`，合并后三项 CI 均通过。Issue #10 保持开放。连接、聊天及日常管理见 [PR2a](fix_20261013_issue10_PR2a原生连接底座.md)、[PR2b](fix_20261013_issue10_PR2b聊天与导航.md)、[PR2c](fix_20261013_issue10_PR2c日常管理.md)；下一阶段见 [PR3 原生联合验收与旧入口退役](fix_20261014_issue10_PR3原生联合验收与旧入口退役.md)。下文保留各阶段最初规划与历史记录，当前基线、剩余验收和实施授权以 PR3 计划为准。
 
-关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13；当前进度更新于 2026-10-14。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前实施分支：`codex/issue10-native-download-contract`，在 secretary-core 原工作目录实施 PR3a，不创建独立工作区。
+关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13；当前进度更新于 2026-10-14。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前实施分支：`codex/issue10-pr3b-retirement`，在 secretary-core 原工作目录实施 PR3b，不创建独立工作区。
 
 ## 1. 目标、授权与基线
 

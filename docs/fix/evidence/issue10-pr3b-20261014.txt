@@ -1,0 +1,112 @@
+Issue #10 PR3b native replacement and legacy retirement — 2026-10-14 HKT
+Baseline: 4c61c30d921ae927ce57f65ea5d53e45c43d37e4 (PR44 merge).
+Working in original secretary-core checkout; branch codex/issue10-pr3b-retirement.
+No real model, production Store/World, device, deployment, merge or issue closure.
+
+Implementation and assertion mapping:
+- issue10-pr3b-migration-20261014.txt lists each affected test and its retained replacement.
+- Native rendering now guards nesting before parser entry, preserves malformed tables and unsafe
+  markup verbatim, validates links, and refuses stale lower-revision page replacement.
+- Native activity elapsed time uses durable end/last-progress timestamps.
+- Native notification evidence requires an actually drawn visible row in an active/unoccluded window,
+  checked against its connection/navigation context; offline/changed contexts recreate the observer.
+  Durable queueing precedes evidence, reconnect reconciles the same command; read remains explicit.
+- Channel SENT/receipt behavior is not changed: existing API v1 contract separates channel state,
+  presented and read. The old TUI-specific channel update retires; atomic admission/presentation,
+  failure/no-evidence, dedup and commitment-source assertions remain.
+- CLI/API v1, shared projections and domain services remain. Live launcher text and stop wrapper
+  use Core; stop wrapper preserves its previous live data-directory default.
+
+Environment:
+macOS 15.7.4 arm64; Xcode 16.4 (16F6), Swift 6; Node 22.22.0; Python 3.9.6; PostgreSQL 18.6.
+Separate loopback-only temporary PG cluster, per-scenario secretary_test_ databases.
+Core fixtures and native client databases are temporary and isolated. No default live credentials loaded.
+
+Before deletion:
+PASS targeted migrated API/notification/commitment/review tests: 17/17.
+PASS retained timeline/domain elapsed tests: 8/8.
+PASS complete npm run verify: 582 tests, 581 pass, 0 fail, 0 skip, 1 existing AUD14 TODO.
+PASS Swift package: 41 tests including new rendering, page, elapsed, failed display/restart tests.
+PASS verify.sh: public DTO/pins, HTTP bootstrap/chat/recovery, native management HTTP, app+UI target build.
+PASS native management with isolated PG: actual World entity/assert/correct/retract/history, slot,
+CAS failure/retry/restore, controlled memory command COMPLETED and state COMMITTED.
+PASS chat/window GUI: 7/7 (including latest/history viewport, persistent draft, cold launch/menu/Dock).
+PASS management GUI: 3/3 (tasks/scopes/drafts, approvals/unknown+notification, download/system open).
+PASS final visibility-context tightening: rebuilt app/UI target and reran all 3 management GUI tests; 0 failures.
+PASS migrated benchmark: 1000 mixed rows, 100 requests each at concurrency 1 and 4;
+HTTP P95 9.02 / 30.94 ms, max response 123858 bytes. This is a controlled smoke test,
+not a 100000-row result or a claim about production latency.
+
+After deletion:
+PASS type/docs check: 219 Markdown files, 3272 local links, 0 errors at the retirement code commit.
+PASS retired-entrypoint test: removed launchers/assets, old paths 404, deprecated flags fail before
+Core startup or credential/runtime reads. Shell launchers pass zsh syntax checks.
+PASS post-retirement native HTTP launch/chat/SSE/reopen/disconnect/redirect probe.
+PASS final complete npm run verify with isolated PG: 571 tests, 570 pass, 0 fail, 0 skip,
+1 existing AUD14 TODO; duration 703446 ms. Source commit: a69c93b58c18b45b5ab39f035ed431e09a240066.
+PR CI is separate from this local evidence record. Review Core (Linux), Native (macOS) and verify
+on the PR final head; the completion notification records that result.
+G-close NOT_TESTED: full system notifications/permissions, VoiceOver, real sleep/wake, real model,
+near-1GiB download/peak resource matrix. These remain PR3c; Issue #10 remains OPEN.
+
+First failures and resolution (private logs retained; no raw session/UI screenshots published):
+- Initial new Swift stress run terminated with signal 10 while the deep-Markdown test was active.
+  Added pre-parse nesting guard; deep input is retained verbatim and final stress tests pass.
+- Prefix/safe-link tests exposed incomplete HTML going through inline rendering and Foundation's
+  opaque mailto parsing. Added literal fallback and explicit mailto query/fragment rejection.
+  Corrected a draft test's whole-document-plaintext expectation to verify inert HTML blocks;
+  unaffected structured blocks may still render. No unsafe-prefix/link assertion was removed.
+- A draft notification reopen test assumed connect drains the pending outbox. Corrected it to the
+  actual stronger invariant: reopening and redisplaying retains exactly the original pending ID.
+- Memory probe initially checked COMMITTED after Settings recovery had made SETTINGS_APPLIED the
+  current public status. Retained logs and inspected synthetic durable records (committed jobs existed).
+  Moved the independent compact/state acceptance before unrelated Settings scenarios and retained
+  COMPLETED+COMMITTED assertions; no domain state machine was changed to make the test pass.
+- First XCUITest runner failed before test execution: automation-mode initialization timed out.
+  No protection/permission settings were changed. Subsequent runs executed all cases successfully.
+
+- First post-deletion type check found an old ui-client import in online/test-streaming-live.ts.
+  Migrated its message command and SSE/content sampling to API v1; final type check passes.
+  No live-model execution is claimed for this script.
+
+Original 393 untracked report entries preserved. Only source, synthetic tests, manuals and sanitized evidence staged.
+Log and changed-source SHA-256 fingerprints follow in the completed evidence record.
+
+SHA-256 private validation logs (not published):
+d5a7df24939b0c3b78adec96363a0cecaf379bb5f488e334a32487898741626e  core-before-retire.log
+fb73b3e9b538e19310ee90773b9d7e1e0e6720aa384a4b3fbb9d277366136291  core-final.log
+2f29093c7d7ea297e9e68617dfdedac450da70af57530d626bf1dc61882dc3c9  core-final-second.log
+2f146edacbf3dcae02392894b9dc1b0f4a8f90dd4ef2d10212bdc494983517af  swift-first.log
+0a19201b03ea313376617c96a0af9b4888f4334014f2861bccaec743e7eb7423  swift-final.log
+eaecaa2ebf9230f27d050d55d1f7b7e6c073575b6c27886ea8129a2ae8e9f409  native-first.log
+1bc1494618e530c854f370c40a32e50649ecb73c3459e256526ced22acbecf12  native-release.log
+665cfdc3114ab4b4111fcc8b3b8983cf1ce5cf50fce706667aa547fc46fd538f  gui-management-first.log
+896a78ab7e88aa4db4e933b755b4a103afe21106fbe004e3ae05bf3f3904a425  gui-chat-final.log
+8cdcbf03b81a51d73731cceacf4139727f53e69d29a9c6dbbc72f23f5dd716ab  gui-visibility-final.log
+4dd527d8392ec592378bf476cb241dd308d565faf5ddf292ab838e57086b96e2  retired-native-probe.log
+17b86a3f5adca0aa968bf4ccd822a22b1d14585a95f3c678c1d75651fe92ff45  bench-first.log
+
+SHA-256 changed implementation/test files at source commit:
+d779f8114bc2cbbd353b8518aa6e0342bdacc9e4e1c50f9c9db0f9e2931c745d  src/pi_secretary/scripts/start-live.ts
+35f202a2d8cf648acb9867d00d2e1aa847d31d592dc32be8a5986520cac15081  src/pi_secretary/src/core-cli.ts
+4204119d1d6a32edb3d771010cf0cacdf83146daa604f8f9eb100a3711231717  src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Chat.swift
+b57c5cdcfa279de0a8475d8542d3bd3da2a6025a6ea9f6eacfd2265139669100  src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryProbe/ManagementProbe.swift
+bd4fb6ab8783fbb966ea223ad0bae8630151219a16f4c9921e8d0e22be83c457  src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/FoundationTests.swift
+dc1722494bf6e674e4bfd0dd76439279c6290713ee1863c804a2c8f20c9e70d6  src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/RetirementTests.swift
+8aeac73c72764c489f50dd43b009f1aac71d6da0810ef28d0081de8a3b1d6333  src/secretary_macos/Secretary/ArtifactViews.swift
+423109288e17d902e143e5ea0c2200f14d61546c7eb8b069242584561a23b29d  src/secretary_macos/Secretary/ChatViews.swift
+a691ab3b97b1244e5a85c068f3016dad02e257d4d95436b207289dee9da1d80b  src/secretary_macos/Secretary/ManagementModel.swift
+201e2c55041bfabfe7aba531f747d7f0fe695ad24e8625156a2b32247c58dfd9  src/secretary_macos/SecretaryUITests/SecretaryUITests.swift
+ab86417a944522da1413024f9193be3bd4c29b356eb2d94558dcf1893be749cb  test_case/native/management-fixture.ts
+100756c574e027628600cfba2f562da829054eed41cb70a49277931064137cc0  test_case/offline/issue3/commitment.test.ts
+e4c7ef6acb462a9b722b9fcd426f23fab02f6027d2f8deec51c5ab2a928b4dd0  test_case/offline/runtime/activity-elapsed.test.ts
+73fb45d0639b8b18a35655b8d26e2256c6cfefb674fddff08c023bf5a6c654ae  test_case/offline/runtime/activity-history.test.ts
+cab2cab3dc70a30944d0877575a78e0932307a3a53aabe351afecf4339a88c0e  test_case/offline/runtime/activity.test.ts
+a4400db2c4a3d62051536f054eeb67a280de481d4c400a0d0e029cc3646ad6b3  test_case/offline/runtime/helpers/timeline-window-bench.ts
+8b27432642b53559972b31041641f2406116c29d68fbe701920e52d5c348980e  test_case/offline/runtime/instructions.test.ts
+445aead4f48469205209c6b20f1597a9854e1ae830c309b5129756619362d4ea  test_case/offline/runtime/native-retirement.test.ts
+10641f34ff2ec4b1ff297cd5e1c37f53cc073c54f694c08287ecb839e8c4b62c  test_case/offline/runtime/retired-entrypoints.test.ts
+c3cd63b55ff2aab9c54d2e1142f8ed0484ef6c6746cc10d1beadea5c9b71e019  test_case/offline/runtime/review.test.ts
+8db1cb55ddbb579493c75e85fa2319b27d032d2c93191d2738217e856906d135  test_case/offline/runtime/streaming.test.ts
+a0aaebecc4f1bf09da5e59979fc047657c06979ee5bc7cfde33e4902ed599c16  test_case/offline/runtime/timeline-window.test.ts
+bfaf24419e13f014e2e2cc1e54698e80554df981030d38473b73b555a577a55d  test_case/online/test-streaming-live.ts
