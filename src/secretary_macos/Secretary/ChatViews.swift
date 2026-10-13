@@ -341,6 +341,8 @@ private struct RowFrames: PreferenceKey {
 private struct TranscriptRows: View {
   let items: [ChatItem]
   let previewStates: [String: String]
+  let activitiesOnline: Bool
+  let confirmedAt: Date?
   let expandedThinking: Set<String>
   let expandThinking: (String, Bool) -> Void
   let fontSize: Double
@@ -380,8 +382,10 @@ private struct TranscriptRows: View {
             if item.next_cursor != nil { Button("继续读取正文") { more(item) } }
           } else if let activity = item.activity {
             TimelineView(.periodic(from: .now, by: 1)) { context in
-              let elapsed = activity.elapsedSeconds(at: context.date).map { " · 已用 \($0) 秒" } ?? ""
-              Text((activity.phase ?? activity.id) + " · " + (activity.status ?? "未知状态") + elapsed)
+              let display = activity.presentation(
+                at: context.date, online: activitiesOnline, confirmedAt: confirmedAt)
+              let elapsed = display.elapsed.map { " · 已用 \($0) 秒" } ?? ""
+              Text((activity.phase ?? activity.id) + " · " + display.status + elapsed)
                 .textSelection(.enabled)
             }
           } else {
@@ -431,6 +435,7 @@ struct TranscriptView: NSViewRepresentable {
     let width = max(200, scroll.contentSize.width)
     let root = TranscriptRows(
       items: chat.window.items, previewStates: chat.previewStates,
+      activitiesOnline: chat.online && chat.activitiesConfirmed, confirmedAt: chat.confirmedAt,
       expandedThinking: chat.expandedThinking, expandThinking: chat.setThinkingExpanded,
       fontSize: fontSize,
       frames: { frames in

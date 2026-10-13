@@ -110,3 +110,21 @@ c3cd63b55ff2aab9c54d2e1142f8ed0484ef6c6746cc10d1beadea5c9b71e019  test_case/offl
 8db1cb55ddbb579493c75e85fa2319b27d032d2c93191d2738217e856906d135  test_case/offline/runtime/streaming.test.ts
 a0aaebecc4f1bf09da5e59979fc047657c06979ee5bc7cfde33e4902ed599c16  test_case/offline/runtime/timeline-window.test.ts
 bfaf24419e13f014e2e2cc1e54698e80554df981030d38473b73b555a577a55d  test_case/online/test-streaming-live.ts
+
+PR45 review follow-up (reviewed baseline 4cadb51, 2026-10-14 HKT):
+B1 ACCEPTED: old disconnect freeze was omitted in the initial assertion migration.
+Native activity display now freezes at the last confirmed timeline timestamp on disconnect;
+missing confirmation falls back to last_progress_at, and durable ended_at stays authoritative.
+Unfinished running/waiting rows show unconfirmed. Attach invalidates activity confirmation;
+only a fresh timeline response restores live elapsed display. Different identities clear confirmation.
+M1 ACCEPTED: deleted timeline-window-parallel.mjs and timeline-window-races.mjs, which depended
+on retired assets/routes and had no current callers. No .mjs remains in runtime/helpers.
+No review item rejected. The migration ledger includes both omissions and retained replacements.
+PASS: 43 Swift tests; native public HTTP probes; app/UI target build and pins; targeted chat send
+and latest/history GUI 2/2 with 0 failures; npm run check; docs 219 files/3273 links, 0 errors.
+No new local PG or complete Core rerun for this Swift/helper-only follow-up; Core/PG regression
+is required in the new-head PR CI, including skip=0. PR3c and issue closure remain separate.
+Follow-up validation log SHA-256 (private logs retained):
+6239b0e7c90d6fd2c805ae3bed41e4831167936e4db90ba8e5128b7b4e50f58e  review-native-final.log
+54787a5ff1a1077c0d4c8bc6840f8eb61998eab621a080ac785f931704c218f1  review-gui.log
+edb0084172bd41fd84c2d83ca5d108aa78e5933be1a4eb8d5cac58300583a5fb  review-check.log

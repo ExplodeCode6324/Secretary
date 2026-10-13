@@ -135,3 +135,39 @@ import Testing
   #expect(window.items.first?.id == "0")
   #expect(try state.anchor(identity) == anchor)
 }
+
+@Test func nativeActivityDisconnectFreezesClockAndMarksUnconfirmedUntilFreshSnapshot() throws {
+  let confirmed = ISO8601DateFormatter().date(from: "2026-10-05T00:01:00Z")!
+  for state in ["running", "waiting", "failed", "succeeded", "interrupted", "cancelled"] {
+    for ended in [false, true] {
+      var raw: [String: String] = [
+        "id": "synthetic", "status": state, "started_at": "2026-10-05T00:00:00Z",
+        "last_progress_at": "2026-10-05T00:00:42Z",
+      ]
+      if ended { raw["ended_at"] = "2026-10-05T00:00:45Z" }
+      let activity = try JSONDecoder().decode(
+        ChatActivity.self, from: JSONSerialization.data(withJSONObject: raw))
+      let live = state == "running" || state == "waiting"
+      for offset in [1.0, 3600.0] {
+        let offline = activity.presentation(
+          at: confirmed.addingTimeInterval(offset), online: false, confirmedAt: confirmed)
+        #expect(offline.elapsed == (ended ? 45 : (live ? 60 : 42)))
+        #expect(offline.status.contains("未确认") == (live && !ended))
+        #expect(activity.presentation(at: confirmed.addingTimeInterval(offset), online: false,
+          confirmedAt: nil).elapsed == (ended ? 45 : 42))
+      }
+      let reconnected = activity.presentation(
+        at: confirmed.addingTimeInterval(10), online: true, confirmedAt: confirmed)
+      #expect(reconnected.elapsed == (ended ? 45 : (live ? 70 : 42)))
+      #expect(reconnected.status == state)
+    }
+  }
+}
+
+@Test func nativeDisconnectedEndedActivityNeedsNoConfirmationOrProgressTimestamp() throws {
+  let raw = #"{"id":"ended","status":"succeeded","started_at":"2026-10-05T00:00:00Z","ended_at":"2026-10-05T00:00:45Z"}"#
+  let activity = try JSONDecoder().decode(ChatActivity.self, from: Data(raw.utf8))
+  let display = activity.presentation(at: Date(), online: false, confirmedAt: nil)
+  #expect(display.elapsed == 45)
+  #expect(display.status == "succeeded")
+}

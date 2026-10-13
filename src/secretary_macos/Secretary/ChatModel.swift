@@ -12,6 +12,7 @@ final class ChatModel: ObservableObject {
   @Published var busy = false
   @Published var sending = false
   @Published var hasUpdates = false
+  @Published var activitiesConfirmed = false
   @Published var confirmedAt: Date?
   @Published var commands: [PendingCommand] = []
   @Published var related: [RelatedPage.Item] = []
@@ -55,6 +56,7 @@ final class ChatModel: ObservableObject {
       owner: core.owner_id, domain: core.data_domain_id, session: core.session_id)
     if identity != newIdentity {
       window.clear()
+      confirmedAt = nil
       related = []
       commands = []
       attention = ""
@@ -65,6 +67,7 @@ final class ChatModel: ObservableObject {
       anchor = try local.anchor(newIdentity)
       latest = anchor == nil
     }
+    activitiesConfirmed = false
     online = true
     generation = await engine.connectionGeneration()
     try check(version)
@@ -81,6 +84,7 @@ final class ChatModel: ObservableObject {
     ticket += 1
     relationTicket += 1
     online = false
+    activitiesConfirmed = false
     busy = false
     previewStates = previewStates.mapValues { $0 == "running" ? "unconfirmed" : $0 }
     status = "离线缓存 · 保留最后确认内容"
@@ -195,6 +199,7 @@ final class ChatModel: ObservableObject {
         let page = try Contract.decode(ChatPage.self, from: projection.data)
         try window.updateLatest(page)
         followBottom()
+        activitiesConfirmed = !projection.stale
         confirmedAt = projection.confirmedAt
         status = projection.stale ? "缓存陈旧，等待重新确认" : "已同步"
       }
@@ -246,6 +251,7 @@ final class ChatModel: ObservableObject {
       try window.replace(page)
       latest = locator == nil && cursor == nil
       hasUpdates = false
+      activitiesConfirmed = true
       confirmedAt = Date()
       status = page.items.isEmpty ? "暂无对话" : "已同步"
       scrollToBottom = false

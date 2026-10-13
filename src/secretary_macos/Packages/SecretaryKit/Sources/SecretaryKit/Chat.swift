@@ -18,17 +18,27 @@ public struct ChatActivity: Codable, Sendable, Equatable {
   public let started_at: String?
   public let ended_at: String?
   public let last_progress_at: String?
+  private func date(_ value: String?) -> Date? {
+    guard let value else { return nil }
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    return formatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+  }
   public func elapsedSeconds(at: Date = Date()) -> Int? {
-    func date(_ value: String?) -> Date? {
-      guard let value else { return nil }
-      let formatter = ISO8601DateFormatter()
-      formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-      return formatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
-    }
     guard let start = date(started_at) else { return nil }
     let live = status == "running" || status == "waiting"
     guard let end = date(ended_at) ?? (live ? at : date(last_progress_at)) else { return nil }
     return max(0, Int(end.timeIntervalSince(start)))
+  }
+  /// Connection loss never implies that a running operation finished or kept progressing.
+  public func presentation(at: Date, online: Bool, confirmedAt: Date?) -> (
+    status: String, elapsed: Int?
+  ) {
+    let unconfirmed = !online && ended_at == nil && (status == "running" || status == "waiting")
+    let clock = online ? at : (confirmedAt ?? date(last_progress_at) ?? date(ended_at))
+    return (
+      unconfirmed ? "未确认 · 连接中断，活动状态暂不可确认" : (status ?? "未知状态"),
+      clock.flatMap { elapsedSeconds(at: $0) })
   }
 }
 

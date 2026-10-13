@@ -96,6 +96,12 @@ GUI = src/secretary_macos/SecretaryUITests/SecretaryUITests.swift
 - Web and TUI freeze terminal records without ended_at but keep live clocks running
   -> Swift nativeElapsedFreezesTerminalFallbackAndKeepsLiveClocks, all four terminal states and
   running/waiting; native activity row now displays elapsed seconds via TimelineView.
+- Review B1: disconnected live clocks freeze at the last confirmed timeline snapshot, falling back
+  to last_progress_at when no confirmation exists; running/waiting without ended_at show unconfirmed.
+  -> nativeActivityDisconnectFreezesClockAndMarksUnconfirmedUntilFreshSnapshot covers both states,
+  terminal/end-time precedence, missing confirmation and resumed live time. ChatModel invalidates
+  activity confirmation on disconnect/attach until a fresh timeline snapshot succeeds. API v1 has no
+  observed_at on ChatPage; the existing projection/local confirmation timestamp supplies this boundary.
 
 6. Other active legacy helper imports
 runtime/{activity-history,activity,instructions,streaming,timeline-window}.test.ts:
@@ -118,6 +124,10 @@ browser/ui-endpoint files; they are not current acceptance and their historical 
 - runtime/helpers/timeline-window-{web.ts,browser.mjs} and timeline-scroll-browser.mjs:
   server oracle/Unicode/byte budgets retained; native bounded page, saved anchor and latest/history GUI.
   DOM node map/heights and exact browser wheel-pixel thresholds retire; full native layout matrix PR3c.
+- Review M1: timeline-window-{parallel,races}.mjs also retired; both depended on removed
+  /timeline-view.js and /api/* and had no current callers. Mixed-page/anchor/stale-revision assertions
+  remain in nativePageReplacementBoundsMixedHistoryAndPreservesReadingAnchor; preference and stale
+  response guards remain in ChatModel, ChatTests and latest/history GUI tests. Browser internals retire.
 - runtime/helpers/settings-web.ts: only an old fixture launcher; Settings/World assertions remain in
   runtime/settings.test.ts, issue8/world.test.ts and real PG native management probe.
 
