@@ -4,6 +4,7 @@
 | --- | --- |
 | README.md | 产品入口、启动方法和当前开发路线 |
 | src/pi_secretary/src | Core、Host、Scheduler、Store、Settings、World 与模型适配 |
+| src/secretary_macos | SwiftUI 应用、SecretaryKit、HTTP 探针和 XCUITest |
 | src/pi_resource | 固定版本 Pi 子模块 |
 | src/contracts、src/schema、src/state_machine | 内部合同、SQL 与状态目录 |
 | docs 顶层手册 | 当前实现、运行与测试说明 |
@@ -29,3 +30,5 @@
 早期 demo_pi/pi_secretary 已迁入 src/pi_secretary；测试迁入 test_case，运行合同迁入 src/contracts、src/schema 和 src/state_machine。完整映射见 [migration-map.json](migration-map.json)。映射为 null 的附件在本 checkout 中不可解析，来源清单见 [unavailable-evidence.json](unavailable-evidence.json)。
 
 旧设计目录中的命令属于原版本。外部快捷方式和已登记程序保留的绝对路径，在目录迁移时按实际运行位置检查。
+
+PR3b 删除 `src/pi_secretary/web` 与独占 TUI/旧协议客户端。`backend.ts` 仍是 Core 服务启动器；共享领域、时间线投影、API v1 和历史报告保留。退役源码的历史链接固定到删除前提交，迁移表中已删除目标置为 null。

@@ -1,6 +1,6 @@
-# Secretary macOS · PR2c
+# Secretary macOS
 
-Issue #10 的原生连接、聊天与日常管理客户端。任务、审批／决定／未知结果、记忆、Settings/World、Scope、规则与产物均通过公开 API v1 接入。界面使用简单原生控件，后续再做美学设计；完整替代联合验收与旧入口退役仍在 PR3。
+Issue #10 的原生连接、聊天与日常管理客户端。任务、审批／决定／未知结果、记忆、Settings/World、Scope、规则与产物均通过公开 API v1 接入。界面使用简单原生控件，后续再做美学设计；PR3b 完成旧能力迁移与入口退役，完整系统联合验收归 PR3c。
 
 ## 构建与运行
 
@@ -27,7 +27,7 @@ open .build/native/Build/Products/Debug/Secretary.app
 - 输入没有可见占位文字，带“消息输入”可访问标签。Return 换行，⌘Return 发送；输入法组合态不发送。已提交的编辑同步保存；本地 outbox 与草稿删除事务成功后才清空输入。最近 30 条发送记录区分受理、失败和待确认，受理不代表助手回复已完成。发送区域独立显示 messages 不可用的 state/reason，离线或未提供能力也有明确说明。
 - 最新页、较早/较新页、消息或事件 ID 定位、正文续读均使用公开 API 与 opaque cursor。单页请求 30 条，客户端上限 200 条/16 MiB 正文，单条续读最多 4 MiB；到上限保留已读内容并提示。最近页受持久投影预算保护，历史分页按需读取，不复制全部历史。
 - 阅读位置按消息 ID 和局部偏移保存。最新模式追加回复保持贴底；用户阅读历史、选择文字或展开正文时保留视口，新数据提示“有更新”，由“回到最新”恢复。续读相同 revision 不被首页片段覆盖；revision 变化重新取新正文。偏好切换清除隐藏正文，使旧请求失效；预览按 call_id 对齐最终消息，不推进 durable cursor。
-- GFM 解析为原生文字、列表、引用、代码与表格；代码可复制，代码/表格各自横向滚动。超过 256 KiB 的单条正文在 240 pt 局部滚动区域使用只读 NSTextView/TextKit 2，既不解析 Markdown，也不让整个正文参与 SwiftUI 高度计算。HTML 块使用 Text(verbatim:) 原样展示，只允许打开 http/https 链接，无 WebView/脚本执行。
+- GFM 解析为原生文字、列表、引用、代码与表格；代码可复制，代码/表格各自横向滚动。超过 256 KiB 的单条正文在 240 pt 局部滚动区域使用只读 NSTextView/TextKit 2，既不解析 Markdown，也不让整个正文参与 SwiftUI 高度计算。HTML 块使用 Text(verbatim:) 原样展示，只允许打开经过 scheme、主机、凭据和控制字符检查的 http/https 或无查询参数的 mailto 链接，无 WebView/脚本执行。
 - 关联只使用 Core 明确返回的 session/message 关系，每类最多 5 项，可进入任务／产物详情。活动行暂不提供关联按钮：其 activity ID 不是公开 event locator，不能猜测映射。后台查询不提交 viewed，只有显式打开执行详情才续留。待处理入口提供审批、工作决定、未知操作及通知；已读由明确动作提交。
 
 ## 日常管理
@@ -92,3 +92,5 @@ node --import tsx test_case/native/management-fixture.ts --ui
 ## 依赖
 
 swift-markdown **0.6.0**，传递 swift-cmark **0.9.0**（0.6.0 清单允许的解析结果，Xcode 16.4 实际构建验证）。SwiftPM 与 Xcode 两份 Package.resolved 的 pins 必须一致。Markdown 已在 PR2b 接入。许可原文在 `Licenses/`，打包 app 同时携带这些许可；不拉取远程渲染脚本。
+
+PR3b 补充：过深嵌套、带不安全链接/图片的段落和畸形表格保留原文，避免丢失内容或进入不安全解析路径。活动耗时按持久结束时间冻结；缺少结束时间的终态使用最后进度时间。通知页只在活动窗口实际绘制可见行后提交展示证据，已读仍由明确按钮触发；获取数据和创建视图不算展示。

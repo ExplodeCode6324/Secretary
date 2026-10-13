@@ -2,9 +2,11 @@
 
 Secretary 是面向 Master 的持续个人助理。Core 保存会话与工作记忆，安排任务，由执行 Agent 或登记程序完成工作，再将结果交回主会话。项目基于 Pi v0.87.0，当前以本机 Core API v1 提供服务。
 
-当前已实现独立 Core 生命周期、任务与同任务接续、Scope 工作范围、操作审批与未知结果裁定、模型有界重试、记忆维护，以及可选 PostgreSQL World Model。可靠增量同步已提供。SwiftUI 已有[原生连接、聊天与日常管理](src/secretary_macos/README.md)（PR2c），完整替代验收与旧入口退役仍归 PR3；首版保持简洁，后续再做美学设计。
+当前已实现独立 Core 生命周期、任务与同任务接续、Scope 工作范围、操作审批与未知结果裁定、模型有界重试、记忆维护，以及可选 PostgreSQL World Model。可靠增量同步已提供。日常操作使用 [macOS SwiftUI 客户端](src/secretary_macos/README.md)。PR3b 迁移旧断言并退役 Web/TUI；完整系统联合验收仍归 PR3c，首版保持简洁。
 
 ## QuickStart
+
+日常入口是 [Secretary macOS](src/secretary_macos/README.md#构建与运行)：用 Xcode 16.4 构建并打开应用，在连接页选择数据目录，启动或附着本机 Core。聊天、任务、审批、记忆、设置和产物均在原生窗口操作。下列命令用于无 UI Core 与低频运维。
 
 需要 Node.js ≥ 22.19、npm 和 Python 3。World 功能使用 PostgreSQL，CI 使用 PostgreSQL 18。从仓库根目录执行：
 

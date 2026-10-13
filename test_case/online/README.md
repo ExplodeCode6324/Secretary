@@ -55,7 +55,7 @@ node --import tsx test_case/online/test-api-v1-artifacts-live.ts --live --eviden
 
 continuity 场景最多 24 次请求、15 分钟，单请求 90 秒、8192 输出 token、80000 字节上下文；只调用主模型。其重开在同一 OS 进程内进行。task-reuse 场景默认每角色最多 48 次模型调用、100 次工具调用、12 分钟，写入范围为指定报告文件。
 
-早期 activity/streaming 浏览器驾驶脚本使用原 UI 路由，按对应历史版本复现。当前 API 专用入口为 test-api-v1-live、api-v1-online-worker 和 test-api-v1-artifacts-live。
+早期 activity/streaming 浏览器驾驶脚本随 PR3b 退役，按固定历史版本复现。`test-streaming-live.ts` 已迁到 API v1 的消息命令、同步 SSE 和时间线查询；本次仅迁移协议并检查类型，真实模型实测归 PR3c。当前 API 专用入口为 test-api-v1-live、api-v1-online-worker 和 test-api-v1-artifacts-live。
 
 ## 报告与重试
 

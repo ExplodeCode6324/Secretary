@@ -9,7 +9,7 @@ import {
   fixtureStream,
 } from "../../src/pi_secretary/src/model.ts";
 import { serve, conversation } from "../../src/pi_secretary/src/backend.ts";
-import { api } from "../../src/pi_secretary/src/ui-client.ts";
+import { CoreClient } from "../../src/pi_secretary/src/core-client.ts";
 const report = process.argv[2];
 if (!report) throw Error("report path required");
 const keys = JSON.parse(
@@ -40,16 +40,10 @@ const samples: {
   thinking_chars: number;
 }[] = [];
 try {
-  const client = (await api(server.endpoint, "/api/client", {})).client;
-  const response = await fetch(
-    server.endpoint.url + `/api/stream?client=${client}&thinking=1`,
-    {
-      headers: { Authorization: `Bearer ${server.endpoint.token}` },
-      signal: controller.signal,
-    },
-  );
-  const reader = response
-    .body!.pipeThrough(new TextDecoderStream())
+  const client = new CoreClient(server.endpoint);
+  const cursor = await client.syncCursor();
+  const reader = (await client.stream(cursor.cursor, controller.signal))
+    .pipeThrough(new TextDecoderStream())
     .getReader();
   const consuming = (async () => {
     let buffer = "";
@@ -62,19 +56,22 @@ try {
         while ((end = buffer.indexOf("\n\n")) >= 0) {
           const frame = buffer.slice(0, end);
           buffer = buffer.slice(end + 2);
+          if (!frame.split("\n").includes("event: transient")) continue;
           const line = frame.split("\n").find((l) => l.startsWith("data: "));
           if (!line) continue;
-          for (const p of JSON.parse(line.slice(6)).previews)
+          // Transient frames carry identity/status only; content is fetched through API v1.
+          const page: any = await client.query(
+            "timeline?streaming=true&thinking=true",
+          );
+          for (const preview of JSON.parse(line.slice(6)).previews) {
+            const item = page.items.find((m: any) => m.call_id === preview.id);
             samples.push({
               at_ms: Date.now() - started,
-              status: p.status,
-              text_chars: p.blocks
-                .filter((b: any) => b.type === "text")
-                .reduce((n: number, b: any) => n + b.text.length, 0),
-              thinking_chars: p.blocks
-                .filter((b: any) => b.type === "thinking")
-                .reduce((n: number, b: any) => n + b.text.length, 0),
+              status: preview.status,
+              text_chars: item?.text?.length ?? 0,
+              thinking_chars: item?.thinking?.length ?? 0,
             });
+          }
         }
       }
     } catch {
@@ -82,8 +79,7 @@ try {
       reader.releaseLock();
     }
   })();
-  await api(server.endpoint, "/api/message", {
-    client,
+  await client.command("messages", {
     request_id: crypto.randomUUID(),
     text: "这是独立的显示验收。不要调用工具、创建任务或修改记忆。请用中文写三句简短说明，分别解释流式显示、完成后显示、显示偏好。",
   });

@@ -137,4 +137,7 @@ browser/ui-endpoint files; they are not current acceptance and their historical 
   header and data envelope; retained locate, bounded payload and latency assertions. Removed only
   the optional browser paint branch. The controlled 1000-row run is a smoke result, not a new
   100000-row performance claim.
+- Final all-TypeScript check found online/test-streaming-live.ts importing the deleted helper.
+  Migrated it to CoreClient messages + sync/stream; transient identity/status triggers authenticated
+  timeline content queries. No real model invocation was performed during PR3b.
 G-close remains open: full system notifications, VoiceOver, real sleep, real model and near-1GiB resource test.

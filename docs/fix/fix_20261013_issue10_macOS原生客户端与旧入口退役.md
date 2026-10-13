@@ -304,3 +304,8 @@ PR1 使用 `Refs #10`，不关闭 Issue；CI 必须为最终 head、fail=0、ski
 ## 17. PR2c 日常管理本地验收
 
 日常管理实现与本机验收已完成：31 项 Swift 测试、真实 Core HTTP／隔离 PostgreSQL World 探针、3 项管理 GUI 和原 7 项聊天／窗口 GUI 全部通过。能力迁移与使用说明见 [原生手册](../../src/secretary_macos/README.md)，首次失败、最终日志与源码指纹见 [PR2c 证据](evidence/issue10-pr2c-20261013.txt)。最终 PR head 的三项 CI 与 Master 复核仍是独立发布门槛；本阶段不合并、不关闭 Issue #10、不删除旧入口或部署，PR3 保留完整替代联合验收。
+
+
+### PR3b 当前交付
+
+PR3a 已由 PR44 合入。PR3b 基于 `4c61c30` 继续，迁移领域断言、补齐原生替代缺口后按 G-retire 删除旧 Web/TUI 独占链。默认日常入口改为 SwiftUI；Core CLI/API 和历史数据保持。通知沿用现有 API v1 的渠道状态/展示证据/已读分离合同，具体差异与每项测试对应见 [PR3 计划 §11](fix_20261014_issue10_PR3原生联合验收与旧入口退役.md#11-pr3b-实施记录2026-10-14) 和[迁移账表](evidence/issue10-pr3b-migration-20261014.txt)。PR3c 与最终关闭 #10 单独验收。
