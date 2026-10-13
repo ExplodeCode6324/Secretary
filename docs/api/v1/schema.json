@@ -1368,6 +1368,31 @@
         },
         "state": {
           "type": "string"
+        },
+        "relative_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path_base": {
+          "enum": [
+            "scope",
+            "task",
+            "unknown"
+          ]
+        },
+        "scope_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "path_unavailable_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -1378,7 +1403,11 @@
         "content_version",
         "bytes",
         "media_type",
-        "state"
+        "state",
+        "relative_path",
+        "path_base",
+        "scope_id",
+        "path_unavailable_reason"
       ],
       "additionalProperties": true
     },
@@ -2830,6 +2859,9 @@
             },
             "resolved_at": {
               "type": "string"
+            },
+            "note_truncated": {
+              "type": "boolean"
             }
           },
           "required": [
@@ -2853,6 +2885,9 @@
             "string",
             "null"
           ]
+        },
+        "display": {
+          "$ref": "#/$defs/OperationDisplay"
         }
       },
       "required": [
@@ -3731,6 +3766,104 @@
         "items",
         "version",
         "next_cursor"
+      ]
+    },
+    "OperationText": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "enum": [
+            "available",
+            "unavailable"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "bytes": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "content_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "unavailable_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "text",
+        "bytes",
+        "content_version",
+        "truncated",
+        "next_cursor",
+        "unavailable_reason"
+      ],
+      "additionalProperties": true
+    },
+    "OperationDisplay": {
+      "type": "object",
+      "properties": {
+        "parameters": {
+          "$ref": "#/$defs/OperationText"
+        },
+        "stdout": {
+          "$ref": "#/$defs/OperationText"
+        },
+        "stderr": {
+          "$ref": "#/$defs/OperationText"
+        },
+        "reason": {
+          "$ref": "#/$defs/OperationText"
+        },
+        "source_truncated": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "parameters",
+        "stdout",
+        "stderr",
+        "reason",
+        "source_truncated"
+      ],
+      "additionalProperties": true
+    },
+    "OperationDetail": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/Operation"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "display": {
+              "$ref": "#/$defs/OperationDisplay"
+            }
+          },
+          "required": [
+            "display"
+          ]
+        }
       ]
     }
   },

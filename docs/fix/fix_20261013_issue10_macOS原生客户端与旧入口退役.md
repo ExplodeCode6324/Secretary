@@ -1,6 +1,6 @@
 # Issue #10：macOS 原生客户端与旧入口退役
 
-状态：**待确认 / PLAN_ONLY / WAITING_FOR_MASTER_APPROVAL / NOT_IMPLEMENTED / NOT_TESTED**。
+状态：**实施中 / A0_LOCAL_VALIDATED**。工具链已就绪，Core 公开合同首批开发与本地验收完成；后续客户端与退役尚未实施。
 
 关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。工作分支：`codex/issue10-native-client`，在 secretary-core 原工作目录实施，不创建独立工作区。
 
@@ -120,7 +120,7 @@ Markdown 选择采用 [swift-markdown 0.6.0](https://github.com/swiftlang/swift-
 
 ### A0：Core 公开投影补齐（B2，独立 PR1）
 
-已核实 `operationView()` 只投影 Operation 与 receipt 元信息，未解引用实际参数及 stdout/stderr；`artifactView()` 未公开内部 Artifact.workspace_path。下列为拟新增合同，尚未实现。新增为 API v1 只读字段/路由，不修改裁定、审批或执行领域语义。
+已核实 `operationView()` 只投影 Operation 与 receipt 元信息，未解引用实际参数及 stdout/stderr；`artifactView()` 未公开内部 Artifact.workspace_path。下列为 A0 合同范围，实施与验证结果见 §15。新增为 API v1 只读字段/路由，不修改裁定、审批或执行领域语义。
 
 | 字段/路由 | 数据来源和语义 | 边界 |
 | --- | --- | --- |
@@ -138,7 +138,19 @@ Markdown 选择采用 [swift-markdown 0.6.0](https://github.com/swiftlang/swift-
 
 A0 独立验收：shell/write/program/world 参数与现有真实作用一致；RESULT_UNKNOWN 的已有输出/原因、裁定后原回执仍可见、崩溃未留输出显示 unavailable；首片/续片含 Unicode 与 JSON 转义预算，source_truncated 不被分页覆盖；cursor 串域/串操作/串部件拒绝；公开字段不泄露执行环境/token/CAS 路径，GET 不写 journal/不续留；scope/独立任务产物及旧记录缺失路径、恶意路径/超长路径/重名与内容版本分别覆盖。合同生成、Swift 样例解码与 Core 回归通过后才能由后续客户端 PR 消费。
 
-A0 同时列全其余页面 DTO 使用清单，已确认 remember_context/display_hash、next_attempt_at 存在；新增发现单独记录，不把本节视为所有页面字段已完整验收。
+A0 核对的页面 DTO 使用清单如下。已确认 remember_context/display_hash、next_attempt_at 存在；这里只确认合同入口，原生交互和字段组合在后续 PR 验收。
+
+| 页面/底座 | 已有 DTO 与命令 |
+| --- | --- |
+| 发现、连接与可靠命令 | Core、ClientRegistration、RequestStatus、Receipt；ClientCommand、EmptyCommand |
+| 同步与通知 | SyncCursor、SyncPage、SyncTransaction、NotificationPage/Notification；PresentedCommand |
+| 会话与导航 | Assistant、Session、Timeline、Message、Activity、RelatedPage、Attention；MessageCommand、ProfileCommand、session compact/resume |
+| 任务与范围 | TaskPage/TaskDetail、PendingRequestPage、TaskRequestStatus、ExecutionPage/Execution、ScopePage/Scope；TaskCommand、ScopeCreateCommand/ScopeUpdateCommand、cancel/viewed/archive |
+| 审批、决定、未知结果 | AuthorizationPage/Authorization、DecisionPage/Decision、OperationPage/OperationDetail/OperationText、RulePage；ApprovalCommand、AnswerCommand、OperationResolveCommand、RuleCommand、verify-write/disable |
+| 记忆与 Settings/World | MemoryStatus、MemoryPage、CommitmentPage、Settings、WorldPage/WorldSlot；ResolveCommand、DraftCommand、RevisionCommand、apply/retry/restore-draft/extraction retry |
+| 产物与管理 | ArtifactPage/Artifact、固定版本二进制下载、ProgramPage；ProgramCommand、World migrate/Core stop |
+
+设备仍按 capability 禁用。字符串修订号、未知状态、缺失来源、能力/权限/连接/加载状态由客户端分别处理。
 
 ## 8. 用户能力迁移与退役门槛
 
@@ -234,3 +246,36 @@ Issue #10 完成条件：原生必需流程和上表验收完成、能力迁移�
 复审状态：B1 的工程与工具链方案已明确，环境安装仍待 Master；B2/B3 及非阻断建议已在计划落实。文档修订不等于环境已安装或实现已通过验收，整体仍为 PLAN_ONLY / WAITING_FOR_MASTER_APPROVAL。
 
 本轮复审修订的静态检查：`npm run docs:check` 通过（215 份 Markdown、3243 个本地链接、0 错误），`git diff --check` 通过；仅改本计划，未运行业务测试或操作 Xcode 环境。
+
+## 14. 实施授权与工具准备
+
+2026-10-13，Master 授权子代理跟踪 Safari 中的 Xcode 下载，下载完成后配置工具链，然后开始开发。此授权覆盖 Xcode 配置和本计划的业务实施，替代先前“由 Master 配置/等待实施确认”的安排；仍不更改全局开发目录、不合并或部署。子代理负责下载与工具配置，Codex 主任务在工具就绪前只做源码预检与实施准备。需要系统管理员交互时由 Master 完成。
+
+当前已确认下载目标 Xcode 16.4，来自 Apple Developer；尚在下载，未启动业务代码修改或测试。就绪后按 A0 / PR1 先补 Core 公开合同，再推进客户端工程与各项验收。
+
+工具进度：下载已完成，安装包与应用均通过 Apple 签名检查，已展开至 `/Applications/Xcode.app`，版本 16.4（16F6）。首次启动检查返回 69，原因是尚未接受 Xcode and Apple SDKs Agreement；已打开协议窗口，按电脑操作工具要求等待 Master 当场确认，未代为接受。Swift/macOS SDK/首启可用性尚未完成验证，不视作工具链就绪；未修改业务代码或运行业务测试。
+
+只读预检补充：`GET tasks` 已返回 scope_id，但查询参数白名单未接受 scope 筛选。A0 增加 `GET tasks?scope_id=<UUID|none>`，省略表示全部、none 表示未关联 scope；筛选先于稳定分页，cursor 绑定筛选值，覆盖跨 scope 游标拒绝、空结果和并发变化收敛。该改动落实本 issue 已批准的任务筛选要求，不修改任务/Scope 领域语义。已保存改动前源码指纹，原始证据留在忽略目录，不进入公开提交。
+
+Master 随后当场同意 Xcode and Apple SDKs Agreement，子代理接受许可并完成初始化：Xcode 16.4（16F6）、Swift 6.1.2、macOS SDK 15.5，checkFirstLaunchStatus 退出 0。Xcode 首启自动选为系统开发目录；普通权限恢复尝试被系统拒绝，未提权，保留自动选择结果。本项目显式使用 DEVELOPER_DIR 固定工具链。
+
+A0 在 `codex/issue10-core-projections` 分支实施。原 API 基线 32 项：30 通过、2 项因未提供测试 DSN 跳过、0 失败；后续完整验证提供已确认可用的 PostgreSQL 18 专用测试连接，覆盖这两项。源码指纹和首次日志已保存。
+
+## 15. A0 实施记录
+
+已增加 OperationDetail/OperationText：白名单参数、原始输出、原因及长裁定说明可分段续读，列表不内联长文本。新增 Artifact 相对路径定位和 tasks.scope_id 筛选；schema/operations 为源，同步生成 TypeScript/OpenAPI，更新中文 API 说明和 Swift 样例。
+
+Core 新增固定运行依赖 stream-json 3.7.0（BSD-3-Clause），只用于逐 token 解析 CAS JSON，16 KiB 输入缓冲、深度 64、所选嵌套键最多 8192 字符。保留本页文本与摘要，校验完整源字节散列；不通过 Store.read/bytes 把整份输出载入内存。裁定摘要是实际 note 前缀，note_truncated 明示，完整 note 由 reason 续读。大型源仍需扫描以校验完整性，未声称常数时间读取。
+
+首次类型检查发现分页泛型丢失，已修复；新增测试首轮在合同定义加入前失败，并发现流关闭掩盖来源错误，改用 FileHandle 生命周期。带数据库的定向回归首次 35 通过、1 失败，发现列表损坏回执被静默吞掉；已恢复当前页报错语义，保留原断言。所有首次日志和基线哈希留在忽略目录，后续通过不覆盖首次失败。
+
+本阶段不包含 SwiftUI 窗口、原生同步/命令持久层或旧入口删除；后续继续按 PR2a–PR3 和简洁 UI 约束推进。
+
+本地验证结果（2026-10-13）：
+
+- `npm run verify` 提供 PostgreSQL 18 专用测试连接，退出 0；574 项中 573 通过、0 失败、0 跳过，保留原有 AUD14 TODO 1 项，约 736 秒。数据库场景使用 helper 新建/销毁的 secretary_test_ 数据库。
+- 最后补充响应转义预算、错数据域游标、缺失来源、Scope 产物与长路径断言后，Issue10 + Issue18 裁定定向回归 20/20 通过；最终类型检查通过。此定向结果包含全量运行启动后新增的 1 个用例，不将其算入上项 574。
+- Xcode 16.4 下 Swift 公开 DTO 样例解码通过；API 重复生成无差异。文档检查 215 份 Markdown、3243 个本地链接、0 错误；改动文件格式检查、diff 检查通过。
+- 改动前指纹、首次失败和后续日志保留在本地忽略目录；暂存仅含 17 个本批源码/测试/合同/文档文件，没有原始报告或私有路径。未运行原生窗口或真实模型验收。
+
+交付范围为本地 A0 分支，尚未推送、创建 PR、合并或部署。Issue #10 保持进行中，下一交付单元为 PR2a 原生工程及可靠连接底座。

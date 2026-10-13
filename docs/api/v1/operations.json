@@ -301,6 +301,15 @@
         "schema": {
           "type": "string"
         }
+      },
+      {
+        "name": "scope_id",
+        "in": "query",
+        "required": false,
+        "description": "Scope UUID, none for unbound tasks, omitted for all tasks. Filter is applied before pagination and bound into the cursor.",
+        "schema": {
+          "type": "string"
+        }
       }
     ]
   },
@@ -873,7 +882,7 @@
   {
     "method": "GET",
     "path": "/api/v1/operations/{id}",
-    "response": "Operation",
+    "response": "OperationDetail",
     "status": 200
   },
   {
@@ -1079,5 +1088,35 @@
     "path": "/api/v1/notifications/{id}",
     "response": "Notification",
     "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/operations/{id}/content",
+    "response": "OperationText",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "part",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "parameters",
+            "stdout",
+            "stderr",
+            "reason"
+          ]
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
   }
 ]

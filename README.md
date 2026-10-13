@@ -2,7 +2,7 @@
 
 Secretary 是面向 Master 的持续个人助理。Core 保存会话与工作记忆，安排任务，由执行 Agent 或登记程序完成工作，再将结果交回主会话。项目基于 Pi v0.87.0，当前以本机 Core API v1 提供服务。
 
-当前已实现独立 Core 生命周期、任务与同任务接续、Scope 工作范围、操作审批与未知结果裁定、模型有界重试、记忆维护，以及可选 PostgreSQL World Model。SwiftUI 客户端和可靠增量同步按下方路线推进。
+当前已实现独立 Core 生命周期、任务与同任务接续、Scope 工作范围、操作审批与未知结果裁定、模型有界重试、记忆维护，以及可选 PostgreSQL World Model。可靠增量同步已提供，SwiftUI 客户端正在按下方路线实施。
 
 ## QuickStart
 
@@ -38,7 +38,7 @@ npm run verify
 
 ## 开发路线
 
-我们现在在进行一系列 Issue 修复，修复路线如下。截至 2026-10-12，第 1–3 批已合入 main：#20、#19、#16、#18 已完成，接下来是第 4 批 #17。
+我们现在在进行一系列 Issue 修复，修复路线如下。截至 2026-10-13，第 1–6 批已合入 main：#20、#19、#16、#18、#17、#9、#21、#28 已完成，当前实施第 7 批 #10。
 
 | 批次 | 领取 issue | 主要工作与安排理由 |
 |---|---|---|
@@ -63,4 +63,4 @@ npm run verify
 
 [总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7) 还包含 [#11 Portable 接入](https://github.com/ExplodeCode6324/Secretary/issues/11)、[#12 EVENT 调度](https://github.com/ExplodeCode6324/Secretary/issues/12)、[#13 touch agent 远程工具](https://github.com/ExplodeCode6324/Secretary/issues/13)，设备展示由 [#14](https://github.com/ExplodeCode6324/Secretary/issues/14) 配套推进。
 
-SwiftUI 按[客户端设计](docs/native-client-design-v0.3.md)实现：文字导航、连续对话区、13 pt 正文和默认 200 pt 可收起旁栏。设备方向包括 NX1 互联网便携端、HK13 传感器与 LoRa 短消息终端；本地模型用于后续断网场景。这些方向的接口、功耗与设备能力由相应项目验证，Core 当前提供会话、任务、记忆、设置和产物服务。
+SwiftUI 首版以简洁、功能完整的界面为目标，后续再做美学设计。按[客户端设计](docs/native-client-design-v0.3.md)实现：文字导航、连续对话区、13 pt 正文和默认 200 pt 可收起旁栏。设备方向包括 NX1 互联网便携端、HK13 传感器与 LoRa 短消息终端；本地模型用于后续断网场景。这些方向的接口、功耗与设备能力由相应项目验证，Core 当前提供会话、任务、记忆、设置和产物服务。

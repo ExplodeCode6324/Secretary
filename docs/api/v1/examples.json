@@ -95,5 +95,75 @@
       "bytes": "1000000",
       "truncated": true
     }
+  },
+  "operation": {
+    "id": "10000000-0000-4000-8000-000000000011",
+    "revision": "9007199254740993",
+    "state": "RESULT_UNKNOWN",
+    "scope": {
+      "session_id": null,
+      "task_id": "10000000-0000-4000-8000-000000000012",
+      "execution_id": "10000000-0000-4000-8000-000000000013"
+    },
+    "action": {
+      "action": "shell.run",
+      "resource": "/synthetic/project",
+      "parameters_hash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "intent_id": "10000000-0000-4000-8000-000000000014"
+    },
+    "effect": "UNKNOWN",
+    "display": {
+      "parameters": {
+        "state": "available",
+        "text": "{\"command\":\"echo 中文 😀\"}",
+        "bytes": "30",
+        "content_version": "e1c0779ccbe77fbddba24c14a423f157e8ac493c6db74f35e2379f4ce4333f1c",
+        "truncated": false,
+        "next_cursor": null,
+        "unavailable_reason": null
+      },
+      "stdout": {
+        "state": "available",
+        "text": "中文 😀",
+        "bytes": "11",
+        "content_version": "417855369264e97d91225d5f34406bd9cb9d7729336c72e1ff1147e93b89d7a4",
+        "truncated": false,
+        "next_cursor": null,
+        "unavailable_reason": null
+      },
+      "stderr": {
+        "state": "available",
+        "text": "",
+        "bytes": "0",
+        "content_version": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "truncated": false,
+        "next_cursor": null,
+        "unavailable_reason": null
+      },
+      "reason": {
+        "state": "available",
+        "text": "{\"state\":\"RESULT_UNKNOWN\",\"effect\":\"UNKNOWN\"}",
+        "bytes": "45",
+        "content_version": "c77abd010c9fd4a66c2b9e3b321f6c96c4d4c6497292dbf237f7f88b70af1a46",
+        "truncated": false,
+        "next_cursor": null,
+        "unavailable_reason": null
+      },
+      "source_truncated": null
+    }
+  },
+  "artifact": {
+    "id": "10000000-0000-4000-8000-000000000015",
+    "name": "result.txt",
+    "task_id": "10000000-0000-4000-8000-000000000012",
+    "execution_id": "10000000-0000-4000-8000-000000000013",
+    "content_version": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "bytes": "9007199254740993",
+    "media_type": "text/plain",
+    "state": "available",
+    "relative_path": "reports/result.txt",
+    "path_base": "task",
+    "scope_id": null,
+    "path_unavailable_reason": null
   }
 }

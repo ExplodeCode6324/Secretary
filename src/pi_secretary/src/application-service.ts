@@ -36,6 +36,12 @@ import { Notifications } from "./notification-service.ts";
 import type { PageKey } from "./api/protocol.ts";
 import { timelineFor } from "./timeline.ts";
 import { activityHistoryFor } from "./activity-history.ts";
+import {
+  OperationDisplay,
+  operationParts,
+  type OperationPart,
+} from "./operation-display.ts";
+import { artifactPath } from "./artifact-path.ts";
 export type OwnerPrincipal = Readonly<{
   kind: "local-owner";
   owner_id: string;
@@ -562,11 +568,12 @@ export class ApplicationService {
       bytes: String(a.artifact.content.bytes),
       media_type: a.artifact.content.media_type,
       state: a.state,
+      ...artifactPath(a.artifact, this.execution(a.execution)),
     };
   }
-  private page(
+  private page<T>(
     scope: string,
-    values: unknown[],
+    values: T[],
     q: URLSearchParams,
     keyOf?: (value: any) => PageKey,
   ) {
@@ -620,6 +627,8 @@ export class ApplicationService {
       ...(path.startsWith("messages/") ? ["thinking", "streaming"] : []),
       ...(path === "related" ? ["scope_type", "scope_id"] : []),
       ...(path === "artifacts" ? ["task_id"] : []),
+      ...(path === "tasks" ? ["scope_id"] : []),
+      ...(/^operations\/[^/]+\/content$/.test(path) ? ["part"] : []),
       ...(path.startsWith("world/")
         ? ["subject", "predicate", "scope", "kind", "history"]
         : []),
@@ -811,7 +820,22 @@ export class ApplicationService {
       };
     }
     if (path === "tasks") {
-      const page = this.page(path, [...this.taskIDs], q);
+      const scope = q.get("scope_id");
+      if (
+        scope !== null &&
+        scope !== "none" &&
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          scope,
+        )
+      )
+        throw new ApiError("INVALID_QUERY");
+      const ids = [...this.taskIDs].filter(
+        (id) =>
+          scope === null ||
+          (this.task(id).scope_id ?? null) ===
+            (scope === "none" ? null : scope),
+      );
+      const page = this.page(path, ids, q);
       return {
         ...page,
         items: page.items.map((id) => {
@@ -1117,20 +1141,40 @@ export class ApplicationService {
       }
     }
     if (path === "operations") {
-      const page = this.page(
-        path,
-        store.all<import("./contracts.ts").Operation>("Operation"),
-        q,
-      );
-      return {
-        ...page,
-        items: page.items.map((op) =>
-          this.operationView(op as import("./contracts.ts").Operation),
-        ),
-      };
+      const values = store
+        .all<import("./contracts.ts").Operation>("Operation")
+        .filter((op) => {
+          try {
+            this.operation(op.id);
+            return true;
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 404) return false;
+            throw error;
+          }
+        });
+      const page = this.page(path, values, q);
+      const items = [];
+      for (const op of page.items)
+        items.push(await this.operationView(op, false));
+      return { ...page, items };
+    }
+    if (
+      parts[0] === "operations" &&
+      parts[2] === "content" &&
+      parts.length === 3
+    ) {
+      const op = this.operation(target);
+      const part = q.get("part");
+      if (!operationParts.includes(part as OperationPart) || q.has("limit"))
+        throw new ApiError("INVALID_QUERY");
+      return new OperationDisplay(
+        store,
+        this.cursors,
+        this.identity.owner_id,
+      ).text(op, part as OperationPart, q.get("cursor"), 32768);
     }
     if (parts[0] === "operations" && parts.length === 2)
-      return this.operationView(store.get("Operation", target));
+      return this.operationView(this.operation(target), true);
     if (path === "admin/programs")
       return this.page(path, project(store.all("ProgramRegistration")), q);
     if (
@@ -1145,28 +1189,50 @@ export class ApplicationService {
     }
     throw new ApiError("NOT_FOUND", 404);
   }
-  private operationView(op: import("./contracts.ts").Operation) {
+  private operation(operationID: string) {
+    const op = this.app.store.get<import("./contracts.ts").Operation>(
+      "Operation",
+      operationID,
+    );
+    if (op.scope.execution_id) this.execution(op.scope.execution_id);
+    else if (op.scope.task_id) this.task(op.scope.task_id);
+    else if (
+      op.scope.session_id &&
+      op.scope.session_id !== this.app.host.sessionID
+    )
+      throw new ApiError("NOT_FOUND", 404);
+    return op;
+  }
+  private async operationView(
+    op: import("./contracts.ts").Operation,
+    detail: boolean,
+  ) {
     const { process: control, ...fields } = op;
-    const receipt = op.receipt
-      ? this.app.store.read<Record<string, unknown>>(op.receipt)
-      : null;
-    return project({
+    const display = new OperationDisplay(
+      this.app.store,
+      this.cursors,
+      this.identity.owner_id,
+    );
+    const value = project({
       ...fields,
       scope_id: op.scope.execution_id
-        ? (this.app.store.get<Execution>("Execution", op.scope.execution_id)
-            .scope_id ?? null)
+        ? (this.execution(op.scope.execution_id).scope_id ?? null)
         : null,
       process_state: control?.state ?? null,
-      resolution:
-        receipt?.resolved_by === "MASTER_UI"
-          ? {
-              outcome: receipt.outcome,
-              resolved_by: receipt.resolved_by,
-              note: receipt.note,
-              resolved_at: receipt.resolved_at,
-            }
-          : null,
+      resolution: await display.resolution(op, !detail),
     });
+    if (!detail) return value;
+    let divisor = 1;
+    do {
+      value.display = await display.view(op, divisor);
+      if (
+        Buffer.byteLength(JSON.stringify({ api_version: "1", data: value })) <=
+        256 * 1024
+      )
+        return value;
+      divisor *= 2;
+    } while (divisor <= 16);
+    throw new ApiError("RESPONSE_TOO_LARGE", 503);
   }
   private sourceView(ref: ObjectRef) {
     return { ...project(ref), event_ids: [], locator_state: "unavailable" };
