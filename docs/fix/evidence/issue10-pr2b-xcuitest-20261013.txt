@@ -1,3 +1,10 @@
+Historical evidence for addc8f1; superseded for review acceptance.
+Corrections from PR42 review remediation:
+- Dock/menu tests below did NOT assert zero windows before recovery. They proved activation only.
+- The private Core was isolated, but the Debug client DB override was not compiled because DEBUG was undefined.
+  The initial client DB isolation claim below is incorrect. Existing local data has been preserved.
+- Revised evidence is recorded separately after the new acceptance run; retain these original results and hashes.
+
 Issue #10 PR2b - local native acceptance, 2026-10-13
 Xcode 16.4 (16F6); Swift 6.1.2; local arm64 macOS graphical session.
 Base: aca83234f47259c31154d546918afc7462918040

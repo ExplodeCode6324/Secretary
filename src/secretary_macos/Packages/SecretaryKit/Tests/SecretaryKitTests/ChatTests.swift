@@ -87,7 +87,7 @@ private func page(_ items: [ChatItem]) -> ChatPage {
   #expect(blocks.contains(.table([["A", "B"], ["中", "👩🏽‍💻"]])))
   #expect(
     blocks.contains {
-      if case .text(let text) = $0 { return text.contains("<script>") }
+      if case .plain(let text) = $0 { return text.contains("<script>") }
       return false
     })
 }
@@ -131,4 +131,27 @@ private func page(_ items: [ChatItem]) -> ChatPage {
   editor.insertNewline(nil)
   #expect(editor.string.contains("\n"))
   #expect(submissions == 1)
+}
+
+@Test func oversizedMarkdownIsVerbatimNotInlineMarkdown() {
+  let text = String(repeating: "**literal** <em>raw</em> 👩🏽‍💻\n", count: 12_000)
+  #expect(text.utf8.count > 256 * 1024)
+  #expect(ChatMarkdown.parse(text) == [.plain(text)])
+  #expect(ChatMarkdown.parse("<div>**literal**</div>") == [.plain("<div>**literal**</div>\n")])
+}
+
+@Test @MainActor func largePlainTextUsesBoundedNativeViewport() {
+  let view = PlainTextDocumentView()
+  let text = String(repeating: "literal **text** 👩🏽‍💻\n", count: 120_000)
+  let start = Date()
+  view.setText(text)
+  #expect(text.utf8.count <= 4 * 1024 * 1024)
+  #expect(text.utf8.count > 3 * 1024 * 1024)
+  #expect(view.textView.string == text)
+  #expect(view.textView.textLayoutManager != nil)
+  #expect(!view.textView.isEditable && view.textView.isSelectable)
+  #expect(view.frame.height == 240)
+  print(
+    "Large native text fixture bytes=\(text.utf8.count), setText seconds=\(Date().timeIntervalSince(start))"
+  )
 }

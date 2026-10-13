@@ -104,6 +104,7 @@ struct ChatShell: View {
         TextField("记录 ID", text: $locator).accessibilityLabel("定位记录 ID")
         Toggle("事件", isOn: $locateEvent).toggleStyle(.checkbox)
         Button("定位") {
+          NSApp.keyWindow?.makeFirstResponder(nil)
           let target = locator.trimmingCharacters(in: .whitespacesAndNewlines)
           Task { await chat.load((locateEvent ? "event_id" : "message_id", target)) }
         }.disabled(locator.isEmpty || !chat.online || chat.busy)
@@ -135,6 +136,10 @@ struct ChatShell: View {
       )
       .frame(height: 95)
       .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color(nsColor: .separatorColor)))
+      if let reason = chat.sendUnavailableReason {
+        Text(reason).font(.system(size: 11)).foregroundStyle(.secondary)
+          .accessibilityIdentifier("sendUnavailableReason")
+      }
       HStack {
         Text("Return 换行 · ⌘Return 发送").font(.system(size: 11)).foregroundStyle(.secondary)
         Spacer()
@@ -243,6 +248,12 @@ struct MessageBody: View {
   }
   @ViewBuilder private func blockView(_ block: MarkdownBlock) -> some View {
     switch block {
+    case .plain(let text):
+      if text.utf8.count > 256 * 1024 {
+        LongPlainTextBody(text: text).frame(height: 240)
+      } else {
+        Text(verbatim: text)
+      }
     case .text(let text):
       Text(
         (try? AttributedString(
@@ -292,6 +303,16 @@ struct MessageBody: View {
   }
 }
 
+private struct LongPlainTextBody: NSViewRepresentable {
+  let text: String
+  @AppStorage("chat.fontSize") private var fontSize = 13.0
+  func makeNSView(context: Context) -> PlainTextDocumentView { PlainTextDocumentView() }
+  func updateNSView(_ view: PlainTextDocumentView, context: Context) {
+    view.textView.font = .systemFont(ofSize: fontSize)
+    view.setText(text)
+  }
+}
+
 private struct RowFrames: PreferenceKey {
   static let defaultValue: [String: CGRect] = [:]
   static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
@@ -301,6 +322,8 @@ private struct RowFrames: PreferenceKey {
 private struct TranscriptRows: View {
   let items: [ChatItem]
   let previewStates: [String: String]
+  let expandedThinking: Set<String>
+  let expandThinking: (String, Bool) -> Void
   let fontSize: Double
   let frames: ([String: CGRect]) -> Void
   let more: (ChatItem) -> Void
@@ -326,7 +349,13 @@ private struct TranscriptRows: View {
             }
             MessageBody(blocks: ChatMarkdown.parse(item.text ?? ""))
             if let thinking = item.thinking, !thinking.isEmpty {
-              DisclosureGroup("可见思考") { MessageBody(blocks: ChatMarkdown.parse(thinking)) }
+              DisclosureGroup(
+                "可见思考",
+                isExpanded: Binding(
+                  get: { expandedThinking.contains(item.id) },
+                  set: { expandThinking(item.id, $0) }
+                )
+              ) { MessageBody(blocks: ChatMarkdown.parse(thinking)) }
             }
             if item.incomplete == true { Text("未完整完成").foregroundStyle(.secondary) }
             if item.next_cursor != nil { Button("继续读取正文") { more(item) } }
@@ -350,7 +379,7 @@ private struct TranscriptRows: View {
   }
 }
 
-/// AppKit owns the scroll offset, so replacing SwiftUI content never implicitly scrolls to bottom.
+/// Latest updates explicitly follow the bottom; reading updates restore a stable local anchor.
 struct TranscriptView: NSViewRepresentable {
   @ObservedObject var chat: ChatModel
   let fontSize: Double
@@ -358,6 +387,7 @@ struct TranscriptView: NSViewRepresentable {
   func makeNSView(context: Context) -> NSScrollView {
     let scroll = NSScrollView()
     scroll.hasVerticalScroller = true
+    scroll.setAccessibilityIdentifier("chatTranscript")
     scroll.drawsBackground = false
     scroll.contentView.postsBoundsChangedNotifications = true
     context.coordinator.scroll = scroll
@@ -371,13 +401,16 @@ struct TranscriptView: NSViewRepresentable {
     let current = coordinator.currentAnchor()
     if coordinator.revision != chat.scrollRevision {
       coordinator.restore = chat.scrollRequest
+      coordinator.bottom = chat.scrollToBottom
       coordinator.revision = chat.scrollRevision
-    } else {
+    } else if !coordinator.bottom && coordinator.restore == nil {
       coordinator.restore = current ?? chat.anchor
     }
     let width = max(200, scroll.contentSize.width)
     let root = TranscriptRows(
-      items: chat.window.items, previewStates: chat.previewStates, fontSize: fontSize,
+      items: chat.window.items, previewStates: chat.previewStates,
+      expandedThinking: chat.expandedThinking, expandThinking: chat.setThinkingExpanded,
+      fontSize: fontSize,
       frames: { frames in
         coordinator.frames = frames
         coordinator.restorePosition()
@@ -393,8 +426,11 @@ struct TranscriptView: NSViewRepresentable {
       coordinator.host = host
       scroll.documentView = host
     }
+    coordinator.adjusting = true
     coordinator.host?.setFrameSize(
       NSSize(width: width, height: coordinator.host?.fittingSize.height ?? 0))
+    coordinator.adjusting = false
+    DispatchQueue.main.async { coordinator.restorePosition() }
   }
   @MainActor final class Coordinator: NSObject {
     let chat: ChatModel
@@ -402,6 +438,7 @@ struct TranscriptView: NSViewRepresentable {
     var host: NSHostingView<AnyView>?
     var frames: [String: CGRect] = [:]
     var restore: ReadingAnchor?
+    var bottom = false
     var revision = -1
     var adjusting = false
     init(chat: ChatModel) { self.chat = chat }
@@ -418,15 +455,24 @@ struct TranscriptView: NSViewRepresentable {
       return ReadingAnchor(id: row.key, offset: max(0, y - row.value.minY))
     }
     func restorePosition() {
-      guard let scroll, let anchor = restore, let frame = frames[anchor.id] else { return }
+      guard let scroll, let host else { return }
+      guard bottom || restore != nil else { return }
       adjusting = true
-      let y = min(
-        max(0, frame.minY + anchor.offset),
-        max(0, (host?.frame.height ?? 0) - scroll.contentSize.height))
+      defer { adjusting = false }
+      host.setFrameSize(NSSize(width: host.frame.width, height: host.fittingSize.height))
+      let maximum = max(0, host.frame.height - scroll.contentSize.height)
+      let y: CGFloat
+      if bottom {
+        y = maximum
+      } else if let anchor = restore, let frame = frames[anchor.id] {
+        y = min(max(0, frame.minY + anchor.offset), maximum)
+      } else {
+        return
+      }
       scroll.contentView.scroll(to: NSPoint(x: 0, y: y))
       scroll.reflectScrolledClipView(scroll.contentView)
       restore = nil
-      adjusting = false
+      bottom = false
       if let value = currentAnchor() {
         DispatchQueue.main.async { [weak self] in
           guard let self, self.chat.window.items.contains(where: { $0.id == value.id }) else {
@@ -437,7 +483,7 @@ struct TranscriptView: NSViewRepresentable {
       }
     }
     @objc func scrolled(_ notification: Notification) {
-      guard !adjusting, let value = currentAnchor(), chat.anchor != value else { return }
+      guard !adjusting, !bottom, let value = currentAnchor(), chat.anchor != value else { return }
       // Defer publishing outside AppKit layout; persist only actual user-originated scrolls.
       if let event = NSApp.currentEvent,
         [.scrollWheel, .leftMouseDragged, .leftMouseDown, .keyDown].contains(event.type)

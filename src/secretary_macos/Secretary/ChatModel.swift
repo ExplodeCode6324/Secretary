@@ -22,6 +22,9 @@ final class ChatModel: ObservableObject {
   @Published var anchor: ReadingAnchor?
   @Published var scrollRequest: ReadingAnchor?
   @Published var scrollRevision = 0
+  @Published var scrollToBottom = false
+  @Published var expandedThinking: Set<String> = []
+  @Published var messageCapability: Capability?
   @Published var preferences = ChatPreferences(
     streaming: UserDefaults.standard.object(forKey: "chat.streaming") as? Bool ?? true,
     thinking: UserDefaults.standard.bool(forKey: "chat.thinking"))
@@ -34,7 +37,6 @@ final class ChatModel: ObservableObject {
   private var relationQuery: [String: String] = [:]
   private var latest = true
   private var lastTransient = Date.distantPast
-  private var canSend = false
   private var generation: UInt64 = 0
 
   func configure(engine: ClientEngine, database: URL) throws {
@@ -57,6 +59,7 @@ final class ChatModel: ObservableObject {
       commands = []
       attention = ""
       previewStates = [:]
+      expandedThinking = []
       identity = newIdentity
       draft = try local.draft(newIdentity)
       anchor = try local.anchor(newIdentity)
@@ -66,7 +69,7 @@ final class ChatModel: ObservableObject {
     generation = await engine.connectionGeneration()
     try check(version)
     // The server remains the authority; unknown capabilities never authorize a write.
-    canSend = core.capabilities["messages"]?.allowed ?? false
+    messageCapability = core.capabilities["messages"]
     try await refreshSummary()
     try check(version)
     await load(anchor.map { ("message_id", $0.id) })
@@ -83,7 +86,28 @@ final class ChatModel: ObservableObject {
     status = "离线缓存 · 保留最后确认内容"
   }
   var sendEnabled: Bool {
-    online && canSend && !sending && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    online && messageCapability?.allowed == true && !sending
+      && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+  }
+  var sendUnavailableReason: String? {
+    guard online else { return "尚未连接，草稿保留在本机" }
+    guard let capability = messageCapability else { return "消息能力未知：Core 未提供 messages 状态" }
+    guard !capability.allowed else { return nil }
+    return "暂不可发送 · " + capability.state + " · " + (capability.reason ?? "Core 未提供原因")
+  }
+  func setThinkingExpanded(_ id: String, expanded: Bool) {
+    if expanded {
+      expandedThinking.insert(id)
+      latest = false
+    } else {
+      expandedThinking.remove(id)
+    }
+  }
+  private func followBottom() {
+    scrollRequest = nil
+    scrollToBottom = true
+    scrollRevision += 1
+    hasUpdates = false
   }
   func edit(_ text: String) {
     guard let identity, let local else { return }
@@ -135,6 +159,7 @@ final class ChatModel: ObservableObject {
   func changed(transient: Data? = nil) async {
     guard online, let engine, let identity else { return }
     let version = epoch
+    let current = ticket
     if let transient {
       guard preferences.streaming || preferences.thinking else { return }
       var stateChanged = false
@@ -152,7 +177,7 @@ final class ChatModel: ObservableObject {
       if transient == nil { try await refreshSummary() }
       try check(version)
       commands = try local?.commands(identity) ?? []
-      guard latest && !selectionActive && !busy else {
+      guard latest && !selectionActive && expandedThinking.isEmpty && !busy else {
         hasUpdates = true
         return
       }
@@ -161,9 +186,15 @@ final class ChatModel: ObservableObject {
         transient != nil ? try await engine.refresh(route) : try await engine.cached(route)
       try check(version)
       try await engine.requireGeneration(generation)
+      // Reading can begin while the network/actor was suspended. Recheck before replacing it.
+      guard current == ticket, latest, !selectionActive, expandedThinking.isEmpty, !busy else {
+        hasUpdates = true
+        return
+      }
       if let projection {
         let page = try Contract.decode(ChatPage.self, from: projection.data)
         try window.updateLatest(page)
+        followBottom()
         confirmedAt = projection.confirmedAt
         status = projection.stale ? "缓存陈旧，等待重新确认" : "已同步"
       }
@@ -217,9 +248,10 @@ final class ChatModel: ObservableObject {
       hasUpdates = false
       confirmedAt = Date()
       status = page.items.isEmpty ? "暂无对话" : "已同步"
-      if goToLatest, let last = window.items.last {
-        scrollRequest = ReadingAnchor(id: last.id, offset: 0)
-        scrollRevision += 1
+      scrollToBottom = false
+      if latest {
+        expandedThinking = []
+        followBottom()
       } else if let locator {
         scrollRequest = anchor?.id == locator.1 ? anchor : ReadingAnchor(id: locator.1, offset: 0)
         scrollRevision += 1
@@ -257,6 +289,7 @@ final class ChatModel: ObservableObject {
   }
   func moreContent(_ item: ChatItem) async {
     guard let cursor = item.next_cursor, let engine, let identity else { return }
+    latest = false  // Explicitly expanding a body is reading, not following the live tail.
     let version = epoch
     let current = ticket
     do {

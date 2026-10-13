@@ -159,6 +159,7 @@ public struct ChatTransient: Decodable, Sendable {
 /// Render only safe text structures. Raw HTML is text, never executed or fetched.
 public indirect enum MarkdownBlock: Equatable, Sendable {
   case text(String)
+  case plain(String)
   case heading(String, Int)
   case code(String, String?)
   case quote([MarkdownBlock])
@@ -169,7 +170,7 @@ public indirect enum MarkdownBlock: Equatable, Sendable {
 public enum ChatMarkdown {
   public static func parse(_ text: String) -> [MarkdownBlock] {
     // Long documents stay readable without building an unbounded AST.
-    guard text.utf8.count <= 256 * 1024 else { return [.text(text)] }
+    guard text.utf8.count <= 256 * 1024 else { return [.plain(text)] }
     let document = Document(parsing: text)
     return document.children.map(block)
   }
@@ -186,7 +187,7 @@ public enum ChatMarkdown {
       return .table(
         [value.head.cells.map(\.plainText)] + value.body.rows.map { $0.cells.map(\.plainText) })
     case is ThematicBreak: return .rule
-    case let value as HTMLBlock: return .text(value.rawHTML)
+    case let value as HTMLBlock: return .plain(value.rawHTML)
     default: return .text(node.format())
     }
   }

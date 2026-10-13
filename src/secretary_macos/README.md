@@ -18,16 +18,16 @@ open .build/native/Build/Products/Debug/Secretary.app
 
 全应用共用唯一窗口，关窗会退出客户端；Core 仍独立运行。启动后没有可见窗口时，点击 Dock 图标，或选择 Window → 打开主窗口（⌘0）恢复；已有窗口只激活。客户端数据位于当前用户 Application Support 下 `Secretary/client.sqlite`（目录 0700，文件 0600），不与 Core Store 混用。WAL/FULL 同步；schema 不兼容时停止，不自动删除 outbox。数据库和日志属于本地私有数据，不应提交仓库。
 
-本机窗口测试：先运行 `verify.sh` 构建，再在已解锁图形会话运行 `node test_case/native/ui-fixture.mjs`。脚本创建独立 fixture Core 和 Debug 客户端数据库，测试结束只停止自己创建的 Core；失败保留私有数据及日志。冷启动回归隔离恢复状态，菜单和 Dock 测试明确使用 `-ApplePersistenceIgnoreState NO`。CI 编译 UI test target，不以编译替代本机 XCUITest。
+本机窗口测试：先运行 `verify.sh` 构建，再在已解锁图形会话运行 `node test_case/native/ui-fixture.mjs`。脚本创建独立 fixture Core 和 Debug 客户端数据库，测试结束只停止自己创建的 Core；失败保留私有数据及日志。冷启动回归隔离恢复状态，菜单和 Dock 测试使用 `-ApplePersistenceIgnoreState NO`，通过 Debug 专用钩子让关闭最后一个真实窗口后进程仍存活，直接断言 0 个窗口，再经恢复入口断言 1 个可用窗口。该钩子不进入 Release，正常关窗退出行为保持不变。CI 编译 UI test target，不以编译替代本机 XCUITest。
 
 ## 聊天与导航
 
 名称按钮返回对话；设置区分连接配置、本地显示和待实现业务设置。任务、记忆、设备、产物入口保留禁用说明，设备仍冻结。宽窗提供 180–220 pt 关联旁栏，对话可用宽度不足 800 pt 时收起；正文支持 13–20 pt 本地字号。保持简洁，后续再做美学设计。
 
-- 输入没有可见占位文字，带“消息输入”可访问标签。Return 换行，⌘Return 发送；输入法组合态不发送。已提交的编辑同步保存；本地 outbox 与草稿删除事务成功后才清空输入。最近 30 条发送记录区分受理、失败和待确认，受理不代表助手回复已完成。
+- 输入没有可见占位文字，带“消息输入”可访问标签。Return 换行，⌘Return 发送；输入法组合态不发送。已提交的编辑同步保存；本地 outbox 与草稿删除事务成功后才清空输入。最近 30 条发送记录区分受理、失败和待确认，受理不代表助手回复已完成。发送区域独立显示 messages 不可用的 state/reason，离线或未提供能力也有明确说明。
 - 最新页、较早/较新页、消息或事件 ID 定位、正文续读均使用公开 API 与 opaque cursor。单页请求 30 条，客户端上限 200 条/16 MiB 正文，单条续读最多 4 MiB；到上限保留已读内容并提示。最近页受持久投影预算保护，历史分页按需读取，不复制全部历史。
-- 阅读位置按消息 ID 和局部偏移保存。用户滚动后暂停替换当前页；新数据提示“有更新”，由“回到最新”恢复。续读相同 revision 不被首页片段覆盖；revision 变化重新取新正文。偏好切换清除隐藏正文，使旧请求失效；预览按 call_id 对齐最终消息，不推进 durable cursor。
-- GFM 解析为原生文字、列表、引用、代码与表格；代码可复制，代码/表格各自横向滚动。超过 256 KiB 的单条正文按纯文本呈现以限制解析成本。HTML 按文字展示，只允许打开 http/https 链接，无 WebView/脚本执行。
+- 阅读位置按消息 ID 和局部偏移保存。最新模式追加回复保持贴底；用户阅读历史、选择文字或展开正文时保留视口，新数据提示“有更新”，由“回到最新”恢复。续读相同 revision 不被首页片段覆盖；revision 变化重新取新正文。偏好切换清除隐藏正文，使旧请求失效；预览按 call_id 对齐最终消息，不推进 durable cursor。
+- GFM 解析为原生文字、列表、引用、代码与表格；代码可复制，代码/表格各自横向滚动。超过 256 KiB 的单条正文在 240 pt 局部滚动区域使用只读 NSTextView/TextKit 2，既不解析 Markdown，也不让整个正文参与 SwiftUI 高度计算。HTML 块使用 Text(verbatim:) 原样展示，只允许打开 http/https 链接，无 WebView/脚本执行。
 - 关联只使用 Core 明确返回的 session/message 关系，每类最多 5 项。活动行暂不提供关联按钮：其 activity ID 不是公开 event locator，不能猜测映射。后台查询不提交 viewed；详情操作、审批/决定处理与完整通知列表留在 PR2c。
 
 ## 连接与持久化
@@ -64,7 +64,7 @@ open .build/native/Build/Products/Debug/Secretary.app
 
 `verify.sh`：锁工具链与依赖、Swift 故障测试、一次真实 fixture Core 的 launch/discovery/HTTP/SSE/reopen/redirect 与聊天持久发送、回执、Unicode 时间线和 ID 定位验证、app + UI test target 编译。Core 集成只使用临时目录，脚本结束停止自己创建的 Core；不会使用真实模型或修改既有数据域。
 
-真正运行 UI 测试另用 `node test_case/native/ui-fixture.mjs`；Debug 测试数据目录仅对 UI 测试进程注入，不更改 Release 数据目录。测试用合成文本粘贴保证不依赖当前输入法，实际执行 Return、⌘Return、退出与重启；Package 另测原生文本控件 marked text 禁止发送。
+真正运行 UI 测试另用 `node test_case/native/ui-fixture.mjs`；Debug 配置显式定义 DEBUG；测试断言临时 client.sqlite 确实建立。测试数据目录与保留零窗口进程钩子只对 UI 测试进程注入，不进入 Release。测试用合成文本粘贴保证不依赖当前输入法，实际执行 Return、⌘Return、退出与重启；Package 另测原生文本控件 marked text 禁止发送。
 
 需要已解锁桌面及系统允许测试 runner。构建成功不等于 UI 测试通过，也不等于真实通知、VoiceOver 或睡眠验收。CI 的 `verify` 汇总 Linux Core 与 macOS 两项，任意失败/跳过即失败；仓库保护规则由维护者另行管理。
 
