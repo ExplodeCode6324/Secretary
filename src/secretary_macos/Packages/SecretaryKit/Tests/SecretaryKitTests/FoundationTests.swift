@@ -498,7 +498,8 @@ private actor NoticeCollector {
   #expect(try await reopened.pendingCommands().filter { $0.path.hasSuffix("/read") }.count == 1)
 }
 
-@Test func rejectedManagementIntentDoesNotReplayOrBlockOtherCommands() async throws {
+@Test(arguments: [400, 404, 409, 410, 422])
+func rejectedManagementIntentDoesNotReplayOrBlockOtherCommands(status: Int) async throws {
   let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
   let engine = try ClientEngine(databaseURL: dir.appendingPathComponent("client.sqlite"))
   let transport = FakeTransport()
@@ -507,11 +508,45 @@ private actor NoticeCollector {
   let next = try ManagementCommand.simple(.retryExtraction)
   try await engine.enqueue(id: conflict.id, route: conflict.route, body: conflict.body, destination: identity)
   try await engine.enqueue(id: next.id, route: next.route, body: next.body, destination: identity)
-  await transport.queue(conflict.route.path, [.failure(.http(409, "REVISION_CONFLICT"))])
+  await transport.queue(conflict.route.path, [.failure(.http(status, "INTENT_REJECTED"))])
   try await engine.drainOutbox()
-  #expect(try await engine.command(id: conflict.id, destination: identity)?.state == "REJECTED:REVISION_CONFLICT")
+  #expect(try await engine.command(id: conflict.id, destination: identity)?.state == "REJECTED:INTENT_REJECTED")
   #expect(try await engine.command(id: next.id, destination: identity)?.state == "RECEIPT:ACCEPTED")
   try await engine.drainOutbox()
   #expect(await transport.postBodies(conflict.route.path).count == 1)
   #expect(await transport.postBodies(next.route.path).count == 1)
+}
+
+@Test func receiptLookupFailureCannotRejectOrRepostAnIntent() async throws {
+  let dir = try directory()
+  defer { try? FileManager.default.removeItem(at: dir) }
+  let engine = try ClientEngine(databaseURL: dir.appendingPathComponent("client.sqlite"))
+  let transport = FakeTransport()
+  _ = try await engine.connect(endpoint: endpoint(), expectedMode: "fixture", transport: transport)
+  try await engine.enqueue(id: requestID, route: Route("messages"), body: command(), destination: identity)
+  await transport.queue("requests/" + requestID, [.failure(.http(409, "LOOKUP_CONFLICT"))])
+  await #expect(throws: ClientError.http(409, "LOOKUP_CONFLICT")) { try await engine.drainOutbox() }
+  #expect(await transport.postBodies("messages").isEmpty)
+  #expect(try await engine.command(id: requestID, destination: identity)?.body == command())
+  await transport.queue("requests/" + requestID, [.success(envelope("{\"receipt\":\(receipt(requestID, state: "UNKNOWN"))}"))])
+  try await engine.drainOutbox()
+  #expect(try await engine.command(id: requestID, destination: identity)?.state == "UNKNOWN")
+  #expect(await transport.postBodies("messages").isEmpty)
+}
+
+@Test func unreceivedCommandResendsExactBytesAndPreservesAdmittedFailure() async throws {
+  let dir = try directory()
+  defer { try? FileManager.default.removeItem(at: dir) }
+  let engine = try ClientEngine(databaseURL: dir.appendingPathComponent("client.sqlite"))
+  let transport = FakeTransport()
+  _ = try await engine.connect(endpoint: endpoint(), expectedMode: "fixture", transport: transport)
+  let body = command()
+  try await engine.enqueue(id: requestID, route: Route("messages"), body: body, destination: identity)
+  await transport.queue("messages", [.failure(.unavailable), .success(envelope(receipt(requestID, state: "UNKNOWN")))])
+  await #expect(throws: ClientError.unavailable) { try await engine.drainOutbox() }
+  try await engine.drainOutbox()
+  #expect(await transport.postBodies("messages") == [body, body])
+  #expect(try await engine.command(id: requestID, destination: identity)?.state == "UNKNOWN")
+  try await engine.drainOutbox()
+  #expect(await transport.postBodies("messages") == [body, body])
 }

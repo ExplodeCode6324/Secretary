@@ -21,7 +21,8 @@ public actor ArtifactCache {
     _ artifact: MArtifact, identity: Identity, transport: any CoreTransport,
     progress: @escaping @Sendable (Double) async -> Void
   ) async throws -> URL {
-    guard !downloading else { throw ClientError.unavailable }
+    try Task.checkCancellation()
+    guard !downloading else { throw ClientError.downloadBusy }
     guard let size = Int64(artifact.bytes.rawValue), size >= 0, size <= budget,
       artifact.content_version.count == 64,
       artifact.content_version.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) }
@@ -41,6 +42,7 @@ public actor ArtifactCache {
     let target = root.appendingPathComponent(digest + suffix)
     if FileManager.default.fileExists(atPath: target.path) {
       if try Self.validate(target, size: size, hash: artifact.content_version) {
+        try Task.checkCancellation()
         try FileManager.default.setAttributes(
           [.modificationDate: Date()], ofItemAtPath: target.path)
         await progress(1)
@@ -58,6 +60,7 @@ public actor ArtifactCache {
     guard try Self.validate(temporary, size: size, hash: artifact.content_version) else {
       throw ClientError.invalidContract
     }
+    try Task.checkCancellation()
     try FileManager.default.moveItem(at: temporary, to: target)
     return target
   }
@@ -89,7 +92,11 @@ public actor ArtifactCache {
       total -= entry.1
     }
   }
-  static func validate(_ url: URL, size: Int64, hash: String) throws -> Bool {
+  static func validate(
+    _ url: URL, size: Int64, hash: String,
+    checkCancellation: () throws -> Void = { try Task.checkCancellation() }
+  ) throws -> Bool {
+    try checkCancellation()
     let fd = open(url.path, O_RDONLY | O_NOFOLLOW | O_CLOEXEC)
     guard fd >= 0 else { throw ClientError.storage }
     let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
@@ -100,8 +107,10 @@ public actor ArtifactCache {
     }
     var digest = SHA256()
     while let bytes = try handle.read(upToCount: 65_536), !bytes.isEmpty {
+      try checkCancellation()
       digest.update(data: bytes)
     }
+    try checkCancellation()
     return digest.finalize().map { String(format: "%02x", $0) }.joined() == hash
   }
 }

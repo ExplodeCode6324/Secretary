@@ -32,10 +32,12 @@ struct ArtifactsManagementView: View {
         PageControls(model: model, cursor: page.next_cursor)
       }
     } else if let artifact = model.decode(MArtifact.self) {
-      Button("下载／重试") { model.download(artifact) }.disabled(!model.allowed("artifacts"))
+      Button("下载／重试") { model.download(artifact) }
+        .disabled(model.downloading || !model.allowed("artifacts"))
+      if model.downloading { Text("已有下载进行中，请等待完成或取消后重试。") }
       if let reason = model.unavailable("artifacts") { Text(reason) }
       ProgressView(value: model.downloadProgress)
-      Button("取消下载") { model.cancelDownload() }
+      Button("取消下载") { model.cancelDownload() }.disabled(!model.downloading)
       Text(model.downloadStatus)
       if let url = model.downloaded {
         Button("用系统打开已验证文件") {

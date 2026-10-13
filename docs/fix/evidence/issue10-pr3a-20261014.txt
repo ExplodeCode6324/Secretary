@@ -1,0 +1,90 @@
+Issue #10 PR3a - download and command admission - 2026-10-14 (HKT)
+Plan approved after review r2 of f1768d0. Base main: 89710d2ae3c5cca005e2c58c7683ea897bc674ac.
+Scope: N1-N4 only. No legacy retirement, Issue closure, merge or deployment.
+
+Changes:
+- A separate ephemeral download session waits up to 30 seconds for new data;
+  its resource timeout is the platform default, independent of JSON/SSE's 60 seconds.
+  Real loopback tests separately inspect the actual session configuration and prove
+  a transfer lasting longer than a shortened idle timeout succeeds while data arrives.
+- Transport retains authenticated HTTP, redirect rejection, delegate byte limits,
+  Content-Length/ETag, regular-file/fstat length, private permissions and cancellation.
+  It moves the downloaded file instead of reading/hashing its content.
+- Cache admission is the single whole-file SHA-256 pass (64 KiB chunks); cache hits
+  still validate. Chunk and pre-admission cancellation checks reject cancelled work.
+  Whole-file content reads in application code: new download 1 (previously 2), valid
+  cache hit 1. This is a source/call-path audit, not a filesystem I/O trace. Foundation
+  moveItem can copy across volumes; no claim of universally zero-copy filesystem I/O.
+- UI and model both reject duplicate download submission without cancelling the first.
+  Cache busy is a distinct error, tested independently of the UI. Cancel/complete/fail
+  release the controls; late progress from an older download cannot affect a new one.
+- API documentation and HTTP/Swift tests distinguish command pre-admission rejection,
+  a conflicting intent sharing an admitted ID, accepted partial effects, queued UNKNOWN,
+  lost-response reconciliation and exact-byte retries. Core domain behavior is unchanged.
+
+Local validation:
+- Baseline: 31 Swift tests PASS before changes.
+- Final: 36 Swift tests PASS; parameterized rejection test executes all five status cases.
+- Real download tests: normal/drip, idle timeout, short/oversized content, wrong ETag,
+  redirect, same-length corrupt bytes, task cancellation, transport disconnect; rejected
+  transfers publish no cache file. Corrupt cache hits re-download; symlinks are rejected.
+- Busy test bypasses UI, proves one transport invocation, then cancellation cleanup and retry.
+- Validation cancellation is checked both for an already-cancelled Task and deterministic
+  injection at the second 64 KiB chunk, avoiding timing-dependent disk races.
+- Native verify: Swift tests, discovery/Core/chat/management HTTP probes, fixed dependency
+  checks, app and UI target build PASS; native-release.log includes final test timing and
+  the deterministic mid-validation cancellation checkpoint.
+- Management GUI: 3/3 PASS (final rebuild: 89.875 s; first run: 89.737 s), including download disabled/busy, cancel/retry,
+  no open action for partial data, verified file open, version invalidation and re-download.
+- Original chat/window GUI: 7/7 PASS (60.982 s).
+- Real isolated PostgreSQL World probe PASS: entity/assert/correct/retract/history/slot,
+  draft CAS failure, retry and restore. Fixture without PostgreSQL remains explicitly
+  separate evidence and is not counted as database validation.
+- Admission HTTP regression PASS; TypeScript and native fixture typecheck PASS.
+- Core full verification PASS with isolated PostgreSQL: 580 tests, 579 passed,
+  0 failed, 0 skipped, 1 existing AUD14 TODO. The owned test PostgreSQL was stopped.
+- Documentation check PASS: 219 Markdown files, 3268 local links; staged diff check PASS.
+
+First failures retained:
+1. native-first.log: the downloadBusy description was initially inserted in the Bool
+   reconnect-policy switch. Compilation rejected the String result. The branch was moved
+   to the error-description switch; app/UI target build subsequently passed.
+2. native-final.log: a test-only endpoint file became visible before its JSON write ended.
+   The loopback fixture now writes a temporary file and renames atomically. No decoding
+   assertions were weakened. Subsequent full Swift/native runs passed.
+The shortened idle threshold was raised from 0.25 to 1 second, with data every 0.1 second
+for 1.6 seconds, to retain the reset-timer proof with scheduling headroom on CI.
+
+Boundaries: near-1-GiB resource measurements, actual system notifications/VoiceOver/sleep,
+real-model and cumulative native acceptance remain PR3c. Legacy removal remains PR3b.
+Raw logs, fixture data and PostgreSQL state remain private. Only this summary and hashes
+are published. Existing 393 untracked reports are preserved.
+
+Private stable log SHA-256:
+swift-baseline.log fe4ed7cadc1634f809ba1f571ed4a0cb1ff15c2ae4a47c22ea9fb8fe96e38a7d
+native-first.log 2b1adac1d668db5eb089aa26b972bd57a63eb5f29ed4c2709bed2274e34497af
+native-final.log 5792cc6873b0aa4ce031240082387ba0be71347f174010fd26fbb8937478b7e3
+native-second.log 8e8d8a9b9ec4fafd6ce170ea585efc3febb01590a5b9eef3fd9c1e148194e9e1
+swift-stable.log 7b88e6584e7b422978781600c3c43d591a559398beadd16439ad0eb0b08ca825
+admission-first.log c61f0a70864f8f2b5a6f33b1f179fbc61649a7b7e9a7503d4fe1ee480cfd8fca
+gui-first.log 67fbd525eebce3ab36d2841733a9c8c5b8d26de2caef597a6e9ca76a11b905e4
+gui-chat.log fa94ea1b55bb8e4b69b82af32866862e1790ffdb911c9096822593143daf8757
+world-probe.log de5f6978321a7bb257a708fa71b4a4a32d12418d1cc7745bcd74eb5ea576508c
+native-release.log ae4861e791f65f1f16485bc06240934ec9725436abc51e3a4989d373c983e7c5
+gui-final.log 471456a1506c4e599a2cf7edd912c0db9187e6ba4a5347f0ddf0cf130ad62190
+core-first.log af76960a3d476dcf27c29c988e591cbba36e65379d3720f9042ea9298a2d84a0
+
+Validated source SHA-256:
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/ArtifactCache.swift b42a950b09c1b1a77cf19c35b62ed03f203836965853b09cb5bfdaec3aa169c6
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Contract.swift adda84dca324ba0f7303d5c86df2356005d3dd96c757c4030498f08ec0e46676
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Transport.swift e7102a9e4cd5443c223f3c2994d2b2bb6b70454bb381c6a2d2f63104b96a109c
+src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/DownloadTests.swift 6eef7152c2eef04c5cc906d7e6a6e084160c514792d07ec2763cc6750e5e5c1a
+src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/FoundationTests.swift 82f86843f2d9c1ececfca23a5aca8688d5279a9fa74d352ce18059d02f533be8
+src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/ManagementTests.swift dbe7b5a0bc2fe899157e36c0d901e6ea9862e6e06ac844f89ba77a56ab28ffd7
+src/secretary_macos/Secretary/ArtifactViews.swift 05cbbd92f87d1b73ddecb4425b94948e390031a063fc58d08f0877e1a5429a2b
+src/secretary_macos/Secretary/ManagementModel.swift 2b2c549a2da4d847151848111aa2941d53129245866ab428d86947d98f5bd861
+src/secretary_macos/Secretary/SecretaryApp.swift fef72d058afc361e91e52056a99ae855d137f07806cb610a54a781d87d1117e6
+src/secretary_macos/SecretaryUITests/SecretaryUITests.swift 99daff006bb642f0ed6365ca3234b1aef3264944b83ad66b2ae291e9fab464ed
+test_case/native/download-server.mjs 7382a6d943e36eb467f31aa135ce214bedb9c4eca0f3486ecc139b593d148c68
+test_case/native/management-fixture.ts 2b843e302c0c7b16cb57c1e5b67c18b58b73d0732093b9eebc97457c180bfc48
+test_case/offline/issue8/admission-boundary.test.ts ee5738cd8c6d6c0a3da3daab100d7ce2723894bcea0fc52c3ea9a73408ac5caa

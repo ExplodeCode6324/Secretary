@@ -488,7 +488,20 @@ final class SecretaryUITests: XCTestCase {
     XCTAssertTrue(app.buttons["下载／重试"].waitForExistence(timeout: 10))
     app.buttons["下载／重试"].click()
     let open = app.buttons["用系统打开已验证文件"]
+    let download = app.buttons["下载／重试"]
+    let cancel = app.buttons["取消下载"]
+    XCTAssertFalse(download.isEnabled, "Repeated submission must not cancel the active transfer")
+    XCTAssertTrue(cancel.isEnabled)
+    XCTAssertFalse(open.exists, "Partial file must never be openable")
+    cancel.click()
+    let ready = expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: download)
+    await fulfillment(of: [ready], timeout: 10)
+    XCTAssertFalse(open.exists)
+    XCTAssertFalse(cancel.isEnabled)
+    download.click()
     XCTAssertTrue(open.waitForExistence(timeout: 10))
+    XCTAssertTrue(download.isEnabled)
+    XCTAssertFalse(cancel.isEnabled)
     let cache = directory + "/management-artifact-client/Artifacts"
     let files = try FileManager.default.contentsOfDirectory(atPath: cache)
     XCTAssertEqual(files.count, 1)

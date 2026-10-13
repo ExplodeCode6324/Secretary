@@ -112,6 +112,11 @@ private actor BinaryTransport: CoreTransport {
   let content: Data
   var count = 0
   var interrupt = false
+  var pause = false
+  var held: CheckedContinuation<Void, Never>?
+  func holdNext() { pause = true }
+  func isHeld() -> Bool { held != nil }
+  func release() { held?.resume(); held = nil }
   init(_ content: Data, interrupt: Bool = false) {
     self.content = content
     self.interrupt = interrupt
@@ -127,9 +132,77 @@ private actor BinaryTransport: CoreTransport {
   ) async throws {
     count += 1
     try content.write(to: to)
+    if pause {
+      pause = false
+      await withCheckedContinuation { held = $0 }
+    }
+    try Task.checkCancellation()
     if interrupt { throw CancellationError() }
     await progress(1)
   }
+}
+
+@Test func cacheBusyProtectsActiveTransferAndReleasesAfterCancellation() async throws {
+  let root = try temporary()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let cache = try ArtifactCache(root: root)
+  let bytes = Data("first transfer".utf8)
+  let item = try artifact(bytes)
+  let transport = BinaryTransport(bytes)
+  await transport.holdNext()
+  let first = Task { try await cache.fetch(item, identity: identity, transport: transport, progress: { _ in }) }
+  for _ in 0..<1000 {
+    if await transport.isHeld() { break }
+    try await Task.sleep(for: .milliseconds(1))
+  }
+  #expect(await transport.isHeld())
+  await #expect(throws: ClientError.downloadBusy) {
+    try await cache.fetch(item, identity: identity, transport: transport, progress: { _ in })
+  }
+  #expect(await transport.count == 1)
+  first.cancel()
+  await transport.release()
+  await #expect(throws: CancellationError.self) { try await first.value }
+  #expect(try FileManager.default.contentsOfDirectory(atPath: root.path).isEmpty)
+  let file = try await cache.fetch(item, identity: identity, transport: transport, progress: { _ in })
+  #expect(try Data(contentsOf: file) == bytes)
+  // A same-length corrupt cache hit must be rejected and re-downloaded.
+  try Data(repeating: 120, count: bytes.count).write(to: file)
+  _ = try await cache.fetch(item, identity: identity, transport: transport, progress: { _ in })
+  #expect(try Data(contentsOf: file) == bytes)
+  #expect(await transport.count == 3)
+  try FileManager.default.removeItem(at: file)
+  let outside = root.deletingLastPathComponent().appendingPathComponent(UUID().uuidString)
+  defer { try? FileManager.default.removeItem(at: outside) }
+  try bytes.write(to: outside)
+  try FileManager.default.createSymbolicLink(at: file, withDestinationURL: outside)
+  await #expect(throws: ClientError.storage) {
+    try await cache.fetch(item, identity: identity, transport: transport, progress: { _ in })
+  }
+  #expect(try Data(contentsOf: outside) == bytes)
+}
+
+@Test func cancelledValidationDoesNotReturnAUsableFile() async throws {
+  let root = try temporary()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let file = root.appendingPathComponent("candidate")
+  let bytes = Data(repeating: 97, count: 131_072)
+  try bytes.write(to: file)
+  let hash = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+  let check = Task {
+    withUnsafeCurrentTask { $0?.cancel() }
+    return try ArtifactCache.validate(file, size: Int64(bytes.count), hash: hash)
+  }
+  await #expect(throws: CancellationError.self) { try await check.value }
+  // Deterministic cancellation at the second 64 KiB block, without a disk-speed race.
+  var checkpoints = 0
+  #expect(throws: CancellationError.self) {
+    try ArtifactCache.validate(file, size: Int64(bytes.count), hash: hash) {
+      checkpoints += 1
+      if checkpoints == 3 { throw CancellationError() }
+    }
+  }
+  #expect(checkpoints == 3)
 }
 private func artifact(_ content: Data, id: String = "one", name: String = "../../outside.txt")
   throws -> MArtifact

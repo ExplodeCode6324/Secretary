@@ -32,6 +32,7 @@ struct ManagementLocation: Equatable {
   @Published var downloadStatus = ""
   @Published var downloadProgress = 0.0
   @Published var downloaded: URL?
+  @Published private(set) var downloading = false
   private var engine: ClientEngine?
   private var local: ManagementLocalState?
   private var identity: Identity?
@@ -44,6 +45,7 @@ struct ManagementLocation: Equatable {
   private var unsaved: [Identity: [String: Editor]] = [:]
   private var cache: ArtifactCache?
   private var downloadTask: Task<Void, Never>?
+  private var downloadGeneration = 0
   struct Confirmation: Identifiable {
     let id = UUID()
     let title: String
@@ -63,6 +65,7 @@ struct ManagementLocation: Equatable {
       root: database.deletingLastPathComponent().appendingPathComponent("Artifacts"))
   }
   func attach(_ core: Core) async throws {
+    downloadTask?.cancel()
     epoch += 1
     // Opaque page cursors belong to a Core instance; reconnect starts from the first page.
     location.query.removeValue(forKey: "cursor")
@@ -485,31 +488,43 @@ struct ManagementLocation: Equatable {
     if panel.runModal() == .OK, let url = panel.url { set(key, url.path) }
   }
   func download(_ artifact: MArtifact) {
+    // Keep this guard as well as the disabled button: alternate callers must not cancel a transfer.
+    guard !downloading else { return }
     guard let engine, let identity, let cache else { return }
-    downloadTask?.cancel()
+    downloading = true
+    downloadGeneration += 1
+    let d = downloadGeneration
     downloaded = nil
     downloadProgress = 0
     let e = epoch
     let n = navigationEpoch
     downloadTask = Task {
+      defer {
+        downloading = false
+        downloadTask = nil
+      }
       do {
-        downloadStatus = "正在认证下载"
+        downloadStatus = "正在下载并校验内容"
         let url = try await engine.download(artifact, destination: identity, cache: cache) {
           progress in
           await MainActor.run {
-            if e == self.epoch && n == self.navigationEpoch {
+            if e == self.epoch && n == self.navigationEpoch && d == self.downloadGeneration {
               self.downloadProgress = max(self.downloadProgress, progress)
             }
           }
         }
+        try Task.checkCancellation()
         guard e == epoch, n == navigationEpoch, online else { return }
         downloaded = url
         downloadStatus = "长度与 SHA-256 已校验，可打开本地缓存"
       } catch {
         if e == epoch && n == navigationEpoch {
           downloadStatus =
-            error is CancellationError
-            ? "下载已取消，可重试" : "下载失败，可重试 · " + ConnectionModel.explanation(error)
+            error is CancellationError || Task.isCancelled
+            ? "下载已取消，可重试"
+            : (error as? URLError)?.code == .timedOut
+              ? "下载等待数据超时，可重试"
+              : "下载失败，可重试 · " + ConnectionModel.explanation(error)
         }
       }
     }

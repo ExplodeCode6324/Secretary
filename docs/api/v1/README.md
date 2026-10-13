@@ -22,6 +22,14 @@ HTTP 202 表示受理已持久保存。短命令将 ApiCommand 与首个领域�
 
 长命令先 QUEUED，再 RUNNING，正常结束为 COMPLETED，异常或中断为 UNKNOWN。重启继续尚未开始的 QUEUED；UNKNOWN 通过关联领域回执对账。`memory/extraction/retry` 是短命令，固定当时失败的来源集合，后续由维护周期补提。
 
+### 受理前拒绝与受理后失败
+
+命令 POST 返回 400/404/409/410/422 错误时，表示本次提交未被受理；这些状态不是业务执行结果。对已有 request_id 的不同 owner、路径或参数，REQUEST_CONFLICT 只拒绝本次冲突提交，不能据此推断原 ID 从未受理，也不能覆盖原回执。410/422 属于客户端可识别的拒绝类别，不表示每个命令当前都会返回它们。
+
+短命令若已提交首个领域变更及同帧 ApiCommand，后续领域错误不能改报未受理；仍返回已持久化回执，关联资源用于判断实际结果，ACCEPTED 不等于业务成功。长命令在持久入队后失败则保留回执并进入 UNKNOWN，不转换为可安全重做的拒绝状态。
+
+写入超时、连接中断或 5xx 不能证明未受理。客户端先 GET requests/{id}：查到回执就按其状态对账；只有明确的 404 NOT_FOUND 且本地此前没有已受理/UNKNOWN 证据，才能用原 ID、原路径和原参数重投。GET 本身的 4xx（如查询错误、游标失效）不适用命令 POST 的拒绝规则。已知拒绝的意图保留原内容供用户检查，不自动换 ID 重试；独立后续命令可继续处理。认证/权限错误先处理连接权限，不应被归类为业务拒绝。
+
 ## 响应与分页
 
 JSON 响应为 `{ "api_version": "1", "data": ... }`，错误为 `{ "api_version": "1", "error": { "code": "...", "message": "..." } }`。客户端按 code 处理错误。产物内容返回 application/octet-stream、Content-Length、ETag 和 attachment 文件名。
