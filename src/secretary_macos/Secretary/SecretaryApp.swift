@@ -7,7 +7,7 @@ import UserNotifications
 struct SecretaryApp: App {
   @StateObject private var model = ConnectionModel()
   var body: some Scene {
-    WindowGroup("secretary") {
+    Window("secretary", id: "main") {
       ConnectionView(model: model)
         .frame(minWidth: 720, minHeight: 520)
         .onDisappear { model.disconnect() }

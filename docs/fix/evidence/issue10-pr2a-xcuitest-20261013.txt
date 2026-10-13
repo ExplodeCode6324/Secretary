@@ -1,0 +1,98 @@
+Issue #10 PR2a local XCUITest evidence
+Date: 2026-10-13 Asia/Hong_Kong
+Environment: macOS 15.7.4; Xcode 16.4 (16F6)
+Command: xcodebuild -project src/secretary_macos/Secretary.xcodeproj -scheme Secretary -destination platform=macOS -derivedDataPath .build/native -disableAutomaticPackageResolution -test-timeouts-enabled YES -default-test-execution-time-allowance 45 -maximum-test-execution-time-allowance 60 test
+
+Complete test-execution section; compiler output omitted and workspace path redacted. Raw logs and xcresult bundles remain local. No test assertions removed or relaxed.
+
+SHA256 xcode-ui-after-permission.log: ff748cbdc898ccd6612f0a386d98338e86a441b790d6c1abbabc15e650d89a2a
+SHA256 xcode-ui-ignore-state.log: 0dad5e45b18f4867ca94c6346d8d7428fde8c51822d9aa51aca61d91c4f3937c
+SHA256 xcode-ui-single-window.log: 47cac5e3f3638bc81c215d943a6b964ed1c610e258208c6a5b630bd413f62729
+SHA256 xcode-ui-review-final.log: f38fbc9a5f16565c97e2c4a62f0580ea8ca6fb862daeca9d4483aabc23111fa0
+SHA256 src/secretary_macos/Secretary/SecretaryApp.swift: 938338559be264a307312c3f1c49406b7a6338b111efaf94e59b46e50b543cb5
+SHA256 src/secretary_macos/SecretaryUITests/SecretaryUITests.swift: 5596043605bbf34a70661a97ef26adb8024b659a5991ad954a3b6d8edf284a1f
+
+Control observations:
+- Baseline: 1 test / 1 window assertion failure.
+- Original WindowGroup + ApplePersistenceIgnoreState YES: 1 test / 0 failures.
+- Single Window with ignore-state removed for second XCUIApplication launch: no window; timed out in accessibility snapshot. Interrupted; this does not pass.
+- Final: single Window, both cold test launches ignore saved state: 2 tests / 0 failures.
+- Separate computer-use check: connection window opens; after close, reopening by bundle ID displays main window and connection controls.
+- No saved application state, database or OS security settings were deleted or changed.
+
+Passing test execution:
+Test Suite 'All tests' started at 2026-10-13 18:41:11.750.
+Test Suite 'SecretaryUITests.xctest' started at 2026-10-13 18:41:11.750.
+Test Suite 'SecretaryUITests' started at 2026-10-13 18:41:11.750.
+Test Case '-[SecretaryUITests.SecretaryUITests testConnectionWindowStartsWithoutImplicitCoreLaunch]' started.
+    t =     0.00s Start Test at 2026-10-13 18:41:11.751
+    t =     0.11s Set Up
+    t =     0.11s Open org.secretary.native
+    t =     0.11s     Launch org.secretary.native
+    t =     0.33s         Wait for accessibility to load
+    t =     0.40s         Setting up automation session
+    t =     0.41s         Wait for org.secretary.native to idle
+    t =     0.42s Open org.secretary.native
+    t =     0.42s     Activate org.secretary.native
+    t =     0.42s         Wait for org.secretary.native to idle
+    t =     0.43s Waiting 10.0s for Window (First Match) to exist
+    t =     1.47s     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     1.47s         Checking existence of `Window (First Match)`
+    t =     1.49s Checking existence of `Window (First Match)`
+    t =     1.50s Checking existence of `"connectionStatus" StaticText`
+    t =     1.61s Checking existence of `"附着已有 Core" Button`
+    t =     1.64s Find the "附着已有 Core" Button
+    t =     1.67s Checking existence of `"数据目录" TextField`
+    t =     1.71s Checking existence of `"允许系统通知" Button`
+    t =     1.74s Terminate org.secretary.native:83175
+    t =     2.81s Tear Down
+Test Case '-[SecretaryUITests.SecretaryUITests testConnectionWindowStartsWithoutImplicitCoreLaunch]' passed (2.854 seconds).
+Test Case '-[SecretaryUITests.SecretaryUITests testSingleConnectionWindowClosesAndColdLaunches]' started.
+    t =     0.00s Start Test at 2026-10-13 18:41:14.606
+    t =     0.13s Set Up
+    t =     0.13s Open org.secretary.native
+    t =     0.13s     Launch org.secretary.native
+    t =     0.36s         Wait for accessibility to load
+    t =     0.41s         Setting up automation session
+    t =     0.42s         Wait for org.secretary.native to idle
+    t =     0.43s Waiting 10.0s for Window (First Match) to exist
+    t =     1.46s     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     1.46s         Checking existence of `Window (First Match)`
+    t =     1.48s Get number of matches for: Descendants matching type Window
+    t =     1.59s Type 'w' key with modifiers '⌘' (0x10)
+    t =     1.59s     Wait for org.secretary.native to idle
+    t =     1.59s     Find the Target Application 'org.secretary.native'
+    t =     1.61s     Check for interrupting elements affecting "Secretary" Application
+    t =     1.61s     Synthesize event
+    t =     1.76s     Wait for org.secretary.native to idle
+    t =     1.76s Wait for org.secretary.native to become Not Running
+    t =     1.78s Open org.secretary.native
+    t =     1.78s     Launch org.secretary.native
+    t =     2.01s         Wait for accessibility to load
+    t =     2.07s         Setting up automation session
+    t =     2.09s         Wait for org.secretary.native to idle
+    t =     2.09s Waiting 10.0s for Window (First Match) to exist
+    t =     3.15s     Checking `Expect predicate `existsNoRetry == 1` for object Window (First Match)`
+    t =     3.15s         Checking existence of `Window (First Match)`
+    t =     3.17s Get number of matches for: Descendants matching type Window
+    t =     3.28s Checking existence of `"connectionStatus" StaticText`
+    t =     3.31s Terminate org.secretary.native:83183
+    t =     4.39s Tear Down
+    t =     4.46s Checking for crash reports corresponding to unexpected termination of org.secretary.native
+Test Case '-[SecretaryUITests.SecretaryUITests testSingleConnectionWindowClosesAndColdLaunches]' passed (5.485 seconds).
+Test Suite 'SecretaryUITests' passed at 2026-10-13 18:41:20.091.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 8.340 (8.341) seconds
+Test Suite 'SecretaryUITests.xctest' passed at 2026-10-13 18:41:20.091.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 8.340 (8.341) seconds
+Test Suite 'All tests' passed at 2026-10-13 18:41:20.092.
+	 Executed 2 tests, with 0 failures (0 unexpected) in 8.340 (8.342) seconds
+2026-10-13 18:41:20.370 xcodebuild[83155:81029023] [MT] IDETestOperationsObserverDebug: 9.086 elapsed -- Testing started completed.
+2026-10-13 18:41:20.370 xcodebuild[83155:81029023] [MT] IDETestOperationsObserverDebug: 0.000 sec, +0.000 sec -- start
+2026-10-13 18:41:20.371 xcodebuild[83155:81029023] [MT] IDETestOperationsObserverDebug: 9.086 sec, +9.086 sec -- end
+
+Test session results, code coverage, and logs:
+	<WORKSPACE>/.build/native/Logs/Test/Test-Secretary-2026.10.13_18-41-10-+0800.xcresult
+
+** TEST SUCCEEDED **
+
+Testing started

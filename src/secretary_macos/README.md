@@ -16,7 +16,9 @@ open .build/native/Build/Products/Debug/Secretary.app
 
 选择已有 Core 的数据目录并附着。首次启动时展开配置，选择 **Node 可执行文件**及安装过依赖的 **Core 仓库目录**，再点击“启动本机 Core”。参数以 Process 数组传递，不执行 shell 字符串。fixture/live 必须与 Core 一致。数据目录包含私有 `core-endpoint.json`；凭据只在内存中用于本机 HTTP，不进客户端数据库、日志或 UI。退出/断开 app 不停止 Core。
 
-客户端数据位于当前用户 Application Support 下 `Secretary/client.sqlite`（目录 0700，文件 0600），不与 Core Store 混用。WAL/FULL 同步；schema 不兼容时停止，不自动删除 outbox。数据库和日志属于本地私有数据，不应提交仓库。
+连接界面为唯一窗口，关窗会退出客户端；Core 仍独立运行。客户端数据位于当前用户 Application Support 下 `Secretary/client.sqlite`（目录 0700，文件 0600），不与 Core Store 混用。WAL/FULL 同步；schema 不兼容时停止，不自动删除 outbox。数据库和日志属于本地私有数据，不应提交仓库。
+
+本机窗口测试：在已解锁的图形会话运行 `xcodebuild -project src/secretary_macos/Secretary.xcodeproj -scheme Secretary -destination 'platform=macOS' -derivedDataPath .build/native -disableAutomaticPackageResolution test`。XCUITest 使用 `-ApplePersistenceIgnoreState YES` 隔离历史窗口恢复状态，保留实际窗口和控件断言，并验证唯一窗口关窗退出及再次冷启动。CI 编译 UI test target，但不以编译替代本机窗口测试。
 
 ## 连接与持久化
 
