@@ -205,6 +205,18 @@ struct ChatShell: View {
   }
 }
 
+private final class ComposerScrollView: NSScrollView {
+  override func tile() {
+    super.tile()
+    guard let editor = documentView as? NSTextView else { return }
+    let size = NSSize(
+      width: contentSize.width, height: max(contentSize.height, editor.frame.height))
+    if editor.frame.size != size { editor.setFrameSize(size) }
+    editor.textContainer?.containerSize = NSSize(
+      width: contentSize.width, height: .greatestFiniteMagnitude)
+  }
+}
+
 struct ComposerView: NSViewRepresentable {
   var text: String
   var enabled: Bool
@@ -213,7 +225,7 @@ struct ComposerView: NSViewRepresentable {
   var send: () -> Void
   func makeCoordinator() -> Coordinator { Coordinator(self) }
   func makeNSView(context: Context) -> NSScrollView {
-    let scroll = NSScrollView()
+    let scroll = ComposerScrollView()
     let editor = MessageTextView(frame: NSRect(x: 0, y: 0, width: 400, height: 95))
     editor.isRichText = false
     editor.font = .systemFont(ofSize: 13)
