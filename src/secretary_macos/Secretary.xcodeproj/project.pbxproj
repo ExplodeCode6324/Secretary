@@ -5,6 +5,22 @@
 	};
 	objectVersion = "56";
 	objects = {
+AA000000000000000000000A = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtifactViews.swift; sourceTree = "<group>"; };
+BB000000000000000000000A = { isa = PBXBuildFile; fileRef = AA000000000000000000000A; };
+AA0000000000000000000009 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldViews.swift; sourceTree = "<group>"; };
+BB0000000000000000000009 = { isa = PBXBuildFile; fileRef = AA0000000000000000000009; };
+AA0000000000000000000008 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViews.swift; sourceTree = "<group>"; };
+BB0000000000000000000008 = { isa = PBXBuildFile; fileRef = AA0000000000000000000008; };
+AA0000000000000000000007 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryViews.swift; sourceTree = "<group>"; };
+BB0000000000000000000007 = { isa = PBXBuildFile; fileRef = AA0000000000000000000007; };
+AA0000000000000000000006 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApprovalViews.swift; sourceTree = "<group>"; };
+BB0000000000000000000006 = { isa = PBXBuildFile; fileRef = AA0000000000000000000006; };
+AA0000000000000000000005 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaskViews.swift; sourceTree = "<group>"; };
+BB0000000000000000000005 = { isa = PBXBuildFile; fileRef = AA0000000000000000000005; };
+AA0000000000000000000004 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagementViews.swift; sourceTree = "<group>"; };
+BB0000000000000000000004 = { isa = PBXBuildFile; fileRef = AA0000000000000000000004; };
+AA0000000000000000000003 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManagementModel.swift; sourceTree = "<group>"; };
+BB0000000000000000000003 = { isa = PBXBuildFile; fileRef = AA0000000000000000000003; };
 AA0000000000000000000002 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowRecovery.swift; sourceTree = "<group>"; };
 BB0000000000000000000002 = { isa = PBXBuildFile; fileRef = AA0000000000000000000002; };
 AA0000000000000000000001 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatViews.swift; sourceTree = "<group>"; };
@@ -42,6 +58,14 @@ BB0000000000000000000000 = { isa = PBXBuildFile; fileRef = AA0000000000000000000
 			children = (
 				"000000000000000000000001",
 "AA0000000000000000000002",
+"AA000000000000000000000A",
+"AA0000000000000000000009",
+"AA0000000000000000000008",
+"AA0000000000000000000007",
+"AA0000000000000000000006",
+"AA0000000000000000000005",
+"AA0000000000000000000004",
+"AA0000000000000000000003",
 "AA0000000000000000000001",
 "AA0000000000000000000000",
 			);
@@ -102,6 +126,14 @@ BB0000000000000000000000 = { isa = PBXBuildFile; fileRef = AA0000000000000000000
 			files = (
 				"00000000000000000000000B",
 "BB0000000000000000000002",
+"BB000000000000000000000A",
+"BB0000000000000000000009",
+"BB0000000000000000000008",
+"BB0000000000000000000007",
+"BB0000000000000000000006",
+"BB0000000000000000000005",
+"BB0000000000000000000004",
+"BB0000000000000000000003",
 "BB0000000000000000000001",
 "BB0000000000000000000000",
 			);

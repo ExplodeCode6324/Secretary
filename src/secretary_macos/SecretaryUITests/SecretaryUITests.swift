@@ -166,7 +166,7 @@ final class SecretaryUITests: XCTestCase {
     app.terminate()
   }
   @MainActor
-  private func pasteExact(_ text: String, into field: XCUIElement) {
+  private func pasteExact(_ text: String, into field: XCUIElement, replacing: Bool = false) {
     let board = NSPasteboard.general
     let saved = (board.pasteboardItems ?? []).map { item in
       let copy = NSPasteboardItem()
@@ -185,6 +185,7 @@ final class SecretaryUITests: XCTestCase {
       }
     }
     field.click()
+    if replacing { field.typeKey("a", modifierFlags: .command) }
     field.typeKey("v", modifierFlags: .command)
   }
 
@@ -335,6 +336,150 @@ final class SecretaryUITests: XCTestCase {
       "S2: messages not_configured / FIXTURE_MESSAGES_DISABLED visible; send disabled with nonempty input"
     )
     app.terminate()
+  }
+
+  @MainActor
+  private func managementNavigate(_ app: XCUIApplication, path: String) {
+    if path == "tasks" || path == "artifacts" {
+      app.buttons[path == "tasks" ? "任务" : "产物"].click()
+    } else {
+      app.popUpButtons["设置"].click()
+      app.menuItems[path == "scopes" ? "Scope" : "业务设置"].click()
+    }
+  }
+  @MainActor
+  private func confirmManagement(_ app: XCUIApplication) {
+    let confirm = app.buttons["confirmManagementCommand"]
+    XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+    confirm.click()
+    let status = app.staticTexts["managementCommandStatus"]
+    XCTAssertTrue(status.waitForExistence(timeout: 5))
+    let receipt = NSPredicate(format: "value CONTAINS %@", "ACCEPTED")
+    expectation(for: receipt, evaluatedWith: status)
+    waitForExpectations(timeout: 10)
+  }
+  @MainActor
+  func testManagementTaskScopeAndDraft() throws {
+    continueAfterFailure = false
+    let directory = try fixtureDirectory()
+    let app = application()
+    app.launchEnvironment["SECRETARY_NATIVE_TEST_DATA_DIR"] = directory + "/management-task-client"
+    defer { app.terminate() }
+    attachFixture(app, directory: directory)
+    managementNavigate(app, path: "scopes")
+    XCTAssertTrue(app.links["new-scope"].waitForExistence(timeout: 10))
+    app.links["new-scope"].click()
+    let name = app.textFields["scopeName"]
+    XCTAssertTrue(name.waitForExistence(timeout: 10))
+    pasteExact("GUI Synthetic Scope", into: name)
+    app.buttons["创建 Scope"].click()
+    confirmManagement(app)
+    managementNavigate(app, path: "tasks")
+    XCTAssertTrue(app.links["new-task"].waitForExistence(timeout: 10))
+    app.links["new-task"].click()
+    let goal = app.textFields["taskGoal"]
+    XCTAssertTrue(goal.waitForExistence(timeout: 10))
+    pasteExact("GUI scoped task", into: goal)
+    let scope = app.popUpButtons["taskScope"]
+    XCTAssertTrue(scope.exists)
+    scope.click()
+    app.menuItems["GUI Synthetic Scope"].click()
+    app.buttons["提交任务"].click()
+    confirmManagement(app)
+    managementNavigate(app, path: "settings")
+    let editor = app.textViews["instructionsEditor"]
+    XCTAssertTrue(editor.waitForExistence(timeout: 10))
+    pasteExact("GUI local instructions survive navigation", into: editor, replacing: true)
+    app.buttons["assistantHome"].click()
+    managementNavigate(app, path: "settings")
+    XCTAssertTrue(editor.waitForExistence(timeout: 10))
+    XCTAssertEqual(editor.value as? String, "GUI local instructions survive navigation")
+    let window = app.windows.firstMatch
+    let corner = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 1)).withOffset(
+      CGVector(dx: -3, dy: -3))
+    corner.press(
+      forDuration: 0.1, thenDragTo: corner.withOffset(CGVector(dx: 720 - window.frame.width, dy: 0))
+    )
+    XCTAssertLessThanOrEqual(window.frame.width, 725)
+    let attention = app.buttons["attentionSummary"]
+    XCTAssertTrue(attention.isHittable)
+    attention.click()
+    XCTAssertTrue(app.links["decisions"].waitForExistence(timeout: 10))
+  }
+  @MainActor
+  func testManagementApprovalAndUnknown() throws {
+    continueAfterFailure = false
+    let directory = try fixtureDirectory()
+    let manifest = try XCTUnwrap(
+      JSONSerialization.jsonObject(
+        with: Data(contentsOf: URL(fileURLWithPath: directory + "/manifest.json")))
+        as? [String: Any])
+    let approval = try XCTUnwrap((manifest["approvals"] as? [String])?.last)
+    let operation = try XCTUnwrap((manifest["operations"] as? [String])?.first)
+    let app = application()
+    app.launchEnvironment["SECRETARY_NATIVE_TEST_DATA_DIR"] =
+      directory + "/management-approval-client"
+    defer { app.terminate() }
+    attachFixture(app, directory: directory)
+    app.buttons["attentionSummary"].click()
+    let detail = app.links["authorizations/" + approval]
+    XCTAssertTrue(detail.waitForExistence(timeout: 10))
+    detail.click()
+    XCTAssertTrue(app.staticTexts["实际操作及完整参数"].waitForExistence(timeout: 10))
+    XCTAssertTrue(app.staticTexts["适用根目录"].exists)
+    app.buttons["批准一次"].click()
+    XCTAssertTrue(app.buttons["confirmManagementCommand"].waitForExistence(timeout: 5))
+    app.buttons["取消"].click()
+    XCTAssertTrue(app.buttons["批准一次"].isEnabled)
+    app.buttons["批准一次"].click()
+    confirmManagement(app)
+    app.buttons["attentionSummary"].click()
+    XCTAssertTrue(app.links["operations"].waitForExistence(timeout: 10))
+    app.links["operations"].click()
+    let unknown = app.links["operations/" + operation]
+    XCTAssertTrue(unknown.waitForExistence(timeout: 10))
+    unknown.click()
+    XCTAssertTrue(app.staticTexts["原始输出已截断"].waitForExistence(timeout: 10))
+    // Large output stays in a bounded native viewport; scroll the form to its explicit action.
+    let note = app.textFields["裁定备注（必填）"]
+    for _ in 0..<12 where !note.isHittable { app.scrollViews.firstMatch.swipeUp() }
+    XCTAssertTrue(note.isHittable)
+    pasteExact("GUI synthetic evidence", into: note)
+    app.buttons["裁定未知结果…"].click()
+    confirmManagement(app)
+  }
+  @MainActor
+  func testManagementArtifactDownload() throws {
+    continueAfterFailure = false
+    let directory = try fixtureDirectory()
+    let manifest = try XCTUnwrap(
+      JSONSerialization.jsonObject(
+        with: Data(contentsOf: URL(fileURLWithPath: directory + "/manifest.json")))
+        as? [String: Any])
+    let artifact = try XCTUnwrap(manifest["artifact"] as? String)
+    let app = application()
+    app.launchEnvironment["SECRETARY_NATIVE_TEST_DATA_DIR"] =
+      directory + "/management-artifact-client"
+    defer { app.terminate() }
+    attachFixture(app, directory: directory)
+    managementNavigate(app, path: "artifacts")
+    let detail = app.links["artifacts/" + artifact]
+    XCTAssertTrue(detail.waitForExistence(timeout: 10))
+    detail.click()
+    XCTAssertTrue(app.buttons["下载／重试"].waitForExistence(timeout: 10))
+    app.buttons["下载／重试"].click()
+    let open = app.buttons["用系统打开已验证文件"]
+    XCTAssertTrue(open.waitForExistence(timeout: 10))
+    let cache = directory + "/management-artifact-client/Artifacts"
+    let files = try FileManager.default.contentsOfDirectory(atPath: cache)
+    XCTAssertEqual(files.count, 1)
+    XCTAssertEqual(
+      try String(contentsOfFile: cache + "/" + files[0], encoding: .utf8), "native artifact 中文")
+    for _ in 0..<8 where !open.isHittable { app.scrollViews.firstMatch.swipeUp() }
+    XCTAssertTrue(open.isHittable)
+    open.click()
+    XCTAssertTrue(FileManager.default.fileExists(atPath: cache + "/" + files[0]))
+    app.activate()
   }
 
 }

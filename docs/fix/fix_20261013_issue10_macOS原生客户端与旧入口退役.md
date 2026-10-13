@@ -298,3 +298,7 @@ Master 已授权按 `review_20261013_pr_issue10_A0_core_projections.md` 评估�
 定向回归 24/24 通过，包含 4 MiB 全续读、缓存字节/条数淘汰、暖缓存后源损坏/删除/symlink 拒绝、详情缩片读取次数、既有 Unicode/游标/人工裁定语义。首次修订检查发现 nullable receipt 守卫与 reason 闭合遗漏，已修复，保留首次记录。最终类型检查通过；本轮提供 PostgreSQL DSN 的完整回归及 PR CI 以 PR 验证记录为准。
 
 PR1 使用 `Refs #10`，不关闭 Issue；CI 必须为最终 head、fail=0、skip=0 后才通知 Master 复核。PR1 经复核合并后，PR2a 再从更新的 main 创建，重新核对 Xcode 16.4 指纹。UI 仍按简洁功能界面实施，后续单独做美学设计。
+
+## 17. PR2c 日常管理本地验收
+
+日常管理实现与本机验收已完成：31 项 Swift 测试、真实 Core HTTP／隔离 PostgreSQL World 探针、3 项管理 GUI 和原 7 项聊天／窗口 GUI 全部通过。能力迁移与使用说明见 [原生手册](../../src/secretary_macos/README.md)，首次失败、最终日志与源码指纹见 [PR2c 证据](evidence/issue10-pr2c-20261013.txt)。最终 PR head 的三项 CI 与 Master 复核仍是独立发布门槛；本阶段不合并、不关闭 Issue #10、不删除旧入口或部署，PR3 保留完整替代联合验收。

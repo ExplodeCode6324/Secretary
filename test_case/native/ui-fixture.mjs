@@ -60,7 +60,10 @@ try {
   await run('xcodebuild', ['-project', 'src/secretary_macos/Secretary.xcodeproj', '-scheme', 'Secretary',
     '-destination', 'platform=macOS', '-derivedDataPath', '.build/native',
     '-test-timeouts-enabled', 'YES', '-default-test-execution-time-allowance', '45',
-    '-maximum-test-execution-time-allowance', '60', ...process.argv.slice(2), 'test-without-building'], testEnv);
+    '-maximum-test-execution-time-allowance', '60',
+    '-skip-testing:SecretaryUITests/SecretaryUITests/testManagementTaskScopeAndDraft',
+    '-skip-testing:SecretaryUITests/SecretaryUITests/testManagementApprovalAndUnknown',
+    '-skip-testing:SecretaryUITests/SecretaryUITests/testManagementArtifactDownload', ...process.argv.slice(2), 'test-without-building'], testEnv);
   console.log('PASS: isolated native window recovery and chat UI acceptance');
   passed = true;
 } finally {

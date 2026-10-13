@@ -9,6 +9,7 @@ public actor ClientEngine {
   private var tickets: [String: UInt64] = [:]
   private var watched: Set<Route> = []
   private var reads = 0
+  private var readWaiters: [CheckedContinuation<Void, Never>] = []
   private var draining = false
   private var applying = false
   public init(databaseURL: URL) throws { database = try Database(url: databaseURL) }
@@ -18,6 +19,9 @@ public actor ClientEngine {
     transport?.cancel()
     transport = nil
     tickets.removeAll()
+    let waiting = readWaiters
+    readWaiters.removeAll()
+    for continuation in waiting { continuation.resume() }
   }
   private func check(_ expected: UInt64) throws {
     guard generation == expected, transport != nil else { throw ClientError.staleConnection }
@@ -79,9 +83,18 @@ public actor ClientEngine {
   }
   private func read(_ route: Route, version: UInt64) async throws -> Data {
     try check(version)
-    guard reads < 2, let transport else { throw ClientError.unavailable }
+    while reads >= 2 {
+      guard readWaiters.count < 16 else { throw ClientError.unavailable }
+      await withCheckedContinuation { readWaiters.append($0) }
+      try check(version)
+      try Task.checkCancellation()
+    }
+    guard let transport else { throw ClientError.unavailable }
     reads += 1
-    defer { reads -= 1 }
+    defer {
+      reads -= 1
+      if !readWaiters.isEmpty { readWaiters.removeFirst().resume() }
+    }
     let data = try await transport.request(route, body: nil)
     try check(version)
     guard data.count <= 8_388_608 else { throw ClientError.responseTooLarge }
@@ -264,6 +277,10 @@ public actor ClientEngine {
     guard let identity, identity == destination else { throw ClientError.unavailable }
     try database.enqueue(identity, id: id, route: route, body: body, draftKey: draftKey)
   }
+  public func command(id: String, destination: Identity) throws -> PendingCommand? {
+    guard destination == identity else { throw ClientError.staleConnection }
+    return try database.command(destination, id: id)
+  }
   public func pendingCommands() throws -> [PendingCommand] {
     guard let identity else { return [] }
     return try database.commands(identity)
@@ -291,11 +308,20 @@ public actor ClientEngine {
             != nil
         guard command.session == identity.session || isDomainCommand, command.state != "UNKNOWN"
         else { continue }
-        let data = try await transport.request(Route(command.path), body: command.body)
-        try check(version)
-        let receipt = try Contract.decode(Receipt.self, from: data)
-        guard receipt.request_id == command.id else { throw ClientError.invalidContract }
-        try database.accept(identity, command: command, receipt: receipt)
+        do {
+          let data = try await transport.request(Route(command.path), body: command.body)
+          try check(version)
+          let receipt = try Contract.decode(Receipt.self, from: data)
+          guard receipt.request_id == command.id else { throw ClientError.invalidContract }
+          try database.accept(identity, command: command, receipt: receipt)
+        } catch ClientError.http(let status, let code)
+          where [400, 404, 409, 410, 422].contains(status)
+        {
+          try check(version)
+          // API v1 returns these before admission. Keep the original body for inspection,
+          // stop replaying this rejected intent, and allow unrelated pending commands to drain.
+          try database.receipt(identity, id: command.id, state: "REJECTED:" + code)
+        }
       }
     }
   }
@@ -321,6 +347,18 @@ public actor ClientEngine {
       cursor = page.next_cursor
       guard cursor == nil || cursor != previous else { throw ClientError.invalidContract }
     } while cursor != nil
+  }
+
+  public func download(
+    _ artifact: MArtifact, destination: Identity, cache: ArtifactCache,
+    progress: @escaping @Sendable (Double) async -> Void
+  ) async throws -> URL {
+    guard destination == identity, let transport else { throw ClientError.staleConnection }
+    let version = generation
+    let url = try await cache.fetch(
+      artifact, identity: destination, transport: transport, progress: progress)
+    try check(version)
+    return url
   }
 
   public func currentIdentity() -> Identity? { identity }

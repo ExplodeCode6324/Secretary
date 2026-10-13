@@ -9,7 +9,7 @@ struct SecretaryApp: App {
   @StateObject private var model = ConnectionModel()
   var body: some Scene {
     Window("secretary", id: "main") {
-      ChatShell(connection: model, chat: model.chat)
+      ChatShell(connection: model, chat: model.chat, management: model.management)
         .frame(minWidth: 720, minHeight: 520)
         .onDisappear { model.disconnect() }
         .onReceive(
@@ -34,6 +34,7 @@ struct SecretaryApp: App {
 @MainActor
 final class ConnectionModel: ObservableObject {
   let chat = ChatModel()
+  let management = ManagementModel()
   @Published var directory = ""
   @Published var node = ""
   @Published var repository = ""
@@ -68,6 +69,7 @@ final class ConnectionModel: ObservableObject {
       let engine = try ClientEngine(databaseURL: database)
       self.engine = engine
       try chat.configure(engine: engine, database: database)
+      try management.configure(engine: engine, database: database)
     } catch {
       status = "本地存储不可用"
       detail = "未创建可写的私有数据库，暂不允许提交。请检查磁盘空间和目录权限。"
@@ -100,6 +102,7 @@ final class ConnectionModel: ObservableObject {
     busy = true
     connected = false
     chat.disconnected()
+    management.disconnect()
     lastNoticeProjection = nil
     confirmedAt = nil
     connectionTask = Task { [weak self] in
@@ -130,6 +133,7 @@ final class ConnectionModel: ObservableObject {
             busy = false
             confirmedAt = Date()
             try await chat.attach(core)
+            try await management.attach(core)
             retry = 1
             try await engine.drainOutbox()
             try await updateNotifications()
@@ -138,11 +142,13 @@ final class ConnectionModel: ObservableObject {
                 guard let self else { throw CancellationError() }
                 try await self.updateNotifications()
                 await self.chat.changed()
+                await self.management.changed()
               }, onTransient: { [weak self] data in await self?.chat.changed(transient: data) })
           } catch {
             if Task.isCancelled { break }
             connected = false
             chat.disconnected()
+            management.disconnect()
             busy = false
             let retryable = Self.retryable(error)
             status = retryable ? "连接中断，正在重连" : "连接未完成"
@@ -170,6 +176,7 @@ final class ConnectionModel: ObservableObject {
   }
   func disconnect() {
     chat.disconnected()
+    management.disconnect()
     connectionTask?.cancel()
     notificationTask?.cancel()
     selectedConfiguration = nil
@@ -313,7 +320,7 @@ struct ConnectionView: View {
         Button("允许系统通知") { model.requestNotificationPermission() }
       }
       Spacer()
-      Text("界面保持简洁，后续继续进行美学设计。任务与管理页面将在后续阶段加入。")
+      Text("界面保持简洁，后续继续进行美学设计。管理页面通过同一 Core 连接运行。")
         .font(.caption).foregroundStyle(.secondary)
     }
     .padding(24).font(.system(size: 13))

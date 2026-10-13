@@ -1,3 +1,5 @@
+import CryptoKit
+import Darwin
 import Foundation
 
 public struct Route: Hashable, Sendable {
@@ -14,7 +16,7 @@ public struct Route: Hashable, Sendable {
     self.path = path
     self.query = query
   }
-  var key: String {
+  public var key: String {
     var parts = URLComponents()
     parts.path = path
     if !query.isEmpty {
@@ -33,10 +35,18 @@ public protocol CoreTransport: Sendable {
   func stream(
     after: String, receive: @escaping @Sendable (SyncTransaction) async throws -> Void,
     transient: @escaping @Sendable (Data) async throws -> Void) async throws
+  func download(
+    _ route: Route, to: URL, bytes: Int64, version: String,
+    progress: @escaping @Sendable (Double) async -> Void) async throws
   func cancel()
 }
 
 extension CoreTransport {
+  public func download(
+    _ route: Route, to: URL, bytes: Int64, version: String,
+    progress: @escaping @Sendable (Double) async -> Void
+  ) async throws { throw ClientError.unavailable }
+
   public func stream(
     after: String, receive: @escaping @Sendable (SyncTransaction) async throws -> Void,
     transient: @escaping @Sendable (Data) async throws -> Void
@@ -103,6 +113,50 @@ public final class HTTPTransport: CoreTransport, Sendable {
     }
     try Self.check(response.statusCode, data: data)
     return data
+  }
+  public func download(
+    _ route: Route, to: URL, bytes expected: Int64, version: String,
+    progress: @escaping @Sendable (Double) async -> Void
+  ) async throws {
+    var request = try urlRequest(route)
+    request.setValue("application/octet-stream", forHTTPHeaderField: "Accept")
+    request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
+    let (bytes, response) = try await session.bytes(for: request)
+    defer { bytes.task.cancel() }
+    guard let http = response as? HTTPURLResponse else { throw ClientError.invalidContract }
+    guard http.statusCode == 200 else {
+      try Self.check(http.statusCode, data: Data())
+      throw ClientError.invalidContract
+    }
+    guard http.expectedContentLength == expected,
+      http.value(forHTTPHeaderField: "ETag") == "\"" + version + "\""
+    else { throw ClientError.invalidContract }
+    let fd = open(to.path, O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
+    guard fd >= 0 else { throw ClientError.storage }
+    let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+    defer { try? handle.close() }
+    var count: Int64 = 0
+    var chunk = Data()
+    var digest = SHA256()
+    for try await byte in bytes {
+      try Task.checkCancellation()
+      count += 1
+      guard count <= expected else { throw ClientError.invalidContract }
+      chunk.append(byte)
+      if chunk.count == 65_536 {
+        digest.update(data: chunk)
+        try handle.write(contentsOf: chunk)
+        chunk.removeAll(keepingCapacity: true)
+        await progress(expected == 0 ? 1 : Double(count) / Double(expected))
+      }
+    }
+    digest.update(data: chunk)
+    try handle.write(contentsOf: chunk)
+    try handle.synchronize()
+    guard count == expected,
+      digest.finalize().map({ String(format: "%02x", $0) }).joined() == version
+    else { throw ClientError.invalidContract }
+    await progress(1)
   }
   static func check(_ status: Int, data: Data) throws {
     guard (200..<300).contains(status) else {
