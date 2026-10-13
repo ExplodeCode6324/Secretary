@@ -69,6 +69,7 @@ struct NotificationsManagementView: View {
       if page.items.isEmpty { Text("暂无通知") }
       ForEach(page.items, id: \.id) { notice in
         DetailText(notice.read_at == nil ? "未读" : "已读", notice.content.text)
+          .background(NoticePresentationView { Task { await model.presentedInWindow(notice.id) } })
         if notice.content.truncated { Text("正文已截断").font(.caption) }
         Button("标记已读") { Task { await model.markRead(notice.id) } }.disabled(
           !model.online || notice.read_at != nil)
@@ -77,4 +78,40 @@ struct NotificationsManagementView: View {
       PageControls(model: model, cursor: page.next_cursor)
     }
   }
+}
+
+// AppKit draw/visibleRect is evidence of a rendered row, unlike a fetched page or onAppear.
+private struct NoticePresentationView: NSViewRepresentable {
+  let presented: () -> Void
+  func makeNSView(context: Context) -> NoticePresentationNSView { NoticePresentationNSView() }
+  func updateNSView(_ view: NoticePresentationNSView, context: Context) {
+    view.presented = presented
+    view.needsDisplay = true
+  }
+}
+private final class NoticePresentationNSView: NSView {
+  var presented: (() -> Void)?
+  private var recorded = false
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    NotificationCenter.default.removeObserver(self)
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(activated), name: NSApplication.didBecomeActiveNotification,
+      object: nil)
+  }
+  @objc private func activated() { needsDisplay = true }
+  override func draw(_ dirtyRect: NSRect) {
+    super.draw(dirtyRect)
+    guard !recorded, window?.isVisible == true, NSApp.isActive, !visibleRect.isEmpty else { return }
+    recorded = true
+    DispatchQueue.main.async { [weak self] in
+      guard let self, self.window?.isVisible == true, NSApp.isActive, !self.visibleRect.isEmpty
+      else {
+        self?.recorded = false
+        return
+      }
+      self.presented?()
+    }
+  }
+  deinit { NotificationCenter.default.removeObserver(self) }
 }

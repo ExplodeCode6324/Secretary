@@ -262,7 +262,7 @@ struct MessageBody: View {
       .environment(
         \.openURL,
         OpenURLAction { url in
-          ["https", "http"].contains(url.scheme?.lowercased() ?? "") ? .systemAction : .discarded
+          ChatMarkdown.safeLink(url.absoluteString) != nil ? .systemAction : .discarded
         })
   }
   @ViewBuilder private func blockView(_ block: MarkdownBlock) -> some View {
@@ -379,8 +379,11 @@ private struct TranscriptRows: View {
             if item.incomplete == true { Text("未完整完成").foregroundStyle(.secondary) }
             if item.next_cursor != nil { Button("继续读取正文") { more(item) } }
           } else if let activity = item.activity {
-            Text((activity.phase ?? activity.id) + " · " + (activity.status ?? "未知状态"))
-              .textSelection(.enabled)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+              let elapsed = activity.elapsedSeconds(at: context.date).map { " · 已用 \($0) 秒" } ?? ""
+              Text((activity.phase ?? activity.id) + " · " + (activity.status ?? "未知状态") + elapsed)
+                .textSelection(.enabled)
+            }
           } else {
             Text("未知记录类型：" + item.kind)
           }

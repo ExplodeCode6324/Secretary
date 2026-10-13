@@ -465,6 +465,28 @@ final class SecretaryUITests: XCTestCase {
     pasteExact("GUI synthetic evidence", into: note)
     app.buttons["裁定未知结果…"].click()
     confirmManagement(app)
+    func noticeState() -> [String: Any] {
+      (try? JSONSerialization.jsonObject(
+        with: Data(contentsOf: URL(fileURLWithPath: directory + "/notice-state.json"))))
+        as? [String: Any] ?? [:]
+    }
+    XCTAssertEqual(noticeState()["presented"] as? Int, 0, "Fetching is not presentation")
+    app.buttons["attentionSummary"].click()
+    XCTAssertTrue(app.links["notifications"].waitForExistence(timeout: 10))
+    app.links["notifications"].click()
+    XCTAssertTrue(
+      app.staticTexts["Native synthetic visible notification"].waitForExistence(timeout: 10))
+    let presented = NSPredicate { _, _ in (noticeState()["presented"] as? Int ?? 0) == 1 }
+    expectation(for: presented, evaluatedWith: app)
+    waitForExpectations(timeout: 10)
+    XCTAssertEqual(noticeState()["read"] as? Bool, false)
+    app.buttons["标记已读"].firstMatch.click()
+    let read = NSPredicate { _, _ in noticeState()["read"] as? Bool == true }
+    expectation(for: read, evaluatedWith: app)
+    waitForExpectations(timeout: 10)
+    XCTAssertEqual(noticeState()["presented"] as? Int, 1)
+    print(
+      "PASS: visible native notification creates one presentation; explicit read stays separate")
   }
   @MainActor
   func testManagementArtifactDownload() async throws {
@@ -500,14 +522,17 @@ final class SecretaryUITests: XCTestCase {
     XCTAssertFalse(cancel.isEnabled)
     download.click()
     let beforeReconnect = try await fixtureAPI(directory, path: "assistant")
-    _ = try await fixtureAPI(directory, path: "assistant/profile", body: [
-      "request_id": UUID().uuidString.lowercased(),
-      "expected_revision": try XCTUnwrap(beforeReconnect["revision"] as? String),
-      "name": "PR3a reconnect during download",
-    ])
+    _ = try await fixtureAPI(
+      directory, path: "assistant/profile",
+      body: [
+        "request_id": UUID().uuidString.lowercased(),
+        "expected_revision": try XCTUnwrap(beforeReconnect["revision"] as? String),
+        "name": "PR3a reconnect during download",
+      ])
     XCTAssertTrue(app.staticTexts["下载已取消，可重试"].waitForExistence(timeout: 10))
     XCTAssertFalse(app.staticTexts["正在下载并校验内容"].exists)
-    let reconnected = expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: download)
+    let reconnected = expectation(
+      for: NSPredicate(format: "enabled == true"), evaluatedWith: download)
     await fulfillment(of: [reconnected], timeout: 10)
     XCTAssertFalse(open.exists)
     download.click()

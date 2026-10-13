@@ -17,7 +17,6 @@ import {
   fixtureModel,
   replyStream,
 } from "../../../src/pi_secretary/src/model.ts";
-import { api } from "../../../src/pi_secretary/src/ui-client.ts";
 import { delayedStream } from "./helpers/streaming.ts";
 const directory = () =>
   fs.mkdtempSync(path.join(os.tmpdir(), "secretary-stream-"));

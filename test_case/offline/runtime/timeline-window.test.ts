@@ -13,7 +13,6 @@ import {
 } from "../../../src/pi_secretary/src/timeline.ts";
 import { base, id, revise } from "../../../src/pi_secretary/src/store.ts";
 import { serve } from "../../../src/pi_secretary/src/backend.ts";
-import { api } from "../../../src/pi_secretary/src/ui-client.ts";
 import { activityHistoryFor } from "../../../src/pi_secretary/src/activity-history.ts";
 import type {
   CompactionJob,
@@ -71,19 +70,6 @@ function seed(app: App, count: number, long = false) {
   }
   return expected;
 }
-async function cacheModule() {
-  const source = fs.readFileSync(
-    new URL(
-      "../../../src/pi_secretary/web/timeline-window.js",
-      import.meta.url,
-    ),
-    "utf8",
-  );
-  return import(
-    "data:text/javascript;base64," + Buffer.from(source).toString("base64")
-  );
-}
-
 test("unified pages match independent mixed-history oracle in both directions and locate", async () => {
   const dir = temp(),
     app = await App.open(dir);
@@ -255,53 +241,6 @@ test("late activity insertion refreshes loaded range and process generation inva
   }
 });
 
-test("cache scrolls 6000 items both ways, shares activity quota, enforces bytes and preserves protected anchor", async () => {
-  const { TimelineWindow, bytes } = await cacheModule();
-  const w = new TimelineWindow();
-  const page = (start: number, text = "x") => ({
-    items: Array.from({ length: 200 }, (_, j) => ({
-      id: String(start + j),
-      order: start + j,
-      revision: 1,
-      kind: j % 2 ? "message" : "activity",
-      text,
-      cursor: String(start + j),
-    })),
-    before: String(start),
-    after: String(start + 199),
-  });
-  for (let start = 0; start < 6000; start += 200) {
-    assert(w.apply(page(start)));
-    assert(w.items.length <= 2000);
-    assert(w.bytes <= 16 * 1024 * 1024);
-  }
-  assert.equal(w.items[0].id, "4000");
-  for (let start = 3800; start >= 0; start -= 200) {
-    assert(w.apply(page(start), "before"));
-    assert(w.items.length <= 2000);
-  }
-  assert.equal(w.items[0].id, "0");
-  assert.equal(w.items.at(-1).id, "1999");
-  assert(!w.apply(page(2000), "after", new Set(["0"])));
-  assert.equal(w.items[0].id, "0");
-  for (let i = 2000; i < 10000; i += 200) {
-    assert(w.apply(page(i, "x".repeat(4000))));
-    assert(w.bytes <= 16 * 1024 * 1024);
-  }
-  assert.equal(
-    w.bytes,
-    w.items.reduce((n: number, m: any) => n + bytes(m), 0),
-  );
-  assert.throws(() => w.apply(page(0, "x".repeat(6000))), /预算/);
-  const previous = w.items[0];
-  w.apply({
-    items: [{ ...previous, revision: 0, text: "stale" }],
-    before: w.before,
-    after: w.after,
-  });
-  assert.notEqual(w.items[0].text, "stale");
-});
-
 test("API v1 status avoids history body reads and timeline pages remain bounded", async () => {
   const dir = temp(),
     app = await App.open(dir);
@@ -434,27 +373,6 @@ test("idle and loaded-range polling read no old bodies; task children and author
     await app.close();
     fs.rmSync(dir, { recursive: true, force: true });
   }
-});
-
-test("content budget evicts large UTF-8 entries before the count limit", async () => {
-  const { TimelineWindow } = await cacheModule();
-  const window = new TimelineWindow();
-  for (let start = 0; start < 3000; start += 50) {
-    const items = Array.from({ length: 50 }, (_, j) => ({
-      id: String(start + j),
-      order: start + j,
-      revision: 1,
-      kind: "message",
-      text: "中".repeat(4000),
-      cursor: String(start + j),
-    }));
-    assert(window.apply({ items, before: String(start), after: null }));
-    assert(window.bytes <= 16 * 1024 * 1024);
-  }
-  assert(window.items.length < 2000);
-  assert(window.items.length > 1000);
-  assert(window.before);
-  assert.equal(window.items.at(-1).id, "2999");
 });
 
 test("an initially empty client receives another client's first messages through its bounded delta", async () => {

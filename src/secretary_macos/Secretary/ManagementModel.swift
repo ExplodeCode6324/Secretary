@@ -529,6 +529,17 @@ struct ManagementLocation: Equatable {
       }
     }
   }
+  func presentedInWindow(_ id: String) async {
+    guard online, active, location.path == "notifications", let engine else { return }
+    let e = epoch
+    let t = ticket
+    do {
+      let generation = await engine.connectionGeneration()
+      try check(e, t)
+      try await engine.recordPresentation(id, proof: .visibleInActiveWindow, generation: generation)
+      try await engine.drainOutbox()
+    } catch { if !Task.isCancelled { commandStatus = ConnectionModel.explanation(error) } }
+  }
   func markRead(_ id: String) async {
     guard online, let engine else { return }
     let e = epoch

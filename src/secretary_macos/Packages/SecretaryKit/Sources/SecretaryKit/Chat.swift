@@ -15,6 +15,21 @@ public struct ChatActivity: Codable, Sendable, Equatable {
   public let status: String?
   public let execution_id: String?
   public let actions: [String]?
+  public let started_at: String?
+  public let ended_at: String?
+  public let last_progress_at: String?
+  public func elapsedSeconds(at: Date = Date()) -> Int? {
+    func date(_ value: String?) -> Date? {
+      guard let value else { return nil }
+      let formatter = ISO8601DateFormatter()
+      formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+      return formatter.date(from: value) ?? ISO8601DateFormatter().date(from: value)
+    }
+    guard let start = date(started_at) else { return nil }
+    let live = status == "running" || status == "waiting"
+    guard let end = date(ended_at) ?? (live ? at : date(last_progress_at)) else { return nil }
+    return max(0, Int(end.timeIntervalSince(start)))
+  }
 }
 
 public struct ChatItem: Codable, Sendable, Identifiable, Equatable {
@@ -83,7 +98,9 @@ public struct ChatWindow: Sendable {
     var page = page
     let expanded = Dictionary(uniqueKeysWithValues: items.map { ($0.id, $0) })
     let kept = page.items.map { item in
-      if let old = expanded[item.id], old.revision == item.revision, old.bytes > item.bytes {
+      if generation == page.generation, let old = expanded[item.id],
+        old.revision > item.revision || (old.revision == item.revision && old.bytes > item.bytes)
+      {
         return old
       }
       return item
@@ -171,8 +188,50 @@ public enum ChatMarkdown {
   public static func parse(_ text: String) -> [MarkdownBlock] {
     // Long documents stay readable without building an unbounded AST.
     guard text.utf8.count <= 256 * 1024 else { return [.plain(text)] }
+    // Avoid entering cmark on pathological nesting; its parser can exhaust the stack.
+    let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+    for line in lines {
+      let prefix = line.prefix { "> -+*0123456789.\t".contains($0) }
+      if prefix.filter({ $0 == ">" }).count > 64 || prefix.count > 256 { return [.plain(text)] }
+    }
     let document = Document(parsing: text)
+    // Bound recursive native view construction, including hostile quote/list nesting.
+    var pending: [(any Markup, Int)] = [(document, 0)]
+    while let (node, depth) = pending.popLast() {
+      if depth > 64 { return [.plain(text)] }
+      if node is InlineHTML || node is Image { return [.plain(text)] }
+      if let link = node as? Link, safeLink(link.destination ?? "") == nil { return [.plain(text)] }
+      if let table = node as? Table, let range = table.range {
+        // CommonMark tables discard surplus cells. Preserve malformed source verbatim.
+        for line in lines.dropFirst(range.lowerBound.line - 1).prefix(
+          range.upperBound.line - range.lowerBound.line + 1)
+        {
+          let cells = line.replacingOccurrences(of: "\\|", with: "").trimmingCharacters(
+            in: .whitespaces
+          )
+          .trimmingCharacters(in: CharacterSet(charactersIn: "|")).split(
+            separator: "|", omittingEmptySubsequences: false)
+          if cells.count > table.head.childCount { return [.plain(text)] }
+        }
+      }
+      for child in node.children { pending.append((child, depth + 1)) }
+    }
     return document.children.map(block)
+  }
+  public static func safeLink(_ value: String) -> URL? {
+    guard !value.contains("\\"),
+      !value.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 }),
+      !value.lowercased().contains("%0d"), !value.lowercased().contains("%0a"),
+      let url = URL(string: value), let scheme = url.scheme?.lowercased(),
+      url.user == nil, url.password == nil
+    else { return nil }
+    if ["https", "http"].contains(scheme), let host = url.host, !host.isEmpty { return url }
+    if scheme == "mailto", !value.contains("?"), !value.contains("#"),
+      value.dropFirst(7).contains("@")
+    {
+      return url
+    }
+    return nil
   }
   private static func block(_ node: any Markup) -> MarkdownBlock {
     switch node {
@@ -188,7 +247,9 @@ public enum ChatMarkdown {
         [value.head.cells.map(\.plainText)] + value.body.rows.map { $0.cells.map(\.plainText) })
     case is ThematicBreak: return .rule
     case let value as HTMLBlock: return .plain(value.rawHTML)
-    default: return .text(node.format())
+    default:
+      let source = node.format()
+      return source.contains("<") ? .plain(source) : .text(source)
     }
   }
 }
