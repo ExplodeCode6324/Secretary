@@ -1,0 +1,31 @@
+Issue #10 PR3a review follow-up - 2026-10-14 (HKT)
+Reviewed PR #44 head: 05481a8928d3e6ff8e26982043f130c6aaf7af28.
+
+Finding accepted: reattachment cancelled the task and advanced its epoch, so the old
+catch block could not replace the stale in-progress text. All lifecycle cancellation
+paths now call the same cancelDownload method, which updates the status synchronously
+while retaining cancellation and epoch guards. An old task cannot publish its result.
+
+Validation:
+- Native fixture TypeScript check and app/UI target build PASS.
+- Management GUI 3/3 PASS, 0 failures, 0 skipped, 92.921 seconds.
+- The owned loopback fixture deliberately closes the live SSE connection during a
+  delayed artifact transfer. The real app automatically reconnects; the GUI verifies
+  cancelled status, absence of stale in-progress text and an open action, then retries
+  and opens the verified artifact. Existing metadata-version invalidation still passes.
+- There is no production test hook; interruption is implemented in the fixture proxy.
+- Core/domain code, Swift package logic and the prior 7 chat/window tests are unchanged.
+  Earlier Core/World/Swift evidence remains in issue10-pr3a-20261014.txt. This follow-up
+  does not claim a new PostgreSQL run or full PR3c lifecycle acceptance.
+- The final PR head must run its own Linux, macOS and verify CI; earlier head CI is not
+  substituted. No merge, issue closure or legacy retirement.
+
+The following source hashes supersede these three entries in the earlier evidence:
+src/secretary_macos/Secretary/ManagementModel.swift fdbbc4ae4b4b01a67de2e9baa330e36f2e43bf47d3872fdc798f3c71dcf7e7c6
+src/secretary_macos/SecretaryUITests/SecretaryUITests.swift 44dede81e43e1fecc79e926ed0726cd0518a0461e43fc1d7426bf5ceb71405f8
+test_case/native/management-fixture.ts 258ad1d8517610c8d9a28f318ebba97864fb0231d6a94b4427ca612a95693cd2
+
+Private log SHA-256:
+review-types.log e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+review-build.log 435fb02315200567bd9014c9e935e927e7edf048cc8b1b8cbbb0905f5bb2f8cd
+review-gui-first.log 245702f729df00d6a964ebe7ed380a12bece2b42f497eb8aeb4056afb44a3445

@@ -150,6 +150,7 @@ async function run(dsn?: string) {
   // UI-only loopback proxy delays binary bodies so busy/cancel controls can be exercised.
   // Public requests and authentication still reach the real Core unchanged.
   let proxy: http.Server | undefined;
+  const streams = new Set<http.ServerResponse>();
   let endpoint = server.endpoint;
   if (process.argv[2] === "--ui") {
     proxy = http.createServer((req, res) => {
@@ -162,6 +163,7 @@ async function run(dsn?: string) {
           headers: { ...req.headers, host: target.host },
         },
         (response) => {
+          if (target.pathname === "/api/v1/sync/stream") streams.add(res);
           res.writeHead(response.statusCode!, response.headers);
           res.flushHeaders();
           if (
@@ -174,6 +176,7 @@ async function run(dsn?: string) {
       );
       upstream.on("error", () => res.destroy());
       res.on("close", () => {
+        streams.delete(res);
         clearTimeout(timer);
         upstream.destroy();
       });
@@ -209,9 +212,19 @@ async function run(dsn?: string) {
   let passed = false;
   // Test-only control is owned by the fixture; the app continues to read public HTTP.
   let refreshedArtifact = false;
+  let interruptedDownload = false;
   const refreshTimer =
     process.argv[2] === "--ui"
       ? setInterval(() => {
+          if (
+            !interruptedDownload &&
+            app.store
+              .all<AssistantProfile>("AssistantProfile")
+              .some((p) => p.name === "PR3a reconnect during download")
+          ) {
+            interruptedDownload = true;
+            for (const stream of streams) stream.destroy();
+          }
           if (
             refreshedArtifact ||
             !app.store

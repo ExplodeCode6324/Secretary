@@ -499,6 +499,18 @@ final class SecretaryUITests: XCTestCase {
     XCTAssertFalse(open.exists)
     XCTAssertFalse(cancel.isEnabled)
     download.click()
+    let beforeReconnect = try await fixtureAPI(directory, path: "assistant")
+    _ = try await fixtureAPI(directory, path: "assistant/profile", body: [
+      "request_id": UUID().uuidString.lowercased(),
+      "expected_revision": try XCTUnwrap(beforeReconnect["revision"] as? String),
+      "name": "PR3a reconnect during download",
+    ])
+    XCTAssertTrue(app.staticTexts["下载已取消，可重试"].waitForExistence(timeout: 10))
+    XCTAssertFalse(app.staticTexts["正在下载并校验内容"].exists)
+    let reconnected = expectation(for: NSPredicate(format: "enabled == true"), evaluatedWith: download)
+    await fulfillment(of: [reconnected], timeout: 10)
+    XCTAssertFalse(open.exists)
+    download.click()
     XCTAssertTrue(open.waitForExistence(timeout: 10))
     XCTAssertTrue(download.isEnabled)
     XCTAssertFalse(cancel.isEnabled)

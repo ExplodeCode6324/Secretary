@@ -65,7 +65,7 @@ struct ManagementLocation: Equatable {
       root: database.deletingLastPathComponent().appendingPathComponent("Artifacts"))
   }
   func attach(_ core: Core) async throws {
-    downloadTask?.cancel()
+    cancelDownload()
     epoch += 1
     // Opaque page cursors belong to a Core instance; reconnect starts from the first page.
     location.query.removeValue(forKey: "cursor")
@@ -100,7 +100,7 @@ struct ManagementLocation: Equatable {
     busy = false
     pendingChange = false
     confirmation = nil
-    downloadTask?.cancel()
+    cancelDownload()
     downloaded = nil
     status = "离线缓存 · 保留最后确认内容与本地编辑"
   }
@@ -109,7 +109,7 @@ struct ManagementLocation: Equatable {
     navigationEpoch += 1
     pendingChange = false
     confirmation = nil
-    downloadTask?.cancel()
+    cancelDownload()
   }
   func decode<T: Decodable>(_ type: T.Type) -> T? {
     data.flatMap { try? Contract.decode(type, from: $0) }
@@ -141,7 +141,7 @@ struct ManagementLocation: Equatable {
       fragments = [:]
       confirmedAt = nil
       downloaded = nil
-      downloadTask?.cancel()
+      cancelDownload()
       downloadStatus = ""
     }
     do {
@@ -280,7 +280,7 @@ struct ManagementLocation: Equatable {
         {
           // A refresh can change the selected content without changing the page.
           navigationEpoch += 1
-          downloadTask?.cancel()
+          cancelDownload()
           downloaded = nil
           downloadProgress = 0
           downloadStatus = previous == nil ? "" : "产物版本已变化，请重新下载并校验"
@@ -543,5 +543,9 @@ struct ManagementLocation: Equatable {
       await refresh()
     } catch { commandStatus = ConnectionModel.explanation(error) }
   }
-  func cancelDownload() { downloadTask?.cancel() }
+  func cancelDownload() {
+    // Lifecycle changes advance the epochs, so the cancelled task cannot publish its status.
+    if downloading { downloadStatus = "下载已取消，可重试" }
+    downloadTask?.cancel()
+  }
 }
