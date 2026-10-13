@@ -68,8 +68,11 @@ struct NotificationsManagementView: View {
     if let page = model.decode(NotificationPage.self) {
       if page.items.isEmpty { Text("暂无通知") }
       ForEach(page.items, id: \.id) { notice in
+        let context = model.presentationContext
         DetailText(notice.read_at == nil ? "未读" : "已读", notice.content.text)
-          .background(NoticePresentationView { Task { await model.presentedInWindow(notice.id) } })
+          .background(
+            NoticePresentationView { await model.presentedInWindow(notice.id, context: context) }
+              .id(context))
         if notice.content.truncated { Text("正文已截断").font(.caption) }
         Button("标记已读") { Task { await model.markRead(notice.id) } }.disabled(
           !model.online || notice.read_at != nil)
@@ -82,7 +85,7 @@ struct NotificationsManagementView: View {
 
 // AppKit draw/visibleRect is evidence of a rendered row, unlike a fetched page or onAppear.
 private struct NoticePresentationView: NSViewRepresentable {
-  let presented: () -> Void
+  let presented: () async -> Bool
   func makeNSView(context: Context) -> NoticePresentationNSView { NoticePresentationNSView() }
   func updateNSView(_ view: NoticePresentationNSView, context: Context) {
     view.presented = presented
@@ -90,7 +93,7 @@ private struct NoticePresentationView: NSViewRepresentable {
   }
 }
 private final class NoticePresentationNSView: NSView {
-  var presented: (() -> Void)?
+  var presented: (() async -> Bool)?
   private var recorded = false
   override func viewDidMoveToWindow() {
     super.viewDidMoveToWindow()
@@ -102,15 +105,19 @@ private final class NoticePresentationNSView: NSView {
   @objc private func activated() { needsDisplay = true }
   override func draw(_ dirtyRect: NSRect) {
     super.draw(dirtyRect)
-    guard !recorded, window?.isVisible == true, NSApp.isActive, !visibleRect.isEmpty else { return }
+    guard !recorded, window?.isVisible == true, window?.occlusionState.contains(.visible) == true,
+      NSApp.isActive, !visibleRect.isEmpty
+    else { return }
     recorded = true
-    DispatchQueue.main.async { [weak self] in
-      guard let self, self.window?.isVisible == true, NSApp.isActive, !self.visibleRect.isEmpty
+    Task { @MainActor [weak self] in
+      guard let self, self.window?.isVisible == true,
+        self.window?.occlusionState.contains(.visible) == true,
+        NSApp.isActive, !self.visibleRect.isEmpty
       else {
         self?.recorded = false
         return
       }
-      self.presented?()
+      self.recorded = await self.presented?() ?? false
     }
   }
   deinit { NotificationCenter.default.removeObserver(self) }

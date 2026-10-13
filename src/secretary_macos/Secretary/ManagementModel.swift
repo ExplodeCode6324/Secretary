@@ -529,16 +529,25 @@ struct ManagementLocation: Equatable {
       }
     }
   }
-  func presentedInWindow(_ id: String) async {
-    guard online, active, location.path == "notifications", let engine else { return }
+  var presentationContext: String { "\(epoch):\(navigationEpoch):\(online)" }
+  func presentedInWindow(_ id: String, context: String) async -> Bool {
+    guard context == presentationContext, online, active, location.path == "notifications",
+      let engine
+    else { return false }
     let e = epoch
     let t = ticket
     do {
       let generation = await engine.connectionGeneration()
       try check(e, t)
+      guard context == presentationContext else { return false }
       try await engine.recordPresentation(id, proof: .visibleInActiveWindow, generation: generation)
-      try await engine.drainOutbox()
-    } catch { if !Task.isCancelled { commandStatus = ConnectionModel.explanation(error) } }
+      // A network failure leaves the durable original receipt queued for normal reconciliation.
+      try? await engine.drainOutbox()
+      return true
+    } catch {
+      if !Task.isCancelled { commandStatus = ConnectionModel.explanation(error) }
+      return false
+    }
   }
   func markRead(_ id: String) async {
     guard online, let engine else { return }
