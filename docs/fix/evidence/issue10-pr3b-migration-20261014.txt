@@ -132,4 +132,9 @@ browser/ui-endpoint files; they are not current acceptance and their historical 
 - Artifacts/relations: existing HTTP probe, cache/transport tests, native download GUI, public relation tests.
 - Core lifecycle/admin: issue8 lifecycle/auth/version/retired routes, fixture probe and window GUI;
   native-retirement API program execution + documented CoreClient admin/world/migrate path.
+- Follow-up reference scan found runtime/helpers/timeline-window-bench.ts still registering an old
+  /api/client. Migrated its real HTTP sample loop to GET /api/v1/timeline/around with API version
+  header and data envelope; retained locate, bounded payload and latency assertions. Removed only
+  the optional browser paint branch. The controlled 1000-row run is a smoke result, not a new
+  100000-row performance claim.
 G-close remains open: full system notifications, VoiceOver, real sleep, real model and near-1GiB resource test.
