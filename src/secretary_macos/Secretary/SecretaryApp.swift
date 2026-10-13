@@ -260,6 +260,7 @@ final class ConnectionModel: ObservableObject {
   static func explanation(_ error: any Error) -> String {
     guard let error = error as? ClientError else { return "连接暂不可用。保留最后确认的数据，恢复后按原请求 ID 对账。" }
     switch error {
+    case .downloadBusy: return "已有下载进行中，请等待完成或取消后重试。"
     case .unsafeDiscovery: return "发现文件不存在或未通过私有权限、本机地址及格式校验。请确认所选数据目录。"
     case .identityMismatch: return "Core 模式或实例身份与发现文件不一致，请核对目录和模式。"
     case .storage, .storageVersion: return "本地数据库不可写或版本不受支持。请检查空间与权限；原草稿和待确认命令保留。"

@@ -26,7 +26,7 @@ public enum ClientError: Error, Equatable, Sendable {
   case invalidContract, unsafeDiscovery, identityMismatch, staleConnection, responseTooLarge
   case invalidRoute, storage, storageVersion, requestConflict, sessionChanged, streamMalformed
   case http(Int, String)
-  case unavailable
+  case unavailable, downloadBusy
 }
 
 public struct Capability: Decodable, Sendable {

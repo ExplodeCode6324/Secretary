@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import http from "node:http";
 import { spawn } from "node:child_process";
 import { App } from "../../src/pi_secretary/src/app.ts";
 import { serveCore } from "../../src/pi_secretary/src/api-v1.ts";
@@ -146,9 +147,51 @@ async function run(dsn?: string) {
     return op.id;
   });
   const server = await serveCore(app, 0, undefined, { pump: false });
+  // UI-only loopback proxy delays binary bodies so busy/cancel controls can be exercised.
+  // Public requests and authentication still reach the real Core unchanged.
+  let proxy: http.Server | undefined;
+  const streams = new Set<http.ServerResponse>();
+  let endpoint = server.endpoint;
+  if (process.argv[2] === "--ui") {
+    proxy = http.createServer((req, res) => {
+      const target = new URL(req.url!, server.endpoint.url);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const upstream = http.request(
+        target,
+        {
+          method: req.method,
+          headers: { ...req.headers, host: target.host },
+        },
+        (response) => {
+          if (target.pathname === "/api/v1/sync/stream") streams.add(res);
+          res.writeHead(response.statusCode!, response.headers);
+          res.flushHeaders();
+          if (
+            target.pathname.endsWith("/content") &&
+            response.statusCode === 200
+          ) {
+            timer = setTimeout(() => response.pipe(res), 3000);
+          } else response.pipe(res);
+        },
+      );
+      upstream.on("error", () => res.destroy());
+      res.on("close", () => {
+        streams.delete(res);
+        clearTimeout(timer);
+        upstream.destroy();
+      });
+      req.pipe(upstream);
+    });
+    await new Promise<void>((resolve) =>
+      proxy!.listen(0, "127.0.0.1", resolve),
+    );
+    const address = proxy.address();
+    assert.ok(address && typeof address === "object");
+    endpoint = { ...server.endpoint, url: `http://127.0.0.1:${address.port}` };
+  }
   fs.writeFileSync(
     path.join(root, "core/core-endpoint.json"),
-    JSON.stringify(server.endpoint),
+    JSON.stringify(endpoint),
     { mode: 0o600 },
   );
   fs.writeFileSync(
@@ -169,9 +212,19 @@ async function run(dsn?: string) {
   let passed = false;
   // Test-only control is owned by the fixture; the app continues to read public HTTP.
   let refreshedArtifact = false;
+  let interruptedDownload = false;
   const refreshTimer =
     process.argv[2] === "--ui"
       ? setInterval(() => {
+          if (
+            !interruptedDownload &&
+            app.store
+              .all<AssistantProfile>("AssistantProfile")
+              .some((p) => p.name === "PR3a reconnect during download")
+          ) {
+            interruptedDownload = true;
+            for (const stream of streams) stream.destroy();
+          }
           if (
             refreshedArtifact ||
             !app.store
@@ -243,6 +296,10 @@ async function run(dsn?: string) {
     passed = true;
   } finally {
     if (refreshTimer) clearInterval(refreshTimer);
+    if (proxy) {
+      proxy.closeAllConnections();
+      await new Promise<void>((resolve) => proxy!.close(() => resolve()));
+    }
     await server.close();
     if (passed) fs.rmSync(root, { recursive: true });
     else console.log("Retained private management fixture:", root);

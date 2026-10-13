@@ -1,4 +1,3 @@
-import CryptoKit
 import Darwin
 import Foundation
 
@@ -35,6 +34,7 @@ public protocol CoreTransport: Sendable {
   func stream(
     after: String, receive: @escaping @Sendable (SyncTransaction) async throws -> Void,
     transient: @escaping @Sendable (Data) async throws -> Void) async throws
+  /// Produces an untrusted temporary file. ArtifactCache validates content before publishing a URL.
   func download(
     _ route: Route, to: URL, bytes: Int64, version: String,
     progress: @escaping @Sendable (Double) async -> Void) async throws
@@ -67,7 +67,11 @@ private final class NoRedirect: NSObject, URLSessionTaskDelegate, Sendable {
 public final class HTTPTransport: CoreTransport, Sendable {
   private let endpoint: Endpoint
   private let session: URLSession
-  public init(endpoint: Endpoint) throws {
+  let downloadSession: URLSession
+  public convenience init(endpoint: Endpoint) throws {
+    try self.init(endpoint: endpoint, downloadIdleTimeout: 30)
+  }
+  init(endpoint: Endpoint, downloadIdleTimeout: TimeInterval) throws {
     try endpoint.validate()
     self.endpoint = endpoint
     let config = URLSessionConfiguration.ephemeral
@@ -78,8 +82,20 @@ public final class HTTPTransport: CoreTransport, Sendable {
     config.timeoutIntervalForRequest = 15
     config.timeoutIntervalForResource = 60
     session = URLSession(configuration: config, delegate: NoRedirect(), delegateQueue: nil)
+    let downloadConfig = URLSessionConfiguration.ephemeral
+    downloadConfig.httpCookieStorage = nil
+    downloadConfig.urlCache = nil
+    downloadConfig.httpShouldSetCookies = false
+    downloadConfig.requestCachePolicy = .reloadIgnoringLocalCacheData
+    downloadConfig.timeoutIntervalForRequest = downloadIdleTimeout
+    // Keep the platform resource timeout, independent of ordinary JSON/SSE requests.
+    downloadSession = URLSession(
+      configuration: downloadConfig, delegate: NoRedirect(), delegateQueue: nil)
   }
-  public func cancel() { session.invalidateAndCancel() }
+  public func cancel() {
+    session.invalidateAndCancel()
+    downloadSession.invalidateAndCancel()
+  }
   private func urlRequest(_ route: Route, body: Data? = nil) throws -> URLRequest {
     guard var components = URLComponents(string: endpoint.url) else {
       throw ClientError.invalidRoute
@@ -118,12 +134,14 @@ public final class HTTPTransport: CoreTransport, Sendable {
     _ route: Route, to: URL, bytes expected: Int64, version: String,
     progress: @escaping @Sendable (Double) async -> Void
   ) async throws {
+    try Task.checkCancellation()
+    guard expected >= 0, expected <= 1_073_741_824 else { throw ClientError.responseTooLarge }
     var request = try urlRequest(route)
     request.setValue("application/octet-stream", forHTTPHeaderField: "Accept")
     request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
     // URLSession writes network chunks to disk; Swift never iterates the binary body byte by byte.
     let delegate = DownloadProgress(expected: expected, report: progress)
-    let (temporary, response) = try await session.download(for: request, delegate: delegate)
+    let (temporary, response) = try await downloadSession.download(for: request, delegate: delegate)
     defer { try? FileManager.default.removeItem(at: temporary) }
     guard let http = response as? HTTPURLResponse else { throw ClientError.invalidContract }
     guard http.statusCode == 200 else {
@@ -140,17 +158,8 @@ public final class HTTPTransport: CoreTransport, Sendable {
     var info = stat()
     guard fstat(sourceFD, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_size == expected
     else { throw ClientError.invalidContract }
-    var count: Int64 = 0
-    var digest = SHA256()
-    while let chunk = try source.read(upToCount: 65_536), !chunk.isEmpty {
-      try Task.checkCancellation()
-      count += Int64(chunk.count)
-      guard count <= expected else { throw ClientError.invalidContract }
-      digest.update(data: chunk)
-    }
-    guard count == expected,
-      digest.finalize().map({ String(format: "%02x", $0) }).joined() == version
-    else { throw ClientError.invalidContract }
+    // No content read here: move the system download to the cache's untrusted staging path.
+    // The sole whole-file hash runs at cache admission, including for custom transports.
     guard fchmod(sourceFD, 0o600) == 0 else { throw ClientError.storage }
     try Task.checkCancellation()
     try FileManager.default.moveItem(at: temporary, to: to)
