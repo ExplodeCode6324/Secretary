@@ -30,7 +30,19 @@ public protocol CoreTransport: Sendable {
   func request(_ route: Route, body: Data?) async throws -> Data
   func stream(after: String, receive: @escaping @Sendable (SyncTransaction) async throws -> Void)
     async throws
+  func stream(
+    after: String, receive: @escaping @Sendable (SyncTransaction) async throws -> Void,
+    transient: @escaping @Sendable (Data) async throws -> Void) async throws
   func cancel()
+}
+
+extension CoreTransport {
+  public func stream(
+    after: String, receive: @escaping @Sendable (SyncTransaction) async throws -> Void,
+    transient: @escaping @Sendable (Data) async throws -> Void
+  ) async throws {
+    try await stream(after: after, receive: receive)
+  }
 }
 
 private final class NoRedirect: NSObject, URLSessionTaskDelegate, Sendable {
@@ -109,6 +121,12 @@ public final class HTTPTransport: CoreTransport, Sendable {
   public func stream(
     after: String, receive: @escaping @Sendable (SyncTransaction) async throws -> Void
   ) async throws {
+    try await stream(after: after, receive: receive, transient: { _ in })
+  }
+  public func stream(
+    after: String, receive: @escaping @Sendable (SyncTransaction) async throws -> Void,
+    transient: @escaping @Sendable (Data) async throws -> Void
+  ) async throws {
     var request = try urlRequest(Route("sync/stream"))
     request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
     request.setValue(after, forHTTPHeaderField: "Last-Event-ID")
@@ -128,6 +146,7 @@ public final class HTTPTransport: CoreTransport, Sendable {
     for try await byte in bytes {
       try Task.checkCancellation()
       if let transaction = try decoder.append(byte) { try await receive(transaction) }
+      if let data = decoder.transientData { try await transient(data) }
     }
     // A partial EOF frame is intentionally discarded; only committed cursor is resumed.
     throw ClientError.unavailable
@@ -136,6 +155,7 @@ public final class HTTPTransport: CoreTransport, Sendable {
 
 /// One frame at a time: no unbounded AsyncStream queue; the consumer supplies backpressure.
 public struct SSEDecoder: Sendable {
+  public private(set) var transientData: Data?
   private var line = Data()
   private var event = ""
   private var id: String?
@@ -143,6 +163,7 @@ public struct SSEDecoder: Sendable {
   private var frameBytes = 0
   public init() {}
   public mutating func append(_ byte: UInt8) throws -> SyncTransaction? {
+    transientData = nil
     frameBytes += 1
     guard frameBytes <= 4_194_304 else { throw ClientError.responseTooLarge }
     if byte != 10 {
@@ -158,6 +179,11 @@ public struct SSEDecoder: Sendable {
         id = nil
         data = ""
         frameBytes = 0
+      }
+      if event == "transient" {
+        guard id == nil else { throw ClientError.streamMalformed }
+        transientData = Data(data.utf8)
+        return nil
       }
       guard event == "change" else { return nil }
       guard !data.isEmpty, let id else { throw ClientError.streamMalformed }

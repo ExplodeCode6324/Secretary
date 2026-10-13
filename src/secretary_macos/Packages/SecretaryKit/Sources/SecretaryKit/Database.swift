@@ -200,6 +200,21 @@ final class Database {
     try blob(
       "SELECT body FROM drafts WHERE scope=? AND key=?", [.text(identity.scope), .text(key)])
   }
+  func saveAnchor(_ identity: Identity, value: String) throws {
+    try write(
+      "INSERT OR REPLACE INTO anchors VALUES(?,?,?)",
+      [.text(identity.scope), .text("chat"), .text(value)])
+  }
+  func anchor(_ identity: Identity) throws -> String? {
+    try rows("SELECT value FROM anchors WHERE scope=? AND key='chat'", [.text(identity.scope)])
+      .first?.first ?? nil
+  }
+  func chatCommands(_ identity: Identity) throws -> [PendingCommand] {
+    let ids = try rows(
+      "SELECT id FROM outbox WHERE domain=? AND session=? AND path='messages' ORDER BY rowid DESC LIMIT 30",
+      [.text(identity.domainKey), .text(identity.session)])
+    return try ids.compactMap { try command(identity, id: $0[0]!) }
+  }
   func enqueue(_ identity: Identity, id: String, route: Route, body: Data, draftKey: String? = nil)
     throws
   {
@@ -290,6 +305,10 @@ final class Database {
     else { return nil }
     return CachedProjection(
       data: data, stale: row[0] == "1", confirmedAt: Date(timeIntervalSince1970: Double(row[1]!)!))
+  }
+  func forget(_ identity: Identity, route: Route) throws {
+    try write(
+      "DELETE FROM projections WHERE scope=? AND key=?", [.text(identity.scope), .text(route.key)])
   }
   func markStale(_ identity: Identity, keys: [String]) throws {
     try transaction { try invalidate(identity, keys: keys) }

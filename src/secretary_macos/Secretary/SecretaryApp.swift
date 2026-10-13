@@ -5,10 +5,11 @@ import UserNotifications
 
 @main
 struct SecretaryApp: App {
+  @NSApplicationDelegateAdaptor(SecretaryAppDelegate.self) private var appDelegate
   @StateObject private var model = ConnectionModel()
   var body: some Scene {
     Window("secretary", id: "main") {
-      ConnectionView(model: model)
+      ChatShell(connection: model, chat: model.chat)
         .frame(minWidth: 720, minHeight: 520)
         .onDisappear { model.disconnect() }
         .onReceive(
@@ -25,12 +26,14 @@ struct SecretaryApp: App {
           model.notificationResponse(identifier: identifier, opened: opened)
         }
     }
-    .defaultSize(width: 960, height: 640)
+    .defaultSize(width: 1280, height: 860)
+    .commands { MainWindowCommands() }
   }
 }
 
 @MainActor
 final class ConnectionModel: ObservableObject {
+  let chat = ChatModel()
   @Published var directory = ""
   @Published var node = ""
   @Published var repository = ""
@@ -54,7 +57,17 @@ final class ConnectionModel: ObservableObject {
     do {
       let root = try FileManager.default.url(
         for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-      engine = try ClientEngine(databaseURL: root.appendingPathComponent("Secretary/client.sqlite"))
+      var database = root.appendingPathComponent("Secretary/client.sqlite")
+      #if DEBUG
+        if let testDirectory = ProcessInfo.processInfo.environment[
+          "SECRETARY_NATIVE_TEST_DATA_DIR"], testDirectory.hasPrefix("/")
+        {
+          database = URL(fileURLWithPath: testDirectory).appendingPathComponent("client.sqlite")
+        }
+      #endif
+      let engine = try ClientEngine(databaseURL: database)
+      self.engine = engine
+      try chat.configure(engine: engine, database: database)
     } catch {
       status = "本地存储不可用"
       detail = "未创建可写的私有数据库，暂不允许提交。请检查磁盘空间和目录权限。"
@@ -74,6 +87,8 @@ final class ConnectionModel: ObservableObject {
     }
   }
   func connect(start: Bool = false) {
+    // Commit an active path-field edit (including IME composition) before copying its value.
+    NSApp.keyWindow?.makeFirstResponder(nil)
     guard let engine, directory.hasPrefix("/"), !busy else { return }
     connectionTask?.cancel()
     notificationTask?.cancel()
@@ -84,6 +99,7 @@ final class ConnectionModel: ObservableObject {
     selectedConfiguration = (dataPath, expectedMode)
     busy = true
     connected = false
+    chat.disconnected()
     lastNoticeProjection = nil
     confirmedAt = nil
     connectionTask = Task { [weak self] in
@@ -103,23 +119,30 @@ final class ConnectionModel: ObservableObject {
             let endpoint = try Endpoint.discover(in: URL(fileURLWithPath: dataPath))
             let core = try await engine.connect(
               endpoint: endpoint, expectedMode: expectedMode,
-              routes: [Route("assistant"), Route("session"), Route("notifications")])
+              routes: [
+                Route("assistant"), Route("session"), Route("notifications"), Route("attention"),
+                chat.preferences.route,
+              ])
             try Task.checkCancellation()
             status = "已连接"
             detail = "Core · \(core.mode) · \(core.state)"
             connected = true
             busy = false
             confirmedAt = Date()
+            try await chat.attach(core)
             retry = 1
             try await engine.drainOutbox()
             try await updateNotifications()
-            try await engine.runStream { [weak self] in
-              guard let self else { throw CancellationError() }
-              try await self.updateNotifications()
-            }
+            try await engine.runStream(
+              onChange: { [weak self] in
+                guard let self else { throw CancellationError() }
+                try await self.updateNotifications()
+                await self.chat.changed()
+              }, onTransient: { [weak self] data in await self?.chat.changed(transient: data) })
           } catch {
             if Task.isCancelled { break }
             connected = false
+            chat.disconnected()
             busy = false
             let retryable = Self.retryable(error)
             status = retryable ? "连接中断，正在重连" : "连接未完成"
@@ -146,6 +169,7 @@ final class ConnectionModel: ObservableObject {
     connect()
   }
   func disconnect() {
+    chat.disconnected()
     connectionTask?.cancel()
     notificationTask?.cancel()
     selectedConfiguration = nil
@@ -239,7 +263,7 @@ final class ConnectionModel: ObservableObject {
   }
 }
 
-private struct ConnectionView: View {
+struct ConnectionView: View {
   @ObservedObject var model: ConnectionModel
   var body: some View {
     VStack(alignment: .leading, spacing: 18) {
@@ -289,7 +313,7 @@ private struct ConnectionView: View {
         Button("允许系统通知") { model.requestNotificationPermission() }
       }
       Spacer()
-      Text("本阶段仅提供连接与可靠同步。对话和管理页面将在后续阶段加入；界面保持简洁，后续继续进行美学设计。")
+      Text("界面保持简洁，后续继续进行美学设计。任务与管理页面将在后续阶段加入。")
         .font(.caption).foregroundStyle(.secondary)
     }
     .padding(24).font(.system(size: 13))

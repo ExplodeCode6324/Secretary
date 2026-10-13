@@ -43,6 +43,36 @@ struct Probe {
           _ = try await group.next()
         }
       } catch ProbeSignal.observed { /* real authenticated SSE transaction applied */  }
+      print("probe: chat")
+      let identity = Identity(
+        owner: core.owner_id, domain: core.data_domain_id, session: core.session_id)
+      let editor = try await ChatLocalState(url: database)
+      let message = "Native integration\n中文 👩🏽‍💻 e\u{301}"
+      try await editor.saveDraft(message, for: identity)
+      let messageID = try await editor.enqueue(message, for: identity)
+      guard try await editor.draft(identity).isEmpty else { throw ClientError.storage }
+      try await engine.drainOutbox()
+      let chatCommands = try await editor.commands(identity)
+      guard chatCommands.contains(where: { $0.id == messageID && $0.state.hasPrefix("RECEIPT:") })
+      else {
+        throw ClientError.invalidContract
+      }
+      let timeline = try Contract.decode(
+        ChatPage.self,
+        from: await engine.query(ChatPreferences().route, destination: identity))
+      guard let sent = timeline.items.first(where: { $0.text == message }) else {
+        throw ClientError.invalidContract
+      }
+      let around = try Contract.decode(
+        ChatPage.self,
+        from: await engine.query(
+          Route("timeline/around", query: ["message_id": sent.id]), destination: identity))
+      guard around.items.contains(where: { $0.id == sent.id }) else {
+        throw ClientError.invalidContract
+      }
+      print(
+        "PASS: durable chat send, receipt reconciliation, Unicode timeline and direct message location"
+      )
       await engine.disconnect()
       let stillRunning = try Contract.decode(Core.self, from: await control.request(Route("core")))
       guard stillRunning.instance_id == core.instance_id else { throw ClientError.invalidContract }
