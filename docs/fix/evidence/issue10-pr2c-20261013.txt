@@ -1,0 +1,103 @@
+Issue #10 PR2c native daily management - 2026-10-13
+Implementation base: 2175600c024334241dedbef1e69fad15b22f8feb
+Merged PR42 base: ba91d632b19d1ad750e3d605ee52b9524c0859d6
+PR42 merge CI 38411081155: success on all three jobs.
+Status: local acceptance PASS; final-head PR CI and Master review are separate gates.
+
+Xcode 16.4 (16F6), process-local DEVELOPER_DIR; no global toolchain change.
+verify.sh: 31 Swift tests PASS, 0 failures; existing real Core launch/discovery,
+authenticated bootstrap, registration, SSE/restart/redirect and chat probe PASS.
+New native management probe uses authenticated public HTTP against isolated fixture Core.
+Scope create/filter/task request/cancellation, explicit viewed vs read-only retention,
+second-client Scope SSE convergence, approval once/remember/reject/revoke, rule disable,
+stale approval rejection, work decision, all four unknown outcomes, opaque Unicode output
+continuation, shared settings conflict/input preservation/apply, later command progress,
+artifact task filtering/pagination/duplicate names/verified download and restart PASS.
+Lost response and UNKNOWN replay boundaries remain covered by existing package tests.
+
+Local isolated PostgreSQL 18: World entity, assert, correct, retract, historical facts,
+exact slot, stale CAS failure, retry and restore-draft PASS. Only owned secretary_test_
+databases are created/dropped. The no-DSN native probe also passes and explicitly reports
+that World database coverage did not run; macOS CI does not claim this local DB evidence.
+Memory retry/compact/resume are exercised as commands; no real-model recovery claim.
+
+Final management XCUITest: 3 tests, 0 failures, 0 skipped, 73.988 seconds.
+TaskScopeAndDraft: actual Scope creation and picker selection, task submission/receipt,
+exact edited instructions preserved across navigation, window resized to <=725 pt,
+cross-page attention remains hittable and opens work-decision navigation.
+ApprovalAndUnknown: complete approval parameters/root visible, cancel confirmation leaves
+approval available, actual approval and unknown-result confirmation accepted; long output
+uses bounded native viewport and source truncation remains visible.
+ArtifactDownload: authenticated download, exact bytes in private cache, actual system-open
+button clicked after verification. No claim about a particular external editor's rendering.
+
+Final original chat/window XCUITest: 7 tests, 0 failures, 0 skipped, 60.203 seconds.
+Includes explicit 0-to-1 menu/Dock recovery, draft/send/restart, latest reply tail visible,
+history viewport unchanged (Y 263 before/after) with update badge, capability reason and
+disabled send. Both GUI suites: TEST EXECUTE SUCCEEDED. App/UI target build PASS.
+npm check, native fixture TypeScript check, docs:check and staged diff checks PASS.
+
+First failures retained privately, no assertion removed to obtain acceptance:
+- Compile fixes: presentation generation argument and XCTest locator API.
+- Fixture fixes: immutable TaskResult seeded as a new record; private discovery file
+  explicitly written; empty optional acceptance omitted; immediate task exercises pending.
+- Cache test compares normalized filesystem paths rather than URL trailing-slash spelling.
+- GUI link/button locator mismatch; actual clipped artifact/operation controls moved above
+  long content; settings effective/shared text collapsed into disclosure controls.
+- System warning interrupted input; computer tool rejected UserNotificationCenter access.
+  Master handled the warning before the next run. No bypass added.
+- Draft replacement test initially deselected text by clicking twice; paste helper now
+  selects after its own click. Exact full-text assertion is retained. The failing run's
+  screenshot/diagnostic timeout is preserved; the final unchanged assertion passes.
+
+No real-model, complete system-notification, VoiceOver, sleep or full replacement claim.
+No Core domain contract change, device/Portable work, deployment, merge, issue closure or
+old-entry retirement. Existing 393 untracked historical reports are excluded and retained.
+Raw logs, screenshots, endpoints, tokens, generated IDs and database files stay private.
+
+Private log SHA-256 (contents not uploaded):
+baseline-sha256.txt 509b4dce4fdef422972596285f18502b8db7d9d522e504fbbb3d5c6900a11989
+unit-first.log fb8160bfb9a997f502b47c80d14f602df06e238d0221638a52d4181d5ffae5c1
+management-first.log 914cf85c273a1d665de16a469e9c44fa2434a1109c2b347915acb3ffcc58e2d1
+management-fourth.log aa81d9e87611bbffaaf7d1e776609cd16a09de85ff988e9940ba0bae205fff93
+native-final.log 1109b2b254050c779549630db76e8e0ac824d9ed82d7e48e248c4c45d91fd730
+app-final.log 7e8eee4e92f13af36c9b3026f98861996362b5be70f2a9488faf0d631fd4eb7d
+no-world-final.log e0d7dd8d81bc7f3ee3d223f8fc912269bc1de10aff4d60723e3ee4af65f5825f
+gui-management-first.log 297ef40b27b80c1084fa94824fb60e05e6461261389b63b7f5f1b6ca7f424933
+gui-management-fourth.log 1a28a231121e7c191f7b0a207f7b7046affb837bb78e066a7a1f589eec0a0152
+gui-management-fifth.log 1334cf0cfef64051e796a1eaefe601c609d4b3c01603dc5ab50ed8bbb57b7632
+gui-management-sixth.log 33c5ce8c72efe38f74f1643847ba1d42d776c214dba1079781f809b780a4969b
+gui-chat-final.log 0463e968116da58b1008be6a2e7da959a3c534c7c93b019a961889d2f0c2062e
+npm-check-final.log edb0084172bd41fd84c2d83ca5d108aa78e5933be1a4eb8d5cac58300583a5fb
+native-types-final.log e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
+Validated source SHA-256:
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/ApprovalsDTO.swift 21833ac9945e59a576b03259f1d2f30743a9ea10c4f60bff4fb95523b843bd49
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/ArtifactCache.swift 745c71252d4c8dffe929d363d823dd9ac070a17931ce37dedac3fe32d00235cb
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/ArtifactsDTO.swift fbbcef244f0daa1d04a810e97e7374e0d2205951a1f8ca91bacfcea93fe56ac3
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/ClientEngine.swift 68f8847b6ebf2959a9e9961f05c592f6b1ff81763b6b41467c4bfef3aa17ddc4
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Database.swift cf6c78e098fbed4929eb0a9617581bd81d996e91927a8b58e9fd30c6dcfee518
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/ManagementCommands.swift 5aa4c76a6d0f5541099900eace49284c1878e8b2852e02480f7def88a2c01a5a
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/MemoryDTO.swift c5ef56762ede1233e14d3880a73785c1c741117c6f585b6b109028cd181d2ff0
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/SettingsDTO.swift 9d77957d32bcc674e36b61f6db6ec9b077b1586716d165a288ceff36ad84d082
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/TasksDTO.swift 08939c27badebf8eab05371b451ae7472c5e52168644f697d3871d1219d3f87a
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Transport.swift ff996ea4926e5d99ca29671710bf7e0bcfd17538a757b965cdcbe36e0f65f63b
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryProbe/ManagementProbe.swift 598913a1d3e667898b5c41b5a07c8c30738c27a33f746e3c8246f9524d883791
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryProbe/Probe.swift 68ff1e451ae49af9208fb4f68fb9a154a63c984dcb4ad549ed018c54995dd268
+src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/FoundationTests.swift dd91d258d05da8884eafd827332d4ad91603bfe48b39acafbc10e83e9e22d4d0
+src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/ManagementTests.swift a9a46dd236fbbac6cdd3a20537b5e4c6088175895d5f06da2c6bbf56ae999bc9
+src/secretary_macos/Secretary.xcodeproj/project.pbxproj 1e66f6f377b11199f7381277bd0cb4ea322951c2ead1df4f28d028a112bfdff3
+src/secretary_macos/Secretary/ApprovalViews.swift b556277efe69550cf2d8c2ed7758f1dd6003c576f9a8f0c7f0be15564af9f3b8
+src/secretary_macos/Secretary/ArtifactViews.swift e7e4b66d0ed24b256f79a5278c8869e225bd0b8f497a4ce155f9915944f5caf4
+src/secretary_macos/Secretary/ChatViews.swift 7d4e5c44ea500ceb91adc273437a14499325a5ae77cb3f45a268f81599ea2f3a
+src/secretary_macos/Secretary/ManagementModel.swift c4836d4b3da85ffe144c7c8e116d9efa780ea3ffdf30fb57c81c3a896ccff43b
+src/secretary_macos/Secretary/ManagementViews.swift 943be007b864159adf700d07d147e7a9623af7df53f2c466b4e510e1fd92cbdc
+src/secretary_macos/Secretary/MemoryViews.swift bf9697a8fe299969acab26387ce885d12f346c6a76104ca3144057a06fa890fa
+src/secretary_macos/Secretary/SecretaryApp.swift 63dabaaa6bed2b51eeb52ec4a37e60755a20533f14b9f4e2e7b49042b82027bd
+src/secretary_macos/Secretary/SettingsViews.swift c1c7bbdcbdd588fe5b664b48a62ef54b706940a153ec3bc9a81f299b0232b57f
+src/secretary_macos/Secretary/TaskViews.swift 6e8143499d65fe0dd7b22c74bb98ddf4ddc2dd87be3b8801d23808b3d687e644
+src/secretary_macos/Secretary/WorldViews.swift c4ddc3d70ee6a253c373faa3c8ef80bc4a65883b7185a5219283c109762d6f63
+src/secretary_macos/SecretaryUITests/SecretaryUITests.swift 19a2ca630a5106c3069d7dd1977604f293d89ed459e7ac367f8cf10f8fb53b31
+src/secretary_macos/verify.sh 67c63da09c10f1de2df35e4459923a2cc1d97fddd9a43889bced64cf747ac645
+test_case/native/management-fixture.ts e4341bd15cc4c6b1272fc46c23c968221db2fba8c7b23286e9c3ed5e6aa75f29
+test_case/native/ui-fixture.mjs 846f9463f22788a2875434ba67f1b86489bfbf0ca1250cdbcea9508aa74cc86f

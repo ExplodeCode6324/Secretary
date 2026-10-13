@@ -1,0 +1,57 @@
+Issue #10 PR2c automatic review follow-up - 2026-10-13
+Reviewed head: 6f204791944bbc788dfd3518f74ced77edd7c81b (PR #43)
+That head's CI 38420016767 passed Core (Linux), Native (macOS), verify.
+Linux: 579 tests, 578 passed, 0 failures, 0 skipped, 1 existing AUD14 TODO.
+The following changes require their own final-head CI; the earlier result is not reused.
+
+All three review findings accepted and fixed:
+1. Binary transport now uses URLSession's file download, not per-byte AsyncBytes.
+   Swift reads 64 KiB blocks for SHA-256 and validates length/ETag before moving into
+   the private managed cache. Progress retains only the latest pending value with
+   one async consumer. Oversized transfers cancel; redirect rejection remains explicit.
+2. Same-page artifact ID/version/length changes invalidate the verified URL and the
+   download generation, canceling old work before publishing the new metadata.
+3. Scope selectors provide next/first-page controls with an explicit 30-item limit.
+   The selected ID remains represented when another option page is displayed.
+   Reconnect clears opaque instance cursors and starts at the first page.
+
+Local verification:
+- verify.sh PASS: 31 Swift tests, existing Core/chat probe, management probe and build.
+- Management probe additionally downloads and checks all bytes of a 4 MiB artifact.
+- Native fixture TypeScript check and updated app/UI target build PASS.
+- Final management GUI: 3 passed, 0 failures, 0 skipped, 82.639 seconds.
+  Includes 35 preexisting Scopes, real next/first-page selection and scoped submission;
+  verified artifact open, public-API-triggered controlled version change, old open action
+  disappearance, re-download and exact new bytes; draft and narrow attention regressions.
+- Original 7 chat/window GUI regressions remain from the preceding acceptance; their
+  implementation and assertions are unchanged by this follow-up.
+- World database evidence remains the earlier isolated PostgreSQL run; no World logic changed.
+
+First follow-up GUI failures are retained:
+The persisted narrow window uses More navigation; the test now follows that actual menu.
+A filesystem trigger was rejected by the test runner with NSCocoaErrorDomain 513 / EPERM.
+The trigger was replaced by an existing management API action against the owned fixture;
+the fixture reacts to its synthetic profile marker. No permission change or production
+control hook was introduced. All version/byte and Scope assertions remain in place.
+
+No merge, issue closure, deployment, old-entry retirement or device work.
+Raw CI/GUI logs and fixture data remain private. Source fingerprints below supersede
+the corresponding source entries in the initial acceptance for this follow-up.
+
+Private log SHA-256:
+review-native-first.log 2904efbe85e9216e9c8001931f707e59a589a6a66a8bb3960acb0fc641dc2073
+review-app-second.log 502307fe05e1dc0ff0b17bd24bfa1b7ad524e0cdffcba078013380e9f9e288cc
+review-types-final.log e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+review-gui-first.log 76407381b110abfe518bdef02aa941623fdfaf676436f0e0bc2ea780b3975261
+review-gui-second.log 7bd00d847b302469febcf93466eed534379593cbde13a44b8f759d8ac280c5d4
+review-gui-third.log f5fe7a2e1c01c22f0a10a10c3e00224887f44d26abdecf82a20c3f0eead6772b
+ci-core-initial.log 5ede66ab5705a5a0c8f970cef51eac3f229668cb2b9803dea23c219193a7c2d9
+ci-native-final.log 38ef93039660ea381768447525512fc8ed272f9f2b76c0937a8f553ad021debf
+
+Validated changed source SHA-256:
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Transport.swift 340e3e7171a7adf21b63e4379a25c88578e959b0ddc70360e18bd4cfa5923ca3
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryProbe/ManagementProbe.swift 0b31ecd2857d2c94aaf65f4d4772ec1caa7f9dbf1d1c5e491515d1c0e55955d2
+src/secretary_macos/Secretary/ManagementModel.swift 799167097db979b1765666bff783b161d01d273657a4771aeb07c38ba74a050e
+src/secretary_macos/Secretary/TaskViews.swift 4929f770250cc2e30a209a87a2471df734bb810821bbded109974b213e649c91
+src/secretary_macos/SecretaryUITests/SecretaryUITests.swift 6b541d078ab2a896bb4e8a475a0fcabcb23674c255cfda6971ec827061fc12ba
+test_case/native/management-fixture.ts c937f48149a0b0f2a6a07a5c54fd1a31422696c05ce062c04459dce9d211fcb8

@@ -1,8 +1,8 @@
 # Issue #10：macOS 原生客户端与旧入口退役
 
-状态：**实施中 / PR2b**。PR #40 已于 2026-10-13 合并，merge `857e827f2499d69cda008fd4f442f86f0b09aea8`；Issue #10 保持开放。PR #41 已合并（`aca83234f47259c31154d546918afc7462918040`）；连接底座见 [PR2a](fix_20261013_issue10_PR2a原生连接底座.md)，当前阶段见 [PR2b 聊天与导航](fix_20261013_issue10_PR2b聊天与导航.md)。管理界面与退役尚未实施。
+状态：**实施中 / PR2c**。PR #40、#41、#42 已合并；最新主线 merge `ba91d632b19d1ad750e3d605ee52b9524c0859d6`。Issue #10 保持开放。连接与聊天见 [PR2a](fix_20261013_issue10_PR2a原生连接底座.md)、[PR2b](fix_20261013_issue10_PR2b聊天与导航.md)；当前阶段见 [PR2c 日常管理与新会话交接](fix_20261013_issue10_PR2c日常管理.md)。旧入口退役仍留 PR3。
 
-关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前工作分支：`codex/issue10-native-chat`，在 secretary-core 原工作目录实施，不创建独立工作区。
+关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前工作分支：`codex/issue10-native-management`，在 secretary-core 原工作目录实施，不创建独立工作区。
 
 ## 1. 目标、授权与基线
 
@@ -298,3 +298,7 @@ Master 已授权按 `review_20261013_pr_issue10_A0_core_projections.md` 评估�
 定向回归 24/24 通过，包含 4 MiB 全续读、缓存字节/条数淘汰、暖缓存后源损坏/删除/symlink 拒绝、详情缩片读取次数、既有 Unicode/游标/人工裁定语义。首次修订检查发现 nullable receipt 守卫与 reason 闭合遗漏，已修复，保留首次记录。最终类型检查通过；本轮提供 PostgreSQL DSN 的完整回归及 PR CI 以 PR 验证记录为准。
 
 PR1 使用 `Refs #10`，不关闭 Issue；CI 必须为最终 head、fail=0、skip=0 后才通知 Master 复核。PR1 经复核合并后，PR2a 再从更新的 main 创建，重新核对 Xcode 16.4 指纹。UI 仍按简洁功能界面实施，后续单独做美学设计。
+
+## 17. PR2c 日常管理本地验收
+
+日常管理实现与本机验收已完成：31 项 Swift 测试、真实 Core HTTP／隔离 PostgreSQL World 探针、3 项管理 GUI 和原 7 项聊天／窗口 GUI 全部通过。能力迁移与使用说明见 [原生手册](../../src/secretary_macos/README.md)，首次失败、最终日志与源码指纹见 [PR2c 证据](evidence/issue10-pr2c-20261013.txt)。最终 PR head 的三项 CI 与 Master 复核仍是独立发布门槛；本阶段不合并、不关闭 Issue #10、不删除旧入口或部署，PR3 保留完整替代联合验收。

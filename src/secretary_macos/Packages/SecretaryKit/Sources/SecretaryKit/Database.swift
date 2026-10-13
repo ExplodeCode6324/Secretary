@@ -244,6 +244,22 @@ final class Database {
       }
     }
   }
+  // Called only inside an existing transaction by the management editor.
+  func insertCommand(_ identity: Identity, id: String, route: Route, body: Data) throws {
+    guard UUID(uuidString: id) != nil, body.count <= 1_048_576, route.query.isEmpty,
+      try command(identity, id: id) == nil
+    else { throw ClientError.requestConflict }
+    struct Command: Decodable { let request_id: String }
+    guard try JSONDecoder().decode(Command.self, from: body).request_id == id else {
+      throw ClientError.invalidContract
+    }
+    try write(
+      "INSERT INTO outbox VALUES(?,?,?,?,?,?)",
+      [
+        .text(identity.domainKey), .text(id), .text(identity.session), .text(route.path),
+        .bytes(body), .text("PENDING"),
+      ])
+  }
   func command(_ identity: Identity, id: String) throws -> PendingCommand? {
     guard
       let row = try rows(

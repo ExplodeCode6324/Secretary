@@ -5,6 +5,7 @@ import SwiftUI
 struct ChatShell: View {
   @ObservedObject var connection: ConnectionModel
   @ObservedObject var chat: ChatModel
+  @ObservedObject var management: ManagementModel
   @State private var page = "connection"
   @State private var locator = ""
   @State private var locateEvent = false
@@ -27,14 +28,17 @@ struct ChatShell: View {
           Menu("设置") {
             Button("连接配置") { page = "connection" }
             Button("本地显示") { page = "preferences" }
-            Button("业务设置（后续阶段提供）") {}.disabled(true)
+            Button("业务设置") { manage("settings", "业务设置") }
+            Button("Scope") { manage("scopes", "Scope") }
+            Button("授权规则") { manage("authorization-rules", "授权规则") }
+            Button("名称") { manage("assistant", "名称") }
           }.fixedSize()
         }.font(.system(size: 12)).padding(.horizontal, 16).padding(.vertical, 10)
         HStack {
           Text(connection.connected ? "已连接" : connection.status)
           Spacer()
           if !chat.attention.isEmpty {
-            Text(chat.attention + " · 处理入口将在下一阶段提供")
+            Button(chat.attention) { manage("authorizations", "待处理") }
               .accessibilityIdentifier("attentionSummary")
           }
         }.font(.system(size: 11)).foregroundStyle(.secondary).padding(.horizontal, 16)
@@ -60,9 +64,14 @@ struct ChatShell: View {
             Toggle("显示关联旁栏", isOn: $sidebar)
             Slider(value: $sidebarWidth, in: 180...220) { Text("旁栏宽度") }
             Slider(value: $fontSize, in: 13...20, step: 1) { Text("正文字号") }
-            Text("窄窗优先保留对话；设备已冻结，管理页面尚未实现。后续再做美学设计。")
+            Text("窄窗优先保留对话；设备已冻结。后续再做美学设计。")
           }.padding(24)
           Spacer()
+        } else if page == "management" {
+          ManagementView(model: management) { id in
+            page = "chat"
+            Task { await chat.load(("event_id", id)) }
+          }
         } else {
           HStack(spacing: 0) {
             conversation
@@ -74,15 +83,21 @@ struct ChatShell: View {
         }
       }
       .font(.system(size: fontSize))
-      .onChange(of: connection.connected) { _, connected in if connected { page = "chat" } }
+      .onChange(of: page) { _, value in if value != "management" { management.hide() } }
+      .onChange(of: connection.connected) { _, connected in
+        if connected && page == "connection" { page = "chat" }
+      }
     }
   }
+  private func manage(_ path: String, _ title: String) {
+    page = "management"
+    Task { await management.navigate(.init(path: path, title: title)) }
+  }
   @ViewBuilder private var unavailableNavigation: some View {
-    ForEach(["任务", "记忆", "设备", "产物"], id: \.self) { title in
-      Button(title) {}.disabled(true)
-        .help(title == "设备" ? "设备能力已冻结" : "此页面将在下一阶段提供")
-        .accessibilityLabel(title + (title == "设备" ? "，已冻结" : "，尚未实现"))
-    }
+    Button("任务") { manage("tasks", "任务") }
+    Button("记忆") { manage("memory", "记忆") }
+    Button("设备") {}.disabled(true).help("设备能力已冻结")
+    Button("产物") { manage("artifacts", "产物") }
   }
   private var conversation: some View {
     VStack(spacing: 8) {
@@ -171,7 +186,11 @@ struct ChatShell: View {
           let items = chat.related.filter { $0.type == kind }
           if items.isEmpty { Text("暂无明确关联").foregroundStyle(.secondary) }
           ForEach(items) { item in
-            Text(item.id).textSelection(.enabled).lineLimit(3).help(item.basis)
+            Button(item.id) {
+              manage(
+                kind == "task" ? "tasks/" + item.id : "artifacts/" + item.id,
+                kind == "task" ? "任务详情" : "产物详情")
+            }.lineLimit(3).help(item.basis)
           }
         }
       }
@@ -179,7 +198,7 @@ struct ChatShell: View {
         Button("继续查找关联") { Task { await chat.selectRelated(nil, more: true) } }
           .disabled(!chat.online)
       }
-      Text("每类最多 5 项；详情入口将在后续阶段提供。后台刷新不计作访问。")
+      Text("每类最多 5 项；后台刷新不计作访问。")
         .foregroundStyle(.secondary)
       Spacer()
     }.font(.system(size: 11)).padding(12)

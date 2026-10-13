@@ -13,6 +13,7 @@ package=src/secretary_macos/Packages/SecretaryKit
 cmp docs/api/v1/examples.json "$package/Tests/SecretaryKitTests/Fixtures/api-v1.json"
 xcrun swift test --package-path "$package" --force-resolved-versions
 node test_case/native/fixture-probe.mjs "$PWD/$package/.build/debug/SecretaryProbe"
+SECRETARY_MODE=fixture node --import tsx test_case/native/management-fixture.ts "$PWD/$package/.build/debug/SecretaryProbe"
 xcodebuild -project src/secretary_macos/Secretary.xcodeproj -scheme Secretary \
   -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/native \
   -disableAutomaticPackageResolution build-for-testing

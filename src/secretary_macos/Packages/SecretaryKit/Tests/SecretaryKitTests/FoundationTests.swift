@@ -497,3 +497,21 @@ private actor NoticeCollector {
     try await reopened.pendingCommands().filter { $0.path.hasSuffix("/presented") }.count == 1)
   #expect(try await reopened.pendingCommands().filter { $0.path.hasSuffix("/read") }.count == 1)
 }
+
+@Test func rejectedManagementIntentDoesNotReplayOrBlockOtherCommands() async throws {
+  let dir = try directory(); defer { try? FileManager.default.removeItem(at: dir) }
+  let engine = try ClientEngine(databaseURL: dir.appendingPathComponent("client.sqlite"))
+  let transport = FakeTransport()
+  _ = try await engine.connect(endpoint: endpoint(), expectedMode: "fixture", transport: transport)
+  let conflict = try ManagementCommand.profile(name: "conflict", revision: DecimalString("1"))
+  let next = try ManagementCommand.simple(.retryExtraction)
+  try await engine.enqueue(id: conflict.id, route: conflict.route, body: conflict.body, destination: identity)
+  try await engine.enqueue(id: next.id, route: next.route, body: next.body, destination: identity)
+  await transport.queue(conflict.route.path, [.failure(.http(409, "REVISION_CONFLICT"))])
+  try await engine.drainOutbox()
+  #expect(try await engine.command(id: conflict.id, destination: identity)?.state == "REJECTED:REVISION_CONFLICT")
+  #expect(try await engine.command(id: next.id, destination: identity)?.state == "RECEIPT:ACCEPTED")
+  try await engine.drainOutbox()
+  #expect(await transport.postBodies(conflict.route.path).count == 1)
+  #expect(await transport.postBodies(next.route.path).count == 1)
+}

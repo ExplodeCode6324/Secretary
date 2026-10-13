@@ -2,7 +2,7 @@
 
 Secretary 是面向 Master 的持续个人助理。Core 保存会话与工作记忆，安排任务，由执行 Agent 或登记程序完成工作，再将结果交回主会话。项目基于 Pi v0.87.0，当前以本机 Core API v1 提供服务。
 
-当前已实现独立 Core 生命周期、任务与同任务接续、Scope 工作范围、操作审批与未知结果裁定、模型有界重试、记忆维护，以及可选 PostgreSQL World Model。可靠增量同步已提供。SwiftUI 已有[原生连接、聊天与导航](src/secretary_macos/README.md)（PR2b），管理界面仍按下方路线实施；首版保持简洁，后续再做美学设计。
+当前已实现独立 Core 生命周期、任务与同任务接续、Scope 工作范围、操作审批与未知结果裁定、模型有界重试、记忆维护，以及可选 PostgreSQL World Model。可靠增量同步已提供。SwiftUI 已有[原生连接、聊天与日常管理](src/secretary_macos/README.md)（PR2c），完整替代验收与旧入口退役仍归 PR3；首版保持简洁，后续再做美学设计。
 
 ## QuickStart
 

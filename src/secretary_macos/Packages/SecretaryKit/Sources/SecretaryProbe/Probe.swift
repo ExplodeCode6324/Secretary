@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import SecretaryKit
 
 enum ProbeSignal: Error { case observed }
@@ -6,6 +7,11 @@ enum ProbeSignal: Error { case observed }
 @main
 struct Probe {
   static func main() async throws {
+    if CommandLine.arguments.count == 3, CommandLine.arguments[1] == "--management" {
+      do { try await management(CommandLine.arguments[2]) }
+      catch { print("Management probe failed:", error); exit(1) }
+      return
+    }
     guard CommandLine.arguments.count == 5 else { throw ClientError.invalidContract }
     let node = URL(fileURLWithPath: CommandLine.arguments[1])
     let repository = URL(fileURLWithPath: CommandLine.arguments[2])
