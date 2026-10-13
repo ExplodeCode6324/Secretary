@@ -209,6 +209,13 @@ final class SecretaryUITests: XCTestCase {
     XCTAssertEqual(field.value as? String, directory + "/" + source)
     app.buttons["附着已有 Core"].click()
     XCTAssertTrue(app.textViews["消息输入"].waitForExistence(timeout: 15))
+    // Keep test controls away from unrelated floating desktop overlays.
+    let window = app.windows.firstMatch
+    let title = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.015))
+    title.press(
+      forDuration: 0.1,
+      thenDragTo: title.withOffset(
+        CGVector(dx: 20 - window.frame.minX, dy: 50 - window.frame.minY)))
     let client = app.launchEnvironment["SECRETARY_NATIVE_TEST_DATA_DIR"]!
     XCTAssertTrue(
       FileManager.default.fileExists(atPath: client + "/client.sqlite"),
@@ -242,6 +249,7 @@ final class SecretaryUITests: XCTestCase {
   func testLatestFollowsReplyAndHistoryKeepsViewport() async throws {
     let directory = try fixtureDirectory()
     let app = application()
+    defer { app.terminate() }
     // Use a separate client DB to keep this reading test independent of the draft test.
     app.launchEnvironment["SECRETARY_NATIVE_TEST_DATA_DIR"] = directory + "/reading-client"
     attachFixture(app, directory: directory)
@@ -277,6 +285,7 @@ final class SecretaryUITests: XCTestCase {
     let locator = app.textFields["定位记录 ID"]
     pasteExact(id, into: locator)
     XCTAssertEqual(locator.value as? String, id)
+    XCTAssertTrue(app.buttons["定位"].isEnabled)
     app.buttons["定位"].click()
     let beginning = app.staticTexts.matching(
       NSPredicate(format: "value CONTAINS %@", "FOLLOW_BEGIN")
@@ -284,6 +293,10 @@ final class SecretaryUITests: XCTestCase {
     let located = XCTNSPredicateExpectation(
       predicate: NSPredicate(format: "exists == true AND hittable == true"), object: beginning)
     await fulfillment(of: [located], timeout: 10)
+    guard beginning.isHittable else {
+      XCTFail("Historical target must be visible before testing freeze")
+      return
+    }
     let before = beginning.frame
     _ = try await fixtureAPI(
       directory, path: "messages",
@@ -296,10 +309,13 @@ final class SecretaryUITests: XCTestCase {
       NSPredicate(format: "value CONTAINS %@", "HISTORY_APPEND_AFTER_FREEZE")
     ).firstMatch
     XCTAssertFalse(newText.isHittable)
+    guard app.buttons["有更新 · 回到最新"].exists, beginning.isHittable,
+      abs(beginning.frame.minY - before.minY) <= 1,
+      abs(beginning.frame.minX - before.minX) <= 1, !newText.isHittable
+    else { return }
     print(
       "B1 HISTORY: update badge visible; viewport Y before=\(before.minY), after=\(beginning.frame.minY)"
     )
-    app.terminate()
   }
 
   @MainActor

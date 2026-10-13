@@ -66,7 +66,7 @@ open .build/native/Build/Products/Debug/Secretary.app
 
 真正运行 UI 测试另用 `node test_case/native/ui-fixture.mjs`；Debug 配置显式定义 DEBUG；测试断言临时 client.sqlite 确实建立。测试数据目录与保留零窗口进程钩子只对 UI 测试进程注入，不进入 Release。测试用合成文本粘贴保证不依赖当前输入法，实际执行 Return、⌘Return、退出与重启；Package 另测原生文本控件 marked text 禁止发送。
 
-需要已解锁桌面及系统允许测试 runner。构建成功不等于 UI 测试通过，也不等于真实通知、VoiceOver 或睡眠验收。CI 的 `verify` 汇总 Linux Core 与 macOS 两项，任意失败/跳过即失败；仓库保护规则由维护者另行管理。
+需要已解锁桌面及系统允许测试 runner。聊天验收会拖动被测窗口到屏幕左侧避开桌面悬浮层；不操作其他应用或关闭系统保护。构建成功不等于 UI 测试通过，也不等于真实通知、VoiceOver 或睡眠验收。CI 的 `verify` 汇总 Linux Core 与 macOS 两项，任意失败/跳过即失败；仓库保护规则由维护者另行管理。
 
 ## 依赖
 
