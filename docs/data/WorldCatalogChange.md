@@ -22,6 +22,7 @@
 | `description` | string 或 null | 是 |  |
 | `expected_revision` | integer | 是 |  {"minimum": 0, "maximum": 9007199254740991} |
 | `evidence` | array<EvidenceRef> | 是 |  {"minItems": 1} 关联：[EvidenceRef](EvidenceRef.md) |
+| `aliases` | array<string> | 否 | 实体别名；缺省时保留已有值，空数组清空。 {"maxItems": 20} |
 
 ## 组合约束
 

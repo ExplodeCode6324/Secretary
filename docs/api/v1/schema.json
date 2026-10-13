@@ -910,6 +910,16 @@
               "type": "null"
             }
           ]
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "maxItems": 20,
+          "description": "实体别名；缺省时保留已有值，空数组清空。"
         }
       },
       "required": [

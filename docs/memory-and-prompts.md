@@ -14,6 +14,14 @@ CHECKPOINT 保存完整恢复上下文；MODEL_REQUEST 保存经过预算投影�
 
 当前 Master 历史原文仍随 context 保留；因此当前记忆测试验证的是摘要、原文与持久状态共同支持的连续性。#21 交付检索后，#28 再启用旧输入退出。
 
+## 历史检索工具
+
+`memory_search` 对持久 Master 输入、最终回复、任务摘要和通知正文作字面子串检索。默认查询全部历史，可联合指定带时区的 `[from,to)`、kinds、scope_id 和 task_id；默认返回 10 条，最多 20 条，按事件时间倒序。结果含 event_id、约 200 字片段与原文偏移。未配置 PostgreSQL 返回 not_configured；未迁移、重建、故障和超时各有状态，落后结果带索引水位和 partial。
+
+`memory_read source=log` 按 event_id 从 journal/CAS 读取正文，offset/length 使用 Unicode code point，默认 2000、最多 4000；依 next_offset 连续读取可恢复全文及 hash。读取不依赖 PostgreSQL。工具返回受本轮剩余预算约束，缩短时带 truncated 和后续偏移；正文索引仍完整保存。
+
+`memory_read source=world` 支持 subject（ID、名称或别名）、predicate、cursor 和 limit；默认 20、最多 100。歧义返回候选，后续事实按游标分页。`memory_propose_change` 接收 ASSERT/CORRECT/RETRACT、subject、predicate、value 及来源事件；更正或撤回需要 target_fact_id。宿主组装内部合同，来源登记和事实变更继续经过授权。source_note 是解释，事实证据来自真实来源事件。
+
 ## 工作记忆与上下文整理
 
 | 模式 | 触发与结果 |

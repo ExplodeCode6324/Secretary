@@ -52,6 +52,7 @@ export class App {
         world,
       );
       const app = new App(store, auth, scheduler, host, world);
+      void world?.memorySearch.advance();
       // Warm the disposable read index once, before accepting UI requests.
       try {
         activityHistoryFor(store);
@@ -68,6 +69,7 @@ export class App {
     return activitiesFor(this.store).snapshot(this);
   }
   async pump() {
+    void this.world?.memorySearch.advance();
     if (this.world && !this.worldWork && !this.settings.blocked)
       this.worldWork = this.world
         .drain()
@@ -112,6 +114,7 @@ export class App {
       if (!pending && !due) break;
     }
     await this.host.drain();
+    await this.world?.memorySearch.catchUp();
   }
   async close() {
     modelLifetime(this.store).abort(Error("CORE_STOPPING"));

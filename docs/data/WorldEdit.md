@@ -25,6 +25,7 @@
 | `valid_from` | Time | 否 |  关联：[Time](Time.md) |
 | `valid_to` | Time 或 null | 否 |  关联：[Time](Time.md) |
 | `fresh_until` | Time 或 null | 否 |  关联：[Time](Time.md) |
+| `aliases` | array<string> | 否 | 实体别名；缺省时保留已有值，空数组清空。 {"maxItems": 20} |
 
 ## 组合约束
 

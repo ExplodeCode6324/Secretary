@@ -554,7 +554,7 @@ test("real Host tool boundary maps World/history/task tools without leaking argu
   const app = await App.open(dir, { model: fixtureModel, stream });
   Object.defineProperty(app, "world", {
     value: {
-      read: async () => {
+      browse: async () => {
         entered.release();
         await release.promise;
         return { text: "PRIVATE_SYNTHETIC_RESULT" };

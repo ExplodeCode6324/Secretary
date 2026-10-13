@@ -66,7 +66,7 @@
 | [OperationLogRecord](OperationLogRecord.md) | 14 | 逻辑原始日志；MAIN/TASK 并列，不替代任务查询状态。 |
 | [ArchiveManifest](ArchiveManifest.md) | 11 | 退出 Scheduler 前完整性检查；归档不删除长期历史。 |
 | [WorldChange](WorldChange.md) | 21 | 主会话或登记来源提案；SQL 内不保存授权范围。 |
-| [WorldCatalogChange](WorldCatalogChange.md) | 16 | 实体登记、名称修订、无有效状态引用时停用，以及不可变来源登记。模型提案经过授权后进入统一设置生效流程；谓词目录由迁移维护。 |
+| [WorldCatalogChange](WorldCatalogChange.md) | 17 | 实体登记、名称修订、无有效状态引用时停用，以及不可变来源登记。模型提案经过授权后进入统一设置生效流程；谓词目录由迁移维护。 |
 | [WorldCommand](WorldCommand.md) | 10 | 跨 JSON journal / PG 的桥接状态；PG commit receipt 才证明已写。 |
 | [WorldQuery](WorldQuery.md) | 9 | memory_read 的 World Model 查询分支；游标绑定筛选与快照。 |
 | [WorldFact](WorldFact.md) | 13 |  |
@@ -87,7 +87,7 @@
 | [MainPromptSnapshot](MainPromptSnapshot.md) | 11 |  |
 | [SettingsDraft](SettingsDraft.md) | 6 | Master 待应用修改；payload 为 SettingsPayload，不是有效设置。 |
 | [SettingsApplication](SettingsApplication.md) | 16 | 固定批次的设置应用；数据库提交后必须完成重建才可继续主会话。 |
-| [WorldEdit](WorldEdit.md) | 19 |  |
+| [WorldEdit](WorldEdit.md) | 20 |  |
 | [SettingsPayload](SettingsPayload.md) | 3 |  |
 | [CommitmentSourceBatch](CommitmentSourceBatch.md) | 4 | 宿主绑定的新承诺来源批次；必须与指定持久化 owner 的事件集合和边界完全一致。 |
 | [ExtractionRecovery](ExtractionRecovery.md) | 20 | 历史提取恢复记录，仅保留读取旧 journal；生产路径不再创建。 |

@@ -1378,6 +1378,12 @@ export interface WorldCatalogChange {
    * @minItems 1
    */
   evidence: EvidenceRef[];
+  /**
+   * 实体别名；缺省时保留已有值，空数组清空。
+   *
+   * @maxItems 20
+   */
+  aliases?: string[];
 }
 /**
  * 跨 JSON journal / PG 的桥接状态；PG commit receipt 才证明已写。
