@@ -79,6 +79,23 @@ Issue #17 的 `test_case/offline/issue17/` 覆盖默认/显式授权、取消后
 
 Issue #10 A0 的定向入口为 `npx tsx --test test_case/offline/issue10/*.test.ts`，覆盖大文本、Unicode、来源校验、游标隔离和 HTTP 认证。macOS 上使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift docs/api/v1/decode-examples.swift docs/api/v1/examples.json` 验证公开样例；它仅证明 DTO 解码，不代表原生界面验收。
 
+## PR3c 专项复现
+
+先运行原生 verify 构建 UI target，再执行：
+
+```sh
+SECRETARY_MODE=fixture node --import tsx test_case/native/journey-fixture.ts
+SECRETARY_RESOURCE_ACCEPTANCE=1 swift test --package-path src/secretary_macos/Packages/SecretaryKit --filter resourceAcceptance
+```
+
+连贯流程使用真实原生 GUI、公开 HTTP 和文件操作；模型输出与初始 Scope 为合成 fixture。需要已解锁、无遮挡的桌面；测试会使用系统默认应用打开自己的合成文本，再关闭该文档。失败保留私有临时目录。
+
+资源测试默认使用小样本，`SECRETARY_RESOURCE_ACCEPTANCE=1` 才执行接近 1 GiB 的三次下载及 256 MiB 投影淘汰。`SECRETARY_RESOURCE_ROOT` 可指定下载测量目录；`SECRETARY_RESOURCE_THROTTLE_MS=1` 可延缓合成服务器以采样 URLSession 临时文件。缓存预算不代表整个文件系统峰值。
+
+真实磁盘满测试默认跳过，只有 `SECRETARY_DISK_FULL_VOLUME` 指向专用可丢弃小卷时执行。测试拒绝容量超过 128 MiB 的文件系统；应创建独立 64 MiB APFS 磁盘映像并挂载，完成后卸载，不能指向工作盘或资料目录。测试写满独立卷，检查 SQLite 写入失败后原草稿与 pending request ID 在重开后保留。
+
+`SECRETARY_MODE=fixture node --import tsx test_case/native/system-fixture.ts <全新私有目录>` 提供手动系统验收的合成 Core。只使用该目录的 endpoint，通过 `control.json` 写入 `{"action":"notice","label":"synthetic-test"}` 生成通知，每次使用不同 label；结束时向该进程发送 SIGTERM。它不自动改变权限、睡眠或用户设置。原始 endpoint、通知身份、日志和数据库不得提交。
+
 ## PR3b 原生替代与退役回归
 
 逐项断言映射见 [迁移账表](fix/evidence/issue10-pr3b-migration-20261014.txt)。旧 TUI/Web 渲染测试中的领域断言迁入 `runtime/native-retirement.test.ts`、通知 API 测试及 SecretaryKit 的 `RetirementTests.swift`；服务器分页、UTF-8、会话隔离、容量与恢复断言保留。旧 browser/PTY 专属探针仅由固定历史提交追溯。
