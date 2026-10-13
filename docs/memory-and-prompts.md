@@ -10,9 +10,13 @@ owner 通过 Settings 修改自定义说明，最多 2000 个 Unicode 字符；�
 
 ## 保存与投影
 
-CHECKPOINT 保存完整恢复上下文；MODEL_REQUEST 保存经过预算投影的请求，关联原 context、记忆版本和整理任务。发送前使用独立消息数组投影，保留 system、工具协议、当前轮次与历史 Master 输入锚点。内部记忆身份标记用于恢复识别，适配器在实际发送时移除。
+CHECKPOINT 保存完整恢复上下文；MODEL_REQUEST 保存经过预算投影的请求，关联原 context、记忆版本和整理任务。发送前使用独立消息数组投影，保留 system、工具协议、当前轮次、未覆盖输入及近期窗口原文。内部记忆身份标记用于恢复识别，适配器在实际发送时移除。
 
-当前 Master 历史原文仍随 context 保留；因此当前记忆测试验证的是摘要、原文与持久状态共同支持的连续性。#21 交付检索后，#28 再启用旧输入退出。
+旧输入只有在身份唯一、完整消息进入成功摘要或 APPLIED Settings、处于当前轮次/工具协议保护区之外，并且 PostgreSQL 检索已追平时，才可退出模型请求。默认近期窗口最多 12 条，占用不超过可用输入预算的 15% 和剩余整理目标预算；整条过大时跳过并继续选择更早可容纳的原文。
+
+[input-projection.ts](../src/pi_secretary/src/input-projection.ts) 是普通整理、Settings 和重启共用的选择器。Consciousness 只保存一个 input_projection_ref，回执含单个冻结覆盖引用和有界窗口 ID。覆盖从真实成功来源逐事件复核；已退出原文不会因预算增大或 Settings 清除 context_compaction 而回填。宿主回执不交给模型。
+
+未配置 PG 或索引不可用时暂停新增退出，承接最后回执、保护未覆盖输入；原文分片读取仍可用。无 PG 的长期对话可能 CAPACITY_BLOCKED，并说明 INPUT_EXIT_DISABLED 前置缺失。修复索引并追平后继续。摘要与承诺补提分别记录，补提失败不撤销成功摘要的退出资格，完整来源保持可读。
 
 ## 历史检索工具
 
@@ -61,6 +65,7 @@ MemoryCommitment 保存稳定 ID、原文、状态、来源批次和处理凭证
 | SECRETARY_TOOL_GROWTH_RESERVE | 4096，含工具时预留 |
 | SECRETARY_CONTEXT_SAFETY_TOKENS / SECRETARY_CONTEXT_SAFETY_RATIO | 默认 max(2048, 5% × C) |
 | SECRETARY_COMPACTION_TARGET / SECRETARY_COMPACTION_THRESHOLD / SECRETARY_COMPACTION_FORCED_THRESHOLD | 0.30 / 0.60 / 0.80 |
+| SECRETARY_RECENT_INPUT_MAX_COUNT / SECRETARY_RECENT_INPUT_BUDGET_RATIO | 12 / 0.15；条数范围 0–100，比例 0–0.25 |
 | SECRETARY_MEMORY_UPDATE_TURNS / SECRETARY_MEMORY_UPDATE_SECONDS / SECRETARY_MEMORY_MIN_INTERVAL_SECONDS | 8 / 60 / 120 |
 
 这些参数纳入运行配置指纹，经 Settings 完成已有上下文切换。当前容量验证适配 openai-completions 与 openai-responses，实际 payload 在发送前再检查；task 同样检查容量，超限时保留 checkpoint。

@@ -61,8 +61,17 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
   const covered = new Set(cs.covered_message_hashes ?? []);
   if (cs.last_job_id) {
     const job = store.get<CompactionJob>("CompactionJob", cs.last_job_id);
-    for (const ref of job.source_refs)
-      for (const message of store.read<AgentMessage[]>(ref)) {
+    if (job.state === "COMMITTED" && job.mode === "WORKING_MEMORY")
+      for (const eventID of job.covered_event_ids) {
+        const event = store.logs.find(
+          (e) =>
+            e.event_id === eventID &&
+            e.event_type === "main.message" &&
+            e.scope.session_id === session.id &&
+            e.sequence <= (job.source_end_sequence ?? 0),
+        );
+        if (!event) throw Error("INVALID_SETTINGS_SUMMARY_COVERAGE");
+        const message = store.read<AgentMessage>(event.payload);
         covered.add(hash(JSON.stringify(message)));
         covered.add(messageIdentityHash(message));
       }

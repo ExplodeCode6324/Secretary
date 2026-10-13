@@ -5,6 +5,7 @@ import {
   readWorld,
   recoveredWorldProposal,
 } from "./world-memory.ts";
+import { inputMessage, selectInputProjection } from "./input-projection.ts";
 import { projectContext, buildCompaction } from "./context-projection.ts";
 import { assertRequestBudget, requestBudget, budgetConfig } from "./budget.ts";
 import {
@@ -557,13 +558,7 @@ export class Host {
         }
         // Persist the entire claimed batch before any per-message event can be observed.
         if (!replaying) {
-          messages.push(
-            ...batch.map((i) => ({
-              role: "user" as const,
-              content: this.store.bytes(i.payload).toString(),
-              timestamp: Date.parse(i.received_at),
-            })),
-          );
+          messages.push(...batch.map((i) => inputMessage(this.store, i)));
         }
         const protectedFromIndex = replaying
           ? (savedContext?.protected_from_index ?? 0)
@@ -681,6 +676,7 @@ export class Host {
               ],
             );
             await this.maintain(true);
+            await this.world?.memorySearch?.catchUp();
             projected = this.crop(agent.state.messages, protectedFromIndex);
           }
           return {
@@ -700,7 +696,12 @@ export class Host {
         if (agent.state.errorMessage) throw Error(agent.state.errorMessage);
         this.finish(batch);
       } catch (error) {
-        const text = String(error);
+        const text =
+          String(error) +
+          (String(error).includes("CAPACITY_BLOCKED") &&
+          this.world?.memorySearch?.state !== "ready"
+            ? "; INPUT_EXIT_DISABLED: searchable PostgreSQL projection is not ready"
+            : "");
         const failedID = text.match(
           /MODEL_TRANSPORT_(?:TRANSIENT|PERMANENT):([a-f0-9-]{36}):/,
         )?.[1];
@@ -748,11 +749,7 @@ export class Host {
     const used = new Set<string>();
     for (const input of batch) {
       const eventID = stableID("main.input.message:" + input.id);
-      const message: AgentMessage = {
-        role: "user",
-        content: this.store.bytes(input.payload).toString(),
-        timestamp: Date.parse(input.received_at),
-      };
+      const message = inputMessage(this.store, input);
       const previous = legacy.find((event) => {
         if (used.has(event.event_id)) return false;
         if (event.event_id === eventID) return true;
@@ -1059,14 +1056,12 @@ export class Host {
               }),
             );
           }
-          if (args.source === "consciousness")
-            return this.memoryToolResult({
-              ...this.store.get<Consciousness>(
-                "Consciousness",
-                this.session.consciousness_id,
-              ),
-              maintenance: this.memoryStatus(),
-            });
+          if (args.source === "consciousness") {
+            const { input_projection_ref: _receipt, ...memory } = this.memory();
+            const { input_projection_ref: _diagnostic, ...maintenance } =
+              this.memoryStatus();
+            return this.memoryToolResult({ ...memory, maintenance });
+          }
           return this.memoryToolResult(
             readLog(this.store, args.event_id, args.offset, args.length),
           );
@@ -1326,6 +1321,7 @@ export class Host {
       await active;
       await this.maintain();
       await this.extractPending();
+      await this.world?.memorySearch?.catchUp();
       if (this.session.last_context_id) {
         const c = this.store.get<Context>(
           "Context",
@@ -1396,6 +1392,9 @@ export class Host {
       messages: original,
       protectedFromIndex: eligible,
       model: this.model,
+      searchReady:
+        this.world?.memorySearch?.state === "ready" &&
+        this.world.memorySearch.indexedSequence >= this.store.sequence,
     });
     if (!candidate) return this.project(original);
     const sourceRef = this.store.put(candidate.source),
@@ -1430,6 +1429,9 @@ export class Host {
       [
         job,
         revise(cs, {
+          ...(candidate.inputProjectionRef
+            ? { input_projection_ref: candidate.inputProjectionRef }
+            : {}),
           context_compaction: {
             job_id: job.id,
             source_ref: sourceRef,
@@ -1875,6 +1877,15 @@ export class Host {
       errors: latest?.validation_errors ?? [],
       commitments: migrateCommitments(cs),
       covered_event_sequence: cs.covered_event_sequence ?? null,
+      input_projection_ref: cs.input_projection_ref ?? null,
+      input_exit:
+        this.world?.memorySearch?.state === "ready" &&
+        this.world.memorySearch.indexedSequence >= this.store.sequence
+          ? "available"
+          : "disabled_search_not_ready",
+      search: this.world?.memorySearch?.status() ?? {
+        status: "not_configured",
+      },
     };
   }
   resolveMemoryCommitment(
@@ -1907,6 +1918,35 @@ export class Host {
     await this.active;
     await this.maintenance;
     await this.extraction;
+  }
+  prepareSettingsInputs(
+    applicationID: string,
+    source: import("./settings-memory.ts").SettingsSource,
+    messages: AgentMessage[],
+    content: string,
+  ) {
+    const agent = new Agent({
+      initialState: {
+        model: this.model,
+        systemPrompt:
+          composeInstructions(content) + this.scheduler.scopes.promptContext(),
+        tools: this.tools(id()),
+      },
+      streamFn: this.stream,
+    });
+    const system = agent.state.messages[0];
+    const selected = selectInputProjection({
+      store: this.store,
+      consciousness: this.memory(),
+      messages: [system, ...messages],
+      model: this.model,
+      protectedFromIndex: messages.length + 1,
+      searchReady:
+        this.world?.memorySearch?.state === "ready" &&
+        this.world.memorySearch.indexedSequence >= this.store.sequence,
+      pending: { id: applicationID, source },
+    });
+    return { ...selected, messages: selected.messages.slice(1) };
   }
   prepareSettingsContext(
     applicationID: string,

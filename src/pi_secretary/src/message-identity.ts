@@ -6,5 +6,7 @@ import { hash } from "./store.ts";
 export function messageIdentityHash(message: AgentMessage): string {
   const value = { ...message } as AgentMessage & { display_call_id?: string };
   if (value.role === "assistant") delete value.display_call_id;
+  delete (value as AgentMessage & { secretary_input?: unknown })
+    .secretary_input;
   return hash(JSON.stringify(value));
 }

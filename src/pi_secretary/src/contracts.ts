@@ -590,6 +590,7 @@ export interface Consciousness {
     messages_ref: ObjectRef;
     source_end_sequence: number;
   };
+  input_projection_ref?: ObjectRef;
 }
 /**
  * 事项不等于任务；未履行且无人承接的事项不退出。
@@ -1802,6 +1803,7 @@ export interface SettingsApplication {
    */
   runtime_settings_hash: string;
   summary_generation?: number;
+  input_projection_ref?: ObjectRef;
 }
 /**
  * 历史提取恢复记录，仅保留读取旧 journal；生产路径不再创建。

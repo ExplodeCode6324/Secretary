@@ -41,6 +41,10 @@ node --import tsx test_case/online/test-api-v1-artifacts-live.ts --live --eviden
 
 ## 其他场景
 
+`test-issue21-28-live.ts` 联合验证旧输入退出与历史找回。使用自建隔离 PG 测试 DSN、已有 `SECRETARY_CREDENTIALS_FILE` 和全新私有 `SECRETARY_LIVE_EVIDENCE` 目录；真实数据实例不能作为测试 DSN。它调用 opencode-go/deepseek-v4.1-flash 完成 24 轮合成对话及一次材料压力轮，经普通整理、Settings 和重开后主动检索背景事实并引用原事件。核对实际请求和传输均已不含事实，工作记忆/账本不缓存答案，最新修正与另一条未变约束仍有效，原文仍可读。
+
+默认最多 100 次物理发送、40 分钟，单次 90 秒；`SECRETARY_LIVE_MAX_CALLS` / `SECRETARY_LIVE_WALL_MS` 可收紧预算。`SECRETARY_LIVE_RESUME_STORE` 只用于本脚本已完成 24 轮的隔离合成 Store，重新核验原回复后继续余下验收；不改写来源或预置检索答案。每次运行独立记录计数与源码散列，汇报续验时累计各次调用并保留首失败。本次 2026-10-13 联合结果见[执行记录](../../docs/fix/fix_20261012_issue21_28_记忆检索与旧输入有界退出.md#13-实施记录)。
+
 | 入口 | 用途 |
 | --- | --- |
 | npm run test:live | 链路、缺失信息、未知结果、传输与拒绝场景 |

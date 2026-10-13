@@ -114,14 +114,12 @@ export function readLog(
     throw Error("INVALID_LOG_SLICE");
   if (!eventID)
     return {
-      events: store.logs
-        .slice(-20)
-        .map((e) => ({
-          event_id: e.event_id,
-          event_type: e.event_type,
-          occurred_at: e.occurred_at,
-          scope: e.scope,
-        })),
+      events: store.logs.slice(-20).map((e) => ({
+        event_id: e.event_id,
+        event_type: e.event_type,
+        occurred_at: e.occurred_at,
+        scope: e.scope,
+      })),
       truncated: store.logs.length > 20,
     };
   const event = store.logs.find((e) => e.event_id === eventID);
@@ -342,6 +340,11 @@ export class MemorySearch {
   invalidate() {
     this.initialized = false;
     this.state = "rebuilding";
+  }
+  unavailable(error: unknown) {
+    this.initialized = false;
+    this.state = "unavailable";
+    this.error = String(error);
   }
   async search(options: SearchOptions) {
     const query = searchQuery(this.sourceID, options);

@@ -43,7 +43,7 @@
 | [Context](Context.md) | 32 | 不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。 |
 | [ModelCall](ModelCall.md) | 17 | 模型传输生命周期；完整响应保存后才解析工具请求。 |
 | [WorkItem](WorkItem.md) | 12 | 事项不等于任务；未履行且无人承接的事项不退出。 |
-| [Consciousness](Consciousness.md) | 18 | 当前工作记忆；全部摘要提交与原文承接集合一次保存。 |
+| [Consciousness](Consciousness.md) | 19 | 当前工作记忆；全部摘要提交与原文承接集合一次保存。 |
 | [CompactionJob](CompactionJob.md) | 24 | 固定范围摘要任务；新增输入不纳入覆盖集合。 |
 | [TaskProposal](TaskProposal.md) | 20 | 主会话只提出任务；不接受 authorized、grant 等模型声明。 |
 | [TaskPlan](TaskPlan.md) | 21 | id 即 task_id；先保存计划再建幂等目录，agent 在可执行时由 dispatch 拉起。 |
@@ -86,7 +86,7 @@
 | [UserInstructions](UserInstructions.md) | 7 | 当前有效的 Master 说明；UI 先保存草稿，完整摘要并重建 context 后与应用状态一次提交。 |
 | [MainPromptSnapshot](MainPromptSnapshot.md) | 11 |  |
 | [SettingsDraft](SettingsDraft.md) | 6 | Master 待应用修改；payload 为 SettingsPayload，不是有效设置。 |
-| [SettingsApplication](SettingsApplication.md) | 16 | 固定批次的设置应用；数据库提交后必须完成重建才可继续主会话。 |
+| [SettingsApplication](SettingsApplication.md) | 17 | 固定批次的设置应用；数据库提交后必须完成重建才可继续主会话。 |
 | [WorldEdit](WorldEdit.md) | 20 |  |
 | [SettingsPayload](SettingsPayload.md) | 3 |  |
 | [CommitmentSourceBatch](CommitmentSourceBatch.md) | 4 | 宿主绑定的新承诺来源批次；必须与指定持久化 owner 的事件集合和边界完全一致。 |
@@ -99,3 +99,5 @@
 | [ApiCommand](ApiCommand.md) | 13 |  |
 | [MemoryExtractionJob](MemoryExtractionJob.md) | 25 | 冻结的承诺提取来源与有界维护重试；独立于摘要覆盖水位。 |
 | [WorkScope](WorkScope.md) | 12 |  |
+| [InputCoverageSnapshot](InputCoverageSnapshot.md) | 5 |  |
+| [InputProjectionReceipt](InputProjectionReceipt.md) | 6 |  |

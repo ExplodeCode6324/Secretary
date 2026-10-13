@@ -26,6 +26,10 @@ import {
   type SettingsSource,
   type SettingsCandidate,
 } from "./settings-memory.ts";
+import {
+  inputWindowConfig,
+  type InputProjectionReceipt,
+} from "./input-projection.ts";
 import { budgetConfig } from "./budget.ts";
 import { SUMMARY_POLICY } from "./summary.ts";
 const DRAFT_ID = "21b45476-750e-44ae-82f9-5b6f49a7377c";
@@ -46,6 +50,7 @@ export class Settings {
       JSON.stringify({
         policy_version: "settings-memory-v3",
         summary_policy: SUMMARY_POLICY,
+        input_window: inputWindowConfig(),
         main_budget: budgetConfig("main"),
         task_budget: budgetConfig("task"),
         model: [
@@ -257,8 +262,12 @@ export class Settings {
       state:
         a.state === "BLOCKED" ? ("COMMITTING" as const) : ("QUEUED" as const),
       error: null,
+      // Revalidate candidate exits against current retrieval availability. A
+      // BLOCKED retry retains its summary and World receipt, not its request view.
+      context_id: null,
+      input_projection_ref: undefined,
       ...(a.state === "FAILED"
-        ? { source_ref: null, candidate_ref: null, context_id: null }
+        ? { source_ref: null, candidate_ref: null }
         : {}),
     });
     this.store.commit([next]);
@@ -532,16 +541,46 @@ export class Settings {
       )
         throw Error("INSTRUCTIONS_CONFLICT");
       // Build and capacity-check before database writes. Orphan snapshots are immutable audit only.
-      if (!a.context_id) {
-        const context = this.host.prepareSettingsContext(
-          key,
-          changes.instructions?.content ?? settings.content,
-          changes.instructions ? settings.revision + 1 : settings.revision,
-          rebuiltMessages(source, candidate, key, current.revision + 1),
-          current.revision + 1,
-        );
-        a = this.update(key, { context_id: context.id });
-      }
+      const summary = candidate;
+      const prepareContext = async () => {
+        if (
+          a.context_id &&
+          a.input_projection_ref &&
+          a.input_projection_ref.sha256 !==
+            current.input_projection_ref?.sha256 &&
+          !(
+            this.world?.memorySearch.state === "ready" &&
+            this.world.memorySearch.indexedSequence >=
+              this.store.read<InputProjectionReceipt>(a.input_projection_ref)
+                .considered_journal_sequence
+          )
+        )
+          a = this.update(key, {
+            context_id: null,
+            input_projection_ref: undefined,
+          });
+        if (!a.context_id) {
+          await this.world?.memorySearch.catchUp();
+          const projection = this.host.prepareSettingsInputs(
+            key,
+            source,
+            rebuiltMessages(source, summary, key, current.revision + 1),
+            changes.instructions?.content ?? settings.content,
+          );
+          const context = this.host.prepareSettingsContext(
+            key,
+            changes.instructions?.content ?? settings.content,
+            changes.instructions ? settings.revision + 1 : settings.revision,
+            projection.messages,
+            current.revision + 1,
+          );
+          a = this.update(key, {
+            context_id: context.id,
+            input_projection_ref: projection.receiptRef,
+          });
+        }
+      };
+      await prepareContext();
       if (changes.world.length) {
         if (!this.world) throw Error("WORLD_UNAVAILABLE");
         activity.step(activityID, "正在提交设置");
@@ -573,6 +612,9 @@ export class Settings {
       activity.step(activityID, "正在重建上下文");
       a = this.update(key, { state: "REBUILDING" });
       stage = a.state;
+      // Retrieval may have failed while World committed/exported or during a
+      // restart. Only an already active receipt is safe to adopt without it.
+      await prepareContext();
       const mutations: Stored[] = [
         revise(current, {
           items: candidate.items,
@@ -597,6 +639,9 @@ export class Settings {
           settings_application_id: key,
           maintenance_version: 3,
           context_compaction: null,
+          ...(a.input_projection_ref
+            ? { input_projection_ref: a.input_projection_ref }
+            : {}),
           memory_source_ref: this.store.get<import("./contracts.ts").Context>(
             "Context",
             a.context_id!,

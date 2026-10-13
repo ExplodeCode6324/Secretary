@@ -1,3 +1,7 @@
+import {
+  applyInputProjection,
+  selectInputProjection,
+} from "./input-projection.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "./model.ts";
@@ -28,17 +32,19 @@ export type BuildCompactionArgs = ProjectContextArgs & {
    */
   protectedFromIndex: number;
   model: Model<Api>;
+  searchReady?: boolean;
 };
 
 export type ProjectionCandidate = {
   /** Complete-checkpoint prefix that the crop mapping would replace. */
   source: AgentMessage[];
-  /** Cropped source: system messages, every real Input anchor, and the kept suffix. */
+  /** Cropped source: system messages, protected/resident Inputs, and the kept suffix. */
   replacement: AgentMessage[];
   /** Resulting next-request view, including existing header normalization. */
   projected: AgentMessage[];
   /** True when the chosen cut already reached the occupancy target. */
   targetReached: boolean;
+  inputProjectionRef?: import("./contracts.ts").ObjectRef;
 };
 
 type CropMapping = NonNullable<Consciousness["context_compaction"]>;
@@ -158,6 +164,7 @@ function applyCrop(
   messages: AgentMessage[],
   mapping: CropMapping,
   index: HeaderIndex,
+  inputProjection = false,
 ): AgentMessage[] {
   const prefix = store.read<AgentMessage[]>(mapping.source_ref);
   if (!prefix.length || prefix.length > messages.length) return messages;
@@ -173,7 +180,7 @@ function applyCrop(
     index.consciousnessID,
     prefix,
   );
-  if (historical.size) {
+  if (historical.size && !inputProjection) {
     const retained = new Set(
       replacement.map((message) => hash(JSON.stringify(message))),
     );
@@ -476,8 +483,20 @@ export function projectContext({
 }: ProjectContextArgs): AgentMessage[] {
   const index = headerIndex(store, sessionID, consciousness);
   const mapping = consciousness.context_compaction;
-  const view = mapping ? applyCrop(store, messages, mapping, index) : messages;
-  return normalizeHeaders(store, sessionID, index, view);
+  const view = mapping
+    ? applyCrop(
+        store,
+        messages,
+        mapping,
+        index,
+        !!consciousness.input_projection_ref,
+      )
+    : messages;
+  return applyInputProjection(
+    store,
+    consciousness,
+    normalizeHeaders(store, sessionID, index, view),
+  );
 }
 
 /**
@@ -496,6 +515,7 @@ export function buildCompaction({
   messages,
   protectedFromIndex,
   model,
+  searchReady = false,
 }: BuildCompactionArgs): ProjectionCandidate | null {
   if (!messages.length) return null;
   const index = headerIndex(store, sessionID, consciousness);
@@ -505,7 +525,15 @@ export function buildCompaction({
     store,
     sessionID,
     index,
-    mapping ? applyCrop(store, messages, mapping, index) : messages,
+    mapping
+      ? applyCrop(
+          store,
+          messages,
+          mapping,
+          index,
+          !!consciousness.input_projection_ref,
+        )
+      : messages,
   );
   // An already small request is never compacted without need.
   if (requestBudget(model, current).occupancy < config.normal) return null;
@@ -530,9 +558,23 @@ export function buildCompaction({
   );
   // If even the most aggressive cut (anchors only) cannot reach the target,
   // report that immediately instead of scanning every intermediate cut.
-  const mandatoryOnly = source.filter((message) =>
+  const anchors = source.filter((message) =>
     isMandatory(index, message, historical),
   );
+  const selection = selectInputProjection({
+    store,
+    consciousness,
+    messages: [...anchors, ...messages.slice(source.length)],
+    model,
+    protectedFromIndex: anchors.length,
+    searchReady,
+  });
+  const selectedCS = selection.receiptRef
+    ? { ...consciousness, input_projection_ref: selection.receiptRef }
+    : consciousness;
+  const keepProjection = (view: AgentMessage[]) =>
+    applyInputProjection(store, selectedCS, view);
+  const mandatoryOnly = keepProjection(anchors);
   if (sameMessages(mandatoryOnly, source)) return null;
   const minimal = normalizeHeaders(store, sessionID, index, [
     ...mandatoryOnly,
@@ -544,6 +586,7 @@ export function buildCompaction({
       replacement: mandatoryOnly,
       projected: minimal,
       targetReached: false,
+      inputProjectionRef: selection.receiptRef,
     };
   const resultIndex = new Map<string, number>();
   for (let i = 0; i < messages.length; i++) {
@@ -556,12 +599,12 @@ export function buildCompaction({
   let targetReached = false;
   for (const cut of cutBoundaries(source)) {
     if (cutSplitsToolPair(resultIndex, source, cut)) continue;
-    const candidate = [
+    const candidate = keepProjection([
       ...source
         .slice(0, cut)
         .filter((message) => isMandatory(index, message, historical)),
       ...source.slice(cut),
-    ];
+    ]);
     if (sameMessages(candidate, source)) continue;
     const projection = normalizeHeaders(store, sessionID, index, [
       ...candidate,
@@ -581,5 +624,6 @@ export function buildCompaction({
       ...messages.slice(source.length),
     ]),
     targetReached,
+    inputProjectionRef: selection.receiptRef,
   };
 }

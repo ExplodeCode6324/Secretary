@@ -18,12 +18,12 @@ export function historicalMasterText(
  * Context's exact message CAS identity, its frozen source, and original Inputs.
  * Read no Context bodies; only matching applications need source/Input reads.
  */
-export function historicalMasterMessages(
+export function historicalMasterAnchors(
   store: Store,
   sessionID: string,
   consciousnessID: string,
   messages: AgentMessage[],
-): Set<AgentMessage> {
+): Map<AgentMessage, SettingsSource["anchors"]> {
   const candidates = new Map<string, AgentMessage[]>();
   for (const message of messages) {
     if (
@@ -34,7 +34,7 @@ export function historicalMasterMessages(
     const sha = hash(JSON.stringify(message));
     candidates.set(sha, [...(candidates.get(sha) ?? []), message]);
   }
-  const trusted = new Set<AgentMessage>();
+  const trusted = new Map<AgentMessage, SettingsSource["anchors"]>();
   if (!candidates.size) return trusted;
   for (const application of store.all<SettingsApplication>(
     "SettingsApplication",
@@ -44,9 +44,28 @@ export function historicalMasterMessages(
     if (!application.context_id)
       throw Error("INVALID_HISTORICAL_MASTER_EVIDENCE");
     const context = store.get<Context>("Context", application.context_id);
-    const matched = context.messages.flatMap((entry) =>
-      entry.role === "user" ? (candidates.get(entry.content.sha256) ?? []) : [],
-    );
+    const matched = messages.filter((message) => {
+      if (
+        message.role !== "user" ||
+        !contentText(message.content).startsWith(HISTORICAL_MASTER_PREFIX)
+      )
+        return false;
+      const tag = (
+        message as unknown as {
+          secretary_historical_inputs?: HistoricalInputTag;
+        }
+      ).secretary_historical_inputs;
+      return context.messages.some(
+        (entry) =>
+          entry.role === "user" &&
+          (entry.content.sha256 === hash(JSON.stringify(message)) ||
+            (!!tag &&
+              tag.version === 1 &&
+              tag.application_id === application.id &&
+              tag.source_message_sha256 === entry.content.sha256 &&
+              tag.content_sha256 === hash(contentText(message.content)))),
+      );
+    });
     if (!matched.length) continue;
     // Once the exact host snapshot matches, damaged provenance must stop
     // compaction rather than silently turn required history into disposable text.
@@ -78,12 +97,123 @@ export function historicalMasterMessages(
       })
     )
       throw Error("INVALID_HISTORICAL_MASTER_EVIDENCE");
-    const expected = historicalMasterText(source.anchors);
     for (const message of matched) {
-      if (message.role !== "user" || message.content !== expected)
+      if (message.role !== "user" || typeof message.content !== "string")
         throw Error("INVALID_HISTORICAL_MASTER_EVIDENCE");
-      trusted.add(message);
+      const selected: SettingsSource["anchors"] = JSON.parse(
+        message.content.slice(HISTORICAL_MASTER_PREFIX.length),
+      );
+      if (
+        !Array.isArray(selected) ||
+        new Set(selected.map((a) => a.input_id)).size !== selected.length ||
+        selected.some(
+          (a) =>
+            !source.anchors.some(
+              (original) =>
+                original.input_id === a.input_id && original.text === a.text,
+            ),
+        ) ||
+        historicalMasterText(selected) !== message.content
+      )
+        throw Error("INVALID_HISTORICAL_MASTER_EVIDENCE");
+      const tag = (
+        message as unknown as {
+          secretary_historical_inputs?: HistoricalInputTag;
+        }
+      ).secretary_historical_inputs;
+      if (tag) {
+        const origin = context.messages.find(
+          (entry) =>
+            entry.content.sha256 === tag.source_message_sha256 &&
+            entry.role === "user",
+        );
+        if (!origin) throw Error("INVALID_HISTORICAL_MASTER_EVIDENCE");
+        const original = store.read<AgentMessage>(origin.content);
+        if (
+          original.role !== "user" ||
+          typeof original.content !== "string" ||
+          !original.content.startsWith(HISTORICAL_MASTER_PREFIX)
+        )
+          throw Error("INVALID_HISTORICAL_MASTER_EVIDENCE");
+        const allowed: SettingsSource["anchors"] = JSON.parse(
+          original.content.slice(HISTORICAL_MASTER_PREFIX.length),
+        );
+        if (
+          !Array.isArray(allowed) ||
+          selected.some(
+            (a) =>
+              !allowed.some(
+                (origin) =>
+                  origin.input_id === a.input_id && origin.text === a.text,
+              ),
+          )
+        )
+          throw Error("INVALID_HISTORICAL_MASTER_EVIDENCE");
+      }
+      trusted.set(message, selected);
     }
   }
   return trusted;
+}
+
+export function historicalMasterMessages(
+  store: Store,
+  sessionID: string,
+  consciousnessID: string,
+  messages: AgentMessage[],
+): Set<AgentMessage> {
+  return new Set(
+    historicalMasterAnchors(store, sessionID, consciousnessID, messages).keys(),
+  );
+}
+
+type HistoricalInputTag = {
+  version: 1;
+  application_id: string;
+  source_message_sha256: string;
+  content_sha256: string;
+};
+/** Attest a subset of an already authenticated APPLIED wrapper. The origin CAS
+ * remains immutable and the tag cannot be supplied by text-only Master Inputs. */
+export function historicalSubset(
+  store: Store,
+  original: AgentMessage,
+  anchors: SettingsSource["anchors"],
+): AgentMessage {
+  if (original.role !== "user")
+    throw Error("INVALID_HISTORICAL_MASTER_EVIDENCE");
+  const existing = (
+    original as unknown as { secretary_historical_inputs?: HistoricalInputTag }
+  ).secretary_historical_inputs;
+  let owner = existing?.application_id,
+    origin = existing?.source_message_sha256;
+  if (!owner) {
+    const digest = hash(JSON.stringify(original));
+    for (const app of store.all<SettingsApplication>("SettingsApplication")) {
+      if (app.state !== "APPLIED" || !app.context_id) continue;
+      if (
+        store
+          .get<Context>("Context", app.context_id)
+          .messages.some(
+            (entry) => entry.role === "user" && entry.content.sha256 === digest,
+          )
+      ) {
+        owner = app.id;
+        origin = digest;
+        break;
+      }
+    }
+  }
+  if (!owner || !origin) throw Error("INVALID_HISTORICAL_MASTER_EVIDENCE");
+  const content = historicalMasterText(anchors);
+  return {
+    ...original,
+    content,
+    secretary_historical_inputs: {
+      version: 1,
+      application_id: owner,
+      source_message_sha256: origin,
+      content_sha256: hash(content),
+    },
+  } as AgentMessage;
 }
