@@ -32,11 +32,30 @@
 
 ## 3. 范围与工程选择
 
-- 新建 `src/secretary_macos/`，使用一个 macOS SwiftUI app 工程，配套本地 Swift Package 承载协议、同步、缓存与非 UI 测试。初定最低 macOS 14、Swift 6.0 / Xcode 16；开工后用真实构建确认，若调整则在记录中说明原因。
+- 新建 `src/secretary_macos/`，使用一个 macOS SwiftUI app 工程，配套本地 Swift Package 承载协议、同步、缓存与非 UI 测试。最低部署目标 macOS 14；固定开发/CI 基线 Xcode 16.4（Swift 6.1，Swift 6 语言模式）。Master 负责下载安装完整 Xcode，Codex 不安装工具、不切换全局开发目录。采用 Xcode app target + 本地 Package，不采用纯 SwiftPM 手工组装 app 的降级方案。
 - 采用 Foundation/URLSession、SwiftUI，必要时用 AppKit 处理 NSTextView 输入法组合态、系统目录选择器和系统打开；系统通知用 UserNotifications。DTO、业务投影和页面分层，不移植 Host/Scheduler 到 Swift。
 - 本地数据库使用系统 SQLite，缓存数据与已应用 cursor 事务提交；outbox、草稿、阅读位置与可淘汰缓存分表管理。避免为了首版引入完整前端框架或持久状态机副本。
 - 不新增 iOS、设备模拟/真实接入、附件上传、语音、手机推送、新版 TUI 或服务端远程开放。#14 与 Portable 保持冻结，#22/#23 后续自行补客户端增量，不反列为本次结项前置。
-- 若公开合同缺少本 issue 必需字段，先记录具体页面/字段缺口，最小补齐公开投影、schema、样例与对应回归；不从内部记录旁路取值，不扩写领域语义。
+- 已知 Operation 参数/输出与 Artifact 相对路径缺口在 §7 A0 单列实现，先完成 Core 合同 PR；其余页面在阶段 A 做完整字段核对。不从内部记录旁路取值，不扩写领域语义。
+
+### 工具链准备与构建约定（B1）
+
+Master 从 [Apple Developer Downloads](https://developer.apple.com/download/all/?q=Xcode%2016.4) 下载 Xcode 16.4，解压到 Applications，打开一次并完成许可与必要组件安装；本期只需 macOS，不需下载 iOS/watchOS/visionOS 模拟器。Apple 的 [Xcode 16.4 发布说明](https://developer.apple.com/documentation/xcode-release-notes/xcode-16_4-release-notes)列出的宿主范围包含本机 macOS 15.7.4。工具准备完成后再验证原生构建；这不替代 Master 对业务实施的确认。
+
+本地使用进程级 `DEVELOPER_DIR`，不要求全局 `xcode-select --switch`。以下是实施后约定入口，当前工程尚未创建、命令未执行；路径按 Master 实际安装名称调整：
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+xcodebuild -version
+xcrun swift --version
+xcodebuild -project src/secretary_macos/Secretary.xcodeproj -scheme Secretary -configuration Debug -destination 'platform=macOS' -derivedDataPath .build/native build
+swift test --package-path src/secretary_macos/Packages/SecretaryKit
+xcodebuild -project src/secretary_macos/Secretary.xcodeproj -scheme Secretary -destination 'platform=macOS' -derivedDataPath .build/native test
+```
+
+app target 配置固定 bundle identifier、本机开发签名和共享 scheme；本期不要求商店分发或公证。CI 使用 `macos-15`，显式 `DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer` 并检查 `xcodebuild -version`；当前 [runner 软件清单](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md)含此版本。runner 更新导致缺失时明确失败，不能偷偷换默认工具链。编译/Package 合同测试为 CI 必需门禁；真实窗口、通知与可访问性在本机单独验收。
+
+B1 对工具链准备的要求成立，但“VoiceOver/窗口验收都依赖 Xcode”表述过宽：这些系统能力并非只能由 Xcode 提供。本项目选 Xcode 是为了确定 app target、签名、SDK 和 XCUITest 的统一交付方式，不以工具缺失为由降低验收。
 
 ## 4. 简洁界面与页面行为
 
@@ -65,16 +84,25 @@
 
 record 按 revision 合并；invalidate 无条件使相应聚合/集合失效，不能用根 revision 抑制刷新。同一查询最后发出的请求有效，最新失败时不能用较早成功清掉陈旧状态。RESYNC_REQUIRED 重建缓存投影与水位，保留草稿、未确认 outbox、展示记录并对账。普通分页游标、持久同步 cursor、消息内容 cursor 分别管理，不互换。
 
-初始预算：内存正文/预览缓存 32 MiB；磁盘可重建投影与正文 256 MiB；产物缓存 1 GiB；SSE 待处理数据 4 MiB。按 LRU 淘汰非可见、非下载中资源；页面分页加载，不扫描全部任务/历史。草稿、未确认命令和已展示记录不进入 LRU；磁盘不足拒绝新提交并保留编辑文字，不靠删除未确认命令腾空间。缓存升级失败可备份后重建投影，不能清掉 outbox；记录实际峰值后如需调预算说明依据。
+首版仅强持久化 outbox、草稿、阅读锚点、展示记录、同步 cursor、最近会话窗口，以及最近访问的必要详情/状态和附件 metadata；其余列表与投影启动后按需重建，不建设全资源离线镜像。未持久化资源保存失效标记，重启后首次访问强制查询，不能凭恢复的 cursor 推断未保存的资源已存在；加载时继续按“取 S→查询→追赶”收敛。
 
-通知使用稳定 client_id 注册：首次 S 之前创建的条目只入列表，历史 read/presented 更新不当成新通知。系统通知权限拒绝时保留应用内提醒。**系统通知提交成功不等于实际展示**：根据可验证的系统已送达状态或应用内实际可见事件再上报 presented；无法确认则不报，待应用内展示后补报。read 仅由 Master 明确阅读/标记动作产生。展示记录持久化并使用稳定通知标识抑制重启重复；崩溃夹在展示与落盘之间的窗口须专门验证，不能声称跨系统原子 exactly-once。截断通知显示截断说明，截断 JSON 按文本处理，不为本次增加通用超长通知端点。
+对外保留两个磁盘预算：可重建投影/正文 256 MiB、产物 1 GiB；只对这些可重建内容按最后访问时间清理。草稿、未确认命令和已展示记录不淘汰；磁盘不足拒绝新提交并保留编辑文字。内部仍保留正文/预览工作集 32 MiB、SSE 待处理 4 MiB 的硬上限，使用分页/背压，不做另一套内存 LRU 或用户设置。减少持久层复杂度不等于删除长文本、异常流量的内存边界。缓存升级失败可备份后重建投影，不清 outbox；记录实际峰值后如需调预算说明依据。
+
+通知使用稳定 client_id 注册：首次 S 之前创建的条目只入列表，历史 read/presented 更新不当成新通知。系统权限拒绝时保留应用内提醒。presented 表示已展示，read 表示 Master 明确阅读，两者不混同：
+
+- 前台 `willPresent` 仅表示收到待展示通知，不能在回调入口直接上报；应用内内容在活动窗口实际可见后上报 presented。
+- 后台使用稳定通知 identifier。提交完成不报 presented；调度后一次延迟核对及应用激活时核对 `getDeliveredNotifications`，命中仍在通知中心的条目可作为系统展示证据。这不是已读证据，不进行常驻高频轮询。
+- `didReceive response` 是用户响应，不是后台送达回调。可确认该条曾展示；read 仅在用户打开内容或选择明确已读动作时提交，dismiss 不上报 read。
+- 无法确认展示则暂不报，之后应用内实际展示再补报。持久记录抑制重启重复；保留展示/落盘间崩溃窗口测试，不宣称跨系统原子 exactly-once。
+
+上述语义依据 Apple 的 [deliveredNotifications](https://developer.apple.com/documentation/usernotifications/unusernotificationcenter/getdeliverednotifications(completionhandler:)) 与 [通知处理说明](https://developer.apple.com/documentation/usernotifications/handling-notifications-and-notification-related-actions)。截断通知显示说明，截断 JSON 按文本处理，本次不扩通知内容端点。
 
 ## 7. 功能与公共合同映射
 
 | 功能 | 方案与不可丢失的行为 |
 | --- | --- |
 | 聊天与时间线 | messages、timeline、timeline/around、messages/{id}/content；Return 换行、⌘Return 发送，IME 组合态不发送，无可见占位但有可访问标签。恢复草稿与消息 ID/局部偏移阅读锚点；历史阅读/选中/展开时不强制滚到底 |
-| Markdown 与长文本 | 支持代码、列表、引用、表格、复制；宽代码/表格局部横向滚动，不执行 HTML/脚本。使用明确的 Markdown 解析模块和原生渲染，依赖锁定并审查许可证。内容按 opaque cursor 顺序读取，不用 Swift String.count 复现 JS UTF-16 偏移 |
+| Markdown 与长文本 | 支持代码、列表、引用、表格、复制；宽代码/表格局部横向滚动，不执行 HTML/脚本。固定使用 swiftlang/swift-markdown 0.6.0 解析 GFM、SwiftUI/AppKit 原生渲染，提交 Package.resolved 锁定传递依赖；不跟随 main。内容按 opaque cursor 顺序读取，不用 Swift String.count 复现 JS UTF-16 偏移 |
 | 预览与最终消息 | 以服务端稳定 message ID/call_id 合并，transient 不推进持久水位；正常/失败/中断后只保留正确逻辑记录。显示偏好变更增加代次，取消旧请求并清理相关预览/思考缓存，迟到结果不可恢复隐藏内容 |
 | 任务 | tasks、task-requests、executions；默认全部，可按 scope 筛选；创建/补充/接续/取消执行/取消待执行请求。显示本轮目标、条件、结果、验收、局限、产物；continuation 和 SCOPE_BUSY 等原因由后端决定 |
 | 查看与留存 | 显式打开执行详情时提交 viewed；自动刷新、旁栏展示、预取和普通恢复缓存不续留；避免视图重复 mount 产生虚假访问 |
@@ -88,7 +116,29 @@ record 按 revision 合并；invalidate 无条件使相应聚合/集合失效，
 | 名称与本地偏好 | assistant/profile 独立保存同步，不触发模型/记忆重建；字号/旁栏/流式与思考偏好和连接参数留在本地分组 |
 | 产物与关联 | artifacts 独立分页和 task 筛选，related 使用明确范围；重名显示任务/时间，按 ID+content_version 缓存。受认证下载、进度/重试、检查长度/内容版本后原子落盘，再通过系统打开；不能打开 Core 绝对路径。显示相对 scope/任务路径，缺失就显示可用名称而非伪造路径 |
 
-Markdown 解析实现和必需 API 字段在阶段 A 的合同清单中固定。若 Operation 原始输出、产物相对路径等只在内部存在，属于本 issue 的最小公开投影补齐，须同步协议与测试；不能用界面空字段宣称完成验收。
+Markdown 选择采用 [swift-markdown 0.6.0](https://github.com/swiftlang/swift-markdown/tree/0.6.0)，其 Package 声明 Swift tools 5.7，许可证为 Apache-2.0 with Runtime Library Exception。它提供解析树，不提供完整 UI；原生渲染、长代码块/表格、选择复制与有界分页仍须验收。固定这一已发布版本是为了匹配工具链和控制依赖，不表示它是最新版本。
+
+### A0：Core 公开投影补齐（B2，独立 PR1）
+
+已核实 `operationView()` 只投影 Operation 与 receipt 元信息，未解引用实际参数及 stdout/stderr；`artifactView()` 未公开内部 Artifact.workspace_path。下列为拟新增合同，尚未实现。新增为 API v1 只读字段/路由，不修改裁定、审批或执行领域语义。
+
+| 字段/路由 | 数据来源和语义 | 边界 |
+| --- | --- | --- |
+| Operation `display.parameters` | 从 `action.parameters_ref` 按已登记 action 的业务参数形状生成可读 JSON 文本；shell 命令/cwd/timeout、write 路径/内容、program ID/输入、world 修改参数等保持实际值 | 只在 `GET operations/{id}` 展开；列表保持轻量。不公开执行器环境、进程控制 token、CAS 文件路径或配置凭据 |
+| Operation `display.stdout` / `display.stderr` | 读取已有持久 receipt 中对应文本；人工裁定后的 receipt.original_receipt 回溯至原作用回执，避免裁定覆盖已有输出 | 无回执或未落盘输出显示 unavailable，空字符串与 unavailable 分开；不得从“进程停止”推断成功或补造输出 |
+| Operation `display.reason` | Operation.error，加 receipt 的 timed_out/truncated/signal/exit_code/not_started 等白名单证据生成原因文字 | 使用证据可支持的原因；保留 effect/process_state。未知/缺失显示明确短说明，不返回整个任意 receipt |
+| 文本 envelope | 上述各段 `{state: available|unavailable, text, bytes, content_version, truncated, next_cursor}`；bytes 是完整公开文本的 UTF-8 十进制长度，version 是其内容指纹 | parameters 首片 16 KiB、stdout/stderr 各 32 KiB、reason 4 KiB；完整 JSON 响应含转义/外层最多 256 KiB，超预算继续缩片；不切断 Unicode，截断参数按文本显示，不解析残缺 JSON |
+| `GET operations/{id}/content?part=parameters|stdout|stderr|reason&cursor=...` | 按需读取同一公开文本剩余分片，供核对实际长命令/参数与已有输出；仅接受该 operation 的已固定部件 | 每片文本最多 32 KiB；opaque cursor 绑定数据域、operation、part、content_version/编码位置，错域/错部件拒绝、内容变化要求重载；沿用认证/操作 scope 查询检查。不增加任意 CAS/文件读取接口 |
+| `display.source_truncated` | 原执行回执的 truncated 标志；`null` 表示来源完整性未知 | 与分页产生的 truncated 区分，读完分片也不能将源头已丢失输出标为完整 |
+| Artifact `relative_path`、`path_base`、`scope_id` | relative_path 取已存 workspace_path；path_base 为 scope/task/unknown，依据所属 Execution 的固定 workspace_binding，旧记录无 binding 时仅用确证的任务根来源 | DIRECTORY 为 scope，NONE 为 task；无可靠来源返回 null/unknown，不能按 basename 猜完整路径。拒绝绝对路径、越界 ..、NUL；超过 4096 UTF-8 bytes 返回 null 并附 `path_unavailable_reason`，不截成错误路径。仅作展示，下载仍按 ID+version |
+
+参数/输出是已认证 owner 核对作用的证据，不能凭字段名或正则盲目脱敏、改变真实业务参数（现有 `api/protocol.ts` 也明确保留 parameters 原值）。采用白名单公开业务字段、排除内部凭据和进程环境；任意用户文本中可能本来含敏感值，不声称自动清洗万能。完整内容只在受认证详情按需读取，不放列表/SSE/系统横幅/普通日志；公开测试与报告使用合成内容。此处采纳敏感信息边界要求，不采纳会破坏实际证据的通用脱敏。
+
+源码涉及 `application-service.ts` 的 operationView/artifactView、`api-v1.ts` 的只读路由与现有 cursor 工具、`docs/api/v1/schema.json` / `operations.json`；通过 `api:generate` 同步 TS/OpenAPI，并更新 examples/Swift 样例和 API 手册。API v1 加字段不重写历史 Store 或 World；缺失旧字段按 null/unavailable 展示。解引用校验内容散列；只读不修改 receipt、留存或作用状态。来源解析有上限，超大参数/回执采用有界读取/解析，不为截出小前缀先无限读入整个对象；来源损坏与不可用要可区分。
+
+A0 独立验收：shell/write/program/world 参数与现有真实作用一致；RESULT_UNKNOWN 的已有输出/原因、裁定后原回执仍可见、崩溃未留输出显示 unavailable；首片/续片含 Unicode 与 JSON 转义预算，source_truncated 不被分页覆盖；cursor 串域/串操作/串部件拒绝；公开字段不泄露执行环境/token/CAS 路径，GET 不写 journal/不续留；scope/独立任务产物及旧记录缺失路径、恶意路径/超长路径/重名与内容版本分别覆盖。合同生成、Swift 样例解码与 Core 回归通过后才能由后续客户端 PR 消费。
+
+A0 同时列全其余页面 DTO 使用清单，已确认 remember_context/display_hash、next_attempt_at 存在；新增发现单独记录，不把本节视为所有页面字段已完整验收。
 
 ## 8. 用户能力迁移与退役门槛
 
@@ -106,21 +156,26 @@ Markdown 解析实现和必需 API 字段在阶段 A 的合同清单中固定。
 | World 迁移、程序登记等低频运维 | 新版管理 API/Core 操作文档 | 可按文档执行，不依赖 TUI 文本命令 |
 | 设备、手机推送、定时唤醒、新 TUI、上传/语音 | 明确后续扩展 | 说明边界，设备禁用，不制造空白功能页 |
 
-前七行通过后才删除 Web 静态资产、旧浏览器启动代码和仅服务旧客户端的 TerminalController 链、旧 npm 脚本及死协议代码。先用依赖扫描确认哪些共享投影仍被新版使用。领域测试迁移到 ApplicationService/Core API 后保持等价断言，旧渲染专用测试以 Swift 对应覆盖替换，历史记录保留版本含义。处理 `docs/migration-map.json` 与当前文档链接，避免删除代码后留下坏链接；不批量改写历史报告冒充新验收。
+会话恢复来源为旧 `tui.ts` 的 `/resume`（调用 Host.resume）及既有 API `session/resume`；承诺裁定来源为 `/memory-resolve` 与 `memory/commitments/{id}/resolve`。保留这两项是 Issue #10 §7“日常流程与必要恢复必须有可用入口”的迁移要求，不新增后端能力；放在对应异常状态或承诺详情，不给记忆主页额外堆按钮。
+
+前七行通过后才删除 Web 静态资产、旧浏览器启动代码和仅服务旧客户端的 TerminalController 链、旧 npm 脚本及死协议代码。旧客户端独占源码直接删除，以 Git 历史作参考，不保留无入口的死代码；共享投影先用依赖扫描确认新版使用情况。领域测试迁移到 ApplicationService/Core API 后保持等价断言，旧渲染专用测试以 Swift 对应覆盖替换，历史记录保留版本含义。处理 `docs/migration-map.json` 与当前文档链接，避免删除代码后留下坏链接；不批量改写历史报告冒充新验收。
 
 README 默认介绍 SwiftUI 日常入口并保留无 UI Core 管理；新版 TUI 仅列未来路线，要求复用 API v1。退役不删除 Store、World、历史附件或任何作用证据。必要回退为回退客户端/代码及匹配备份，未知作用继续原 ID 对账，不通过恢复旧协议规避迁移。
 
 ## 9. 实施顺序、文件与估算
 
-| 阶段 | 交付与主要文件 | 估算 |
-| --- | --- | --- |
-| A：合同与工程 | `src/secretary_macos/` 工程、DTO/样例清单、构建入口；核对 schema/operations 与页面必需字段；明确 Xcode 与通知 app bundle 条件 | 1–2 人日 |
-| B：可靠连接底座 | URLSession、发现/启动、SQLite/outbox、身份隔离、SSE/失效/重连、通知适配与故障注入 | 2–3 人日 |
-| C：聊天和导航 | 简洁壳层、输入/阅读锚点、Markdown/长文本、预览和关联旁栏 | 1.5–2.5 人日 |
-| D：日常管理流程 | 任务/审批/决定/未知结果、记忆、Settings/World、Scope/规则、产物 | 3–4 人日 |
-| E：真实验收与退役 | 双客户端/重启/窗口/可访问性验证，迁移领域测试，删旧入口，文档和 CI | 2–3 人日 |
+| 阶段 | PR 单元 | 交付与主要文件 | 估算 |
+| --- | --- | --- | --- |
+| A0：Core 合同 | PR1 | §7 字段/有界内容读取、生成合同、样例和独立回归，不夹带 Swift UI 或旧代码删除 | 1–2 人日 |
+| A：工程与 DTO | PR2a | Xcode app + Package、DTO 清单、固定 Markdown 依赖、macOS CI 与构建手册 | 1–2 人日 |
+| B：可靠连接底座 | PR2a | URLSession、发现/启动、SQLite/outbox、身份隔离、SSE/失效/恢复、通知适配与故障注入 | 2–3 人日 |
+| C：聊天和导航 | PR2b | 简洁壳层、输入/阅读锚点、Markdown/长文本、预览和关联旁栏 | 1.5–2.5 人日 |
+| D：日常管理流程 | PR2c | 任务/审批/决定/未知结果、记忆、Settings/World、Scope/规则、产物 | 3–4 人日 |
+| E：验收和退役 | PR3 | 原生联合验收证据，领域测试迁移、旧入口删除、默认入口和最终文档 | 2–3 人日 |
 
-总估 9.5–14.5 人日，为工作拆分参考；Xcode 安装、签名/通知环境及真实模型条件受限时单独记录等待，不把等待记为通过。各阶段可独立提交，但首次结项需全部必要流程通过。
+合计 10.5–16.5 人日；A0 从原模糊预留改为独立工作，增加 1–2 人日。工具安装由 Master 完成，不计实现工期。PR1→PR2a→PR2b→PR2c→PR3 按依赖顺序；每个 PR 保持可构建和自身验证通过，未完成页面禁用并说明，前四个只关联 issue、不自动关闭。可先准备后继分支，不能将未合入合同当 main 已有能力。
+
+PR2c 验收完成是 PR3 的前置；PR3 提交前补齐整条原生流程证据，删除独占旧测试前保留等价领域断言。Core 合同、客户端和退役可分别回退；PR3 的代码回退不恢复受支持的旧协议。只有 PR3 经 Master 复核并合并、全部必需验收完成后才关闭 #10。PR 切分是计划，不代表本轮已获推送/合并授权。
 
 文档涉及：`README.md`、`docs/native-client-design-v0.3.md`、`docs/operations.md`、`docs/testing.md`、`docs/repository-layout.md`、`docs/README.md`、`docs/api/v1/README.md`，以及新增原生构建/使用手册与能力迁移记录。涉及合同则从源 schema 同步生成类型/OpenAPI/样例。根 `package.json` 增加原生命令并清理旧入口，`.github/workflows/verify.yml` 增加 macOS 构建/Swift 测试 job，保留 Linux Core/PostgreSQL 门禁。
 
@@ -149,13 +204,33 @@ Issue #10 完成条件：原生必需流程和上表验收完成、能力迁移�
 ## 11. 风险与处理
 
 - 简洁 UI 不能隐藏长审批参数或恢复操作：详情按需展开，但所有实际操作与范围提交前完整可读。
-- 本机仅已确认 CLT：阶段 A 先核验完整 Xcode、scheme、app bundle 与通知条件；环境缺口单独报告，不默认安装大型工具或更改全局开发目录。
+- Xcode 16.4 由 Master 准备：Codex 在工具就绪后核验固定版本、scheme、app bundle 与通知条件，不安装工具、不更改全局开发目录；缺口未解决时不启动原生构建验收，也不降级验收范围。
 - 旧客户端测试混有业务断言：逐项映射迁移后再删旧链，不能靠删失败测试得到绿色。
 - 缓存与系统通知跨进程窗口无法天然原子：保留请求身份、实际展示证据与可重放同步，不夸大成功/已读/去重保证。
-- 计划范围较大：按 A–E 分段交付和验证；若发现需改变领域语义或新增服务端能力，先明确差异及影响，不隐藏在 UI 实现中。
+- 计划范围较大：按 A0 与 A–E 分段交付和验证；若发现需改变领域语义或新增服务端能力，先明确差异及影响，不隐藏在 UI 实现中。
 
 ## 12. 执行记录
 
 - 2026-10-13：读取当前 issue/依赖、核对 main 与源码，完成领取和计划分支；记录简洁 UI 与后续美学设计要求。
 - 本轮只新增本计划与计划索引。未修改业务代码、运行 Swift/Core 业务测试、启动服务、删除旧入口或部署。
 - 静态检查：`npm run docs:check` 通过（215 份 Markdown、3243 个本地链接、0 错误）；`git diff --cached --check` 通过。定向敏感信息检查仅命中公开 Git 提交指纹，未纳入本地历史报告或运行数据。实施和全部功能验收均待 Master 确认。
+
+## 13. 2026-10-13 审核意见评估
+
+审核对象为计划提交 `91b8601`；报告 `review_20261013_fix-plan_issue10_native_client.md`，审核人 Ayanami Rei。本轮只修订计划，未开始业务实现。
+
+| 意见 | 决定与理由 | 落点 |
+| --- | --- | --- |
+| B1 工具链 | 采纳固定工程/工具链要求；Master 已承担安装，采用 Xcode 16.4 + app target/Package，非手工 bundle 降级；纠正 VoiceOver 必须依赖 Xcode 的过强表述 | §3 |
+| B2 已知合同缺口 | 采纳；已从源码确认参数/回执来源与 workspace_path，新增字段级清单、大小上限、证据边界和独立验收 | §7 A0 |
+| B3 PR 粒度 | 采纳并进一步将客户端分为底座、聊天、管理三 PR；最终退役独立，全部验收与 PR3 合并后才关闭 | §9 |
+| 建议 1 缓存简化 | 部分采纳：只保留最近窗口与必要详情，其他重建；对外两项磁盘预算。保留内部内存/SSE 硬上限，避免无界流量，不引入额外 LRU 层 | §6 |
+| 建议 2 Markdown | 采纳，选 swift-markdown 0.6.0 并锁传递依赖；许可证准确记为 Apache-2.0 with Runtime Library Exception | §7 |
+| 建议 3 通知 | 不按原回调方案采纳：willPresent 在展示前，didReceive 为用户响应。保留系统通知中心存在性或实际应用内可见证据；改为有限次数核对，仍不把 presented 当 read | §6 |
+| 建议 4 恢复范围 | 采纳标明来源的要求，保留现有 resume/承诺裁定以满足迁移门槛；不增加新的领域能力或主页控制台 | §8 |
+| 建议 5 旧源码 | 采纳，独占死代码删除，Git 历史保留参考；共享领域代码与业务断言必须保留/迁移 | §8 |
+| 建议 6 架构认可 | 保持 endpoint/数据域隔离、三类 cursor 和 request_id 对账；本轮不扩远端部署 | §5–6 |
+
+复审状态：B1 的工程与工具链方案已明确，环境安装仍待 Master；B2/B3 及非阻断建议已在计划落实。文档修订不等于环境已安装或实现已通过验收，整体仍为 PLAN_ONLY / WAITING_FOR_MASTER_APPROVAL。
+
+本轮复审修订的静态检查：`npm run docs:check` 通过（215 份 Markdown、3243 个本地链接、0 错误），`git diff --check` 通过；仅改本计划，未运行业务测试或操作 Xcode 环境。
