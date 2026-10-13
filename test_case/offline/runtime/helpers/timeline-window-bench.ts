@@ -14,16 +14,8 @@ const app = await App.open(dir),
 const headers = {
   Authorization: `Bearer ${server.endpoint.token}`,
   "Content-Type": "application/json",
+  "X-Secretary-API-Version": "1",
 };
-const client = (
-  await (
-    await fetch(server.endpoint.url + "/api/client", {
-      method: "POST",
-      headers,
-      body: "{}",
-    })
-  ).json()
-).client;
 const session = app.host.sessionID,
   scope = { session_id: session, task_id: null, execution_id: null },
   ref = app.store.put({ synthetic: true });
@@ -122,21 +114,20 @@ try {
                 ];
             const start = performance.now();
             const response = await fetch(
-              server.endpoint.url + "/api/timeline",
-              {
-                method: "POST",
-                headers,
-                body: JSON.stringify({
-                  client,
-                  options: { locate, thinking: true },
+              server.endpoint.url +
+                "/api/v1/timeline/around?" +
+                new URLSearchParams({
+                  message_id: locate,
+                  thinking: "true",
+                  limit: "200",
                 }),
-              },
+              { headers },
             );
             const body = await response.text();
             times.push(performance.now() - start);
             payloads.push(Buffer.byteLength(body));
             assert(response.ok, body);
-            const page = JSON.parse(body);
+            const page = JSON.parse(body).data;
             assert(page.items.length <= 200);
             assert(page.items.some((m: any) => m.id === locate));
             assert(Buffer.byteLength(body) <= 1048576);
@@ -155,68 +146,6 @@ try {
         pass: times[95] <= 100,
       });
     }
-    let browserPaint;
-    if (process.env.PLAYWRIGHT_MODULE) {
-      const { chromium } = await import(process.env.PLAYWRIGHT_MODULE);
-      const browser = await chromium.launch({
-        channel: "chrome",
-        headless: true,
-      });
-      try {
-        const page = await browser.newPage({
-          viewport: { width: 1280, height: 950 },
-        });
-        await page.goto(server.endpoint.url + "/#" + server.endpoint.token);
-        await page.waitForSelector("[data-timeline-id]");
-        await page.evaluate(async () => {
-          const modulePath = "/timeline-view.js";
-          const { TimelineView } = await import(modulePath);
-          const sync = TimelineView.prototype.sync;
-          TimelineView.prototype.sync = function (...args: any[]) {
-            (window as any).probe = this;
-            return sync.apply(this, args);
-          };
-        });
-        await page.waitForFunction(() => (window as any).probe);
-        const times = [];
-        for (let n = 0; n < 100; n++)
-          times.push(
-            await page.evaluate(
-              async (locate: string) => {
-                const v = (window as any).probe,
-                  request = v.request;
-                let at = 0;
-                v.request = async (...args: any[]) => {
-                  const value = await request(...args);
-                  if (args[0].locate === locate) at = performance.now();
-                  return value;
-                };
-                await v.open(locate);
-                await new Promise((r) =>
-                  requestAnimationFrame(() => requestAnimationFrame(r)),
-                );
-                v.request = request;
-                if (v.nodes.size > 150 || v.cache.items.length > 2000)
-                  throw Error("unbounded renderer");
-                return performance.now() - at;
-              },
-              ids[((Math.imul(n + 37, 7919) >>> 0) % (ids.length - 200)) + 100],
-            ),
-          );
-        times.sort((a, b) => a - b);
-        browserPaint = {
-          chrome: browser.version(),
-          queries: 100,
-          p50_ms: times[50],
-          p95_ms: times[95],
-          max_ms: times.at(-1),
-          pass: times[95] <= 300,
-        };
-        assert(browserPaint.pass, "response-to-visible P95 exceeds 300ms");
-      } finally {
-        await browser.close();
-      }
-    }
     app.store.read = read;
     measurements.push({
       size,
@@ -225,7 +154,6 @@ try {
       incremental_cas_reads: coldReads,
       incremental_index_heap_bytes: heapDelta,
       diagnostics: timeline.diagnostics(),
-      browser_paint: browserPaint,
       cases,
     });
     save();

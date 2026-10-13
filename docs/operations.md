@@ -17,7 +17,7 @@ npm run stop
 
 自定义目录使用 `SECRETARY_DATA`，各管理命令保持相同目录和模式。`core-endpoint.json` 保存端口、实例和本机 token，`core.log` 保存日志，两者权限为 0600。CLI 输出状态和回执。
 
-当前交互入口为 Core API v1。旧 Web/TUI 启动命令已退役，SwiftUI 的实现安排在 #10。
+日常交互使用 [SwiftUI 客户端](../src/secretary_macos/README.md)。连接页可启动/附着/停止 Core，退出应用或关闭窗口不停止已经受理的后台工作。旧 Web/TUI 源码、静态页面和 npm 启动入口已退役；旧 HTTP 路径返回 404，`start:live -- --web` 明确失败。迁移不删除 Store、World 或用户缓存。
 
 ## 真实模型模式
 
@@ -68,6 +68,29 @@ SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 
 DIRECTORY Scope 选择已存在的物理根目录，和其他活动范围、Core 数据及仍占用的旧绑定保持分离。NONE 为分组，各任务使用独立目录。归档保留历史和已启动执行。
 
+## 低频管理示例
+
+程序登记和 World 初始化使用公开 API v1。在已启动的同目录 Core 上执行以下合成示例；程序入口应是经过检查的本机文件。
+
+```sh
+SECRETARY_DATA=.demo-data node --import tsx --input-type=module <<'JS'
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { attachCore } from './src/pi_secretary/src/core-client.ts';
+const client = await attachCore(path.resolve(process.env.SECRETARY_DATA));
+if (!client) throw Error('Core 未运行');
+console.log(await client.command('admin/programs', {
+  request_id: randomUUID(), name: 'Synthetic report generator',
+  entrypoint: path.resolve('src/pi_secretary/examples/report.mjs'),
+}));
+console.log(await client.query('admin/programs'));
+// 仅在 Core 已配置指定 World 数据库时执行：
+// console.log(await client.command('admin/world/migrate', { request_id: randomUUID() }));
+JS
+```
+
+程序登记/运行由 `runtime/native-retirement.test.ts` 验证；迁移与 World 增改撤回、冲突恢复由 `issue8/world.test.ts` 和原生 PG 探针验证。日常任务、审批、规则、记忆及恢复仍在 SwiftUI 操作，不需要手写 API。模型或数据库异常时先查看连接页、维护状态和 Core 私有日志；不把新 request_id 当作未知命令的重试。
+
 ## 状态与处理
 
 | 状态或错误 | 后续处理 |
@@ -80,7 +103,7 @@ DIRECTORY Scope 选择已存在的物理根目录，和其他活动范围、Core
 | Settings BLOCKED | 核对原配置、数据库批次回执，继续桥接和重建 |
 | journal/CAS 错误 | 保存完整副本，定位损坏帧或缺失对象 |
 
-时间线支持 streaming/thinking 开关；预览随当前进程存在，最终消息保存到 journal/CAS。可靠增量同步和通知展示回执安排在后续开发路线。
+时间线支持 streaming/thinking 开关；预览随当前进程存在，最终消息保存到 journal/CAS。可靠增量同步使用持久游标；通知实际可见后记录 presented，明确标记已读才记录 read。渠道 state 与展示/已读分开。
 
 ## 备份与升级
 

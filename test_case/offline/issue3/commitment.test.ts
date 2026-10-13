@@ -7,7 +7,6 @@ import { contentText } from "@earendil-works/pi-ai";
 import { App } from "../../../src/pi_secretary/src/app.ts";
 import { base, id, now, revise } from "../../../src/pi_secretary/src/store.ts";
 import { ApplicationService } from "../../../src/pi_secretary/src/application-service.ts";
-import { TerminalController } from "../../../src/pi_secretary/src/tui.ts";
 import { emptySettings } from "../../../src/pi_secretary/src/settings-payload.ts";
 import { getInstructions } from "../../../src/pi_secretary/src/instructions.ts";
 import { reconcileCommitments } from "../../../src/pi_secretary/src/memory.ts";
@@ -180,34 +179,31 @@ function resolve(app: App, eventID: string, cs = memory(app), end = Infinity) {
   )[0].state;
 }
 
-test("Issue9 TUI: actual presentation atomically records SENT and evidence; maintenance completes reporting after restart", async () => {
+test("Issue9 API: presentation and admission are atomic; maintenance completes reporting after restart", async () => {
   await fixture(async ({ app, result, propose, reopen }) => {
     await introduce(app);
     const queued = await queue(app, result);
-    const output: string[] = [];
+    let api = new ApplicationService(app);
+    const registration = api.command(api.principal, "clients", {
+      request_id: id(),
+      name: "Synthetic native client",
+    });
+    const clientID = registration.resource_ids.find(
+      (r) => r.type === "ClientRegistration",
+    )!.id;
+    const request = { request_id: id(), client_id: clientID };
+    const route = `notifications/${queued.id}/presented`;
     const inputs = app.store.all("Input").length;
     const calls = app.store.all("ModelCall").length;
-    const ui = new TerminalController(app, (text) => output.push(text));
-    ui.refresh();
-    assert(
-      output.some((text) => text.includes(`${result.task_id}: SUCCEEDED`)),
-    );
+    api.command(api.principal, route, request);
     const event = app.store.logs.findLast(
       (e) => e.event_type === "notification.presented",
-    );
-    assert(
-      event,
-      "a successful TUI display must persist presentation evidence",
-    );
-    const payload = app.store.read<{ client_id: string; presented_at: string }>(
-      event.payload,
-    );
-    const client = app.store.get<ClientRegistration>(
-      "ClientRegistration",
-      payload.client_id,
-    );
+    )!;
+    assert(event);
+    const payload = app.store.read<{ client_id: string }>(event.payload);
     assert.equal(
-      client.owner_id,
+      app.store.get<ClientRegistration>("ClientRegistration", payload.client_id)
+        .owner_id,
       app.store.all<CoreIdentity>("CoreIdentity")[0].owner_id,
     );
     const transaction = app.store.projectionFrames.find((t) =>
@@ -216,33 +212,32 @@ test("Issue9 TUI: actual presentation atomically records SENT and evidence; main
     assert(
       transaction.mutations.some(
         (m) =>
-          m.object_type === "Notification" &&
-          m.object_id === queued.id &&
-          app.store.read<Notification>(m.snapshot).state === "SENT",
+          m.object_type === "ApiCommand" && m.object_id === request.request_id,
       ),
+    );
+    // API v1 keeps transport state separate from actual presentation and explicit read.
+    assert.equal(
+      app.store.get<Notification>("Notification", queued.id).state,
+      "QUEUED",
+    );
+    assert.equal(
+      app.store.get<Notification>("Notification", queued.id).read_at ?? null,
+      null,
     );
     assert.equal(app.store.all("Input").length, inputs);
     assert.equal(app.store.all("ModelCall").length, calls);
     assert.equal(memory(app).commitments![0].state, "OPEN");
     const sequence = app.store.sequence;
-    ui.refresh();
-    assert.equal(
-      app.store.sequence,
-      sequence,
-      "refresh does not repeat presentation writes",
-    );
+    api.command(api.principal, route, request);
+    assert.equal(app.store.sequence, sequence);
+    await api.close();
     app = await reopen();
-    const sent = app.store.get<Notification>("Notification", queued.id);
-    app.store.commit([revise(sent, { state: "QUEUED" })]);
-    new TerminalController(app, () => {}).refresh();
+    api = new ApplicationService(app);
+    api.command(api.principal, route, { ...request, request_id: id() });
     const events = app.store.logs.filter(
       (e) => e.event_type === "notification.presented",
     );
-    assert.equal(
-      events.length,
-      1,
-      "the stable local client retains first evidence across restart",
-    );
+    assert.equal(events.length, 1);
     assert.deepEqual(
       app.store.read(events[0].payload),
       app.store.read(event.payload),
@@ -251,6 +246,7 @@ test("Issue9 TUI: actual presentation atomically records SENT and evidence; main
       app.store.all<ClientRegistration>("ClientRegistration").length,
       1,
     );
+    await api.close();
     propose(event.event_id);
     app.host.accept("Review the displayed synthetic result.");
     await app.host.drain();
@@ -262,27 +258,27 @@ test("Issue9 TUI: actual presentation atomically records SENT and evidence; main
   });
 });
 
-test("Issue9 TUI: a failed display does not mark SENT or fabricate presented evidence", async () => {
+test("Issue9 API: querying a notification without display creates no presentation evidence", async () => {
   await fixture(async ({ app, result }) => {
     const queued = await queue(app, result);
-    const ui = new TerminalController(app, (text) => {
-      if (text.startsWith("Secretary · 通知 › "))
-        throw Error("SYNTHETIC_DISPLAY_FAILURE");
-    });
-    assert.throws(() => ui.refresh(), /SYNTHETIC_DISPLAY_FAILURE/);
-    assert.equal(
-      app.store.get<Notification>("Notification", queued.id).state,
-      "QUEUED",
-    );
-    assert(
-      !app.store.logs.some((e) => e.event_type === "notification.presented"),
-    );
-    new TerminalController(app, () => {}).refresh();
-    assert.equal(
-      app.store.logs.filter((e) => e.event_type === "notification.presented")
-        .length,
-      1,
-    );
+    const api = new ApplicationService(app);
+    try {
+      const detail = (await api.query(
+        api.principal,
+        `notifications/${queued.id}`,
+      )) as any;
+      assert(detail.content.text.includes(result.task_id));
+      assert.equal(
+        app.store.get<Notification>("Notification", queued.id).state,
+        "QUEUED",
+      );
+      assert(
+        !app.store.logs.some((e) => e.event_type === "notification.presented"),
+      );
+      assert.deepEqual(detail.presented, []);
+    } finally {
+      await api.close();
+    }
   });
 });
 

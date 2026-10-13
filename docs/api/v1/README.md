@@ -127,3 +127,7 @@ GET notifications 和 notifications/{id} 返回同一全局集合；read_at 缺�
 POST notifications/{id}/presented 接受 request_id/client_id，client 必须已在同一数据域注册。首个 notification.presented 日志事件与 ApiCommand 同事务保存；事件 ID 由通知/客户端确定，payload 只含通知 ID、客户端 ID 和服务端时间，未新增业务记录或快照。相同展示对换 request_id 为 NO_CHANGES；相同 request_id 沿用原回执和冲突语义。POST notifications/{id}/read 只接受 request_id，首次 read_at 全局单调保持。展示与已读分别上报，均不改变发送状态或触发 Input、模型和工具。展示证据不绑定通知 revision，内容/session/delivery_key 固定，read/发送进度不会使证据失效。
 
 所有同步/资源 GET 纯读；启动恢复和后台业务另计。SwiftUI 的缓存、水位、乱序刷新和真实系统展示由 #10 接入；#22 渠道状态不能代报 presented/read。
+
+## 原生入口与旧客户端退役
+
+SwiftUI 是当前日常入口；Core API v1、Core CLI 与公开管理路径继续支持无 UI 运行。旧 `/api/client`、`/api/command`、`/api/poll` 和 Web 静态路径不提供兼容层。通知 `presented` 与受理记录同事务，但不改变 Notification 渠道 state/receipt；`read` 独立。旧 TUI 的本地渠道 SENT 更新已随旧渲染器退役，不作为 API 展示或承诺完成证据。详见[运行手册](../../operations.md)及[迁移账表](../../fix/evidence/issue10-pr3b-migration-20261014.txt)。

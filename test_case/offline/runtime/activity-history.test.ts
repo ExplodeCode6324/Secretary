@@ -11,7 +11,6 @@ import {
   activityHistoryFor,
 } from "../../../src/pi_secretary/src/activity-history.ts";
 import { conversation, serve } from "../../../src/pi_secretary/src/backend.ts";
-import { api } from "../../../src/pi_secretary/src/ui-client.ts";
 import {
   fixtureModel,
   fixtureStream,

@@ -4,8 +4,6 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { App } from "../../../src/pi_secretary/src/app.ts";
-import { activityLine } from "../../../src/pi_secretary/src/activity-terminal.ts";
-import type { Activity } from "../../../src/pi_secretary/src/activity.ts";
 import type { Execution } from "../../../src/pi_secretary/src/contracts.ts";
 import {
   fixtureModel,
@@ -14,17 +12,6 @@ import {
 } from "../../../src/pi_secretary/src/model.ts";
 import { id, revise } from "../../../src/pi_secretary/src/store.ts";
 
-const source = fs.readFileSync(
-  new URL("../../../src/pi_secretary/web/activity.js", import.meta.url),
-  "utf8",
-);
-const { ActivityView } = await import(
-  "data:text/javascript;base64," + Buffer.from(source).toString("base64")
-);
-const renderers = [
-  activityLine,
-  (a: Activity, at: number) => ActivityView.prototype.text(a, at),
-];
 const started = "2026-10-05T00:00:00.000Z";
 const ended = "2026-10-05T00:00:42.000Z";
 
@@ -58,11 +45,6 @@ test("failed task elapsed uses durable timestamps before and after restart", asy
         app.activitySnapshot().activities.find((item) => item.id === a.id),
         a,
       );
-      for (const render of renderers) {
-        const before = render(a, Date.parse(ended) + 1000);
-        assert.match(before, /已用 42 秒/);
-        assert.equal(render(a, Date.parse(ended) + 86400000), before);
-      }
       if (!iteration) {
         await app.close();
         app = await App.open(dir, options);
@@ -71,49 +53,6 @@ test("failed task elapsed uses durable timestamps before and after restart", asy
   } finally {
     await app.close();
     fs.rmSync(dir, { recursive: true, force: true });
-  }
-});
-
-test("Web and TUI freeze terminal records without ended_at but keep live clocks running", () => {
-  const a: Activity = {
-    id: "task:synthetic",
-    parent_id: null,
-    session_id: "synthetic",
-    execution_id: "synthetic",
-    scope: "background",
-    kind: "task",
-    phase: "任务处理失败",
-    status: "failed",
-    version: 1,
-    started_at: started,
-    last_progress_at: ended,
-    ended_at: null,
-    actions: ["tasks"],
-  };
-  for (const render of renderers) {
-    for (const status of [
-      "failed",
-      "succeeded",
-      "interrupted",
-      "cancelled",
-    ] as const) {
-      const terminal = { ...a, status };
-      assert.match(render(terminal, Date.parse(ended) + 1000), /已用 42 秒/);
-      assert.equal(
-        render(terminal, Date.parse(ended) + 1000),
-        render(terminal, Date.parse(ended) + 86400000),
-      );
-    }
-    for (const status of ["running", "waiting"] as const) {
-      assert.match(
-        render({ ...a, status }, Date.parse(ended) + 1000),
-        /已用 43 秒/,
-      );
-      assert.match(
-        render({ ...a, status }, Date.parse(ended) + 2000),
-        /已用 44 秒/,
-      );
-    }
   }
 });
 
@@ -155,11 +94,6 @@ test("completed task history uses execution end time even when observed later", 
     assert.equal(completed.status, "succeeded");
     assert.equal(completed.started_at, started);
     assert.equal(completed.ended_at, ended);
-    for (const render of renderers)
-      assert.match(
-        render(completed, Date.parse(ended) + 86400000),
-        /已用 42 秒/,
-      );
   } finally {
     release();
     await app.close();

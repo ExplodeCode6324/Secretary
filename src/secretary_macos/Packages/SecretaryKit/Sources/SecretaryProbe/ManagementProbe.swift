@@ -146,6 +146,28 @@ extension Probe {
       let resolved = try await get(MOperation.self, "operations/" + id)
       try require(resolved.resolution?.outcome == outcome.rawValue, "resolution outcome")
     }
+    _ = try await send(.simple(.retryExtraction))
+    let messageID = UUID().uuidString.lowercased()
+    _ = try await transport.request(
+      Route("messages"),
+      body: JSONSerialization.data(withJSONObject: [
+        "request_id": messageID,
+        "text": "Remember this synthetic native acceptance constraint: no external payments.",
+      ]))
+    try await Task.sleep(for: .milliseconds(500))
+    let compact = try await send(.simple(.compact))
+    for _ in 0..<200 {
+      let receipt = try await get(RequestStatus.self, "requests/" + compact.request_id).receipt
+      if receipt.state == "COMPLETED" { break }
+      try require(receipt.state != "UNKNOWN", "memory compaction did not fail")
+      try await Task.sleep(for: .milliseconds(50))
+    }
+    let compacted = try await get(RequestStatus.self, "requests/" + compact.request_id).receipt
+    try require(compacted.state == "COMPLETED", "memory compaction reaches a durable result")
+    let memory = try await get(MMemoryStatus.self, "memory")
+    try require(memory.state == "COMMITTED", "controlled model committed memory")
+    _ = try await send(.simple(.resume))
+    print("PASS: controlled-model memory compaction completed and committed; resume accepted")
     print("management: shared settings conflicts")
     let settings = try await get(MSettings.self, "settings")
     let payload: JSONValue = .object([
@@ -245,9 +267,6 @@ extension Probe {
         "PASS: real isolated World entity/assert/correct/retract, historical facts, exact slot, CAS failure, retry and restore"
       )
     }
-    _ = try await send(.simple(.retryExtraction))
-    _ = try await send(.simple(.compact))
-    _ = try await send(.simple(.resume))
     print("management: authenticated artifact cache")
     let page = try await get(
       MArtifactPage.self, "artifacts", ["limit": "1", "task_id": manifest["task"].string!])

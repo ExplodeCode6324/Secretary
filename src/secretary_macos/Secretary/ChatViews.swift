@@ -262,7 +262,7 @@ struct MessageBody: View {
       .environment(
         \.openURL,
         OpenURLAction { url in
-          ["https", "http"].contains(url.scheme?.lowercased() ?? "") ? .systemAction : .discarded
+          ChatMarkdown.safeLink(url.absoluteString) != nil ? .systemAction : .discarded
         })
   }
   @ViewBuilder private func blockView(_ block: MarkdownBlock) -> some View {
@@ -341,6 +341,8 @@ private struct RowFrames: PreferenceKey {
 private struct TranscriptRows: View {
   let items: [ChatItem]
   let previewStates: [String: String]
+  let activitiesOnline: Bool
+  let confirmedAt: Date?
   let expandedThinking: Set<String>
   let expandThinking: (String, Bool) -> Void
   let fontSize: Double
@@ -379,8 +381,13 @@ private struct TranscriptRows: View {
             if item.incomplete == true { Text("未完整完成").foregroundStyle(.secondary) }
             if item.next_cursor != nil { Button("继续读取正文") { more(item) } }
           } else if let activity = item.activity {
-            Text((activity.phase ?? activity.id) + " · " + (activity.status ?? "未知状态"))
-              .textSelection(.enabled)
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+              let display = activity.presentation(
+                at: context.date, online: activitiesOnline, confirmedAt: confirmedAt)
+              let elapsed = display.elapsed.map { " · 已用 \($0) 秒" } ?? ""
+              Text((activity.phase ?? activity.id) + " · " + display.status + elapsed)
+                .textSelection(.enabled)
+            }
           } else {
             Text("未知记录类型：" + item.kind)
           }
@@ -428,6 +435,7 @@ struct TranscriptView: NSViewRepresentable {
     let width = max(200, scroll.contentSize.width)
     let root = TranscriptRows(
       items: chat.window.items, previewStates: chat.previewStates,
+      activitiesOnline: chat.online && chat.activitiesConfirmed, confirmedAt: chat.confirmedAt,
       expandedThinking: chat.expandedThinking, expandThinking: chat.setThinkingExpanded,
       fontSize: fontSize,
       frames: { frames in

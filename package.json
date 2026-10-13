@@ -12,8 +12,6 @@
     "start:live": "tsx src/pi_secretary/scripts/start-live.ts",
     "test:live": "tsx test_case/online/test-live.ts",
     "test:review": "tsx --test \"test_case/offline/audit/*.test.ts\"",
-    "start:web": "tsx src/pi_secretary/src/legacy-client-unavailable.ts",
-    "start:web:live": "tsx src/pi_secretary/scripts/start-live.ts --web",
     "test:instructions:live": "tsx test_case/online/test-instructions-live.ts",
     "stop": "tsx src/pi_secretary/src/core-cli.ts stop",
     "types:generate": "node src/pi_secretary/scripts/generate-types.mjs",

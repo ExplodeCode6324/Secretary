@@ -4,7 +4,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { App } from "../../../src/pi_secretary/src/app.ts";
-import { TerminalController } from "../../../src/pi_secretary/src/tui.ts";
+import { ApplicationService } from "../../../src/pi_secretary/src/application-service.ts";
+import { id } from "../../../src/pi_secretary/src/store.ts";
 import { revise, Store } from "../../../src/pi_secretary/src/store.ts";
 import {
   fixtureModel,
@@ -55,7 +56,7 @@ test("rejected multi-record transaction changes neither journal nor projection",
     }
   }));
 
-test("queued notification survives restart and becomes SENT only on TUI presentation", async () => {
+test("queued notification survives restart and records API presentation once, independently of read", async () => {
   const stream: StreamFn = (model, context, options) =>
     context.messages.some((m) => m.role === "toolResult")
       ? fixtureStream(model, context, options)
@@ -82,17 +83,36 @@ test("queued notification survives restart and becomes SENT only on TUI presenta
       stream: fixtureStream,
     });
     try {
-      const output: string[] = [];
-      const tui = new TerminalController(restored, (text) => output.push(text));
-      tui.refresh();
-      tui.refresh();
-      assert.equal(
-        output.filter((text) => text.includes("durable notification")).length,
-        1,
-      );
-      const sent = restored.store.get<Notification>("Notification", n.id);
-      assert.equal(sent.state, "SENT");
-      assert(sent.receipt);
+      const api = new ApplicationService(restored);
+      try {
+        const registration = api.command(api.principal, "clients", {
+          request_id: id(),
+          name: "Synthetic client",
+        });
+        const client_id = registration.resource_ids.find(
+          (r) => r.type === "ClientRegistration",
+        )!.id;
+        const detail = (await api.query(
+          api.principal,
+          `notifications/${n.id}`,
+        )) as any;
+        assert.equal(detail.content.text, "durable notification");
+        assert.deepEqual(detail.presented, []);
+        for (let i = 0; i < 2; i++)
+          api.command(api.principal, `notifications/${n.id}/presented`, {
+            request_id: id(),
+            client_id,
+          });
+        const displayed = (await api.query(
+          api.principal,
+          `notifications/${n.id}`,
+        )) as any;
+        assert.equal(displayed.presented.length, 1);
+        assert.equal(displayed.read_at, null);
+        assert.equal(displayed.state, "QUEUED");
+      } finally {
+        await api.close();
+      }
     } finally {
       await restored.close();
     }

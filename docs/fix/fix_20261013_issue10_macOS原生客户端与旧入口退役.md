@@ -1,8 +1,8 @@
 # Issue #10：macOS 原生客户端与旧入口退役
 
-状态：**PR2c 已合并 / PR3a 实施中**。PR #40、#41、#42、#43 已合并；最新主线 merge `89710d2ae3c5cca005e2c58c7683ea897bc674ac`，合并后三项 CI 均通过。Issue #10 保持开放。连接、聊天及日常管理见 [PR2a](fix_20261013_issue10_PR2a原生连接底座.md)、[PR2b](fix_20261013_issue10_PR2b聊天与导航.md)、[PR2c](fix_20261013_issue10_PR2c日常管理.md)；下一阶段见 [PR3 原生联合验收与旧入口退役](fix_20261014_issue10_PR3原生联合验收与旧入口退役.md)。下文保留各阶段最初规划与历史记录，当前基线、剩余验收和实施授权以 PR3 计划为准。
+状态：**PR3a 已合并 / PR3b 本地验收完成，待 PR/CI 复核**。PR #40–#44 已合并；最新主线 merge `4c61c30d921ae927ce57f65ea5d53e45c43d37e4`，合并后三项 CI 均通过。Issue #10 保持开放。连接、聊天及日常管理见 [PR2a](fix_20261013_issue10_PR2a原生连接底座.md)、[PR2b](fix_20261013_issue10_PR2b聊天与导航.md)、[PR2c](fix_20261013_issue10_PR2c日常管理.md)；下一阶段见 [PR3 原生联合验收与旧入口退役](fix_20261014_issue10_PR3原生联合验收与旧入口退役.md)。下文保留各阶段最初规划与历史记录，当前基线、剩余验收和实施授权以 PR3 计划为准。
 
-关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13；当前进度更新于 2026-10-14。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前实施分支：`codex/issue10-native-download-contract`，在 secretary-core 原工作目录实施 PR3a，不创建独立工作区。
+关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13；当前进度更新于 2026-10-14。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前实施分支：`codex/issue10-pr3b-retirement`，在 secretary-core 原工作目录实施 PR3b，不创建独立工作区。
 
 ## 1. 目标、授权与基线
 
@@ -304,3 +304,8 @@ PR1 使用 `Refs #10`，不关闭 Issue；CI 必须为最终 head、fail=0、ski
 ## 17. PR2c 日常管理本地验收
 
 日常管理实现与本机验收已完成：31 项 Swift 测试、真实 Core HTTP／隔离 PostgreSQL World 探针、3 项管理 GUI 和原 7 项聊天／窗口 GUI 全部通过。能力迁移与使用说明见 [原生手册](../../src/secretary_macos/README.md)，首次失败、最终日志与源码指纹见 [PR2c 证据](evidence/issue10-pr2c-20261013.txt)。最终 PR head 的三项 CI 与 Master 复核仍是独立发布门槛；本阶段不合并、不关闭 Issue #10、不删除旧入口或部署，PR3 保留完整替代联合验收。
+
+
+### PR3b 当前交付
+
+PR3a 已由 PR44 合入。PR3b 基于 `4c61c30` 继续，迁移领域断言、补齐原生替代缺口后按 G-retire 删除旧 Web/TUI 独占链。默认日常入口改为 SwiftUI；Core CLI/API 和历史数据保持。通知沿用现有 API v1 的渠道状态/展示证据/已读分离合同，具体差异与每项测试对应见 [PR3 计划 §11](fix_20261014_issue10_PR3原生联合验收与旧入口退役.md#11-pr3b-实施记录2026-10-14) 和[迁移账表](evidence/issue10-pr3b-migration-20261014.txt)。PR3c 与最终关闭 #10 单独验收。

@@ -5,6 +5,8 @@ const directory = path.resolve(process.env.SECRETARY_DATA ?? ".demo-data");
 const command = process.argv[2] ?? "status";
 if (!["start", "attach", "status", "stop"].includes(command))
   throw Error("Usage: core start|attach|status|stop");
+if (process.argv.length > 3)
+  throw Error("Unexpected Core arguments; use core start|attach|status|stop");
 const client =
   command === "start"
     ? await startCore(directory)

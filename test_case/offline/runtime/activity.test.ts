@@ -19,7 +19,6 @@ import {
   type StreamFn,
 } from "../../../src/pi_secretary/src/model.ts";
 import { serve } from "../../../src/pi_secretary/src/backend.ts";
-import { api } from "../../../src/pi_secretary/src/ui-client.ts";
 import { id, revise } from "../../../src/pi_secretary/src/store.ts";
 import { emptySettings } from "../../../src/pi_secretary/src/settings-payload.ts";
 import { getInstructions } from "../../../src/pi_secretary/src/instructions.ts";

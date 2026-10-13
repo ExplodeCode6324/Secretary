@@ -7,7 +7,6 @@ import path from "node:path";
 import { contentText } from "@earendil-works/pi-ai";
 import { App } from "../../../src/pi_secretary/src/app.ts";
 import { serve } from "../../../src/pi_secretary/src/backend.ts";
-import { api } from "../../../src/pi_secretary/src/ui-client.ts";
 import { hash, id } from "../../../src/pi_secretary/src/store.ts";
 import {
   getInstructions,

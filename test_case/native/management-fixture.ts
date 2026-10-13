@@ -19,6 +19,7 @@ import type {
   Execution,
   TaskResult,
   AssistantProfile,
+  Notification,
 } from "../../src/pi_secretary/src/contracts.ts";
 
 async function run(dsn?: string) {
@@ -32,6 +33,22 @@ async function run(dsn?: string) {
     dsn,
   );
   if (app.world) await app.world.migrate();
+  const notice: Notification = {
+    ...base(),
+    schema_version: 1,
+    record_type: "Notification",
+    session_id: app.host.sessionID,
+    channel: "local-ui",
+    state: "QUEUED",
+    message: app.store.put(
+      "Native synthetic visible notification",
+      "text/plain",
+    ),
+    delivery_key: id(),
+    receipt: null,
+    requested_at: new Date().toISOString(),
+  };
+  app.store.commit([notice]);
   if (process.argv[2] === "--ui") {
     for (let n = 0; n < 35; n++)
       app.scheduler.scopes.save({
@@ -216,6 +233,21 @@ async function run(dsn?: string) {
   const refreshTimer =
     process.argv[2] === "--ui"
       ? setInterval(() => {
+          const presented = app.store.logs.filter(
+            (e) =>
+              e.event_type === "notification.presented" &&
+              app.store.read<any>(e.payload).notification_id === notice.id,
+          );
+          const state = app.store.get<Notification>("Notification", notice.id);
+          const target = path.join(root, "notice-state.json");
+          fs.writeFileSync(
+            target + ".tmp",
+            JSON.stringify({
+              presented: presented.length,
+              read: state.read_at != null,
+            }),
+          );
+          fs.renameSync(target + ".tmp", target);
           if (
             !interruptedDownload &&
             app.store

@@ -1,0 +1,153 @@
+Issue #10 PR3b assertion migration ledger (2026-10-14 HKT)
+Source baseline: 4c61c30d921ae927ce57f65ea5d53e45c43d37e4 (PR44 merged).
+Paths below are relative to repository root. Results and fingerprints are recorded
+in issue10-pr3b-20261014.txt after final validation. No historical log is rewritten.
+
+runtime = test_case/offline/runtime
+Swift = src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests
+GUI = src/secretary_macos/SecretaryUITests/SecretaryUITests.swift
+
+1. runtime/tui.test.ts (each old test)
+- TUI accepts chat, completes agent task and shows details without a network server
+  -> native-retirement.test.ts / API replacement: chat completes a task and exposes result details.
+  Chat input, task goal, SUCCEEDED and result remain. /quit return bool retires with TUI.
+- TUI requires explicit viewed approval and rejects stale displays; chat cannot approve
+  -> API replacement: approval requires exact displayed revision/hash; chat cannot approve; revoke persists.
+  Explicit GET card, literal parameters, missing tokens, bad hash, stale revision, approve, revoke.
+  Native approvalSnapshotAndRememberPreserveTokensRevisionAndNull + management approval GUI.
+- TUI strips terminal escape/control sequences from model output
+  -> Terminal escape execution/color is retired. Native uses text/Markdown, not a terminal.
+  retiredRendererUnsafeContentAndEveryStreamingPrefixAreInert retains content safety.
+- actual TUI process accepts input, quits cleanly and releases its store
+  -> program approval/rejection test checks real program output and reopened durable Operation.
+  issue8/api.test.ts lifecycle plus fixture-probe.mjs and window GUI prove independent Core lifetime.
+  Terminal prompt, P1/A1 handles and terminal shutdown strings retire.
+- visible authorization cards enable approval and rejection without copying IDs
+  -> API replacement: program approval creates output, rejection creates none, and completed operation survives restart.
+  WAIT_AUTH/no file, approval/SUCCEEDED/file, rejection/FAILED/no file preserved.
+  GUI testManagementApprovalAndUnknown uses native buttons and displayed card.
+- visible work decisions accept a short handle and retain Master provenance
+  -> API replacement: independent work decision retains Master provenance and completes execution.
+  Decision question, answer, MASTER and SUCCEEDED retained; D1 short handle retired.
+- TUI exposes program, rule, operation and advanced task entry points
+  -> API replacement: advanced task, programs, rules, operations and unavailable World remain explicit.
+  Advanced schedule/constraints retained; program registration real fixture path tested.
+  Domain rule behavior remains in issue17 and native management probe.
+
+2. issue3/commitment.test.ts and runtime/review.test.ts
+- Issue9 TUI: actual presentation atomically records SENT and evidence; maintenance completes reporting after restart
+  -> Issue9 API: presentation and admission are atomic; maintenance completes reporting after restart.
+  Preserves owner, one transaction, no model/input side effect, idempotent request, stable client,
+  restart dedup, same evidence payload, OPEN before maintenance and COMPLETED with original event.
+- Issue9 TUI: a failed display does not mark SENT or fabricate presented evidence
+  -> Issue9 API: querying a notification without display creates no presentation evidence;
+  Swift failedDisplayHasNoEvidenceAndVisiblePresentationDeduplicatesAfterRestart tests failed delivery,
+  successful visible proof, no implicit read and same pending command ID after reopen.
+- queued notification survives restart and becomes SENT only on TUI presentation
+  -> queued notification survives restart and records API presentation once, independently of read.
+  Core queued content, durable event dedup and explicit read separation retained.
+- Contract distinction (intentional, not an assertion silently removed): API v1 since Issue9
+  does NOT change Notification.state/receipt on POST presented. Existing issue9/notifications.test.ts
+  explicitly requires QUEUED and no Notification mutation. The retired local TUI channel's SENT
+  transition/result event is channel-specific; API admission + presentation event is atomic instead.
+  PR3b preserves this published contract, including old SENT-not-evidence negative tests.
+- New GUI checks list not opened => no event; visible synthetic row => exactly one event,
+  read remains false; explicit read => true without another presentation event.
+
+3. runtime/timeline-window.test.ts (each old test)
+- unified pages match independent mixed-history oracle in both directions and locate: retained.
+- page bytes and lossless UTF-8 body fragments are bounded without caching full bodies: retained.
+- late activity insertion refreshes loaded range and process generation invalidates cursors: retained.
+- cache scrolls 6000 items both ways, shares activity quota, enforces bytes and preserves protected anchor
+  -> Swift nativePageReplacementBoundsMixedHistoryAndPreservesReadingAnchor:
+  6000 mixed rows each direction, shared 200-row window, 16 MiB rejection preserves old page,
+  stale revision cannot replace current text, persisted anchor untouched.
+  Native uses page replacement (not the retired JS 2000-item sliding cache).
+- API v1 status avoids history body reads and timeline pages remain bounded: retained.
+- idle and loaded-range polling read no old bodies; task children and authorization stay session scoped: retained.
+- content budget evicts large UTF-8 entries before the count limit
+  -> same native page test rejects oversized incoming page without destroying previous page;
+  Foundation cacheEvictionDoesNotEvictProtectedRows covers disk cache eviction/protected data.
+- an initially empty client receives another client's first messages through its bounded delta: retained.
+- Reading behavior additionally covered by ChatTests editingPersistsBeforeQuitAndSendingClearsOnlyAfterCommit,
+  chatContentUsesOpaqueCursorAndPreservesUnicode, chatWindowMergesCallIdentityAndBoundsTheVisiblePage,
+  GUI testLatestFollowsReplyAndHistoryKeepsViewport.
+
+4. runtime/web-render.test.ts (each old test)
+- structured prose creates semantic headings, nested lists, quotes, code and aligned tables
+  -> ChatTests markdownKeepsCodeTablesAndHTMLInert + RetirementTests structured headings/table/rule.
+  SwiftUI list/quote/code rendering retained. HTML tags, DOM attributes, CSS alignment and ordered-list
+  start attributes are old renderer details; no DOM remains.
+- raw HTML, images and unsafe destinations are inert readable text
+  -> retiredRendererUnsafeContentAndEveryStreamingPrefixAreInert: no executable HTML/image fetch,
+  unsafe links made plaintext; safeLink rejects credentials, unsafe schemes, CRLF and mailto query.
+- every streaming prefix stays safe; replacement converges to complete structured output
+  -> same Swift prefix loop, existing ChatTests identity merge/fragment checks and Core streaming tests.
+- incomplete fences and malformed table rows preserve content; recursion is bounded
+  -> retiredRendererMalformedAndLargeContentRemainsReadableAndBounded: incomplete fence, excess cells,
+  10000 nested quote markers preserved verbatim without parser stack exhaustion.
+- large unfinished inline delimiters remain literal without quadratic retries
+  -> same Swift test: 100000 delimiter cases bounded; oversizedMarkdownIsVerbatimNotInlineMarkdown
+  and largePlainTextUsesBoundedNativeViewport retain large source and a selectable bounded view.
+
+5. runtime/activity-elapsed.test.ts
+- failed task elapsed uses durable timestamps before and after restart: domain test retained.
+- completed task history uses execution end time even when observed later: domain test retained.
+- Web and TUI freeze terminal records without ended_at but keep live clocks running
+  -> Swift nativeElapsedFreezesTerminalFallbackAndKeepsLiveClocks, all four terminal states and
+  running/waiting; native activity row now displays elapsed seconds via TimelineView.
+- Review B1: disconnected live clocks freeze at the last confirmed timeline snapshot, falling back
+  to last_progress_at when no confirmation exists; running/waiting without ended_at show unconfirmed.
+  -> nativeActivityDisconnectFreezesClockAndMarksUnconfirmedUntilFreshSnapshot covers both states,
+  terminal/end-time precedence, missing confirmation and resumed live time. ChatModel invalidates
+  activity confirmation on disconnect/attach until a fresh timeline snapshot succeeds. API v1 has no
+  observed_at on ChatPage; the existing projection/local confirmation timestamp supplies this boundary.
+
+6. Other active legacy helper imports
+runtime/{activity-history,activity,instructions,streaming,timeline-window}.test.ts:
+removed unused ui-client.api imports only. Existing CoreClient queries/assertions unchanged.
+backend.ts, core-client.ts, core-cli.ts, application-service.ts, api-v1.ts, conversation.ts,
+activity.ts, activity-history.ts, timeline.ts and all domain services remain.
+
+7. Standalone historical browser/PTY probes
+No package script or current test imports/calls these probes. They require retired /api/* and
+browser/ui-endpoint files; they are not current acceptance and their historical reports remain.
+- issue2/capacity-{web.ts,browser.mjs,pty.py}: source/request/checkpoint and capacity assertions
+  remain in issue2/budget.test.ts (BUDGET rejection persists unsent facts; UI request stays distinct
+  from oversize checkpoint), context-memory.test.ts and projection.test.ts. Tooltip/PTY output retired.
+- runtime/helpers/activity-{web.ts,browser.mjs,pty.py}: domain activity/queue/restart/argument hiding
+  remain in activity.test.ts; input/draft/IME/window behavior in ChatTests + native chat/window GUI.
+- runtime/helpers/activity-timeline-browser.mjs: domain tool identity/status/durable reconstruction,
+  sessions and bounded paging in activity-history.test.ts, timeline-window.test.ts and issue10.
+- runtime/helpers/streaming-{web.ts,browser.mjs}: stream body/thinking visibility/final convergence
+  retained in runtime/streaming.test.ts + Swift fragment/identity/preference tests; browser CSS retired.
+- runtime/helpers/timeline-window-{web.ts,browser.mjs} and timeline-scroll-browser.mjs:
+  server oracle/Unicode/byte budgets retained; native bounded page, saved anchor and latest/history GUI.
+  DOM node map/heights and exact browser wheel-pixel thresholds retire; full native layout matrix PR3c.
+- Review M1: timeline-window-{parallel,races}.mjs also retired; both depended on removed
+  /timeline-view.js and /api/* and had no current callers. Mixed-page/anchor/stale-revision assertions
+  remain in nativePageReplacementBoundsMixedHistoryAndPreservesReadingAnchor; preference and stale
+  response guards remain in ChatModel, ChatTests and latest/history GUI tests. Browser internals retire.
+- runtime/helpers/settings-web.ts: only an old fixture launcher; Settings/World assertions remain in
+  runtime/settings.test.ts, issue8/world.test.ts and real PG native management probe.
+
+8. G-retire capability evidence (API fixtures are not a real model or OS notification test)
+- Chat/history/activity: Core timeline/streaming + Swift text/page tests + 7 chat/window GUI cases.
+- Tasks/Scope/reuse/cancel/viewed: issue16/17/18, native management HTTP probe + task/scope GUI.
+- Approvals/rules/decisions/unknown: migrated API tests, issue17/18, native management probe and GUI.
+- Memory/recovery: issue2/3/19 domain tests, native controlled compaction checks COMPLETED+COMMITTED,
+  existing MemoryManagementView states/commitment actions and public command constructors.
+- Settings/World/name: native management HTTP + isolated PG history/CAS/retry/restore + management GUI.
+- Notifications: migrated evidence/commitment tests, Swift failure/dedup/read checks, actual visible row GUI.
+- Artifacts/relations: existing HTTP probe, cache/transport tests, native download GUI, public relation tests.
+- Core lifecycle/admin: issue8 lifecycle/auth/version/retired routes, fixture probe and window GUI;
+  native-retirement API program execution + documented CoreClient admin/world/migrate path.
+- Follow-up reference scan found runtime/helpers/timeline-window-bench.ts still registering an old
+  /api/client. Migrated its real HTTP sample loop to GET /api/v1/timeline/around with API version
+  header and data envelope; retained locate, bounded payload and latency assertions. Removed only
+  the optional browser paint branch. The controlled 1000-row run is a smoke result, not a new
+  100000-row performance claim.
+- Final all-TypeScript check found online/test-streaming-live.ts importing the deleted helper.
+  Migrated it to CoreClient messages + sync/stream; transient identity/status triggers authenticated
+  timeline content queries. No real model invocation was performed during PR3b.
+G-close remains open: full system notifications, VoiceOver, real sleep, real model and near-1GiB resource test.

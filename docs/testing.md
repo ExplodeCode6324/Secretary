@@ -69,7 +69,7 @@ docs:check 检查 Git 跟踪 Markdown 的本地路径与迁移目标，新文件
 
 显式 online 入口见 [online README](../test_case/online/README.md)，使用指定模型、已有凭据、新建隔离目录和请求/时间预算。记录实际 HTTP 次数、用量、首次失败及 oracle 结果。当前 API 产物场景核对 write/bash/read、同任务两轮、下载字节和独立程序计算；记忆场景覆盖真实整理及跨 OS 进程连续性。
 
-历史 UI 探针和截图描述其原版本。当前 Core 使用 API v1，原生窗口、阅读位置、输入法与可访问性将随 #10 验收。已有真实模型结果统一收录在带日期的 [API 验证记录](api/v1/verification.md)。
+历史 UI 探针和截图描述其原版本。当前 Core 使用 API v1，原生窗口、阅读位置和输入法已有本地回归；完整可访问性等联合验收仍归 #10 PR3c。已有真实模型结果统一收录在带日期的 [API 验证记录](api/v1/verification.md)。
 
 每份运行报告注明提交、环境、命令、实际通过/失败/skip/TODO 和未运行项目。公开仓库保留脱敏结论，原始会话及凭据留在私密证据目录。
 
@@ -78,3 +78,16 @@ Issue #17 的 `test_case/offline/issue17/` 覆盖默认/显式授权、取消后
 `test_case/online/test-issue17-live.ts` 是单独执行的真实模型验收，需私有凭据及 `SECRETARY_ISSUE17_EVIDENCE` 目录。它使用隔离合成项目，验证默认放行、ask 停等/批准继续、合成未知结果不重复写入；模型调用有次数和时间预算，不加入默认 npm test。原始日志和凭据不提交。
 
 Issue #10 A0 的定向入口为 `npx tsx --test test_case/offline/issue10/*.test.ts`，覆盖大文本、Unicode、来源校验、游标隔离和 HTTP 认证。macOS 上使用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift docs/api/v1/decode-examples.swift docs/api/v1/examples.json` 验证公开样例；它仅证明 DTO 解码，不代表原生界面验收。
+
+## PR3b 原生替代与退役回归
+
+逐项断言映射见 [迁移账表](fix/evidence/issue10-pr3b-migration-20261014.txt)。旧 TUI/Web 渲染测试中的领域断言迁入 `runtime/native-retirement.test.ts`、通知 API 测试及 SecretaryKit 的 `RetirementTests.swift`；服务器分页、UTF-8、会话隔离、容量与恢复断言保留。旧 browser/PTY 专属探针仅由固定历史提交追溯。
+
+```sh
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+SECRETARY_TEST_DATABASE_URL='<专用测试 DSN>' src/secretary_macos/verify.sh
+node test_case/native/ui-fixture.mjs
+SECRETARY_MODE=fixture SECRETARY_TEST_DATABASE_URL='<专用测试 DSN>' node --import tsx test_case/native/management-fixture.ts --ui
+```
+
+GUI 必须在可用的本机图形会话运行；编译 UI target 不代表 GUI 通过。CI 分别运行 Core (Linux)、Native (macOS)，聚合 verify 要求两者成功。系统通知权限/点击、VoiceOver、真实睡眠、真实模型及接近 1 GiB 的资源实测归 PR3c，不用于替代本阶段的基本能力门槛。
