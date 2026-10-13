@@ -1,8 +1,8 @@
 # Issue #10：macOS 原生客户端与旧入口退役
 
-状态：**实施中 / PR2b**。PR #40 已于 2026-10-13 合并，merge `857e827f2499d69cda008fd4f442f86f0b09aea8`；Issue #10 保持开放。PR #41 已合并（`aca83234f47259c31154d546918afc7462918040`）；连接底座见 [PR2a](fix_20261013_issue10_PR2a原生连接底座.md)，当前阶段见 [PR2b 聊天与导航](fix_20261013_issue10_PR2b聊天与导航.md)。管理界面与退役尚未实施。
+状态：**实施中 / PR2c**。PR #40、#41、#42 已合并；最新主线 merge `ba91d632b19d1ad750e3d605ee52b9524c0859d6`。Issue #10 保持开放。连接与聊天见 [PR2a](fix_20261013_issue10_PR2a原生连接底座.md)、[PR2b](fix_20261013_issue10_PR2b聊天与导航.md)；当前阶段见 [PR2c 日常管理与新会话交接](fix_20261013_issue10_PR2c日常管理.md)。旧入口退役仍留 PR3。
 
-关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前工作分支：`codex/issue10-native-chat`，在 secretary-core 原工作目录实施，不创建独立工作区。
+关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前工作分支：`codex/issue10-native-management`，在 secretary-core 原工作目录实施，不创建独立工作区。
 
 ## 1. 目标、授权与基线
 
