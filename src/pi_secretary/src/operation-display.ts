@@ -8,6 +8,13 @@ import stringer from "stream-json/core/stringer.js";
 import type { ObjectRef, Operation } from "./contracts.ts";
 import type { Store } from "./store.ts";
 import { ApiError, Cursors } from "./api/protocol.ts";
+import {
+  OperationTextCache,
+  TextCapture,
+  sourceStamp,
+  statStamp,
+  type SourceStamp,
+} from "./operation-text-cache.ts";
 
 export const operationParts = [
   "parameters",
@@ -52,6 +59,7 @@ class WindowText {
   constructor(
     readonly offset = 0,
     readonly limit = 32768,
+    readonly capture?: TextCapture,
   ) {}
   write(text: string) {
     text = this.pending + text;
@@ -61,6 +69,7 @@ class WindowText {
   }
   private consume(text: string) {
     this.digest.update(text);
+    this.capture?.write(text);
     for (const character of text) {
       const bytes = Buffer.byteLength(character);
       if (this.bytes >= this.offset && !this.closedWindow) {
@@ -91,22 +100,16 @@ async function scan(
   store: Store,
   ref: ObjectRef,
   field: (key: string) => Handler | undefined,
+  sources?: SourceStamp[],
 ) {
-  if (
-    ref.path !== "objects/" + ref.sha256 ||
-    !/^[a-f0-9]{64}$/.test(ref.sha256) ||
-    !Number.isSafeInteger(ref.bytes) ||
-    ref.bytes < 0 ||
-    fs.lstatSync(path.join(store.dir, "objects")).isSymbolicLink()
-  )
-    throw Error("CORRUPT_SOURCE");
+  sourceStamp(store, ref);
   const fd = await fs.promises.open(
     path.join(store.dir, ref.path),
     fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW,
   );
   try {
-    const stat = await fd.stat();
-    if (!stat.isFile() || stat.size !== ref.bytes)
+    const stat = await fd.stat({ bigint: true });
+    if (!stat.isFile() || stat.size !== BigInt(ref.bytes))
       throw Error("CORRUPT_SOURCE");
     const digest = createHash("sha256");
     let depth = 0,
@@ -164,8 +167,13 @@ async function scan(
         },
       }),
     );
-    if (depth !== 0 || digest.digest("hex") !== ref.sha256)
+    if (
+      depth !== 0 ||
+      digest.digest("hex") !== ref.sha256 ||
+      statStamp(stat) !== statStamp(await fd.stat({ bigint: true }))
+    )
       throw Error("CORRUPT_SOURCE");
+    sources?.push({ ref: { ...ref }, stamp: statStamp(stat) });
   } finally {
     await fd.close();
   }
@@ -272,7 +280,11 @@ function sourceError(error: unknown) {
 }
 
 /** Read a small metadata field, never build the surrounding stdout or parameters. */
-async function receiptMetadata(store: Store, ref: ObjectRef) {
+async function receiptMetadata(
+  store: Store,
+  ref: ObjectRef,
+  sources?: SourceStamp[],
+) {
   const values: Record<string, WindowText> = {};
   const strings: Record<string, WindowText> = {};
   const keys = new Set([
@@ -289,25 +301,30 @@ async function receiptMetadata(store: Store, ref: ObjectRef) {
     "not_started",
     "error",
   ]);
-  await scan(store, ref, (key) => {
-    if (!keys.has(key)) return;
-    const sink = (values[key] = new WindowText(
-      0,
-      key === "note" || key === "error" ? 8192 : 4096,
-    ));
-    const json = jsonWriter(sink);
-    let first = true,
-      plain: WindowText | undefined;
-    return (token) => {
-      if (first) {
-        first = false;
-        if (["note", "error"].includes(key) && token.name === "startString")
-          plain = strings[key] = new WindowText(0, 4096);
-      } else if (plain && token.name === "stringChunk")
-        plain.write(token.value);
-      json(token);
-    };
-  });
+  await scan(
+    store,
+    ref,
+    (key) => {
+      if (!keys.has(key)) return;
+      const sink = (values[key] = new WindowText(
+        0,
+        key === "note" || key === "error" ? 8192 : 4096,
+      ));
+      const json = jsonWriter(sink);
+      let first = true,
+        plain: WindowText | undefined;
+      return (token) => {
+        if (first) {
+          first = false;
+          if (["note", "error"].includes(key) && token.name === "startString")
+            plain = strings[key] = new WindowText(0, 4096);
+        } else if (plain && token.name === "stringChunk")
+          plain.write(token.value);
+        json(token);
+      };
+    },
+    sources,
+  );
   const result: Record<string, unknown> = {};
   for (const [key, sink] of Object.entries(values)) {
     const value = sink.finish();
@@ -322,11 +339,14 @@ async function receiptMetadata(store: Store, ref: ObjectRef) {
 }
 
 export class OperationDisplay {
+  private readonly cache: OperationTextCache;
   constructor(
     readonly store: Store,
     readonly cursors: Cursors,
     readonly domain: string,
-  ) {}
+  ) {
+    this.cache = new OperationTextCache(store);
+  }
   async resolution(op: Operation, strict = false) {
     if (!op.receipt) return null;
     try {
@@ -345,13 +365,13 @@ export class OperationDisplay {
       return null;
     }
   }
-  private async original(op: Operation) {
+  private async original(op: Operation, sources: SourceStamp[]) {
     let ref = op.receipt;
     const seen = new Set<string>();
     while (ref) {
       if (seen.has(ref.sha256) || seen.size >= 8) throw Error("INVALID_SOURCE");
       seen.add(ref.sha256);
-      const metadata = await receiptMetadata(this.store, ref);
+      const metadata = await receiptMetadata(this.store, ref, sources);
       if (metadata.resolved_by !== "MASTER_UI") return { ref, metadata };
       ref = metadata.original_receipt as ObjectRef | null;
       if (ref === undefined) throw Error("INVALID_SOURCE");
@@ -363,6 +383,11 @@ export class OperationDisplay {
     part: OperationPart,
     cursor?: string | null,
     limit = firstLimits[part],
+    context?: {
+      value: Awaited<ReturnType<OperationDisplay["original"]>>;
+      sources: SourceStamp[];
+      error?: unknown;
+    },
   ): Promise<DisplayText> {
     const scope = `operation:${this.domain}:${op.id}:${part}`;
     const saved = cursor
@@ -375,7 +400,47 @@ export class OperationDisplay {
         typeof saved.version !== "string")
     )
       throw new ApiError("CURSOR_EXPIRED", 409);
-    const sink = new WindowText(saved?.offset ?? 0, limit);
+    const key = createHash("sha256")
+      .update(
+        JSON.stringify([
+          op.id,
+          op.revision,
+          op.action,
+          op.receipt,
+          op.state,
+          op.effect,
+          op.error,
+          part,
+        ]),
+      )
+      .digest("hex");
+    const cached = this.cache.get(key);
+    if (cached) {
+      if (
+        saved &&
+        (saved.version !== cached.version ||
+          saved.offset > cached.content.length)
+      )
+        throw new ApiError("CURSOR_EXPIRED", 409);
+      const offset = saved?.offset ?? 0;
+      let end = Math.min(cached.content.length, offset + limit);
+      while (
+        end > offset &&
+        end < cached.content.length &&
+        (cached.content[end] & 0xc0) === 0x80
+      )
+        end--;
+      return this.page(
+        scope,
+        cached.content.subarray(offset, end).toString("utf8"),
+        String(cached.content.length),
+        cached.version,
+        end,
+      );
+    }
+    const sources: SourceStamp[] = [];
+    const capture = new TextCapture(OperationTextCache.captureLimit);
+    const sink = new WindowText(saved?.offset ?? 0, limit, capture);
     let available = false;
     try {
       if (part === "parameters") {
@@ -385,20 +450,29 @@ export class OperationDisplay {
           throw Error("CORRUPT_SOURCE");
         sink.write("{");
         let count = 0;
-        await scan(this.store, op.action.parameters_ref, (key) => {
-          if (!allowed.includes(key)) return;
-          if (count++) sink.write(",");
-          sink.write(JSON.stringify(key) + ":");
-          return jsonWriter(
-            sink,
-            op.action.action === "world.change" &&
-              ["evidence", "provenance"].includes(key),
-          );
-        });
+        await scan(
+          this.store,
+          op.action.parameters_ref,
+          (key) => {
+            if (!allowed.includes(key)) return;
+            if (count++) sink.write(",");
+            sink.write(JSON.stringify(key) + ":");
+            return jsonWriter(
+              sink,
+              op.action.action === "world.change" &&
+                ["evidence", "provenance"].includes(key),
+            );
+          },
+          sources,
+        );
         sink.write("}");
         available = true;
       } else {
-        const original = await this.original(op);
+        if (context?.error) throw context.error;
+        if (context) sources.push(...context.sources);
+        const original = context
+          ? context.value
+          : await this.original(op, sources);
         if (part === "reason") {
           const evidence = original?.metadata ?? {};
           const base = JSON.stringify({
@@ -421,34 +495,48 @@ export class OperationDisplay {
           });
           sink.write(base.slice(0, -1));
           if (original)
-            await scan(this.store, original.ref, (key) => {
-              if (key !== "error") return;
-              sink.write(',"receipt_error":');
-              return jsonWriter(sink);
-            });
+            await scan(
+              this.store,
+              original.ref,
+              (key) => {
+                if (key !== "error") return;
+                sink.write(',"receipt_error":');
+                return jsonWriter(sink);
+              },
+              sources,
+            );
           if (op.receipt)
-            await scan(this.store, op.receipt, (key) => {
-              if (key !== "note") return;
-              sink.write(',"resolution_note":');
-              return jsonWriter(sink);
-            });
+            await scan(
+              this.store,
+              op.receipt,
+              (key) => {
+                if (key !== "note") return;
+                sink.write(',"resolution_note":');
+                return jsonWriter(sink);
+              },
+              sources,
+            );
           sink.write("}");
           available = true;
         } else if (original) {
           let isString = false,
             started = false;
-          await scan(this.store, original.ref, (key) =>
-            key === part
-              ? (token) => {
-                  if (!started) {
-                    started = true;
-                    isString = token.name === "startString";
-                    available = isString;
-                  } else if (token.name === "stringChunk" && isString)
-                    sink.write(token.value);
-                  else if (token.name === "endString") isString = false;
-                }
-              : undefined,
+          await scan(
+            this.store,
+            original.ref,
+            (key) =>
+              key === part
+                ? (token) => {
+                    if (!started) {
+                      started = true;
+                      isString = token.name === "startString";
+                      available = isString;
+                    } else if (token.name === "stringChunk" && isString)
+                      sink.write(token.value);
+                    else if (token.name === "endString") isString = false;
+                  }
+                : undefined,
+            sources,
           );
         }
       }
@@ -463,39 +551,81 @@ export class OperationDisplay {
         saved.offset > Number(value.bytes))
     )
       throw new ApiError("CURSOR_EXPIRED", 409);
+    const content = capture.finish();
+    if (content)
+      this.cache.put(key, { content, version: value.content_version, sources });
+    return this.page(
+      scope,
+      value.text,
+      value.bytes,
+      value.content_version,
+      value.end,
+    );
+  }
+  private page(
+    scope: string,
+    text: string,
+    bytes: string,
+    version: string,
+    end: number,
+  ): DisplayText {
+    const truncated = end < Number(bytes);
     return {
       state: "available",
-      text: value.text,
-      bytes: value.bytes,
-      content_version: value.content_version,
-      truncated: value.truncated,
+      text,
+      bytes,
+      content_version: version,
+      truncated,
       unavailable_reason: null,
-      next_cursor: value.truncated
-        ? this.cursors.encode(scope, {
-            offset: value.end,
-            version: value.content_version,
-          })
+      next_cursor: truncated
+        ? this.cursors.encode(scope, { offset: end, version })
         : null,
     };
   }
-  async view(op: Operation, divisor = 1) {
-    const texts = {} as Record<OperationPart, DisplayText>;
-    // Sequential scans keep the per-request working set bounded.
-    for (const part of operationParts)
-      texts[part] = await this.text(
-        op,
-        part,
-        null,
-        Math.floor(firstLimits[part] / divisor),
+  shrink(
+    op: Operation,
+    view: Awaited<ReturnType<OperationDisplay["view"]>>,
+    divisor: number,
+  ) {
+    const result = { ...view };
+    for (const part of operationParts) {
+      const original = view[part];
+      if (original.state !== "available") continue;
+      const sink = new WindowText(0, Math.floor(firstLimits[part] / divisor));
+      sink.write(original.text);
+      const prefix = sink.finish();
+      result[part] = this.page(
+        `operation:${this.domain}:${op.id}:${part}`,
+        prefix.text,
+        original.bytes,
+        original.content_version!,
+        prefix.end,
       );
-    let source_truncated: boolean | null = null;
-    try {
-      const original = await this.original(op);
-      if (original && typeof original.metadata.truncated === "boolean")
-        source_truncated = original.metadata.truncated;
-    } catch {
-      /* Each affected text already carries its explicit unavailable reason. */
     }
-    return { ...texts, source_truncated };
+    return result;
+  }
+  async view(op: Operation) {
+    const sources: SourceStamp[] = [];
+    let original: Awaited<ReturnType<OperationDisplay["original"]>> = null;
+    let error: unknown;
+    try {
+      original = await this.original(op, sources);
+    } catch (failure) {
+      error = failure;
+    }
+    const texts = {} as Record<OperationPart, DisplayText>;
+    for (const part of operationParts)
+      texts[part] = await this.text(op, part, null, firstLimits[part], {
+        value: original,
+        sources,
+        error,
+      });
+    return {
+      ...texts,
+      source_truncated:
+        typeof original?.metadata.truncated === "boolean"
+          ? original.metadata.truncated
+          : null,
+    };
   }
 }

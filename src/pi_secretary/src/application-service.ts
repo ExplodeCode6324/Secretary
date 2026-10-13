@@ -75,6 +75,7 @@ export class ApplicationService {
   readonly identity: CoreIdentity;
   readonly changes: SyncService;
   readonly notifications: Notifications;
+  private readonly operationDisplay: OperationDisplay;
   readonly principal: OwnerPrincipal;
   readonly cursors = new Cursors(randomUUID());
   private running = new Set<Promise<void>>();
@@ -103,6 +104,11 @@ export class ApplicationService {
     const store = app.store;
     const identity = coreIdentity(store);
     this.identity = identity;
+    this.operationDisplay = new OperationDisplay(
+      store,
+      this.cursors,
+      identity.owner_id,
+    );
     this.changes = new SyncService(app, identity.owner_id, this.instanceID);
     this.notifications = new Notifications(store, identity.owner_id);
     this.principal = Object.freeze({
@@ -1167,11 +1173,12 @@ export class ApplicationService {
       const part = q.get("part");
       if (!operationParts.includes(part as OperationPart) || q.has("limit"))
         throw new ApiError("INVALID_QUERY");
-      return new OperationDisplay(
-        store,
-        this.cursors,
-        this.identity.owner_id,
-      ).text(op, part as OperationPart, q.get("cursor"), 32768);
+      return this.operationDisplay.text(
+        op,
+        part as OperationPart,
+        q.get("cursor"),
+        32768,
+      );
     }
     if (parts[0] === "operations" && parts.length === 2)
       return this.operationView(this.operation(target), true);
@@ -1208,11 +1215,7 @@ export class ApplicationService {
     detail: boolean,
   ) {
     const { process: control, ...fields } = op;
-    const display = new OperationDisplay(
-      this.app.store,
-      this.cursors,
-      this.identity.owner_id,
-    );
+    const display = this.operationDisplay;
     const value = project({
       ...fields,
       scope_id: op.scope.execution_id
@@ -1222,9 +1225,11 @@ export class ApplicationService {
       resolution: await display.resolution(op, !detail),
     });
     if (!detail) return value;
+    const initial = await display.view(op);
     let divisor = 1;
     do {
-      value.display = await display.view(op, divisor);
+      value.display =
+        divisor === 1 ? initial : display.shrink(op, initial, divisor);
       if (
         Buffer.byteLength(JSON.stringify({ api_version: "1", data: value })) <=
         256 * 1024

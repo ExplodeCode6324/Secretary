@@ -572,3 +572,130 @@ test("escaped control text respects the complete response budget and malformed s
       "SOURCE_KEY_TOO_LONG",
     );
   }));
+
+test("4 MiB continuation reads reuse verified text without rereading the 8 MiB receipt", async (t) =>
+  fixture(async (app, api) => {
+    const { createHash } = await import("node:crypto");
+    const output = "😀".repeat(1024 * 1024);
+    const { op } = setup(app, {}, { stdout: output, stderr: output });
+    const open = fs.promises.open;
+    let opens = 0;
+    t.mock.method(
+      fs.promises,
+      "open",
+      async (...args: Parameters<typeof open>) => {
+        opens++;
+        return open(...args);
+      },
+    );
+    let cursor: string | null = null,
+      pages = 0,
+      bytes = 0;
+    const hash = createHash("sha256");
+    do {
+      const q = new URLSearchParams({ part: "stdout" });
+      if (cursor) q.set("cursor", cursor);
+      const page: any = await api.query(
+        api.principal,
+        `operations/${op.id}/content`,
+        q,
+      );
+      assert.equal(page.state, "available");
+      hash.update(page.text);
+      bytes += Buffer.byteLength(page.text);
+      pages++;
+      cursor = page.next_cursor;
+    } while (cursor);
+    assert.equal(pages, 128);
+    assert.equal(bytes, 4 * 1024 * 1024);
+    assert.equal(
+      hash.digest("hex"),
+      createHash("sha256").update(output).digest("hex"),
+    );
+    assert.equal(
+      opens,
+      2,
+      "one metadata pass and one extraction pass, independent of page count",
+    );
+  }));
+
+test("warm text cache rejects source mutation, removal and symlink replacement", () =>
+  fixture(async (app, api) => {
+    const { op } = setup(app, {}, { stdout: "verified output", stderr: "" });
+    const query = () =>
+      api.query(
+        api.principal,
+        `operations/${op.id}/content`,
+        new URLSearchParams({ part: "stdout" }),
+      ) as Promise<any>;
+    const file = path.join(app.store.dir, op.receipt!.path);
+    const original = fs.readFileSync(file);
+    assert.equal((await query()).text, "verified output");
+    fs.writeFileSync(file, original.toString().replace("verified", "tampered"));
+    assert.equal((await query()).unavailable_reason, "CORRUPT_SOURCE");
+    fs.writeFileSync(file, original);
+    assert.equal((await query()).text, "verified output");
+    fs.unlinkSync(file);
+    assert.equal((await query()).unavailable_reason, "SOURCE_MISSING");
+    fs.writeFileSync(file, original);
+    assert.equal((await query()).text, "verified output");
+    fs.unlinkSync(file);
+    fs.symlinkSync("/etc/hosts", file);
+    assert.equal((await query()).unavailable_reason, "CORRUPT_SOURCE");
+  }));
+
+test("cache eviction obeys byte and entry ceilings and falls back to verified reads", () =>
+  fixture(async (app) => {
+    const { OperationTextCache, sourceStamp } =
+      await import("../../../src/pi_secretary/src/operation-text-cache.ts");
+    const cache = new OperationTextCache(app.store, 8, 2);
+    const ref = app.store.put({ stdout: "source" });
+    const value = (text: string) => ({
+      content: Buffer.from(text),
+      version: "synthetic",
+      sources: [sourceStamp(app.store, ref)],
+    });
+    cache.put("a", value("1234"));
+    cache.put("b", value("5678"));
+    assert(cache.get("a"));
+    cache.put("c", value("9012"));
+    assert.equal(cache.get("b"), undefined);
+    assert(cache.get("a"));
+    cache.put("oversize", value("123456789"));
+    assert.equal(cache.get("oversize"), undefined);
+    cache.put("empty", value(""));
+    assert.equal(cache.get("c"), undefined);
+    assert(cache.get("empty"));
+  }));
+
+test("detail response shrinking reuses projected prefixes and shares receipt ancestry", async (t) =>
+  fixture(async (app, api) => {
+    const text = "\u0001".repeat(70000);
+    const { op } = setup(
+      app,
+      { command: text },
+      { stdout: text, stderr: text, error: text },
+    );
+    const open = fs.promises.open;
+    let opens = 0;
+    t.mock.method(
+      fs.promises,
+      "open",
+      async (...args: Parameters<typeof open>) => {
+        opens++;
+        return open(...args);
+      },
+    );
+    const result: any = await api.query(api.principal, `operations/${op.id}`);
+    assert(
+      Buffer.byteLength(JSON.stringify({ api_version: "1", data: result })) <=
+        262144,
+    );
+    assert(result.display.stdout.text.length < 32768);
+    assert.equal(
+      opens,
+      7,
+      "resolution, one shared ancestry, parameters, stdout, stderr, error and note only",
+    );
+    assert.equal(await collect(api, op, "stdout", result.display.stdout), text);
+  }));

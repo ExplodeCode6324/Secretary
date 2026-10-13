@@ -84,7 +84,7 @@ TaskCommand 可带 scope_id；接续省略或 null 时继承原任务范围。Ex
 
 `GET operations/{id}/content?part=parameters|stdout|stderr|reason&cursor=...` 每次最多 32 KiB UTF-8 文本，完整响应含 JSON 转义不超过 256 KiB，不接受 limit。顺序拼接后才能解析 parameters/reason 的 JSON；分片不拆 Unicode 码点。cursor 绑定操作、部分、内容版本、数据域和当前服务实例；CURSOR_EXPIRED 后从该部分首段重读。display.source_truncated 为执行器是否已截断源输出（未知为 null），与本页 truncated 不同，续读不能恢复源输出丢弃的尾部。
 
-parameters 公开动作使用的参数；shell 内部环境、program 内部入口和工作区、证据 CAS 定位路径不公开。业务 JSON 值中的同名键保留。reason 包含状态、effect、记录的错误及超时/信号/退出码；人工裁定后 stdout/stderr 仍来自原回执，完整裁定说明位于 reason.resolution_note。resolution.note 过长时显示真实前缀并标记 note_truncated。原始文件丢失、损坏、符号链接、无记录、过深结构或过长键分别返回明确 unavailable 原因；所有读取流式校验源散列，不执行模型、工具、命令或 viewed 操作。
+parameters 公开动作使用的参数；shell 内部环境、program 内部入口和工作区、证据 CAS 定位路径不公开。业务 JSON 值中的同名键保留。reason 包含状态、effect、记录的错误及超时/信号/退出码；人工裁定后 stdout/stderr 仍来自原回执，完整裁定说明位于 reason.resolution_note。resolution.note 过长时显示真实前缀并标记 note_truncated。原始文件丢失、损坏、符号链接、无记录、过深结构或过长键分别返回明确 unavailable 原因；首次读取流式校验源散列，不执行模型、工具、命令或 viewed 操作。Core 实例内最多缓存 16 MiB / 64 项已校验的公开文本，单段最多 8 MiB；缓存命中复核源文件的设备、inode、长度、纳秒 mtime/ctime 和常规文件状态。来源变化、丢失或 symlink 会失效并重新校验，超出缓存容量或淘汰后回退到流式读取；不落盘、不跨实例共享。详情先生成一次有界首片，再按完整 JSON 大小缩片，不重新读取来源。
 
 Artifact 新增 relative_path、path_base（scope/task/unknown）、scope_id 和 path_unavailable_reason。只显示执行固定绑定下的安全相对路径；绝对路径、越界片段、超过 4 KiB 的路径和没有历史绑定的信息不猜测，返回 unknown。路径只是显示定位，下载仍使用受认证的 artifact ID，不能用该字段直接打开本机文件。
 
