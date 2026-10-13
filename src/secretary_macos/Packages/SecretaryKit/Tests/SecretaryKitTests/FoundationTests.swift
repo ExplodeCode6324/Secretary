@@ -145,6 +145,26 @@ private func waitForHold(_ transport: FakeTransport) async throws {
   #expect(examples.notification.content.truncated)
 }
 
+@Test func hiddenTimelineRequestCannotRepopulateCacheAfterUnwatch() async throws {
+  let dir = try directory()
+  defer { try? FileManager.default.removeItem(at: dir) }
+  let engine = try ClientEngine(databaseURL: dir.appendingPathComponent("client.sqlite"))
+  let transport = FakeTransport()
+  _ = try await engine.connect(endpoint: endpoint(), expectedMode: "fixture", transport: transport)
+  let route = ChatPreferences(streaming: true, thinking: true).route
+  _ = try await engine.refresh(route)
+  await transport.hold("timeline")
+  let pending = Task { try await engine.refresh(route) }
+  try await waitForHold(transport)
+  try await engine.unwatch(route)
+  await transport.release(envelope("{\"hidden\":\"late thinking\"}"))
+  do {
+    _ = try await pending.value
+    Issue.record("late hidden response was accepted")
+  } catch ClientError.staleConnection {}
+  #expect(try await engine.cached(route) == nil)
+}
+
 @Test func discoveryRejectsSymlinkPermissionsAndUnsafeURL() throws {
   let dir = try directory()
   defer { try? FileManager.default.removeItem(at: dir) }

@@ -1,0 +1,64 @@
+Historical evidence for addc8f1; superseded for review acceptance.
+Corrections from PR42 review remediation:
+- Dock/menu tests below did NOT assert zero windows before recovery. They proved activation only.
+- The private Core was isolated, but the Debug client DB override was not compiled because DEBUG was undefined.
+  The initial client DB isolation claim below is incorrect. Existing local data has been preserved.
+- Revised evidence is recorded separately after the new acceptance run; retain these original results and hashes.
+
+Issue #10 PR2b - local native acceptance, 2026-10-13
+Xcode 16.4 (16F6); Swift 6.1.2; local arm64 macOS graphical session.
+Base: aca83234f47259c31154d546918afc7462918040
+
+Commands:
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer src/secretary_macos/verify.sh
+node test_case/native/ui-fixture.mjs
+
+Native package: 22 tests passed; no failed/skipped package tests.
+Real isolated fixture probe: durable chat send, receipt reconciliation, Unicode timeline and direct message location PASS.
+App and UI test target: TEST BUILD SUCCEEDED.
+
+Final XCUITest output (excerpt; machine paths and runtime identities excluded):
+Test Case '-[SecretaryUITests.SecretaryUITests testConnectionWindowStartsWithoutImplicitCoreLaunch]' passed (2.953 seconds).
+Test Case '-[SecretaryUITests.SecretaryUITests testDockReopensMainWindowWithoutIgnoringRestoration]' passed (4.266 seconds).
+Test Case '-[SecretaryUITests.SecretaryUITests testFixtureChatDraftAndSend]' passed (44.601 seconds).
+Test Case '-[SecretaryUITests.SecretaryUITests testMenuRecoversWithoutIgnoringRestoration]' passed (4.690 seconds).
+Test Case '-[SecretaryUITests.SecretaryUITests testSingleConnectionWindowClosesAndColdLaunches]' passed (5.641 seconds).
+	 Executed 5 tests, with 0 failures (0 unexpected) in 62.150 (62.153) seconds
+	 Executed 5 tests, with 0 failures (0 unexpected) in 62.150 (62.154) seconds
+	 Executed 5 tests, with 0 failures (0 unexpected) in 62.150 (62.155) seconds
+** TEST EXECUTE SUCCEEDED **
+PASS: isolated native window recovery and chat UI acceptance
+
+UI suite: 5 passed, 0 failed, 0 skipped.
+Cold launch tests use ApplePersistenceIgnoreState YES.
+Dock/menu recovery tests use ApplePersistenceIgnoreState NO and require exactly one usable window.
+Chat test uses private fixture Core plus private Debug client DB; asserts Return newline, draft after termination/relaunch, Command-Return clearing and actual rendered transcript text.
+IME marked-text suppression is separately tested against the native MessageTextView component.
+
+Manual check: synthetic Chinese/emoji/combining text and code block rendered; input cleared after send; 13/20 pt text and 720 pt narrow window kept composer usable. No real model used.
+Boundaries: no exhaustive corrupted saved-state corpus, VoiceOver/sleep/system-notification acceptance, or full native replacement claimed. Management and retirement remain later phases.
+
+Raw private logs SHA-256 (logs remain local):
+native-final.log ea1317b2075dce6df21311dcd71c4ca35a3bad4e4ee4f771278ca4be99d92674
+ui-final.log e9487469a2be7a7f1d9cb176966f777b6ef6ac82db1bbdc892ca33eb362f40fd
+ui-first.log 01d3c4442350db3e7446b4d2ac640f49c745424f5ff52f387e9675689f24b7f1
+ui-chat-commit-field.log 62824f3b3270966e0250797c832b7d8b40374775d66a9b1d54d45c80712046da
+ui-fourth.log 387fedd398cd05c0c6da18297358ffde4d249c14fc81ca38af8f6eadc7b6b787
+
+Source SHA-256 tested (before evidence/document-only commit):
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Chat.swift d3bfbdfc9e2e60ed174571ad56f1cd1f5a7362ad29d6002ccbfce0a6e6b0d1f7
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/ChatLocalState.swift b2c25fff17c2051f44f4cc38ab60b42d5370cc17e5ef6a96504cc596a1362b0e
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/ClientEngine.swift 1263ad0e0f0c8a5fbf4720decbcc0c6f5cd91532e01445656d0f69afa3c71ed0
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Database.swift 3fb6d8376fbea5e9d9c16b0dd555abdeb19ebc9ca72601ee5195bb10e90090f1
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/MessageTextView.swift 73abe3b8b7cb40b18c84289a3c36d5b0c7c3060a190e37483d3958a21395d5e4
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Transport.swift a23dc1b4ac1cd8653f1d88a8c7bd62c4b5b6f03395336a94d57f56b31d3543cf
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryProbe/Probe.swift 6cc1c56ec458f044a74bb4c4e8c94ff3a52f8103dd629a355a5e390b2d89cff2
+src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/ChatTests.swift 256c035d5cd963397e62fde9e7d609a821979d9e80b48dfc071cc4182d5d4df4
+src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/FoundationTests.swift 3952d179724cecf05886dbad136a08c8bc35f32b3e7ba179d56864394fa3eb9e
+src/secretary_macos/Secretary.xcodeproj/project.pbxproj 0bf98663666e0048e1928d4b44741bd3f9777152f7eedafaeba6c3e6aa7ae0fe
+src/secretary_macos/Secretary/ChatModel.swift 47c4d2a7a32496388fd28f38b9af7539c270a8c53dae5ab80ac664e49da714d7
+src/secretary_macos/Secretary/ChatViews.swift 9b983af878505e68f501dbce09c609d38c896922790036c409f982505f1d36a6
+src/secretary_macos/Secretary/SecretaryApp.swift e7c808327e710c7b5aba07015c3217f135960949ef1cf89530f33262a7640af7
+src/secretary_macos/Secretary/WindowRecovery.swift 9db9c9761df33c67f7dfb123bb6f7cf59dac0a9c41b9496bd7e70ceab6e82c12
+src/secretary_macos/SecretaryUITests/SecretaryUITests.swift d55075b4db270a52de3cf9eee20eb86714a339f0914af7d489c6a70087c8fb78
+test_case/native/ui-fixture.mjs b445c35d46407fe20af3c39873824c7588228ad074d38fe95c469bc1cbb6a3b9

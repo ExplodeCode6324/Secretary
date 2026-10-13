@@ -106,6 +106,16 @@ public actor ClientEngine {
     guard let identity else { return nil }
     return try database.cached(identity, route: route)
   }
+  /// One-off pages must not grow the watched set or replay expired instance cursors on reconnect.
+  public func query(_ route: Route, destination: Identity) async throws -> Data {
+    guard destination == identity else { throw ClientError.staleConnection }
+    return try await read(route, version: generation)
+  }
+  public func unwatch(_ route: Route) throws {
+    watched.remove(route)
+    tickets[route.key] = (tickets[route.key] ?? 0) &+ 1
+    if let identity { try database.forget(identity, route: route) }
+  }
   private func bootstrap(version: UInt64, reset: Bool) async throws {
     guard let identity, let core else { throw ClientError.unavailable }
     let watermark = try Contract.decode(
@@ -157,16 +167,26 @@ public actor ClientEngine {
       if !page.has_more { return }
     }
   }
-  public func runStream(onChange: @escaping @Sendable () async throws -> Void = {}) async throws {
+  public func runStream(
+    onChange: @escaping @Sendable () async throws -> Void = {},
+    onTransient: @escaping @Sendable (Data) async throws -> Void = { _ in }
+  ) async throws {
     guard let identity, let transport, let cursor = try database.cursor(identity) else {
       throw ClientError.unavailable
     }
     let version = generation
-    try await transport.stream(after: cursor) { [weak self] transaction in
-      guard let self else { throw CancellationError() }
-      try await self.apply(transaction, version: version)
-      try await onChange()
-    }
+    try await transport.stream(
+      after: cursor,
+      receive: { [weak self] transaction in
+        guard let self else { throw CancellationError() }
+        try await self.apply(transaction, version: version)
+        try await onChange()
+      },
+      transient: { [weak self] data in
+        guard let self else { throw CancellationError() }
+        try await self.requireGeneration(version)
+        try await onTransient(data)
+      })
   }
   private func apply(_ transaction: SyncTransaction, version: UInt64) async throws {
     try check(version)

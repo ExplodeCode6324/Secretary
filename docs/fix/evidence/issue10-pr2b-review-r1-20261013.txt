@@ -1,0 +1,76 @@
+Issue #10 PR2b review remediation - 2026-10-13
+Reviewed base: addc8f14f5ffd7a29e89ce305242b59cb147972e
+Status: local acceptance PASS; final-head CI and Master review remain separate gates.
+
+verify.sh: 24 package tests passed, 0 failures; real isolated Core probe PASS;
+app + UI test target BUILD SUCCEEDED. npm check and docs:check PASS.
+Large-body test: 3,960,000 UTF-8 bytes, TextKit 2, read-only/selectable, 240 pt viewport.
+Observed text assignment about 0.125 seconds; this is not full-layout or end-to-end performance proof.
+
+Final local GUI run (ui-final-acceptance.log): 7 tests passed, 0 failures, 0 skipped.
+B1 LATEST: appended assistant tail isHittable = true; tail bottom inside viewport.
+B1 HISTORY: update badge visible; viewport Y before=257.0, after=257.0.
+The newly appended history content is not visible, and X/Y remain unchanged within 1 pt.
+B2, both menu and actual Dock-click paths:
+  WINDOW RECOVERY PRECONDITION: AX window count = 0; application remains running
+  WINDOW RECOVERY RESULT: window count = 1, connection controls usable
+  Debug-only keep-running flag cancels automatic termination after closing the real window.
+  It does not hide windows or fake counts. ApplePersistenceIgnoreState NO.
+  Production close/termination behavior is unchanged; no corrupted-state corpus claim.
+S2: messages not_configured / FIXTURE_MESSAGES_DISABLED visible; nonempty input cannot send.
+Connection, draft/newline/restart/send, and ordinary close/cold launch regressions also PASS.
+Executed 7 tests, with 0 failures in 60.364 seconds.
+** TEST EXECUTE SUCCEEDED **
+
+Earlier GUI failures remain preserved. After clearing the system alert, a floating desktop
+status bubble still physically covered the locator button. Temporary tracing confirmed that
+the callback was not invoked; the screenshot identified the obstruction. The test now moves
+only its own application window to the left, preserving the actual mouse click and all assertions.
+Temporary tracing/screenshots hooks have been removed from source. Raw screenshots stay private.
+
+CI on intermediate e3b308b: attempt 1 failed the unchanged Issue18 program/running SIGKILL
+test (expected STOPPED, observed UNCONFIRMED). Raw failure retained; no code/assertion/timeout
+was changed. The same 8 tests passed locally; attempt 2 of the identical full Linux job passed:
+579 tests / 578 pass / 0 fail / 0 skipped / 1 existing AUD14 TODO. Native and verify also passed.
+This does not establish the cause of the first process-recovery failure. Final-head checks are
+recorded in the PR after the evidence-only and test-placement follow-up commit.
+
+Corrections: previous zero-window coverage and client DB isolation claims were inaccurate.
+DEBUG is now explicitly defined only for Debug. GUI attach asserts its private client.sqlite exists.
+The private fixture Core was isolated in the previous successful suite; existing client data is retained.
+ID/path paste preserves the clipboard and asserts exact content to avoid host IME conversion.
+
+First failures and experiments retained locally: HTML trailing-newline expectation correction;
+natural restored-start snapshot timeouts; missing DEBUG compilation; proxy forwarding-header fix;
+IME-altered locator; desktop interruptions resolved by placing only the test app away from the overlay. No assertion was weakened to claim acceptance.
+Temporary window-count probes and macOS-15 scene-policy changes are not in the final implementation.
+No real model, system-notification, VoiceOver/sleep, or full native replacement acceptance claimed.
+
+Private raw log SHA-256 (logs are not uploaded):
+native-first.log 073fa4a30165d0818aad5edfa17f80ad9d60c7c5248d69c8211ad2880044096b
+native-final.log e12b2391157a5a6aee6fd37b16e4fc77b7f01effb1abcdab22de0462b5ee71f2
+window-zero2.log e043daa31f55d6ad8e3339f6ba2093aa790250bedd7834a4a091eb6a3f92ddac
+ui-reading.log 7a4b22909675f1f0756ed64ae630159f93027a0a752bc694f63461ec62b9ede5
+ui-final.log 452ed6115e687c8394927576c11b68ff48a6289dbafc2bafae1e5dd01932d0a9
+ui-clear-desktop.log 9154f581074d009f950206d723793ed1e087ceb30982b8f9e652220047b4cbdc
+ui-unobstructed-b1.log 24ca0aeb42e0c65d36c34b51b2595440b0bb938f512aba6dddbc790a118f05e6
+ui-nav-shot.log 4ecbb1f0bb02e33d7f4334b79f806746587e3204bd6167db99bc96c5061cc6f8
+ui-position.log 1ae6d869b47b60cdf8f94d9bb8a6f4fc9e5d51424dd5c52637863a7ae962e5ad
+ui-final-acceptance.log afae1cc3271c37f0414e997cb8caa078407c5371bd68cbc6c6e652d91bc3628c
+build-final-acceptance.log e066a945eaef1d7fd1f819857476d04fd32e058ef3700d99310c34d743aa36bd
+ci-failed.log 5fb3797488a0c077f63a2fa7cb0ab2a7038e98e91c24e0e1a7eac9abcb8b1f22
+ci-retry.log c645a2dc1898a45236ca2093deec3d7d91f3fb12170cce3664cd302f04df1084
+process-crash-local.log b1a8f9f1dc41874d332e836418d7ba3eea4e8473e2c5c908e997d875bd2fb1ff
+core-check.log edb0084172bd41fd84c2d83ca5d108aa78e5933be1a4eb8d5cac58300583a5fb
+docs-staged.log a5706aed6e1a13ebd29855771aec6759df84bbab475efc606043fa89f09ec72f
+
+Implementation/test source SHA-256:
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/Chat.swift 39c2d3e652fb0ab868c23162a571a99a127fdb9f4c015619e53cedaa48ca70a3
+src/secretary_macos/Packages/SecretaryKit/Sources/SecretaryKit/PlainTextDocumentView.swift d04b0d9f802a5e0079acf966925c52ac4991997496d75770169b4d5f4d40a4ca
+src/secretary_macos/Packages/SecretaryKit/Tests/SecretaryKitTests/ChatTests.swift 142a28d2f3b752a3cd45ba05ad6753ec6edaabd5af641c7c6270b641f9690c3f
+src/secretary_macos/Secretary/ChatModel.swift 26f2514c54ec16c6b812639c5d3e9db47d4b1e6547433b0452d531b2c0293a73
+src/secretary_macos/Secretary/ChatViews.swift 89633dcc306d7114c4bba07ea25c4920d974abdec34e4ced82e06464ffc4134d
+src/secretary_macos/Secretary/WindowRecovery.swift 7a5c2c448a7560be5cba569dfb23ed3e524d01ac67c0b36dc22acfd22c50d2b7
+src/secretary_macos/SecretaryUITests/SecretaryUITests.swift 141b57b7e825c11358b9c692a1363e885e6494f433243a210c9ac4a5227d5619
+src/secretary_macos/Secretary.xcodeproj/project.pbxproj ce2abd170b1d49f7bfa28a6a68f40d02d22199a69d6b585266744c3ee7faff54
+test_case/native/ui-fixture.mjs 73d75fdbc9d13b8473c778cc181b009e3138a8d08546da4daef13a65aac2cc15

@@ -1,8 +1,8 @@
 # Issue #10：macOS 原生客户端与旧入口退役
 
-状态：**实施中 / PR2a**。PR #40 已于 2026-10-13 合并，merge `857e827f2499d69cda008fd4f442f86f0b09aea8`；Issue #10 保持开放。PR2a 实施说明见 [原生连接底座](fix_20261013_issue10_PR2a原生连接底座.md)，后续业务界面与退役尚未实施。
+状态：**实施中 / PR2b**。PR #40 已于 2026-10-13 合并，merge `857e827f2499d69cda008fd4f442f86f0b09aea8`；Issue #10 保持开放。PR #41 已合并（`aca83234f47259c31154d546918afc7462918040`）；连接底座见 [PR2a](fix_20261013_issue10_PR2a原生连接底座.md)，当前阶段见 [PR2b 聊天与导航](fix_20261013_issue10_PR2b聊天与导航.md)。管理界面与退役尚未实施。
 
-关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前工作分支：`codex/issue10-native-foundation`，在 secretary-core 原工作目录实施，不创建独立工作区。
+关联：[Issue #10](https://github.com/ExplodeCode6324/Secretary/issues/10)。计划日期：2026-10-13。执行者：Codex；GitHub assignee 为维护账号 ExplodeCode6324。当前工作分支：`codex/issue10-native-chat`，在 secretary-core 原工作目录实施，不创建独立工作区。
 
 ## 1. 目标、授权与基线
 
@@ -10,7 +10,7 @@
 
 **Master 本轮设计要求：涉及 UI 时尽可能简洁，后续会在此基础上进一步做美学设计。首版以功能完整、信息清楚、操作可靠和可访问性为验收重点；使用朴素原生控件、文字导航与紧凑列表，不引入装饰性大卡片、复杂动效或独立品牌视觉。简洁不削减审批详情、失败说明、恢复入口和必要状态。后续修改设计规格、README 和操作文档时同步注明这一阶段定位。**
 
-最初规划阶段只领取 issue、核查现状和编写文档；Master 已确认实施并于 2026-10-13 批准合并 PR #40、继续 PR2a。发布、合并、部署的状态分别记录。
+最初规划阶段只领取 issue、核查现状和编写文档；Master 已确认实施并于 2026-10-13 批准合并 PR #40、PR #41，继续 PR2b；UI 保持简洁，补充 Dock/菜单无窗口恢复兜底。发布、合并、部署的状态分别记录。
 
 基线为 `main@108de834c1b8c298c546e06508c59cb052d43c43`，已核对与远端 main 一致。#9、#16、#17、#18、#19、#21、#28 均已关闭，其实现已在当前主线。#8 仍开放，正文尚保留未合并描述，但 PR #15 已于 2026-10-10 合并，合并提交 `9623095a34f01933feeb74995dbb4d49edc8300e` 是当前 HEAD 祖先；不把 issue 状态误当作 API 缺失，也不在本任务顺手关闭 #8。开工时复核公共合同及基线变化。
 
