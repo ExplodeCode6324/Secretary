@@ -30,8 +30,10 @@ New acceptance results
    through delivered evidence. Master clicked that notice; accepted read found.
    Master dismissed another notice without opening; read count remained one.
    Raw observations: notifications-observations.txt and isolated system fixture.
-   NOT_TESTED: actual OS cold-launch/offline clicks and full historical/restart
-   matrix. Unit/HTTP evidence for persistence/dedup is not an OS substitute.
+   BLOCKED: actual OS cold-launch/offline clicks; isolated bundle launched and
+   its private client database was verified, but CUA repeatedly timed out before
+   attachment. No cold/offline click result is claimed. Full historical/restart
+   OS matrix remains open; unit/HTTP persistence/dedup is not an OS substitute.
 
 3. PASS: actual full-machine sleep with Master manually waking the Mac.
    OS log: Software Sleep 04:40:33 +0800, DarkWake 04:41:04, FullWake 04:41:31.
@@ -39,12 +41,11 @@ New acceptance results
    same stored domain, registration and client identity. No active task was
    running across this sleep; that combination is not claimed.
 
-4. PASS (partial layout matrix): 1024x768 and 720x520 content, font size 20;
+4. PASS: 1440x900, 1280x860, 1024x768 and 720x520 content, font size 20;
    input/send reachable, exact draft preserved, input bounds inside window.
-   NOT_TESTED: 1280x860 and 1440x900 content exceed current visible 1470x846
-   display. Test logs these explicitly, not as passed dimensions.
-   BLOCKED/pending manual coordination: VoiceOver; display scaling permission.
-   Split-screen and actual Chinese IME composition remain NOT_TESTED this run.
+   Master authorized More Space scaling; original default scaling was restored.
+   VoiceOver: NOT_TESTED, explicitly deferred by Master this round.
+   Split-screen and actual Chinese IME composition remain NOT_TESTED.
    Pasting Chinese and the existing marked-text unit test do not prove real IME.
 
 5. PASS: real-model minimal main chat and two linked task executions (42, then
@@ -95,7 +96,7 @@ Regression status
   tool explicitly denied that application's use; Master asked to handle it.
   gui-chat-final.log preserved. Management suite did not run after this failure.
 - Draft PR46: https://github.com/ExplodeCode6324/Secretary/pull/46
-- PR head CI: PENDING. Draft is not a completed G-close or merge approval.
+- PR head CI: follow-up verification pending. Draft is not completed G-close.
 
 Evidence boundaries / remaining work
 - Prior PR3a/PR3b API and Swift recovery, cache-corruption, identity, outbox,
