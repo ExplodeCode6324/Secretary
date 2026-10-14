@@ -11,6 +11,124 @@ final class SecretaryUITests: XCTestCase {
     return app
   }
   @MainActor
+  func testCompleteNativeJourney() throws {
+    continueAfterFailure = false
+    let directory = try fixtureDirectory()
+    let app = application()
+    defer { app.terminate() }
+    attachFixture(app, directory: directory)
+    pasteExact("Native journey hello", into: app.textViews["消息输入"], replacing: true)
+    app.buttons["sendMessage"].click()
+    XCTAssertTrue(app.staticTexts["Native journey hello"].waitForExistence(timeout: 10))
+    managementNavigate(app, path: "tasks")
+    app.links["new-task"].click()
+    pasteExact("Native journey synthetic result", into: app.textFields["taskGoal"])
+    app.popUpButtons["taskScope"].click()
+    app.menuItems["Journey Scope"].click()
+    app.buttons["提交任务"].click()
+    confirmManagement(app)
+    func manifest(_ key: String) -> String? {
+      ((try? JSONSerialization.jsonObject(
+        with: Data(contentsOf: URL(fileURLWithPath: directory + "/journey.json"))))
+        as? [String: Any])?[key] as? String
+    }
+    expectation(for: NSPredicate { _, _ in manifest("approval") != nil }, evaluatedWith: app)
+    waitForExpectations(timeout: 15)
+    app.buttons["attentionSummary"].click()
+    let approval = app.links["authorizations/" + (manifest("approval") ?? "missing")]
+    XCTAssertTrue(approval.waitForExistence(timeout: 10))
+    approval.click()
+    let remember = app.buttons["批准并记住"]
+    for _ in 0..<8 where !remember.isHittable { app.scrollViews.firstMatch.swipeUp() }
+    XCTAssertTrue(remember.isHittable)
+    remember.click()
+    confirmManagement(app)
+    expectation(for: NSPredicate { _, _ in manifest("artifact") != nil }, evaluatedWith: app)
+    waitForExpectations(timeout: 20)
+    managementNavigate(app, path: "artifacts")
+    let artifact = app.links["artifacts/" + (manifest("artifact") ?? "missing")]
+    XCTAssertTrue(artifact.waitForExistence(timeout: 10))
+    artifact.click()
+    app.buttons["下载／重试"].click()
+    let open = app.buttons["用系统打开已验证文件"]
+    XCTAssertTrue(open.waitForExistence(timeout: 10))
+    let cache = URL(fileURLWithPath: directory + "/client/Artifacts")
+    let files = try FileManager.default.contentsOfDirectory(
+      at: cache, includingPropertiesForKeys: nil)
+    XCTAssertEqual(files.count, 1)
+    let file = try XCTUnwrap(files.first)
+    XCTAssertEqual(
+      try String(contentsOf: file, encoding: .utf8), "Native journey synthetic result 42\n")
+    let handler = try XCTUnwrap(NSWorkspace.shared.urlForApplication(toOpen: file))
+    let bundle = try XCTUnwrap(Bundle(url: handler)?.bundleIdentifier)
+    open.click()
+    let viewer = XCUIApplication(bundleIdentifier: bundle)
+    let document = viewer.windows.matching(
+      NSPredicate(format: "title CONTAINS %@", file.deletingPathExtension().lastPathComponent)
+    ).firstMatch
+    XCTAssertTrue(document.waitForExistence(timeout: 10))
+    if document.exists { document.typeKey("w", modifierFlags: .command) }
+  }
+
+  @MainActor
+  func testAcceptanceAvailableWindowSizesAndLargeFont() throws {
+    guard let directory = ProcessInfo.processInfo.environment["SECRETARY_UI_FIXTURE_DIR"] else {
+      throw XCTSkip("isolated UI fixture required")
+    }
+    let app = application()
+    // Keep the layout draft separate even if this test is interrupted before cleanup.
+    app.launchEnvironment["SECRETARY_NATIVE_TEST_DATA_DIR"] = directory + "/layout-client"
+    app.launchArguments = ["-ApplePersistenceIgnoreState", "YES", "-chat.fontSize", "20"]
+    app.launch()
+    defer { app.terminate() }
+    app.activate()
+    let field = app.textFields["数据目录"]
+    XCTAssertTrue(field.waitForExistence(timeout: 10))
+    pasteExact(directory + "/core", into: field, replacing: true)
+    app.buttons["附着已有 Core"].click()
+    let input = app.textViews["消息输入"]
+    XCTAssertTrue(input.waitForExistence(timeout: 15))
+    pasteExact("布局草稿 é 👩🏽‍💻 中文", into: input, replacing: true)
+    let window = app.windows.firstMatch
+    // Move to the top-left before enlarging; avoid display-edge clamping.
+    let top = window.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0)).withOffset(
+      CGVector(dx: 0, dy: 12))
+    top.press(
+      forDuration: 0.1,
+      thenDragTo: top.withOffset(CGVector(dx: 20 - window.frame.minX, dy: 40 - window.frame.minY)))
+    for size in [
+      CGSize(width: 1440, height: 900), CGSize(width: 1280, height: 860),
+      CGSize(width: 1024, height: 768), CGSize(width: 720, height: 520),
+    ] {
+      let available = NSScreen.main!.visibleFrame
+      let outerHeight = size.height + 28
+      if outerHeight > available.height {
+        print(
+          "LAYOUT NOT_TESTED requested content=\(size) exceeds visible display=\(available.size)")
+        continue
+      }
+      let corner = window.coordinate(withNormalizedOffset: CGVector(dx: 1, dy: 1)).withOffset(
+        CGVector(dx: -1, dy: -1))
+      corner.press(
+        forDuration: 0.2,
+        thenDragTo: corner.withOffset(
+          CGVector(dx: size.width - window.frame.width, dy: outerHeight - window.frame.height)))
+      XCTAssertEqual(window.frame.width, size.width, accuracy: 4)
+      XCTAssertEqual(window.frame.height, outerHeight, accuracy: 4)
+      XCTAssertTrue(input.isHittable)
+      XCTAssertTrue(app.buttons["发送"].isHittable)
+      XCTAssertEqual(input.value as? String, "布局草稿 é 👩🏽‍💻 中文")
+      XCTAssertGreaterThanOrEqual(input.frame.minX, window.frame.minX)
+      XCTAssertLessThanOrEqual(input.frame.maxX, window.frame.maxX)
+      print(
+        "LAYOUT width=\(window.frame.width) height=\(window.frame.height) font=20 composer/submit reachable; draft preserved"
+      )
+    }
+    app.typeKey("\t", modifierFlags: [])
+    XCTAssertTrue(app.buttons["发送"].exists)
+  }
+
+  @MainActor
   func testConnectionWindowStartsWithoutImplicitCoreLaunch() throws {
     let app = application()
     // A launch test must not inherit the previous interactive window layout.
@@ -445,7 +563,10 @@ final class SecretaryUITests: XCTestCase {
     detail.click()
     XCTAssertTrue(app.staticTexts["实际操作及完整参数"].waitForExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["适用根目录"].exists)
-    app.buttons["批准一次"].click()
+    let approve = app.buttons["批准一次"]
+    for _ in 0..<8 where !approve.isHittable { app.scrollViews.firstMatch.swipeUp() }
+    XCTAssertTrue(approve.isHittable)
+    approve.click()
     XCTAssertTrue(app.buttons["confirmManagementCommand"].waitForExistence(timeout: 5))
     app.buttons["取消"].click()
     XCTAssertTrue(app.buttons["批准一次"].isEnabled)

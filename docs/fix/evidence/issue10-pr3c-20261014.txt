@@ -1,0 +1,140 @@
+Issue #10 PR3c acceptance — 2026-10-14 (in progress)
+
+Scope and baseline
+- Master approved PR45 merge and continuation of PR3c in the original checkout.
+- PR45 reviewed head: 57e67d395d90aaa9f273494c6fe490dfae2bbf29.
+- main merge: ec5d75fe2a67275474b1f052617259f1b9750a74.
+- Post-merge run 38462650794: Core (Linux), Native (macOS), verify SUCCESS.
+- Branch: codex/issue10-pr3c-acceptance. No deployment or Issue closure.
+- G-close is NOT complete. Pending OS/UI rows below are not covered by build/CI.
+- Raw logs, endpoint files, model sessions, SQLite and OS logs remain private
+  under ignored .build/issue10-pr3c. This record contains synthetic summaries.
+
+Independent fixes
+- 3245dd8: ArtifactCache hash validation releases Foundation read buffers in
+  an autoreleasepool per 64 KiB chunk, with cancellation checked per chunk.
+- a561b19: composer scroll view resizes text view/container to its viewport.
+  Narrowing the window no longer leaves the editable area beyond the window.
+
+New acceptance results
+1. PASS: continuous real GUI journey over public HTTP. Attach, chat, scoped
+   task, automatic workspace write/read, approve-and-remember, second matching
+   automatic operation, result, download, verify exact bytes, system-open.
+   Controlled model and initial Scope are synthetic; operations/files/HTTP/UI
+   are real. One approval, four successful operations, remembered rule match=1.
+   journey-first.log: GUI 1/1, 78.913 seconds; domain assertions also pass.
+
+2. PASS: real OS notification permission denied then allowed. Permission denial
+   did not remove Core notice. An actually visible in-app row later produced
+   presented evidence. A new notice with the app hidden produced presented
+   through delivered evidence. Master clicked that notice; accepted read found.
+   Master dismissed another notice without opening; read count remained one.
+   Raw observations: notifications-observations.txt and isolated system fixture.
+   BLOCKED: actual OS cold-launch/offline clicks; isolated bundle launched and
+   its private client database was verified, but CUA repeatedly timed out before
+   attachment. No cold/offline click result is claimed. Full historical/restart
+   OS matrix remains open; unit/HTTP persistence/dedup is not an OS substitute.
+
+3. PASS: actual full-machine sleep with Master manually waking the Mac.
+   OS log: Software Sleep 04:40:33 +0800, DarkWake 04:41:04, FullWake 04:41:31.
+   After wake: confirmed sync, unchanged synthetic Chinese/combining-mark draft,
+   same stored domain, registration and client identity. No active task was
+   running across this sleep; that combination is not claimed.
+
+4. PASS: 1440x900, 1280x860, 1024x768 and 720x520 content, font size 20;
+   input/send reachable, exact draft preserved, input bounds inside window.
+   Master authorized More Space scaling; original default scaling was restored.
+   VoiceOver: NOT_TESTED, explicitly deferred by Master this round.
+   Split-screen and actual Chinese IME composition remain NOT_TESTED.
+   Pasting Chinese and the existing marked-text unit test do not prove real IME.
+
+5. PASS: real-model minimal main chat and two linked task executions (42, then
+   84). main=deepseek-v4.1-flash, task=gpt-5.6-luna. Synthetic isolated data only.
+   The full mixed scenario FAILED its extra Settings step: model candidate
+   task_refs contained invalid UUID, correctly rejected. Preserve live-first
+   report (78147 ms); do not call the full mixed scenario passed.
+   Separate memory-restart scenario PASS (48225 ms): real setting applied,
+   compaction COMMITTED, actual process restart, same-domain facts and English
+   preference recovered. Zero external operations/approvals. This independent
+   result does not erase the first failure.
+
+6. PASS: 1,073,676,288-byte synthetic artifact, three real HTTP downloads,
+   eviction and redownload, only one accepted cache entry; oversized raw
+   response rejected. First measurement peaked at 1,105,723,392 RSS bytes,
+   revealing Foundation autorelease accumulation. First failure preserved.
+   After fix: resource-full.log peak RSS 34,455,552 bytes, aggregate 3.213 s.
+   Throttled disk run: peak RSS 21,069,824 bytes; aggregate 63.603 s for three
+   downloads, not proof a single transfer exceeded 60 s.
+   Disk sampling: 390 samples; observed logical peak 1,073,676,623 bytes,
+   allocated peak 1,074,597,888 bytes. Scope is own cache plus open URLSession
+   download files of test subprocesses; sampled lower bound, excludes journal.
+   First disk probe missed Foundation's temp location; its results are invalid
+   for peak disk. Corrected probe explicitly tracked own CFNetworkDownload files.
+
+7. PASS: projection budget 268,435,456 bytes, insertion 293,601,280 bytes;
+   eviction/reload/reopen preserve draft, pending request ID and cursor.
+   SQLite size 277,192,704 bytes; process peak RSS 85,999,616 bytes.
+   SQLite overhead is separate from projected content budget.
+   PASS: 4 MiB incomplete SSE frame accepted, next byte rejected.
+   PASS: bounded reads hold two active requests and sixteen waiters; four
+   excess requests rejected. The 32 MiB raw workset is a sum of explicit
+   8 MiB allocation bounds, not a claim about total process RSS.
+
+8. PASS: real ENOSPC on a dedicated 64 MiB APFS image, never the host volume.
+   SQLite rejected a new write; original draft and pending ID survived reopen.
+   Own image detached after test. Default Swift runs skip this opt-in test;
+   resource-full.log ran and passed it with the isolated volume.
+
+Regression status
+- Core with isolated PostgreSQL: 571 tests, 570 pass, 0 fail, 0 skip,
+  1 existing AUD14 TODO; 697724.526 ms (core-full.log).
+- Native verify: DTO/pins, Swift, HTTP/PG probes and app/UI target build PASS.
+  Swift discovered 48 tests; 47 ran successfully, dedicated-volume test skipped.
+- Final GUI attempt FAILED/BLOCKED: first Codex foreground-window interruption,
+  then macOS UserNotificationCenter warning obscured controls; test runner
+  timed out, xcodebuild exited 75. No assertions/timeouts weakened. System UI
+  tool explicitly denied that application's use; Master asked to handle it.
+  gui-chat-final.log preserved. Management suite did not run after this failure.
+- Draft PR46: https://github.com/ExplodeCode6324/Secretary/pull/46
+- PR head CI: follow-up verification pending. Draft is not completed G-close.
+
+Evidence boundaries / remaining work
+- Prior PR3a/PR3b API and Swift recovery, cache-corruption, identity, outbox,
+  retired-entrypoint and management tests remain part of cumulative coverage.
+  They are not relabeled as new dual-GUI or full-system acceptance.
+- Complete interrupted GUI regression and remaining OS/layout/accessibility
+  matrix, then update this record. Review/merge of PR3c and post-merge main CI
+  remain separate. Issue #10 stays OPEN.
+
+Private raw evidence SHA-256 (content is not published)
+1ca0a361e4a7631537b3aaef91105e16f17c791ba7aabee2e0f6a506e6eb65ec  resource-first.log
+9529d906ffb425e898305ec2aa153393237b6970a3c9bc167ad5b8eba0f25e72  resource-full.log
+2607674c898fa463476f7f38e87fb1b309762dd8071ea265009e7606fecb2626  resource-disk-final.log
+4a8c9693047d8210539d7dd52a5756ed5205fde3f09221b0c7c66e3336d6b099  resource-disk-final-metrics.json
+1e9fb9b7b301850be0598143a9bb18504ade1bb3c6a76f80032a4bb41acfcf3f  journey-first.log
+270ef55de2e2773c7c422580f5d37eef8aef8bde5d8150eb7c4208d2c89ece25  core-full.log
+3f6883c2fe25e46de2edd39485ba6560e8c9e65fd26e36479e38160f8da8f5dd  native-final.log
+fe4a99220602d758c6846c94865f2d986a92d49f9420fd26cdbc5fe1875442db  gui-chat-final.log
+a39d8e9adae164805f279efcee368dff537cf29b7e0ae6c52c0f259201116c3e  read-budget-final.log
+c5ddec2c740e1e3ba9246aec800caec76db6b286f10db48378ec90159c0c87a5  sleep-os-log.txt
+
+Follow-up: coordinated GUI rerun and restored display
+- Master deferred VoiceOver for this round: NOT_TESTED, not a pass.
+- Master authorized temporary More Space scaling. All four content sizes
+  1440x900, 1280x860, 1024x768, 720x520 passed with font=20.
+- Default 1470x956 display scaling restored and visually confirmed afterward.
+- Initial expanded rerun was still obscured by Codex. It also exposed the new
+  layout draft leaking into the shared chat test client after interruption.
+  Layout now has a separate client directory; no product assertion was removed.
+- Master hid Codex; chat/window GUI 8/8 PASS (gui-chat-isolated.log).
+- Narrow management first failed because the existing test clicked an approval
+  button below the viewport. It now scrolls and explicitly asserts hittability.
+  No timeout increase; management GUI 3/3 PASS (gui-management-narrow.log).
+- With the independent journey 1/1, GUI total is 12/12 for these named cases.
+- Prior head 4339d063072aae87588ae924d3b305f971e10221 CI run 38472673179:
+  Core 8m12s, Native 3m5s, verify 3s; all SUCCESS. Follow-up head CI pending.
+- Actual OS cold/offline, split-screen and IME rows remain open at this checkpoint.
+88ce5803978c2c117284af43a8c4758b6ca895ed40231322034fb3574c507e07  gui-chat-expanded.log
+aa9a89e03d191809bc78f6e675129ab2605caea62535babbaa4e6414bb8239c6  gui-chat-isolated.log
+2a0cf43e34b436e4a52e81d4a6e406b786c2b5dbb8851b14478b49bd1d58cba9  gui-management-isolated.log
+29bd1cd7dfeac2166b58f45dae14f2d72229f7a2736c9d05a456f2c8aad15605  gui-management-narrow.log

@@ -106,9 +106,16 @@ public actor ArtifactCache {
       return false
     }
     var digest = SHA256()
-    while let bytes = try handle.read(upToCount: 65_536), !bytes.isEmpty {
-      try checkCancellation()
-      digest.update(data: bytes)
+    while true {
+      // FileHandle creates autoreleased Foundation buffers. Drain each chunk rather than
+      // retaining an entire large artifact until the surrounding async job returns.
+      let count = try autoreleasepool {
+        try checkCancellation()
+        let bytes = try handle.read(upToCount: 65_536) ?? Data()
+        digest.update(data: bytes)
+        return bytes.count
+      }
+      if count == 0 { break }
     }
     try checkCancellation()
     return digest.finalize().map { String(format: "%02x", $0) }.joined() == hash

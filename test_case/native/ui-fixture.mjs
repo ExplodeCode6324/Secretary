@@ -61,6 +61,7 @@ try {
     '-destination', 'platform=macOS', '-derivedDataPath', '.build/native',
     '-test-timeouts-enabled', 'YES', '-default-test-execution-time-allowance', '45',
     '-maximum-test-execution-time-allowance', '60',
+    '-skip-testing:SecretaryUITests/SecretaryUITests/testCompleteNativeJourney',
     '-skip-testing:SecretaryUITests/SecretaryUITests/testManagementTaskScopeAndDraft',
     '-skip-testing:SecretaryUITests/SecretaryUITests/testManagementApprovalAndUnknown',
     '-skip-testing:SecretaryUITests/SecretaryUITests/testManagementArtifactDownload', ...process.argv.slice(2), 'test-without-building'], testEnv);

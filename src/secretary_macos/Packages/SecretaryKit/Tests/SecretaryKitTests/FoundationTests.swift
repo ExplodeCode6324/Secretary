@@ -594,3 +594,61 @@ private struct FailedNotificationDelivery: NotificationDelivery {
   let retried = try await reopened.pendingCommands().filter { $0.path.hasSuffix("/presented") }
   #expect(retried.map(\.id) == original.map(\.id))
 }
+
+private actor BoundedReadTransport: CoreTransport {
+  let base = FakeTransport()
+  var active = 0
+  var peak = 0
+  var released = false
+  var rejected = 0
+  var waiting: [CheckedContinuation<Void, Never>] = []
+  func recordRejection() { rejected += 1 }
+  func request(_ route: Route, body: Data?) async throws -> Data {
+    guard route.path.hasPrefix("bulk") else { return try await base.request(route, body: body) }
+    active += 1
+    peak = max(peak, active)
+    defer { active -= 1 }
+    if !released { await withCheckedContinuation { waiting.append($0) } }
+    return envelope("{}")
+  }
+  func release() {
+    released = true
+    for value in waiting { value.resume() }
+    waiting.removeAll()
+  }
+  func stream(after: String, receive: @escaping @Sendable (SyncTransaction) async throws -> Void)
+    async throws
+  {}
+  nonisolated func cancel() {}
+}
+@Test func boundedConcurrentReadsRejectExcessQueueWithoutUnboundedRawResponses() async throws {
+  let root = try directory()
+  defer { try? FileManager.default.removeItem(at: root) }
+  let transport = BoundedReadTransport()
+  let engine = try ClientEngine(databaseURL: root.appendingPathComponent("client.sqlite"))
+  _ = try await engine.connect(endpoint: endpoint(), expectedMode: "fixture", transport: transport)
+  let calls = (0..<22).map { index in
+    Task { () -> Bool in
+      do {
+        _ = try await engine.refresh(Route("bulk\(index)"))
+        return true
+      } catch {
+        #expect(error as? ClientError == .unavailable)
+        await transport.recordRejection()
+        return false
+      }
+    }
+  }
+  for _ in 0..<100 where await transport.active < 2 { try await Task.sleep(for: .milliseconds(10)) }
+  #expect(await transport.active == 2)
+  for _ in 0..<200 where await transport.rejected < 4 {
+    try await Task.sleep(for: .milliseconds(10))
+  }
+  #expect(await transport.rejected == 4)
+  #expect(await transport.peak == 2)
+  await transport.release()
+  var successes = 0
+  for call in calls { if await call.value { successes += 1 } }
+  #expect(successes == 18)  // Two active reads plus sixteen bounded waiters.
+  #expect(await transport.peak == 2)
+}
