@@ -116,3 +116,24 @@ Private raw evidence SHA-256 (content is not published)
 fe4a99220602d758c6846c94865f2d986a92d49f9420fd26cdbc5fe1875442db  gui-chat-final.log
 a39d8e9adae164805f279efcee368dff537cf29b7e0ae6c52c0f259201116c3e  read-budget-final.log
 c5ddec2c740e1e3ba9246aec800caec76db6b286f10db48378ec90159c0c87a5  sleep-os-log.txt
+
+Follow-up: coordinated GUI rerun and restored display
+- Master deferred VoiceOver for this round: NOT_TESTED, not a pass.
+- Master authorized temporary More Space scaling. All four content sizes
+  1440x900, 1280x860, 1024x768, 720x520 passed with font=20.
+- Default 1470x956 display scaling restored and visually confirmed afterward.
+- Initial expanded rerun was still obscured by Codex. It also exposed the new
+  layout draft leaking into the shared chat test client after interruption.
+  Layout now has a separate client directory; no product assertion was removed.
+- Master hid Codex; chat/window GUI 8/8 PASS (gui-chat-isolated.log).
+- Narrow management first failed because the existing test clicked an approval
+  button below the viewport. It now scrolls and explicitly asserts hittability.
+  No timeout increase; management GUI 3/3 PASS (gui-management-narrow.log).
+- With the independent journey 1/1, GUI total is 12/12 for these named cases.
+- Prior head 4339d063072aae87588ae924d3b305f971e10221 CI run 38472673179:
+  Core 8m12s, Native 3m5s, verify 3s; all SUCCESS. Follow-up head CI pending.
+- Actual OS cold/offline, split-screen and IME rows remain open at this checkpoint.
+88ce5803978c2c117284af43a8c4758b6ca895ed40231322034fb3574c507e07  gui-chat-expanded.log
+aa9a89e03d191809bc78f6e675129ab2605caea62535babbaa4e6414bb8239c6  gui-chat-isolated.log
+2a0cf43e34b436e4a52e81d4a6e406b786c2b5dbb8851b14478b49bd1d58cba9  gui-management-isolated.log
+29bd1cd7dfeac2166b58f45dae14f2d72229f7a2736c9d05a456f2c8aad15605  gui-management-narrow.log

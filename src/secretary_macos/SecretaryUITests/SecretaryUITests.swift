@@ -76,6 +76,8 @@ final class SecretaryUITests: XCTestCase {
       throw XCTSkip("isolated UI fixture required")
     }
     let app = application()
+    // Keep the layout draft separate even if this test is interrupted before cleanup.
+    app.launchEnvironment["SECRETARY_NATIVE_TEST_DATA_DIR"] = directory + "/layout-client"
     app.launchArguments = ["-ApplePersistenceIgnoreState", "YES", "-chat.fontSize", "20"]
     app.launch()
     defer { app.terminate() }
@@ -561,7 +563,10 @@ final class SecretaryUITests: XCTestCase {
     detail.click()
     XCTAssertTrue(app.staticTexts["实际操作及完整参数"].waitForExistence(timeout: 10))
     XCTAssertTrue(app.staticTexts["适用根目录"].exists)
-    app.buttons["批准一次"].click()
+    let approve = app.buttons["批准一次"]
+    for _ in 0..<8 where !approve.isHittable { app.scrollViews.firstMatch.swipeUp() }
+    XCTAssertTrue(approve.isHittable)
+    approve.click()
     XCTAssertTrue(app.buttons["confirmManagementCommand"].waitForExistence(timeout: 5))
     app.buttons["取消"].click()
     XCTAssertTrue(app.buttons["批准一次"].isEnabled)
