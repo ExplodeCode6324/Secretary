@@ -82,6 +82,26 @@ function syncDir(dir: string) {
     fs.closeSync(fd);
   }
 }
+const indexFields: Record<string, string[]> = {
+  WorldCommand: ["state"],
+  Input: ["state"],
+  Feedback: ["state", "execution_id"],
+  Execution: ["state", "retention_state", "task_id", "task_occurrence"],
+  TaskPlan: ["state", "pending_requests.length"],
+  Operation: ["process.state", "scope.execution_id"],
+  SettingsApplication: ["state"],
+  CompactionJob: ["state"],
+  MemoryExtractionJob: ["pending_extraction"],
+};
+const fieldValue = (record: Stored, field: string): unknown =>
+  field === "pending_extraction" && record.record_type === "MemoryExtractionJob"
+    ? !record.merged && (record.state !== "FAILED" || !!record.next_attempt_at)
+    : field === "task_occurrence"
+      ? JSON.stringify([
+          (record as any).task_id,
+          (record as any).occurrence_key,
+        ])
+      : field.split(".").reduce((value: any, key) => value?.[key], record);
 export class Store {
   readonly dir: string;
   epoch = 1;
@@ -91,7 +111,59 @@ export class Store {
   private records = new Map<string, Stored>();
   private recordsByType = new Map<string, Map<string, Stored>>();
   private modelCallsByLogicalKey = new Map<string, Map<string, ModelCall>>();
+  private recordOrder = new Map<string, number>();
+  private indexes = new Map<string, Map<unknown, Map<string, Stored>>>();
+  private eventByID = new Map<string, OperationLogRecord>();
+  private eventsByType = new Map<string, OperationLogRecord[]>();
+  private eventsByExecution = new Map<string, OperationLogRecord[]>();
   readonly logs: OperationLogRecord[] = [];
+  indexed<T extends Stored>(
+    type: T["record_type"],
+    field: string,
+    values: unknown[],
+    exclude = false,
+  ): T[] {
+    if (!indexFields[type]?.includes(field)) throw Error("UNKNOWN_STORE_INDEX");
+    const wanted = new Set(values),
+      result: Stored[] = [];
+    const index = this.indexes.get(type + ":" + field);
+    if (exclude) {
+      for (const [value, bucket] of index ?? [])
+        if (!wanted.has(value))
+          for (const record of bucket.values()) result.push(record);
+    } else {
+      for (const value of wanted)
+        for (const record of index?.get(value)?.values() ?? [])
+          result.push(record);
+    }
+    result.sort(
+      (a, b) =>
+        this.recordOrder.get(type + ":" + a.id)! -
+        this.recordOrder.get(type + ":" + b.id)!,
+    );
+    return structuredClone(result) as T[];
+  }
+  eventById(eventID: string) {
+    return this.eventByID.get(eventID);
+  }
+  events(type: string): readonly OperationLogRecord[] {
+    return this.eventsByType.get(type) ?? [];
+  }
+  eventsSince(type: string, after: number): readonly OperationLogRecord[] {
+    const events = this.events(type);
+    let lo = 0,
+      hi = events.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (events[mid].sequence <= after) lo = mid + 1;
+      else hi = mid;
+    }
+    return events.slice(lo);
+  }
+  executionEvents(executionID: string): readonly OperationLogRecord[] {
+    return this.eventsByExecution.get(executionID) ?? [];
+  }
+
   // Validated immutable references for disposable read projections. No second journal.
   readonly projectionFrames: (Pick<
     JournalTransaction,
@@ -518,7 +590,9 @@ export class Store {
           throw Error("INVALID_WAKEUP_STATE");
         if (!previous) {
           const sources = new Set(r.source_event_ids);
-          for (const event of this.logs) {
+          for (const source of [...sources]) {
+            const event = this.eventByID.get(source);
+            if (!event) continue;
             if (
               !sources.has(event.event_id) ||
               event.event_type !== "input.accepted"
@@ -592,6 +666,24 @@ export class Store {
         this.planHistory.set(`${m.object_id}:${m.new_revision}`, m.snapshot);
     }
     for (const r of staged) {
+      const previousRecord = this.records.get(r.record_type + ":" + r.id);
+      if (!previousRecord)
+        this.recordOrder.set(r.record_type + ":" + r.id, this.recordOrder.size);
+      for (const field of indexFields[r.record_type] ?? []) {
+        const key = r.record_type + ":" + field;
+        let index = this.indexes.get(key);
+        if (!index) this.indexes.set(key, (index = new Map()));
+        if (previousRecord) {
+          const oldValue = fieldValue(previousRecord, field),
+            old = index.get(oldValue);
+          old?.delete(r.id);
+          if (old?.size === 0) index.delete(oldValue);
+        }
+        const value = fieldValue(r, field);
+        let bucket = index.get(value);
+        if (!bucket) index.set(value, (bucket = new Map()));
+        bucket.set(r.id, r);
+      }
       if (r.record_type === "DecisionRequest" && r.answer_request_id)
         this.decisionAnswerRequests.add(r.answer_request_id);
       if (r.record_type === "ModelCall") {
@@ -621,6 +713,16 @@ export class Store {
     for (const e of txn.log_records) {
       this.eventSequence = e.sequence;
       this.logs.push(e);
+      this.eventByID.set(e.event_id, e);
+      let events = this.eventsByType.get(e.event_type);
+      if (!events) this.eventsByType.set(e.event_type, (events = []));
+      events.push(e);
+      if (e.scope.execution_id) {
+        let execution = this.eventsByExecution.get(e.scope.execution_id);
+        if (!execution)
+          this.eventsByExecution.set(e.scope.execution_id, (execution = []));
+        execution.push(e);
+      }
       this.eventTransactions.set(e.event_id, txn.txn_id);
     }
     for (const r of txn.receipts)

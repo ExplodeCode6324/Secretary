@@ -45,6 +45,8 @@ import { Authorization } from "./authorization.ts";
 import { durableStream } from "./transport.ts";
 import { saveContext, checkpoint } from "./context.ts";
 import type {
+  Session,
+  Input,
   TaskProposal,
   TaskPlan,
   Execution,
@@ -854,6 +856,50 @@ export class Scheduler {
       ]);
     }
   }
+  private reportMissed(plan: TaskPlan, due: string) {
+    const event = this.store.event("trigger.missed", {
+      task_id: plan.id,
+      due,
+      policy: "REPORT_ONLY",
+    });
+    const session = this.store.all<Session>("Session")[0];
+    if (!session) {
+      this.store.commit([plan], [event]);
+      return;
+    }
+    const text =
+      "Missed scheduled trigger: " + this.store.bytes(event.payload).toString();
+    const input: Input = {
+      ...base(),
+      record_type: "Input",
+      schema_version: 1,
+      session_id: session.id,
+      dedupe_key: event.event_id,
+      producer: "SCHEDULER",
+      state: "ACCEPTED",
+      payload: this.store.put(text, "text/plain"),
+      loop_id: null,
+      received_at: now(),
+      feedback_id: null,
+    };
+    this.store.commit(
+      [plan, input],
+      [
+        event,
+        this.store.event(
+          "input.accepted",
+          input,
+          { session_id: session.id, task_id: null, execution_id: null },
+          "SCHEDULER",
+        ),
+      ],
+      {
+        request: event.event_id,
+        hash: hash(JSON.stringify({ text, producer: "SCHEDULER" })),
+        value: input.id,
+      },
+    );
+  }
   tick(at = Date.now()) {
     if (this.settingsBlocked()) return;
     if (this.closed) return;
@@ -861,7 +907,12 @@ export class Scheduler {
       !this.processWork &&
       at >= this.processCheckAt &&
       this.store
-        .all<Operation>("Operation")
+        .indexed<Operation>(
+          "Operation",
+          "process.state",
+          [undefined, "STOPPED"],
+          true,
+        )
         .some(
           (o) =>
             o.process &&
@@ -874,11 +925,25 @@ export class Scheduler {
         this.processWork = undefined;
       });
     }
-    for (let p of this.store.all<TaskPlan>("TaskPlan")) {
+    const plans = new Map(
+      this.store
+        .indexed<TaskPlan>("TaskPlan", "state", ["CLOSED"], true)
+        .map((p) => [p.id, p]),
+    );
+    for (const p of this.store.indexed<TaskPlan>(
+      "TaskPlan",
+      "pending_requests.length",
+      [undefined, 0],
+      true,
+    ))
+      plans.set(p.id, p);
+    for (let p of plans.values()) {
       // Repair duplicate queue representations before busy checks, including active executions.
       for (const item of p.pending_requests ?? []) {
         const existing = this.store
-          .all<Execution>("Execution")
+          .indexed<Execution>("Execution", "task_occurrence", [
+            JSON.stringify([p.id, item.occurrence_key]),
+          ])
           .find(
             (e) =>
               e.task_id === p.id && e.occurrence_key === item.occurrence_key,
@@ -907,8 +972,13 @@ export class Scheduler {
         continue;
       if (
         this.store
-          .all<Execution>("Execution")
-          .some((e) => e.task_id === p.id && !terminal(e))
+          .indexed<Execution>(
+            "Execution",
+            "state",
+            ["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"],
+            true,
+          )
+          .some((e) => e.task_id === p.id)
       ) {
         if (
           p.trigger.kind === "INTERVAL" &&
@@ -936,9 +1006,9 @@ export class Scheduler {
         request?.occurrence_key ??
         (p.trigger.kind === "IMMEDIATE" ? "once" : due);
       if (
-        this.store
-          .all<Execution>("Execution")
-          .some((e) => e.task_id === p.id && e.occurrence_key === key)
+        this.store.indexed<Execution>("Execution", "task_occurrence", [
+          JSON.stringify([p.id, key]),
+        ]).length
       ) {
         this.store.commit([
           revise(p, {
@@ -973,16 +1043,7 @@ export class Scheduler {
               (p.trigger.interval_seconds ?? 1) *
               1000,
         ).toISOString();
-        this.store.commit(
-          [revise(p, { next_due_at: nextDue })],
-          [
-            this.store.event("trigger.missed", {
-              task_id: p.id,
-              due,
-              policy: "REPORT_ONLY",
-            }),
-          ],
-        );
+        this.reportMissed(revise(p, { next_due_at: nextDue }), due);
         continue;
       }
       const proposalRef = request?.proposal_ref ?? p.proposal_ref;
@@ -1068,7 +1129,12 @@ export class Scheduler {
       this.setState(e.id, "WAIT_PRECONDITION");
       this.ready(e.id);
     }
-    for (let e of this.store.all<Execution>("Execution")) {
+    for (let e of this.store.indexed<Execution>(
+      "Execution",
+      "state",
+      ["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"],
+      true,
+    )) {
       const plan = this.proposalFor(e);
       if (e.state === "CREATED") {
         this.setState(e.id, "WAIT_PRECONDITION");
@@ -1927,7 +1993,7 @@ export class Scheduler {
     const e = this.store.get<Execution>("Execution", eid);
     if (e.state !== "RESULT_UNKNOWN" || this.running.has(eid)) return;
     const operations = this.store
-      .all<Operation>("Operation")
+      .indexed<Operation>("Operation", "scope.execution_id", [eid])
       .filter((o) => o.scope.execution_id === eid);
     const unknown = operations
       .filter((o) => o.state === "RESULT_UNKNOWN")
@@ -2348,7 +2414,12 @@ export class Scheduler {
     }
   }
   retire(at = Date.now()) {
-    for (const e of this.store.all<Execution>("Execution")) {
+    for (const e of this.store.indexed<Execution>(
+      "Execution",
+      "retention_state",
+      ["RETIRED"],
+      true,
+    )) {
       if (
         !terminal(e) ||
         e.retention_state === "RETIRED" ||
@@ -2356,15 +2427,13 @@ export class Scheduler {
         e.unknown_operation_ids.length ||
         e.pending_followup_ids.length ||
         this.store
-          .all<Feedback>("Feedback")
+          .indexed<Feedback>("Feedback", "execution_id", [e.id])
           .some((f) => f.execution_id === e.id && f.state !== "HANDLED") ||
         at - Math.max(Date.parse(e.ended_at!), Date.parse(e.last_activity_at)) <
           e.retire_after_seconds * 1000
       )
         continue;
-      const records = this.store.logs.filter(
-        (l) => l.scope.execution_id === e.id,
-      );
+      const records = this.store.executionEvents(e.id);
       for (const l of records) this.store.bytes(l.payload);
       const result = this.store.get<TaskResult>("TaskResult", e.result_id!);
       this.store.bytes(result.detail_ref);
@@ -2385,8 +2454,15 @@ export class Scheduler {
       );
     }
   }
-  private async recoverProcesses() {
-    for (const op of this.store.all<Operation>("Operation")) {
+  private async recoverProcesses(startup = false) {
+    for (const op of startup
+      ? this.store.all<Operation>("Operation")
+      : this.store.indexed<Operation>(
+          "Operation",
+          "process.state",
+          [undefined, "STOPPED"],
+          true,
+        )) {
       if (
         !op.scope.execution_id ||
         this.running.has(op.scope.execution_id) ||
@@ -2400,7 +2476,7 @@ export class Scheduler {
     }
   }
   async recover() {
-    await this.recoverProcesses();
+    await this.recoverProcesses(true);
     for (const e of this.store.all<Execution>("Execution")) {
       if (!e.proposal_ref)
         this.store.commit([
@@ -2418,15 +2494,9 @@ export class Scheduler {
         p.next_due_at &&
         Date.parse(p.next_due_at) < Date.now()
       ) {
-        this.store.commit(
-          [revise(p, { state: "PAUSED", next_due_at: null })],
-          [
-            this.store.event("trigger.missed", {
-              task_id: p.id,
-              due: p.next_due_at,
-              policy: "REPORT_ONLY",
-            }),
-          ],
+        this.reportMissed(
+          revise(p, { state: "PAUSED", next_due_at: null }),
+          p.next_due_at,
         );
       }
     for (const d of this.store.all<DecisionRequest>("DecisionRequest")) {

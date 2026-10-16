@@ -119,7 +119,15 @@ export class Settings {
   get blocked() {
     return (
       this.host.session.runtime_settings_hash !== this.runtimeHash ||
-      this.applications().some((a) => !["APPLIED", "FAILED"].includes(a.state))
+      this.pendingApplications().length > 0
+    );
+  }
+  private pendingApplications() {
+    return this.store.indexed<SettingsApplication>(
+      "SettingsApplication",
+      "state",
+      ["APPLIED", "FAILED"],
+      true,
     );
   }
   applications() {
@@ -297,9 +305,7 @@ export class Settings {
   tick(): Promise<void> {
     if (this.active) return this.active;
     if (this.closing) return Promise.resolve();
-    const next = this.applications().find(
-      (a) => !["APPLIED", "FAILED"].includes(a.state),
-    );
+    const next = this.pendingApplications()[0];
     if (!next || next.state === "BLOCKED") return Promise.resolve();
     this.active = this.execute(next.id).finally(() => {
       this.active = undefined;

@@ -454,7 +454,9 @@ export async function drainExtractions(
 ) {
   const { store, sessionID } = options;
   for (const job of store
-    .all<MemoryExtractionJob>("MemoryExtractionJob")
+    .indexed<MemoryExtractionJob>("MemoryExtractionJob", "pending_extraction", [
+      true,
+    ])
     .filter((j) => j.session_id === sessionID && !j.merged)) {
     const cs = store
       .all<Consciousness>("Consciousness")

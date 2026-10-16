@@ -54,7 +54,7 @@ export function relativePath(
 }
 export function processStopped(store: Store, eid: string) {
   return !store
-    .all<Operation>("Operation")
+    .indexed<Operation>("Operation", "scope.execution_id", [eid])
     .some(
       (o) =>
         o.scope.execution_id === eid &&

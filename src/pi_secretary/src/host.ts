@@ -211,18 +211,21 @@ export class Host {
     );
     return input;
   }
+  private missedOffset = 0;
   deliverFeedback() {
-    for (const log of this.store.logs.filter(
-      (l) => l.event_type === "trigger.missed",
-    ))
+    const missed = this.store.events("trigger.missed");
+    while (this.missedOffset < missed.length) {
+      const log = missed[this.missedOffset];
       this.accept(
         "Missed scheduled trigger: " + this.store.bytes(log.payload).toString(),
         log.event_id,
         "SCHEDULER",
       );
-    for (const f of this.store
-      .all<Feedback>("Feedback")
-      .filter((f) => f.state === "QUEUED")) {
+      this.missedOffset++;
+    }
+    for (const f of this.store.indexed<Feedback>("Feedback", "state", [
+      "QUEUED",
+    ])) {
       this.store.bytes(f.detail_ref);
       const i: Input = {
         schema_version: 1,
@@ -489,10 +492,8 @@ export class Host {
       if (this.memoryDue()) await this.maintain();
       let s = this.session;
       const pending = this.store
-        .all<Input>("Input")
-        .filter(
-          (i) => i.session_id === this.sessionID && i.state !== "HANDLED",
-        );
+        .indexed<Input>("Input", "state", ["HANDLED"], true)
+        .filter((i) => i.session_id === this.sessionID);
       if (!pending.length) return;
       let batch = pending.filter((i) => i.state === "CLAIMED");
       const recovering = batch.length > 0;
@@ -1280,13 +1281,9 @@ export class Host {
   }
   private completedSequence() {
     return (
-      this.store.logs
-        .filter(
-          (l) =>
-            l.scope.session_id === this.sessionID &&
-            l.event_type === "input.handled",
-        )
-        .at(-1)?.sequence ?? 0
+      this.store
+        .events("input.handled")
+        .findLast((e) => e.scope.session_id === this.sessionID)?.sequence ?? 0
     );
   }
   private memoryDue() {
@@ -1298,12 +1295,14 @@ export class Host {
       return false;
     const cs = this.memory(),
       start = cs.covered_event_sequence ?? 0;
-    const turns = this.store.logs.filter(
-      (l) =>
-        l.scope.session_id === this.sessionID &&
-        l.event_type === "input.handled" &&
-        l.sequence > start,
-    );
+    const turns = this.store
+      .eventsSince("input.handled", start)
+      .filter(
+        (l) =>
+          l.scope.session_id === this.sessionID &&
+          l.event_type === "input.handled" &&
+          l.sequence > start,
+      );
     if (this.pendingSummary()) return this.summaryDue();
     if (!turns.length) return false;
     const jobs = this.store
@@ -1313,13 +1312,15 @@ export class Host {
           j.session_id === this.sessionID && j.mode !== "CONTEXT_COMPACTION",
       );
     if (this.pendingSummary()) return this.summaryDue();
-    const critical = this.store.logs.some(
-      (l) =>
-        l.scope.session_id === this.sessionID &&
-        l.sequence > start &&
-        l.sequence <= this.completedSequence() &&
-        l.event_type === "feedback.delivered",
-    );
+    const critical = this.store
+      .eventsSince("feedback.delivered", start)
+      .some(
+        (l) =>
+          l.scope.session_id === this.sessionID &&
+          l.sequence > start &&
+          l.sequence <= this.completedSequence() &&
+          l.event_type === "feedback.delivered",
+      );
     const last = jobs.at(-1);
     if (
       !critical &&
@@ -1354,7 +1355,11 @@ export class Host {
     const pressure =
       this.pressureCache.pressured && this.capacityAttemptKey !== key;
     const extractionDue = this.store
-      .all<MemoryExtractionJob>("MemoryExtractionJob")
+      .indexed<MemoryExtractionJob>(
+        "MemoryExtractionJob",
+        "pending_extraction",
+        [true],
+      )
       .some(
         (j) =>
           j.session_id === this.sessionID &&
@@ -1868,7 +1873,10 @@ export class Host {
   private pendingSummary() {
     const start = this.memory().covered_event_sequence ?? 0;
     return this.store
-      .all<CompactionJob>("CompactionJob")
+      .indexed<CompactionJob>("CompactionJob", "state", [
+        "FAILED",
+        "SUMMARIZING",
+      ])
       .findLast(
         (j) =>
           j.session_id === this.sessionID &&
