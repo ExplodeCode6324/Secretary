@@ -70,6 +70,12 @@ export function pushSecrets(
 }
 export const notificationScript =
   'on run argv\ndisplay notification (item 1 of argv) with title "Secretary"\nend run';
+export const macNotificationArguments = (message: string) => [
+  "-e",
+  notificationScript,
+  "--",
+  message,
+];
 export async function sendPush(
   directory: string,
   target: PushTarget,
@@ -82,7 +88,7 @@ export async function sendPush(
     await new Promise<void>((resolve, reject) => {
       execFile(
         "/usr/bin/osascript",
-        ["-e", notificationScript, message],
+        macNotificationArguments(message),
         {
           signal,
           timeout: 10000,

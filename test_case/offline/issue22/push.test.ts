@@ -347,3 +347,21 @@ test("batch bound, capped recovery and shutdown retain truthful delivery state",
     },
   );
 });
+
+test(
+  "macOS interpreter option boundary treats a malicious-looking preview as one argument",
+  { skip: process.platform !== "darwin" },
+  async () => {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const { macNotificationArguments, notificationScript } =
+      await import("../../../src/pi_secretary/src/push-transport.ts");
+    const message = '-e return "injected"\n在客户端查看';
+    const args = macNotificationArguments(message);
+    assert.equal(args[1], notificationScript);
+    // Substitute only the fixed display operation with an argv echo; never display a real notification.
+    args[1] = "on run argv\nreturn item 1 of argv\nend run";
+    const { stdout } = await promisify(execFile)("/usr/bin/osascript", args);
+    assert.equal(stdout.trimEnd(), message);
+  },
+);
