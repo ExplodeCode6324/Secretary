@@ -365,3 +365,56 @@ test(
     assert.equal(stdout.trimEnd(), message);
   },
 );
+
+test("fourth interrupted attempt is terminal and cannot exceed the saved budget", () =>
+  fixture(
+    async (f) => {
+      const { id, revise } =
+        await import("../../../src/pi_secretary/src/store.ts");
+      f.app.pushes.configure(config());
+      f.notify();
+      f.app.pushes.reconcile();
+      const d = f.dispatches()[0];
+      f.app.store.commit([
+        revise(d, {
+          state: "SENDING",
+          batch_id: id(),
+          attempts: 4,
+          attempt_history: Array.from({ length: 4 }, () => ({
+            id: id(),
+            at: new Date(f.time).toISOString(),
+          })),
+        }),
+      ]);
+      await f.restart();
+      f.time += 600000;
+      await f.app.pushes.tick();
+      assert.equal(f.dispatches()[0].state, "FAILED");
+      assert.equal(f.dispatches()[0].error_code, "INTERRUPTED");
+      assert.equal(f.dispatches()[0].attempts, 4);
+    },
+    async () => {
+      assert.fail("budget exhausted: must not send");
+    },
+  ));
+
+test("shutdown aborts an outstanding HTTP request and leaves a retryable dispatch", () =>
+  provider(async (endpoint, received, respond) =>
+    fixture(async (f) => {
+      let started!: () => void;
+      const ready = new Promise<void>((r) => (started = r));
+      respond(() => {
+        started();
+      });
+      const t = f.app.pushes.configure(config(endpoint));
+      f.secret(t, { topic: "synthetic" });
+      f.notify();
+      const work = f.app.pushes.tick();
+      await ready;
+      await f.app.pushes.close();
+      await work;
+      assert.equal(received.length, 1);
+      assert.equal(f.dispatches()[0].state, "PENDING");
+      assert.equal(f.dispatches()[0].attempts, 1);
+    }),
+  ));
