@@ -434,13 +434,16 @@ export class Store {
         throw Error("EXECUTION_WORKSPACE_IMMUTABLE");
       staged.push(r);
     }
-    const candidate = new Map(this.records);
-    for (const r of staged) candidate.set(r.record_type + ":" + r.id, r);
-    if (
-      [...candidate.values()].filter((r) => r.record_type === "Session")
-        .length > 1
-    )
-      throw Error("MULTIPLE_MAIN_SESSIONS");
+    const candidate = new Map(
+      staged.map((r) => [r.record_type + ":" + r.id, r]),
+    );
+    const sessionCount =
+      (this.recordsByType.get("Session")?.size ?? 0) +
+      staged.filter(
+        (r) =>
+          r.record_type === "Session" && !this.records.has("Session:" + r.id),
+      ).length;
+    if (sessionCount > 1) throw Error("MULTIPLE_MAIN_SESSIONS");
     for (const r of staged) {
       if (r.record_type === "WakeTimer") {
         const previous = this.records.get("WakeTimer:" + r.id);
@@ -514,7 +517,8 @@ export class Store {
       if (
         "session_id" in r &&
         r.session_id &&
-        !candidate.has("Session:" + r.session_id)
+        !candidate.has("Session:" + r.session_id) &&
+        !this.records.has("Session:" + r.session_id)
       )
         throw Error("MISSING_SESSION");
     }
