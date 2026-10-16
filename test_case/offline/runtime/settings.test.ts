@@ -115,8 +115,7 @@ test("draft is durable and inactive; application summarizes both reference sets,
     assert.equal(context.pending_tool_call_ids.length, 0);
     assert(
       app.store
-        .bytes(context.raw_context)
-        .toString()
+        .contentText(context.raw_context)
         .includes("Never send external payments"),
     );
     const csNext = app.store.get<Consciousness>("Consciousness", cs.id);

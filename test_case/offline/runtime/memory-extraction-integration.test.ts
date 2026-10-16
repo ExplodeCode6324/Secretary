@@ -137,7 +137,7 @@ test("empty primary summary falls back once and records an assistant-only condit
         assert(
           job.source_refs.some((candidate) => candidate.sha256 === ref.sha256),
         );
-        assert(app.store.bytes(ref).toString().includes(promise));
+        assert(app.store.contentText(ref).includes(promise));
       }
       assert.deepEqual(ledger[0].resolution_event_ids, []);
       assert(app.store.bytes(source).equals(before));
@@ -153,7 +153,7 @@ test("compaction ignores a nonempty primary quote of the user's request and uses
     () => [promise],
     async (app, calls) => {
       const source = memory(app).pending_raw_refs[0];
-      assert(app.store.bytes(source).toString().includes(requestToPromise));
+      assert(app.store.contentText(source).includes(requestToPromise));
       await app.host.compact();
       assert.equal(app.host.memoryStatus().state, "COMMITTED");
       assert.equal(calls.primary, 1);
@@ -221,7 +221,7 @@ test("settings rebuild ignores a primary request quote and records only the dedi
       assert(ledger[0].source_refs.length > 0);
       assert(
         ledger[0].source_refs.every((ref) =>
-          app.store.bytes(ref).toString().includes(promise),
+          app.store.contentText(ref).includes(promise),
         ),
       );
       assert(
@@ -240,7 +240,7 @@ test("fallback cannot introduce an invented quote absent from the durable source
     () => [invented],
     async (app, calls) => {
       const source = memory(app).pending_raw_refs[0];
-      assert(!app.store.bytes(source).toString().includes(invented));
+      assert(!app.store.contentText(source).includes(invented));
       await app.host.compact();
       assert.equal(calls.primary, 1);
       assert.equal(calls.extraction, 1);

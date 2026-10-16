@@ -459,7 +459,7 @@ for (const mode of ["main", "settings"] as const)
       extract(false);
       if (mode === "main") await app.host.compact();
       else await applySettings(app, "Synthetic legacy first batch");
-      const alias = saveContext(
+      const encodedAlias = saveContext(
         app.store,
         events.map((event) => app.store.read(event.payload)),
         events[0].scope,
@@ -467,6 +467,16 @@ for (const mode of ["main", "settings"] as const)
         fixtureModel.id,
         id(),
       );
+      // This case deliberately constructs historical array encoding so the
+      // Context and event evidence retain the exact same physical CAS hash.
+      const alias = {
+        ...encodedAlias,
+        ...base(),
+        raw_context: app.store.put(
+          events.map((event) => app.store.read(event.payload)),
+        ),
+      };
+      app.store.commit([alias]);
       const delivery = await deliver(app, result);
       extract(true);
       app.store.commit(

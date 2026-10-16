@@ -85,9 +85,9 @@ test("actual Pi main loop, task agent, durable feedback and exact context reload
     const raw = app.store.bytes(cp.raw_context!);
     assert.equal(hash(raw), cp.raw_context!.sha256);
     assert(
-      JSON.parse(raw.toString()).some(
-        (m: { role: string }) => m.role === "assistant",
-      ),
+      app.store
+        .read<{ role: string }[]>(cp.raw_context!)
+        .some((m: { role: string }) => m.role === "assistant"),
     );
   }));
 test("new input arriving during a Pi call remains durable and is handled later", () =>
@@ -446,10 +446,11 @@ test("separate processes restore exact Pi context and recover an ACK after SIGKI
       "Context",
       app.host.session.last_context_id!,
     );
-    const file = path.join(dir, c.raw_context.path);
+    await app.close();
+    app = undefined;
     const restored = spawn(
       process.execPath,
-      ["--import", "tsx", helper, "restore", file],
+      ["--import", "tsx", helper, "restore", dir, c.id],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
     let result = "";
@@ -487,7 +488,7 @@ test("crash after claiming a new input cannot mistake the previous loop reply fo
       app.host.session.last_context_id!,
     );
     assert.match(
-      app.store.bytes(c.raw_context).toString(),
+      app.store.contentText(c.raw_context),
       /second must actually be processed/,
     );
     assert.equal(app.store.get<Input>("Input", b.id).state, "HANDLED");

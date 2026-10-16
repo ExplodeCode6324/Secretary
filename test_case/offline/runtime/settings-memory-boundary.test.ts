@@ -74,7 +74,7 @@ test("settings CAS revision remains durable but cannot masquerade as the model's
       assert.deepEqual(packet.settings_changes.instructions, { content });
     const context = app.store.get<Context>("Context", application.context_id!);
     assert.equal(context.instructions_revision, before + 1);
-    const raw = app.store.bytes(context.raw_context).toString();
+    const raw = app.store.contentText(context.raw_context);
     assert(
       !raw.includes("expected_revision"),
       "model activation record must not expose the old CAS revision",

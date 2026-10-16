@@ -221,7 +221,7 @@ test("next context identifies working memory revision, input IDs and model reque
             c.input_ids.includes(input.id),
         ),
     );
-    const raw = app.store.bytes(context.raw_context).toString();
+    const raw = app.store.contentText(context.raw_context);
     assert(raw.includes("never send external payments"));
   }));
 
