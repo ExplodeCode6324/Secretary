@@ -69,7 +69,7 @@ docs:check 检查 Git 跟踪 Markdown 的本地路径与迁移目标，新文件
 
 显式 online 入口见 [online README](../test_case/online/README.md)，使用指定模型、已有凭据、新建隔离目录和请求/时间预算。记录实际 HTTP 次数、用量、首次失败及 oracle 结果。当前 API 产物场景核对 write/bash/read、同任务两轮、下载字节和独立程序计算；记忆场景覆盖真实整理及跨 OS 进程连续性。
 
-历史 UI 探针和截图描述其原版本。当前 Core 使用 API v1，原生窗口、阅读位置和输入法已有本地回归；完整可访问性等联合验收仍归 #10 PR3c。已有真实模型结果统一收录在带日期的 [API 验证记录](api/v1/verification.md)。
+历史 UI 探针和截图描述其原版本。当前 Core 使用 API v1，原生窗口、阅读位置和输入法已有本地回归；SwiftUI 路线废弃后，未完成的实际展示及系统交互验收继续延期，不作为 Core 结项条件。已有真实模型结果统一收录在带日期的 [API 验证记录](api/v1/verification.md)。
 
 每份运行报告注明提交、环境、命令、实际通过/失败/skip/TODO 和未运行项目。公开仓库保留脱敏结论，原始会话及凭据留在私密证据目录。
 
@@ -107,4 +107,4 @@ node test_case/native/ui-fixture.mjs
 SECRETARY_MODE=fixture SECRETARY_TEST_DATABASE_URL='<专用测试 DSN>' node --import tsx test_case/native/management-fixture.ts --ui
 ```
 
-GUI 必须在可用的本机图形会话运行；编译 UI target 不代表 GUI 通过。CI 分别运行 Core (Linux)、Native (macOS)，聚合 verify 要求两者成功。系统通知权限/点击、VoiceOver、真实睡眠、真实模型及接近 1 GiB 的资源实测归 PR3c，不用于替代本阶段的基本能力门槛。
+GUI 必须在可用的本机图形会话运行；编译 UI target 不代表 GUI 通过。当前 CI 运行 Core (Linux) 完整 verify（含 PostgreSQL）和 Core (macOS) 的 issue18 进程恢复、issue22 推送及 process-lifecycle 回归，聚合 verify 要求两者成功。macOS 定向组不声称覆盖完整 PostgreSQL 验证。旧 Native 构建保留在 [手动历史工作流](../.github/workflows/native-archive.yml)，不作为 Core 门禁。以上 GUI 命令仅供历史复现；系统通知权限/点击、VoiceOver、真实睡眠及资源实测继续延期。手机真实送达归冻结的 #11，macOS 实际展示等待后续 UI 路线。

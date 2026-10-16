@@ -53,12 +53,10 @@ jobs:
           node --input-type=module -e 'import { Client } from "pg"; const c = new Client({connectionString: process.env.SECRETARY_TEST_DATABASE_URL}); await c.connect(); console.log((await c.query("select version() as version")).rows[0].version); await c.end();'
       - run: npm run verify
 
-  native:
-    name: Native (macOS)
+  core_macos:
+    name: Core (macOS)
     runs-on: macos-15
-    timeout-minutes: 25
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -69,17 +67,21 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: package-lock.json
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.x"
       - run: npm ci
-      - run: src/secretary_macos/verify.sh
+      - name: Core process recovery and push transports
+        run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts
 
   verify:
     name: verify
     if: ${{ always() }}
-    needs: [core, native]
+    needs: [core, core_macos]
     runs-on: ubuntu-latest
     steps:
-      - name: Require both platforms
+      - name: Require Core checks
         env:
           CORE_RESULT: ${{ needs.core.result }}
-          NATIVE_RESULT: ${{ needs.native.result }}
-        run: test "$CORE_RESULT" = success && test "$NATIVE_RESULT" = success
+          MACOS_RESULT: ${{ needs.core_macos.result }}
+        run: test "$CORE_RESULT" = success && test "$MACOS_RESULT" = success
