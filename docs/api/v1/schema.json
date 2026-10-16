@@ -3985,6 +3985,504 @@
         "version",
         "next_cursor"
       ]
+    },
+    "PushTargetConfig": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "kind": {
+          "enum": [
+            "NTFY",
+            "BARK",
+            "MACOS_NOTIFICATION"
+          ]
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2048
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "quiet_hours": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "start": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                }
+              },
+              "required": [
+                "timezone",
+                "start",
+                "end"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "kind",
+        "endpoint",
+        "enabled",
+        "quiet_hours"
+      ],
+      "additionalProperties": false
+    },
+    "PushTarget": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "kind": {
+          "enum": [
+            "NTFY",
+            "BARK",
+            "MACOS_NOTIFICATION"
+          ]
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2048
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "quiet_hours": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "start": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                }
+              },
+              "required": [
+                "timezone",
+                "start",
+                "end"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "generation": {
+          "$ref": "#/$defs/ID"
+        },
+        "after_sequence": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "updated_at",
+        "name",
+        "kind",
+        "endpoint",
+        "enabled",
+        "quiet_hours",
+        "generation",
+        "after_sequence"
+      ],
+      "additionalProperties": false
+    },
+    "PushTargetPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PushTarget"
+          }
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ]
+    },
+    "PushDispatch": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "target_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "generation": {
+          "$ref": "#/$defs/ID"
+        },
+        "notification_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "state": {
+          "enum": [
+            "PENDING",
+            "SENDING",
+            "DISPATCHED",
+            "FAILED",
+            "CANCELLED"
+          ]
+        },
+        "batch_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4
+        },
+        "attempt_history": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "$ref": "#/$defs/ID"
+              },
+              "at": {
+                "$ref": "#/$defs/Time"
+              }
+            },
+            "required": [
+              "id",
+              "at"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "next_attempt_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "dispatched_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "enum": [
+                "SECRET_UNAVAILABLE",
+                "PROVIDER_REJECTED",
+                "TRANSPORT_FAILED",
+                "UNSUPPORTED_PLATFORM",
+                "CONTENT_UNAVAILABLE",
+                "INTERRUPTED"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "updated_at",
+        "target_id",
+        "generation",
+        "notification_id",
+        "state",
+        "batch_id",
+        "attempts",
+        "attempt_history",
+        "next_attempt_at",
+        "dispatched_at",
+        "error_code"
+      ],
+      "additionalProperties": false
+    },
+    "PushDispatchPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PushDispatch"
+          }
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ]
+    },
+    "PushTargetCreateCommand": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "kind": {
+          "enum": [
+            "NTFY",
+            "BARK",
+            "MACOS_NOTIFICATION"
+          ]
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2048
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "quiet_hours": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "start": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                }
+              },
+              "required": [
+                "timezone",
+                "start",
+                "end"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "request_id",
+        "name",
+        "kind",
+        "endpoint",
+        "enabled",
+        "quiet_hours"
+      ],
+      "additionalProperties": false
+    },
+    "PushTargetUpdateCommand": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "kind": {
+          "enum": [
+            "NTFY",
+            "BARK",
+            "MACOS_NOTIFICATION"
+          ]
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 2048
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "quiet_hours": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "timezone": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "start": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                },
+                "end": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                }
+              },
+              "required": [
+                "timezone",
+                "start",
+                "end"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "request_id",
+        "expected_revision",
+        "name",
+        "kind",
+        "endpoint",
+        "enabled",
+        "quiet_hours"
+      ],
+      "additionalProperties": false
+    },
+    "ID": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "Time": {
+      "type": "string",
+      "format": "date-time"
     }
   },
   "oneOf": [

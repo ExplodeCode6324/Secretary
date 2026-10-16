@@ -1167,5 +1167,93 @@
     "request": "EmptyCommand",
     "response": "Receipt",
     "status": 202
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/push-targets",
+    "response": "PushTargetPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/push-targets/{id}",
+    "response": "PushTarget",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/push-dispatches",
+    "response": "PushDispatchPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "target_id",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "state",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/push-dispatches/{id}",
+    "response": "PushDispatch",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/push-targets",
+    "request": "PushTargetCreateCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/push-targets/{id}",
+    "request": "PushTargetUpdateCommand",
+    "response": "Receipt",
+    "status": 202
   }
 ]

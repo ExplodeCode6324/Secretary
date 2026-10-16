@@ -1,3 +1,4 @@
+import { validatePushConfig } from "./push-service.ts";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -221,6 +222,12 @@ export class ApplicationService {
       throw new ApiError("REQUEST_CONFLICT", 409);
     const wakeupCancel = route.route === "wakeups/:id/cancel";
     if (wakeupCancel) this.app.host.wakeups.get(route.target!);
+    if (route.route === "push-targets" || route.route === "push-targets/:id") {
+      const { request_id, expected_revision, ...config } = body;
+      validatePushConfig(
+        config as unknown as import("./api/contracts.ts").PushTargetConfig,
+      );
+    }
     const request: ApiCommand = {
       ...base(requestID),
       schema_version: 1,
@@ -325,6 +332,15 @@ export class ApplicationService {
     const { host, scheduler, settings, authorization, store } = this.app;
     const requestID = b.request_id as string;
     switch (route) {
+      case "push-targets":
+      case "push-targets/:id": {
+        const { request_id, expected_revision, ...config } = b;
+        return this.app.pushes.configure(
+          config as unknown as import("./api/contracts.ts").PushTargetConfig,
+          target,
+          target ? revision(expected_revision) : undefined,
+        );
+      }
       case "wakeups/:id/cancel":
         return host.wakeups.cancel(target!);
       case "notifications/:id/presented":
@@ -598,6 +614,8 @@ export class ApplicationService {
       operations: "Operation",
       notifications: "Notification",
       wakeups: "WakeTimer",
+      "push-targets": "PushTarget",
+      "push-dispatches": "PushDispatch",
       clients: "ClientRegistration",
       "authorization-rules": "AuthorizationRule",
       "admin/authorization-rules": "AuthorizationRule",
@@ -642,6 +660,7 @@ export class ApplicationService {
       ...(path === "artifacts" ? ["task_id"] : []),
       ...(path === "tasks" ? ["scope_id"] : []),
       ...(path === "wakeups" ? ["state"] : []),
+      ...(path === "push-dispatches" ? ["state", "target_id"] : []),
       ...(/^operations\/[^/]+\/content$/.test(path) ? ["part"] : []),
       ...(path.startsWith("world/")
         ? ["subject", "predicate", "scope", "kind", "history"]
@@ -661,6 +680,40 @@ export class ApplicationService {
       throw new ApiError("INVALID_LIMIT");
     const parts = path.split("/"),
       target = parts[1];
+    if (path === "push-targets")
+      return this.page(path, project(store.all("PushTarget")), q);
+    if (parts[0] === "push-targets" && parts.length === 2)
+      return project(this.app.pushes.target(target));
+    if (path === "push-dispatches") {
+      const state = q.get("state"),
+        targetID = q.get("target_id");
+      if (
+        state &&
+        !["PENDING", "SENDING", "DISPATCHED", "FAILED", "CANCELLED"].includes(
+          state,
+        )
+      )
+        throw new ApiError("INVALID_QUERY");
+      if (targetID) this.app.pushes.target(targetID);
+      return this.page(
+        "push-dispatches:" + JSON.stringify([state, targetID]),
+        project(
+          store
+            .all<import("./contracts.ts").PushDispatch>("PushDispatch")
+            .filter(
+              (d) =>
+                (!state || d.state === state) &&
+                (!targetID || d.target_id === targetID),
+            ),
+        ),
+        q,
+      );
+    }
+    if (parts[0] === "push-dispatches" && parts.length === 2) {
+      const d = store.find("PushDispatch", target);
+      if (!d) throw new ApiError("NOT_FOUND", 404);
+      return project(d);
+    }
     if (path === "wakeups") {
       const state = q.get("state");
       if (state !== null && !["PENDING", "FIRED", "CANCELLED"].includes(state))
@@ -708,6 +761,8 @@ export class ApplicationService {
             [
               "messages",
               "wakeups",
+              "push-targets",
+              "push-dispatches",
               "tasks",
               "scopes",
               "memory",

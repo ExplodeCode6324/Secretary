@@ -14,6 +14,8 @@ const mapping = (
 export const mutationMappings = {
   Session: mapping("session", "timeline"),
   Input: mapping(null, "timeline", "session"),
+  PushTarget: mapping("push-targets", "push-targets"),
+  PushDispatch: mapping("push-dispatches", "push-dispatches"),
   WakeTimer: mapping("wakeups", "wakeups"),
   Context: none,
   ModelCall: mapping(null, "timeline", "activities"),
