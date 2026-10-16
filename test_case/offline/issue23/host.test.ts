@@ -219,7 +219,7 @@ test("same-batch Master sources and TIMER-origin rescheduling keep exact provena
 
 for (const name of ["schedule_wakeup", "cancel_wakeup"])
   test(`${name} rejects extra arguments before mutation`, async () => {
-    let args: Record<string, unknown> = {};
+    let args: Record<string, string> = {};
     const stream: StreamFn = (m, c, o) =>
       c.messages.at(-1)?.role === "user"
         ? replyStream(
