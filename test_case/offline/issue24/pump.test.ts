@@ -110,3 +110,44 @@ test("idle pump avoids historical record and log scans; state indexes survive re
       f.app.host.maintainIfNeeded();
     }
   }));
+
+test("missed trigger and input share a transaction; old events recover once by receipt", () =>
+  fixture(async (f) => {
+    await f.app.settings.tick();
+    const p = f.app.scheduler.propose(
+      "Synthetic missed timer",
+      id(),
+      f.app.host.sessionID,
+    );
+    const due = new Date(Date.now() - 60000).toISOString();
+    f.app.store.commit([
+      revise(p, {
+        trigger: { ...p.trigger, kind: "AT", at: due },
+        next_due_at: due,
+      }),
+    ]);
+    await f.app.scheduler.recover();
+    const event = f.app.store.events("trigger.missed").at(-1)!;
+    const frame = f.app.store.projectionFrames.find((frame) =>
+      frame.log_records.some((log) => log.event_id === event.event_id),
+    )!;
+    assert(frame.mutations.some((m) => m.object_type === "Input"));
+    assert(
+      frame.log_records.some((log) => log.event_type === "input.accepted"),
+    );
+    const before = f.app.store.all<Input>("Input").length;
+    f.app.host.deliverFeedback();
+    f.app.host.deliverFeedback();
+    assert.equal(f.app.store.all<Input>("Input").length, before);
+    const legacy = f.app.store.event("trigger.missed", {
+      task_id: p.id,
+      due,
+      policy: "REPORT_ONLY",
+    });
+    f.app.store.commit([], [legacy]);
+    f.app.host.deliverFeedback();
+    assert.equal(f.app.store.all<Input>("Input").length, before + 1);
+    await f.restart();
+    f.app.host.deliverFeedback();
+    assert.equal(f.app.store.all<Input>("Input").length, before + 1);
+  }));
