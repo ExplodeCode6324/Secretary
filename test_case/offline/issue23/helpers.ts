@@ -13,8 +13,9 @@ import type { Input } from "../../../src/pi_secretary/src/contracts.ts";
 export async function fixture(
   run: (f: Fixture) => Promise<void>,
   stream = fixtureStream,
+  dsn?: string,
 ) {
-  const f = new Fixture(stream);
+  const f = new Fixture(stream, dsn);
   try {
     await f.open();
     await run(f);
@@ -29,12 +30,15 @@ export class Fixture {
   app!: App;
   server!: Awaited<ReturnType<typeof serveCore>>;
   client!: CoreClient;
-  constructor(readonly stream: StreamFn = fixtureStream) {}
+  constructor(
+    readonly stream: StreamFn = fixtureStream,
+    readonly dsn?: string,
+  ) {}
   async open() {
     this.app = await App.open(
       this.dir,
       { model: fixtureModel, stream: this.stream },
-      undefined,
+      this.dsn,
       { clock: () => this.time },
     );
     this.server = await serveCore(this.app, 0, undefined, { pump: false });

@@ -1,3 +1,4 @@
+import { testPostgres } from "../helpers/postgres.ts";
 import { apply } from "../issue28/helpers.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -249,3 +250,27 @@ for (const name of ["schedule_wakeup", "cancel_wakeup"])
       );
     }, stream);
   });
+
+testPostgres(
+  "PostgreSQL input coverage survives TIMER followed by Settings apply and restart",
+  (dsn) =>
+    fixture(
+      async (f) => {
+        await f.app.world!.migrate();
+        f.app.host.wakeups.schedule(id(), f.args(), f.source());
+        await f.app.settle();
+        f.time += 2000;
+        await f.app.settle();
+        await f.app.world!.memorySearch.advance();
+        assert.equal(f.app.world!.memorySearch.state, "ready");
+        await apply(f.app);
+        await f.restart();
+        await f.app.world!.memorySearch.advance();
+        await f.app.host.compact();
+        await apply(f.app);
+        assert.equal(f.app.host.session.state, "IDLE");
+      },
+      fixtureStream,
+      dsn,
+    ),
+);

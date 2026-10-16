@@ -1,3 +1,4 @@
+import { isTimerMessage } from "./input-origin.ts";
 import { contentText, type Api, type Model } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "./model.ts";
 import type {
@@ -175,7 +176,11 @@ function coveredInputs(
     if (!ref) throw Error("INVALID_INPUT_SETTINGS_COVERAGE");
     const raw = store
       .read<AgentMessage[]>(ref)
-      .filter((m) => m.role === "user" || m.role === "assistant");
+      .filter(
+        (m) =>
+          (m.role === "user" || m.role === "assistant") &&
+          !isTimerMessage(store, m),
+      );
     if (raw.length !== source.extraction_messages.length)
       throw Error("INVALID_INPUT_SETTINGS_COVERAGE");
     raw.forEach((message, index) => {

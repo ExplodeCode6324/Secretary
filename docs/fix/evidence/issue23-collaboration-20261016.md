@@ -32,3 +32,5 @@ CI 首轮运行 38900159278：Native 成功，Core/verify 失败，Core skipped=
 待记录计划通过版本、实现修订、PR 最终 head、CI、合并条件复核结论和未解决限制。当前没有通过结论，也未创建 skill。
 
 R1b 修订补充：22/22 定向测试通过，包含数值 note 的真实 SIGKILL 恢复、额外参数拒绝、多 Master/TIMER 来源和 Settings apply。为恢复既有预算门槛，等义精简 Host 系统说明；没有更改预算、旧 fixture 或断言，交 R2 核查语义等价。
+
+R2 期间 Codex 补查 PG 输入投影，复现 TIMER 后 Settings apply 的 INVALID_INPUT_SETTINGS_COVERAGE；立即通知 Hermes：2e62ed0 不可作为最终通过版本。修订 input-projection 的来源过滤并新增数据库/重启回归，23/23 定向通过。完整验证重新从新版本开始。
