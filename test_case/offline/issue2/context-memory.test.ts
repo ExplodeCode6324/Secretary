@@ -172,7 +172,7 @@ test("INV-03 C08 failed summary has one attempt per maintenance round, no memory
         source = before.pending_raw_refs[0];
       const bytes = app.store.bytes(source);
       assert(
-        source.bytes > 32_768,
+        app.store.contentBytes(source) > 32_768,
         "failed-source dedupe must be tested above old automatic threshold",
       );
       await app.host.compact();
@@ -226,7 +226,7 @@ test("GOAL-01 C03 one low-occupancy turn above legacy 32KiB must not trigger mai
     async (app) => {
       await turn(app, "Synthetic low-occupancy source:" + "a".repeat(36_000));
       assert(
-        memory(app).pending_raw_refs[0].bytes > 32_768,
+        app.store.contentBytes(memory(app).pending_raw_refs[0]) > 32_768,
         "fixture must cross old trigger",
       );
       app.host.maintainIfNeeded();

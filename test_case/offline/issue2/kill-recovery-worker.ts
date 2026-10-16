@@ -99,7 +99,7 @@ app.store.commit = ((records, events = [], receipt) => {
           checkpoint: cp.id,
           protected_from_index: cp.protected_from_index,
           canonicalLength: messages.length,
-          canonicalBytes: cp.raw_context.bytes,
+          canonicalBytes: app.store.contentBytes(cp.raw_context),
           toolIndices: messages.flatMap((m, i) =>
             m.role === "assistant" &&
             m.content.some((p) => p.type === "toolCall")
@@ -136,7 +136,7 @@ try {
       state: app.host.session.state,
       error: app.host.session.recovery_error,
       canonicalLength: canonical.length,
-      canonicalBytes: cp.raw_context.bytes,
+      canonicalBytes: app.store.contentBytes(cp.raw_context),
       protected_from_index: cp.protected_from_index,
       canonicalHasOldAssistant: JSON.stringify(canonical).includes(
         "x".repeat(26000),
@@ -154,7 +154,7 @@ try {
         source: c.source_context_id,
         id: c.id,
         length: c.messages.length,
-        bytes: c.raw_context.bytes,
+        bytes: app.store.contentBytes(c.raw_context),
         hasOldAssistant: JSON.stringify(app.store.read(c.raw_context)).includes(
           "x".repeat(26000),
         ),

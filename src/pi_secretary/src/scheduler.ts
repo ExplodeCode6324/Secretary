@@ -372,7 +372,7 @@ export class Scheduler {
     const sources = new Set(this.sourceRefs(proposal).map((ref) => ref.sha256));
     return proposal.context_refs.map((ref) => {
       if (!checkpoints.has(ref.sha256) || sources.has(ref.sha256))
-        return this.store.bytes(ref).toString();
+        return this.store.contentText(ref);
       const messages = this.store.read<AgentMessage[]>(ref);
       // Preserve the immutable raw reference, but do not recursively embed prior system/assignment packets.
       return {

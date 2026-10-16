@@ -36,7 +36,6 @@ export function saveContext(
     protectedFromIndex?: number;
   } = {},
 ): Context {
-  const raw = store.put(messages);
   const estimated =
     metadata.budget?.estimated_tokens ?? requestTokens(messages);
   // A checkpoint is recovery evidence, even when no model could accept it.
@@ -111,6 +110,7 @@ export function saveContext(
     purpose === "MAIN"
       ? store.find<MainPromptSnapshot>("MainPromptSnapshot", loopID)
       : undefined;
+  const { refs, raw } = store.putMessages(messages);
   const c: Context = {
     ...(prompt
       ? {
@@ -128,7 +128,7 @@ export function saveContext(
     loop_id: loopID,
     call_id: id(),
     purpose,
-    messages: messages.map((m) => ({
+    messages: messages.map((m, index) => ({
       message_id: id(),
       role:
         m.role === "toolResult"
@@ -138,7 +138,7 @@ export function saveContext(
             : m.role === "system"
               ? "system"
               : "user",
-      content: store.put(m),
+      content: refs[index],
       tool_call_id: m.role === "toolResult" ? m.toolCallId : null,
       source_event_ids: [],
     })),

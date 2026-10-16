@@ -313,7 +313,7 @@ export class Host {
       const covered = this.store.read<AgentMessage[]>(job.source_refs[0]);
       if (
         hash(JSON.stringify(messages.slice(0, covered.length))) ===
-        job.source_refs[0].sha256
+        hash(JSON.stringify(covered))
       ) {
         const inputHashes = new Set(
           this.store
@@ -1943,7 +1943,7 @@ export class Host {
           ? activation.updated_at
           : (successful?.updated_at ?? null),
       pending_source_bytes: cs.pending_raw_refs.reduce(
-        (n, r) => n + r.bytes,
+        (n, r) => n + this.store.contentBytes(r),
         0,
       ),
       attempt: latest?.attempt ?? 0,

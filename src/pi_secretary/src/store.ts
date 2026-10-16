@@ -14,6 +14,7 @@ import type {
 } from "./contracts.ts";
 
 export const root = fileURLToPath(new URL("../../../", import.meta.url));
+export const MESSAGE_LIST_MEDIA = "application/vnd.secretary.message-list+json";
 export const id = (): string => randomUUID();
 export const now = () => new Date().toISOString();
 export const hash = (data: string | Buffer) =>
@@ -245,7 +246,41 @@ export class Store {
     return b;
   }
   read<T>(ref: ObjectRef): T {
-    return JSON.parse(this.bytes(ref).toString()) as T;
+    const value = JSON.parse(this.bytes(ref).toString());
+    if (ref.media_type !== MESSAGE_LIST_MEDIA) return value as T;
+    if (
+      value?.encoding !== "message-refs-v1" ||
+      !Array.isArray(value.messages) ||
+      Object.keys(value).sort().join(",") !== "encoding,messages"
+    )
+      throw Error("INVALID_MESSAGE_LIST");
+    return value.messages.map((child: ObjectRef) => {
+      shapeDefinition("ObjectRef", child);
+      if (child.media_type !== "application/json")
+        throw Error("INVALID_MESSAGE_LIST");
+      return JSON.parse(this.bytes(child).toString());
+    }) as T;
+  }
+  putMessages(messages: unknown[]) {
+    const refs = messages.map((message) => this.put(message));
+    return {
+      refs,
+      raw: this.put(
+        { encoding: "message-refs-v1", messages: refs },
+        MESSAGE_LIST_MEDIA,
+      ),
+    };
+  }
+  // Content consumers use decoded bytes; ObjectRef.bytes remains physical CAS size.
+  contentText(ref: ObjectRef): string {
+    return ref.media_type === MESSAGE_LIST_MEDIA
+      ? JSON.stringify(this.read(ref))
+      : this.bytes(ref).toString();
+  }
+  contentBytes(ref: ObjectRef): number {
+    return ref.media_type === MESSAGE_LIST_MEDIA
+      ? Buffer.byteLength(this.contentText(ref))
+      : ref.bytes;
   }
   hasReceipt(request: string) {
     return this.receipts.has(request);
