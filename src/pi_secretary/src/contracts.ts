@@ -51,7 +51,9 @@ export type SecretaryDemoV1 =
   | ApiCommand
   | MemoryExtractionJob
   | WorkScope
-  | WakeTimer;
+  | WakeTimer
+  | PushTarget
+  | PushDispatch;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -1700,7 +1702,9 @@ export interface Mutation {
     | "ApiCommand"
     | "MemoryExtractionJob"
     | "Scope"
-    | "WakeTimer";
+    | "WakeTimer"
+    | "PushTarget"
+    | "PushDispatch";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -1980,6 +1984,62 @@ export interface WakeTimer {
   fired_at: Time | null;
   cancelled_at: Time | null;
   input_id: ID | null;
+}
+export interface PushTarget {
+  schema_version: 1;
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  record_type: "PushTarget";
+  name: string;
+  kind: "NTFY" | "BARK" | "MACOS_NOTIFICATION";
+  endpoint: string | null;
+  enabled: boolean;
+  quiet_hours: {
+    timezone: string;
+    start: string;
+    end: string;
+  } | null;
+  generation: ID;
+  after_sequence: number;
+}
+export interface PushDispatch {
+  schema_version: 1;
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  record_type: "PushDispatch";
+  target_id: ID;
+  generation: ID;
+  notification_id: ID;
+  state: "PENDING" | "SENDING" | "DISPATCHED" | "FAILED" | "CANCELLED";
+  batch_id: ID | null;
+  attempts: number;
+  /**
+   * @maxItems 4
+   */
+  attempt_history: {
+    id: ID;
+    at: Time;
+  }[];
+  next_attempt_at: Time;
+  dispatched_at: Time | null;
+  error_code:
+    | (
+        | "SECRET_UNAVAILABLE"
+        | "PROVIDER_REJECTED"
+        | "TRANSPORT_FAILED"
+        | "UNSUPPORTED_PLATFORM"
+        | "CONTENT_UNAVAILABLE"
+        | "INTERRUPTED"
+      )
+    | null;
 }
 
 export type Contract = SecretaryDemoV1;

@@ -1,3 +1,4 @@
+import { Pushes, type PushDelivery } from "./push-service.ts";
 import { modelLifetime } from "./model-retry.ts";
 import { activitiesFor } from "./activity.ts";
 import { activityHistoryFor } from "./activity-history.ts";
@@ -13,13 +14,16 @@ import type { Model, Api } from "@earendil-works/pi-ai";
 export class App {
   private worldWork?: Promise<void>;
   readonly settings: Settings;
+  readonly pushes: Pushes;
   private constructor(
     readonly store: Store,
     readonly authorization: Authorization,
     readonly scheduler: Scheduler,
     readonly host: Host,
     readonly world?: World,
+    options: { clock?: () => number; pushDelivery?: PushDelivery } = {},
   ) {
+    this.pushes = new Pushes(store, options.clock, options.pushDelivery);
     this.settings = new Settings(store, host, world);
     // Initialize durable configuration before any query is accepted.
     this.settings.draft();
@@ -28,7 +32,7 @@ export class App {
     directory: string,
     config?: ModelConfig | { main: ModelConfig; task: ModelConfig },
     dsn?: string,
-    options: { clock?: () => number } = {},
+    options: { clock?: () => number; pushDelivery?: PushDelivery } = {},
   ) {
     const store = await Store.open(directory);
     try {
@@ -53,7 +57,7 @@ export class App {
         world,
         options.clock,
       );
-      const app = new App(store, auth, scheduler, host, world);
+      const app = new App(store, auth, scheduler, host, world, options);
       void world?.memorySearch.advance();
       // Warm the disposable read index once, before accepting UI requests.
       try {
@@ -71,6 +75,7 @@ export class App {
     return activitiesFor(this.store).snapshot(this);
   }
   async pump() {
+    void this.pushes.tick().catch(() => {});
     void this.world?.memorySearch.advance();
     if (this.world && !this.worldWork && !this.settings.blocked)
       this.worldWork = this.world
@@ -117,10 +122,12 @@ export class App {
       if (!pending && !due && !this.host.wakeups.hasDue()) break;
     }
     await this.host.drain();
+    await this.pushes.tick();
     await this.world?.memorySearch.catchUp();
   }
   async close() {
     modelLifetime(this.store).abort(Error("CORE_STOPPING"));
+    await this.pushes.close();
     await this.settings.close();
     await this.host.close();
     await this.scheduler.close();

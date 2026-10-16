@@ -132,6 +132,16 @@ export type OperationDetail = Operation & {
   display: OperationDisplay;
   [k: string]: unknown;
 };
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "ID".
+ */
+export type ID = string;
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "Time".
+ */
+export type Time = string;
 
 export interface ApiV1Definitions {}
 /**
@@ -1180,4 +1190,124 @@ export interface WakeupPage {
   items: Wakeup[];
   version: string;
   next_cursor: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "PushTargetConfig".
+ */
+export interface PushTargetConfig {
+  name: string;
+  kind: "NTFY" | "BARK" | "MACOS_NOTIFICATION";
+  endpoint: string | null;
+  enabled: boolean;
+  quiet_hours: {
+    timezone: string;
+    start: string;
+    end: string;
+  } | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "PushTarget".
+ */
+export interface PushTarget {
+  id: ID;
+  revision: string;
+  updated_at: Time;
+  name: string;
+  kind: "NTFY" | "BARK" | "MACOS_NOTIFICATION";
+  endpoint: string | null;
+  enabled: boolean;
+  quiet_hours: {
+    timezone: string;
+    start: string;
+    end: string;
+  } | null;
+  generation: ID;
+  after_sequence: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "PushTargetPage".
+ */
+export interface PushTargetPage {
+  items: PushTarget[];
+  version: string;
+  next_cursor: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "PushDispatch".
+ */
+export interface PushDispatch {
+  id: ID;
+  revision: string;
+  updated_at: Time;
+  target_id: ID;
+  generation: ID;
+  notification_id: ID;
+  state: "PENDING" | "SENDING" | "DISPATCHED" | "FAILED" | "CANCELLED";
+  batch_id: ID | null;
+  attempts: number;
+  /**
+   * @maxItems 4
+   */
+  attempt_history: {
+    id: ID;
+    at: Time;
+  }[];
+  next_attempt_at: Time;
+  dispatched_at: Time | null;
+  error_code:
+    | (
+        | "SECRET_UNAVAILABLE"
+        | "PROVIDER_REJECTED"
+        | "TRANSPORT_FAILED"
+        | "UNSUPPORTED_PLATFORM"
+        | "CONTENT_UNAVAILABLE"
+        | "INTERRUPTED"
+      )
+    | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "PushDispatchPage".
+ */
+export interface PushDispatchPage {
+  items: PushDispatch[];
+  version: string;
+  next_cursor: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "PushTargetCreateCommand".
+ */
+export interface PushTargetCreateCommand {
+  request_id: ID;
+  name: string;
+  kind: "NTFY" | "BARK" | "MACOS_NOTIFICATION";
+  endpoint: string | null;
+  enabled: boolean;
+  quiet_hours: {
+    timezone: string;
+    start: string;
+    end: string;
+  } | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "PushTargetUpdateCommand".
+ */
+export interface PushTargetUpdateCommand {
+  request_id: ID;
+  expected_revision: Revision;
+  name: string;
+  kind: "NTFY" | "BARK" | "MACOS_NOTIFICATION";
+  endpoint: string | null;
+  enabled: boolean;
+  quiet_hours: {
+    timezone: string;
+    start: string;
+    end: string;
+  } | null;
 }

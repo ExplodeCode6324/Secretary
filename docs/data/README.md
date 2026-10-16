@@ -102,3 +102,5 @@
 | [InputCoverageSnapshot](InputCoverageSnapshot.md) | 5 |  |
 | [InputProjectionReceipt](InputProjectionReceipt.md) | 6 |  |
 | [WakeTimer](WakeTimer.md) | 13 | 主会话持久定时唤醒；FIRED 与唯一 TIMER Input 同事务提交。 |
+| [PushTarget](PushTarget.md) | 12 |  |
+| [PushDispatch](PushDispatch.md) | 15 |  |

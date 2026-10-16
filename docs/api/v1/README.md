@@ -139,3 +139,7 @@ Core 的 `wakeups` 能力提供 `GET /wakeups`、`GET /wakeups/{id}` 和 `POST /
 取消带 UUID request_id。PENDING 转为 CANCELLED，ApiCommand 与状态同帧；已 CANCELLED/FIRED 时保存无变化回执，resource_ids 仍关联 WakeTimer。FIRED 表示 TIMER Input 已持久入队，不能再撤回；查询详情判断状态。响应丢失通过 requests 对账，同 ID 同参重投返回原回执。创建、取消、触发均进入 wakeups ChangeFeed，并使筛选列表失效。
 
 定时交付独立于任何前端与执行 agent。进程恢复后补交过期计时器，正文带 late_by_ms；主会话决定是否创建通知。通知记录、推送送达、展示和已读保持各自语义。
+
+## Server push
+
+See [server push configuration and delivery](push.md) for target commands, private credentials, DND, retries and dispatch queries. Public DTOs and operations are defined in schema.json and operations.json.

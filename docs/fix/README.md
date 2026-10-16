@@ -40,3 +40,5 @@ Core 工作在 secretary-core 主工作目录中以分支区分，计划统一�
 - [Issue #10 PR2a 原生连接底座](fix_20261013_issue10_PR2a原生连接底座.md)：工程、可靠连接、同步和通知边界；Issue 保持开放。
 
 - [Issue #10 PR2b 聊天与导航](fix_20261013_issue10_PR2b聊天与导航.md)：简洁聊天、可靠输入、分页阅读、Markdown 及 Dock/菜单窗口恢复。
+
+- [Issue #22 服务端主动送达](fix_20261017_issue22_服务端主动送达.md)
