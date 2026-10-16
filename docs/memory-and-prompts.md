@@ -75,3 +75,9 @@ MemoryCommitment 保存稳定 ID、原文、状态、来源批次和处理凭证
 `GET /api/v1/memory` 提供维护与补提状态；`memory/summary`、`memory/commitments` 提供分页内容及来源。`requests/{id}` 提供维护命令的受理对账。
 
 当前离线覆盖见[测试策略](testing.md)，已有真实模型及跨进程连续性结果见带日期的 [API 验证记录](api/v1/verification.md)。
+
+## 定时唤醒来源
+
+`schedule_wakeup` 和 `cancel_wakeup` 只注册在主会话。到期生成 producer=TIMER 的持久 Input，正文标识 scheduled self-wakeup，包含原定/实际时间、迟到毫秒数及原说明。TIMER 沿用输入队列，不解除 RECOVERY_BLOCKED，也不作为新的 Master 指令或授权。原文标识随上下文重放和设置重建保留；承诺提取及摘要承诺核验排除具有真实 TIMER 输入身份的消息，Master 自己引用相同文字仍按 Master 输入处理。
+
+定时工具以稳定调用回执对账。恢复只读取原回执及不可变计时器字段：创建返回原 PENDING 结果，取消返回已提交的终态；无回执的未确认工具调用继续阻塞，不自动重做。提醒本身不需要建立执行任务；需要实际工作的后续决定仍遵循既有任务与授权规则。

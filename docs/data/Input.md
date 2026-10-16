@@ -13,7 +13,7 @@
 | `updated_at` | Time | 是 |  关联：[Time](Time.md) |
 | `session_id` | ID | 是 |  关联：[ID](ID.md) |
 | `dedupe_key` | string | 是 | producer 内稳定键 {"minLength": 1} |
-| `producer` | MASTER / SCHEDULER / ENVIRONMENT | 是 |  |
+| `producer` | MASTER / SCHEDULER / ENVIRONMENT / TIMER | 是 |  |
 | `state` | InputState | 是 |  关联：[InputState](InputState.md) |
 | `payload` | ObjectRef | 是 |  关联：[ObjectRef](ObjectRef.md) |
 | `loop_id` | ID 或 null | 是 |  关联：[ID](ID.md) |

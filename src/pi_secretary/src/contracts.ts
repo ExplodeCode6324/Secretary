@@ -50,7 +50,8 @@ export type SecretaryDemoV1 =
   | ClientRegistration
   | ApiCommand
   | MemoryExtractionJob
-  | WorkScope;
+  | WorkScope
+  | WakeTimer;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -383,7 +384,7 @@ export interface Input {
    * producer 内稳定键
    */
   dedupe_key: string;
-  producer: "MASTER" | "SCHEDULER" | "ENVIRONMENT";
+  producer: "MASTER" | "SCHEDULER" | "ENVIRONMENT" | "TIMER";
   state: InputState;
   payload: ObjectRef;
   loop_id: ID | null;
@@ -1698,7 +1699,8 @@ export interface Mutation {
     | "ClientRegistration"
     | "ApiCommand"
     | "MemoryExtractionJob"
-    | "Scope";
+    | "Scope"
+    | "WakeTimer";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -1954,6 +1956,30 @@ export interface MemoryExtractionJob {
   progress_ref?: ObjectRef;
   task_refs?: ID[];
   policy_id?: string;
+}
+/**
+ * 主会话持久定时唤醒；FIRED 与唯一 TIMER Input 同事务提交。
+ */
+export interface WakeTimer {
+  schema_version: 1;
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  session_id: ID;
+  record_type: "WakeTimer";
+  at: Time;
+  note: string;
+  /**
+   * @minItems 1
+   */
+  source_event_ids: ID[];
+  state: "PENDING" | "FIRED" | "CANCELLED";
+  fired_at: Time | null;
+  cancelled_at: Time | null;
+  input_id: ID | null;
 }
 
 export type Contract = SecretaryDemoV1;

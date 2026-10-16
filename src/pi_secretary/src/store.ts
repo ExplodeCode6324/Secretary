@@ -442,6 +442,59 @@ export class Store {
     )
       throw Error("MULTIPLE_MAIN_SESSIONS");
     for (const r of staged) {
+      if (r.record_type === "WakeTimer") {
+        const previous = this.records.get("WakeTimer:" + r.id);
+        if (previous?.record_type === "WakeTimer") {
+          if (
+            previous.state !== "PENDING" ||
+            !["FIRED", "CANCELLED"].includes(r.state) ||
+            ["session_id", "at", "note", "source_event_ids"].some(
+              (k) =>
+                JSON.stringify((previous as any)[k]) !==
+                JSON.stringify((r as any)[k]),
+            )
+          )
+            throw Error("INVALID_WAKEUP_TRANSITION");
+        } else if (r.state !== "PENDING")
+          throw Error("INVALID_WAKEUP_TRANSITION");
+        if (r.state === "FIRED") {
+          const input = staged.find(
+            (i) => i.record_type === "Input" && i.id === r.input_id,
+          );
+          if (
+            input?.record_type !== "Input" ||
+            input.producer !== "TIMER" ||
+            input.session_id !== r.session_id ||
+            input.dedupe_key !== "wakeup:" + r.id ||
+            !r.fired_at ||
+            r.cancelled_at !== null
+          )
+            throw Error("WAKEUP_INPUT_NOT_ATOMIC");
+        } else if (
+          r.input_id !== null ||
+          r.fired_at !== null ||
+          (r.state === "PENDING"
+            ? r.cancelled_at !== null
+            : r.cancelled_at === null)
+        )
+          throw Error("INVALID_WAKEUP_STATE");
+        if (!previous) {
+          const sources = new Set(r.source_event_ids);
+          for (const event of this.logs) {
+            if (
+              !sources.has(event.event_id) ||
+              event.event_type !== "input.accepted"
+            )
+              continue;
+            const input = this.read<import("./contracts.ts").Input>(
+              event.payload,
+            );
+            if (input.session_id === r.session_id)
+              sources.delete(event.event_id);
+          }
+          if (sources.size) throw Error("INVALID_WAKEUP_SOURCE");
+        }
+      }
       if (r.record_type === "Notification") {
         const previous = this.records.get("Notification:" + r.id);
         if (

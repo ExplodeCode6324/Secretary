@@ -1,4 +1,6 @@
 import { presentedNotification } from "./notification-service.ts";
+import { Wakeups, wakeupArguments } from "./wakeups.ts";
+import { isTimerMessage } from "./input-origin.ts";
 import { readLog } from "./memory-search.ts";
 import {
   proposeWorld,
@@ -67,6 +69,7 @@ const result = (value: unknown) => ({
   details: undefined,
 });
 export class Host {
+  readonly wakeups: Wakeups;
   readonly previews = new Previews();
   sessionID: string;
   private active?: Promise<void>;
@@ -84,6 +87,7 @@ export class Host {
     readonly model: Model<Api>,
     readonly stream: StreamFn,
     readonly world?: World,
+    clock: () => number = Date.now,
   ) {
     for (const key of [
       "SECRETARY_MEMORY_UPDATE_TURNS",
@@ -150,6 +154,7 @@ export class Host {
       store.commit([cs, session]);
     }
     restoreExtractions(store, this.sessionID);
+    this.wakeups = new Wakeups(store, this.sessionID, clock);
   }
   get session() {
     return this.store.get<Session>("Session", this.sessionID);
@@ -348,6 +353,8 @@ export class Host {
     name: string,
     args: unknown,
   ) {
+    if (name === "schedule_wakeup" || name === "cancel_wakeup")
+      args = wakeupArguments(name, args);
     return `${loopID}:${messageIndex}:${call}:${name}:${hash(JSON.stringify(args))}`;
   }
   private recoverTools(messages: AgentMessage[], loopID: string) {
@@ -426,6 +433,34 @@ export class Host {
               log = this.store.logs.at(-1)!;
             }
           }
+        if (
+          !log &&
+          (call.name === "schedule_wakeup" || call.name === "cancel_wakeup")
+        ) {
+          const recovered = this.wakeups.recovered(
+            call.name,
+            stableID(key),
+            call.arguments,
+          );
+          if (recovered) {
+            this.store.commit(
+              [],
+              [
+                this.store.event(
+                  "main.tool.result",
+                  { key, result: result(recovered) },
+                  {
+                    session_id: this.sessionID,
+                    task_id: null,
+                    execution_id: null,
+                  },
+                  "MAIN",
+                ),
+              ],
+            );
+            log = this.store.logs.at(-1)!;
+          }
+        }
         if (!log)
           throw Error(
             "RECOVERY_BLOCKED: pending tool result requires reconciliation",
@@ -1115,6 +1150,43 @@ export class Host {
         },
       }),
       tool({
+        name: "schedule_wakeup",
+        label: "Schedule main-session wakeup",
+        description:
+          "Remind this session at a future ISO time with timezone. No execution agent.",
+        parameters: Type.Object(
+          { at: Type.String(), note: Type.String() },
+          { additionalProperties: false },
+        ),
+        execute: async (call, args) => {
+          const inputs = new Set(
+            this.store
+              .all<Input>("Input")
+              .filter((i) => i.loop_id === loopID)
+              .map((i) => i.id),
+          );
+          const sources = this.store.logs
+            .filter(
+              (e) =>
+                e.event_type === "input.accepted" &&
+                inputs.has(this.store.read<Input>(e.payload).id),
+            )
+            .map((e) => e.event_id);
+          return result(this.wakeups.schedule(call, args, sources));
+        },
+      }),
+      tool({
+        name: "cancel_wakeup",
+        label: "Cancel main-session wakeup",
+        description: "Cancel PENDING only; return state.",
+        parameters: Type.Object(
+          { timer_id: Type.String() },
+          { additionalProperties: false },
+        ),
+        execute: async (call, args) =>
+          result(this.wakeups.cancel(args.timer_id, call)),
+      }),
+      tool({
         name: "MasterInteract",
         label: "Notify Master",
         description:
@@ -1654,7 +1726,8 @@ export class Host {
         source: null,
         completeMessages: delta.flatMap((l) => {
           const m = this.store.read<AgentMessage>(l.payload);
-          return m.role === "user" || m.role === "assistant"
+          return (m.role === "user" || m.role === "assistant") &&
+            !isTimerMessage(this.store, m)
             ? [{ id: l.event_id, role: m.role, text: contentText(m.content) }]
             : [];
         }),

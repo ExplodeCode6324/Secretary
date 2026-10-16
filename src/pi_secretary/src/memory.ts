@@ -1,3 +1,4 @@
+import { isTimerMessage } from "./input-origin.ts";
 import { hash, type Store } from "./store.ts";
 import { presentedNotification } from "./notification-service.ts";
 import { messageIdentityHash } from "./message-identity.ts";
@@ -300,6 +301,7 @@ export function reconcileCommitments(
   // Match decoded message text, never JSON keys, escaped serialization or tool data.
   const original: string[] = [];
   const visit = (value: unknown) => {
+    if (isTimerMessage(store, value)) return;
     if (typeof value === "string") {
       original.push(value);
       return;

@@ -14,6 +14,7 @@ const mapping = (
 export const mutationMappings = {
   Session: mapping("session", "timeline"),
   Input: mapping(null, "timeline", "session"),
+  WakeTimer: mapping("wakeups", "wakeups"),
   Context: none,
   ModelCall: mapping(null, "timeline", "activities"),
   Consciousness: mapping(

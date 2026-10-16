@@ -3865,6 +3865,126 @@
           ]
         }
       ]
+    },
+    "Wakeup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "session_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "note": {
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "PENDING",
+            "FIRED",
+            "CANCELLED"
+          ]
+        },
+        "source_event_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "fired_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cancelled_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input_id": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "uuid"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "revision",
+        "session_id",
+        "updated_at",
+        "at",
+        "note",
+        "state",
+        "source_event_ids",
+        "fired_at",
+        "cancelled_at",
+        "input_id"
+      ]
+    },
+    "WakeupPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Wakeup"
+          }
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "items",
+        "version",
+        "next_cursor"
+      ]
     }
   },
   "oneOf": [

@@ -1,3 +1,4 @@
+import { isTimerMessage } from "./input-origin.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import { activitiesFor } from "./activity.ts";
 import { enqueueExtractions } from "./memory-extraction.ts";
@@ -148,7 +149,11 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
     chunks,
     plan,
     extraction_messages: [...messages]
-      .filter(([, m]) => m.role === "user" || m.role === "assistant")
+      .filter(
+        ([, m]) =>
+          (m.role === "user" || m.role === "assistant") &&
+          !isTimerMessage(store, m),
+      )
       .map(([id, m]) => ({
         id,
         text: "content" in m ? contentText(m.content) : "",
@@ -215,7 +220,9 @@ export function settingsExtractionEvidence(
   const raw = host.store.read<AgentMessage[]>(ref);
   if (!Array.isArray(raw)) throw Error("INVALID_SETTINGS_EXTRACTION_EVIDENCE");
   const messages = raw.filter(
-    (m) => m.role === "user" || m.role === "assistant",
+    (m) =>
+      (m.role === "user" || m.role === "assistant") &&
+      !isTimerMessage(host.store, m),
   );
   const events = new Map(
     host.store.logs.map((event) => [event.event_id, event]),

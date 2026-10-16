@@ -29,6 +29,7 @@ export const commands = [
   ["scopes", "ScopeCreateCommand"],
   ["scopes/:id", "ScopeUpdateCommand"],
   ["scopes/:id/archive", "RevisionCommand"],
+  ["wakeups/:id/cancel", "EmptyCommand"],
 ] as const;
 export function commandRoute(path: string) {
   for (const [route, schema] of commands) {
