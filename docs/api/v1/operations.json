@@ -1118,5 +1118,54 @@
         }
       }
     ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/wakeups",
+    "response": "WakeupPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "state",
+        "in": "query",
+        "schema": {
+          "type": "string",
+          "enum": [
+            "PENDING",
+            "FIRED",
+            "CANCELLED"
+          ]
+        }
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/wakeups/{id}",
+    "response": "Wakeup",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/wakeups/{id}/cancel",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
   }
 ]

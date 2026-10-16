@@ -1155,3 +1155,29 @@ export interface ScopePage {
   next_cursor: string | null;
   [k: string]: unknown;
 }
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "Wakeup".
+ */
+export interface Wakeup {
+  id: string;
+  revision: string;
+  session_id: string;
+  updated_at: string;
+  at: string;
+  note: string;
+  state: "PENDING" | "FIRED" | "CANCELLED";
+  source_event_ids: string[];
+  fired_at: string | null;
+  cancelled_at: string | null;
+  input_id: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "WakeupPage".
+ */
+export interface WakeupPage {
+  items: Wakeup[];
+  version: string;
+  next_cursor: string | null;
+}

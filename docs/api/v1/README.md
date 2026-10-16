@@ -1,6 +1,6 @@
 # Core API v1
 
-Core 为本机 owner 提供 73 项操作：44 GET、29 POST。公开合同包括 [JSON Schema](schema.json)、[操作表](operations.json)、生成的 [OpenAPI 3.1](openapi.json) 和 TypeScript DTO。客户端使用这些 DTO，内部 Store 记录另见[数据模型](../../data-model.md)。
+Core 为本机 owner 提供 76 项操作：46 GET、30 POST。公开合同包括 [JSON Schema](schema.json)、[操作表](operations.json)、生成的 [OpenAPI 3.1](openapi.json) 和 TypeScript DTO。客户端使用这些 DTO，内部 Store 记录另见[数据模型](../../data-model.md)。
 
 [CoreClient](../../../src/pi_secretary/src/core-client.ts) 负责发现和请求，返回结构化数据。[examples.json](examples.json) 与 [Swift 解码示例](decode-examples.swift) 展示精度、Unicode 和未知字段处理。原生页面设计见[客户端 v0.3](../../native-client-design-v0.3.md)。
 
@@ -131,3 +131,11 @@ POST notifications/{id}/presented 接受 request_id/client_id，client 必须已
 ## 原生入口与旧客户端退役
 
 SwiftUI 是当前日常入口；Core API v1、Core CLI 与公开管理路径继续支持无 UI 运行。旧 `/api/client`、`/api/command`、`/api/poll` 和 Web 静态路径不提供兼容层。通知 `presented` 与受理记录同事务，但不改变 Notification 渠道 state/receipt；`read` 独立。旧 TUI 的本地渠道 SENT 更新已随旧渲染器退役，不作为 API 展示或承诺完成证据。详见[运行手册](../../operations.md)及[迁移账表](../../fix/evidence/issue10-pr3b-migration-20261014.txt)。
+
+## 主会话定时唤醒（Issue #23）
+
+Core 的 `wakeups` 能力提供 `GET /wakeups`、`GET /wakeups/{id}` 和 `POST /wakeups/{id}/cancel`。列表可按 state=PENDING/FIRED/CANCELLED 筛选，默认全部；默认 30 项、最大 100，筛选绑定分页 cursor。revision 为十进制字符串，时间统一 UTC；字段包括 at、note、来源 source_event_ids、fired_at、cancelled_at、input_id。GET 纯读。创建由主会话 schedule_wakeup 工具完成，没有公开创建/编辑路由。
+
+取消带 UUID request_id。PENDING 转为 CANCELLED，ApiCommand 与状态同帧；已 CANCELLED/FIRED 时保存无变化回执，resource_ids 仍关联 WakeTimer。FIRED 表示 TIMER Input 已持久入队，不能再撤回；查询详情判断状态。响应丢失通过 requests 对账，同 ID 同参重投返回原回执。创建、取消、触发均进入 wakeups ChangeFeed，并使筛选列表失效。
+
+定时交付独立于任何前端与执行 agent。进程恢复后补交过期计时器，正文带 late_by_ms；主会话决定是否创建通知。通知记录、推送送达、展示和已读保持各自语义。

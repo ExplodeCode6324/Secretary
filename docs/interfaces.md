@@ -9,6 +9,8 @@
 | task_control | 取消请求或执行、回答工作决定 |
 | memory_read | 读取 consciousness、World 或日志；日志可按 event_id 读取，默认取最近 30 条 |
 | memory_propose_change | 提出 World 变更，经授权进入 Settings 应用流程 |
+| schedule_wakeup | 用显式时区的未来 ISO 时间和最多 4 KiB 说明安排主会话唤醒；最多 100 个 PENDING |
+| cancel_wakeup | 按 timer_id 取消 PENDING 定时器；返回已取消或已触发状态 |
 | MasterInteract | 创建面向 Master 的通知 |
 
 参数定义位于 [Host](../src/pi_secretary/src/host.ts)。主会话每轮固定说明、工具和可选 Scope 快照。Scope 名单最多 64 项、8 KiB；共享笔记作为最多 8 KiB 的任务材料传给执行者。

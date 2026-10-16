@@ -219,6 +219,8 @@ export class ApplicationService {
     // A client cannot capture a legacy/internal request ID from the same store.
     if (store.hasRequestIdentity(requestID))
       throw new ApiError("REQUEST_CONFLICT", 409);
+    const wakeupCancel = route.route === "wakeups/:id/cancel";
+    if (wakeupCancel) this.app.host.wakeups.get(route.target!);
     const request: ApiCommand = {
       ...base(requestID),
       schema_version: 1,
@@ -228,9 +230,11 @@ export class ApplicationService {
       request_hash: digest,
       state: longRoutes.has(route.route) ? "QUEUED" : "ACCEPTED",
       arguments_ref: store.put(body),
-      resource_ids: route.route.startsWith("notifications/")
-        ? [{ type: "Notification", id: route.target! }]
-        : [],
+      resource_ids: wakeupCancel
+        ? [{ type: "WakeTimer", id: route.target! }]
+        : route.route.startsWith("notifications/")
+          ? [{ type: "Notification", id: route.target! }]
+          : [],
       error_code: null,
       result_ref: null,
     };
@@ -261,7 +265,7 @@ export class ApplicationService {
     try {
       store.withAdmission(
         (records) => {
-          if (!route.route.startsWith("notifications/"))
+          if (!wakeupCancel && !route.route.startsWith("notifications/"))
             request.resource_ids = records
               .filter((r) => !["SafetyRule", "Session"].includes(r.record_type))
               .map((r) => ({ type: r.record_type, id: r.id }));
@@ -321,6 +325,8 @@ export class ApplicationService {
     const { host, scheduler, settings, authorization, store } = this.app;
     const requestID = b.request_id as string;
     switch (route) {
+      case "wakeups/:id/cancel":
+        return host.wakeups.cancel(target!);
       case "notifications/:id/presented":
         return this.notifications.presented(target!, b.client_id as string);
       case "notifications/:id/read":
@@ -591,6 +597,7 @@ export class ApplicationService {
       authorizations: "AuthorizationRequest",
       operations: "Operation",
       notifications: "Notification",
+      wakeups: "WakeTimer",
       clients: "ClientRegistration",
       "authorization-rules": "AuthorizationRule",
       "admin/authorization-rules": "AuthorizationRule",
@@ -634,6 +641,7 @@ export class ApplicationService {
       ...(path === "related" ? ["scope_type", "scope_id"] : []),
       ...(path === "artifacts" ? ["task_id"] : []),
       ...(path === "tasks" ? ["scope_id"] : []),
+      ...(path === "wakeups" ? ["state"] : []),
       ...(/^operations\/[^/]+\/content$/.test(path) ? ["part"] : []),
       ...(path.startsWith("world/")
         ? ["subject", "predicate", "scope", "kind", "history"]
@@ -653,6 +661,25 @@ export class ApplicationService {
       throw new ApiError("INVALID_LIMIT");
     const parts = path.split("/"),
       target = parts[1];
+    if (path === "wakeups") {
+      const state = q.get("state");
+      if (state !== null && !["PENDING", "FIRED", "CANCELLED"].includes(state))
+        throw new ApiError("INVALID_QUERY");
+      return this.page(
+        "wakeups:" + (state ?? "all"),
+        project(
+          store
+            .all<import("./contracts.ts").WakeTimer>("WakeTimer")
+            .filter(
+              (t) =>
+                t.session_id === sid && (state === null || t.state === state),
+            ),
+        ),
+        q,
+      );
+    }
+    if (parts[0] === "wakeups" && parts.length === 2)
+      return project(host.wakeups.get(target));
     if (path === "notifications") {
       const page = this.page(path, store.all("Notification"), q);
       return {
@@ -680,6 +707,7 @@ export class ApplicationService {
           ...Object.fromEntries(
             [
               "messages",
+              "wakeups",
               "tasks",
               "scopes",
               "memory",

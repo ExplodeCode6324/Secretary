@@ -28,6 +28,7 @@ export class App {
     directory: string,
     config?: ModelConfig | { main: ModelConfig; task: ModelConfig },
     dsn?: string,
+    options: { clock?: () => number } = {},
   ) {
     const store = await Store.open(directory);
     try {
@@ -50,6 +51,7 @@ export class App {
         chosen.model,
         chosen.stream,
         world,
+        options.clock,
       );
       const app = new App(store, auth, scheduler, host, world);
       void world?.memorySearch.advance();
@@ -81,6 +83,7 @@ export class App {
     this.scheduler.tick();
     this.scheduler.retire();
     this.host.deliverFeedback();
+    this.host.wakeups.fireDue();
     void this.host
       .drain()
       .then(() => this.host.maintainIfNeeded())
@@ -111,7 +114,7 @@ export class App {
                 ),
             ),
         );
-      if (!pending && !due) break;
+      if (!pending && !due && !this.host.wakeups.hasDue()) break;
     }
     await this.host.drain();
     await this.world?.memorySearch.catchUp();

@@ -300,6 +300,7 @@ export function reconcileCommitments(
   // Match decoded message text, never JSON keys, escaped serialization or tool data.
   const original: string[] = [];
   const visit = (value: unknown) => {
+    if (isTimerMessage(store, value)) return;
     if (typeof value === "string") {
       original.push(value);
       return;
@@ -413,3 +414,4 @@ export function boundedItems(items: WorkItem[]) {
         throw Error("MEMORY_FIELD_LIMIT");
   }
 }
+import { isTimerMessage } from "./input-origin.ts";

@@ -1,5 +1,7 @@
 # Secretary
 
+> 2026-10-16：SwiftUI 路线已废弃，新前端另行选型。后续工作与 Hermes 复核聚焦 Core 独立服务；下文原生入口描述保留为已有实现参考，不作为后续 Core 验收前置。#23 主会话定时唤醒正在实现，计划见 [Core 定时唤醒](docs/fix/fix_20261016_issue23_Core主会话定时唤醒.md)。
+
 Secretary 是面向 Master 的持续个人助理。Core 保存会话与工作记忆，安排任务，由执行 Agent 或登记程序完成工作，再将结果交回主会话。项目基于 Pi v0.87.0，当前以本机 Core API v1 提供服务。
 
 当前已实现独立 Core 生命周期、任务与同任务接续、Scope 工作范围、操作审批与未知结果裁定、模型有界重试、记忆维护，以及可选 PostgreSQL World Model。可靠增量同步已提供。日常操作使用 [macOS SwiftUI 客户端](src/secretary_macos/README.md)。PR3b 迁移旧断言并退役 Web/TUI；完整系统联合验收仍归 PR3c，首版保持简洁。

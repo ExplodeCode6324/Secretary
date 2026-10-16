@@ -140,3 +140,7 @@ Hermes 复核范围：Core 源码、持久与失败恢复、API/同步合同、�
 ### Hermes P1 处置
 
 两项阻塞均采纳：B1 补 Host.recoverTools 的有回执恢复及无变化取消回执，并修正工具身份异参表述；B2 明确定时模块和 App 的同一可注入时钟及真实进程时间边界。N1–N7 建议全部纳入：无变化 API 目标关联、复用 revision 去重、无 await 竞态区间、有界集合计数、settle 语义、TIMER-only 场景和不新增清理任务。无异议项，详见[协作记录](evidence/issue23-collaboration-20261016.md)。
+
+### 实施与验证记录
+
+Hermes P2 已明确 PASS，按 Master 条件授权开始实施。实现及首轮测试见[Core 验证记录](evidence/issue23-core-20261016.md)。具体适配：CommandReceipt.object_id 保持 UUID；通过其计时器引用和 Store 强制的不变字段/终态重建原工具结果，不把 JSON 塞入 UUID，不重跑领域方法。创建始终恢复原 PENDING 回应，取消恢复其持久终态。此前 PLAN_ONLY、未测试的段落保留为历史过程记录。

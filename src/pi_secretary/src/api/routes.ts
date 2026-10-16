@@ -5,6 +5,7 @@ export const commands = [
   ["notifications/:id/presented", "PresentedCommand"],
   ["notifications/:id/read", "EmptyCommand"],
   ["messages", "MessageCommand"],
+  ["wakeups/:id/cancel", "EmptyCommand"],
   ["task-requests", "TaskCommand"],
   ["task-requests/:id/cancel", "EmptyCommand"],
   ["executions/:id/cancel", "EmptyCommand"],
