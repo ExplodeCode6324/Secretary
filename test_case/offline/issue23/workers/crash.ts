@@ -23,11 +23,12 @@ const stream: StreamFn = (model, context, options) => {
         {
           type: "toolCall",
           id: "synthetic-wakeup-tool",
-          name: kind === "schedule" ? "schedule_wakeup" : "cancel_wakeup",
-          arguments:
-            kind === "schedule"
-              ? { at, note: "synthetic recovery" }
-              : { timer_id: timerID },
+          name: ["schedule", "coerced"].includes(kind)
+            ? "schedule_wakeup"
+            : "cancel_wakeup",
+          arguments: ["schedule", "coerced"].includes(kind)
+            ? { at, note: kind === "coerced" ? 123 : "synthetic recovery" }
+            : { timer_id: timerID },
         },
       ],
       model,
@@ -44,7 +45,7 @@ const sources = app.store.logs
   )
   .map((e) => e.event_id);
 await app.settle();
-if (kind !== "schedule") {
+if (!["schedule", "coerced"].includes(kind)) {
   timerID = app.host.wakeups.schedule(
     id(),
     {

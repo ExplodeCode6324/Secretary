@@ -1,3 +1,4 @@
+import { isTimerMessage } from "./input-origin.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import { activitiesFor } from "./activity.ts";
 import { enqueueExtractions } from "./memory-extraction.ts";
@@ -389,4 +390,3 @@ export function rebuiltMessages(
       : []),
   ];
 }
-import { isTimerMessage } from "./input-origin.ts";

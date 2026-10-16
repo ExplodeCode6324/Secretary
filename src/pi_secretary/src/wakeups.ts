@@ -1,9 +1,16 @@
 import type { Input, WakeTimer } from "./contracts.ts";
-import { Store, base, hash, revise } from "./store.ts";
+import { Store, base, hash, revise, shapeDefinition } from "./store.ts";
 import { stableID } from "./scheduler.ts";
 import { ApiError } from "./api/protocol.ts";
 
 type ToolName = "schedule_wakeup" | "cancel_wakeup";
+/** Match declared string fields after the provider's validation/coercion. */
+export function wakeupArguments(name: ToolName, args: unknown) {
+  const value = args as Record<string, unknown>;
+  return name === "schedule_wakeup"
+    ? { at: String(value.at), note: String(value.note) }
+    : { timer_id: String(value.timer_id) };
+}
 export type WakeupResult = {
   timer_id: string;
   at: string;
@@ -35,7 +42,13 @@ export class Wakeups {
     return timer;
   }
   private digest(name: ToolName, args: unknown) {
-    return hash(JSON.stringify({ session_id: this.sessionID, name, args }));
+    return hash(
+      JSON.stringify({
+        session_id: this.sessionID,
+        name,
+        args: wakeupArguments(name, args),
+      }),
+    );
   }
   /** Recovery only reads the original receipt, even if the timer has since fired. */
   recovered(
@@ -63,26 +76,16 @@ export class Wakeups {
   ): WakeupResult {
     const previous = this.recovered("schedule_wakeup", call, args);
     if (previous) return previous;
-    // JSON Schema date-time rejects rollover dates accepted by Date.parse (e.g. Feb 30).
-    const at = Date.parse(args.at);
-    if (!Number.isFinite(at) || !/(?:Z|[+-]\d{2}:\d{2})$/i.test(args.at))
+    // Validate before normalization: Date.parse silently rolls over e.g. Feb 30.
+    try {
+      shapeDefinition("Time", args.at);
+    } catch {
       throw new ApiError("INVALID_WAKEUP_TIME");
-    // Validate date-time before normalization, which would conceal invalid dates.
-    const match =
-      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(Z|[+-]\d{2}:\d{2})$/i.exec(
-        args.at,
-      );
+    }
+    const at = Date.parse(args.at);
     if (
-      !match ||
-      +match[2] < 1 ||
-      +match[2] > 12 ||
-      +match[3] < 1 ||
-      +match[3] > new Date(Date.UTC(+match[1], +match[2], 0)).getUTCDate() ||
-      +match[4] > 23 ||
-      +match[5] > 59 ||
-      +match[6] > 59 ||
-      (match[7].toUpperCase() !== "Z" &&
-        (+match[7].slice(1, 3) > 23 || +match[7].slice(4) > 59)) ||
+      !Number.isFinite(at) ||
+      !/(?:Z|[+-]\d{2}:\d{2})$/i.test(args.at) ||
       at <= this.clock()
     )
       throw new ApiError("INVALID_WAKEUP_TIME");

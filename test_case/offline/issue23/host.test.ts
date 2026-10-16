@@ -1,3 +1,4 @@
+import { apply } from "../issue28/helpers.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { contentText } from "@earendil-works/pi-ai";
@@ -120,6 +121,16 @@ test("no-UI HTTP message -> schedule -> TIMER-only model round -> durable notifi
       ).length,
       0,
     );
+    await apply(f.app);
+    const appliedSource = settingsSource(f.app.host, {
+      world: [],
+      instructions: null,
+    });
+    assert(
+      !appliedSource.extraction_messages.some((m) =>
+        m.text.startsWith("Scheduled self-wakeup"),
+      ),
+    );
     await f.app.host.compact();
     const jobs = f.app.store.all<any>("MemoryExtractionJob");
     assert(
@@ -155,3 +166,86 @@ test("TIMER does not release RECOVERY_BLOCKED session", () =>
       "ACCEPTED",
     );
   }));
+
+test("same-batch Master sources and TIMER-origin rescheduling keep exact provenance", async () => {
+  let at = "";
+  const stream: StreamFn = (m, c, o) => {
+    const last = c.messages.at(-1);
+    if (last?.role === "user")
+      return replyStream(
+        [
+          {
+            type: "toolCall",
+            id: "reschedule",
+            name: "schedule_wakeup",
+            arguments: { at, note: "synthetic next wakeup" },
+          },
+        ],
+        m,
+      );
+    return fixtureStream(m, c, o);
+  };
+  await fixture(async (f) => {
+    at = f.args().at;
+    const inputs = [
+      f.app.host.accept("first synthetic request"),
+      f.app.host.accept("second synthetic constraint"),
+    ];
+    const events = () =>
+      f.app.store.logs.filter((e) => e.event_type === "input.accepted");
+    const expected = events()
+      .filter((e) =>
+        inputs.some((i) => i.id === f.app.store.read<Input>(e.payload).id),
+      )
+      .map((e) => e.event_id);
+    await f.app.settle();
+    const first = f.app.store.all<WakeTimer>("WakeTimer")[0];
+    assert.deepEqual(first.source_event_ids, expected);
+    assert.equal(expected.length, 2);
+    f.time += 2000;
+    at = f.args().at;
+    await f.app.settle();
+    const next = f.app.store
+      .all<WakeTimer>("WakeTimer")
+      .find((t) => t.id !== first.id)!;
+    const timerEvents = events()
+      .filter((e) => f.app.store.read<Input>(e.payload).producer === "TIMER")
+      .map((e) => e.event_id);
+    assert.equal(timerEvents.length, 1);
+    assert.deepEqual(next.source_event_ids, timerEvents);
+    assert.equal(next.state, "PENDING");
+  }, stream);
+});
+
+for (const name of ["schedule_wakeup", "cancel_wakeup"])
+  test(`${name} rejects extra arguments before mutation`, async () => {
+    let args: Record<string, unknown> = {};
+    const stream: StreamFn = (m, c, o) =>
+      c.messages.at(-1)?.role === "user"
+        ? replyStream(
+            [{ type: "toolCall", id: "invalid-extra", name, arguments: args }],
+            m,
+          )
+        : fixtureStream(m, c, o);
+    await fixture(async (f) => {
+      const timer = f.app.host.wakeups.schedule(id(), f.args(), f.source());
+      args =
+        name === "schedule_wakeup"
+          ? { ...f.args(), reason: "unexpected" }
+          : { timer_id: timer.timer_id, reason: "unexpected" };
+      await f.app.settle();
+      assert.equal(f.app.store.all<WakeTimer>("WakeTimer").length, 1);
+      assert.equal(f.app.host.wakeups.get(timer.timer_id).state, "PENDING");
+      const results = f.app.store.logs
+        .filter((e) => e.event_type === "main.message")
+        .map((e) => f.app.store.read<any>(e.payload));
+      assert(
+        results.some(
+          (v) =>
+            v.role === "toolResult" &&
+            v.isError &&
+            contentText(v.content).includes("additional"),
+        ),
+      );
+    }, stream);
+  });

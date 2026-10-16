@@ -1,5 +1,5 @@
 import { presentedNotification } from "./notification-service.ts";
-import { Wakeups } from "./wakeups.ts";
+import { Wakeups, wakeupArguments } from "./wakeups.ts";
 import { isTimerMessage } from "./input-origin.ts";
 import { readLog } from "./memory-search.ts";
 import {
@@ -353,6 +353,8 @@ export class Host {
     name: string,
     args: unknown,
   ) {
+    if (name === "schedule_wakeup" || name === "cancel_wakeup")
+      args = wakeupArguments(name, args);
     return `${loopID}:${messageIndex}:${call}:${name}:${hash(JSON.stringify(args))}`;
   }
   private recoverTools(messages: AgentMessage[], loopID: string) {
@@ -1151,8 +1153,11 @@ export class Host {
         name: "schedule_wakeup",
         label: "Schedule main-session wakeup",
         description:
-          "Wake this main session at a future ISO time with explicit timezone. A reminder needs no execution agent. At most 100 pending wakeups; note at most 4 KiB UTF-8.",
-        parameters: Type.Object({ at: Type.String(), note: Type.String() }),
+          "Remind this session at a future ISO time with timezone. No execution agent.",
+        parameters: Type.Object(
+          { at: Type.String(), note: Type.String() },
+          { additionalProperties: false },
+        ),
         execute: async (call, args) => {
           const inputs = new Set(
             this.store
@@ -1173,9 +1178,11 @@ export class Host {
       tool({
         name: "cancel_wakeup",
         label: "Cancel main-session wakeup",
-        description:
-          "Cancel a pending wakeup by timer_id. A fired wakeup is already queued and cannot be withdrawn; returns its current state.",
-        parameters: Type.Object({ timer_id: Type.String() }),
+        description: "Cancel PENDING only; return state.",
+        parameters: Type.Object(
+          { timer_id: Type.String() },
+          { additionalProperties: false },
+        ),
         execute: async (call, args) =>
           result(this.wakeups.cancel(args.timer_id, call)),
       }),

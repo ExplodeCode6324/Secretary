@@ -1,3 +1,4 @@
+import { isTimerMessage } from "./input-origin.ts";
 import { hash, type Store } from "./store.ts";
 import { presentedNotification } from "./notification-service.ts";
 import { messageIdentityHash } from "./message-identity.ts";
@@ -414,4 +415,3 @@ export function boundedItems(items: WorkItem[]) {
         throw Error("MEMORY_FIELD_LIMIT");
   }
 }
-import { isTimerMessage } from "./input-origin.ts";

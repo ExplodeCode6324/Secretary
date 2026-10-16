@@ -16,7 +16,7 @@ import type {
   WakeTimer,
 } from "../../../src/pi_secretary/src/contracts.ts";
 
-for (const kind of ["schedule", "cancel", "noop", "fire", "api"])
+for (const kind of ["schedule", "coerced", "cancel", "noop", "fire", "api"])
   for (const phase of ["before", "after"])
     test(`SIGKILL ${phase} fsync: ${kind} wakeup transaction and Host reconciliation`, async () => {
       const dir = fs.mkdtempSync(
@@ -48,7 +48,7 @@ for (const kind of ["schedule", "cancel", "noop", "fire", "api"])
           stream: fixtureStream,
         });
         const timers = app.store.all<WakeTimer>("WakeTimer");
-        if (["schedule", "cancel", "noop"].includes(kind)) {
+        if (["schedule", "coerced", "cancel", "noop"].includes(kind)) {
           await app.settle();
           if (phase === "before")
             assert.equal(app.host.session.state, "RECOVERY_BLOCKED");
@@ -63,7 +63,9 @@ for (const kind of ["schedule", "cancel", "noop", "fire", "api"])
               .map((e) => app!.store.read<any>(e.payload))
               .find((v) =>
                 v.key.includes(
-                  kind === "schedule" ? "schedule_wakeup" : "cancel_wakeup",
+                  ["schedule", "coerced"].includes(kind)
+                    ? "schedule_wakeup"
+                    : "cancel_wakeup",
                 ),
               );
             assert(recovered);
@@ -71,7 +73,7 @@ for (const kind of ["schedule", "cancel", "noop", "fire", "api"])
             assert.equal(value.timer_id, timers[0].id);
             assert.equal(
               value.state,
-              kind === "schedule" ? "PENDING" : "CANCELLED",
+              ["schedule", "coerced"].includes(kind) ? "PENDING" : "CANCELLED",
             );
           }
         } else if (kind === "fire") {

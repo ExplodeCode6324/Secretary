@@ -5,7 +5,6 @@ export const commands = [
   ["notifications/:id/presented", "PresentedCommand"],
   ["notifications/:id/read", "EmptyCommand"],
   ["messages", "MessageCommand"],
-  ["wakeups/:id/cancel", "EmptyCommand"],
   ["task-requests", "TaskCommand"],
   ["task-requests/:id/cancel", "EmptyCommand"],
   ["executions/:id/cancel", "EmptyCommand"],
@@ -30,6 +29,7 @@ export const commands = [
   ["scopes", "ScopeCreateCommand"],
   ["scopes/:id", "ScopeUpdateCommand"],
   ["scopes/:id/archive", "RevisionCommand"],
+  ["wakeups/:id/cancel", "EmptyCommand"],
 ] as const;
 export function commandRoute(path: string) {
   for (const [route, schema] of commands) {
