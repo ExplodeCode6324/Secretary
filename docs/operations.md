@@ -17,7 +17,7 @@ npm run stop
 
 自定义目录使用 `SECRETARY_DATA`，各管理命令保持相同目录和模式。`core-endpoint.json` 保存端口、实例和本机 token，`core.log` 保存日志，两者权限为 0600。CLI 输出状态和回执。
 
-日常交互使用 [SwiftUI 客户端](../src/secretary_macos/README.md)。连接页可启动/附着/停止 Core，退出应用或关闭窗口不停止已经受理的后台工作。旧 Web/TUI 源码、静态页面和 npm 启动入口已退役；旧 HTTP 路径返回 404，`start:live -- --web` 明确失败。迁移不删除 Store、World 或用户缓存。
+当前通过上述 CLI 管理独立 Core，通过 [API v1](api/v1/README.md)执行命令和查询。SwiftUI 路线已废弃，已有客户端保留作历史参考；Master 正在调研更方便自定义 UI 的技术路线，尚未选型。旧 Web/TUI 源码、静态页面和 npm 启动入口已退役；旧 HTTP 路径返回 404，`start:live -- --web` 明确失败。迁移不删除 Store、World 或用户缓存。
 
 ## 真实模型模式
 
@@ -89,7 +89,7 @@ console.log(await client.query('admin/programs'));
 JS
 ```
 
-程序登记/运行由 `runtime/native-retirement.test.ts` 验证；迁移与 World 增改撤回、冲突恢复由 `issue8/world.test.ts` 和原生 PG 探针验证。日常任务、审批、规则、记忆及恢复仍在 SwiftUI 操作，不需要手写 API。模型或数据库异常时先查看连接页、维护状态和 Core 私有日志；不把新 request_id 当作未知命令的重试。
+程序登记/运行由 `runtime/native-retirement.test.ts` 验证；迁移与 World 增改撤回、冲突恢复由 `issue8/world.test.ts` 和原生 PG 探针验证。任务、审批、规则、记忆及恢复通过 API v1 操作。模型或数据库异常时先查看 Core 状态、维护状态和私有日志；不把新 request_id 当作未知命令的重试。
 
 ## 状态与处理
 

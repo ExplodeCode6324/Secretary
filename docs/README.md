@@ -22,4 +22,4 @@
 
 [内部字段](data/README.md)的 89 个定义和[数据库参考](database.md)由当前 schema、SQL 生成。客户端使用独立的 [API schema](api/v1/schema.json)、[操作表](api/v1/operations.json)与 [OpenAPI](api/v1/openapi.json)。
 
-[客户端设计 v0.3](native-client-design-v0.3.md)是 SwiftUI 的实施依据，页面开发安排在 #10。[修复记录](fix/README.md)保存各轮计划、批准和验证。[API 历史验证](api/v1/verification.md)、[测试报告](../test_case/reports/README.md)、[原始设计](old/README.md)及 [BrainStorm](BrainStorm_Baseline_v3.md)保留各自日期和版本，便于追溯项目演进。
+[客户端设计 v0.3](native-client-design-v0.3.md)保留为已废弃 SwiftUI 路线的历史设计，当前不推进页面开发。Master 正在调研更方便自定义 UI 的技术路线，尚未选型。[修复记录](fix/README.md)保存各轮计划、批准和验证。[API 历史验证](api/v1/verification.md)、[测试报告](../test_case/reports/README.md)、[原始设计](old/README.md)及 [BrainStorm](BrainStorm_Baseline_v3.md)保留各自日期和版本，便于追溯项目演进。

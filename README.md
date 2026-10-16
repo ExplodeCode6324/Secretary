@@ -1,14 +1,14 @@
 # Secretary
 
-> 2026-10-16：SwiftUI 路线已废弃，新前端另行选型。后续工作与 Hermes 复核聚焦 Core 独立服务；下文原生入口描述保留为已有实现参考，不作为后续 Core 验收前置。#23 主会话定时唤醒正在实现，计划见 [Core 定时唤醒](docs/fix/fix_20261016_issue23_Core主会话定时唤醒.md)。
+> 2026-10-17：当前仅推进后端 Core 优化。SwiftUI 路线已废弃；Master 正在调研更方便做 UI 自定义的技术路线，尚未选型。手机真实送达归冻结的随身终端 #11，macOS 实际展示验收推后，均不阻塞 Core 工作。
 
 Secretary 是面向 Master 的持续个人助理。Core 保存会话与工作记忆，安排任务，由执行 Agent 或登记程序完成工作，再将结果交回主会话。项目基于 Pi v0.87.0，当前以本机 Core API v1 提供服务。
 
-当前已实现独立 Core 生命周期、任务与同任务接续、Scope 工作范围、操作审批与未知结果裁定、模型有界重试、记忆维护，以及可选 PostgreSQL World Model。可靠增量同步已提供。日常操作使用 [macOS SwiftUI 客户端](src/secretary_macos/README.md)。PR3b 迁移旧断言并退役 Web/TUI；完整系统联合验收仍归 PR3c，首版保持简洁。
+当前已实现独立 Core 生命周期、任务与同任务接续、Scope 工作范围、操作审批与未知结果裁定、模型有界重试、记忆维护，以及可选 PostgreSQL World Model。可靠增量同步、主会话定时唤醒和服务端主动推送已提供。现阶段通过 Core CLI 管理生命周期，通过 API v1 配置与查询业务。
 
 ## QuickStart
 
-日常入口是 [Secretary macOS](src/secretary_macos/README.md#构建与运行)：用 Xcode 16.4 构建并打开应用，在连接页选择数据目录，启动或附着本机 Core。聊天、任务、审批、记忆、设置和产物均在原生窗口操作。下列命令用于无 UI Core 与低频运维。
+当前开发入口是独立 Core CLI 与 [API v1](docs/api/v1/README.md)，无需构建前端。已有 [macOS SwiftUI 实现](src/secretary_macos/README.md)保留供历史追溯。
 
 需要 Node.js ≥ 22.19、npm 和 Python 3。World 功能使用 PostgreSQL，CI 使用 PostgreSQL 18。从仓库根目录执行：
 
@@ -42,29 +42,18 @@ npm run verify
 
 ## 开发路线
 
-我们现在在进行一系列 Issue 修复，修复路线如下。截至 2026-10-13，第 1–6 批已合入 main：#20、#19、#16、#18、#17、#9、#21、#28 已完成，当前实施第 7 批 #10。
+截至 2026-10-17，Core API、可靠同步、Scope、授权、模型重试、记忆检索、旧输入退出、定时唤醒与服务端主动推送已合入。下一项是 [#24 存储性能与追加路径](https://github.com/ExplodeCode6324/Secretary/issues/24)，无需等待前端选型。
 
-| 批次 | 领取 issue | 主要工作与安排理由 |
-|---|---|---|
-| **1** | [**#20**](https://github.com/ExplodeCode6324/Secretary/issues/20) | 统一测试入口、类型检查与 CI，先建立后续改动的回归基础。 |
-| **2** | [**#19**](https://github.com/ExplodeCode6324/Secretary/issues/19) | 模型调用有界重试、维护退避、待补提来源跟踪，删除旧提取恢复流程。后面的未知结果收束和记忆退出会用到它。 |
-| **3** | [**#16**](https://github.com/ExplodeCode6324/Secretary/issues/16) **＋** [**#18**](https://github.com/ExplodeCode6324/Secretary/issues/18) | **联动领取：Scope 工作范围与未知结果裁定。** 两项共同验收，避免共享目录启用后仍被旧拦截规则封住。 |
-| **4** | [**#17**](https://github.com/ExplodeCode6324/Secretary/issues/17) | 在 Scope 和未知结果规则稳定后，实现默认写入策略、只读命令和“批准并记住”。 |
-| **5** | [**#9**](https://github.com/ExplodeCode6324/Secretary/issues/9) | 轻量同步，统一纳入 Scope、授权规则和裁定结果，并完成分页、聚合视图刷新等合同。 |
-| **6** | [**#21**](https://github.com/ExplodeCode6324/Secretary/issues/21) **＋** [**#28**](https://github.com/ExplodeCode6324/Secretary/issues/28) | **联动领取：记忆检索与旧输入退出。** 先交付检索，再启用退出，最后通过真实路径的联合验收。 |
-| **7** | [**#10**](https://github.com/ExplodeCode6324/Secretary/issues/10) | SwiftUI 日常流程与旧入口退役，接入前面已经稳定的公共合同。 |
-| **8** | [**#23**](https://github.com/ExplodeCode6324/Secretary/issues/23) | 主会话定时唤醒，并补齐自身需要的客户端管理、取消入口。 |
-| **9** | [**#22**](https://github.com/ExplodeCode6324/Secretary/issues/22) | 主动送达，并补齐推送目标配置和发送状态展示。此时可以完整验证提醒的创建、触发和送达。 |
-| **10** | [**#24**](https://github.com/ExplodeCode6324/Secretary/issues/24) | 完成存储性能、Context 编码与追加路径改造；其中独立的小补丁可以提前插入。 |
-| **11** | [**#25**](https://github.com/ExplodeCode6324/Secretary/issues/25) | 行为和存储稳定后，再拆分 Host／Scheduler、落实状态机校验，减少文件搬迁与功能修改交叉。 |
-| **12** | [**#26**](https://github.com/ExplodeCode6324/Secretary/issues/26) | 按最终已注册的工具集合重写提示词，进行前后真实模型回归。 |
-| **13** | [**#27**](https://github.com/ExplodeCode6324/Secretary/issues/27) | 按最终实现整合、精简文档。Codex 执行，Astra 复核。 |
-| **14** | [**#34（N2）**](https://github.com/ExplodeCode6324/Secretary/issues/34) | 本批修复完成后的性能专项：消除进程恢复的平方扫描和空闲 tick 对历史 Operation 的全表扫描，复用第 10 批的存储索引成果，验证长期历史下的恢复和调度成本。 |
+| 顺序 | Issue | 内容 |
+| --- | --- | --- |
+| 下一项 | [#24](https://github.com/ExplodeCode6324/Secretary/issues/24) | 存储性能、Context 编码与追加路径 |
+| 后续 | [#25](https://github.com/ExplodeCode6324/Secretary/issues/25) | Host / Scheduler 拆分与状态机 |
+| 后续 | [#26](https://github.com/ExplodeCode6324/Secretary/issues/26) | 按实际 Core 能力重写提示词 |
+| 后续 | [#27](https://github.com/ExplodeCode6324/Secretary/issues/27) | 按最终实现整理 Core 文档 |
+| 性能专项 | [#34](https://github.com/ExplodeCode6324/Secretary/issues/34) | 恢复平方扫描与空闲 tick 历史扫描；与 #24 协调索引方向 |
 
-本次文档重写对应当前实现；第 13 批会在前面各项完成后再做一次整合。第 14 批 N2 按 Master 最新安排放在这批修复之后，和 #24 共用索引方向。
+#34 提前到 #24 后的建议仍待 Master 确认；当前不改变其原定后置安排。总路线与范围调整见 [#7](https://github.com/ExplodeCode6324/Secretary/issues/7)。
 
 ### 后续产品方向
 
-[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7) 还包含 [#11 Portable 接入](https://github.com/ExplodeCode6324/Secretary/issues/11)、[#12 EVENT 调度](https://github.com/ExplodeCode6324/Secretary/issues/12)、[#13 touch agent 远程工具](https://github.com/ExplodeCode6324/Secretary/issues/13)，设备展示由 [#14](https://github.com/ExplodeCode6324/Secretary/issues/14) 配套推进。
-
-SwiftUI 首版以简洁、功能完整的界面为目标，后续再做美学设计。按[客户端设计](docs/native-client-design-v0.3.md)实现：文字导航、连续对话区、13 pt 正文和默认 200 pt 可收起旁栏。设备方向包括 NX1 互联网便携端、HK13 传感器与 LoRa 短消息终端；本地模型用于后续断网场景。这些方向的接口、功耗与设备能力由相应项目验证，Core 当前提供会话、任务、记忆、设置和产物服务。
+[#11 随身终端](https://github.com/ExplodeCode6324/Secretary/issues/11)、[#12 EVENT 调度](https://github.com/ExplodeCode6324/Secretary/issues/12)、[#13 远程工具](https://github.com/ExplodeCode6324/Secretary/issues/13)保持冻结，仅由 Master 明确解冻。手机真实送达验收移入随身终端范围；macOS 实际展示等待后续 UI 路线。现有 SwiftUI 源码与设计只作历史参考，不作为 Core 验收前置。
