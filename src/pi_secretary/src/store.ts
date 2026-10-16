@@ -609,7 +609,16 @@ export class Store {
       typeof v.bytes === "number" &&
       typeof v.media_type === "string"
     ) {
-      this.bytes(v as unknown as ObjectRef);
+      const ref = v as unknown as ObjectRef;
+      if (
+        !/^objects\/[a-f0-9]{64}$/.test(ref.path) ||
+        ref.path !== "objects/" + ref.sha256
+      )
+        throw Error("INVALID_OBJECT_PATH");
+      const stat = fs.lstatSync(path.join(this.dir, ref.path));
+      if (stat.isSymbolicLink()) throw Error("OBJECT_SYMLINK");
+      if (!stat.isFile() || stat.size !== ref.bytes)
+        throw Error("CORRUPT_OBJECT");
       return;
     }
     for (const child of Object.values(v)) this.verifyRefs(child);
