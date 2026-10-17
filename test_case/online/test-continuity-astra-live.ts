@@ -34,7 +34,7 @@ const LIMITS = {
   output_tokens: 8192,
   context_bytes: 80_000,
 } as const;
-const READ_TOOLS = new Set(["memory_read", "task_query"]);
+const READ_TOOLS = new Set(["memory_read", "memory_search", "task_query"]);
 type Language = "zh" | "en";
 type Result = { name: string; pass: boolean; detail?: unknown };
 type RequestRecord = {
@@ -505,7 +505,13 @@ async function run(directory: string) {
       typeof secret === "string" && secret.length > 0,
       "existing main credential required",
     );
-    const model = getModel("opencode-go", "deepseek-v4.1-flash");
+    // Declare the test output cap before Host freezes its request budget.
+    // Clamping only inside the stream would disagree with the saved payload check.
+    const catalogModel = getModel("opencode-go", "deepseek-v4.1-flash");
+    const model = {
+      ...catalogModel,
+      maxTokens: Math.min(catalogModel.maxTokens, LIMITS.output_tokens),
+    };
     const config = roleModel(model, secret);
     const stream: StreamFn = async (m, context, options) => {
       try {

@@ -20,7 +20,8 @@ const modelID = process.argv[2] ?? "deepseek-v4.1-flash";
 const runID = `task-reuse-${Date.now()}`;
 const dir = path.resolve(".demo-data", runID);
 const output = path.resolve(
-  "test_case/reports/task-reuse-20260929",
+  process.env.SECRETARY_LIVE_REPORT_DIR ??
+    "test_case/reports/task-reuse-20260929",
   `${runID}.json`,
 );
 const keys = JSON.parse(
