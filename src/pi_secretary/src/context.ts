@@ -1,4 +1,4 @@
-import { requestTokens, type RequestBudget } from "./budget.ts";
+import { effectiveTools, requestTokens, type RequestBudget } from "./budget.ts";
 import { migrateCommitments } from "./memory.ts";
 import {
   contentText,
@@ -145,7 +145,7 @@ export function saveContext(
     raw_context: raw,
     provider_profile: profile,
     adapter_version: "pi-0.87.0",
-    tools_schema: store.put(messages.filter((m) => m.role === "system")),
+    tools_schema: store.put(effectiveTools(messages)),
     consciousness_revision:
       metadata.consciousnessRevision === undefined
         ? memoryRevision

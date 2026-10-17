@@ -14,7 +14,7 @@ DIRECTORY 任务使用 Scope 的物理目录；Execution 记录创建时的完�
 
 Python helper 持有 OS 文件锁，负责重放、尾部不完整帧修复与追加。每次打开 Store 使用独有匿名管道；Worker 负责异步读写，主线程同步等待带请求 ID、序号与 digest 的 fsync ACK。启动时核对 helper 与重放结果，追加等待最长 30 秒；通道失效后需重新打开并从 journal 确认结果。空闲 helper 阻塞等待读取，父进程死亡通过 EOF 结束其生命周期。关闭确认 helper 退出后清理启动通道；Worker 异常终止时，POSIX zombie 可能保留到 Core 退出，异常关闭通过 macOS/Linux 的 ps 确认该进程已退出并释放锁。内核不可中断状态可能延迟终止，此时报告关闭超时，不宣称锁已释放。中段损坏或原件缺失会报告恢复错误，供维护者检查完整副本。
 
-新 Context 的 raw_context 使用 `application/vnd.secretary.message-list+json`，对象内容是 `message-refs-v1` 有序消息引用清单。`Store.read` 统一重建新清单和旧消息数组，逐消息验证原始字节；Context.messages、Checkpoint、记忆来源继续引用持久对象。清单不允许嵌套。ObjectRef 的 sha256/bytes 仍表示物理 CAS 字节；`pending_source_bytes` 表示展开消息的 JSON 字节数。请求与供应商 payload 保留完整快照，因此总存储量仍可能随长循环平方增长。
+新 Context 的 raw_context 使用 `application/vnd.secretary.message-list+json`，对象内容是 `message-refs-v1` 有序消息引用清单。`Store.read` 统一重建新清单和旧消息数组，逐消息验证原始字节；Context.messages、Checkpoint、记忆来源继续引用持久对象。清单不允许嵌套。新 Context 的 tools_schema 保存有效工具定义；旧记录保留原始字段，恢复只从原消息重建工具声明。ObjectRef 的 sha256/bytes 仍表示物理 CAS 字节；`pending_source_bytes` 表示展开消息的 JSON 字节数。请求与供应商 payload 保留完整快照，因此总存储量仍可能随长循环平方增长。
 
 类型/状态、任务 occurrence 和事件索引在事务成功后安装，重放可重建。pump 只读取待处理集合；错过的 trigger 与 Input/幂等回执原子保存，旧事件按回执恢复。
 
