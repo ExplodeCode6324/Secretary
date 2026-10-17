@@ -4,14 +4,14 @@
 
 ## 改动及长度
 
-主会话分为 Identity、Scope、Delegation、Memory、Feedback、Communication 六节，执行 agent 分为 Task protocol、Workspace and scope notes、Tools and authorization、Completion 四节。工具集合、授权、合同、Settings、Host、MainPromptSnapshot、中文默认说明及 composeInstructions 均保持原样。
+主会话分为 Identity、Scope、Delegation、Memory、Feedback、Communication 六节，执行 agent 分为 Task protocol、Workspace and scope notes、Tools and authorization、Completion 四节。另在 SUMMARY_SYSTEM 补一句既有 task_refs 的 TaskPlan UUID 语义，排除 event/input UUID、人类标签与义务标识，保留各来源中合法的已有任务引用。工具集合、授权、合同、Settings、Host、MainPromptSnapshot、中文默认说明及 composeInstructions 均保持原样。
 
 | 提示词 | 原字符 / UTF-8 bytes | 新字符 / UTF-8 bytes | 新/原 | 空白分词：原→新 |
 | --- | ---: | ---: | ---: | ---: |
 | BASE_SYSTEM | 2,588 | 1,740 | 67.23% | 362→232 |
 | EXECUTOR_SYSTEM | 2,193 | 1,584 | 72.23% | 322→220 |
 
-字符按模板字符串实际内容计数，不含 TypeScript 声明；两段均为 ASCII。BASE 达到 ≤70% 的整理目标。生产源码 +30/−9，净 +21 行，来自原长行拆成带标题的段落。在线驾驶器 +71/−37，净 +34 行。
+字符按模板字符串实际内容计数，不含 TypeScript 声明；两段均为 ASCII。BASE 达到 ≤70% 的整理目标。主会话与执行提示词源码 +30/−9，净 +21 行，来自原长行拆成带标题的段落；摘要字段说明另增1行。生产源码合计 +31/−9，净 +22 行。在线驾驶器 +71/−37，净 +34 行。
 
 | 冻结内容 | SHA-256 |
 | --- | --- |
@@ -19,6 +19,8 @@
 | 新 EXECUTOR_SYSTEM 字符串 | `9c680900847ca7592303c5b6a8e6a5a6d0ba5235ed71b85558c0e44e71d0d01a` |
 | instructions.ts 文件 | `94905d9450186485231fab755edfafc41f33efcbe42ce384c4357e308efde335` |
 | task-prompt.ts 文件 | `e2b94296b8023ebee50889b7b11107dd8023711ee96bee1fab3630474dd9982e` |
+| summary.ts 文件 | `88bfdae411b1cb63eb8a8245214bd9905381d6f76bc140b8ddf220018848a9f8` |
+| 新 SUMMARY_SYSTEM 字符串 | `00c3ad786e87a4eeb3ab0f05c65af14ec698712e02ff9e3b93066d9be4258566` |
 
 ## 真实模型对照
 
@@ -26,7 +28,7 @@
 
 下表的调用数按 main/task 分列，纯主会话场景为总数；时间为驾驶器进程墙钟秒数。未到达的检查单列，未以失败后无限重跑选取成绩。
 
-| 场景 | 旧稿基线 | 首稿 | 语言修订后最终稿 |
+| 场景 | 旧稿基线 | 首稿 | 语言修订稿（摘要字段修订前） |
 | --- | --- | --- | --- |
 | 提案 chain | 12/12；13/4 次；138.34s | 12/12；13/4 次；144.71s | 12/12；11/6 次；133.62s |
 | RESULT_UNKNOWN | 7/7；2/2 次；22.22s | 7/7；2/2 次；30.72s | 7/7；3/2 次；26.34s |
@@ -35,7 +37,7 @@
 | 任务接续 reuse | O01–O03通过，O04失败，O05–O06未到达；17/7 次；321.50s | O01–O04通过，O05传输超时，O06未到达；24/11 次；485.46s | O01–O06通过；18/18 次；274.67s |
 | 记忆连续性 | 123/123；22 次；245.64s | 123/123；22 次；206.20s | 前75项通过；第17次请求输出截断；186.74s；配对确认仍失败，见下文 |
 
-基线选择：提案/未知/缺输入采用驾驶器校准后的 `before-files2`，连续性采用 `before-continuity2`，指令与接续采用 `before`。首稿为 `after`；最终稿为 `revised-after`。所有阶段独立保留 manifest，包含提示词文件 hash、驾驶器 hash、模型与实际结束状态。逐检查比较时只将随机记录 UUID 规范化，不合并不同检查。
+基线选择：提案/未知/缺输入采用驾驶器校准后的 `before-files2`，连续性采用 `before-continuity2`，指令与接续采用 `before`。首稿为 `after`；语言修订稿为 `revised-after`。所有阶段独立保留 manifest，包含提示词文件 hash、驾驶器 hash、模型与实际结束状态。逐检查比较时只将随机记录 UUID 规范化，不合并不同检查。
 
 ### 首次失败与修订
 
@@ -43,7 +45,7 @@
 - **压缩驾驶器预算**：第一次旧稿连续性在第6次调用前发生 CAPACITY_OUTPUT_LIMIT_CHANGED_BY_ADAPTER。原驾驶器在 Host 冻结预算后截断输出；现将既定 8192 上限提前设在测试模型元数据，使冻结请求与适配器一致。生产预算代码未改。修正后旧稿 123/123 通过。
 - **语言退化**：首稿指令测试压缩返回 EMPTY_WORKING_MEMORY，未完成后3项。按计划唯一一次配对确认：旧稿5/5（12次、109.08s），首稿4/5（10次、64.67s）；失败是一次性英文请求结束后仍回答英文。Communication 补明“默认用配置语言；单条回复的语言要求在该回复后到期”，未改变默认说明、composeInstructions 或断言。最终稿5/5通过。
 - **接续基线**：旧稿 O04 的执行输出耗尽4096 token，只有 reasoning，没有 submit_result，进入 MISSING_STRUCTURED_RESULT；属于已观测到的模型行为失败。首稿 O04 通过，O05 在重启后的模型请求达到60秒超时而进入 RECOVERY_BLOCKED；该项是传输失败，保留诊断。
-- **最终稿连续性**：第17次请求处于 Settings 语言切换阶段，实际 system 为未改动的 COMMITMENT_EXTRACTION；4096 token 均用于推理并以 length 截断，驾驶器禁止自动重试，后续检查未到达。一次配对确认中，旧稿131/131通过（22次、201.76s），最终稿第6次 CONSCIOUSNESS 摘要将合成的义务标签 OBL-71 放入 task_refs，违反现有 UUID schema，压缩失败。前后该摘要 system 内容完全一致，且两类失败请求均未包含 BASE_SYSTEM。该失败保留，正由同一 reviewer 核查契约缺口及处置；当前尚未达到合并条件。确认旧稿使用独立工作目录，生产源码和驾驶器 hash 均已核对。
+- **最终稿连续性**：第17次请求处于 Settings 语言切换阶段，实际 system 为未改动的 COMMITMENT_EXTRACTION；4096 token 均用于推理并以 length 截断，驾驶器禁止自动重试，后续检查未到达。一次配对确认中，旧稿131/131通过（22次、201.76s），最终稿第6次 CONSCIOUSNESS 摘要将合成的义务标签 OBL-71 放入 task_refs，违反现有 UUID schema，压缩失败。前后该摘要 system 内容完全一致，且两类失败请求均未包含 BASE_SYSTEM。该失败保留，由同一 reviewer 核查为摘要提示词缺少 task_refs 字段语义；该轮未达到合并条件。确认旧稿使用独立工作目录，生产源码和驾驶器 hash 均已核对。
 
 ### 驾驶器一致性
 
@@ -55,6 +57,16 @@
 | test-continuity-astra-live.ts | `6b3cc4ef14d2556fd0794401a3fbe990f50187423750271354cf7a46cdb66c5b` |
 
 连续性场景覆盖合成的五个逻辑日、压缩、App 关闭重开、Settings 语言切换、修正事实、撤回与未完承诺。它采用同进程 App 重开，并保留产品正常的历史输入锚点；World/PostgreSQL 事实设置不在该在线场景中。
+
+## 摘要字段说明与最终轮
+
+补入字段说明后，SUMMARY_SYSTEM 从1,744字符增至1,897字符；仅提示词增加153字符。新建 SummaryPlan 使用该说明，已保存的 plan.system 保持原快照。
+
+同一 reviewer 的定点计划 R1 指出 event/input UUID 消歧及空引用 oracle，R2 确认落实后 PASS。Codex 未采纳“仅可复制 runtime_tasks”建议：Settings 摘要不提供该字段，仍需保留 previous_items 或来源中合法的任务引用。
+
+冻结失败06的所有 user 消息，只换 system，使用同一 `opencode-go / deepseek-v4.1-flash / low`、8192输出上限及90秒超时，仅调用一次：18.328s通过。输出1个 WorkItem，通过原 schema 与 boundedItems，所有 task_refs 严格为 []，义务标签仍在 summary；没有清空事实来绕过校验。源消息 SHA-256 为 `a884949f97c2a93b501d143430dd3225e8df38e235e0817263eb8014f6ea986c`（JSON 编码）。该修订针对字段语义，不将独立的 COMMITMENT_EXTRACTION 额度耗尽算作已修复。
+
+补字段说明后的完整六场景阶段为 `summary-contract-after`，驾驶器、模型和调用上限保持一致。冻结提交的结果逐项对比、CI、最终 reviewer 结论记录在 [PR #54 验收记录](https://github.com/ExplodeCode6324/Secretary/pull/54)，与本报告的首次失败记录共同构成验收证据。
 
 ## 快照与升级
 
@@ -68,6 +80,7 @@ Master 于 2026-10-18 确认沿用既有升级前置：先在旧运行时完成�
 
 - 定向 instructions、task-reuse、issue16/prompt、issue23/host：44通过，0失败；无 DSN 时1项 PostgreSQL 场景跳过，最终完整检查使用独立 PostgreSQL。
 - 连续性 oracle 自检通过。
-- 最终 `npm run verify`（实际 PostgreSQL）：657/657 通过，0失败、0跳过，789.42s；类型检查与文档检查通过。独立 PostgreSQL 已正常停止。
+- 两份主/执行提示词提交 `909a9fc` 的 `npm run verify`（实际 PostgreSQL）：657/657 通过，0失败、0跳过，789.42s；类型检查与文档检查通过。独立 PostgreSQL 已正常停止。
+- 摘要字段说明之后：`npm run check` 通过；summary-settings、instructions、memory、settings-memory-boundary 定向32/32通过、0跳过。最终提交完整检查由 PR 的 Linux/PostgreSQL 与 macOS CI 执行。
 - Hermes 计划 R1/R2 意见已落实，R3 PASS；文件场景校准 PASS；语言有效期修订 PASS，认为现有五项覆盖足够。
 - 最终提交 SHA、CI 与合并条件复核将在代码冻结后记录到 PR。
