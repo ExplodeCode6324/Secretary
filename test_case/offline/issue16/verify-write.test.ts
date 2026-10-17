@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fixture, directory, executions } from "./helpers.ts";
+import { fixture, directory, executions, approve } from "./helpers.ts";
 import { id, revise } from "../../../src/pi_secretary/src/store.ts";
 import { scopeOf } from "../../../src/pi_secretary/src/scheduler.ts";
 import type {
@@ -39,9 +39,17 @@ test("verify-write uses bound root after Scope update, keeps hash mismatch unkno
       path.join(oldRoot, "result.txt"),
       { path: "result.txt", content: "expected" },
     );
+    for (const state of ["READY", "DISPATCHING"] as const)
+      a.store.commit([
+        revise(a.store.get<Execution>("Execution", e.id), { state }),
+      ]);
+    approve(a);
+    a.authorization.dispatch(op.id);
+    a.authorization.finish(op.id, { interrupted: true }, "UNKNOWN");
     a.store.commit([
-      revise(op, { state: "RESULT_UNKNOWN", effect: "UNKNOWN" }),
-      revise(e, { state: "RESULT_UNKNOWN" }),
+      revise(a.store.get<Execution>("Execution", e.id), {
+        state: "RESULT_UNKNOWN",
+      }),
     ]);
     a.scheduler.scopes.save({ root_path: newRoot }, s.id, s.revision);
     fs.writeFileSync(path.join(oldRoot, "result.txt"), "different");

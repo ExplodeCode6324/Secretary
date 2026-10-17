@@ -33,8 +33,11 @@ async function setup(a: App, root: string, ask = false) {
   });
   a.scheduler.tick();
   await a.scheduler.idle();
-  const e = revise(executions(a)[0], { state: "RUNNING" as const });
-  a.store.commit([e]);
+  let e = executions(a)[0];
+  for (const state of ["READY", "DISPATCHING", "RUNNING"] as const) {
+    e = revise(e, { state });
+    a.store.commit([e]);
+  }
   const callScope = {
     session_id: a.host.sessionID,
     task_id: e.task_id,
@@ -275,7 +278,11 @@ test("AUTH-02 tool path: identical write after RULE_CHANGED waits on a real requ
     );
     const op = a.store.get<Operation>("Operation", q.operation_id);
     a.authorization.decide({ ...approval(a, op), decision: "REJECT" });
-    a.store.commit([revise(waiting, { state: "RUNNING" })]);
+    let resumed = waiting;
+    for (const state of ["DISPATCHING", "RUNNING"] as const) {
+      resumed = revise(resumed, { state });
+      a.store.commit([resumed]);
+    }
     const result = await write.execute("third", args);
     assert.equal(result.terminate, true);
     assert.equal(JSON.parse(result.content[0].text).state, "CANCELLED");

@@ -533,7 +533,13 @@ test("working decision answer is exactly-once, rejects stale/expired state, atte
       app.host.sessionID,
     );
     await app.settle();
-    const e = app.store.all<Execution>("Execution")[0];
+    const e: Execution = {
+      ...app.store.all<Execution>("Execution")[0],
+      ...base(),
+      state: "WAIT_DECISION",
+      ended_at: null,
+      result_id: null,
+    };
     const decision = {
       ...base(),
       record_type: "DecisionRequest" as const,
@@ -550,10 +556,7 @@ test("working decision answer is exactly-once, rejects stale/expired state, atte
       answered_by: null,
       answer_request_id: null,
     };
-    app.store.commit([
-      decision,
-      revise(e, { state: "WAIT_DECISION", waiting_request_ids: [decision.id] }),
-    ]);
+    app.store.commit([decision, { ...e, waiting_request_ids: [decision.id] }]);
     const first: any = await c.query("attention");
     assert.equal(first.counts.decisions, 1);
     assert.equal(first.valid_until, decision.deadline);

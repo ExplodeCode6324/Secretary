@@ -1,6 +1,6 @@
 # RetentionState
 
-状态枚举对应 src/state_machine/catalog.json 的 Retention
+Retention 状态由领域模块推进，见 docs/state-machines.md
 
 来源：[contracts.schema.json](../../src/contracts/contracts.schema.json#/$defs/RetentionState)。此页自动生成，描述内部合同；客户端使用 [API v1 DTO](../api/v1/README.md)。行为说明见 [数据模型](../data-model.md)。
 
@@ -12,6 +12,6 @@
     "ARCHIVE_PENDING",
     "RETIRED"
   ],
-  "description": "状态枚举对应 src/state_machine/catalog.json 的 Retention"
+  "description": "Retention 状态由领域模块推进，见 docs/state-machines.md"
 }
 ```

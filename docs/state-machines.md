@@ -1,10 +1,12 @@
 # 状态与调度
 
-状态枚举来自[内部 Schema](../src/contracts/contracts.schema.json)。各领域模块检查转换条件；Authorization.decide 使用状态目录的转换函数，其他模块以自己的业务逻辑推进。统一状态机校验安排在 #25。
+状态枚举来自[内部 Schema](../src/contracts/contracts.schema.json)。[状态目录](../src/state_machine/catalog.json) 只保留 Execution、Operation、Input、Authorization。Store 在提交和 journal 重放时，用前三类的 `(from, to)` 迁移对校验已有记录的状态变化；Authorization.decide 继续按事件调用 `next()`。各领域模块检查授权、进程停止、证据和业务前提，目录不代替这些检查。
+
+同状态更新与符合 Schema 的首次快照可写入。非法状态迁移在 journal 追加与内存安装之前拒绝整笔事务，业务状态、索引、事件和请求回执均不推进。Input 的 session 与 payload 身份仍不可变。其他对象的流转由各领域模块实现，以下描述其实际行为。
 
 ## 主会话与模型调用
 
-Input 受理后为 ACCEPTED，由 Host 组成固定批次处理，完成后为 HANDLED。处理中保存 MainPromptSnapshot、Context 和 ModelCall。恢复时复用已持久化的成功响应与工具结果，按逻辑调用的已用次数继续未完成请求。
+Input 受理后为 ACCEPTED，由 Host 组成固定批次并转为 CLAIMED，完成后为 HANDLED。处理中保存 MainPromptSnapshot、Context 和 ModelCall。恢复时复用已持久化的成功响应与工具结果，按逻辑调用的已用次数继续未完成请求。
 
 单次逻辑模型调用最多发送三次，重试间隔为 2 秒、10 秒；供应商更长的 Retry-After 优先。网络错误、超时、408/409/429/5xx 等暂时错误适用重试；认证、参数、容量或取消走对应错误处理。需要人工恢复的主会话可通过 session/resume 处理；新的 Master 输入也可唤醒传输失败后阻塞的原批次。
 
@@ -30,6 +32,8 @@ Scope 从 ACTIVE 归档为 ARCHIVED。归档后停止接受该范围的新提案
 ## Operation 与未知结果
 
 Operation 在授权、派发和结果保存过程中记录 state 与 effect。状态表示处理进度，effect 表示作用结论。未知 shell/program 影响所属执行；未知文件写入还按绝对资源路径影响其他执行的写入。
+
+World 对账确认数据库可达且同一事务没有回执时，Operation 可从 RESULT_UNKNOWN 返回 DISPATCHED，补做原 change_id 的事务。该迁移不重新消费授权，也不适用于 shell 或文件写入重试。
 
 | owner 裁定 | Operation state / effect | 含义 |
 | --- | --- | --- |

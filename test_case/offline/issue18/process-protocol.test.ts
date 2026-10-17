@@ -20,7 +20,7 @@ import type {
 } from "../../../src/pi_secretary/src/contracts.ts";
 import { interrupted } from "./helpers.ts";
 
-async function scenario(kind: "shell" | "program", cancel: boolean) {
+async function scenario(kind: "shell" | "program", cancel: boolean | "signal") {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "process-protocol-"));
   const stream: StreamFn = (m, c, o) =>
     JSON.stringify(c.messages.filter((x) => x.role === "system")).includes(
@@ -89,7 +89,13 @@ async function scenario(kind: "shell" | "program", cancel: boolean) {
         )
       ) {
         cancelled = true;
-        app.scheduler.cancel(e.id);
+        if (cancel === "signal") {
+          const operation = args[0].find(
+            (r): r is Operation =>
+              r.record_type === "Operation" && !!r.process?.pid,
+          )!;
+          process.kill(operation.process!.pid!, "SIGTERM");
+        } else app.scheduler.cancel(e.id);
       }
       return result;
     }) as typeof commit;
@@ -109,6 +115,11 @@ async function scenario(kind: "shell" | "program", cancel: boolean) {
       );
       assert.equal(op.effect, "NOT_APPLIED");
       assert.equal(receipt.not_started, true);
+      if (cancel === "signal") {
+        const current = app.store.get<Execution>("Execution", e.id);
+        assert.equal(current.cancel_requested, false);
+        assert.equal(current.state, "CANCELLED");
+      }
     } else {
       assert.equal(op.effect, "APPLIED");
       if (kind === "shell") {
@@ -136,6 +147,9 @@ for (const kind of ["shell", "program"] as const) {
   test(`${kind}: stdin completes with the expected input`, () =>
     scenario(kind, false));
 }
+test("program: external SIGTERM before start finishes RUNNING as CANCELLED without a scheduler cancel request", () =>
+  scenario("program", "signal"));
+
 test("wrapper exit without a result frame is unknown, never a command exit code", async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "protocol-exit-"));
   const app = await App.open(root, {

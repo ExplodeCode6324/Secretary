@@ -76,8 +76,16 @@ test("stopped unknown shell releases DIRECTORY slot and other execution may shel
       path.join(project, "blocked"),
       { path: "blocked", content: "synthetic" },
     );
+    // This execution is already unknown, so no new effect may be dispatched.
+    // Seed a distinct historical unknown write for the resource-conflict check.
     a.store.commit([
-      revise(write, { state: "RESULT_UNKNOWN", effect: "UNKNOWN" }),
+      {
+        ...write,
+        id: id(),
+        revision: 1,
+        state: "RESULT_UNKNOWN",
+        effect: "UNKNOWN",
+      },
     ]);
     assert.throws(
       () =>
@@ -119,7 +127,13 @@ test("unconfirmed process survives owner resolution and keeps same DIRECTORY occ
     a.scheduler.tick();
     await a.scheduler.idle();
     const e = executions(a)[0];
-    a.store.commit([revise(e, { state: "RUNNING", started_at: now() })]);
+    for (const state of ["READY", "DISPATCHING", "RUNNING"] as const)
+      a.store.commit([
+        revise(a.store.get<Execution>("Execution", e.id), {
+          state,
+          started_at: now(),
+        }),
+      ]);
     const op = a.authorization.prepare(scopeOf(e), "shell.run", s.root_path!, {
       command: "synthetic",
     });
@@ -187,11 +201,17 @@ test("run acquires synchronously, and all active DIRECTORY states exclude a comp
       "WAIT_DECISION",
       "CANCEL_REQUESTED",
     ] as const) {
+      // Each occupancy case is a separate historical snapshot, not a jump
+      // between unrelated live execution states.
+      const occupying: Execution = {
+        ...first,
+        id: id(),
+        revision: 1,
+        state,
+        started_at: now(),
+      };
       a.store.commit([
-        revise(a.store.get<Execution>("Execution", first.id), {
-          state,
-          started_at: now(),
-        }),
+        occupying,
         revise(a.store.get<Execution>("Execution", second.id), {
           state: "READY",
         }),
@@ -202,5 +222,8 @@ test("run acquires synchronously, and all active DIRECTORY states exclude a comp
           ?.reason,
         "SCOPE_BUSY",
       );
+      if (occupying.state === "DISPATCHING")
+        a.store.commit([revise(occupying, { state: "CANCEL_REQUESTED" })]);
+      a.scheduler.finish(occupying.id, "CANCELLED", { synthetic: true });
     }
   }));

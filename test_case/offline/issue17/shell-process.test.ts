@@ -136,8 +136,11 @@ test("AUTH-03: successor approval and remembered rule survive actual Store reope
     });
     a.scheduler.tick();
     await a.scheduler.idle();
-    const e = revise(executions(a)[0], { state: "RUNNING" as const });
-    a.store.commit([e]);
+    let e = executions(a)[0];
+    for (const state of ["READY", "DISPATCHING", "RUNNING"] as const) {
+      e = revise(e, { state });
+      a.store.commit([e]);
+    }
     const cs = {
         session_id: a.host.sessionID,
         task_id: e.task_id,

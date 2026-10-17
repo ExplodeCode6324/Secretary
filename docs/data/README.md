@@ -14,20 +14,20 @@
 | [Time](Time.md) | 0 | UTC RFC3339；时区意图在 Trigger.timezone 另存。 |
 | [Digest](Digest.md) | 0 | 已保存原始字节 SHA-256 小写十六进制。 |
 | [RelativePath](RelativePath.md) | 0 | 相对 data_root 或 workspace_root；运行时拒绝绝对路径、..、符号链接越界。 |
-| [HostState](HostState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Host |
+| [HostState](HostState.md) | 0 | Host 状态由领域模块推进，见 docs/state-machines.md |
 | [InputState](InputState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Input |
-| [CallState](CallState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Call |
-| [CompactionState](CompactionState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Compaction |
-| [PlanState](PlanState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Plan |
+| [CallState](CallState.md) | 0 | Call 状态由领域模块推进，见 docs/state-machines.md |
+| [CompactionState](CompactionState.md) | 0 | Compaction 状态由领域模块推进，见 docs/state-machines.md |
+| [PlanState](PlanState.md) | 0 | Plan 状态由领域模块推进，见 docs/state-machines.md |
 | [ExecutionState](ExecutionState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Execution |
-| [RetentionState](RetentionState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Retention |
+| [RetentionState](RetentionState.md) | 0 | Retention 状态由领域模块推进，见 docs/state-machines.md |
 | [OperationState](OperationState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Operation |
 | [AuthorizationState](AuthorizationState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Authorization |
-| [DecisionState](DecisionState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Decision |
-| [FeedbackState](FeedbackState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Feedback |
-| [NotificationState](NotificationState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Notification |
-| [WorldCommandState](WorldCommandState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 WorldCommand |
-| [ProgramState](ProgramState.md) | 0 | 状态枚举对应 src/state_machine/catalog.json 的 Program |
+| [DecisionState](DecisionState.md) | 0 | Decision 状态由领域模块推进，见 docs/state-machines.md |
+| [FeedbackState](FeedbackState.md) | 0 | Feedback 状态由领域模块推进，见 docs/state-machines.md |
+| [NotificationState](NotificationState.md) | 0 | Notification 状态由领域模块推进，见 docs/state-machines.md |
+| [WorldCommandState](WorldCommandState.md) | 0 | WorldCommand 状态由领域模块推进，见 docs/state-machines.md |
+| [ProgramState](ProgramState.md) | 0 | Program 状态由领域模块推进，见 docs/state-machines.md |
 | [ObjectRef](ObjectRef.md) | 4 | 不可变对象引用；必须校验内容散列。 |
 | [Scope](Scope.md) | 3 | 日志定位：main 至少 session；task 必须 task 与 execution；跨域见语义校验。 |
 | [Message](Message.md) | 5 | 逻辑消息；provider 扩展块由原始 context 对象保留。 |
