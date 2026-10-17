@@ -26,9 +26,19 @@ const keys = JSON.parse(
 const model = getModel("opencode-go", "deepseek-v4.1-flash");
 const config = roleModel(model, keys.main);
 let calls = 0;
+const start = Date.now();
 const stream: StreamFn = (m, c, o) => {
-  if (++calls > 16) throw Error("TEST_CALL_LIMIT");
-  return config.stream(m, c, o);
+  if (++calls > 16 || Date.now() - start > 600000)
+    throw Error("TEST_CALL_LIMIT");
+  return config.stream(m, c, {
+    ...o,
+    signal: AbortSignal.any([
+      ...(o?.signal ? [o.signal] : []),
+      AbortSignal.timeout(
+        Math.max(1, Math.min(90000, 600000 - (Date.now() - start))),
+      ),
+    ]),
+  });
 };
 const dir = path.resolve(".demo-data", "instructions-live-" + Date.now());
 const report: any = {
@@ -136,7 +146,12 @@ try {
 } finally {
   await app.close();
   report.completed_at = new Date().toISOString();
-  const output = `test_case/reports/instructions-${Date.now()}/live.json`;
+  const output = process.env.SECRETARY_LIVE_REPORT_DIR
+    ? path.join(
+        process.env.SECRETARY_LIVE_REPORT_DIR,
+        `instructions-${Date.now()}.json`,
+      )
+    : `test_case/reports/instructions-${Date.now()}/live.json`;
   fs.mkdirSync(path.dirname(output), { recursive: true });
   fs.writeFileSync(output, JSON.stringify(report, null, 2));
   console.log(
