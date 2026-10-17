@@ -72,7 +72,7 @@ jobs:
           python-version: "3.x"
       - run: npm ci
       - name: Core process recovery and push transports
-        run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts
+        run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts test_case/offline/issue19/store-ownership.test.ts test_case/offline/issue24/transport.test.ts
 
   verify:
     name: verify

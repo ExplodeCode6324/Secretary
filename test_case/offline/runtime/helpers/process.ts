@@ -1,12 +1,12 @@
-import fs from "node:fs";
 import { App } from "../../../../src/pi_secretary/src/app.ts";
 import {
   Agent,
   fixtureModel,
   fixtureStream,
 } from "../../../../src/pi_secretary/src/model.ts";
-import { hash } from "../../../../src/pi_secretary/src/store.ts";
-const [mode, file] = process.argv.slice(2);
+import type { Context } from "../../../../src/pi_secretary/src/contracts.ts";
+import { Store, hash } from "../../../../src/pi_secretary/src/store.ts";
+const [mode, file, contextID] = process.argv.slice(2);
 if (mode === "crash") {
   const app = await App.open(file, {
     model: fixtureModel,
@@ -18,7 +18,11 @@ if (mode === "crash") {
   );
   process.kill(process.pid, "SIGKILL");
 } else {
-  const raw = fs.readFileSync(file);
+  const store = await Store.open(file);
+  const raw = store.contentText(
+    store.get<Context>("Context", contextID).raw_context,
+  );
+  await store.close();
   const agent = new Agent({
     initialState: {
       model: fixtureModel,

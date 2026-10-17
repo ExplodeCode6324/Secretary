@@ -170,7 +170,7 @@ function applyCrop(
   if (!prefix.length || prefix.length > messages.length) return messages;
   if (
     hash(JSON.stringify(messages.slice(0, prefix.length))) !==
-    mapping.source_ref.sha256
+    hash(JSON.stringify(prefix))
   )
     return messages;
   const replacement = store.read<AgentMessage[]>(mapping.messages_ref);

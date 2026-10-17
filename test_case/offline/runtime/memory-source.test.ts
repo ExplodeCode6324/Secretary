@@ -111,8 +111,12 @@ test("compaction includes assistant-only promises despite display metadata and e
       app.host.session.consciousness_id,
     );
     const originalBytes = app.store.bytes(memory.pending_raw_refs[0]);
-    assert(originalBytes.toString().includes(promise));
-    assert(!originalBytes.toString().includes("display_call_id"));
+    assert(app.store.contentText(memory.pending_raw_refs[0]).includes(promise));
+    assert(
+      !app.store
+        .contentText(memory.pending_raw_refs[0])
+        .includes("display_call_id"),
+    );
     const outside = app.store.event(
       "main.message",
       { ...logged, content: [{ type: "text", text: unrelated }] },

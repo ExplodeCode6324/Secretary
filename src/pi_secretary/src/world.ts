@@ -135,7 +135,12 @@ export class World {
     return c;
   }
   async drain() {
-    for (const c of this.store.all<WorldCommand>("WorldCommand")) {
+    for (const c of this.store.indexed<WorldCommand>(
+      "WorldCommand",
+      "state",
+      ["COMMITTED", "CONFLICT", "REJECTED"],
+      true,
+    )) {
       if (["COMMITTED", "CONFLICT", "REJECTED"].includes(c.state)) continue;
       const o = this.store.get<Operation>("Operation", c.operation_id);
       if (o.state === "CANCELLED") {

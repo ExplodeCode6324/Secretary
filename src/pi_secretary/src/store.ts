@@ -14,6 +14,7 @@ import type {
 } from "./contracts.ts";
 
 export const root = fileURLToPath(new URL("../../../", import.meta.url));
+export const MESSAGE_LIST_MEDIA = "application/vnd.secretary.message-list+json";
 export const id = (): string => randomUUID();
 export const now = () => new Date().toISOString();
 export const hash = (data: string | Buffer) =>
@@ -81,6 +82,26 @@ function syncDir(dir: string) {
     fs.closeSync(fd);
   }
 }
+const indexFields: Record<string, string[]> = {
+  WorldCommand: ["state"],
+  Input: ["state"],
+  Feedback: ["state", "execution_id"],
+  Execution: ["state", "retention_state", "task_id", "task_occurrence"],
+  TaskPlan: ["state", "pending_requests.length"],
+  Operation: ["process.state", "scope.execution_id"],
+  SettingsApplication: ["state"],
+  CompactionJob: ["state"],
+  MemoryExtractionJob: ["pending_extraction"],
+};
+const fieldValue = (record: Stored, field: string): unknown =>
+  field === "pending_extraction" && record.record_type === "MemoryExtractionJob"
+    ? !record.merged && (record.state !== "FAILED" || !!record.next_attempt_at)
+    : field === "task_occurrence"
+      ? JSON.stringify([
+          (record as any).task_id,
+          (record as any).occurrence_key,
+        ])
+      : field.split(".").reduce((value: any, key) => value?.[key], record);
 export class Store {
   readonly dir: string;
   epoch = 1;
@@ -90,7 +111,59 @@ export class Store {
   private records = new Map<string, Stored>();
   private recordsByType = new Map<string, Map<string, Stored>>();
   private modelCallsByLogicalKey = new Map<string, Map<string, ModelCall>>();
+  private recordOrder = new Map<string, number>();
+  private indexes = new Map<string, Map<unknown, Map<string, Stored>>>();
+  private eventByID = new Map<string, OperationLogRecord>();
+  private eventsByType = new Map<string, OperationLogRecord[]>();
+  private eventsByExecution = new Map<string, OperationLogRecord[]>();
   readonly logs: OperationLogRecord[] = [];
+  indexed<T extends Stored>(
+    type: T["record_type"],
+    field: string,
+    values: unknown[],
+    exclude = false,
+  ): T[] {
+    if (!indexFields[type]?.includes(field)) throw Error("UNKNOWN_STORE_INDEX");
+    const wanted = new Set(values),
+      result: Stored[] = [];
+    const index = this.indexes.get(type + ":" + field);
+    if (exclude) {
+      for (const [value, bucket] of index ?? [])
+        if (!wanted.has(value))
+          for (const record of bucket.values()) result.push(record);
+    } else {
+      for (const value of wanted)
+        for (const record of index?.get(value)?.values() ?? [])
+          result.push(record);
+    }
+    result.sort(
+      (a, b) =>
+        this.recordOrder.get(type + ":" + a.id)! -
+        this.recordOrder.get(type + ":" + b.id)!,
+    );
+    return structuredClone(result) as T[];
+  }
+  eventById(eventID: string) {
+    return this.eventByID.get(eventID);
+  }
+  events(type: string): readonly OperationLogRecord[] {
+    return this.eventsByType.get(type) ?? [];
+  }
+  eventsSince(type: string, after: number): readonly OperationLogRecord[] {
+    const events = this.events(type);
+    let lo = 0,
+      hi = events.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1;
+      if (events[mid].sequence <= after) lo = mid + 1;
+      else hi = mid;
+    }
+    return events.slice(lo);
+  }
+  executionEvents(executionID: string): readonly OperationLogRecord[] {
+    return this.eventsByExecution.get(executionID) ?? [];
+  }
+
   // Validated immutable references for disposable read projections. No second journal.
   readonly projectionFrames: (Pick<
     JournalTransaction,
@@ -146,6 +219,7 @@ export class Store {
     try {
       fs.mkdirSync(path.join(dir, "objects"), { recursive: true });
       s.replay(replay);
+      owner.verifyReplay(s.sequence, s.digest);
       s.epoch =
         s
           .all()
@@ -245,7 +319,41 @@ export class Store {
     return b;
   }
   read<T>(ref: ObjectRef): T {
-    return JSON.parse(this.bytes(ref).toString()) as T;
+    const value = JSON.parse(this.bytes(ref).toString());
+    if (ref.media_type !== MESSAGE_LIST_MEDIA) return value as T;
+    if (
+      value?.encoding !== "message-refs-v1" ||
+      !Array.isArray(value.messages) ||
+      Object.keys(value).sort().join(",") !== "encoding,messages"
+    )
+      throw Error("INVALID_MESSAGE_LIST");
+    return value.messages.map((child: ObjectRef) => {
+      shapeDefinition("ObjectRef", child);
+      if (child.media_type !== "application/json")
+        throw Error("INVALID_MESSAGE_LIST");
+      return JSON.parse(this.bytes(child).toString());
+    }) as T;
+  }
+  putMessages(messages: unknown[]) {
+    const refs = messages.map((message) => this.put(message));
+    return {
+      refs,
+      raw: this.put(
+        { encoding: "message-refs-v1", messages: refs },
+        MESSAGE_LIST_MEDIA,
+      ),
+    };
+  }
+  // Content consumers use decoded bytes; ObjectRef.bytes remains physical CAS size.
+  contentText(ref: ObjectRef): string {
+    return ref.media_type === MESSAGE_LIST_MEDIA
+      ? JSON.stringify(this.read(ref))
+      : this.bytes(ref).toString();
+  }
+  contentBytes(ref: ObjectRef): number {
+    return ref.media_type === MESSAGE_LIST_MEDIA
+      ? Buffer.byteLength(this.contentText(ref))
+      : ref.bytes;
   }
   hasReceipt(request: string) {
     return this.receipts.has(request);
@@ -434,13 +542,16 @@ export class Store {
         throw Error("EXECUTION_WORKSPACE_IMMUTABLE");
       staged.push(r);
     }
-    const candidate = new Map(this.records);
-    for (const r of staged) candidate.set(r.record_type + ":" + r.id, r);
-    if (
-      [...candidate.values()].filter((r) => r.record_type === "Session")
-        .length > 1
-    )
-      throw Error("MULTIPLE_MAIN_SESSIONS");
+    const candidate = new Map(
+      staged.map((r) => [r.record_type + ":" + r.id, r]),
+    );
+    const sessionCount =
+      (this.recordsByType.get("Session")?.size ?? 0) +
+      staged.filter(
+        (r) =>
+          r.record_type === "Session" && !this.records.has("Session:" + r.id),
+      ).length;
+    if (sessionCount > 1) throw Error("MULTIPLE_MAIN_SESSIONS");
     for (const r of staged) {
       if (r.record_type === "WakeTimer") {
         const previous = this.records.get("WakeTimer:" + r.id);
@@ -480,7 +591,9 @@ export class Store {
           throw Error("INVALID_WAKEUP_STATE");
         if (!previous) {
           const sources = new Set(r.source_event_ids);
-          for (const event of this.logs) {
+          for (const source of [...sources]) {
+            const event = this.eventByID.get(source);
+            if (!event) continue;
             if (
               !sources.has(event.event_id) ||
               event.event_type !== "input.accepted"
@@ -514,7 +627,8 @@ export class Store {
       if (
         "session_id" in r &&
         r.session_id &&
-        !candidate.has("Session:" + r.session_id)
+        !candidate.has("Session:" + r.session_id) &&
+        !this.records.has("Session:" + r.session_id)
       )
         throw Error("MISSING_SESSION");
     }
@@ -553,6 +667,24 @@ export class Store {
         this.planHistory.set(`${m.object_id}:${m.new_revision}`, m.snapshot);
     }
     for (const r of staged) {
+      const previousRecord = this.records.get(r.record_type + ":" + r.id);
+      if (!previousRecord)
+        this.recordOrder.set(r.record_type + ":" + r.id, this.recordOrder.size);
+      for (const field of indexFields[r.record_type] ?? []) {
+        const key = r.record_type + ":" + field;
+        let index = this.indexes.get(key);
+        if (!index) this.indexes.set(key, (index = new Map()));
+        if (previousRecord) {
+          const oldValue = fieldValue(previousRecord, field),
+            old = index.get(oldValue);
+          old?.delete(r.id);
+          if (old?.size === 0) index.delete(oldValue);
+        }
+        const value = fieldValue(r, field);
+        let bucket = index.get(value);
+        if (!bucket) index.set(value, (bucket = new Map()));
+        bucket.set(r.id, r);
+      }
       if (r.record_type === "DecisionRequest" && r.answer_request_id)
         this.decisionAnswerRequests.add(r.answer_request_id);
       if (r.record_type === "ModelCall") {
@@ -582,6 +714,16 @@ export class Store {
     for (const e of txn.log_records) {
       this.eventSequence = e.sequence;
       this.logs.push(e);
+      this.eventByID.set(e.event_id, e);
+      let events = this.eventsByType.get(e.event_type);
+      if (!events) this.eventsByType.set(e.event_type, (events = []));
+      events.push(e);
+      if (e.scope.execution_id) {
+        let execution = this.eventsByExecution.get(e.scope.execution_id);
+        if (!execution)
+          this.eventsByExecution.set(e.scope.execution_id, (execution = []));
+        execution.push(e);
+      }
       this.eventTransactions.set(e.event_id, txn.txn_id);
     }
     for (const r of txn.receipts)
@@ -605,7 +747,16 @@ export class Store {
       typeof v.bytes === "number" &&
       typeof v.media_type === "string"
     ) {
-      this.bytes(v as unknown as ObjectRef);
+      const ref = v as unknown as ObjectRef;
+      if (
+        !/^objects\/[a-f0-9]{64}$/.test(ref.path) ||
+        ref.path !== "objects/" + ref.sha256
+      )
+        throw Error("INVALID_OBJECT_PATH");
+      const stat = fs.lstatSync(path.join(this.dir, ref.path));
+      if (stat.isSymbolicLink()) throw Error("OBJECT_SYMLINK");
+      if (!stat.isFile() || stat.size !== ref.bytes)
+        throw Error("CORRUPT_OBJECT");
       return;
     }
     for (const child of Object.values(v)) this.verifyRefs(child);

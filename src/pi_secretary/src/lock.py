@@ -1,14 +1,13 @@
 """Sole journal writer: keep flock across recovery, append, fsync, and ACK.
 
-The per-open mailbox is a synchronous transport, never an ownership token.
-Stdin EOF ends this owner's lifetime. A future owner uses a different mailbox.
+Anonymous pipes carry framed requests and acknowledgements.
+Stdin EOF ends this owner's lifetime.
 """
 import base64
 import fcntl
 import hashlib
 import json
 import os
-import select
 import sys
 import uuid
 from pathlib import Path
@@ -23,9 +22,8 @@ def sync_dir(directory):
 
 
 def reply(channel, value):
-    temp = channel / "response.tmp"
-    temp.write_text(json.dumps(value))
-    os.replace(temp, channel / "response")
+    sys.stdout.write(json.dumps(value) + "\n")
+    sys.stdout.flush()
 
 
 def decode_frame(line, sequence, previous):
@@ -83,23 +81,15 @@ def serve(directory, channel):
         try:
             replay, sequence, digest = recover(directory)
             (channel / "replay").write_bytes(replay)
-            reply(channel, {"id": "open", "digest": digest})
-            while True:
-                # Parent lifetime signal; no journal writes after observed EOF.
-                readable, _, _ = select.select([sys.stdin.buffer], [], [], 0.001)
-                if readable and not os.read(sys.stdin.fileno(), 4096):
-                    return
-                request_file = channel / "request"
-                if not request_file.exists():
-                    continue
-                request = json.loads(request_file.read_bytes())
-                request_file.unlink()
+            reply(channel, {"id": "open", "sequence": sequence, "digest": digest})
+            for line in sys.stdin.buffer:
+                request = json.loads(line)
                 request_id = request["id"]
                 frame = request["frame"].encode("utf-8")
                 if not frame.endswith(b"\n") or frame.count(b"\n") != 1:
                     raise ValueError("CORRUPT_FRAME")
                 next_sequence, next_digest = decode_frame(frame, sequence, digest)
-                if request["digest"] != next_digest:
+                if request["digest"] != next_digest or request["sequence"] != next_sequence:
                     raise ValueError("CORRUPT_JOURNAL")
                 fd = os.open(directory / "journal.jsonl", os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600)
                 with os.fdopen(fd, "ab") as journal:
@@ -108,7 +98,7 @@ def serve(directory, channel):
                     os.fsync(journal.fileno())
                 sync_dir(directory)
                 sequence, digest = next_sequence, next_digest
-                reply(channel, {"id": request_id, "digest": digest})
+                reply(channel, {"id": request_id, "sequence": sequence, "digest": digest})
         except Exception as error:
             # Any uncertain append or protocol error permanently ends ownership.
             reply(channel, {"id": request_id, "error": "CORRUPT_JOURNAL: " + str(error)})

@@ -149,7 +149,7 @@ function sourcePrecedesDelivery(
         owner.record_type === "CompactionJob" &&
         hash(
           JSON.stringify(actual.map((event) => store.read(event.payload))),
-        ) !== ref.sha256
+        ) !== hash(JSON.stringify(snapshot))
       )
         return false;
       const origins = snapshot
