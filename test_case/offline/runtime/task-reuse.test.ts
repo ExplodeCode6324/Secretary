@@ -6,7 +6,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { App } from "../../../src/pi_secretary/src/app.ts";
-import { id, revise, hash, now } from "../../../src/pi_secretary/src/store.ts";
+import {
+  base,
+  id,
+  revise,
+  hash,
+  now,
+} from "../../../src/pi_secretary/src/store.ts";
 import {
   fixtureModel,
   fixtureStream,
@@ -329,12 +335,20 @@ for (const state of [
   test(`A08: ${state} blocks reuse without a substitute`, () =>
     fixture(async (app) => {
       const { p, e } = await first(app);
-      app.store.commit([revise(e, { state })]);
+      const busy: Execution = {
+        ...e,
+        ...base(),
+        state,
+        occurrence_key: id(),
+        ended_at: null,
+        result_id: null,
+      };
+      app.store.commit([busy]);
       assert.throws(
         () =>
           app.scheduler.propose("revision", id(), app.host.sessionID, {
             reuse: p.id,
-            parent: e.id,
+            parent: busy.id,
           }),
         /BUSY/,
       );

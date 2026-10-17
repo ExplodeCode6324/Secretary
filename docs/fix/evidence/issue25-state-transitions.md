@@ -58,6 +58,7 @@ PR A 原测试零修改；PR B 对以下人工跳边作最小修正，保留业�
 | issue17/authorization.test.ts | setup 经合法准备/派发序列进入 RUNNING；工具故障注入恢复也经 DISPATCHING |
 | issue17/shell-process.test.ts | 真实 Store 重开夹具经合法序列进入 RUNNING |
 | issue8/api.test.ts、issue8/review.test.ts | 决策夹具使用新的 WAIT_DECISION 历史快照，不复活已 SUCCEEDED 的执行 |
+| runtime/task-reuse.test.ts | A08 四种 busy 状态使用同一 TaskPlan 下的新历史快照，不复活已完成执行；保留 BUSY 与不建替代任务的断言 |
 
 ## 验证证据
 
