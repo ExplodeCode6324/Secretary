@@ -30,8 +30,11 @@ flowchart TD
 | core-cli / core-client / backend | 启动、发现、附着、状态查询和停止 Core |
 | api-v1 / application-service / api | HTTP 认证、命令幂等、异步受理、分页和公开 DTO |
 | app | 组合模块，推进 pump，协调关闭 |
-| host | 领取输入，运行主会话工具循环，维护记忆和反馈 |
-| scheduler / scopes | 创建执行、冻结工作根、检查前提、占用目录、接续与产物 |
+| host / main-loop / main-tools | Host 组装依赖并持有运行状态；主循环处理输入和恢复回执，工具模块定义主会话工具 |
+| context-assembly / memory-maintenance / memory-summary | 上下文投影与裁剪、Settings 上下文装配、记忆整理触发与摘要提交 |
+| scheduler / task-planning / task-triggers | Scheduler 持有执行槽；规划模块处理提案与接续，触发模块领取到期工作并检查前提 |
+| execution-runner / executor-tools / effects | 执行模型、任务工具、shell/文件/登记程序副作用与结果保存 |
+| execution-recovery / retention / scopes | 进程恢复与未知结果收束、归档留存、冻结工作根与目录占用 |
 | authorization | 准备 Operation、匹配规则、审批、派发及效果裁定 |
 | process-control / process-runner.py | shell/program 启动门控、身份登记与进程组清理 |
 | model / transport / model-retry / budget | 双角色模型、持久请求、有界重试、请求容量 |
