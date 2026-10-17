@@ -903,27 +903,27 @@ export class Scheduler {
   tick(at = Date.now()) {
     if (this.settingsBlocked()) return;
     if (this.closed) return;
-    if (
-      !this.processWork &&
-      at >= this.processCheckAt &&
-      this.store
-        .indexed<Operation>(
-          "Operation",
-          "process.state",
-          [undefined, "STOPPED"],
-          true,
-        )
-        .some(
-          (o) =>
-            o.process &&
-            o.process.state !== "STOPPED" &&
-            !this.running.has(o.scope.execution_id ?? ""),
-        )
-    ) {
+    if (!this.processWork && at >= this.processCheckAt) {
       this.processCheckAt = at + 5000;
-      this.processWork = this.recoverProcesses().finally(() => {
-        this.processWork = undefined;
-      });
+      if (
+        this.store
+          .indexed<Operation>(
+            "Operation",
+            "process.state",
+            [undefined, "STOPPED"],
+            true,
+          )
+          .some(
+            (o) =>
+              o.process &&
+              o.process.state !== "STOPPED" &&
+              !this.running.has(o.scope.execution_id ?? ""),
+          )
+      ) {
+        this.processWork = this.recoverProcesses().finally(() => {
+          this.processWork = undefined;
+        });
+      }
     }
     const plans = new Map(
       this.store
@@ -2455,6 +2455,7 @@ export class Scheduler {
     }
   }
   private async recoverProcesses(startup = false) {
+    const executions = new Map<string, Operation[]>();
     for (const op of startup
       ? this.store.all<Operation>("Operation")
       : this.store.indexed<Operation>(
@@ -2469,10 +2470,25 @@ export class Scheduler {
         !["shell.run", "program.run"].includes(op.action.action)
       )
         continue;
+      const operations = executions.get(op.scope.execution_id) ?? [];
+      operations.push(op);
+      executions.set(op.scope.execution_id, operations);
       if (op.process && op.process.state !== "STOPPED")
         persistStop(this.store, op.id, await stopProcess(op.process));
-      if (!this.processStopped(op.scope.execution_id)) this.processNotice(op);
-      else this.settleUnknownExecution(op.scope.execution_id);
+    }
+    // Probe each process first, then reconcile each execution only once.
+    for (const [eid, operations] of executions) {
+      if (!this.processStopped(eid)) {
+        for (const previous of operations) {
+          const op = this.store.get<Operation>("Operation", previous.id);
+          if (
+            op.process
+              ? op.process.state !== "STOPPED"
+              : ["RESULT_UNKNOWN", "DISPATCHED"].includes(op.state)
+          )
+            this.processNotice(op);
+        }
+      } else this.settleUnknownExecution(eid);
     }
   }
   async recover() {
@@ -2505,7 +2521,7 @@ export class Scheduler {
         this.store.get<Execution>("Execution", d.execution_id).state ===
           "WAIT_DECISION" &&
         !this.store
-          .all<Feedback>("Feedback")
+          .indexed<Feedback>("Feedback", "execution_id", [d.execution_id])
           .some((f) => f.decision_request_id === d.id)
       )
         this.feedback(
@@ -2527,14 +2543,14 @@ export class Scheduler {
         ].includes(e.state)
       ) {
         const unknown = this.store
-          .all<Operation>("Operation")
+          .indexed<Operation>("Operation", "scope.execution_id", [e.id])
           .filter(
             (o) =>
               o.scope.execution_id === e.id && o.state === "RESULT_UNKNOWN",
           )
           .map((o) => o.id);
         const call = this.store
-          .all<ModelCall>("ModelCall")
+          .indexed<ModelCall>("ModelCall", "scope.execution_id", [e.id])
           .filter((c) => c.scope.execution_id === e.id)
           .at(-1);
         if (
@@ -2558,7 +2574,7 @@ export class Scheduler {
             this.store.get<Execution>("Execution", e.id).state ===
               "RESULT_UNKNOWN" &&
             !this.store
-              .all<Feedback>("Feedback")
+              .indexed<Feedback>("Feedback", "execution_id", [e.id])
               .some((f) => f.execution_id === e.id && f.kind === "UNKNOWN")
           )
             this.feedback(
@@ -2573,7 +2589,7 @@ export class Scheduler {
         terminal(e) &&
         e.result_id &&
         !this.store
-          .all<Feedback>("Feedback")
+          .indexed<Feedback>("Feedback", "execution_id", [e.id])
           .some((f) => f.result_id === e.result_id)
       ) {
         const r = this.store.get<TaskResult>("TaskResult", e.result_id);

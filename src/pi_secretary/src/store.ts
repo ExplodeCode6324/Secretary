@@ -89,6 +89,7 @@ const indexFields: Record<string, string[]> = {
   Execution: ["state", "retention_state", "task_id", "task_occurrence"],
   TaskPlan: ["state", "pending_requests.length"],
   Operation: ["process.state", "scope.execution_id"],
+  ModelCall: ["scope.execution_id"],
   SettingsApplication: ["state"],
   CompactionJob: ["state"],
   MemoryExtractionJob: ["pending_extraction"],
