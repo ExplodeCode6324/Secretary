@@ -222,6 +222,8 @@ test("run acquires synchronously, and all active DIRECTORY states exclude a comp
           ?.reason,
         "SCOPE_BUSY",
       );
+      if (occupying.state === "DISPATCHING")
+        a.store.commit([revise(occupying, { state: "CANCEL_REQUESTED" })]);
       a.scheduler.finish(occupying.id, "CANCELLED", { synthetic: true });
     }
   }));
