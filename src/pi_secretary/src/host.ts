@@ -154,7 +154,7 @@ export class Host {
   private recoverTools(messages: AgentMessage[], loopID: string) {
     return mainLoop.recoverTools.call(this.context, messages, loopID);
   }
-  private async run() {
+  private run() {
     return mainLoop.run.call(this.context);
   }
   private recordInputMessages(batch: Input[], loopID: string) {
@@ -211,7 +211,7 @@ export class Host {
   private crop(original: AgentMessage[], eligible: number): AgentMessage[] {
     return contextAssembly.crop.call(this.context, original, eligible);
   }
-  private async maintain(inLoop = false) {
+  private maintain(inLoop = false) {
     return memorySummary.maintain.call(this.context, inLoop);
   }
   retryExtractions(requestID: string) {

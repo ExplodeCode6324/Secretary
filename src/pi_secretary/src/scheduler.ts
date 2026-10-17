@@ -180,10 +180,10 @@ export class Scheduler {
   ) {
     return executionRunner.setState.call(this.context, eid, state, patch);
   }
-  async run(eid: string) {
+  run(eid: string) {
     return executionRunner.run.call(this.context, eid);
   }
-  private async execute(
+  private execute(
     eid: string,
     entry: { agent?: Agent; child?: ChildProcess },
     resumeAuth = false,
@@ -199,13 +199,13 @@ export class Scheduler {
   private tools(e: Execution): AgentTool[] {
     return executorTools.tools.call(this.context, e);
   }
-  private async applyShell(op: Operation, entry: { child?: ChildProcess }) {
+  private applyShell(op: Operation, entry: { child?: ChildProcess }) {
     return effects.applyShell.call(this.context, op, entry);
   }
   private fileRevision(target: string): string {
     return effects.fileRevision.call(this.context, target);
   }
-  private async applyWrite(op: Operation) {
+  private applyWrite(op: Operation) {
     return effects.applyWrite.call(this.context, op);
   }
   verifyWrite(operationID: string) {
@@ -223,7 +223,7 @@ export class Scheduler {
   registerProgram(entrypoint: string, name: string) {
     return effects.registerProgram.call(this.context, entrypoint, name);
   }
-  private async program(
+  private program(
     eid: string,
     program: ProgramRegistration,
     params: unknown,
@@ -293,10 +293,10 @@ export class Scheduler {
   retire(at = Date.now()) {
     return retention.retire.call(this.context, at);
   }
-  private async recoverProcesses(startup = false) {
+  private recoverProcesses(startup = false) {
     return executionRecovery.recoverProcesses.call(this.context, startup);
   }
-  async recover() {
+  recover() {
     return executionRecovery.recover.call(this.context);
   }
   async idle() {

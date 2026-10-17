@@ -7,6 +7,7 @@
 - 所有当前离线测试文件保持零修改；拆分前 verify：649 pass / 0 fail / 0 skip / 0 TODO，包含独立 PostgreSQL。
 - 新模块使用类型依赖与实例动态回调，状态仅留在 Host/Scheduler。编译后 import 检查确认职责模块之间无运行期导入环；共用函数由底层工具模块提供。
 - 初次拆分类型检查发现两个全局 helper 与新函数同名、两处共享 helper 未导入及一个类型依赖遗漏；补齐别名、底层 helper 和类型后通过。
+- 首版拆分提交 a87c2fe 的本地完整 verify 为 649 pass / 0 fail / 0 skip / 0 TODO，Linux、macOS 与汇总 CI 均通过。Codex 随后指出 9 处 async 委派增加 Promise adoption，Hermes 补审确认并撤销该提交的条件通过结论；修正为同步委派直接返回原 Promise，实体生命周期方法仍为 async。
 - 源码从 4708 行变为 5915 行，净增 1207 行；增加量来自显式委派、类型依赖、状态访问器及分文件 import，业务方法体不变。
 
 | 文件 | 行数 |
