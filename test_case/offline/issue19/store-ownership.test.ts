@@ -134,7 +134,7 @@ test("live owner excludes another opener and closed owner cannot append after no
   }
 });
 
-test("each normal owner gets a fresh mailbox and close removes it", async () => {
+test("each normal owner gets a fresh startup channel and close removes it", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "issue4-owner-mailbox-"));
   const channelOf = (owner: JournalOwner) =>
     (owner as unknown as { channel: string }).channel;
@@ -209,33 +209,22 @@ for (const field of ["id", "digest"] as const) {
   test(`mismatched ${field} acknowledgement never installs state or restores failed owner`, async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "issue4-owner-ack-"));
     let store: Store | undefined;
-    const read = fs.readFileSync;
     try {
       store = await Store.open(dir);
-      // Mock only the received protocol reply after the helper wrote it. No
-      // process is interrupted and there is no competing owner or fault race.
-      fs.readFileSync = ((file, options) => {
-        const result = read(file, options);
-        if (path.basename(String(file)) !== "response") return result;
-        const reply = JSON.parse(String(result));
-        reply[field] = "mismatched-unit-reply";
-        return JSON.stringify(reply);
-      }) as typeof fs.readFileSync;
-      syncBuiltinESMExports();
+      const owner = (store as any).owner;
+      const read = owner.readReply.bind(owner);
+      owner.readReply = () => ({ ...read(), [field]: "mismatched-unit-reply" });
       assert.throws(() => store!.commit([]), /STORE_NOT_OWNER/);
       assert.equal(store.sequence, 0);
       assert.equal(store.digest, "0".repeat(64));
       assert.equal(store.projectionFrames.length, 0);
-      fs.readFileSync = read;
-      syncBuiltinESMExports();
+      owner.readReply = read;
       // Even after the reply source is restored, this Store stays failed.
       assert.throws(() => store!.commit([]), /STORE_NOT_OWNER/);
       await store.close();
       store = await Store.open(dir);
       assert.equal(store.sequence, 1);
     } finally {
-      fs.readFileSync = read;
-      syncBuiltinESMExports();
       await store?.close();
       fs.rmSync(dir, { recursive: true, force: true });
     }
@@ -263,58 +252,36 @@ test("corrupt startup releases ownership so repaired journal can be reopened", a
   }
 });
 
-test("unacknowledged transport timeout is permanent (synthetic child and clock only)", (t) => {
-  const channel = fs.mkdtempSync(
-    path.join(os.tmpdir(), "issue4-owner-timeout-unit-"),
-  );
-  let pipeClosed = false;
-  let clockReads = 0;
-  t.mock.method(performance, "now", () => (clockReads++ === 0 ? 0 : 30_001));
-  // No child process exists here: this unit tests only transport timeout state.
-  const owner = Object.assign(Object.create(JournalOwner.prototype), {
-    channel,
-    failed: false,
-    closed: false,
-    child: {
-      exitCode: null,
-      signalCode: null,
-      stdin: {
-        destroy() {
-          pipeClosed = true;
-        },
-      },
-    },
-  }) as JournalOwner;
+test("unacknowledged transport timeout is permanent despite a late ACK", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "issue24-timeout-"));
+  const { owner } = await JournalOwner.open(dir);
   try {
+    (owner as any).timeoutMs = 100;
+    process.kill((owner as any).childPID, "SIGSTOP");
+    const started = performance.now();
     assert.throws(() => owner.append("{}\n", "unit-digest"), /STORE_NOT_OWNER/);
-    assert.equal(pipeClosed, true);
-    const request = JSON.parse(
-      fs.readFileSync(path.join(channel, "request"), "utf8"),
-    );
-    fs.writeFileSync(
-      path.join(channel, "response"),
-      JSON.stringify({ id: request.id, digest: request.digest }),
-    );
+    assert.ok(performance.now() - started < 2000);
+    const state = new Int32Array((owner as any).reply, 0, 2);
+    Atomics.store(state, 0, 1); // late completion cannot clear failed state
     assert.throws(() => owner.append("{}\n", "unit-digest"), /STORE_NOT_OWNER/);
   } finally {
-    fs.rmSync(channel, { recursive: true, force: true });
+    await owner.close();
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
 
-test("close recognizes an already signalled child (synthetic child only)", async () => {
-  const channel = fs.mkdtempSync(
-    path.join(os.tmpdir(), "issue4-owner-close-unit-"),
-  );
-  const owner = Object.assign(Object.create(JournalOwner.prototype), {
-    channel,
-    closed: false,
-    child: { exitCode: null, signalCode: "SIGTERM" },
-  }) as JournalOwner;
+test("close recognizes a signalled helper and remains idempotent", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "issue24-close-"));
+  const { owner } = await JournalOwner.open(dir);
+  const channel = (owner as any).channel;
   try {
+    process.kill((owner as any).childPID, "SIGTERM");
+    await new Promise((resolve) => setTimeout(resolve, 50));
     await owner.close();
     await owner.close();
     assert.equal(fs.existsSync(channel), false);
   } finally {
-    fs.rmSync(channel, { recursive: true, force: true });
+    await owner.close();
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });

@@ -219,6 +219,7 @@ export class Store {
     try {
       fs.mkdirSync(path.join(dir, "objects"), { recursive: true });
       s.replay(replay);
+      owner.verifyReplay(s.sequence, s.digest);
       s.epoch =
         s
           .all()

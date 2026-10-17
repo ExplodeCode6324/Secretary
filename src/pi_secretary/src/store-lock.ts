@@ -2,123 +2,179 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { Worker } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
 import { performance } from "node:perf_hooks";
 
 const TIMEOUT_MS = 30_000;
-const pause = new Int32Array(new SharedArrayBuffer(4));
-type Reply = { id: string; error?: string; digest?: string };
+type Reply = { id: string; sequence: number; error?: string; digest: string };
 
-/**
- * Synchronous acknowledged transport to the only journal writer. Each open has
- * a fresh private mailbox; another owner can never consume its requests. The
- * mailbox is transport, not a lock: lock.py holds flock throughout every write.
- */
+/** Python alone holds flock and writes the journal. A worker drains its pipes
+ * while the synchronous caller waits on one shared acknowledgement word. */
 export class JournalOwner {
-  private child: ChildProcess;
+  private worker: Worker;
+  private alive = new Int32Array(new SharedArrayBuffer(8));
   private failed = false;
   private closed = false;
+  private exited = false;
+  private workerExited = false;
+  private abortSent = false;
+  private killSent = false;
   private closing?: Promise<void>;
+  private childPID?: number;
+  private sequence = 0;
+  private digest = "0".repeat(64);
+  private reply = new SharedArrayBuffer(4104);
   private constructor(
     private readonly channel: string,
     dir: string,
+    private readonly timeoutMs: number,
+    helperPath: string,
   ) {
-    this.child = spawn(
-      "python3",
-      [fileURLToPath(new URL("./lock.py", import.meta.url)), dir, channel],
-      { stdio: ["pipe", "ignore", "ignore"] },
-    );
-    this.child.on("error", () => {
-      this.failed = true;
+    this.worker = new Worker(new URL("./store-channel.mjs", import.meta.url), {
+      execArgv: [],
+      workerData: {
+        channel,
+        dir,
+        helper: helperPath,
+        alive: this.alive.buffer,
+      },
     });
-    this.child.on("exit", () => {
-      this.failed = true;
+    this.worker.on("message", (message) => {
+      if (message.kind === "pid") this.childPID = message.pid;
+      if (message.kind === "exited") this.exited = true;
+      if (message.kind === "failure") this.failed = true;
     });
-    this.child.stdin!.on("error", () => {
-      this.failed = true;
+    this.worker.on("error", () => this.invalidate());
+    this.worker.on("exit", () => {
+      this.workerExited = true;
+      this.invalidate();
     });
   }
+  // Options are an internal construction seam for deterministic protocol tests.
   static async open(
     dir: string,
+    options: { timeoutMs?: number; helperPath?: string } = {},
   ): Promise<{ owner: JournalOwner; replay: Buffer }> {
     const channel = fs.mkdtempSync(path.join(os.tmpdir(), "secretary-owner-"));
-    let owner: JournalOwner;
+    const owner = new JournalOwner(
+      channel,
+      dir,
+      options.timeoutMs ?? TIMEOUT_MS,
+      options.helperPath ??
+        fileURLToPath(new URL("./lock.py", import.meta.url)),
+    );
     try {
-      owner = new JournalOwner(channel, dir);
+      const reply = await new Promise<Reply>((resolve, reject) => {
+        const finish = (error?: Error, reply?: Reply) => {
+          clearTimeout(timer);
+          owner.worker.off("message", message);
+          owner.worker.off("error", failed);
+          owner.worker.off("exit", failed);
+          if (error) reject(error);
+          else resolve(reply!);
+        };
+        const failed = () => finish(Error("STORE_NOT_OWNER"));
+        const message = (value: any) => {
+          if (value.kind === "ready") finish(undefined, value.reply);
+          if (value.kind === "failure") finish(Error(value.error));
+        };
+        const timer = setTimeout(failed, owner.timeoutMs);
+        owner.worker.on("message", message);
+        owner.worker.once("error", failed);
+        owner.worker.once("exit", failed);
+      });
+      owner.sequence = reply.sequence;
+      owner.digest = reply.digest;
+      const replay = fs.readFileSync(path.join(channel, "replay"));
+      fs.unlinkSync(path.join(channel, "replay"));
+      owner.assertOwner();
+      return { owner, replay };
     } catch (error) {
-      fs.rmSync(channel, { recursive: true, force: true });
-      throw error;
-    }
-    try {
-      const deadline = performance.now() + TIMEOUT_MS;
-      for (;;) {
-        const reply = owner.readReply();
-        if (reply) {
-          if (reply.id !== "open") throw Error("STORE_NOT_OWNER");
-          if (reply.error) throw Error(reply.error);
-          const replay = fs.readFileSync(path.join(channel, "replay"));
-          owner.assertOwner();
-          return { owner, replay };
-        }
-        owner.assertOwner();
-        if (performance.now() >= deadline) throw Error("STORE_NOT_OWNER");
-        await new Promise((resolve) => setTimeout(resolve, 1));
-      }
-    } catch (error) {
-      owner.failed = true;
+      owner.invalidate();
       await owner.close();
       throw error;
     }
   }
+  verifyReplay(sequence: number, digest: string) {
+    if (this.sequence !== sequence || this.digest !== digest) {
+      this.invalidate();
+      throw Error("CORRUPT_JOURNAL");
+    }
+  }
   assertOwner() {
-    // Only a fast rejection: delayed exit events cannot authorize an append.
-    if (
-      this.closed ||
-      this.failed ||
-      this.child.exitCode !== null ||
-      this.child.signalCode !== null
-    )
+    if (this.closed || this.failed || Atomics.load(this.alive, 0) !== 1)
       throw Error("STORE_NOT_OWNER");
   }
-  private readReply(): Reply | undefined {
-    const file = path.join(this.channel, "response");
-    let text: string;
-    try {
-      text = fs.readFileSync(file, "utf8");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return;
-      throw error;
+  private invalidate() {
+    this.failed = true;
+    Atomics.store(this.alive, 0, 0);
+    if (!this.workerExited) {
+      if (!this.abortSent) {
+        this.abortSent = true;
+        this.worker.postMessage({ kind: "abort" });
+      }
+    } else if (
+      this.childPID &&
+      !this.exited &&
+      !Atomics.load(this.alive, 1) &&
+      !this.killSent
+    ) {
+      // Only a dead worker requires the parent to terminate its orphan helper.
+      // The shared exit flag avoids acting on an already reaped child PID.
+      this.killSent = true;
+      try {
+        process.kill(this.childPID, "SIGKILL");
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+      }
     }
-    fs.unlinkSync(file);
-    return JSON.parse(text) as Reply;
+  }
+
+  private readReply(): Reply {
+    const state = new Int32Array(this.reply, 0, 2);
+    return JSON.parse(
+      Buffer.from(this.reply, 8, Atomics.load(state, 1)).toString(),
+    );
   }
   append(frame: string, digest: string) {
     this.assertOwner();
-    const requestID = randomUUID();
+    const id = randomUUID(),
+      sequence = this.sequence + 1;
+    const state = new Int32Array(this.reply, 0, 2);
+    Atomics.store(state, 0, 0);
     try {
-      const temp = path.join(this.channel, "request.tmp");
-      fs.writeFileSync(temp, JSON.stringify({ id: requestID, frame, digest }), {
-        mode: 0o600,
+      this.worker.postMessage({
+        kind: "append",
+        id,
+        sequence,
+        frame,
+        digest,
+        reply: this.reply,
       });
-      fs.renameSync(temp, path.join(this.channel, "request"));
-      const deadline = performance.now() + TIMEOUT_MS;
-      for (;;) {
-        const reply = this.readReply();
-        if (reply) {
-          if (reply.id !== requestID || reply.digest !== digest || reply.error)
-            throw Error("STORE_NOT_OWNER");
-          return;
-        }
-        this.assertOwner();
-        if (performance.now() >= deadline) throw Error("STORE_NOT_OWNER");
-        Atomics.wait(pause, 0, 0, 1);
+      const deadline = performance.now() + this.timeoutMs;
+      while (Atomics.load(state, 0) === 0) {
+        const remaining = deadline - performance.now();
+        if (remaining <= 0) throw Error("ACK_TIMEOUT");
+        Atomics.wait(state, 0, 0, remaining);
       }
+      this.assertOwner();
+      if (Atomics.load(state, 0) !== 1) throw Error("INVALID_ACK");
+      const reply = this.readReply();
+      if (
+        reply.id !== id ||
+        reply.sequence !== sequence ||
+        reply.digest !== digest ||
+        reply.error
+      )
+        throw Error("INVALID_ACK");
+      this.sequence = sequence;
+      this.digest = digest;
     } catch (error) {
-      // Never retry or install an uncertain append. Late ACKs cannot restore
-      // ownership; close/reopen must replay the durable state.
-      this.failed = true;
-      this.child.stdin!.destroy();
+      // An uncertain append is never retried or installed. Only reopen/replay
+      // can establish durable state; a late ACK cannot revive this owner.
+      this.invalidate();
       throw Error("STORE_NOT_OWNER", { cause: error });
     }
   }
@@ -126,33 +182,40 @@ export class JournalOwner {
     if (this.closing) return this.closing;
     this.closed = true;
     this.closing = (async () => {
-      await new Promise<void>((resolve, reject) => {
-        if (
-          this.child.exitCode !== null ||
-          this.child.signalCode !== null ||
-          !this.child.pid
-        ) {
-          resolve();
-          return;
-        }
-        let forceTimer: ReturnType<typeof setTimeout> | undefined;
-        const exited = () => {
-          clearTimeout(graceTimer);
-          clearTimeout(forceTimer);
-          resolve();
-        };
-        const graceTimer = setTimeout(() => {
-          this.child.kill("SIGKILL");
-          forceTimer = setTimeout(() => {
-            this.child.removeListener("exit", exited);
-            // Keep the mailbox if termination cannot be confirmed. Do not
-            // report successful close or claim the OS lock has been released.
-            reject(Error("STORE_CLOSE_TIMEOUT"));
-          }, 1_000);
-        }, 1_000);
-        this.child.once("exit", exited);
-        this.child.stdin!.end();
-      });
+      this.worker.postMessage({ kind: "close" });
+      const deadline = performance.now() + 2000;
+      while (!this.exited) {
+        if (this.childPID) {
+          try {
+            process.kill(this.childPID, 0);
+            // A terminated Worker cannot deliver its ChildProcess exit event.
+            // POSIX zombies have exited and released flock, although kill(0)
+            // still succeeds until the parent runtime reaps them.
+            if (this.workerExited) {
+              const state = execFileSync(
+                "ps",
+                ["-p", String(this.childPID), "-o", "stat="],
+                { encoding: "utf8", timeout: 1000 },
+              ).trim();
+              if (state.startsWith("Z")) break;
+            }
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === "ESRCH") break;
+            // ps may race with the runtime reaping an exited child.
+            try {
+              process.kill(this.childPID, 0);
+            } catch (probe) {
+              if ((probe as NodeJS.ErrnoException).code === "ESRCH") break;
+            }
+            throw error;
+          }
+        } else if (this.workerExited) break;
+        if (performance.now() >= deadline) throw Error("STORE_CLOSE_TIMEOUT");
+        if (this.failed || performance.now() >= deadline - 1000)
+          this.invalidate();
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      await this.worker.terminate();
       fs.rmSync(this.channel, { recursive: true, force: true });
     })();
     return this.closing;

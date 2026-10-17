@@ -12,7 +12,7 @@
 
 DIRECTORY 任务使用 Scope 的物理目录；Execution 记录创建时的完整绑定。Store 先持久化对象，再追加并同步 journal 帧，收到 fsync 确认后安装内存状态。记录通过 Schema 校验，对象读取时检查路径格式和符号链接状态，核对长度和 SHA-256。提交和重放对嵌套对象引用校验路径、普通文件与长度；mutation snapshot 仍完整读取并验哈希。其他正文的同长度损坏在实际读取或显式完整校验时发现。
 
-Python helper 持有 OS 文件锁，负责重放、尾部不完整帧修复与追加。每次打开 Store 使用独有本地通道；通道失效后需重新打开并从 journal 确认结果。中段损坏或原件缺失会报告恢复错误，供维护者检查完整副本。
+Python helper 持有 OS 文件锁，负责重放、尾部不完整帧修复与追加。每次打开 Store 使用独有匿名管道；Worker 负责异步读写，主线程同步等待带请求 ID、序号与 digest 的 fsync ACK。启动时核对 helper 与重放结果，追加等待最长 30 秒；通道失效后需重新打开并从 journal 确认结果。空闲 helper 阻塞等待读取，父进程死亡通过 EOF 结束其生命周期。关闭确认 helper 退出后清理启动通道；Worker 异常终止时，POSIX zombie 可能保留到 Core 退出，异常关闭通过 macOS/Linux 的 ps 确认该进程已退出并释放锁。内核不可中断状态可能延迟终止，此时报告关闭超时，不宣称锁已释放。中段损坏或原件缺失会报告恢复错误，供维护者检查完整副本。
 
 新 Context 的 raw_context 使用 `application/vnd.secretary.message-list+json`，对象内容是 `message-refs-v1` 有序消息引用清单。`Store.read` 统一重建新清单和旧消息数组，逐消息验证原始字节；Context.messages、Checkpoint、记忆来源继续引用持久对象。清单不允许嵌套。ObjectRef 的 sha256/bytes 仍表示物理 CAS 字节；`pending_source_bytes` 表示展开消息的 JSON 字节数。请求与供应商 payload 保留完整快照，因此总存储量仍可能随长循环平方增长。
 

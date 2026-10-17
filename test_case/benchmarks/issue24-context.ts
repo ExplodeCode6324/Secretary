@@ -14,31 +14,18 @@ const analyze = process.argv[3] === "analyze";
 if (!dir?.includes("issue24") || (!analyze && fs.existsSync(dir)))
   throw Error("Fresh issue24 directory required");
 const store = await Store.open(dir);
-const totals: Record<string, number> = {};
-const put = store.put.bind(store);
-let category = "other";
-store.put = ((value: unknown, media?: string) => {
-  const before = new Set(fs.readdirSync(path.join(dir, "objects")));
-  const ref = put(value, media);
-  if (!before.has(ref.sha256)) {
-    const v = value as any;
-    const kind =
-      category === "capture"
-        ? Array.isArray(v)
-          ? "raw_context"
-          : v?.record_type === "Context"
-            ? "context_record"
-            : v?.role
-              ? "message_body"
-              : "other"
-        : category;
-    totals[kind] = (totals[kind] ?? 0) + ref.bytes;
-  }
-  return ref;
-}) as typeof store.put;
+// Test-only legacy encoder for a paired physical-byte comparison.
+if (process.argv[3] === "legacy")
+  store.putMessages = (messages) => ({
+    refs: messages.map((message) => store.put(message)),
+    raw: store.put(messages),
+  });
 const scope = { session_id: null, task_id: null, execution_id: null };
 const loop = id();
-const messages: AgentMessage[] = [];
+const messages: AgentMessage[] = [
+  { role: "user", content: "Run synthetic tool loop", timestamp: 0 },
+];
+let turn = 0;
 const stream: StreamFn = async (model, context, options) => {
   await options?.onPayload?.(
     {
@@ -48,18 +35,22 @@ const stream: StreamFn = async (model, context, options) => {
     },
     model,
   );
-  return replyStream([{ type: "text", text: "synthetic" }], model);
+  return replyStream(
+    [
+      {
+        type: "toolCall",
+        id: "synthetic-" + turn++,
+        name: "synthetic_tool",
+        arguments: {},
+      },
+    ],
+    model,
+  );
 };
 const model = { ...fixtureModel, contextWindow: 1000000 };
 try {
   if (!analyze)
     for (let n = 0; n < 20; n++) {
-      messages.push({
-        role: "user",
-        content: "synthetic " + n + " " + "x".repeat(2048),
-        timestamp: n,
-      });
-      category = "capture";
       const context = saveContext(
         store,
         messages,
@@ -74,10 +65,24 @@ try {
         JSON.stringify(messages)
       )
         throw Error("Reconstruction mismatch");
-      category = "request_payload_and_transport";
       const transport = durableStream(store, stream, scope, loop, "TASK");
       const response = await transport(model, { messages }, {});
-      await response.result();
+      const answer = await response.result();
+      messages.push(answer);
+      const call = answer.content.find((p) => p.type === "toolCall")!;
+      messages.push({
+        role: "toolResult",
+        toolCallId: call.id,
+        toolName: call.name,
+        content: [
+          {
+            type: "text",
+            text: "synthetic result " + n + " " + "x".repeat(2048),
+          },
+        ],
+        isError: false,
+        timestamp: n,
+      });
     }
   const classified: Record<string, number> = {};
   const seen = new Set<string>();
