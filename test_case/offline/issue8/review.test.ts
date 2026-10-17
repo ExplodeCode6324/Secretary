@@ -74,7 +74,13 @@ for (const actor of ["MASTER", "MAIN"] as const) {
           app.host.sessionID,
         );
         await app.settle();
-        const execution = app.store.all<Execution>("Execution")[0];
+        const execution: Execution = {
+          ...app.store.all<Execution>("Execution")[0],
+          ...base(),
+          state: "WAIT_DECISION",
+          ended_at: null,
+          result_id: null,
+        };
         const decision = {
           ...base(),
           record_type: "DecisionRequest" as const,
@@ -93,10 +99,10 @@ for (const actor of ["MASTER", "MAIN"] as const) {
         };
         app.store.commit([
           decision,
-          revise(execution, {
-            state: "WAIT_DECISION",
+          {
+            ...execution,
             waiting_request_ids: [decision.id],
-          }),
+          },
         ]);
         const requestID = id();
         app.scheduler.answer(decision.id, "A", requestID, actor);

@@ -3,6 +3,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { JournalOwner } from "./store-lock.ts";
+import { validateStateTransition } from "./state-transitions.ts";
+export { next } from "./state-transitions.ts";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import type {
@@ -60,19 +62,6 @@ export function shape(record: unknown): asserts record is Contract {
         JSON.stringify((specific?.errors ?? validate.errors)?.slice(0, 5)),
     );
   }
-}
-const machines = JSON.parse(
-  fs.readFileSync(path.join(root, "src/state_machine/catalog.json"), "utf8"),
-).machines as Record<
-  string,
-  { transitions: { from: string; event: string; to: string }[] }
->;
-export function next(machine: string, state: string, event: string): string {
-  const edge = machines[machine]?.transitions.find(
-    (t) => t.from === state && t.event === event,
-  );
-  if (!edge) throw Error(`INVALID_TRANSITION ${machine} ${state} ${event}`);
-  return edge.to;
 }
 function syncDir(dir: string) {
   const fd = fs.openSync(dir, "r");
@@ -517,15 +506,8 @@ export class Store {
           r.payload.sha256 !== old.payload.sha256
         )
           throw Error("INPUT_IDENTITY_CHANGED");
-        if (
-          old.state !== r.state &&
-          !(
-            (old.state === "ACCEPTED" && r.state === "CLAIMED") ||
-            (old.state === "CLAIMED" && r.state === "HANDLED")
-          )
-        )
-          throw Error("INVALID_INPUT_TRANSITION");
       }
+      if (old) validateStateTransition(old, r);
       if (
         old?.record_type === "Execution" &&
         r.record_type === "Execution" &&

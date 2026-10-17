@@ -39,7 +39,7 @@
         "RECOVERY_BLOCKED",
         "DRAINING"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 Host"
+      "description": "Host 状态由领域模块推进，见 docs/state-machines.md"
     },
     "InputState": {
       "type": "string",
@@ -59,7 +59,7 @@
         "INTERRUPTED",
         "FAILED"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 Call"
+      "description": "Call 状态由领域模块推进，见 docs/state-machines.md"
     },
     "CompactionState": {
       "type": "string",
@@ -71,7 +71,7 @@
         "STALE",
         "FAILED"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 Compaction"
+      "description": "Compaction 状态由领域模块推进，见 docs/state-machines.md"
     },
     "PlanState": {
       "type": "string",
@@ -82,7 +82,7 @@
         "INIT_FAILED",
         "CLOSED"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 Plan"
+      "description": "Plan 状态由领域模块推进，见 docs/state-machines.md"
     },
     "ExecutionState": {
       "type": "string",
@@ -110,7 +110,7 @@
         "ARCHIVE_PENDING",
         "RETIRED"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 Retention"
+      "description": "Retention 状态由领域模块推进，见 docs/state-machines.md"
     },
     "OperationState": {
       "type": "string",
@@ -146,7 +146,7 @@
         "OBSOLETE",
         "EXPIRED"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 Decision"
+      "description": "Decision 状态由领域模块推进，见 docs/state-machines.md"
     },
     "FeedbackState": {
       "type": "string",
@@ -155,7 +155,7 @@
         "DELIVERED",
         "HANDLED"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 Feedback"
+      "description": "Feedback 状态由领域模块推进，见 docs/state-machines.md"
     },
     "NotificationState": {
       "type": "string",
@@ -166,7 +166,7 @@
         "FAILED",
         "DELIVERY_UNKNOWN"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 Notification"
+      "description": "Notification 状态由领域模块推进，见 docs/state-machines.md"
     },
     "WorldCommandState": {
       "type": "string",
@@ -180,7 +180,7 @@
         "REJECTED",
         "RETRYABLE_ERROR"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 WorldCommand"
+      "description": "WorldCommand 状态由领域模块推进，见 docs/state-machines.md"
     },
     "ProgramState": {
       "type": "string",
@@ -189,7 +189,7 @@
         "ENABLED",
         "DISABLED"
       ],
-      "description": "状态枚举对应 src/state_machine/catalog.json 的 Program"
+      "description": "Program 状态由领域模块推进，见 docs/state-machines.md"
     },
     "ObjectRef": {
       "type": "object",

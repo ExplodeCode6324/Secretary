@@ -63,7 +63,7 @@ export type ID = string;
  */
 export type Time = string;
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 Host
+ * Host 状态由领域模块推进，见 docs/state-machines.md
  */
 export type HostState =
   | "STOPPED"
@@ -86,12 +86,12 @@ export type InputState = "ACCEPTED" | "CLAIMED" | "HANDLED";
  */
 export type RelativePath = string;
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 Call
+ * Call 状态由领域模块推进，见 docs/state-machines.md
  */
 export type CallState =
   "PREPARED" | "IN_FLIGHT" | "RESPONSE_SAVED" | "INTERRUPTED" | "FAILED";
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 Compaction
+ * Compaction 状态由领域模块推进，见 docs/state-machines.md
  */
 export type CompactionState =
   "QUEUED" | "SUMMARIZING" | "VALIDATING" | "COMMITTED" | "STALE" | "FAILED";
@@ -126,7 +126,7 @@ export type ExecutorSpec = {
   };
 };
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 Plan
+ * Plan 状态由领域模块推进，见 docs/state-machines.md
  */
 export type PlanState =
   "INITIALIZING" | "ACTIVE" | "PAUSED" | "INIT_FAILED" | "CLOSED";
@@ -210,15 +210,15 @@ export type ExecutionState =
   | "CANCELLED"
   | "EXPIRED";
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 Retention
+ * Retention 状态由领域模块推进，见 docs/state-machines.md
  */
 export type RetentionState = "HOT" | "ARCHIVE_PENDING" | "RETIRED";
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 Feedback
+ * Feedback 状态由领域模块推进，见 docs/state-machines.md
  */
 export type FeedbackState = "QUEUED" | "DELIVERED" | "HANDLED";
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 Decision
+ * Decision 状态由领域模块推进，见 docs/state-machines.md
  */
 export type DecisionState = "OPEN" | "ANSWERED" | "OBSOLETE" | "EXPIRED";
 /**
@@ -302,16 +302,16 @@ export type AuthorizationRequest = {
 export type AuthorizationState =
   "PENDING" | "APPROVED" | "REJECTED" | "REVOKED" | "EXPIRED" | "CONSUMED";
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 Program
+ * Program 状态由领域模块推进，见 docs/state-machines.md
  */
 export type ProgramState = "REGISTERED" | "ENABLED" | "DISABLED";
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 Notification
+ * Notification 状态由领域模块推进，见 docs/state-machines.md
  */
 export type NotificationState =
   "QUEUED" | "SENDING" | "SENT" | "FAILED" | "DELIVERY_UNKNOWN";
 /**
- * 状态枚举对应 src/state_machine/catalog.json 的 WorldCommand
+ * WorldCommand 状态由领域模块推进，见 docs/state-machines.md
  */
 export type WorldCommandState =
   | "RECEIVED"
