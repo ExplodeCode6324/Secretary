@@ -1,86 +1,30 @@
-import { shellEnvironment, type ShellExecution } from "./shell-policy.ts";
-import {
-  Scopes,
-  relativePath,
-  processStopped,
-  directoryRoot,
-} from "./scopes.ts";
-import { activitiesFor } from "./activity.ts";
-import { EXECUTOR_SYSTEM, executionPrompt } from "./task-prompt.ts";
+import type { Api, Model } from "@earendil-works/pi-ai";
+import type { ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ChildProcess } from "node:child_process";
-import {
-  launchProcess,
-  requestStop,
-  stopProcess,
-  inspectProcess,
-  persistStop,
-} from "./process-control.ts";
-import { Type } from "typebox";
-import { Ajv2020 } from "ajv/dist/2020.js";
-import { createWriteTool } from "../../pi_resource/packages/agent/src/harness/tools/write.ts";
-import { createReadTool } from "../../pi_resource/packages/agent/src/harness/tools/read.ts";
-import { BACKGROUND_CONTEXT } from "../../pi_resource/packages/agent/src/harness/context.ts";
-import { NodeExecutionEnv } from "../../pi_resource/packages/agent/src/harness/env/nodejs.ts";
-import {
-  Agent,
-  tool,
-  type AgentMessage,
-  type AgentTool,
-  type StreamFn,
-} from "./model.ts";
-import type { Model, Api } from "@earendil-works/pi-ai";
-import {
-  Store,
-  base,
-  id,
-  now,
-  hash,
-  revise,
-  shape,
-  type Stored,
-} from "./store.ts";
 import { Authorization } from "./authorization.ts";
-import { durableStream } from "./transport.ts";
-import { saveContext, checkpoint } from "./context.ts";
 import type {
-  Session,
-  Input,
-  TaskProposal,
-  TaskPlan,
+  ConditionResult,
   Execution,
-  Dispatch,
-  TaskResult,
   Feedback,
   Operation,
-  Checkpoint,
-  ProgramRegistration,
-  DecisionRequest,
-  ArchiveManifest,
-  SafetyRule,
-  Scope,
   Precondition,
-  ConditionResult,
-  ModelCall,
-  Notification,
+  ProgramRegistration,
+  TaskPlan,
+  TaskProposal,
 } from "./contracts.ts";
-export const stableID = (text: string) => {
-  const h = hash(text);
-  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`;
-};
-export const scopeOf = (e: Execution): Scope => ({
-  session_id: null,
-  task_id: e.task_id,
-  execution_id: e.id,
-});
-export const terminal = (e: Execution) =>
-  ["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"].includes(e.state);
-const jsonTool = (value: unknown, terminate = false) => ({
-  content: [{ type: "text" as const, text: JSON.stringify(value) }],
-  details: undefined,
-  terminate,
-});
+import * as effects from "./effects.ts";
+import * as executionRecovery from "./execution-recovery.ts";
+import * as executionRunner from "./execution-runner.ts";
+import * as executorTools from "./executor-tools.ts";
+import { Agent, type AgentTool, type StreamFn } from "./model.ts";
+import * as retention from "./retention.ts";
+import type { SchedulerContext } from "./scheduler-context.ts";
+import { Scopes } from "./scopes.ts";
+import { Store, id } from "./store.ts";
+import * as taskPlanning from "./task-planning.ts";
+import * as taskTriggers from "./task-triggers.ts";
+export { scopeOf, stableID, terminal } from "./execution-utils.ts";
 export class Scheduler {
   readonly workspace: string;
   readonly scopes: Scopes;
@@ -102,6 +46,8 @@ export class Scheduler {
     this.workspace = path.join(store.dir, "workspaces");
     fs.mkdirSync(this.workspace, { recursive: true });
     this.workspace = fs.realpathSync(this.workspace);
+
+    this.context = this.createContext();
   }
   propose(
     goal: string,
@@ -121,357 +67,36 @@ export class Scheduler {
       preconditions?: Precondition[] | null;
     } = {},
   ): TaskPlan {
-    if (!goal.trim()) throw Error("EMPTY_GOAL");
-    if (options.reuse != null && !options.reuse.trim())
-      throw Error("INVALID_REUSE_TASK");
-    const normalized = Object.fromEntries(
-      Object.entries(options)
-        .filter(([, v]) => v != null)
-        .sort(([a], [b]) => a.localeCompare(b)),
-    );
-    const fingerprint = hash(
-      JSON.stringify({ version: 2, goal, options: normalized, sessionID }),
-    );
-    // Preserve the old direct-call and Host field order when replaying v1 receipts.
-    const { reuse: _reuse, ...legacyOptions } = options;
-    const hostOptions = {
-      programID: options.programID ?? undefined,
-      at: options.at ?? undefined,
-      interval: options.interval ?? undefined,
-      parent: options.parent ?? undefined,
-      materials: options.materials ?? undefined,
-      constraints: options.constraints ?? undefined,
-      acceptance: options.acceptance ?? undefined,
-      deadline: options.deadline ?? undefined,
-    };
-    const legacy =
-      options.reuse || options.scopeID != null
-        ? []
-        : [
-            legacyOptions,
-            ...(options.preconditions == null ? [hostOptions] : []),
-          ].map((options) =>
-            hash(JSON.stringify({ goal, options, sessionID })),
-          );
-    const old = this.store.receipt<string>(requestID, fingerprint, legacy);
-    if (old) return this.store.get<TaskPlan>("TaskPlan", old);
-    if (options.at && !Number.isFinite(Date.parse(options.at)))
-      throw Error("INVALID_TRIGGER");
-    if (
-      options.interval != null &&
-      (!Number.isFinite(options.interval) || options.interval < 1)
-    )
-      throw Error("INVALID_INTERVAL");
-    if (
-      options.deadline != null &&
-      !Number.isFinite(Date.parse(options.deadline))
-    )
-      throw Error("INVALID_DEADLINE");
-    if (options.reuse)
-      return this.continueTask(
-        goal,
-        requestID,
-        sessionID,
-        options,
-        fingerprint,
-      );
-    const workScope = this.scopes.active(options.scopeID);
-    const program = options.programID
-      ? this.store.get<ProgramRegistration>(
-          "ProgramRegistration",
-          options.programID,
-        )
-      : null;
-    if (program && program.state !== "ENABLED") throw Error("PROGRAM_DISABLED");
-    const safety: SafetyRule = {
-      record_type: "SafetyRule",
-      schema_version: 1,
-      ...base(),
-      created_by: "MAIN",
-      max_known_failure_retries: 0,
-      retryable_error_codes: [],
-      require_no_effect_for_retry: true,
-      stop_on_unknown: true,
-      extra_checks: [],
-    };
-    const proposal: TaskProposal = {
-      schema_version: 1,
-      record_type: "TaskProposal",
-      scope_id: workScope?.id ?? null,
-      request_id: requestID,
-      request_hash: fingerprint,
-      submitted_at: now(),
-      session_id: sessionID,
+    return taskPlanning.propose.call(
+      this.context,
       goal,
-      constraints: options.constraints ?? [],
-      acceptance_criteria: options.acceptance ?? [
-        "Return a saved, queryable result and evidence",
-      ],
-      trigger: {
-        kind: options.at ? "AT" : options.interval ? "INTERVAL" : "IMMEDIATE",
-        at: options.at ?? null,
-        interval_seconds: options.interval ?? null,
-        anchor_at: options.interval ? now() : null,
-        timezone: "Etc/UTC",
-        event_source: null,
-        predicate_id: null,
-        missed_policy: "REPORT_ONLY",
-        overlap_policy: "QUEUE",
-      },
-      preconditions: options.preconditions ?? [],
-      executor: program
-        ? {
-            kind: "PROGRAM",
-            agent_profile: null,
-            program_id: program.id,
-            program_revision: program.revision,
-            parameters: { goal },
-          }
-        : {
-            kind: "AGENT",
-            agent_profile: this.model.id,
-            program_id: null,
-            program_revision: null,
-            parameters: {},
-          },
-      feedback_policy: {
-        terminal: true,
-        on_change: false,
-        on_blocker: true,
-        on_unknown: true,
-        milestones: [],
-      },
-      deadline: options.deadline ?? null,
-      context_refs: (options.materials ?? []).map((text) =>
-        this.store.put(text, "text/plain"),
-      ),
-      source_context_refs: (options.materials ?? []).map((text) =>
-        this.store.put(text, "text/plain"),
-      ),
-      parent_execution_id: options.parent ?? null,
-      safety_rule_id: safety.id,
-      reuse_task_id: null,
-    };
-    shape(proposal);
-    if (options.parent) {
-      const parent = this.store.get<Execution>("Execution", options.parent);
-      if (!terminal(parent) || parent.retention_state === "RETIRED")
-        throw Error("PARENT_NOT_RESUMABLE");
-    }
-    const parent = options.parent
-      ? this.store.get<Execution>("Execution", options.parent)
-      : null;
-    if (parent) {
-      const parentPlan = this.store.get<TaskPlan>("TaskPlan", parent.task_id);
-      this.assertAccess(parentPlan, sessionID);
-      const original = this.proposalFor(parent);
-      const sources = this.sourceRefs(original);
-      proposal.source_context_refs!.push(...sources);
-      proposal.context_refs.push(...sources);
-      if (parent.checkpoint_id) {
-        const cp = this.store.get<Checkpoint>(
-          "Checkpoint",
-          parent.checkpoint_id,
-        );
-        if (cp.raw_context) proposal.context_refs.push(cp.raw_context);
-      }
-      if (parent.result_id)
-        proposal.context_refs.push(
-          this.store.get<TaskResult>("TaskResult", parent.result_id).detail_ref,
-        );
-    }
-    const taskID = id();
-    const plan: TaskPlan = {
-      schema_version: 1,
-      record_type: "TaskPlan",
-      scope_id: proposal.scope_id ?? null,
-      ...base(taskID),
-      state: "INITIALIZING",
-      proposal_request_id: requestID,
-      proposal_ref: this.store.put(proposal),
-      workspace: taskID,
-      trigger: proposal.trigger,
-      preconditions: proposal.preconditions,
-      executor: proposal.executor,
-      feedback_policy: proposal.feedback_policy,
-      next_due_at:
-        proposal.trigger.kind === "IMMEDIATE" ? null : (options.at ?? now()),
-      pending_occurrences: [],
-      pending_requests:
-        proposal.trigger.kind === "IMMEDIATE"
-          ? [
-              {
-                request_id: requestID,
-                occurrence_key: requestID,
-                due_at: proposal.submitted_at,
-                proposal_ref: this.store.put(proposal),
-              },
-            ]
-          : [],
-      active_execution_ids: [],
-      deadline: proposal.deadline,
-      safety_rule_id: safety.id,
-      initialization_error: null,
-    };
-    this.store.commit(
-      [
-        safety,
-        plan,
-        ...(parent
-          ? [
-              revise(parent, {
-                pending_followup_ids: [...parent.pending_followup_ids, taskID],
-                last_activity_at: now(),
-              }),
-            ]
-          : []),
-      ],
-      [
-        this.store.event("task.request.accepted", {
-          request_id: requestID,
-          task_id: taskID,
-          occurrence_key:
-            proposal.trigger.kind === "IMMEDIATE" ? requestID : null,
-          proposal_ref: plan.proposal_ref,
-        }),
-        this.store.event(
-          "task.proposed",
-          proposal,
-          { session_id: sessionID, task_id: taskID, execution_id: null },
-          "MAIN",
-        ),
-      ],
-      { request: requestID, hash: fingerprint, value: taskID },
+      requestID,
+      sessionID,
+      options,
     );
-    this.initialize(taskID);
-    return this.store.get<TaskPlan>("TaskPlan", taskID);
   }
   proposalFor(e: Execution): TaskProposal {
-    return this.store.read<TaskProposal>(
-      e.proposal_ref ??
-        this.store.taskPlanAt(e.task_id, e.plan_revision).proposal_ref,
-    );
+    return taskPlanning.proposalFor.call(this.context, e);
   }
   private sourceRefs(proposal: TaskProposal) {
-    if (proposal.source_context_refs) return proposal.source_context_refs;
-    // Old proposals mixed source materials and derived checkpoint/result evidence.
-    const derived = new Set([
-      ...this.store
-        .all<Checkpoint>("Checkpoint")
-        .flatMap((cp) => (cp.raw_context ? [cp.raw_context.sha256] : [])),
-      ...this.store
-        .all<TaskResult>("TaskResult")
-        .map((r) => r.detail_ref.sha256),
-    ]);
-    return proposal.context_refs.filter((ref) => !derived.has(ref.sha256));
+    return taskPlanning.sourceRefs.call(this.context, proposal);
   }
   private promptMaterials(proposal: TaskProposal) {
-    const checkpoints = new Set(
-      this.store
-        .all<Checkpoint>("Checkpoint")
-        .flatMap((cp) => (cp.raw_context ? [cp.raw_context.sha256] : [])),
-    );
-    const sources = new Set(this.sourceRefs(proposal).map((ref) => ref.sha256));
-    return proposal.context_refs.map((ref) => {
-      if (!checkpoints.has(ref.sha256) || sources.has(ref.sha256))
-        return this.store.contentText(ref);
-      const messages = this.store.read<AgentMessage[]>(ref);
-      // Preserve the immutable raw reference, but do not recursively embed prior system/assignment packets.
-      return {
-        kind: "parent_execution_evidence",
-        raw_context_ref: ref,
-        messages: messages
-          .filter((m) => m.role === "assistant" || m.role === "toolResult")
-          .map((m) => ({
-            role: m.role,
-            ...(m.role === "toolResult"
-              ? { toolName: m.toolName, isError: m.isError }
-              : {}),
-            content: Array.isArray(m.content)
-              ? m.content.filter((part) => part.type !== "thinking")
-              : m.content,
-          })),
-      };
-    });
+    return taskPlanning.promptMaterials.call(this.context, proposal);
   }
   private assertAccess(p: TaskPlan, sessionID: string) {
-    if (this.store.read<TaskProposal>(p.proposal_ref).session_id !== sessionID)
-      throw Error("TASK_NOT_ACCESSIBLE");
+    return taskPlanning.assertAccess.call(this.context, p, sessionID);
   }
   private validateWorkspace(p: TaskPlan) {
-    if (p.workspace !== p.id) throw Error("WORKSPACE_OWNER");
-    const root = path.join(this.workspace, p.workspace);
-    for (const dir of [root, path.join(root, "executions")]) {
-      if (
-        !fs.existsSync(dir) ||
-        !fs.lstatSync(dir).isDirectory() ||
-        fs.lstatSync(dir).isSymbolicLink()
-      )
-        throw Error("WORKSPACE_MISSING_OR_UNSAFE");
-    }
-    const manifest = path.join(root, "workspace.json");
-    if (
-      fs.lstatSync(manifest).isSymbolicLink() ||
-      JSON.parse(fs.readFileSync(manifest, "utf8")).task_id !== p.id
-    )
-      throw Error("WORKSPACE_OWNER");
-    // Also validate the ancestors using the same policy as execution file tools.
-    const previous = this.store
-      .all<Execution>("Execution")
-      .filter((e) => e.task_id === p.id)
-      .at(-1);
-    const future = p.scope_id ? this.scopes.get(p.scope_id) : null;
-    if (future?.kind === "DIRECTORY") {
-      directoryRoot(this.store, future.root_path!);
-      return;
-    }
-    if (
-      previous?.workspace_binding?.kind === "DIRECTORY" &&
-      future?.kind === "NONE"
-    ) {
-      // The first NONE execution creates its private work directory at binding.
-      relativePath(root, "work/workspace-validation");
-      return;
-    }
-    if (previous) this.safePath(previous, "workspace-validation");
-    else relativePath(root, "workspace-validation");
+    return taskPlanning.validateWorkspace.call(this.context, p);
   }
   private continuationParent(p: TaskPlan, parentID: string, sessionID: string) {
-    this.assertAccess(p, sessionID);
-    if (p.state !== "ACTIVE") throw Error("PLAN_NOT_ACTIVE");
-    const es = this.store
-      .all<Execution>("Execution")
-      .filter((e) => e.task_id === p.id);
-    const parent = this.store.get<Execution>("Execution", parentID);
-    if (parent.task_id !== p.id) throw Error("PARENT_TASK_MISMATCH");
-    if (es.some((e) => !terminal(e)) || (p.pending_requests?.length ?? 0))
-      throw Error("TASK_BUSY");
-    if (!terminal(parent) || parent.retention_state === "RETIRED")
-      throw Error("PARENT_NOT_RESUMABLE");
-    if (es.at(-1)?.id !== parent.id) throw Error("PARENT_NOT_LATEST");
-    if (
-      es.some((e) => e.unknown_operation_ids.length) ||
-      this.store
-        .all<Operation>("Operation")
-        .some(
-          (o) =>
-            o.scope.task_id === p.id &&
-            [
-              "WAIT_AUTH",
-              "AUTHORIZED",
-              "DISPATCHED",
-              "RESULT_UNKNOWN",
-            ].includes(o.state),
-        )
-    )
-      throw Error("UNRESOLVED_OPERATION");
-    if (
-      p.pending_occurrences.length ||
-      (p.next_due_at && Date.parse(p.next_due_at) <= Date.now())
-    )
-      throw Error("TASK_BUSY_PERIODIC");
-    this.validateWorkspace(p);
-    return parent;
+    return taskPlanning.continuationParent.call(
+      this.context,
+      p,
+      parentID,
+      sessionID,
+    );
   }
   private continueTask(
     goal: string,
@@ -480,177 +105,17 @@ export class Scheduler {
     options: Parameters<Scheduler["propose"]>[3],
     fingerprint: string,
   ): TaskPlan {
-    if (!options?.parent) throw Error("PARENT_REQUIRED");
-    if (options.at != null || options.interval != null)
-      throw Error("REUSE_TRIGGER_NOT_ALLOWED");
-    const p = this.store.get<TaskPlan>("TaskPlan", options.reuse!);
-    if (options.scopeID != null && options.scopeID !== p.scope_id)
-      throw Error("SCOPE_CHANGE_NOT_ALLOWED");
-    this.scopes.active(p.scope_id);
-    const parent = this.continuationParent(p, options.parent, sessionID);
-    const original = this.proposalFor(parent);
-    if (
-      options.programID != null &&
-      options.programID !== original.executor.program_id
-    )
-      throw Error("EXECUTOR_CHANGE_NOT_ALLOWED");
-    if (original.executor.kind === "PROGRAM") {
-      const program = this.store.get<ProgramRegistration>(
-        "ProgramRegistration",
-        original.executor.program_id!,
-      );
-      if (
-        program.state !== "ENABLED" ||
-        program.revision !== original.executor.program_revision ||
-        hash(fs.readFileSync(program.entrypoint)) !== program.code_digest
-      )
-        throw Error("PROGRAM_CHANGED");
-      if (
-        !new Ajv2020().validate(
-          this.store.read<object>(program.parameters_schema),
-          { ...original.executor.parameters, goal },
-        )
-      )
-        throw Error("INVALID_PROGRAM_PARAMETERS");
-    }
-    const sources = [
-      ...new Map(
-        [
-          ...this.sourceRefs(original),
-          ...(options.materials ?? []).map((t) =>
-            this.store.put(t, "text/plain"),
-          ),
-        ].map((ref) => [ref.sha256, ref]),
-      ).values(),
-    ];
-    const refs = [...sources];
-    if (parent.checkpoint_id) {
-      const cp = this.store.get<Checkpoint>("Checkpoint", parent.checkpoint_id);
-      if (cp.raw_context) refs.push(cp.raw_context);
-    }
-    if (parent.result_id) {
-      const r = this.store.get<TaskResult>("TaskResult", parent.result_id);
-      refs.push(r.detail_ref);
-      for (const artifact of r.artifacts) this.store.bytes(artifact.content);
-    }
-    refs.push(
-      this.store.put({
-        parent_execution_id: parent.id,
-        decisions: this.store
-          .all<DecisionRequest>("DecisionRequest")
-          .filter(
-            (d) => d.execution_id === parent.id && d.state === "ANSWERED",
-          ),
-        operations: this.store
-          .all<Operation>("Operation")
-          .filter((o) => o.scope.execution_id === parent.id)
-          .map((o) => ({
-            id: o.id,
-            state: o.state,
-            action: o.action,
-            receipt: o.receipt ? this.store.read(o.receipt) : null,
-          })),
-      }),
-    );
-    for (const ref of refs) this.store.bytes(ref);
-    this.store.get<SafetyRule>("SafetyRule", original.safety_rule_id);
-    const proposal: TaskProposal = {
-      ...original,
-      request_id: requestID,
-      request_hash: fingerprint,
-      submitted_at: now(),
-      session_id: sessionID,
+    return taskPlanning.continueTask.call(
+      this.context,
       goal,
-      constraints: options.constraints ?? original.constraints,
-      acceptance_criteria: options.acceptance ?? original.acceptance_criteria,
-      preconditions: options.preconditions ?? original.preconditions,
-      deadline: options.deadline ?? original.deadline,
-      executor: {
-        ...original.executor,
-        parameters:
-          original.executor.kind === "PROGRAM"
-            ? { ...original.executor.parameters, goal }
-            : original.executor.parameters,
-      },
-      trigger: {
-        ...original.trigger,
-        kind: "IMMEDIATE",
-        at: null,
-        interval_seconds: null,
-        anchor_at: null,
-      },
-      context_refs: [...new Map(refs.map((r) => [r.sha256, r])).values()],
-      source_context_refs: sources,
-      parent_execution_id: parent.id,
-      reuse_task_id: p.id,
-    };
-    shape(proposal);
-    const ref = this.store.put(proposal);
-    const pending = {
-      request_id: requestID,
-      occurrence_key: requestID,
-      due_at: proposal.submitted_at,
-      proposal_ref: ref,
-    };
-    this.store.commit(
-      [
-        revise(p, { pending_requests: [pending] }),
-        revise(parent, {
-          pending_followup_ids: [...parent.pending_followup_ids, requestID],
-          last_activity_at: now(),
-        }),
-      ],
-      [
-        this.store.event(
-          "task.request.accepted",
-          {
-            request_id: requestID,
-            task_id: p.id,
-            occurrence_key: requestID,
-            proposal_ref: ref,
-            input: { goal, options, sessionID },
-          },
-          { session_id: sessionID, task_id: p.id, execution_id: null },
-          "MAIN",
-        ),
-      ],
-      { request: requestID, hash: fingerprint, value: p.id },
+      requestID,
+      sessionID,
+      options,
+      fingerprint,
     );
-    return this.store.get<TaskPlan>("TaskPlan", p.id);
   }
   requestStatus(requestID: string) {
-    const event = this.store.logs.find(
-      (l) =>
-        l.event_type === "task.request.accepted" &&
-        this.store.read<{ request_id: string }>(l.payload).request_id ===
-          requestID,
-    );
-    if (!event) return null; // v1 receipt remains a valid task association.
-    const accepted = this.store.read<{
-      request_id: string;
-      task_id: string;
-      occurrence_key: string | null;
-      proposal_ref: TaskPlan["proposal_ref"];
-    }>(event.payload);
-    const e = this.store
-      .all<Execution>("Execution")
-      .find(
-        (e) =>
-          e.task_id === accepted.task_id &&
-          e.occurrence_key === accepted.occurrence_key,
-      );
-    const stopped = this.store.logs.findLast(
-      (l) =>
-        l.event_type === "task.request.removed" &&
-        this.store.read<{ request_id: string }>(l.payload).request_id ===
-          requestID,
-    );
-    return {
-      ...accepted,
-      execution_id: e?.id ?? null,
-      state: e?.state ?? (stopped ? "CANCELLED_OR_REJECTED" : "ACCEPTED"),
-      reason: stopped ? this.store.read(stopped.payload) : null,
-    };
+    return taskPlanning.requestStatus.call(this.context, requestID);
   }
   private removePending(
     taskID: string,
@@ -658,1647 +123,128 @@ export class Scheduler {
     reason: string,
     executionID?: string,
   ) {
-    const p = this.store.get<TaskPlan>("TaskPlan", taskID);
-    const item = p.pending_requests?.find((r) => r.request_id === requestID);
-    if (!item) return;
-    // Parent association is also recoverable from pending_followup_ids when an object is damaged.
-    const records: Stored[] = [
-      revise(p, {
-        pending_requests: p.pending_requests!.filter(
-          (r) => r.request_id !== requestID,
-        ),
-      }),
-    ];
-    for (const parent of this.store
-      .all<Execution>("Execution")
-      .filter(
-        (e) =>
-          e.pending_followup_ids.includes(requestID) ||
-          (p.trigger.kind === "IMMEDIATE" &&
-            e.pending_followup_ids.includes(taskID)),
-      )) {
-      const ids = parent.pending_followup_ids.filter(
-        (v) => v !== requestID && v !== taskID,
-      );
-      if (
-        executionID &&
-        !terminal(this.store.get<Execution>("Execution", executionID))
-      )
-        ids.push(executionID);
-      records.push(
-        revise(parent, {
-          pending_followup_ids: [...new Set(ids)],
-          last_activity_at: now(),
-        }),
-      );
-    }
-    this.store.commit(records, [
-      this.store.event("task.request.removed", {
-        request_id: requestID,
-        task_id: taskID,
-        reason,
-      }),
-    ]);
+    return taskTriggers.removePending.call(
+      this.context,
+      taskID,
+      requestID,
+      reason,
+      executionID,
+    );
   }
   cancelRequest(requestID: string, sessionID: string) {
-    const status = this.requestStatus(requestID);
-    if (!status) throw Error("REQUEST_NOT_FOUND");
-    if (!status.occurrence_key) throw Error("REQUEST_NOT_IMMEDIATE");
-    const p = this.store.get<TaskPlan>("TaskPlan", status.task_id);
-    this.assertAccess(p, sessionID);
-    if (status.execution_id) {
-      this.cancel(status.execution_id);
-      return;
-    }
-    this.removePending(p.id, requestID, "MASTER_CANCELLED");
+    return taskTriggers.cancelRequest.call(this.context, requestID, sessionID);
   }
   query(
     sessionID: string,
     taskID?: string | null,
     executionID?: string | null,
   ) {
-    if (taskID && executionID) throw Error("AMBIGUOUS_QUERY");
-    if (executionID) {
-      const e = this.store.get<Execution>("Execution", executionID);
-      this.assertAccess(
-        this.store.get<TaskPlan>("TaskPlan", e.task_id),
-        sessionID,
-      );
-      return this.detail(e.id);
-    }
-    const view = (p: TaskPlan, detail: boolean) => {
-      const baseline = this.store.read<TaskProposal>(p.proposal_ref);
-      const es = this.store
-        .all<Execution>("Execution")
-        .filter((e) => e.task_id === p.id);
-      const latest = es.at(-1);
-      let reason: string | null = null;
-      try {
-        this.scopes.active(p.scope_id);
-        if (!latest) throw Error("NO_PARENT_EXECUTION");
-        this.continuationParent(p, latest.id, sessionID);
-      } catch (error) {
-        reason = (error as Error).message;
-      }
-      const result = latest?.result_id
-        ? this.store.get<TaskResult>("TaskResult", latest.result_id)
-        : null;
-      const effective = latest ? this.proposalFor(latest) : null;
-      const accepted = this.store.logs.findLast(
-        (l) =>
-          l.event_type === "task.request.accepted" &&
-          this.store.read<{ task_id: string }>(l.payload).task_id === p.id,
-      );
-      const latestRequest = accepted
-        ? this.requestStatus(
-            this.store.read<{ request_id: string }>(accepted.payload)
-              .request_id,
-          )
-        : null;
-      return {
-        task_id: p.id,
-        scope_id: p.scope_id ?? null,
-        state: p.state,
-        goal: baseline.goal,
-        latest_execution_id: latest?.id ?? null,
-        latest_state: latest?.state ?? null,
-        active_execution_ids: es.filter((e) => !terminal(e)).map((e) => e.id),
-        pending_requests: p.pending_requests ?? [],
-        can_continue: reason === null,
-        continuation_blocker: reason,
-        latest_request: latestRequest,
-        ...(detail
-          ? {
-              baseline,
-              effective_proposal: effective,
-              proposal_ref: latest?.proposal_ref ?? p.proposal_ref,
-              result,
-              details: latest ? this.detail(latest.id) : null,
-              decisions: this.store
-                .all<DecisionRequest>("DecisionRequest")
-                .filter(
-                  (d) =>
-                    es.some((e) => e.id === d.execution_id) &&
-                    d.state === "OPEN",
-                ),
-            }
-          : { result_summary: result?.summary ?? null }),
-      };
-    };
-    if (taskID) {
-      const p = this.store.get<TaskPlan>("TaskPlan", taskID);
-      this.assertAccess(p, sessionID);
-      return view(p, true);
-    }
-    const plans = this.store
-      .all<TaskPlan>("TaskPlan")
-      .filter(
-        (p) =>
-          this.store.read<TaskProposal>(p.proposal_ref).session_id ===
-          sessionID,
-      );
-    return {
-      plans: plans.map((p) => view(p, false)),
-      programs: this.store.all<ProgramRegistration>("ProgramRegistration"),
-    };
+    return taskPlanning.query.call(
+      this.context,
+      sessionID,
+      taskID,
+      executionID,
+    );
   }
   continuationStatus(
     taskID: string,
     executionID: string | undefined,
     sessionID: string,
   ) {
-    const p = this.store.get<TaskPlan>("TaskPlan", taskID);
-    this.assertAccess(p, sessionID);
-    try {
-      this.scopes.active(p.scope_id);
-      if (!executionID) throw Error("NO_PARENT_EXECUTION");
-      this.continuationParent(p, executionID, sessionID);
-      return { allowed: true, reason: null };
-    } catch (error) {
-      return { allowed: false, reason: (error as Error).message.split(":")[0] };
-    }
+    return taskPlanning.continuationStatus.call(
+      this.context,
+      taskID,
+      executionID,
+      sessionID,
+    );
   }
   initialize(taskID: string) {
-    const p = this.store.get<TaskPlan>("TaskPlan", taskID);
-    if (!["INITIALIZING", "INIT_FAILED"].includes(p.state)) return;
-    try {
-      const dir = path.join(this.workspace, taskID);
-      if (!p.scope_id || this.scopes.get(p.scope_id).kind !== "DIRECTORY")
-        fs.mkdirSync(path.join(dir, "work"), { recursive: true });
-      fs.mkdirSync(path.join(dir, "executions"), { recursive: true });
-      const manifest = path.join(dir, "workspace.json");
-      if (
-        fs.existsSync(manifest) &&
-        JSON.parse(fs.readFileSync(manifest, "utf8")).task_id !== taskID
-      )
-        throw Error("WORKSPACE_OWNER");
-      fs.writeFileSync(
-        manifest,
-        JSON.stringify({
-          schema_version: 1,
-          task_id: taskID,
-          created_at: now(),
-        }),
-      );
-      const fd = fs.openSync(manifest, "r");
-      fs.fsyncSync(fd);
-      fs.closeSync(fd);
-      this.store.commit(
-        [revise(p, { state: "ACTIVE", initialization_error: null })],
-        [this.store.event("task.initialized", { task_id: taskID })],
-      );
-    } catch (error) {
-      this.store.commit([
-        revise(p, {
-          state: "INIT_FAILED",
-          initialization_error: String(error),
-        }),
-      ]);
-    }
+    return taskTriggers.initialize.call(this.context, taskID);
   }
   private reportMissed(plan: TaskPlan, due: string) {
-    const event = this.store.event("trigger.missed", {
-      task_id: plan.id,
-      due,
-      policy: "REPORT_ONLY",
-    });
-    const session = this.store.all<Session>("Session")[0];
-    if (!session) {
-      this.store.commit([plan], [event]);
-      return;
-    }
-    const text =
-      "Missed scheduled trigger: " + this.store.bytes(event.payload).toString();
-    const input: Input = {
-      ...base(),
-      record_type: "Input",
-      schema_version: 1,
-      session_id: session.id,
-      dedupe_key: event.event_id,
-      producer: "SCHEDULER",
-      state: "ACCEPTED",
-      payload: this.store.put(text, "text/plain"),
-      loop_id: null,
-      received_at: now(),
-      feedback_id: null,
-    };
-    this.store.commit(
-      [plan, input],
-      [
-        event,
-        this.store.event(
-          "input.accepted",
-          input,
-          { session_id: session.id, task_id: null, execution_id: null },
-          "SCHEDULER",
-        ),
-      ],
-      {
-        request: event.event_id,
-        hash: hash(JSON.stringify({ text, producer: "SCHEDULER" })),
-        value: input.id,
-      },
-    );
+    return taskTriggers.reportMissed.call(this.context, plan, due);
   }
   tick(at = Date.now()) {
-    if (this.settingsBlocked()) return;
-    if (this.closed) return;
-    if (!this.processWork && at >= this.processCheckAt) {
-      this.processCheckAt = at + 5000;
-      if (
-        this.store
-          .indexed<Operation>(
-            "Operation",
-            "process.state",
-            [undefined, "STOPPED"],
-            true,
-          )
-          .some(
-            (o) =>
-              o.process &&
-              o.process.state !== "STOPPED" &&
-              !this.running.has(o.scope.execution_id ?? ""),
-          )
-      ) {
-        this.processWork = this.recoverProcesses().finally(() => {
-          this.processWork = undefined;
-        });
-      }
-    }
-    const plans = new Map(
-      this.store
-        .indexed<TaskPlan>("TaskPlan", "state", ["CLOSED"], true)
-        .map((p) => [p.id, p]),
-    );
-    for (const p of this.store.indexed<TaskPlan>(
-      "TaskPlan",
-      "pending_requests.length",
-      [undefined, 0],
-      true,
-    ))
-      plans.set(p.id, p);
-    for (let p of plans.values()) {
-      // Repair duplicate queue representations before busy checks, including active executions.
-      for (const item of p.pending_requests ?? []) {
-        const existing = this.store
-          .indexed<Execution>("Execution", "task_occurrence", [
-            JSON.stringify([p.id, item.occurrence_key]),
-          ])
-          .find(
-            (e) =>
-              e.task_id === p.id && e.occurrence_key === item.occurrence_key,
-          );
-        if (existing)
-          this.removePending(p.id, item.request_id, "consumed", existing.id);
-      }
-      p = this.store.get<TaskPlan>("TaskPlan", p.id);
-      if (p.state === "CLOSED") {
-        for (const item of p.pending_requests ?? [])
-          this.removePending(p.id, item.request_id, "PLAN_UNAVAILABLE");
-        continue;
-      }
-      if (p.state === "INITIALIZING" || p.state === "INIT_FAILED") {
-        this.initialize(p.id);
-        continue;
-      }
-      const request = p.pending_requests?.[0];
-      if (
-        p.state !== "ACTIVE" ||
-        (!request &&
-          !p.pending_occurrences.length &&
-          (!p.next_due_at || Date.parse(p.next_due_at) > at)) ||
-        (request && Date.parse(request.due_at) > at)
-      )
-        continue;
-      if (
-        this.store
-          .indexed<Execution>(
-            "Execution",
-            "state",
-            ["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"],
-            true,
-          )
-          .some((e) => e.task_id === p.id)
-      ) {
-        if (
-          p.trigger.kind === "INTERVAL" &&
-          p.next_due_at &&
-          Date.parse(p.next_due_at) <= at &&
-          p.trigger.overlap_policy === "QUEUE"
-        ) {
-          this.store.commit([
-            revise(p, {
-              pending_occurrences: [
-                ...new Set([...p.pending_occurrences, p.next_due_at]),
-              ],
-              next_due_at: new Date(
-                Date.parse(p.next_due_at) + p.trigger.interval_seconds! * 1000,
-              ).toISOString(),
-            }),
-          ]);
-        }
-        continue;
-      }
-      const queued = !request && p.pending_occurrences.length > 0;
-      const due =
-        request?.due_at ?? (queued ? p.pending_occurrences[0] : p.next_due_at!);
-      const key =
-        request?.occurrence_key ??
-        (p.trigger.kind === "IMMEDIATE" ? "once" : due);
-      if (
-        this.store.indexed<Execution>("Execution", "task_occurrence", [
-          JSON.stringify([p.id, key]),
-        ]).length
-      ) {
-        this.store.commit([
-          revise(p, {
-            pending_occurrences: queued
-              ? p.pending_occurrences.slice(1)
-              : p.pending_occurrences,
-            next_due_at: queued
-              ? p.next_due_at
-              : p.trigger.kind === "INTERVAL"
-                ? new Date(
-                    Date.parse(due) + p.trigger.interval_seconds! * 1000,
-                  ).toISOString()
-                : null,
-          }),
-        ]);
-        continue;
-      }
-      // Do not silently catch up missed periodic windows after restart.
-      if (
-        !request &&
-        !queued &&
-        p.trigger.kind === "INTERVAL" &&
-        at - Date.parse(due) > (p.trigger.interval_seconds ?? 0) * 1000
-      ) {
-        const nextDue = new Date(
-          Date.parse(due) +
-            (Math.floor(
-              (at - Date.parse(due)) /
-                ((p.trigger.interval_seconds ?? 1) * 1000),
-            ) +
-              1) *
-              (p.trigger.interval_seconds ?? 1) *
-              1000,
-        ).toISOString();
-        this.reportMissed(revise(p, { next_due_at: nextDue }), due);
-        continue;
-      }
-      const proposalRef = request?.proposal_ref ?? p.proposal_ref;
-      let proposal: TaskProposal;
-      try {
-        proposal = this.store.read<TaskProposal>(proposalRef);
-        if (proposal.reuse_task_id) this.validateWorkspace(p);
-        for (const ref of proposal.context_refs) this.store.bytes(ref);
-      } catch (error) {
-        if (!request) throw error;
-        this.removePending(p.id, request.request_id, String(error));
-        continue;
-      }
-      const e: Execution = {
-        schema_version: 1,
-        record_type: "Execution",
-        ...base(),
-        scope_id: p.scope_id ?? null,
-        workspace_binding: this.scopes.binding(
-          p.scope_id ?? null,
-          path.join(this.workspace, p.id, "work"),
-        ),
-        task_id: p.id,
-        state: "CREATED",
-        retention_state: "HOT",
-        occurrence_key: key,
-        plan_revision: p.revision,
-        proposal_ref: proposalRef,
-        attempt_id: null,
-        owner_epoch: this.store.epoch,
-        waiting_request_ids: [],
-        condition_results: [],
-        continuation_of: proposal.parent_execution_id,
-        pending_followup_ids: [],
-        cancel_requested: false,
-        started_at: null,
-        ended_at: null,
-        last_activity_at: now(),
-        retire_after_seconds: 172800,
-        result_id: null,
-        checkpoint_id: null,
-        unknown_operation_ids: [],
-      };
-      const records: Stored[] = [
-        e,
-        revise(p, {
-          active_execution_ids: [...p.active_execution_ids, e.id],
-          pending_requests: request
-            ? (p.pending_requests ?? []).filter(
-                (r) => r.request_id !== request.request_id,
-              )
-            : p.pending_requests,
-          pending_occurrences: queued
-            ? p.pending_occurrences.slice(1)
-            : p.pending_occurrences,
-          next_due_at: request
-            ? p.next_due_at
-            : queued
-              ? p.next_due_at
-              : p.trigger.kind === "INTERVAL"
-                ? new Date(
-                    Date.parse(due) + (p.trigger.interval_seconds ?? 1) * 1000,
-                  ).toISOString()
-                : null,
-        }),
-      ];
-      if (e.continuation_of) {
-        const prev = this.store.get<Execution>("Execution", e.continuation_of);
-        records.push(
-          revise(prev, {
-            pending_followup_ids: [
-              ...prev.pending_followup_ids.filter(
-                (v) =>
-                  v !== (proposal.reuse_task_id ? request!.request_id : p.id),
-              ),
-              e.id,
-            ],
-            last_activity_at: now(),
-          }),
-        );
-      }
-      this.store.commit(records);
-      this.setState(e.id, "WAIT_PRECONDITION");
-      this.ready(e.id);
-    }
-    for (let e of this.store.indexed<Execution>(
-      "Execution",
-      "state",
-      ["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"],
-      true,
-    )) {
-      const plan = this.proposalFor(e);
-      if (e.state === "CREATED") {
-        this.setState(e.id, "WAIT_PRECONDITION");
-        this.ready(e.id);
-        continue;
-      }
-      if (plan.deadline && Date.parse(plan.deadline) <= at && !terminal(e)) {
-        if (this.running.has(e.id)) this.cancel(e.id);
-        else if (e.state !== "RESULT_UNKNOWN")
-          this.finish(e.id, "EXPIRED", { reason: "Explicit deadline passed" });
-        continue;
-      }
-      if (e.state === "WAIT_PRECONDITION") {
-        this.ready(e.id);
-        e = this.store.get<Execution>("Execution", e.id);
-      }
-      if (e.state === "READY" || e.state === "WAIT_AUTH") void this.run(e.id);
-    }
+    return taskTriggers.tick.call(this.context, at);
   }
   ready(eid: string) {
-    const e = this.store.get<Execution>("Execution", eid),
-      p = this.store.get<TaskPlan>("TaskPlan", e.task_id);
-    const checks = this.conditions(e);
-    this.store.commit([
-      revise(e, {
-        condition_results: checks,
-        state: checks.every((c) => c.status === "MET")
-          ? "READY"
-          : "WAIT_PRECONDITION",
-      }),
-    ]);
+    return taskTriggers.ready.call(this.context, eid);
   }
   private conditions(e: Execution): ConditionResult[] {
-    const p = this.store.get<TaskPlan>("TaskPlan", e.task_id);
-    return this.proposalFor(e).preconditions.map((c) => {
-      let met = false;
-      try {
-        if (c.kind === "EXECUTION_SUCCEEDED")
-          met =
-            this.store.get<Execution>("Execution", c.target).state ===
-            "SUCCEEDED";
-        else if (c.kind === "RESOURCE_PRESENT")
-          met = fs.existsSync(this.safePath(e, c.target));
-        else if (c.kind === "DEVICE_AVAILABLE") met = c.target === "local";
-      } catch {}
-      return {
-        condition_id: c.condition_id,
-        status: met ? "MET" : "NOT_MET",
-        checked_at: now(),
-        evidence: [],
-        reason: met ? null : "Registered precondition not met",
-      };
-    });
+    return taskTriggers.conditions.call(this.context, e);
   }
   private setState(
     eid: string,
     state: Execution["state"],
     patch: Partial<Execution> = {},
   ) {
-    const e = this.store.get<Execution>("Execution", eid);
-    this.store.commit([
-      revise(e, { ...patch, state, owner_epoch: this.store.epoch }),
-    ]);
+    return executionRunner.setState.call(this.context, eid, state, patch);
   }
-  async run(eid: string) {
-    if (
-      this.running.has(eid) ||
-      this.closed ||
-      this.running.size >= Number(process.env.SECRETARY_MAX_WORKERS ?? 2)
-    )
-      return;
-    const current = this.store.get<Execution>("Execution", eid);
-    if (
-      !["READY", "WAIT_AUTH"].includes(current.state) ||
-      this.store.get<TaskPlan>("TaskPlan", current.task_id).state !== "ACTIVE"
-    )
-      return;
-    if (
-      current.state === "WAIT_AUTH" &&
-      this.store
-        .all<Operation>("Operation")
-        .some((o) => o.scope.execution_id === eid && o.state === "WAIT_AUTH")
-    )
-      return;
-    let reason: string | null;
-    try {
-      reason = this.scopes.dispatchReason(current);
-      this.rootFor(current);
-    } catch (error) {
-      reason = (error as Error).message;
-    }
-    if (reason) {
-      this.setState(eid, "WAIT_PRECONDITION", {
-        condition_results: [
-          ...this.conditions(current),
-          {
-            condition_id: stableID(eid + ":scope"),
-            status: "NOT_MET",
-            checked_at: now(),
-            evidence: [],
-            reason,
-          },
-        ],
-      });
-      return;
-    }
-    this.setState(eid, "DISPATCHING", {
-      started_at: current.started_at ?? now(),
-    });
-    const entry: {
-      agent?: Agent;
-      child?: ChildProcess;
-      promise: Promise<void>;
-    } = { promise: Promise.resolve() };
-    this.running.set(eid, entry);
-    entry.promise = this.execute(
-      eid,
-      entry,
-      current.state === "WAIT_AUTH" || current.waiting_request_ids.length > 0,
-    )
-      .catch((error) => {
-        const e = this.store.get<Execution>("Execution", eid);
-        const inflight = this.store
-          .all<Operation>("Operation")
-          .filter(
-            (o) =>
-              o.scope.execution_id === eid &&
-              ["DISPATCHED", "RESULT_UNKNOWN"].includes(o.state),
-          );
-        if (inflight.length) {
-          for (const op of inflight)
-            if (op.state === "DISPATCHED")
-              this.auth.finish(op.id, { error: String(error) }, "UNKNOWN");
-          this.setState(eid, "RESULT_UNKNOWN", {
-            unknown_operation_ids: inflight.map((o) => o.id),
-          });
-          this.feedback(
-            eid,
-            "UNKNOWN",
-            "Effect could not be confirmed",
-            this.store.put({ error: String(error) }),
-          );
-        } else if (
-          !terminal(e) &&
-          !["WAIT_DECISION", "RESULT_UNKNOWN"].includes(e.state)
-        )
-          this.finish(eid, "FAILED", { error: String(error) });
-      })
-      .finally(() => {
-        this.running.delete(eid);
-        this.settleUnknownExecution(eid);
-      });
-    await entry.promise;
+  run(eid: string) {
+    return executionRunner.run.call(this.context, eid);
   }
-  private async execute(
+  private execute(
     eid: string,
     entry: { agent?: Agent; child?: ChildProcess },
     resumeAuth = false,
   ) {
-    let e = this.store.get<Execution>("Execution", eid);
-    const baseline = this.store.get<TaskPlan>("TaskPlan", e.task_id);
-    const effective = this.proposalFor(e);
-    const p = {
-      ...baseline,
-      executor: effective.executor,
-      safety_rule_id: effective.safety_rule_id,
-    };
-    if (e.state !== "DISPATCHING" || p.state !== "ACTIVE") return;
-    if (resumeAuth) {
-      const ops = this.store
-        .all<Operation>("Operation")
-        .filter((o) => o.scope.execution_id === eid);
-      if (ops.some((o) => o.state === "WAIT_AUTH")) return;
-      if (ops.some((o) => o.state === "CANCELLED")) {
-        this.finish(eid, "FAILED", {
-          reason: "Authorization rejected/revoked",
-        });
-        return;
-      }
-      if (ops.some((o) => o.state === "RESULT_UNKNOWN")) {
-        this.setState(eid, "RESULT_UNKNOWN");
-        return;
-      }
-      for (const o of ops.filter(
-        (o) => o.state === "AUTHORIZED" && o.action.action === "file.write",
-      ))
-        await this.applyWrite(o);
-      for (const o of ops.filter(
-        (o) => o.state === "AUTHORIZED" && o.action.action === "shell.run",
-      )) {
-        await this.applyShell(o, entry);
-        if (
-          this.store.get<Execution>("Execution", eid).state === "RESULT_UNKNOWN"
-        )
-          return;
-      }
-      this.setState(eid, "READY", { waiting_request_ids: [] });
-      e = this.store.get<Execution>("Execution", eid);
-    }
-    if (e.cancel_requested) {
-      this.finish(eid, "CANCELLED", { reason: "Cancelled before dispatch" });
-      return;
-    }
-    const attempt = id();
-    const dispatch: Dispatch = {
-      schema_version: 1,
-      record_type: "Dispatch",
-      ...base(),
-      task_id: p.id,
-      execution_id: e.id,
-      attempt_id: attempt,
-      owner_epoch: this.store.epoch,
-      plan_revision: p.revision,
-      executor: p.executor,
-      workspace: e.workspace_binding ? this.rootFor(e) : p.id + "/work",
-      resume_checkpoint_id: e.checkpoint_id,
-      operation_ids: [],
-      issued_at: now(),
-    };
-    if (p.executor.kind === "PROGRAM") {
-      const pr = this.store.get<ProgramRegistration>(
-        "ProgramRegistration",
-        p.executor.program_id!,
-      );
-      if (
-        pr.state !== "ENABLED" ||
-        pr.revision !== p.executor.program_revision ||
-        hash(fs.readFileSync(pr.entrypoint)) !== pr.code_digest
-      )
-        throw Error("PROGRAM_CHANGED");
-      if (
-        !new Ajv2020().validate(
-          this.store.read<object>(pr.parameters_schema),
-          p.executor.parameters,
-        )
-      )
-        throw Error("INVALID_PROGRAM_PARAMETERS");
-      const op = this.auth.prepare(
-        scopeOf(e),
-        "program.run",
-        pr.id,
-        {
-          program_id: pr.id,
-          revision: pr.revision,
-          code_digest: pr.code_digest,
-          entrypoint: pr.entrypoint,
-          capability: pr.description,
-          parameters: p.executor.parameters,
-          workspace: dispatch.workspace,
-        },
-        stableID(eid + ":program"),
-      );
-      if (op.state === "WAIT_AUTH") {
-        this.setState(eid, "WAIT_AUTH", {
-          waiting_request_ids: [op.authorization_id!],
-        });
-        return;
-      }
-      if (op.state !== "AUTHORIZED") throw Error("PROGRAM_NOT_DISPATCHABLE");
-      this.auth.dispatch(op.id, [
-        dispatch,
-        revise(e, {
-          state: "DISPATCHING",
-          attempt_id: attempt,
-          started_at: e.started_at ?? now(),
-        }),
-      ]);
-      this.setState(eid, "RUNNING");
-      await this.program(eid, pr, p.executor.parameters, op.id, entry);
-      return;
-    }
-    this.store.commit([
-      dispatch,
-      revise(e, {
-        state: "DISPATCHING",
-        attempt_id: attempt,
-        started_at: e.started_at ?? now(),
-      }),
-    ]);
-    this.setState(eid, "RUNNING");
-    const saved = e.checkpoint_id
-      ? this.store.get<Checkpoint>("Checkpoint", e.checkpoint_id)
-      : null;
-    if (
-      saved &&
-      (saved.adapter_version !== "pi-0.87.0" ||
-        saved.provider_profile !== this.model.id)
-    )
-      throw Error("INCOMPATIBLE_CONTEXT");
-    const recoveryCall = e.recovery_call_id
-      ? this.store.get<ModelCall>("ModelCall", e.recovery_call_id)
-      : null;
-    const recoveryRequest = recoveryCall
-      ? this.store.read<Parameters<StreamFn>[1]>(recoveryCall.request)
-      : null;
-    const messages = recoveryRequest
-      ? (recoveryRequest.messages as AgentMessage[])
-      : saved?.raw_context
-        ? this.store.read<AgentMessage[]>(saved.raw_context)
-        : [];
-    const agent = new Agent({
-      initialState: {
-        model: this.model,
-        systemPrompt: EXECUTOR_SYSTEM,
-        messages,
-        tools: this.tools(e),
-      },
-      streamFn: durableStream(
-        this.store,
-        this.stream,
-        scopeOf(e),
-        eid,
-        "TASK",
-        {
-          resumeCallID: recoveryCall?.id,
-          onPrepared: (call) => {
-            const current = this.store.get<Execution>("Execution", eid);
-            if (current.recovery_call_id) {
-              const { recovery_call_id: _, ...cleared } = current;
-              this.store.commit([revise(cleared, {})]);
-            }
-          },
-        },
-      ),
-      toolExecution: "sequential",
-    });
-    agent.finishTurn = () => {
-      const current = this.store.get<Execution>("Execution", eid);
-      if (current.state !== "RUNNING") return { action: "end" };
-    };
-    entry.agent = agent;
-    agent.subscribe((event) => {
-      if (event.type === "message_end") {
-        const cp = checkpoint(this.store, agent, e.task_id, eid);
-        const current = this.store.get<Execution>("Execution", eid);
-        this.store.commit(
-          [revise(current, { checkpoint_id: cp.id })],
-          [
-            this.store.event(
-              "agent.message",
-              event.message,
-              scopeOf(e),
-              "EXECUTOR",
-            ),
-          ],
-        );
-      }
-    });
-    agent.prepareRequest = () => {
-      saveContext(
-        this.store,
-        agent.state.messages,
-        scopeOf(e),
-        "TASK",
-        this.model.id,
-        eid,
-        this.model.contextWindow,
-      );
-    };
-    const proposal = this.proposalFor(e);
-    const packet = executionPrompt(
-      proposal,
-      e,
-      this.promptMaterials(proposal),
-      {
-        resumed: !!saved,
-        operations: this.store
-          .all<Operation>("Operation")
-          .filter((o) => o.scope.execution_id === eid)
-          .map((o) => ({
-            id: o.id,
-            state: o.state,
-            action: o.action,
-            receipt: o.receipt ? this.store.read(o.receipt) : null,
-          })),
-        decisions: this.store
-          .all<DecisionRequest>("DecisionRequest")
-          .filter((d) => d.execution_id === eid && d.state === "ANSWERED"),
-      },
-      this.scopes.packet(e, this.rootFor(e)),
-    );
-    this.store.commit(
-      [],
-      [
-        this.store.event(
-          "agent.dispatch_prompt",
-          { protocol: "secretary.agent-task.v1", prompt: packet },
-          scopeOf(e),
-        ),
-      ],
-    );
-    if (recoveryRequest) await agent.continue();
-    else await agent.prompt(packet);
-    e = this.store.get<Execution>("Execution", eid);
-    if (["WAIT_AUTH", "WAIT_DECISION", "RESULT_UNKNOWN"].includes(e.state))
-      return;
-    if (e.cancel_requested) {
-      this.finish(eid, "CANCELLED", { messages: agent.state.messages });
-      return;
-    }
-    if (!terminal(e))
-      this.finish(eid, "FAILED", {
-        messages: agent.state.messages,
-        error: agent.state.errorMessage ?? "MISSING_STRUCTURED_RESULT",
-      });
+    return executionRunner.execute.call(this.context, eid, entry, resumeAuth);
   }
   rootFor(e: Execution) {
-    return this.scopes.rootFor(e, path.join(this.workspace, e.task_id, "work"));
+    return effects.rootFor.call(this.context, e);
   }
   private safePath(e: Execution, relative: string) {
-    return relativePath(this.rootFor(e), relative);
+    return effects.safePath.call(this.context, e, relative);
   }
   private tools(e: Execution): AgentTool[] {
-    const upstreamRead = createReadTool(),
-      upstreamWrite = createWriteTool();
-    const tools: AgentTool[] = [
-      tool({
-        name: "submit_result",
-        label: "Submit structured task result",
-        description:
-          "Finish task with assessments for every C1..Cn criterion, evidence, limitations and existing workspace artifact paths. Does not independently verify semantic correctness.",
-        parameters: Type.Object({
-          outcome: Type.Union([
-            Type.Literal("SUCCEEDED"),
-            Type.Literal("FAILED"),
-          ]),
-          summary: Type.String({ minLength: 1 }),
-          criteria: Type.Array(
-            Type.Object({
-              id: Type.String(),
-              met: Type.Boolean(),
-              evidence: Type.String({ minLength: 1 }),
-            }),
-          ),
-          artifacts: Type.Array(Type.String()),
-          limitations: Type.Array(Type.String()),
-        }),
-        execute: async (_call, args) => {
-          const plan = this.store.get<TaskPlan>("TaskPlan", e.task_id);
-          const proposal = this.proposalFor(e);
-          const expected = proposal.acceptance_criteria.map(
-            (_, i) => `C${i + 1}`,
-          );
-          if (
-            args.criteria.length !== expected.length ||
-            new Set(args.criteria.map((c) => c.id)).size !== expected.length ||
-            expected.some((id) => !args.criteria.some((c) => c.id === id))
-          )
-            throw Error("INCOMPLETE_ACCEPTANCE_ASSESSMENT");
-          if (args.outcome === "SUCCEEDED" && args.criteria.some((c) => !c.met))
-            throw Error("UNMET_ACCEPTANCE_CRITERION");
-          const effects = this.store
-            .all<Operation>("Operation")
-            .filter((o) => o.scope.execution_id === e.id);
-          if (
-            effects.some((o) =>
-              ["WAIT_AUTH", "DISPATCHED", "RESULT_UNKNOWN"].includes(o.state),
-            )
-          )
-            throw Error("UNRESOLVED_OPERATION");
-          const artifacts = args.artifacts.map((relative) => {
-            const target = this.safePath(e, relative);
-            if (!fs.statSync(target).isFile()) throw Error("ARTIFACT_NOT_FILE");
-            return {
-              path: relative,
-              content: this.store.put(
-                fs.readFileSync(target),
-                "application/octet-stream",
-              ),
-            };
-          });
-          this.finish(e.id, args.outcome, {
-            structured_result: args,
-            artifacts,
-          });
-          return jsonTool(
-            { saved: true, outcome: args.outcome, verified_by: "NOT_VERIFIED" },
-            true,
-          );
-        },
-      }),
-      tool({
-        name: "read",
-        label: "Read workspace",
-        description: upstreamRead.description,
-        parameters: upstreamRead.parameters,
-        execute: async (call, args) => {
-          const target = this.safePath(e, args.path);
-          return upstreamRead.execute(
-            call,
-            { ...args, path: target },
-            () => {},
-            {
-              env: new NodeExecutionEnv({
-                cwd: this.rootFor(e),
-              }),
-            },
-            invocation(call),
-            BACKGROUND_CONTEXT,
-          );
-        },
-      }),
-      tool({
-        name: "write",
-        label: "Write in execution workspace",
-        description:
-          upstreamWrite.description +
-          " Workspace policy or an existing rule may authorize writes; otherwise wait for Master approval. Never retry an unknown effect.",
-        parameters: upstreamWrite.parameters,
-        execute: async (_call, args) => {
-          const resource = this.safePath(e, args.path);
-          const intent = stableID(e.id + ":write:" + JSON.stringify(args));
-          const op = this.auth.prepare(
-            scopeOf(e),
-            "file.write",
-            resource,
-            args,
-            intent,
-            this.fileRevision(resource),
-          );
-          if (op.state === "SUCCEEDED")
-            return jsonTool({ operation_id: op.id, state: op.state });
-          if (op.state === "RESULT_UNKNOWN") {
-            this.setState(e.id, "RESULT_UNKNOWN", {
-              unknown_operation_ids: [op.id],
-            });
-            return jsonTool({ state: "RESULT_UNKNOWN" }, true);
-          }
-          if (op.state !== "AUTHORIZED") {
-            if (op.state !== "WAIT_AUTH" || !op.authorization_id)
-              return jsonTool(
-                {
-                  operation_id: op.id,
-                  state: op.state,
-                  error: op.error ?? "WRITE_NOT_DISPATCHABLE",
-                },
-                true,
-              );
-            this.setState(e.id, "WAIT_AUTH", {
-              waiting_request_ids: op.authorization_id
-                ? [op.authorization_id]
-                : [],
-            });
-            return jsonTool({ operation_id: op.id, state: op.state }, true);
-          }
-          return jsonTool(await this.applyWrite(op));
-        },
-      }),
-      tool({
-        name: "bash",
-        label: "Run shell command with approval",
-        description:
-          "Execute a real bash command as the local user, starting in the task workspace. Supports system inspection, files and network; not sandboxed. Simple readonly commands or an existing rule may run automatically; otherwise wait for Master approval. Returns durable stdout, stderr and exit_code receipts. Never repeat an unknown effect.",
-        parameters: Type.Object({
-          command: Type.String({ minLength: 1 }),
-          timeout: Type.Optional(Type.Number({ minimum: 0.1, maximum: 3600 })),
-        }),
-        execute: async (call, args) => {
-          const cwd = this.rootFor(e);
-          const op = this.auth.prepare(
-            scopeOf(e),
-            "shell.run",
-            cwd,
-            this.auth.shellParameters(
-              scopeOf(e),
-              args.command,
-              args.timeout ?? 120,
-              cwd,
-              stableID(e.id + ":bash:" + call),
-            ),
-            stableID(e.id + ":bash:" + call),
-          );
-          if (op.receipt) return jsonTool(this.store.read(op.receipt));
-          if (op.state !== "AUTHORIZED") {
-            if (op.state !== "WAIT_AUTH") throw Error("SHELL_NOT_DISPATCHABLE");
-            this.setState(e.id, "WAIT_AUTH", {
-              waiting_request_ids: [op.authorization_id!],
-            });
-            return jsonTool({ operation_id: op.id, state: op.state }, true);
-          }
-          const result = await this.applyShell(op, this.running.get(e.id)!);
-          return jsonTool(
-            result,
-            this.store.get<Execution>("Execution", e.id).state ===
-              "RESULT_UNKNOWN",
-          );
-        },
-      }),
-      tool({
-        name: "request_decision",
-        label: "Ask for work decision",
-        description:
-          "Ask an ordinary work decision. Does not request or grant authorization.",
-        parameters: Type.Object({ question: Type.String() }),
-        execute: async (_call, args) => {
-          const d: DecisionRequest = {
-            schema_version: 1,
-            record_type: "DecisionRequest",
-            ...base(),
-            state: "OPEN",
-            task_id: e.task_id,
-            execution_id: e.id,
-            question: args.question,
-            options: [],
-            impact: "Execution paused",
-            materials: [],
-            deadline: null,
-            answer: null,
-            answered_by: null,
-            answer_request_id: null,
-          };
-          const current = this.store.get<Execution>("Execution", e.id);
-          this.store.commit(
-            [
-              d,
-              revise(current, {
-                state: "WAIT_DECISION",
-                waiting_request_ids: [d.id],
-              }),
-            ],
-            [this.store.event("decision.requested", d, scopeOf(e))],
-          );
-          this.feedback(
-            e.id,
-            "DECISION_REQUIRED",
-            args.question,
-            this.store.put(d),
-            null,
-            d.id,
-          );
-          return jsonTool({ decision_id: d.id, state: "WAIT_DECISION" }, true);
-        },
-      }),
-    ];
-    return tools.map((t) => ({
-      ...t,
-      execute: async (call, args, signal, update) => {
-        const current = this.store.get<Execution>("Execution", e.id);
-        if (current.state !== "RUNNING" || current.cancel_requested)
-          return jsonTool({ state: current.state, blocked: true }, true);
-        const key = `${e.id}:${call}:${t.name}:${hash(JSON.stringify(args))}`;
-        const prior = this.store.logs.find(
-          (l) =>
-            l.event_type === "executor.tool.result" &&
-            l.scope.execution_id === e.id &&
-            this.store.read<{ key: string }>(l.payload).key === key,
-        );
-        if (prior)
-          return this.store.read<{
-            result: Awaited<ReturnType<typeof t.execute>>;
-          }>(prior.payload).result;
-        const value = await activitiesFor(this.store).tool(
-          "tool:" + e.id + ":" + call,
-          scopeOf(e),
-          t.name,
-          args,
-          () => t.execute(call, args, signal, update),
-        );
-        this.store.commit(
-          [],
-          [
-            this.store.event(
-              "executor.tool.result",
-              { key, result: value },
-              scopeOf(e),
-              "EXECUTOR",
-            ),
-          ],
-        );
-        return value;
-      },
-    }));
+    return executorTools.tools.call(this.context, e);
   }
-  private async applyShell(op: Operation, entry: { child?: ChildProcess }) {
-    const eid = op.scope.execution_id!;
-    const e = this.store.get<Execution>("Execution", eid);
-    const params = this.store.read<{
-      command: string;
-      execution?: ShellExecution;
-      timeout: number;
-      cwd: string;
-    }>(op.action.parameters_ref);
-    const cwd = this.rootFor(e);
-    this.safePath(e, ".shell-path-check");
-    if (params.cwd !== cwd || op.action.resource !== cwd)
-      throw Error("RESOURCE_CHANGED");
-    if (this.conditions(e).some((c) => c.status !== "MET"))
-      throw Error("PRECONDITION_CHANGED");
-    this.auth.dispatch(op.id);
-    let stdout = "",
-      stderr = "",
-      timed_out = false,
-      truncated = false;
-    const launched = await launchProcess(
-      this.store,
-      op.id,
-      op.rule_id === "builtin:readonly-shell"
-        ? params.execution!.argv
-        : ["/bin/bash", "--noprofile", "--norc", "-c", params.command],
-      cwd,
-      op.rule_id === "builtin:readonly-shell"
-        ? params.execution!.env
-        : shellEnvironment(),
-    );
-    const child = launched.child;
-    child.stdin!.end();
-    entry.child = child;
-    const limit = 4 * 1024 * 1024;
-    const capture = (b: Buffer, stream: "stdout" | "stderr") => {
-      const current = stream === "stdout" ? stdout : stderr;
-      if (Buffer.byteLength(current) + b.length > limit) {
-        truncated = true;
-        this.stopChild(child);
-      } else if (stream === "stdout") stdout += b.toString();
-      else stderr += b.toString();
-    };
-    child.stdout!.on("data", (b) => capture(b, "stdout"));
-    child.stderr!.on("data", (b) => capture(b, "stderr"));
-    const timer = setTimeout(() => {
-      timed_out = true;
-      this.stopChild(child);
-    }, params.timeout * 1000);
-    try {
-      if (this.store.get<Execution>("Execution", eid).cancel_requested)
-        requestStop(child);
-      else launched.start();
-      const result = await launched.closed;
-      persistStop(
-        this.store,
-        op.id,
-        inspectProcess(this.store.get<Operation>("Operation", op.id).process!),
-      );
-      const receipt = {
-        command: params.command,
-        cwd,
-        stdout,
-        stderr,
-        ...result,
-        timed_out,
-        truncated,
-      };
-      const unknown =
-        !result.not_started &&
-        (timed_out ||
-          truncated ||
-          result.signal !== null ||
-          result.exit_code === null);
-      this.auth.finish(
-        op.id,
-        receipt,
-        result.not_started ? "NOT_APPLIED" : unknown ? "UNKNOWN" : "APPLIED",
-      );
-      if (unknown) {
-        this.setState(eid, "RESULT_UNKNOWN", {
-          unknown_operation_ids: [op.id],
-        });
-        this.feedback(
-          eid,
-          "UNKNOWN",
-          "Shell interrupted; effects require verification, do not retry",
-          this.store.put(receipt),
-        );
-      }
-      return receipt;
-    } finally {
-      clearTimeout(timer);
-      entry.child = undefined;
-    }
+  private applyShell(op: Operation, entry: { child?: ChildProcess }) {
+    return effects.applyShell.call(this.context, op, entry);
   }
   private fileRevision(target: string): string {
-    try {
-      const stat = fs.lstatSync(target);
-      if (!stat.isFile() || stat.isSymbolicLink())
-        throw Error("INVALID_RESOURCE");
-      return hash(fs.readFileSync(target));
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return "ABSENT";
-      throw error;
-    }
+    return effects.fileRevision.call(this.context, target);
   }
-  private async applyWrite(op: Operation) {
-    const e = this.store.get<Execution>("Execution", op.scope.execution_id!);
-    if (e.cancel_requested || terminal(e)) throw Error("EXECUTION_NOT_ACTIVE");
-    const params = this.store.read<{ path: string; content: string }>(
-      op.action.parameters_ref,
-    );
-    const target = this.safePath(e, params.path);
-    if (target !== op.action.resource) throw Error("RESOURCE_CHANGED");
-    if (op.action.expected_resource_revision !== this.fileRevision(target))
-      throw Error(
-        "RESOURCE_REVISION_CHANGED: prepare a new operation and approval",
-      );
-    if (this.conditions(e).some((c) => c.status !== "MET"))
-      throw Error("PRECONDITION_CHANGED");
-    this.auth.dispatch(op.id);
-    try {
-      const tool = createWriteTool();
-      const result = await tool.execute(
-        op.id,
-        { ...params, path: target },
-        () => {},
-        {
-          env: new NodeExecutionEnv({
-            cwd: this.rootFor(e),
-          }),
-        },
-        invocation(op.id),
-        BACKGROUND_CONTEXT,
-      );
-      const fd = fs.openSync(target, "r");
-      fs.fsyncSync(fd);
-      fs.closeSync(fd);
-      const evidence = this.store.put(fs.readFileSync(target), "text/plain");
-      return this.auth.finish(op.id, { result, evidence });
-    } catch (error) {
-      this.auth.finish(op.id, { error: String(error) }, "UNKNOWN");
-      this.setState(e.id, "RESULT_UNKNOWN", { unknown_operation_ids: [op.id] });
-      throw error;
-    }
+  private applyWrite(op: Operation) {
+    return effects.applyWrite.call(this.context, op);
   }
   verifyWrite(operationID: string) {
-    const op = this.store.get<Operation>("Operation", operationID);
-    if (
-      op.state !== "RESULT_UNKNOWN" ||
-      op.action.action !== "file.write" ||
-      !op.scope.execution_id
-    )
-      throw Error("NO_VERIFIER_FOR_OPERATION");
-    const e = this.store.get<Execution>("Execution", op.scope.execution_id);
-    const params = this.store.read<{ path: string; content: string }>(
-      op.action.parameters_ref,
-    );
-    const target = this.safePath(e, params.path);
-    if (
-      target !== op.action.resource ||
-      !fs.existsSync(target) ||
-      hash(fs.readFileSync(target)) !== hash(params.content)
-    )
-      return { verified: false, state: "RESULT_UNKNOWN" };
-    const evidence = this.store.put(fs.readFileSync(target), "text/plain");
-    this.auth.finish(
-      op.id,
-      {
-        verified_postcondition: "Exact requested file content is present",
-        evidence,
-      },
-      "APPLIED",
-    );
-    this.settleUnknownExecution(e.id);
-    return { verified: true, evidence };
+    return effects.verifyWrite.call(this.context, operationID);
   }
   processStopped(eid: string): boolean {
-    return processStopped(this.store, eid);
+    return executionRecovery.processStopped.call(this.context, eid);
   }
   settleUnknownExecution(eid: string) {
-    const e = this.store.get<Execution>("Execution", eid);
-    if (e.state !== "RESULT_UNKNOWN" || this.running.has(eid)) return;
-    const operations = this.store
-      .indexed<Operation>("Operation", "scope.execution_id", [eid])
-      .filter((o) => o.scope.execution_id === eid);
-    const unknown = operations
-      .filter((o) => o.state === "RESULT_UNKNOWN")
-      .map((o) => o.id);
-    if (JSON.stringify(unknown) !== JSON.stringify(e.unknown_operation_ids))
-      this.store.commit([revise(e, { unknown_operation_ids: unknown })]);
-    if (unknown.length || !this.processStopped(eid)) return;
-    this.finish(eid, "FAILED", {
-      reason:
-        "Execution interrupted; results resolved or verified. Continue with a follow-up task.",
-      resolutions: operations
-        .filter((o) => o.receipt)
-        .map((o) => ({
-          operation_id: o.id,
-          state: o.state,
-          effect: o.effect,
-          receipt: this.store.read(o.receipt!),
-        })),
-    });
+    return executionRecovery.settleUnknownExecution.call(this.context, eid);
   }
   private processNotice(op: Operation) {
-    const key = stableID(op.id + ":process-stop-unconfirmed");
-    if (
-      this.store
-        .all<Notification>("Notification")
-        .some((n) => n.delivery_key === key)
-    )
-      return;
-    const proposal = this.proposalFor(
-      this.store.get<Execution>("Execution", op.scope.execution_id!),
-    );
-    this.store.commit([
-      {
-        schema_version: 1,
-        record_type: "Notification",
-        ...base(),
-        state: "QUEUED",
-        session_id: proposal.session_id,
-        channel: "local-ui",
-        message: this.store.put({
-          text: "Execution process stop could not be confirmed; inspect and stop the original process group before continuing.",
-          execution_id: op.scope.execution_id,
-          operation_id: op.id,
-        }),
-        delivery_key: key,
-        receipt: null,
-        requested_at: now(),
-      },
-    ]);
+    return executionRecovery.processNotice.call(this.context, op);
   }
   registerProgram(entrypoint: string, name: string) {
-    const absolute = path.resolve(entrypoint);
-    const code = fs.readFileSync(absolute);
-    const r: ProgramRegistration = {
-      schema_version: 1,
-      record_type: "ProgramRegistration",
-      ...base(),
-      state: "ENABLED",
-      name,
-      description:
-        "Runs a manually reviewed Node script with the current user privileges; internal operations are authorized as a whole.",
-      entrypoint: absolute,
-      code_digest: hash(code),
-      parameters_schema: this.store.put({
-        type: "object",
-        properties: { goal: { type: "string" } },
-        required: ["goal"],
-        additionalProperties: false,
-      }),
-      result_schema: this.store.put({
-        type: "object",
-        properties: { summary: { type: "string" } },
-        required: ["summary"],
-      }),
-      preconditions: [],
-      operation_kinds: ["program.run"],
-      supports_resume: false,
-      maintained_by: "HUMAN",
-      validation_ref: this.store.put({
-        entrypoint: absolute,
-        code_digest: hash(code),
-        confirmed_at: now(),
-      }),
-    };
-    this.store.commit(
-      [r],
-      [this.store.event("program.registered", r, undefined, "MASTER_UI")],
-    );
-    return r;
+    return effects.registerProgram.call(this.context, entrypoint, name);
   }
-  private async program(
+  private program(
     eid: string,
     program: ProgramRegistration,
     params: unknown,
     opID: string,
     entry: { child?: ChildProcess },
   ) {
-    const e = this.store.get<Execution>("Execution", eid);
-    const validator = new Ajv2020();
-    if (
-      !validator.validate(
-        this.store.read<object>(program.parameters_schema),
-        params,
-      )
-    )
-      throw Error("INVALID_PROGRAM_PARAMETERS");
-    const launched = await launchProcess(
-      this.store,
+    return effects.program.call(
+      this.context,
+      eid,
+      program,
+      params,
       opID,
-      [process.execPath, program.entrypoint],
-      this.rootFor(e),
-      { PATH: process.env.PATH, LANG: "en_US.UTF-8" },
+      entry,
     );
-    const child = launched.child;
-    entry.child = child;
-    let output = "",
-      error = "";
-    let overflow = false;
-    child.stdout!.on("data", (b) => {
-      this.store.commit(
-        [],
-        [
-          this.store.event(
-            "program.stdout",
-            this.store.put(Buffer.from(b), "text/plain"),
-            scopeOf(e),
-            "PROGRAM",
-          ),
-        ],
-      );
-      if (output.length + b.length > 4 * 1024 * 1024) {
-        overflow = true;
-        this.stopChild(child);
-      } else output += String(b);
-    });
-    child.stderr!.on("data", (b) => {
-      this.store.commit(
-        [],
-        [
-          this.store.event(
-            "program.stderr",
-            this.store.put(Buffer.from(b), "text/plain"),
-            scopeOf(e),
-            "PROGRAM",
-          ),
-        ],
-      );
-      if (error.length < 4 * 1024 * 1024) error += String(b);
-    });
-    child.stdin!.on("error", () => {});
-    child.stdin!.end(JSON.stringify({ execution_id: eid, parameters: params }));
-    if (this.store.get<Execution>("Execution", eid).cancel_requested)
-      requestStop(child);
-    else launched.start();
-    const processResult = await launched.closed;
-    const { exit_code: code } = processResult;
-    persistStop(
-      this.store,
-      opID,
-      inspectProcess(this.store.get<Operation>("Operation", opID).process!),
-    );
-    entry.child = undefined;
-    if (processResult.not_started) {
-      this.auth.finish(
-        opID,
-        { ...processResult, stdout: output, stderr: error },
-        "NOT_APPLIED",
-      );
-      this.finish(eid, "CANCELLED", {
-        reason: "Program cancelled before start",
-      });
-      return;
-    }
-    try {
-      if (code !== 0 || overflow) throw Error("PROGRAM_EFFECT_UNCONFIRMED");
-      const result = JSON.parse(output);
-      if (
-        !validator.validate(
-          this.store.read<object>(program.result_schema),
-          result,
-        )
-      )
-        throw Error("INVALID_PROGRAM_RESULT");
-      const outcome = result as { outcome?: string; effect?: string };
-      if (
-        outcome.outcome != null &&
-        !["SUCCEEDED", "FAILED"].includes(outcome.outcome)
-      )
-        throw Error("UNSUPPORTED_PROGRAM_OUTCOME");
-      this.auth.finish(
-        opID,
-        { result, stdout: output, stderr: error, code },
-        outcome.effect === "NOT_APPLIED" ? "NOT_APPLIED" : "APPLIED",
-      );
-      this.finish(
-        eid,
-        outcome.outcome === "FAILED" ? "FAILED" : "SUCCEEDED",
-        result,
-      );
-    } catch (err) {
-      this.auth.finish(
-        opID,
-        { stdout: output, stderr: error, code, error: String(err) },
-        "UNKNOWN",
-      );
-      this.setState(eid, "RESULT_UNKNOWN", { unknown_operation_ids: [opID] });
-      this.feedback(
-        eid,
-        "UNKNOWN",
-        "Program result unknown; no automatic retry",
-        this.store.put({ stdout: output, stderr: error, code }),
-      );
-    }
   }
   finish(
     eid: string,
     state: "SUCCEEDED" | "FAILED" | "CANCELLED" | "EXPIRED",
     detail: unknown,
   ) {
-    const e = this.store.get<Execution>("Execution", eid);
-    if (terminal(e)) return;
-    if (!this.processStopped(eid)) {
-      this.setState(eid, "RESULT_UNKNOWN");
-      return;
-    }
-    const ref = this.store.put(detail);
-    const agentDetail =
-      this.proposalFor(e).executor.kind === "AGENT" ? detail : undefined;
-    const structured = (
-      agentDetail as {
-        structured_result?: { summary: string; limitations: string[] };
-      }
-    )?.structured_result;
-    const r: TaskResult = {
-      schema_version: 1,
-      record_type: "TaskResult",
-      scope_id: e.scope_id ?? null,
-      ...base(),
-      task_id: e.task_id,
-      execution_id: eid,
-      outcome: state,
-      summary: structured?.summary ?? `${state}: task ${e.task_id}`,
-      limitations: [
-        ...(structured?.limitations ?? []),
-        "Model output is not independent verification",
-      ],
-      evidence: [ref],
-      artifacts: (
-        (
-          agentDetail as {
-            artifacts?: {
-              path: string;
-              content: TaskResult["evidence"][number];
-            }[];
-          }
-        )?.artifacts ?? []
-      ).map((a) => ({
-        artifact_id: id(),
-        name: path.basename(a.path),
-        content: a.content,
-        workspace_path: a.path,
-        producing_operation_id:
-          this.store
-            .all<Operation>("Operation")
-            .find(
-              (o) =>
-                o.scope.execution_id === eid &&
-                o.state === "SUCCEEDED" &&
-                o.action.resource === this.safePath(e, a.path),
-            )?.id ?? null,
-      })),
-      detail_ref: ref,
-      needs_action: state !== "SUCCEEDED",
-      verified_by: "NOT_VERIFIED",
-      observed_at: now(),
-    };
-    const changes: Stored[] = [
-      ...this.store
-        .all<DecisionRequest>("DecisionRequest")
-        .filter((d) => d.execution_id === eid && d.state === "OPEN")
-        .map((d) => revise(d, { state: "OBSOLETE" })),
-      r,
-      revise(e, {
-        state,
-        result_id: r.id,
-        ended_at: now(),
-        last_activity_at: now(),
-        waiting_request_ids: [],
-      }),
-    ];
-    if (e.continuation_of) {
-      const parent = this.store.get<Execution>("Execution", e.continuation_of);
-      changes.push(
-        revise(parent, {
-          pending_followup_ids: parent.pending_followup_ids.filter(
-            (v) => v !== eid,
-          ),
-          last_activity_at: now(),
-        }),
-      );
-    }
-    this.store.commit(changes, [
-      this.store.event("execution.finished", r, scopeOf(e)),
-    ]);
-    this.feedback(eid, "RESULT", r.summary, ref, r.id);
+    return executionRunner.finish.call(this.context, eid, state, detail);
   }
   feedback(
     eid: string,
@@ -2308,53 +254,21 @@ export class Scheduler {
     resultID: string | null = null,
     decisionID: string | null = null,
   ) {
-    const e = this.store.get<Execution>("Execution", eid);
-    const f: Feedback = {
-      schema_version: 1,
-      record_type: "Feedback",
-      scope_id: this.store.get<Execution>("Execution", eid).scope_id ?? null,
-      ...base(),
-      state: "QUEUED",
-      task_id: e.task_id,
-      execution_id: eid,
+    return executionRunner.feedback.call(
+      this.context,
+      eid,
       kind,
       summary,
-      detail_ref: ref,
-      result_id: resultID,
-      decision_request_id: decisionID,
-      input_id: null,
-      created_at: now(),
-    };
-    this.store.commit([f]);
-    return f;
+      ref,
+      resultID,
+      decisionID,
+    );
   }
   detail(eid: string) {
-    const e = this.store.get<Execution>("Execution", eid);
-    if (e.retention_state === "RETIRED")
-      return {
-        status: "RETIRED",
-        archive: this.store
-          .all<ArchiveManifest>("ArchiveManifest")
-          .find((a) => a.execution_id === eid),
-      };
-    return {
-      execution: e,
-      result: e.result_id
-        ? this.store.get<TaskResult>("TaskResult", e.result_id)
-        : null,
-      detail: e.result_id
-        ? this.store.read(
-            this.store.get<TaskResult>("TaskResult", e.result_id).detail_ref,
-          )
-        : null,
-    };
+    return retention.detail.call(this.context, eid);
   }
   viewed(eid: string) {
-    const e = this.store.get<Execution>("Execution", eid);
-    if (e.retention_state === "RETIRED") return;
-    this.store.commit([
-      revise(e, { last_activity_at: now(), retention_state: "HOT" }),
-    ]);
+    return retention.viewed.call(this.context, eid);
   }
   answer(
     did: string,
@@ -2362,240 +276,28 @@ export class Scheduler {
     requestID = id(),
     actor: "MAIN" | "MASTER" = "MAIN",
   ) {
-    const d = this.store.get<DecisionRequest>("DecisionRequest", did);
-    if (
-      answer == null ||
-      (typeof answer === "string" && !answer.trim()) ||
-      (typeof answer === "object" && !Object.keys(answer).length)
-    )
-      throw Error("EMPTY_DECISION");
-    if (d.answer_request_id === requestID) {
-      if (
-        JSON.stringify(d.answer) !== JSON.stringify({ value: answer }) ||
-        d.answered_by !== actor
-      )
-        throw Error("REQUEST_CONFLICT");
-      return;
-    }
-    if (d.state !== "OPEN") throw Error("DECISION_NOT_OPEN");
-    if (d.deadline && Date.parse(d.deadline) <= Date.now())
-      throw Error("DECISION_EXPIRED");
-    const e = this.store.get<Execution>("Execution", d.execution_id);
-    if (e.state !== "WAIT_DECISION") throw Error("DECISION_STALE");
-    this.store.commit(
-      [
-        revise(d, {
-          state: "ANSWERED",
-          answer: { value: answer },
-          answered_by: actor,
-          answer_request_id: requestID,
-        }),
-        revise(e, { state: "READY", waiting_request_ids: [] }),
-      ],
-      [this.store.event("decision.answered", { id: did, answer }, scopeOf(e))],
+    return executionRecovery.answer.call(
+      this.context,
+      did,
+      answer,
+      requestID,
+      actor,
     );
   }
   private stopChild(child: ChildProcess) {
-    requestStop(child);
+    return effects.stopChild.call(this.context, child);
   }
   cancel(eid: string) {
-    const e = this.store.get<Execution>("Execution", eid);
-    if (terminal(e)) return;
-    if (this.running.has(eid)) {
-      this.setState(eid, "CANCEL_REQUESTED", { cancel_requested: true });
-      this.running.get(eid)?.agent?.abort();
-      const child = this.running.get(eid)?.child;
-      if (child) this.stopChild(child);
-    } else if (e.state === "RESULT_UNKNOWN")
-      this.store.commit([revise(e, { cancel_requested: true })]);
-    else {
-      this.store.commit([revise(e, { cancel_requested: true })]);
-      this.finish(eid, "CANCELLED", { reason: "Cancelled before dispatch" });
-    }
+    return executionRecovery.cancel.call(this.context, eid);
   }
   retire(at = Date.now()) {
-    for (const e of this.store.indexed<Execution>(
-      "Execution",
-      "retention_state",
-      ["RETIRED"],
-      true,
-    )) {
-      if (
-        !terminal(e) ||
-        e.retention_state === "RETIRED" ||
-        e.waiting_request_ids.length ||
-        e.unknown_operation_ids.length ||
-        e.pending_followup_ids.length ||
-        this.store
-          .indexed<Feedback>("Feedback", "execution_id", [e.id])
-          .some((f) => f.execution_id === e.id && f.state !== "HANDLED") ||
-        at - Math.max(Date.parse(e.ended_at!), Date.parse(e.last_activity_at)) <
-          e.retire_after_seconds * 1000
-      )
-        continue;
-      const records = this.store.executionEvents(e.id);
-      for (const l of records) this.store.bytes(l.payload);
-      const result = this.store.get<TaskResult>("TaskResult", e.result_id!);
-      this.store.bytes(result.detail_ref);
-      const m: ArchiveManifest = {
-        schema_version: 1,
-        record_type: "ArchiveManifest",
-        ...base(),
-        task_id: e.task_id,
-        execution_id: e.id,
-        log_event_ids: records.map((r) => r.event_id),
-        objects: [result.detail_ref, ...records.map((l) => l.payload)],
-        verified_at: now(),
-        retired_at: now(),
-      };
-      this.store.commit(
-        [m, revise(e, { retention_state: "RETIRED" })],
-        [this.store.event("archive.verified", m, scopeOf(e))],
-      );
-    }
+    return retention.retire.call(this.context, at);
   }
-  private async recoverProcesses(startup = false) {
-    const executions = new Map<string, Operation[]>();
-    for (const op of startup
-      ? this.store.all<Operation>("Operation")
-      : this.store.indexed<Operation>(
-          "Operation",
-          "process.state",
-          [undefined, "STOPPED"],
-          true,
-        )) {
-      if (
-        !op.scope.execution_id ||
-        this.running.has(op.scope.execution_id) ||
-        !["shell.run", "program.run"].includes(op.action.action)
-      )
-        continue;
-      const operations = executions.get(op.scope.execution_id) ?? [];
-      operations.push(op);
-      executions.set(op.scope.execution_id, operations);
-      if (op.process && op.process.state !== "STOPPED")
-        persistStop(this.store, op.id, await stopProcess(op.process));
-    }
-    // Probe each process first, then reconcile each execution only once.
-    for (const [eid, operations] of executions) {
-      if (!this.processStopped(eid)) {
-        for (const previous of operations) {
-          const op = this.store.get<Operation>("Operation", previous.id);
-          if (
-            op.process
-              ? op.process.state !== "STOPPED"
-              : ["RESULT_UNKNOWN", "DISPATCHED"].includes(op.state)
-          )
-            this.processNotice(op);
-        }
-      } else this.settleUnknownExecution(eid);
-    }
+  private recoverProcesses(startup = false) {
+    return executionRecovery.recoverProcesses.call(this.context, startup);
   }
-  async recover() {
-    await this.recoverProcesses(true);
-    for (const e of this.store.all<Execution>("Execution")) {
-      if (!e.proposal_ref)
-        this.store.commit([
-          revise(e, {
-            proposal_ref: this.store.taskPlanAt(e.task_id, e.plan_revision)
-              .proposal_ref,
-          }),
-        ]);
-      if (e.state === "CREATED") this.setState(e.id, "WAIT_PRECONDITION");
-    }
-    for (const p of this.store.all<TaskPlan>("TaskPlan"))
-      if (
-        p.state === "ACTIVE" &&
-        p.trigger.kind === "AT" &&
-        p.next_due_at &&
-        Date.parse(p.next_due_at) < Date.now()
-      ) {
-        this.reportMissed(
-          revise(p, { state: "PAUSED", next_due_at: null }),
-          p.next_due_at,
-        );
-      }
-    for (const d of this.store.all<DecisionRequest>("DecisionRequest")) {
-      if (
-        d.state === "OPEN" &&
-        this.store.get<Execution>("Execution", d.execution_id).state ===
-          "WAIT_DECISION" &&
-        !this.store
-          .indexed<Feedback>("Feedback", "execution_id", [d.execution_id])
-          .some((f) => f.decision_request_id === d.id)
-      )
-        this.feedback(
-          d.execution_id,
-          "DECISION_REQUIRED",
-          d.question,
-          this.store.put(d),
-          null,
-          d.id,
-        );
-    }
-    for (const e of this.store.all<Execution>("Execution")) {
-      if (
-        [
-          "RUNNING",
-          "DISPATCHING",
-          "CANCEL_REQUESTED",
-          "RESULT_UNKNOWN",
-        ].includes(e.state)
-      ) {
-        const unknown = this.store
-          .indexed<Operation>("Operation", "scope.execution_id", [e.id])
-          .filter(
-            (o) =>
-              o.scope.execution_id === e.id && o.state === "RESULT_UNKNOWN",
-          )
-          .map((o) => o.id);
-        const call = this.store
-          .indexed<ModelCall>("ModelCall", "scope.execution_id", [e.id])
-          .filter((c) => c.scope.execution_id === e.id)
-          .at(-1);
-        if (
-          e.state !== "RESULT_UNKNOWN" &&
-          !e.cancel_requested &&
-          !unknown.length &&
-          this.processStopped(e.id) &&
-          this.proposalFor(e).executor.kind === "AGENT" &&
-          call?.logical_key
-        ) {
-          this.setState(e.id, "READY", {
-            recovery_call_id: call.id,
-            unknown_operation_ids: [],
-          });
-        } else {
-          this.setState(e.id, "RESULT_UNKNOWN", {
-            unknown_operation_ids: unknown,
-          });
-          this.settleUnknownExecution(e.id);
-          if (
-            this.store.get<Execution>("Execution", e.id).state ===
-              "RESULT_UNKNOWN" &&
-            !this.store
-              .indexed<Feedback>("Feedback", "execution_id", [e.id])
-              .some((f) => f.execution_id === e.id && f.kind === "UNKNOWN")
-          )
-            this.feedback(
-              e.id,
-              "UNKNOWN",
-              "Execution interrupted; verify before resuming",
-              this.store.put({ execution_id: e.id, reason: "restart" }),
-            );
-        }
-      }
-      if (
-        terminal(e) &&
-        e.result_id &&
-        !this.store
-          .indexed<Feedback>("Feedback", "execution_id", [e.id])
-          .some((f) => f.result_id === e.result_id)
-      ) {
-        const r = this.store.get<TaskResult>("TaskResult", e.result_id);
-        this.feedback(e.id, "RESULT", r.summary, r.detail_ref, r.id);
-      }
-    }
+  recover() {
+    return executionRecovery.recover.call(this.context);
   }
   async idle() {
     await Promise.all([...this.running.values()].map((r) => r.promise));
@@ -2610,16 +312,93 @@ export class Scheduler {
     }
     await this.idle();
   }
-}
 
-function invocation(value: string) {
-  return {
-    invocationId: value,
-    operationId: value,
-    turnId: value,
-    getMemo: async () => undefined,
-    setMemo: async () => {
-      throw Error("This adapter does not support replay memos");
-    },
-  };
+  private readonly context: SchedulerContext;
+
+  private createContext(): SchedulerContext {
+    const owner = this;
+    return {
+      propose: (...args) => this.propose(...args),
+      get model() {
+        return owner.model;
+      },
+      get scopes() {
+        return owner.scopes;
+      },
+      get store() {
+        return owner.store;
+      },
+      get workspace() {
+        return owner.workspace;
+      },
+      get closed() {
+        return owner.closed;
+      },
+      set closed(value) {
+        owner.closed = value;
+      },
+      get processCheckAt() {
+        return owner.processCheckAt;
+      },
+      set processCheckAt(value) {
+        owner.processCheckAt = value;
+      },
+      get processWork() {
+        return owner.processWork;
+      },
+      set processWork(value) {
+        owner.processWork = value;
+      },
+      get running() {
+        return owner.running;
+      },
+      set running(value) {
+        owner.running = value;
+      },
+      get settingsBlocked() {
+        return owner.settingsBlocked;
+      },
+      set settingsBlocked(value) {
+        owner.settingsBlocked = value;
+      },
+      get auth() {
+        return owner.auth;
+      },
+      get stream() {
+        return owner.stream;
+      },
+      assertAccess: (...args) => this.assertAccess(...args),
+      continueTask: (...args) => this.continueTask(...args),
+      initialize: (...args) => this.initialize(...args),
+      proposalFor: (...args) => this.proposalFor(...args),
+      sourceRefs: (...args) => this.sourceRefs(...args),
+      safePath: (...args) => this.safePath(...args),
+      validateWorkspace: (...args) => this.validateWorkspace(...args),
+      continuationParent: (...args) => this.continuationParent(...args),
+      detail: (...args) => this.detail(...args),
+      requestStatus: (...args) => this.requestStatus(...args),
+      cancel: (...args) => this.cancel(...args),
+      removePending: (...args) => this.removePending(...args),
+      finish: (...args) => this.finish(...args),
+      ready: (...args) => this.ready(...args),
+      recoverProcesses: (...args) => this.recoverProcesses(...args),
+      reportMissed: (...args) => this.reportMissed(...args),
+      run: (...args) => this.run(...args),
+      setState: (...args) => this.setState(...args),
+      conditions: (...args) => this.conditions(...args),
+      execute: (...args) => this.execute(...args),
+      feedback: (...args) => this.feedback(...args),
+      rootFor: (...args) => this.rootFor(...args),
+      settleUnknownExecution: (...args) => this.settleUnknownExecution(...args),
+      applyShell: (...args) => this.applyShell(...args),
+      applyWrite: (...args) => this.applyWrite(...args),
+      program: (...args) => this.program(...args),
+      promptMaterials: (...args) => this.promptMaterials(...args),
+      tools: (...args) => this.tools(...args),
+      processStopped: (...args) => this.processStopped(...args),
+      fileRevision: (...args) => this.fileRevision(...args),
+      stopChild: (...args) => this.stopChild(...args),
+      processNotice: (...args) => this.processNotice(...args),
+    };
+  }
 }
