@@ -7,7 +7,7 @@
 | [reports](reports/README.md) | 按日期和版本保存的脱敏报告 |
 | [historical/offline](historical/offline/README.md) | 原版本的接口与负载探针 |
 
-从仓库根目录执行 `npm run verify`。环境、定向命令、CI 和记录方式见[测试手册](../docs/testing.md)。
+从仓库根目录执行 `npm run verify`。环境、定向命令、CI 和记录方式见[测试手册](../docs/operations.md#开发验证)。
 
 ## 后续记忆回归框架
 

@@ -1,10 +1,10 @@
-# Core server push
+# 服务端推送
 
-Core sends new notifications to enabled NTFY, BARK or MACOS_NOTIFICATION targets. Delivery runs independently of the main model. `DISPATCHED` and `dispatched_at` mean the provider (or macOS notification interface) accepted the request. Client presentation and read receipts remain separate.
+Core 将新通知发送到启用的 NTFY、BARK 或 MACOS_NOTIFICATION 目标，独立于主模型运行。DISPATCHED/dispatched_at 表示渠道接口接受请求；客户端展示与已读另行上报。实现见 [push-service](../../../src/pi_secretary/src/push-service.ts)、[push-transport](../../../src/pi_secretary/src/push-transport.ts)。
 
-## Configure
+## 创建目标
 
-All routes use the existing local-owner authentication and `/api/v1` prefix. Create with `POST /push-targets`:
+使用 local-owner 认证，路径前缀 `/api/v1`。先 `POST push-targets` 创建禁用目标：
 
 ```json
 {
@@ -17,50 +17,38 @@ All routes use the existing local-owner authentication and `/api/v1` prefix. Cre
 }
 ```
 
-The accepted receipt identifies the target. Read it with `GET /push-targets/{id}`. Update with `POST /push-targets/{id}`, the same complete configuration, a new `request_id`, and `expected_revision` from the read DTO. Reusing a request with identical parameters returns its original receipt; different parameters return `REQUEST_CONFLICT`. A stale target revision returns `REVISION_CONFLICT`. The worker does not change target revision. Maximum 20 targets; disable targets that are not in use.
+回执关联 target ID，GET push-targets/{id} 读取配置。更新时 POST 同一路径，提供完整配置、新 request_id 和当前 expected_revision；最多 20 个目标，发送 worker 不改变目标 revision。
 
-Endpoints must be exact HTTP(S) origins, such as `https://ntfy.example.com` or `https://api.day.app`, without a trailing slash, path prefix, query, fragment or userinfo. Reverse-proxy path prefixes are not supported. MACOS_NOTIFICATION requires `endpoint: null`. `quiet_hours: null` disables DND; otherwise specify an IANA timezone and distinct HH:mm start/end. Cross-midnight windows and daylight-saving changes follow local civil time.
+endpoint 为精确 HTTP(S) origin，如 `https://ntfy.example.com`，无尾斜杠、路径、query、fragment 或 userinfo；MACOS_NOTIFICATION 使用 null。quiet_hours 为 null 或 IANA 时区及不同的 HH:mm 起止时间，跨午夜与夏令时按当地时间处理。远程目标使用 HTTPS，预览通过配置的服务及其下游通知渠道传输。
 
-Create disabled, install private configuration, then enable. Enabling starts a new generation at the configuration transaction sequence, excluding all older notifications. Disabling cancels pending deliveries. Re-enabling or changing kind/endpoint starts a new generation; name and quiet-hour changes retain pending deliveries. A request already in flight can still succeed after disable and is recorded as DISPATCHED; its failure is cancelled without retry.
+## 配置凭据并启用
 
-## Private configuration
-
-Secrets never enter API request bodies. A local administrator creates `push-secrets` under the Core data directory with mode 0700, and writes `<target UUID>.json` with mode 0600, owned by the Core user. Symlinks and insecure modes are rejected. Maximum file size is 8 KiB.
-
-NTFY file content:
+在 Core 数据目录创建权限 0700 的 push-secrets，写入属于 Core 用户、权限 0600 的 `<target UUID>.json`，最大 8 KiB，路径须为普通文件。凭据格式：
 
 ```json
 {"topic":"replace-with-private-topic","token":"replace-with-access-token"}
 ```
 
-The token is optional for servers that allow unauthenticated publishing. BARK content:
+以上为 NTFY，允许匿名发布的服务可省略 token；BARK 使用 `{"device_key":"replace-with-device-key"}`。也可在启动前设置 `SECRETARY_PUSH_<大写且连字符改为下划线的UUID>` 为相同 JSON，环境优先于文件。凭据不进入公开配置。
 
-```json
-{"device_key":"replace-with-device-key"}
-```
+写好凭据后启用目标。启用以配置事务水位建立新 generation，发送此后创建的通知。禁用取消待发送项；重新启用或改变 kind/endpoint 建立新 generation，修改名称或免打扰时间保留积压。进行中的请求仍记录实际结果，禁用后失败取消重试。
 
-Alternatively set `SECRETARY_PUSH_<UUID_IN_UPPERCASE_WITH_UNDERSCORES>` to the same JSON before starting Core. Environment configuration takes precedence over files. Credentials are read for every request. Rotate a file by atomically renaming a mode-0600 temporary file in the same directory; restart Core to refresh environment variables. **Disable the target before changing its topic/device key to a different destination, then enable it again.** This cancels old pending content instead of delivering it to the replacement destination.
+每次发送重新读取凭据文件；轮换采用同目录 0600 临时文件原子改名，环境凭据通过重启刷新。更换 topic/device key 的目标地址时，先禁用、改凭据，再启用，使旧积压留在原 generation。缺失、格式或权限错误返回 SECRET_UNAVAILABLE；查询保存固定错误码。
 
-Missing, malformed or unsafe credentials produce `SECRET_UNAVAILABLE`. Provider errors are fixed codes; response bodies, tokens and raw network exceptions are not saved. Endpoint/name/configuration are public owner-visible metadata, so keep keys out of these fields as well.
+## 发送与恢复
 
-Push content travels through the configured server and may travel through Apple/Google delivery infrastructure. Public ntfy/Bark services receive the message preview. Prefer a self-hosted provider where suitable. HTTP sends credentials and preview in plaintext; use HTTPS for remote services. This implementation does not enable provider-specific content encryption.
+每次发送超时 10 秒，响应最多 8 KiB，拒绝重定向，校验渠道成功响应后保存接受状态。NTFY 发送 topic/message/title 及可选 Bearer token，BARK 发送 device_key/body/title；macOS 调用本机 osascript 通知接口。
 
-Transport formats follow [ntfy JSON publishing](https://docs.ntfy.sh/publish/#publish-as-json) and [Bark POST /push](https://github.com/Finb/Bark/blob/master/docs/en-us/tutorial.md). ntfy sends topic/message/title plus optional Bearer token; Bark sends device_key/body/title. Only validated success responses count as acceptance. Redirects are rejected, responses are limited to 8 KiB, and attempts time out after 10 seconds. macOS uses the local osascript notification interface; system permissions and actual banner presentation remain OS behavior.
+初次发送后最多重试三次，退避 30 秒、2 分钟、10 分钟。中断尝试也计入四次预算；最后一次中断为 FAILED/INTERRUPTED。重启恢复通知与 dispatch，保留预算及速率记账；渠道接受后、本地结果保存前崩溃可能造成重复发送。
 
-## Delivery and recovery
+每目标每滚动分钟最多三次尝试，失败同样计数。免打扰暂停尝试；窗口结束或速率槽可用后，积压按最多 100 条合并，重试保持原批次成员。预览最多 200 个 Unicode 字符，附客户端查看提示，JSON 通知仅提取 text 字段。
 
-A notification committed before a process crash is reconciled on restart, even if its dispatch did not yet exist. Deterministic dispatch identity prevents duplicate records. Delivery is at least once: a crash after provider acceptance but before saving its result may cause a duplicate request.
+## 查询与同步
 
-Initial delivery plus three retries use delays of 30 seconds, 2 minutes and 10 minutes. The four-attempt budget includes interrupted attempts. If the fourth attempt is interrupted, FAILED/INTERRUPTED means delivery may have occurred but acceptance could not be persisted. Failed items remain queryable. Restart preserves the budget and rate accounting.
+GET push-targets 及 push-targets/{id} 返回配置；GET push-dispatches 可按 target_id、state 筛选，默认 30、最多 100，cursor 绑定筛选。详情包含通知/目标 ID、generation、批次、尝试历史、下次时间、错误码与接受时间；状态为 PENDING/SENDING/DISPATCHED/FAILED/CANCELLED。目标与发送记录进入 sync/changes 和 sync/stream，查询只读。
 
-Each target permits at most three attempts per rolling minute, including failures. DND pauses attempts; once DND ends or a rate slot opens, queued items are merged in batches of up to 100. A retry retains its original batch membership. Each outbound summary contains at most 200 Unicode characters followed by a client-view hint. JSON notices expose only their text field, never metadata. Larger backlogs use subsequent rate slots. Core must be running; `settle` does not wait for future DND/retry deadlines.
+## 当前限制
 
-## Read and synchronize
-
-- `GET /push-targets` and `/push-targets/{id}` return configuration and revision.
-- `GET /push-dispatches` supports `target_id`, `state`, `limit` (1–100, default 30), and `cursor`.
-- `GET /push-dispatches/{id}` returns notification/target IDs, generation, batch ID, attempt history, next retry, fixed error code and acceptance time.
-- Dispatch states: PENDING, SENDING, DISPATCHED, FAILED, CANCELLED. Filters bind pagination cursors.
-- `sync/changes` and `sync/stream` include push-targets and push-dispatches resource changes and list invalidations.
-
-Queries never send notifications or advance delivery. Failed dispatches can be displayed by a future frontend using this API. There is no automatic resend API for terminal failures.
+- 有界重试耗尽后的记录保留查询，尚无终态失败的重发 API。
+- macOS 实际横幅展示取决于系统权限，手机真实送达验收归随身终端 #11。
+- 免打扰和重试依赖 Core 运行，settle 不等待未来期限。

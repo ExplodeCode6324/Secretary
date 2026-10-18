@@ -4,7 +4,7 @@
 - 关联 Issue：[#8](https://github.com/ExplodeCode6324/Secretary/issues/8)
 - 文档状态：历史计划与实施记录
 
-> 实施记录：#8 已完成代码与严格验收，Master 已确认复审完成；本轮全量文档修订仍待复核。下文原计划、阶段状态和失败按当时记录保留，当前行为见 [文档索引](../README.md) 与 [API v1](../api/v1/README.md)。
+> 实施记录：#8 已完成代码与严格验收，Master 已确认复审完成；本轮全量文档修订仍待复核。下文原计划、阶段状态和失败按当时记录保留，当前行为见 [文档索引](../../README.md) 与 [API v1](../../api/v1/README.md)。
 
 日期：2026-10-10。关联：[总路线 #7](https://github.com/ExplodeCode6324/Secretary/issues/7)、[实施起点 #8](https://github.com/ExplodeCode6324/Secretary/issues/8)。
 
@@ -14,7 +14,7 @@
 
 本计划落实 Master 的规划修订授权及“领取首个 issue、写 fix 计划，授权后执行”的要求。此前规划轮只领取和编写文档；本轮获准业务实现、合同生成与隔离验证。最初实现授权不含部署、现有实例和真实模型操作；本次复审追加授权的有界真实模型验证见第 11 节。新版 TUI 暂不做，设备访问限制不变。
 
-2026-10-10 设计补充已获准纳入本计划：[客户端页面、组件与行为规范 v0.3](../native-client-design-v0.3.md)。取消固定三比一分栏，采用较小默认字号与优先占据剩余空间的对话区；本阶段落实其后端合同，实际 SwiftUI 布局和显示验收属于 #10。此前设计修订本身不等同业务实施授权；本轮按页首 Master 的明确开工授权执行。
+2026-10-10 设计补充已获准纳入本计划：[客户端页面、组件与行为规范 v0.3](../../old/native-client-design-v0.3.md)。取消固定三比一分栏，采用较小默认字号与优先占据剩余空间的对话区；本阶段落实其后端合同，实际 SwiftUI 布局和显示验收属于 #10。此前设计修订本身不等同业务实施授权；本轮按页首 Master 的明确开工授权执行。
 
 ## 1. 固定基线与问题
 
@@ -22,10 +22,10 @@
 - 计划基线：`d9168e08ed49aa444d05b1c66324afbea3cd691d`，在 `b5916f72134277c207e9a3a17c934c5af116e6fb` 上仅更新 README 路线。以上两次增量均为文档，未修改运行时。
 - v0.3 设计基线：main 的 `38daab6cbbccf9f6a85071ff5933eaa198d77de8`（页面规范与 README 索引，仅文档），已同步到计划分支；此前计划提交 `9745bd3822a4f1a235c2868c2ac56d54d16c451a` 的运行时基线未改变。
 - 工作分支：`codex/issue8-api-v1`。实施授权后重新记录完整 HEAD、远端 main、issue 正文摘要与文件哈希；若出现业务增量，先评估再更新计划。
-- 当前 [backend.ts](../../src/pi_secretary/src/backend.ts) 为 `/api/client` 构造 TerminalController，控制与查询依赖旧文本命令、临时 client ID 和输出队列；新版 API 不能沿用该层作为业务入口。
-- [scheduler.ts](../../src/pi_secretary/src/scheduler.ts) 的 `detail()` 写入留存状态；`answer()` 有局部去重但未统一通用回执，取消等入口也未统一客户端 request ID。
-- [settings.ts](../../src/pi_secretary/src/settings.ts) 的 `status()` 可通过 `draft()` 懒创建记录；save/retry/restore 等仍需补齐一致的请求绑定与对账。
-- [ui-client.ts](https://github.com/ExplodeCode6324/Secretary/blob/4c61c30d921ae927ce57f65ea5d53e45c43d37e4/src/pi_secretary/src/ui-client.ts) 发现、启动后台但返回 `any`，endpoint 与 UI 名称绑定；[app.ts](../../src/pi_secretary/src/app.ts) 已有可复用的领域生命周期。
+- 当前 [backend.ts](../../../src/pi_secretary/src/backend.ts) 为 `/api/client` 构造 TerminalController，控制与查询依赖旧文本命令、临时 client ID 和输出队列；新版 API 不能沿用该层作为业务入口。
+- [scheduler.ts](../../../src/pi_secretary/src/scheduler.ts) 的 `detail()` 写入留存状态；`answer()` 有局部去重但未统一通用回执，取消等入口也未统一客户端 request ID。
+- [settings.ts](../../../src/pi_secretary/src/settings.ts) 的 `status()` 可通过 `draft()` 懒创建记录；save/retry/restore 等仍需补齐一致的请求绑定与对账。
+- [ui-client.ts](https://github.com/ExplodeCode6324/Secretary/blob/4c61c30d921ae927ce57f65ea5d53e45c43d37e4/src/pi_secretary/src/ui-client.ts) 发现、启动后台但返回 `any`，endpoint 与 UI 名称绑定；[app.ts](../../../src/pi_secretary/src/app.ts) 已有可复用的领域生命周期。
 
 本轮已冻结改动前基线；检查摘要见本页状态，原始日志保留在本机临时目录，不提交私人运行数据。
 
@@ -190,7 +190,7 @@
 
 已实现 UI 无关 ApplicationService、API v1 路由与独立 Core 启停/附着；去除新版服务的 TerminalController 依赖及旧 HTTP/static 路由。短命令受理与首个领域变更同 journal frame 落盘，NO_CHANGES 持久化；长命令持久排队，未知中断不重发。新增显示配置、纯查询、显式 viewed、任务/执行/待请求分页、审批与决定、Settings/World、记忆恢复与摘要、产物目录和有界内容流、关联/定位和按期限失效的待处理投影。
 
-合同与切换指南在 [API v1](../api/v1/README.md)，测试责任及旧兼容断言替换说明在 [验证记录](../api/v1/verification.md)。Schema、OpenAPI 与 TS DTO 同步生成；提供 Swift Codable 合成示例。所有 revision、事件序号、World version 与字节长度均以十进制字符串投影，分页和正文游标按新版隔离。
+合同与切换指南在 [API v1](../../api/v1/README.md)，测试责任及旧兼容断言替换说明在 [验证记录](../../api/v1/verification.md)。Schema、OpenAPI 与 TS DTO 同步生成；提供 Swift Codable 合成示例。所有 revision、事件序号、World version 与字节长度均以十进制字符串投影，分页和正文游标按新版隔离。
 
 验证结果：
 
@@ -226,7 +226,7 @@ online 由独立 Astra/high 子代理使用现有配置在全新合成数据目�
 
 修复代码提交：`ee386efe953b8319f4e83a5a44e263062f55e590`。最终独立复跑：runtime 159 通过/8 跳过，API 30 通过/2 个 PG 单独执行，Issue #2–#5 181 通过/2 跳过；隔离 PG 14/14。类型、外部 DTO 消费、生成一致性、Swift 和 diff 检查通过，docs 49 项继承错误无新增。首次高并发运行的 5 个失败保留，未更改断言或时限。
 
-online 达到 12 次实际请求上限，26,647 token，SDK 目录估算 USD 0.007705772，账单不可用。主会话、首个任务、设置影响和显式重试后的整理通过；完整任务链未通过，重开后真实回忆因预算耗尽未验证。结论为 NOT PASSED / PARTIAL COVERAGE，不能写作全面验收通过。逐轮失败、模型明细、源码哈希匹配和未测边界见 [验证记录](../api/v1/verification.md)。PERRI 原始归档未能通过当前 executor 的工具物化，此次 red/green 为本机独立永久回归。
+online 达到 12 次实际请求上限，26,647 token，SDK 目录估算 USD 0.007705772，账单不可用。主会话、首个任务、设置影响和显式重试后的整理通过；完整任务链未通过，重开后真实回忆因预算耗尽未验证。结论为 NOT PASSED / PARTIAL COVERAGE，不能写作全面验收通过。逐轮失败、模型明细、源码哈希匹配和未测边界见 [验证记录](../../api/v1/verification.md)。PERRI 原始归档未能通过当前 executor 的工具物化，此次 red/green 为本机独立永久回归。
 
 ## 12. 追加验收：任务链与整理后进程重启（2026-10-10）
 
@@ -245,7 +245,7 @@ Master 已授权继续补齐 #8 验收缺口。继续使用 `codex/issue8-api-v1
 
 追加结果：任务场景 2 次真实 gpt-5.6-luna 请求，两个执行均成功且父执行关联正确、42→84；记忆场景 7 次真实 deepseek-v4.1-flash 请求（准备 6、重启后 1），整理 COMMITTED，旧进程正常退出，新 PID/Core instance 对同一 Store 的真实回忆通过原事实及语言 oracle。两场景共 16,618 token，SDK 目录估算 USD 0.005457100，账单费用不可用；各自低于 12 次/600 秒上限。没有新增生产代码改动。
 
-745 份原始证据 SHA-256 未变，初轮 12 次调用及失败继续保留。本轮类型、online 离线自检、API 30 通过/2 PG 条件跳过，docs 49 项继承错误无新增。覆盖边界及逐模型用量详见 [验证记录](../api/v1/verification.md)；最终仍等待 PERRI 独立复审与 Master 终审。
+745 份原始证据 SHA-256 未变，初轮 12 次调用及失败继续保留。本轮类型、online 离线自检、API 30 通过/2 PG 条件跳过，docs 49 项继承错误无新增。覆盖边界及逐模型用量详见 [验证记录](../../api/v1/verification.md)；最终仍等待 PERRI 独立复审与 Master 终审。
 
 ## 13. 追加验收：真实工具、API 产物与独立验算（2026-10-10）
 
@@ -265,4 +265,4 @@ Master 通过产物验收交接明确授权本轮补齐。基线为 `b4549eb2c85
 
 第二轮严格验收 PASS：7 次真实 opencode-go/gpt-5.6-luna 请求均 stopReason=toolUse，34,354 token、SDK 目录估算 USD 0.005207920、124.724 秒。一个任务的两个成功执行有正确双重父关系，真实 read/write/bash、四项成功操作、四件 API 产物、首段不可变性、API 字节算术 oracle 与下载程序独立复跑全部通过；产品 verified_by 保持 NOT_VERIFIED。首次7次调用中的限流失败及未知用量如实保留，两轮共14次请求，有usage部分57,402token/估算USD0.009083000，另1次用量和费用未知。
 
-生产64个基线文件未改，原1,114份证据及首轮339份原始文件散列不变；成功运行捕获源码与交付一致，首轮源码另存并明确仅追加节流。类型、严格离线自检、API30通过/2个PG条件跳过，docs49项既有错误无新增。详细工具/API/宿主证据和产物散列见[验证记录](../api/v1/verification.md)。等待 PERRI 独立复审与 Master 终审，保持 draft。
+生产64个基线文件未改，原1,114份证据及首轮339份原始文件散列不变；成功运行捕获源码与交付一致，首轮源码另存并明确仅追加节流。类型、严格离线自检、API30通过/2个PG条件跳过，docs49项既有错误无新增。详细工具/API/宿主证据和产物散列见[验证记录](../../api/v1/verification.md)。等待 PERRI 独立复审与 Master 终审，保持 draft。

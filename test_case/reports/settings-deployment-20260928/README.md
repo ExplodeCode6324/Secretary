@@ -2,7 +2,7 @@
 
 # World Model 现用部署验收
 
-部署开始于 2026-09-28，完成于 2026-09-29（Asia/Hong_Kong）。Master 已授权部署与效果验证，见[部署计划](../../../docs/fix/fix_20260928_world_model部署与效果验证.md)。实际项目位置为 Secretary；环境提示中的 Secretary_Simplified 已不存在。
+部署开始于 2026-09-28，完成于 2026-09-29（Asia/Hong_Kong）。Master 已授权部署与效果验证，见[部署计划](../../../docs/fix/archive/fix_20260928_world_model部署与效果验证.md)。实际项目位置为 Secretary；环境提示中的 Secretary_Simplified 已不存在。
 
 ## 结果
 
