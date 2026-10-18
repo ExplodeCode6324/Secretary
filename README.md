@@ -28,6 +28,6 @@ npm run stop
 
 ## 开发路线
 
-Core 已合入独立生命周期、可靠同步、Scope、授权与未知结果裁定、模型重试、记忆检索与原文退出、定时唤醒、主动推送、存储性能、模块拆分和提示词整理。当前 [#27](https://github.com/ExplodeCode6324/Secretary/issues/27) 收敛现行文档，总路线见 [#7](https://github.com/ExplodeCode6324/Secretary/issues/7)。
+Core 已合入独立生命周期、可靠同步、Scope、授权与未知结果裁定、模型重试、记忆检索与原文退出、定时唤醒、主动推送、存储性能、模块拆分和提示词整理。现行文档由 [#27](https://github.com/ExplodeCode6324/Secretary/issues/27) 按代码整理，总路线见 [#7](https://github.com/ExplodeCode6324/Secretary/issues/7)。
 
 SwiftUI 路线已废弃，[历史实现](src/secretary_macos/README.md)保留，新客户端技术选型由 Master 安排。[#6 设备接入](https://github.com/ExplodeCode6324/Secretary/issues/6)、[#11 随身终端](https://github.com/ExplodeCode6324/Secretary/issues/11)、[#12 EVENT 调度](https://github.com/ExplodeCode6324/Secretary/issues/12)、[#13 远程工具](https://github.com/ExplodeCode6324/Secretary/issues/13)、[#14 设备展示](https://github.com/ExplodeCode6324/Secretary/issues/14)保持冻结，待 Master 安排恢复。

@@ -42,7 +42,7 @@ flowchart LR
 
 [task-planning](../src/pi_secretary/src/task-planning.ts) 保存完整目标、约束、验收项和材料；[task-triggers](../src/pi_secretary/src/task-triggers.ts) 支持 IMMEDIATE、AT、INTERVAL。[执行器](../src/pi_secretary/src/executor-tools.ts) 提供 read、write、bash、request_decision、submit_result；等待审批或工作回答时暂停。write 默认在绑定根内放行，DIRECTORY 可设 `default_write=ask`；简单只读命令由 [shell-policy](../src/pi_secretary/src/shell-policy.ts) 解析为固定 argv，其他 shell 走授权。批准并记住在同一事务保存授权与规则，派发前重新检查规则和资源。
 
-`reuse_task_id + parent_execution_id` 在同一任务创建即时接续，parent 须为最新、已结束、仍 HOT 的执行。goal 是本轮完整目标；省略/null 的约束、验收、期限与执行器继承，显式数组替换原字段，Scope 沿用任务；接续不带 at/interval。新 Execution 固定新提案及当时工作根，旧记录保留。结果中的逐项评估由执行者提交，`verified_by=NOT_VERIFIED`；产物保存为固定 CAS 版本。执行默认 HOT 留存 48 小时，viewed 可续留，满足条件后由 [retention](../src/pi_secretary/src/retention.ts) 归档。
+`reuse_task_id + parent_execution_id` 在同一任务创建即时接续，parent 须为最新、已结束、未归档 的执行。goal 是本轮完整目标；省略/null 的约束、验收、期限与执行器继承，显式数组替换原字段，Scope 沿用任务；接续不带 at/interval。新 Execution 固定新提案及当时工作根，旧记录保留。结果中的逐项评估由执行者提交，`verified_by=NOT_VERIFIED`；产物保存为固定 CAS 版本。执行默认 HOT 留存 48 小时，viewed 可续留，满足条件后由 [retention](../src/pi_secretary/src/retention.ts) 归档。
 
 ## 记忆维护与设置
 

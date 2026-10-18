@@ -49,4 +49,10 @@ Codex 使用 Python `random.Random(20261018).sample(range(1,19),5)`，得到 3�
 
 ## 验证与复核
 
-完整 `npm run verify` 使用临时 PostgreSQL 18.6 独立集群，进行中。Hermes 同一会话开展实现复核，结果待补。原始运行日志保存在 Git 元数据目录，不提交。
+完整 `npm run verify` 使用临时 PostgreSQL 18.6 独立集群。文档冻结后的测试汇总、最终提交 SHA、Hermes 合并条件复核和 CI 结果统一追加到 [PR #55](https://github.com/ExplodeCode6324/Secretary/pull/55)。原始运行日志保存在 Git 元数据目录，不提交。
+
+## Hermes 实现复核
+
+第三轮结论为 PASS_PENDING_CI，无阻断项。以 `sha256("issue27-inv-"+N)` 排序独立抽取 14、10、1、13、6，与实现一致，文风通过。采纳修订：接续条件按 continuationParent 的非 RETIRED 判定写为“未归档”；不变量 6 补派发前规则失效测试，10 补共享路径校验器测试并明确工具接入从代码核对。新增归档 index，完整列出 33 项计划，保留原 README 正文。
+
+最终文档静态检查：docs:check 通过（234 文件、3,450 本地链接），改动相关章节锚点无错误，diff --check 通过。根 README 33 行、docs/fix 入口9行，独立于现行手册统计。

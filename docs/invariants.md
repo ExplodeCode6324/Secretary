@@ -18,7 +18,7 @@
    实现：[durableStream](../src/pi_secretary/src/transport.ts)、[transportFailure](../src/pi_secretary/src/model-retry.ts)。测试：[retry](../test_case/offline/issue19/retry.test.ts)，`saved failure diagnostics permit exactly three sends and success replay`。
 
 6. **审批绑定当前展示内容与版本。** decide 校验 expected_revision/display_hash；批准并记住将授权和限定范围的规则原子提交，派发前重新校验规则及资源。
-   实现：[Authorization.decide / dispatch / remember](../src/pi_secretary/src/authorization.ts)。测试：[API](../test_case/offline/issue8/api.test.ts)，`approval exact display/CAS`；[authorization](../test_case/offline/issue17/authorization.test.ts)，`REM-04 commit failure publishes neither approval nor remembered rule`。
+   实现：[Authorization.decide / dispatch / remember](../src/pi_secretary/src/authorization.ts)。测试：[API](../test_case/offline/issue8/api.test.ts)，`approval exact display/CAS`；[authorization](../test_case/offline/issue17/authorization.test.ts)，`REM-04 commit failure publishes neither approval nor remembered rule`、`REM-01/03/04: approve and remember is atomic, replayable, prefix constrained and disables at dispatch`。
 
 7. **未知外部效果等待核验或裁定。** RESULT_UNKNOWN 的 shell/program 不自动重放；文件写入可核验，owner 可作 APPLIED/NOT_APPLIED/PARTIAL/UNVERIFIED 裁定。效果收束与受控进程确认停止共同决定执行收束。
    实现：[Authorization.resolve](../src/pi_secretary/src/authorization.ts)、[settleUnknownExecution](../src/pi_secretary/src/execution-recovery.ts)。测试：[resolution](../test_case/offline/issue18/resolution.test.ts)，`resolution cannot release an unconfirmed process`；[shell](../test_case/offline/runtime/shell.test.ts)，`timeout preserves uncertainty and never replays partial shell effects`。
@@ -30,7 +30,7 @@
    实现：[Scopes / occupies](../src/pi_secretary/src/scopes.ts)、[execution-runner](../src/pi_secretary/src/execution-runner.ts)。测试：[scopes](../test_case/offline/issue16/scopes.test.ts)，`Execution freezes root`；[dispatch](../test_case/offline/issue16/dispatch.test.ts)，`run acquires synchronously`。
 
 10. **文件工具按绑定根校验路径。** read、write 和 submit_result 产物通过 safePath/relativePath 拒绝绝对路径、越界片段与符号链接路径；shell/program 使用本机用户权限。
-    实现：[executor-tools](../src/pi_secretary/src/executor-tools.ts)、[safePath](../src/pi_secretary/src/effects.ts)、[relativePath](../src/pi_secretary/src/scopes.ts)。测试：[workspace](../test_case/offline/issue16/workspace.test.ts)，`notes are bounded UTF-8 data, unsafe paths fail`、`approved write waits through unsafe root replacement`。
+    实现：[executor-tools](../src/pi_secretary/src/executor-tools.ts)、[safePath](../src/pi_secretary/src/effects.ts)、[relativePath](../src/pi_secretary/src/scopes.ts)。测试：[workspace](../test_case/offline/issue16/workspace.test.ts)，`notes are bounded UTF-8 data, unsafe paths fail`、`approved write waits through unsafe root replacement`；[scopes](../test_case/offline/issue16/scopes.test.ts) 的 `DIRECTORY rejects overlapping roots, data roots, symlink parents and unsafe notes` 覆盖共享校验器的越界及符号链接拒绝，工具接入由上述调用点核对。
 
 11. **命令 ID 绑定原始意图。** owner、路径和规范化 body 相同的 request_id 返回原回执，冲突提交被拒绝；短命令受理与首次领域变更同事务，长命令中断后的 UNKNOWN 保留对账状态。
     实现：[ApplicationService](../src/pi_secretary/src/application-service.ts)。测试：[API](../test_case/offline/issue8/api.test.ts)，`two clients: concurrent dedup, cross-command conflict`；[admission-boundary](../test_case/offline/issue8/admission-boundary.test.ts)。
