@@ -91,7 +91,7 @@ node --import tsx test_case/native/management-fixture.ts --ui
 
 ## 依赖
 
-PR3c 连贯 GUI、近 1 GiB 下载、投影淘汰和独立小卷磁盘满测试见 [测试说明](../../docs/testing.md#pr3c-专项复现)。普通 verify 运行小样本资源回归；真实磁盘满测试须显式提供专用卷。完整系统验收状态以 [PR3 计划](../../docs/fix/fix_20261014_issue10_PR3原生联合验收与旧入口退役.md) 为准。
+PR3c 连贯 GUI、近 1 GiB 下载、投影淘汰和独立小卷磁盘满测试见 [测试说明](../../docs/operations.md#开发验证)。普通 verify 运行小样本资源回归；真实磁盘满测试须显式提供专用卷。完整系统验收状态以 [PR3 计划](../../docs/fix/archive/fix_20261014_issue10_PR3原生联合验收与旧入口退役.md) 为准。
 
 swift-markdown **0.6.0**，传递 swift-cmark **0.9.0**（0.6.0 清单允许的解析结果，Xcode 16.4 实际构建验证）。SwiftPM 与 Xcode 两份 Package.resolved 的 pins 必须一致。Markdown 已在 PR2b 接入。许可原文在 `Licenses/`，打包 app 同时携带这些许可；不拉取远程渲染脚本。
 

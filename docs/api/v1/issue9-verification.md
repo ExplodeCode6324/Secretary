@@ -1,6 +1,6 @@
 # Issue #9：轻量同步与通知验收（2026-10-12）
 
-批准计划见 [fix 文档](../../fix/fix_20261012_issue9_轻量增量同步与通知已读.md)。基线为 `main@e342fc48`，实施分支为 `codex/issue9-plan`。旧 `39abcd47` 未合并或 cherry-pick，其历史测试不计入本批证据。
+批准计划见 [fix 文档](../../fix/archive/fix_20261012_issue9_轻量增量同步与通知已读.md)。基线为 `main@e342fc48`，实施分支为 `codex/issue9-plan`。旧 `39abcd47` 未合并或 cherry-pick，其历史测试不计入本批证据。
 
 ## 初次实施的本地结果（f9b375e）
 

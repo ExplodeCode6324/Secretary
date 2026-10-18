@@ -1,83 +1,69 @@
-# 提示词、记忆与模型预算
+# 记忆与提示词
 
-## 输入组成
+## 请求组成
 
-主会话使用 [instructions.ts](../src/pi_secretary/src/instructions.ts) 的基础说明、有效 UserInstructions、工作记忆、历史和本轮输入。Host 领取输入时保存 MainPromptSnapshot，固定说明版本、工具声明与 Scope 名单，中断轮次按原快照恢复。
+主会话的 [基础说明](../src/pi_secretary/src/instructions.ts) 按身份、Scope、任务委派、记忆、反馈与沟通分节。有效 UserInstructions 追加当前 Master 偏好，默认简体中文；Settings 接受最多 2000 个 Unicode 字符，相同内容保持版本，空内容停用自定义部分。Host 领取一批输入时保存 MainPromptSnapshot，冻结说明、工具声明和可用 Scope；恢复沿用该快照。
 
-任务 Agent 使用 [task-prompt.ts](../src/pi_secretary/src/task-prompt.ts) 的 `secretary.agent-task.v1` 包，包含本轮提案、执行材料、绑定目录及共享笔记。摘要和设置使用 [summary.ts](../src/pi_secretary/src/summary.ts) 的分段整理流程。
+[主会话工具](../src/pi_secretary/src/main-tools.ts) 分为任务（task_propose/query/control）、记忆（memory_search/read/propose_change）、唤醒（schedule_wakeup/cancel_wakeup）和沟通（MasterInteract）。工具描述保存参数及用法，系统说明描述工作规则。Scope 列表最多 64 项、8 KiB，共享笔记以最多 8 KiB 的任务材料提供。
 
-owner 通过 Settings 修改自定义说明，最多 2000 个 Unicode 字符；相同内容保持版本，空内容停用自定义部分。应用过程见[Settings 生效](settings-activation.md)。
+[执行提示词](../src/pi_secretary/src/task-prompt.ts) 使用 `secretary.agent-task.v1` 包，包含本轮完整目标、约束、验收项、材料、Scope 与恢复回执。执行器按 submit_result 提交结果；资料、共享笔记和历史输出作为任务数据传入。摘要与 Settings 使用 [summary](../src/pi_secretary/src/summary.ts)、[settings-memory](../src/pi_secretary/src/settings-memory.ts) 的固定来源整理流程。
 
-## 保存与投影
+## 工作记忆与来源
 
-CHECKPOINT 保存完整恢复上下文；MODEL_REQUEST 保存经过预算投影的请求，关联原 context、记忆版本和整理任务。发送前使用独立消息数组投影，保留 system、工具协议、当前轮次、未覆盖输入及近期窗口原文。内部记忆身份标记用于恢复识别，适配器在实际发送时移除。
+Consciousness 保存当前工作摘要、承诺和覆盖引用；MemoryExtractionJob 保存完整来源、事件身份、成功分段及补提时间。CHECKPOINT 保存恢复上下文，MODEL_REQUEST 保存预算投影后的请求，来源通过 context、事件和记忆版本关联。
 
-旧输入只有在身份唯一、完整消息进入成功摘要或 APPLIED Settings、处于当前轮次/工具协议保护区之外，并且 PostgreSQL 检索已追平时，才可退出模型请求。默认近期窗口最多 12 条，占用不超过可用输入预算的 15% 和剩余整理目标预算；整条过大时跳过并继续选择更早可容纳的原文。
+[普通维护](../src/pi_secretary/src/memory-maintenance.ts) 在累计 8 个完成轮次或首个未覆盖轮次等待 60 秒后触发，间隔至少 120 秒；任务反馈可提前触发。上下文占用达到可用输入的 60% 时在安全边界整理，80% 为强制阈值，目标为 30%。整理固定来源期间新输入继续排队，提交候选时核对记忆版本与来源。
 
-[input-projection.ts](../src/pi_secretary/src/input-projection.ts) 是普通整理、Settings 和重启共用的选择器。Consciousness 只保存一个 input_projection_ref，回执含单个冻结覆盖引用和有界窗口 ID。覆盖从真实成功来源逐事件复核；已退出原文不会因预算增大或 Settings 清除 context_compaction 而回填。宿主回执不交给模型。
+来源最多拆成 64 段，已成功候选跨重启复用。摘要成功即可提交，承诺提取独立推进；失败分段保留来源并补提，合并读取最新承诺账本。Settings 也遵循同一来源与投影规则，应用流程见[数据流](data-flow.md#记忆维护与设置)。
 
-未配置 PG 或索引不可用时暂停新增退出，承接最后回执、保护未覆盖输入；原文分片读取仍可用。无 PG 的长期对话可能 CAPACITY_BLOCKED，并说明 INPUT_EXIT_DISABLED 前置缺失。修复索引并追平后继续。摘要与承诺补提分别记录，补提失败不撤销成功摘要的退出资格，完整来源保持可读。
+[MemoryCommitment](../src/pi_secretary/src/memory.ts) 保存稳定 ID、原文、状态、来源批次和处理凭证。结果汇报类承诺由匹配 TaskResult 及其后同会话的真实 `notification.presented` 证据完成，并校验来源批次、事件顺序及 sourceEnd；一般/复合承诺由 `memory/commitments/{id}/resolve` 明确处理。旧 ExtractionRecovery 仍可读取，新提取工作使用 MemoryExtractionJob。
 
-## 历史检索工具
+## 原文退出与历史找回
 
-`memory_search` 对持久 Master 输入、最终回复、任务摘要和通知正文作字面子串检索。默认查询全部历史，可联合指定带时区的 `[from,to)`、kinds、scope_id 和 task_id；默认返回 10 条，最多 20 条，按事件时间倒序。结果含 event_id、约 200 字片段与原文偏移。未配置 PostgreSQL 返回 not_configured；未迁移、重建、故障和超时各有状态，落后结果带索引水位和 partial。
+[selectInputProjection](../src/pi_secretary/src/input-projection.ts) 统一处理普通整理、Settings 和重启后的输入选择。身份唯一、完整进入成功摘要或 APPLIED Settings、在当前轮次和工具协议保护区之外、且 PostgreSQL 检索水位追平的输入，才有退出资格。近期原文窗口默认最多 12 条，同时受可用预算的 15% 和剩余整理目标约束；整条过大时继续选择可容纳的更早原文。
 
-`memory_read source=log` 按 event_id 从 journal/CAS 读取正文，offset/length 使用 Unicode code point，默认 2000、最多 4000；依 next_offset 连续读取可恢复全文及 hash。读取不依赖 PostgreSQL。工具返回受本轮剩余预算约束，缩短时带 truncated 和后续偏移；正文索引仍完整保存。
+退出回执保存冻结覆盖引用和有界窗口 ID；已退出原文保持在 journal/CAS，预算增大或 Settings 重建沿用既有退出事实。索引不可用时承接最后回执并暂停新增退出，未覆盖输入继续保留；提取失败不撤销成功摘要的覆盖。
 
-`memory_read source=world` 支持 subject（ID、名称或别名）、predicate、cursor 和 limit；默认 20、最多 100。歧义返回候选，后续事实按游标分页。`memory_propose_change` 接收 ASSERT/CORRECT/RETRACT、subject、predicate、value 及来源事件；更正或撤回需要 target_fact_id。宿主组装内部合同，来源登记和事实变更继续经过授权。source_note 是解释，事实证据来自真实来源事件。
-
-## 工作记忆与上下文整理
-
-| 模式 | 触发与结果 |
+| 工具 | 读取方式 |
 | --- | --- |
-| WORKING_MEMORY | 累计 8 个完成轮次或首个未覆盖轮次等待 60 秒；普通维护间隔至少 120 秒。更新 Consciousness 和覆盖水位 |
-| CONTEXT_COMPACTION | 可用输入占用达到 60% 时在安全边界整理，80% 为强制阈值；目标 30%，裁剪已进入成功记忆的历史 |
+| memory_search | [PostgreSQL 字面子串检索](../src/pi_secretary/src/memory-search.ts)：Master 输入、最终回复、任务摘要、通知正文；可筛时间 `[from,to)`、kinds、scope_id、task_id，默认 10、最多 20，按事件时间倒序，返回片段与 event_id |
+| memory_read source=log | [journal/CAS 分片](../src/pi_secretary/src/main-tools.ts)：按 event_id，offset/length 使用 Unicode 码点，默认 2000、最多 4000，沿 next_offset 读取全文及 hash |
+| memory_read source=consciousness | 当前工作记忆 |
+| memory_read source=world | 按 subject（ID、名称或别名）、predicate 查询事实，歧义返回候选；默认 20、最多 100，cursor 续页 |
+| memory_propose_change | 提交 ASSERT/CORRECT/RETRACT 与来源事件；更正/撤回携带 target_fact_id，由宿主组装合同并进入授权与 Settings |
 
-已完成任务反馈可提前触发维护。固定来源整理期间，新输入继续排队；候选提交时检查记忆版本与来源事实。`POST /api/v1/session/compact` 发起显式维护；多来源历史使用完整来源整理流程。
+检索状态区分 not_configured、未迁移、重建、故障和超时；落后结果提供 partial 与水位。工具返回受本轮剩余预算约束，缩短时带 truncated 和后续偏移。World 的 source_note 是解释，证据身份来自来源事件。
 
-摘要来源最多拆成 64 段，每段每轮生成一个候选，已成功分段保存后可跨重启复用。摘要首轮输出目标 16384，后续维护轮次目标 32768，均受实际模型与配置上限约束。需要保留的内容超过输入预算时返回 CAPACITY_BLOCKED，并保存原始上下文供处理。
+## 模型与维护重试
 
-## 传输重试与维护补试
+[durableStream](../src/pi_secretary/src/transport.ts) 对一次逻辑调用最多发送三次，间隔 2 秒、10 秒，更长 Retry-After 优先。网络、超时、408/409/429/5xx 与过载错误适用重试；认证、参数、容量和取消分别结束。尝试次数、请求身份和成功响应持久保存，恢复复用已有成功响应。
 
-单次逻辑模型调用最多三次物理发送，间隔为 2 秒、10 秒；更长的 Retry-After 优先。网络、超时、408/409/429/5xx 和过载错误适用重试，认证、格式、容量和取消按具体原因结束。ModelCall 保存尝试序号、请求身份、诊断和成功响应；重启沿用已用次数，已保存成功响应直接复用。
-
-摘要或提取的首次维护失败后，按 5 分钟、30 分钟、2 小时最多补试三轮。认证、容量和来源错误等终止自动补试。session/compact 可重新安排摘要；`memory/extraction/retry` 重新安排受理时的失败提取集合。后台 tick 与普通重启保留原有次数。
-
-## 承诺与来源
-
-MemoryExtractionJob 独立保存完整来源引用、事件身份、成功分段和下次补提时间。摘要或 Settings 成功后，提取工作仍可从 journal/CAS 继续。成功提取按当前账本去重合并，已解决的承诺保持其状态。
-
-MemoryCommitment 保存稳定 ID、原文、状态、来源批次和处理凭证。结果汇报类承诺只由匹配 TaskResult 与其后的真实 `notification.presented` 完成，并保留同会话、来源批次/事件先后、sourceEnd 和任务结果匹配约束。`resolution_event_ids` 引用展示事件；GET、read、旧 SENT/receipt 或渠道发送结果不足以新增履约。已完成历史承诺保留，一般/复合承诺仍通过 `memory/commitments/{id}/resolve` 明确处理。Host 的 delivered_notifications 使用同一展示校验。read_at/发送状态或 receipt 更新不改变证据；通知内容/session/delivery_key 创建后固定。展示命令不触发维护或模型，常规维护消费证据。
-
-来源按事件、批次、会话与完整消息身份关联；同一文本在不同事件中分别记录。旧来源无法唯一映射时返回具体原因，可从记忆状态查询并人工处理。旧 ExtractionRecovery 继续支持历史读取，新工作使用 MemoryExtractionJob。
+[维护退避](../src/pi_secretary/src/model-retry.ts) 在首次摘要/提取失败后，按 5 分钟、30 分钟、2 小时最多补试三轮；认证、容量与来源错误终止自动补试。`session/compact` 可重排摘要，`memory/extraction/retry` 重排受理时的失败提取集合。`GET memory` 查询进度，`memory/summary`、`memory/commitments` 分页读取内容。
 
 ## 容量与配置
 
-[budget.ts](../src/pi_secretary/src/budget.ts) 按归一化文本/JSON 的 UTF-8 字节上界及封装开销估算输入，包括 system、工具声明、记忆、历史和工具返回。可用输入为 `U = C − O − T − S`：有效窗口减去输出、工具增长预留和安全余量；发送前检查 `I ≤ U`。这是字节上界估算，实际 token usage 随每次调用记录。
+[budget](../src/pi_secretary/src/budget.ts) 用归一化文本/JSON 的 UTF-8 字节上界与封装开销估算输入。可用输入为 `U = C − O − T − S`（窗口减输出、工具增长预留、安全余量），发送前检查 `I ≤ U`，实际 token usage 随调用记录。
 
 | 环境变量 | 默认或用途 |
 | --- | --- |
-| SECRETARY_MAIN_CONTEXT_WINDOW / SECRETARY_MAIN_INPUT_TOKENS / SECRETARY_MAIN_OUTPUT_TOKENS | 主模型服务容量上限 |
-| SECRETARY_TASK_CONTEXT_WINDOW / SECRETARY_TASK_INPUT_TOKENS / SECRETARY_TASK_OUTPUT_TOKENS | 任务模型服务容量上限 |
+| SECRETARY_MAIN_CONTEXT_WINDOW / SECRETARY_MAIN_INPUT_TOKENS / SECRETARY_MAIN_OUTPUT_TOKENS | 主模型容量上限 |
+| SECRETARY_TASK_CONTEXT_WINDOW / SECRETARY_TASK_INPUT_TOKENS / SECRETARY_TASK_OUTPUT_TOKENS | 任务模型容量上限 |
 | SECRETARY_MAX_OUTPUT_TOKENS | 4096，普通输出目标 |
-| SECRETARY_COMPACTION_OUTPUT_TOKENS | 16384，摘要首轮目标 |
-| SECRETARY_COMPACTION_RETRY_OUTPUT_TOKENS | 32768，后续摘要目标 |
-| SECRETARY_TOOL_GROWTH_RESERVE | 4096，含工具时预留 |
-| SECRETARY_CONTEXT_SAFETY_TOKENS / SECRETARY_CONTEXT_SAFETY_RATIO | 默认 max(2048, 5% × C) |
+| SECRETARY_COMPACTION_OUTPUT_TOKENS / SECRETARY_COMPACTION_RETRY_OUTPUT_TOKENS | 16384 / 32768，首轮与后续摘要目标 |
+| SECRETARY_TOOL_GROWTH_RESERVE | 4096 |
+| SECRETARY_CONTEXT_SAFETY_TOKENS / SECRETARY_CONTEXT_SAFETY_RATIO | max(2048, 5% × C) |
 | SECRETARY_COMPACTION_TARGET / SECRETARY_COMPACTION_THRESHOLD / SECRETARY_COMPACTION_FORCED_THRESHOLD | 0.30 / 0.60 / 0.80 |
-| SECRETARY_RECENT_INPUT_MAX_COUNT / SECRETARY_RECENT_INPUT_BUDGET_RATIO | 12 / 0.15；条数范围 0–100，比例 0–0.25 |
+| SECRETARY_RECENT_INPUT_MAX_COUNT / SECRETARY_RECENT_INPUT_BUDGET_RATIO | 12 / 0.15，范围 0–100 / 0–0.25 |
 | SECRETARY_MEMORY_UPDATE_TURNS / SECRETARY_MEMORY_UPDATE_SECONDS / SECRETARY_MEMORY_MIN_INTERVAL_SECONDS | 8 / 60 / 120 |
 
-这些参数纳入运行配置指纹，经 Settings 完成已有上下文切换。当前容量验证适配 openai-completions 与 openai-responses，实际 payload 在发送前再检查；task 同样检查容量，超限时保留 checkpoint。
+这些参数进入 [Settings 运行配置指纹](../src/pi_secretary/src/settings.ts)，已有上下文通过整理和重建切换。主/任务请求都检查容量，超限保存上下文并进入 CAPACITY_BLOCKED。
 
-## 查询与验证
+## 唤醒输入
 
-`GET /api/v1/memory` 提供维护与补提状态；`memory/summary`、`memory/commitments` 提供分页内容及来源。`requests/{id}` 提供维护命令的受理对账。
+[schedule_wakeup](../src/pi_secretary/src/wakeups.ts) 接受显式时区的未来时间及最多 4 KiB 说明，最多 100 个 PENDING。到期保存 producer=TIMER 的 Input，正文带原定/实际时间、late_by_ms 和说明。TIMER 在队列、重放与 Settings 重建中保持身份；摘要及提取按真实输入身份区分 Master 和 TIMER。工具恢复使用稳定回执，主会话根据当前情况决定是否通知 Master。
 
-当前离线覆盖见[测试策略](testing.md)，已有真实模型及跨进程连续性结果见带日期的 [API 验证记录](api/v1/verification.md)。
+## 当前限制
 
-## 定时唤醒来源
-
-`schedule_wakeup` 和 `cancel_wakeup` 只注册在主会话。到期生成 producer=TIMER 的持久 Input，正文标识 scheduled self-wakeup，包含原定/实际时间、迟到毫秒数及原说明。TIMER 沿用输入队列，不解除 RECOVERY_BLOCKED，也不作为新的 Master 指令或授权。原文标识随上下文重放和设置重建保留；承诺提取及摘要承诺核验排除具有真实 TIMER 输入身份的消息，Master 自己引用相同文字仍按 Master 输入处理。
-
-定时工具以稳定调用回执对账。恢复只读取原回执及不可变计时器字段：创建返回原 PENDING 结果，取消返回已提交的终态；无回执的未确认工具调用继续阻塞，不自动重做。提醒本身不需要建立执行任务；需要实际工作的后续决定仍遵循既有任务与授权规则。
+- 无 PostgreSQL 或检索未追平时暂停新增原文退出，长期对话可能达到 CAPACITY_BLOCKED。
+- 当前容量校验适配 openai-completions 与 openai-responses，实际 payload 在发送前复检。
+- 定时唤醒是单次定时器，FIRED/CANCELLED 历史尚未清理。

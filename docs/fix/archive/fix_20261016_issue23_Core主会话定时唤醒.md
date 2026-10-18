@@ -14,13 +14,13 @@
 
 | 位置 | 已核对的行为 | 本项处理 |
 | --- | --- | --- |
-| [app.ts](../../src/pi_secretary/src/app.ts) `pump` | 调用 Scheduler、反馈交付和 Host drain | 加入独立的到期定时器交付；不依赖执行 agent 完成任务 |
-| [host.ts](../../src/pi_secretary/src/host.ts) `accept` | 独立提交 Input；非 MASTER 日志统一标 SCHEDULER | 不能先调用 accept 再单独改定时器；专用交付事务，日志 actor 使用现有 HOST |
+| [app.ts](../../../src/pi_secretary/src/app.ts) `pump` | 调用 Scheduler、反馈交付和 Host drain | 加入独立的到期定时器交付；不依赖执行 agent 完成任务 |
+| [host.ts](../../../src/pi_secretary/src/host.ts) `accept` | 独立提交 Input；非 MASTER 日志统一标 SCHEDULER | 不能先调用 accept 再单独改定时器；专用交付事务，日志 actor 使用现有 HOST |
 | 同文件 `tools` | 包装工具，按稳定工具调用身份恢复结果 | 创建/取消本身也要幂等，覆盖领域提交成功、main.tool.result 尚未保存的崩溃窗口 |
-| [input-projection.ts](../../src/pi_secretary/src/input-projection.ts) `inputMessage` | payload 正文直接进入 user message；MASTER 输入另有保护规则 | TIMER 使用有来源标识的持久正文；不伪装 Master 输入，不进入 MASTER 专属保护/承诺来源 |
-| [contracts.schema.json](../../src/contracts/contracts.schema.json) | Input producer 尚无 TIMER，尚无 WakeTimer | 扩展权威 schema、记录联合及生成类型/文档 |
-| [application-service.ts](../../src/pi_secretary/src/application-service.ts) | ApiCommand 与首个领域变更同帧受理，支持无变化回执 | 取消复用短命令机制，查询纯读 |
-| [sync-service.ts](../../src/pi_secretary/src/sync-service.ts) | 各公开资源显式映射到 ChangeFeed | 将 wakeups 纳入变更资源和失效映射 |
+| [input-projection.ts](../../../src/pi_secretary/src/input-projection.ts) `inputMessage` | payload 正文直接进入 user message；MASTER 输入另有保护规则 | TIMER 使用有来源标识的持久正文；不伪装 Master 输入，不进入 MASTER 专属保护/承诺来源 |
+| [contracts.schema.json](../../../src/contracts/contracts.schema.json) | Input producer 尚无 TIMER，尚无 WakeTimer | 扩展权威 schema、记录联合及生成类型/文档 |
+| [application-service.ts](../../../src/pi_secretary/src/application-service.ts) | ApiCommand 与首个领域变更同帧受理，支持无变化回执 | 取消复用短命令机制，查询纯读 |
+| [sync-service.ts](../../../src/pi_secretary/src/sync-service.ts) | 各公开资源显式映射到 ChangeFeed | 将 wakeups 纳入变更资源和失效映射 |
 
 上述为静态核查，不是本项功能已实现或测试通过。
 

@@ -95,4 +95,4 @@ notifications.created_sequence 不超过初始 S 的条目只进入列表；历�
 - 检查审批、工作回答、未知结果和普通阅读的实际命令；后台刷新与显式 viewed 分别验证。
 - 检查记忆与 World 修改、产物重名/分页/下载、关联定位，以及离线缓存、空数据和错误恢复。
 
-详细 API 路径与字段见 [API v1](api/v1/README.md)，开发顺序见 [README](../README.md#开发路线)。
+详细 API 路径与字段见 [API v1](../api/v1/README.md)，开发顺序见 [README](../../README.md#开发路线)。

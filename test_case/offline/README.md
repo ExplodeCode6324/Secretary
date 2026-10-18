@@ -8,4 +8,4 @@ PostgreSQL 场景通过 [helpers/postgres.ts](helpers/postgres.ts) 注册，以 
 
 Node 汇总 pass/fail/skip/todo。AUD14 的 Context 字段语义 TODO 由 #24 跟踪。历史 UI 和负载探针见 [historical/offline](../historical/offline/README.md)，runtime/helpers 的旧浏览器辅助脚本按原版本使用。
 
-定向入口、数据库清理和各套件覆盖见[测试手册](../../docs/testing.md)。
+定向入口、数据库清理和各套件覆盖见[测试手册](../../docs/operations.md#开发验证)。
