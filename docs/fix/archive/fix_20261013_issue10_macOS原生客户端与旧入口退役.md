@@ -303,7 +303,7 @@ PR1 使用 `Refs #10`，不关闭 Issue；CI 必须为最终 head、fail=0、ski
 
 ## 17. PR2c 日常管理本地验收
 
-日常管理实现与本机验收已完成：31 项 Swift 测试、真实 Core HTTP／隔离 PostgreSQL World 探针、3 项管理 GUI 和原 7 项聊天／窗口 GUI 全部通过。能力迁移与使用说明见 [原生手册](../../../src/secretary_macos/README.md)，首次失败、最终日志与源码指纹见 [PR2c 证据](evidence/issue10-pr2c-20261013.txt)。最终 PR head 的三项 CI 与 Master 复核仍是独立发布门槛；本阶段不合并、不关闭 Issue #10、不删除旧入口或部署，PR3 保留完整替代联合验收。
+日常管理实现与本机验收已完成：31 项 Swift 测试、真实 Core HTTP／隔离 PostgreSQL World 探针、3 项管理 GUI 和原 7 项聊天／窗口 GUI 全部通过。能力迁移与使用说明见 [原生手册](https://github.com/ExplodeCode6324/Secretary/blob/468a9c37939bb721792f353ea4970222a0bf58f2/src/secretary_macos/README.md)，首次失败、最终日志与源码指纹见 [PR2c 证据](evidence/issue10-pr2c-20261013.txt)。最终 PR head 的三项 CI 与 Master 复核仍是独立发布门槛；本阶段不合并、不关闭 Issue #10、不删除旧入口或部署，PR3 保留完整替代联合验收。
 
 
 ### PR3b 当前交付
