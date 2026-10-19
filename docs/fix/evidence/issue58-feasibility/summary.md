@@ -17,14 +17,14 @@ Application build: `b49287eaa38ae69c70d99bcfcc9977f4dfae79a7`. Later changes str
 | Window | PASS within recorded scope | Actual drag/resize, Cmd+M hidden and menu restore, ordinary Release close/reopen; native minimum-size/zoom geometry |
 | Short physical copy | PASS | Actual drag, Cmd+C/Cmd+V preserved the first paragraph |
 | Full-document system clipboard | PARTIAL | All 468,913 content characters present including final record/10k code; native Selection reference has two extra terminal LF characters; strict comparison remains false |
-| Bidirectional 10→900 drag/copy | PASS, Master reported | Three physical repetitions each direction; no noticeable jump/stall/truncation, selection normal during streaming and prepend. No new clipboard payload/hash supplied |
+| Bidirectional 10→900 physical drag selection | PASS, Master reported | Three physical repetitions each direction; no noticeable jump/stall/truncation, selection normal during streaming and prepend. No new clipboard payload/hash supplied; clipboard remains PARTIAL |
 | Security | PASS | Ordinary Release: minimal capability/CSP, no embedded driver dependency, no main-process TCP listener; production npm audit zero |
 | CI at application commit `b49287e` | PASS | Desktop macOS, Core macOS, Core Linux, Verify; later evidence/harness commit CI recorded on PR |
 | Hermes R10/R11 | PASS | Application/measurement tooling accepted; M1 and both public evidence provenance issues closed |
 | PERRI | PASS within declared scope | B1/B2/M1 closed; ef95b2b evidence supplement accepted |
 | Master visual | Technical feasibility accepted | Animation principle correct; layout, colors and final presentation do not match the demo and are not approved as formal UI |
 
-[Native index](index.json), [minimum-window geometry](minimum-window.json), [stream selection](stream-selection.json), [final IME matrix](ime-final-matrix.json), [final IME events](ime-final-events.json), [system acceptance](system-acceptance.json), [clipboard comparison](clipboard-comparison.json), and [security](security.json) retain methods and boundaries. Physical mouse candidate-panel selection and VoiceOver are not verified. The accepted independent-click case uses a real Space candidate commit followed by a separate Send click.
+[Native index](index.json), [minimum-window geometry](minimum-window.json), [stream selection](stream-selection.json), [final IME matrix](ime-final-matrix.json), [final IME events](ime-final-events.json), [system acceptance](system-acceptance.json), [clipboard comparison](clipboard-comparison.json), and [security](security.json) retain methods and boundaries. Physical mouse candidate-panel selection and VoiceOver are not verified. Real-system Shift+Enter was not separately recorded in the 28-step matrix; only unit coverage exists, so that system path remains NOT_TESTED. The accepted independent-click case uses a real Space candidate commit followed by a separate Send click.
 
 ## Controlled resource baseline
 

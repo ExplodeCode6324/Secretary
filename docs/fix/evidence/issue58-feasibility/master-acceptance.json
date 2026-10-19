@@ -7,7 +7,7 @@
   "physical_drag": {
     "owner": "Master",
     "status": "PASS",
-    "scope": "10→900 and reverse continuous physical drag/copy, three repetitions each, per original plan",
+    "scope": "10→900 and reverse continuous physical drag selection, three repetitions each; clipboard exactness is separately reported as PARTIAL",
     "choice_verbatim": "我来完成原计划拖选验收",
     "method": "Master hands-on report, 2026-10-20",
     "actual": "Three repetitions in each direction; no noticeable jump, stall or truncation; selection retained during streaming and prepend.",
@@ -19,5 +19,6 @@
   "follow_up": {
     "latest_message_navigation": "Prefer an explicit jump-to-latest-message button; no implementation in #58.",
     "visual_alignment": "Formal UI must align layout, colors and final presentation with secretary-phase-ui-design; current spike is not the visual specification."
-  }
+  },
+  "real_system_shift_enter": "NOT_TESTED separately; unit coverage only, not included in the 28 real-system IME steps"
 }
