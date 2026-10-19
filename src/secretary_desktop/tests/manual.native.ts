@@ -13,13 +13,44 @@ describe("native manual evidence recorder", () => {
       async () => browser.execute(() => !!(window as any).study),
       { timeout: 30000 },
     );
+    await browser.execute(() => {
+      (window as any).manualEvents = [];
+      for (const type of [
+        "compositionstart",
+        "compositionend",
+        "pointerdown",
+        "pointerup",
+        "click",
+        "keydown",
+        "blur",
+      ]) {
+        document.addEventListener(
+          type,
+          (e) => {
+            const list = (window as any).manualEvents;
+            list.push({
+              type: e.type,
+              eventTime: e.timeStamp,
+              observedAt: performance.now(),
+              trusted: e.isTrusted,
+              detail: (e as UIEvent).detail,
+              key: (e as KeyboardEvent).key,
+              target: (e.target as HTMLElement)?.className,
+            });
+            if (list.length > 200) list.shift();
+          },
+          true,
+        );
+      }
+    });
     const start = Date.now();
     let previous = "";
     let sequence = 0;
     while (!existsSync(run + "/done") && Date.now() - start < 600000) {
-      const state = await browser.execute(() =>
-        (window as any).study.snapshot(),
-      );
+      const state = await browser.execute(() => ({
+        ...(window as any).study.snapshot(),
+        observedEvents: (window as any).manualEvents,
+      }));
       const encoded = JSON.stringify(state);
       if (encoded !== previous) {
         writeFileSync(

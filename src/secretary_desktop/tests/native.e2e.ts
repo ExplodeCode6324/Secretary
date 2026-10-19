@@ -228,6 +228,14 @@ describe("actual WKWebView desktop spike", () => {
       el.dispatchEvent(
         new CompositionEvent("compositionend", { bubbles: true, data: "中文" }),
       );
+    });
+    await browser.execute(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    await browser.execute(() => {
       const button = document.querySelector(".send") as HTMLButtonElement;
       button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
       button.click();
@@ -235,7 +243,7 @@ describe("actual WKWebView desktop spike", () => {
     assert.equal((await read()).sent.length, before + 1);
     assert.equal((await read()).sent.at(-1), "中文，English。");
   });
-  it("accepts an independent keyboard activation of Send after composition", async () => {
+  it("guards synthetic keyboard activation of Send after composition", async () => {
     const before = (await read()).sent.length;
     await browser.execute(() => {
       const el = document.querySelector("textarea")!;
@@ -249,9 +257,43 @@ describe("actual WKWebView desktop spike", () => {
       );
       (document.querySelector(".send") as HTMLButtonElement).focus();
     });
-    await browser.keys("Enter");
+    // The embedded driver does not produce the button's default activation.
+    // Exercise its key guard plus click explicitly; real OS Return is recorded separately.
+    await browser.execute(() => {
+      const button = document.querySelector(".send") as HTMLButtonElement;
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      button.click();
+    });
     assert.equal((await read()).sent.length, before + 1);
     assert.equal((await read()).sent.at(-1), "中文，English。");
+  });
+  it("blocks delayed pointerdown belonging to the composition-ending gesture", async () => {
+    const before = (await read()).sent.length;
+    await browser.execute(async () => {
+      const el = document.querySelector("textarea")!;
+      el.value = "zhongwen";
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+      const down = new PointerEvent("pointerdown", { bubbles: true });
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      el.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true }),
+      );
+      const button = document.querySelector(".send") as HTMLButtonElement;
+      button.dispatchEvent(down);
+      button.click();
+    });
+    assert.equal((await read()).sent.length, before);
+    assert.equal(
+      (await read()).events.at(-1).decision,
+      "composition-commit-click-blocked",
+    );
   });
   it("native zoom changes the actual CSS viewport at every target factor", async () => {
     await browser.execute(() => (window as any).study.setZoom(1));

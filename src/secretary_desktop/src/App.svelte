@@ -17,6 +17,7 @@
   let draft = $state("");
   let composing = false;
   let compositionEndedWithoutKey = false;
+  let compositionEndedAt = 0;
   let frame = $state(0);
   let reduce = $state(false);
   let systemReduce = $state(false);
@@ -71,6 +72,7 @@
       {
         t: performance.now(),
         type: e.type,
+        eventTime: e.timeStamp,
         key: k.key,
         keyCode: k.keyCode,
         isComposing: k.isComposing,
@@ -411,6 +413,7 @@
           oncompositionend={(e) => {
             composing = false;
             compositionEndedWithoutKey = true;
+            compositionEndedAt = e.timeStamp;
             draft = textarea.value;
             log(e);
           }}
@@ -430,7 +433,10 @@
             }}
             onpointerdown={(e) => {
               if (composing) e.preventDefault();
-              else compositionEndedWithoutKey = false;
+              // WebKit can dispatch mousedown after ending composition, while
+              // its native event timestamp still precedes that compositionend.
+              else if (e.timeStamp > compositionEndedAt)
+                compositionEndedWithoutKey = false;
             }}
             onclick={send}>发送 <span>↗</span></button
           >
