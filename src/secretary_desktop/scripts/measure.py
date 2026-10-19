@@ -50,7 +50,20 @@ def stop(proc):
   if awake.poll() is None:awake.terminate()
   awake.wait(timeout=10);awake=None
 
-meta={'scenario':args.scenario,'binary_sha256':hashlib.sha256(BIN.read_bytes()).hexdigest(),'platform':platform.platform(),'machine':platform.machine(),'sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip(),'build_dirty':bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],cwd=REPO,text=True).strip()),'cpu_unit':'100% = one logical CPU; cumulative CPU time delta / monotonic interval','webkit_attribution':'new WebKit PID set relative to prelaunch; candidates, not proven exclusive; shared preexisting separately listed','thermal':'NOT_MEASURED','power_assertion':'temporary caffeinate -d -i -u scoped to owned app PID; no persisted settings','window_css':'1180x820 nominal native window; content in ui snapshot','zoom':1,'screen_recording':False,'instrumentation':'NONE (external ps only)' if args.uninstrumented else 'INSTRUMENTED (1Hz IPC; streaming rAF sampler)','baseline_full_dom':args.baseline,'display_refresh_rate':'NOT_MEASURED','display_scaling':'NOT_MEASURED','low_power':subprocess.check_output(['pmset','-g','custom'],text=True).split('lowpowermode')[-1].splitlines()[0].strip() if 'lowpowermode' in subprocess.check_output(['pmset','-g','custom'],text=True) else 'NOT_AVAILABLE','power':subprocess.check_output(['pmset','-g','batt'],text=True).splitlines()[0]}
+def display_info():
+ data=json.loads(subprocess.check_output(['system_profiler','SPDisplaysDataType','-json'],text=True))
+ result=[]
+ def visit(value):
+  if isinstance(value,dict):
+   if '_spdisplays_resolution' in value or 'spdisplays_pixelresolution' in value:
+    result.append({k:v for k,v in value.items() if k in ['_spdisplays_resolution','_spdisplays_pixels','spdisplays_pixelresolution','spdisplays_main']})
+   for child in value.values():visit(child)
+  elif isinstance(value,list):
+   for child in value:visit(child)
+ visit(data)
+ return result
+
+meta={'scenario':args.scenario,'binary_sha256':hashlib.sha256(BIN.read_bytes()).hexdigest(),'platform':platform.platform(),'machine':platform.machine(),'sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip(),'build_dirty':bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],cwd=REPO,text=True).strip()),'cpu_unit':'100% = one logical CPU; cumulative CPU time delta / monotonic interval','webkit_attribution':'new WebKit PID set relative to prelaunch; candidates, not proven exclusive; shared preexisting separately listed','thermal':'NOT_MEASURED','power_assertion':'temporary caffeinate -d -i -u scoped to owned app PID; no persisted settings','window_css':'1180x820 nominal native window; content in ui snapshot','zoom':1,'screen_recording':False,'instrumentation':'NONE (external ps only)' if args.uninstrumented else 'INSTRUMENTED (1Hz IPC; streaming rAF sampler)','baseline_full_dom':args.baseline,'display_configuration':display_info(),'low_power':subprocess.check_output(['pmset','-g','custom'],text=True).split('lowpowermode')[-1].splitlines()[0].strip() if 'lowpowermode' in subprocess.check_output(['pmset','-g','custom'],text=True) else 'NOT_AVAILABLE','power':subprocess.check_output(['pmset','-g','batt'],text=True).splitlines()[0]}
 try:
  if args.scenario=='startup':
   values=[]
