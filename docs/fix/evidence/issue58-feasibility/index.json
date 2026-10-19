@@ -1,47 +1,88 @@
 {
   "status": "PASS",
-  "command": "npm run test:native",
-  "timestamp": "2026-10-19T08:01:07.803Z",
+  "command": "npm run test:native (all native cases)",
+  "environment": {
+    "platform": "darwin",
+    "arch": "arm64",
+    "os_release": "24.6.0"
+  },
+  "fixture_sha256": "38f0946a3874af1950f0f12f3974a6fdc7d7be2e6201dd57d82344361fcbd687",
+  "expected": "All named native assertions pass; real OS IME and physical clipboard remain separate manual gates",
+  "actual": [
+    "renders local native page and three displaced logical frames: passed",
+    "resets reduced motion mid-frame without shifting input hit area: passed",
+    "guards WebKit composition-order regression (synthetic, not real IME): passed",
+    "loads variable-height content, recycles nodes and preserves a retained selection: passed",
+    "does not submit preedit when an accessibility click ends composition: passed",
+    "recycles after a click and retains a keyboard-selected document: passed",
+    "sends exactly once on an independent pointer gesture after composition ended: passed",
+    "native zoom changes the actual CSS viewport at every target factor: passed"
+  ],
+  "timestamp": "2026-10-19T08:17:13.498Z",
   "build": "native-test feature; embedded WKWebView driver, not ordinary Release",
-  "binary_sha256": "8a062beaef5c331f6369ce73d161a892b93a9e00f924f66b7df7e55085bf7125",
-  "source_commit": "069b734ca9beccb2ed1a5d9756d42f7b62440611",
-  "source_dirty": true,
+  "binary_sha256": "654e2d83de495d03ef14f10b31e03127a7502248c58b5cb2ec08e7844d5e9bc7",
+  "source_commit": "9ca330d066d3f93872f532b2fe1349d240bff6de",
+  "source_dirty": false,
   "process": [
     {
-      "pid": 14351,
+      "pid": 20633,
       "binary": "secretary-desktop-spike (native-test)"
     }
   ],
   "outcomes": [
     {
       "name": "renders local native page and three displaced logical frames",
-      "state": "passed"
+      "state": "passed",
+      "started": "2026-10-19T08:17:11.945Z",
+      "ended": "2026-10-19T08:17:12.142Z"
     },
     {
       "name": "resets reduced motion mid-frame without shifting input hit area",
-      "state": "passed"
+      "state": "passed",
+      "started": "2026-10-19T08:17:12.142Z",
+      "ended": "2026-10-19T08:17:12.204Z"
     },
     {
       "name": "guards WebKit composition-order regression (synthetic, not real IME)",
-      "state": "passed"
+      "state": "passed",
+      "started": "2026-10-19T08:17:12.204Z",
+      "ended": "2026-10-19T08:17:12.260Z"
     },
     {
       "name": "loads variable-height content, recycles nodes and preserves a retained selection",
-      "state": "passed"
+      "state": "passed",
+      "started": "2026-10-19T08:17:12.260Z",
+      "ended": "2026-10-19T08:17:12.666Z"
     },
     {
       "name": "does not submit preedit when an accessibility click ends composition",
-      "state": "passed"
+      "state": "passed",
+      "started": "2026-10-19T08:17:12.666Z",
+      "ended": "2026-10-19T08:17:12.672Z"
     },
     {
-      "name": "native WebView zoom accepts all target factors",
-      "state": "passed"
+      "name": "recycles after a click and retains a keyboard-selected document",
+      "state": "passed",
+      "started": "2026-10-19T08:17:12.672Z",
+      "ended": "2026-10-19T08:17:13.089Z"
+    },
+    {
+      "name": "sends exactly once on an independent pointer gesture after composition ended",
+      "state": "passed",
+      "started": "2026-10-19T08:17:13.089Z",
+      "ended": "2026-10-19T08:17:13.096Z"
+    },
+    {
+      "name": "native zoom changes the actual CSS viewport at every target factor",
+      "state": "passed",
+      "started": "2026-10-19T08:17:13.096Z",
+      "ended": "2026-10-19T08:17:13.490Z"
     }
   ],
   "artifacts": [
     {
       "name": "final.json",
-      "sha256": "26467867dc603b6247ef591786a03bb83696de809a287e18b87dfb1334802200"
+      "sha256": "b9fe78fa106cfef5d38f5e47abafc411ab36336fc25f2934402b5fa9c1cb5afe"
     },
     {
       "name": "phase-0.json",
@@ -77,11 +118,11 @@
     },
     {
       "name": "selection.json",
-      "sha256": "65c7df1cd7a7fea5feadb2d74bee2fa30f5212de2a6ef4c3a16bd4b369d9aa1f"
+      "sha256": "6a2eb96b1f4262b3196d93ccd40de4c8e90e00805e0397a4599734cbfbd7420f"
     },
     {
       "name": "synthetic-ime.json",
-      "sha256": "e8f60146c6690432102455d227bfc07172aaf765d83cdb589e5698380baacc0b"
+      "sha256": "f349776e1686fd5e267bf44296d5f16f2fe5449c21bd91753e5a5a0e6f568718"
     }
   ]
 }

@@ -1,0 +1,105 @@
+{
+  "baseline": false,
+  "count": 9,
+  "events": [
+    {
+      "composing": false,
+      "decision": "",
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2138,
+      "type": "input",
+      "value": "中文，English。"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2138,
+      "type": "compositionstart",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2138,
+      "type": "compositionend",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "keep",
+      "isComposing": false,
+      "key": "Enter",
+      "keyCode": 229,
+      "t": 2139.0000000000005,
+      "type": "keydown",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "send",
+      "isComposing": false,
+      "key": "Enter",
+      "keyCode": 13,
+      "t": 2173,
+      "type": "keydown",
+      "value": "中文，English。"
+    }
+  ],
+  "focus": "TEXTAREA",
+  "frame": 1,
+  "metrics": {
+    "frames": {
+      "count": 0,
+      "max": null,
+      "p50": null,
+      "p95": null
+    },
+    "inputs": {
+      "count": 1,
+      "max": 10,
+      "p50": 10,
+      "p95": 10
+    },
+    "updates": {
+      "count": 0,
+      "max": null,
+      "p50": null,
+      "p95": null
+    }
+  },
+  "mounted": 7,
+  "queue": 0,
+  "reduce": false,
+  "running": false,
+  "selection": false,
+  "sent": [
+    "中文，English。"
+  ],
+  "streamLength": 0,
+  "systemReduce": false,
+  "textarea": {
+    "bottom": 726,
+    "height": 55,
+    "left": 229,
+    "right": 953,
+    "top": 671,
+    "width": 724,
+    "x": 229,
+    "y": 671
+  },
+  "transforms": [
+    -4,
+    3,
+    -1
+  ],
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "zoom": 1
+}
