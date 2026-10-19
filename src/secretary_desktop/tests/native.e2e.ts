@@ -130,7 +130,9 @@ describe("actual WKWebView desktop spike", () => {
     await browser.execute(() =>
       document
         .querySelector(".document-scroll")!
-        .dispatchEvent(new PointerEvent("pointerdown", { bubbles: true })),
+        .dispatchEvent(
+          new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+        ),
     );
     await browser.waitUntil(async () => (await read()).mounted === 1000);
     const selected = await browser.execute(() => {
@@ -237,7 +239,9 @@ describe("actual WKWebView desktop spike", () => {
     );
     await browser.execute(() => {
       const button = document.querySelector(".send") as HTMLButtonElement;
-      button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      button.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true, isPrimary: true }),
+      );
       button.click();
     });
     assert.equal((await read()).sent.length, before + 1);
@@ -278,7 +282,10 @@ describe("actual WKWebView desktop spike", () => {
       el.dispatchEvent(
         new CompositionEvent("compositionstart", { bubbles: true }),
       );
-      const down = new PointerEvent("pointerdown", { bubbles: true });
+      const down = new PointerEvent("pointerdown", {
+        bubbles: true,
+        isPrimary: true,
+      });
       await new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       );

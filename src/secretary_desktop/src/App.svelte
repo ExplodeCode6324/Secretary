@@ -439,6 +439,7 @@
                 compositionEndedWithoutKey = false;
             }}
             onpointerdown={(e) => {
+              if (e.button !== 0 || !e.isPrimary) return;
               if (composing) e.preventDefault();
               // WebKit can dispatch mousedown after ending composition, while
               // its native event timestamp still precedes that compositionend.
