@@ -164,3 +164,11 @@ PERRI B1 指出增长正文替换选区 DOM，B2 指出最小窗口叠加缩放�
 Hermes R9 CODE_PASS；PERRI 对b49287e关闭B1/B2，另指出总180秒截止可能允许不足30秒恢复却标成功（M1）。已加入独立completion contract与4项Python回归，保存完成时间、实际恢复时长并拒绝不足30秒；b492两次原始采样独立核验为30.76/30.27秒，不重写旧metadata。
 
 应用构建冻结b49287e；1fb76ab只补测试/观测字段。clean native13项通过，补了完整追赶等式、四档最小窗口zoom和长IME反馈。实机新28步IME、真实系统ReduceMotion开关恢复、最小化/恢复、拖动缩放、普通Release关闭重开已记录。系统全选复制468913字符与DOM参考仅差两个末尾LF，严格比较仍false；10→900双向物理拖选与Master视觉仍待，不能由全选替代。最终证据与性能口径见关联summary，合并仍需Master明确授权。
+
+## 2026-10-20 Master 技术验收与后续边界
+
+Master 完成第 10→900 条双向拖选各三次：无明显跳动、卡顿、截断，流式更新和前插后选区正常。此为人工交互实测反馈，未附新的复制文本/hash，不将其扩大为新的逐字复制断言。已有全文复制两处末尾 LF 差异继续披露，strict comparison 仍为 false。
+
+Master 明确认可动效技术原理并要求收尾 #58；视觉仅按技术可行性接受，布局、颜色和正式呈现后续仍须对齐 `secretary-phase-ui-design`，不得把 spike 当正式设计规范。技术选型结论为 MAC_GO（限本次技术验证范围），合并仍须单独授权。
+
+后续体验事项：发送后当前不自动跳到最新位置；Master 倾向提供“转到最新消息”按钮，先记录、不在 #58 增加实现。完整反馈见 [验收记录](evidence/issue58-feasibility/master-acceptance.json)。

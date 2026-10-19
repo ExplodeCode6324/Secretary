@@ -1,6 +1,6 @@
 # FE-00 Mac spike evidence
 
-Status: **GO_PENDING_MAC_TESTS**. The application is ready for the remaining manual acceptance; this is not MAC_GO or merge authorization. Master limited this and subsequent frontend issues to Mac. Linux desktop is NOT_TESTED and outside the gate; existing Core Linux CI is unchanged. All content is synthetic and no Core service is connected.
+Status: **MAC_GO — technical feasibility only**, following Master’s 2026-10-20 acceptance. This is not production visual approval or merge authorization. Master limited this and subsequent frontend issues to Mac. Linux desktop is NOT_TESTED and outside the gate; existing Core Linux CI is unchanged. All content is synthetic and no Core service is connected.
 
 ## Candidate and verification
 
@@ -17,12 +17,12 @@ Application build: `b49287eaa38ae69c70d99bcfcc9977f4dfae79a7`. Later changes str
 | Window | PASS within recorded scope | Actual drag/resize, Cmd+M hidden and menu restore, ordinary Release close/reopen; native minimum-size/zoom geometry |
 | Short physical copy | PASS | Actual drag, Cmd+C/Cmd+V preserved the first paragraph |
 | Full-document system clipboard | PARTIAL | All 468,913 content characters present including final record/10k code; native Selection reference has two extra terminal LF characters; strict comparison remains false |
-| Bidirectional 10→900 drag/copy | NOT_TESTED | Programmatic cross-message Range and full-document keyboard copy do not replace this gate |
+| Bidirectional 10→900 drag/copy | PASS, Master reported | Three physical repetitions each direction; no noticeable jump/stall/truncation, selection normal during streaming and prepend. No new clipboard payload/hash supplied |
 | Security | PASS | Ordinary Release: minimal capability/CSP, no embedded driver dependency, no main-process TCP listener; production npm audit zero |
 | CI at application commit `b49287e` | PASS | Desktop macOS, Core macOS, Core Linux, Verify; later evidence/harness commit CI recorded on PR |
-| Hermes R9 | CODE_PASS | No application code blocker; final evidence review follows |
-| PERRI | B1/B2 closed | M1 measurement success condition fixed below; final confirmation follows |
-| Master visual | PENDING | Actual layout, slice animation and stable input require Master's assessment |
+| Hermes R10/R11 | PASS | Application/measurement tooling accepted; M1 and both public evidence provenance issues closed |
+| PERRI | PASS within declared scope | B1/B2/M1 closed; ef95b2b evidence supplement accepted |
+| Master visual | Technical feasibility accepted | Animation principle correct; layout, colors and final presentation do not match the demo and are not approved as formal UI |
 
 [Native index](index.json), [minimum-window geometry](minimum-window.json), [stream selection](stream-selection.json), [final IME matrix](ime-final-matrix.json), [final IME events](ime-final-events.json), [system acceptance](system-acceptance.json), [clipboard comparison](clipboard-comparison.json), and [security](security.json) retain methods and boundaries. Physical mouse candidate-panel selection and VoiceOver are not verified. The accepted independent-click case uses a real Space candidate commit followed by a separate Send click.
 
@@ -57,4 +57,4 @@ The comparison supports retaining recycling as the next-stage candidate under th
 - Old fixed-90-second stream runs stopped before 1,200 updates; their tail is not recovery. M1 additionally found the total 180s cutoff could leave a short recovery after late completion. The corrected contract rejects missing/late completion and recovery <30s; [independent audit](measurements/recovery-audit.json) validates the preserved final raw runs without rewriting their original metadata.
 - Ordinary Release excludes the native driver. Development WDIO transitive advisories remain; production zero is not a claim that development tooling is advisory-free.
 
-Raw runs/logs remain under Git-ignored `.demo-data/issue58/runs/` and `.demo-data/issue58-review/`; source run IDs and hashes are retained. Master visual and the complete physical drag/copy gate remain open. Do not merge, close #58, or start #59 on this report alone.
+Raw runs/logs remain under Git-ignored `.demo-data/issue58/runs/` and `.demo-data/issue58-review/`; source run IDs and hashes are retained. Master’s [acceptance record](master-acceptance.json) closes the observed physical-drag and technical-visual gates. The two terminal LF clipboard difference remains disclosed, with strict equality false; no new exact-copy claim is made. Formal UI must align with `secretary-phase-ui-design`. Record an explicit jump-to-latest-message button as the preferred follow-up; sending currently does not automatically scroll to latest. Neither improvement is implemented in this spike. Final review/CI of this acceptance update is tracked on PR #68. Merge still requires Master’s separate authorization.
