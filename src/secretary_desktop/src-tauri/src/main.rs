@@ -1,12 +1,18 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 static READY: AtomicBool = AtomicBool::new(false);
 #[tauri::command]
-fn study_mode() -> &'static str {
-    match std::env::var("SECRETARY_STUDY_SCENARIO").as_deref() {
+fn study_mode() -> serde_json::Value {
+    let scenario = match std::env::var("SECRETARY_STUDY_SCENARIO").as_deref() {
         Ok("load") => "load",
         Ok("stream") => "stream",
+        Ok("load-baseline") => "load-baseline",
+        Ok("stream-baseline") => "stream-baseline",
         _ => "",
-    }
+    };
+    serde_json::json!({
+        "scenario": scenario,
+        "measure": std::env::var("SECRETARY_STUDY_MEASURE").as_deref() == Ok("1")
+    })
 }
 #[tauri::command]
 fn study_ready() {

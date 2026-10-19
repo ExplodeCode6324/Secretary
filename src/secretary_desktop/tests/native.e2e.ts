@@ -4,6 +4,8 @@ import { mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
+import { platform, arch, release } from "node:os";
+import { loadFixture, phaseFrames } from "../src/study";
 const output =
   process.env.STUDY_EVIDENCE_DIR ??
   resolve(
@@ -11,12 +13,23 @@ const output =
     new Date().toISOString().replaceAll(":", "-") + "-native",
   );
 const read = () => browser.execute(() => (window as any).study.snapshot());
-const outcomes: { name: string; state: string | undefined }[] = [];
+const outcomes: {
+  name: string;
+  state: string | undefined;
+  started: string;
+  ended: string;
+}[] = [];
+let started = "";
 describe("actual WKWebView desktop spike", () => {
+  beforeEach(() => {
+    started = new Date().toISOString();
+  });
   afterEach(function () {
     outcomes.push({
       name: this.currentTest!.title,
       state: this.currentTest!.state,
+      started,
+      ended: new Date().toISOString(),
     });
   });
   before(async () => {
@@ -29,6 +42,7 @@ describe("actual WKWebView desktop spike", () => {
   it("renders local native page and three displaced logical frames", async () => {
     assert.ok((await read()).ua.includes("AppleWebKit"));
     assert.ok(!(await read()).ua.includes("Chrome/"));
+    const before = (await read()).textarea;
     for (const n of [0, 1, 2, 3]) {
       await browser.execute((n) => (window as any).study.phase(n), n);
       await browser.waitUntil(async () => (await read()).frame === n);
@@ -47,6 +61,11 @@ describe("actual WKWebView desktop spike", () => {
         ),
       }));
       assert.equal(state.paths.length, 3);
+      assert.deepEqual(state.snapshot.transforms, phaseFrames[n]);
+      assert.deepEqual(state.snapshot.textarea, before);
+      assert.equal(state.clips.length, 3);
+      if (n > 0)
+        assert.ok(state.snapshot.transforms.some((x: number) => x !== 0));
       assert.equal(new Set(state.paths.map((p: any) => p.d)).size, 1);
       writeFileSync(
         output + `/phase-${n}.json`,
@@ -57,10 +76,15 @@ describe("actual WKWebView desktop spike", () => {
   });
   it("resets reduced motion mid-frame without shifting input hit area", async () => {
     const before = (await read()).textarea;
-    await browser.execute(() => {
-      (window as any).study.phase(2);
-      (window as any).study.setReduced(true);
-    });
+    await browser.execute(() => (window as any).study.phase(2));
+    await browser.waitUntil(async () => (await read()).frame === 2);
+    await browser.execute(
+      () =>
+        new Promise<void>((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+        ),
+    );
+    await browser.execute(() => (window as any).study.setReduced(true));
     await browser.waitUntil(async () => (await read()).frame === 0);
     assert.deepEqual((await read()).textarea, before);
     await browser.execute(() => (window as any).study.setReduced(false));
@@ -117,6 +141,7 @@ describe("actual WKWebView desktop spike", () => {
       const s = getSelection()!;
       s.removeAllRanges();
       s.addRange(r);
+      window.dispatchEvent(new PointerEvent("pointerup"));
       return s.toString();
     });
     assert.ok(selected.includes("line9999"));
@@ -165,9 +190,62 @@ describe("actual WKWebView desktop spike", () => {
       "composition-commit-click-blocked",
     );
   });
-  it("native WebView zoom accepts all target factors", async () => {
+  it("recycles after a click and retains a keyboard-selected document", async () => {
+    await browser.execute(() => (window as any).study.load());
+    await browser.waitUntil(async () => (await read()).count === 1000);
+    await $(".document-scroll").click();
+    await browser.waitUntil(
+      async () => !(await read()).selection && (await read()).mounted < 1000,
+    );
+    await browser.execute(() =>
+      (document.querySelector(".document-scroll") as HTMLElement).focus(),
+    );
+    await browser.keys(["Meta", "a"]);
+    await browser.waitUntil(
+      async () => (await read()).selection && (await read()).mounted === 1000,
+    );
+    const selected = await browser.execute(() => getSelection()!.toString());
+    assert.ok(selected.includes("line9999"));
+    await browser.execute(() => (window as any).study.prepend());
+    assert.equal(
+      await browser.execute(() => getSelection()!.toString()),
+      selected,
+    );
+    await browser.execute(() => getSelection()!.removeAllRanges());
+    await browser.waitUntil(
+      async () => !(await read()).selection && (await read()).mounted < 1200,
+    );
+  });
+  it("sends exactly once on an independent pointer gesture after composition ended", async () => {
+    const before = (await read()).sent.length;
+    await browser.execute(() => {
+      const el = document.querySelector("textarea")!;
+      el.value = "中文，English。";
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+      el.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true, data: "中文" }),
+      );
+      const button = document.querySelector(".send") as HTMLButtonElement;
+      button.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+      button.click();
+    });
+    assert.equal((await read()).sent.length, before + 1);
+    assert.equal((await read()).sent.at(-1), "中文，English。");
+  });
+  it("native zoom changes the actual CSS viewport at every target factor", async () => {
+    await browser.execute(() => (window as any).study.setZoom(1));
+    const width = await browser.execute(() => window.innerWidth);
     for (const z of [1, 1.25, 1.5, 2, 1]) {
       await browser.execute((z) => (window as any).study.setZoom(z), z);
+      await browser.waitUntil(
+        async () =>
+          Math.abs(
+            (await browser.execute(() => window.innerWidth)) - width / z,
+          ) <= 2,
+      );
       assert.equal((await read()).zoom, z);
     }
   });
@@ -186,7 +264,16 @@ describe("actual WKWebView desktop spike", () => {
       JSON.stringify(
         {
           status: outcomes.every((t) => t.state === "passed") ? "PASS" : "FAIL",
-          command: "npm run test:native",
+          command: "npm run test:native (all native cases)",
+          environment: {
+            platform: platform(),
+            arch: arch(),
+            os_release: release(),
+          },
+          fixture_sha256: hash(Buffer.from(JSON.stringify(loadFixture()))),
+          expected:
+            "All named native assertions pass; real OS IME and physical clipboard remain separate manual gates",
+          actual: outcomes.map((t) => `${t.name}: ${t.state}`),
           timestamp: new Date().toISOString(),
           build:
             "native-test feature; embedded WKWebView driver, not ordinary Release",

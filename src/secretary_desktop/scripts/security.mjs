@@ -52,7 +52,9 @@ try {
     ["-a", "-p", String(proc.pid), "-iTCP", "-sTCP:LISTEN", "-Fn"],
     { encoding: "utf8" },
   );
-  assert.equal(sockets.status, 1, sockets.stdout || sockets.stderr); // lsof returns 1 when no matches
+  assert.equal(sockets.status, 1, sockets.stdout || sockets.stderr);
+  assert.equal(sockets.stdout.trim(), "");
+  assert.equal(sockets.stderr.trim(), ""); // lsof returns 1 when no matches
   writeFileSync(
     out + "/security.json",
     JSON.stringify(

@@ -22,6 +22,7 @@
   let systemReduce = $state(false);
   let panel = $state(false);
   let selection = $state(false);
+  let pointerSelecting = false;
   let baseline = $state(false);
   let status = $state("准备就绪");
   let zoom = $state(1);
@@ -148,7 +149,8 @@
     intervals = [];
     updateTimes = [];
     last = 0;
-    raf = requestAnimationFrame(frameSample);
+    if (measuring || import.meta.env.VITE_NATIVE_TEST === "1")
+      raf = requestAnimationFrame(frameSample);
     streamTimer = setInterval(async () => {
       const t = performance.now();
       pending++;
@@ -258,9 +260,18 @@
     const motion = () => (systemReduce = mq.matches);
     mq.addEventListener("change", motion);
     const selectionChange = () => {
-      if (!getSelection()?.toString() && !document.querySelector(":active"))
-        selection = false;
+      const selected = getSelection();
+      const inDocument =
+        !!selected?.anchorNode && scroll.contains(selected.anchorNode);
+      selection = pointerSelecting || (inDocument && !!selected?.toString());
     };
+    const pointerEnd = () => {
+      pointerSelecting = false;
+      selectionChange();
+    };
+    window.addEventListener("pointerup", pointerEnd);
+    window.addEventListener("pointercancel", pointerEnd);
+    window.addEventListener("blur", pointerEnd);
     document.addEventListener("selectionchange", selectionChange);
     Object.assign(window, {
       study: {
@@ -280,15 +291,19 @@
     (async () => {
       let mode = "";
       try {
-        mode = await invoke<string>("study_mode");
+        const config = await invoke<{ scenario: string; measure: boolean }>(
+          "study_mode",
+        );
+        mode = config.scenario;
+        measuring = config.measure;
       } catch {}
-      measuring = mode === "load" || mode === "stream";
-      if (measuring) await load();
+      if (mode) await load();
+      baseline = mode.includes("baseline");
       await tick();
       requestAnimationFrame(() =>
         requestAnimationFrame(async () => {
           await invoke("study_ready").catch(() => {});
-          if (mode === "stream") startStream();
+          if (mode.startsWith("stream")) startStream();
         }),
       );
     })();
@@ -314,6 +329,9 @@
       clearInterval(report);
       mq.removeEventListener("change", motion);
       document.removeEventListener("selectionchange", selectionChange);
+      window.removeEventListener("pointerup", pointerEnd);
+      window.removeEventListener("pointercancel", pointerEnd);
+      window.removeEventListener("blur", pointerEnd);
     };
   });
 </script>
@@ -342,8 +360,10 @@
       class="document-scroll"
       bind:this={scroll!}
       onpointerdown={(e) => {
-        if (e.target instanceof Element && !e.target.closest("button"))
+        if (e.target instanceof Element && !e.target.closest("button")) {
+          pointerSelecting = true;
           selection = true;
+        }
       }}
       role="region"
       aria-label="文档记录"
@@ -402,6 +422,7 @@
             class="send"
             onpointerdown={(e) => {
               if (composing) e.preventDefault();
+              else compositionEndedWithoutKey = false;
             }}
             onclick={send}>发送 <span>↗</span></button
           >
