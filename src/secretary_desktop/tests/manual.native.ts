@@ -34,6 +34,10 @@ describe("native manual evidence recorder", () => {
               observedAt: performance.now(),
               trusted: e.isTrusted,
               detail: (e as UIEvent).detail,
+              button: (e as PointerEvent).button,
+              isPrimary: (e as PointerEvent).isPrimary,
+              pointerType: (e as PointerEvent).pointerType,
+              pointerId: (e as PointerEvent).pointerId,
               key: (e as KeyboardEvent).key,
               target: (e.target as HTMLElement)?.className,
             });

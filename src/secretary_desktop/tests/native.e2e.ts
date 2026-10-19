@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
 import { platform, arch, release } from "node:os";
-import { loadFixture, phaseFrames } from "../src/study";
+import { loadFixture, phaseFrames, streamChunk, render } from "../src/study";
 const output =
   process.env.STUDY_EVIDENCE_DIR ??
   resolve(
@@ -169,7 +169,7 @@ describe("actual WKWebView desktop spike", () => {
       ),
     );
   });
-  it("does not submit preedit when an accessibility click ends composition", async () => {
+  it("blocks a programmatic no-pointer click after composition (not VoiceOver)", async () => {
     const before = (await read()).sent.length;
     await browser.execute(() => {
       const el = document.querySelector("textarea")!;
@@ -208,6 +208,7 @@ describe("actual WKWebView desktop spike", () => {
     );
     const selected = await browser.execute(() => getSelection()!.toString());
     assert.ok(selected.includes("line9999"));
+    writeFileSync(output + "/full-document.txt", selected);
     await browser.execute(() => (window as any).study.prepend());
     assert.equal(
       await browser.execute(() => getSelection()!.toString()),
@@ -362,14 +363,30 @@ describe("actual WKWebView desktop spike", () => {
     await browser.execute(() => getSelection()!.removeAllRanges());
     await browser.waitUntil(async () => await browser.execute(() => document.querySelector('[data-message="99999"] .prose')!.innerHTML) !== visible);
     await browser.execute(() => (window as any).study.stopStream());
+    const count = (await read()).metrics.updates.count;
+    let expected = "## 正在整理\n\n";
+    for (let n = 1; n <= count; n++) {
+      expected += streamChunk;
+      if (n % 10 === 0) expected += "\n\n";
+      if (n === 600) expected += "\n```typescript\n";
+      if (n === 620) expected += "\n```\n";
+    }
+    assert.equal((await read()).streamLength, expected.length);
+    await browser.waitUntil(async () => await browser.execute(() => document.querySelector('[data-message="99999"] .prose')!.innerHTML) === render(expected));
     writeFileSync(output + "/stream-selection.json", JSON.stringify({method: "native programmatic Range, physical clipboard separate", selected, state: await read()}, null, 2));
   });
-  it("keeps input, navigation and feedback reachable at minimum window and 150/200 percent zoom", async () => {
+  it("keeps input, navigation and feedback reachable at minimum window and all four target zoom factors", async () => {
     await browser.execute(async () => {
       await (window as any).__TAURI__.window.getCurrentWindow().setSize(new (window as any).__TAURI__.dpi.LogicalSize(640,480));
     });
+    await browser.execute(() => {
+      const el = document.querySelector("textarea")!;
+      el.dispatchEvent(new CompositionEvent("compositionstart", {bubbles:true}));
+      el.dispatchEvent(new CompositionEvent("compositionend", {bubbles:true}));
+      (document.querySelector(".send") as HTMLButtonElement).click();
+    }); // Exercise the longer IME feedback, not only the short ready status.
     const evidence = [];
-    for (const z of [1.5, 2]) {
+    for (const z of [1, 1.25, 1.5, 2]) {
       await browser.execute((z) => (window as any).study.setZoom(z), z);
       await browser.pause(300);
       const geometry = await browser.execute(() => {
