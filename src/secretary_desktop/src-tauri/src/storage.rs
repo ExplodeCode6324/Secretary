@@ -6,12 +6,19 @@ use std::path::Path;
 use uuid::Uuid;
 pub struct Storage {
     pub db: Connection,
+    pub dir: std::path::PathBuf,
 }
 fn sql<T>(r: rusqlite::Result<T>) -> Result<T> {
     r.map_err(|_| err("STORAGE_UNAVAILABLE"))
 }
 impl Storage {
     pub fn open(dir: &Path) -> Result<Self> {
+        Self::open_mode(dir, true)
+    }
+    pub fn open_shared(dir: &Path) -> Result<Self> {
+        Self::open_mode(dir, false)
+    }
+    fn open_mode(dir: &Path, recover: bool) -> Result<Self> {
         discovery::private_dir(dir)?;
         let file = dir.join("client.sqlite");
         if !file.exists() {
@@ -53,11 +60,16 @@ PRAGMA user_version=1; COMMIT;"))?;
             }
         }
         // A stop is never replayed after process restart, even if the crash happened before send.
-        sql(db.execute(
-            "UPDATE outbox SET state='STOP_RECONFIRM' WHERE stop=1 AND receipt IS NULL",
-            [],
-        ))?;
-        Ok(Self { db })
+        if recover {
+            sql(db.execute(
+                "UPDATE outbox SET state='STOP_RECONFIRM' WHERE stop=1 AND receipt IS NULL",
+                [],
+            ))?;
+        }
+        Ok(Self {
+            db,
+            dir: dir.into(),
+        })
     }
     pub fn bind(&mut self, domain: &str, instance: &str) -> Result<()> {
         let tx = sql(self.db.transaction())?;
@@ -70,7 +82,7 @@ PRAGMA user_version=1; COMMIT;"))?;
             return Err(err("DATA_DOMAIN_CONFLICT"));
         }
         sql(tx.execute(
-            "UPDATE outbox SET state='VERIFY_ACCEPTED' WHERE state='ACCEPTED' AND domain=?",
+            "UPDATE outbox SET state='VERIFY_ACCEPTED' WHERE state IN ('ACCEPTED','COMPLETED','FAILED') AND domain=?",
             [domain],
         ))?;
         let old: Option<String> = sql(tx
@@ -180,12 +192,44 @@ PRAGMA user_version=1; COMMIT;"))?;
         Ok(id.into())
     }
     pub fn rows(&self, domain: &str) -> Result<Vec<Value>> {
-        let mut st=sql(self.db.prepare("SELECT id,query,body,state,receipt,accepted,stop,instance FROM outbox WHERE domain=? ORDER BY updated,id"))?;
+        self.select_rows(domain,"SELECT id,query,body,state,receipt,accepted,stop,instance FROM outbox WHERE domain=? ORDER BY rowid")
+    }
+    pub fn claim_delivery(&self) -> Result<Option<std::fs::File>> {
+        use std::os::fd::AsRawFd;
+        use std::os::unix::fs::OpenOptionsExt;
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .mode(0o600)
+            .custom_flags(libc::O_NOFOLLOW)
+            .open(self.dir.join("delivery.lock"))
+            .map_err(|_| err("STORAGE_UNAVAILABLE"))?;
+        let m = file.metadata().map_err(|_| err("STORAGE_UNAVAILABLE"))?;
+        if !m.is_file() || m.uid() != unsafe { libc::geteuid() } || m.mode() & 0o077 != 0 {
+            return Err(err("UNSAFE_STORAGE"));
+        }
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 {
+            if std::io::Error::last_os_error().kind() == std::io::ErrorKind::WouldBlock {
+                return Ok(None);
+            }
+            return Err(err("STORAGE_UNAVAILABLE"));
+        }
+        Ok(Some(file))
+    }
+    pub fn pending(&self, domain: &str) -> Result<Vec<Value>> {
+        self.select_rows(domain,"SELECT id,query,body,state,receipt,accepted,stop,instance FROM outbox WHERE domain=? AND stop=0 AND state IN ('PENDING','SENDING','UNCERTAIN','TRACKING','VERIFY_ACCEPTED') ORDER BY CASE WHEN state IN ('PENDING','SENDING','UNCERTAIN') THEN 0 ELSE 1 END, CASE WHEN state IN ('TRACKING','VERIFY_ACCEPTED') THEN updated ELSE 0 END,rowid LIMIT 8")
+    }
+    fn select_rows(&self, domain: &str, query: &str) -> Result<Vec<Value>> {
+        let mut st = sql(self.db.prepare(query))?;
         let values=sql(st.query_map([domain],|r|Ok(json!({"id":r.get::<_,String>(0)?,"query":r.get::<_,String>(1)?,"body":r.get::<_,String>(2)?,"state":r.get::<_,String>(3)?,"receipt":r.get::<_,Option<String>>(4)?,"accepted":r.get::<_,bool>(5)?,"stop":r.get::<_,bool>(6)?,"instance":r.get::<_,String>(7)?}))))?;
         values.map(sql).collect()
     }
     pub fn mark(&self, id: &str, state: &str, receipt: Option<&Value>) -> Result<()> {
-        sql(self.db.execute("UPDATE outbox SET state=?,receipt=coalesce(?,receipt),accepted=max(accepted,?),updated=unixepoch() WHERE id=?",params![state,receipt.map(Value::to_string),receipt.is_some(),id]))?;
+        let stored=receipt.map(|value|{
+            let text=value.to_string();
+            if text.len()<=64*1024 {text} else {json!({"request_id":id,"state":value["state"].as_str().filter(|s|s.len()<64).unwrap_or("UNKNOWN"),"details_available_via_receipt":true}).to_string()}
+        });
+        sql(self.db.execute("UPDATE outbox SET state=?,receipt=coalesce(?,receipt),accepted=max(accepted,?),updated=unixepoch() WHERE id=?",params![state,stored,receipt.is_some(),id]))?;
         Ok(())
     }
     pub fn project(
@@ -223,7 +267,7 @@ PRAGMA user_version=1; COMMIT;"))?;
                 .db
                 .execute("DELETE FROM cache WHERE domain=?", [domain]))?;
             sql(self.db.execute(
-                "UPDATE outbox SET state='VERIFY_ACCEPTED' WHERE state='ACCEPTED' AND domain=?",
+                "UPDATE outbox SET state='VERIFY_ACCEPTED' WHERE state IN ('ACCEPTED','COMPLETED','FAILED') AND domain=?",
                 [domain],
             ))?;
             sql(self
@@ -260,7 +304,7 @@ PRAGMA user_version=1; COMMIT;"))?;
             })
             .optional())?;
         Ok(
-            json!({"domain":domain,"cursor":self.cursor(domain)?,"draft":self.draft(domain,"message")?,"outbox":self.rows(domain)?,"cache":cache,"anchor":anchor}),
+            json!({"domain":domain,"cursor":self.cursor(domain)?,"draft":self.draft(domain,"message")?,"outbox":self.select_rows(domain,"SELECT id,query,substr(body,1,2048),state,receipt,accepted,stop,instance FROM outbox WHERE domain=? ORDER BY rowid DESC LIMIT 50")?,"cache":cache,"anchor":anchor}),
         )
     }
     pub fn anchor(&self, domain: &str, value: &str) -> Result<()> {
@@ -272,7 +316,7 @@ PRAGMA user_version=1; COMMIT;"))?;
     }
     pub fn cleanup(&self) -> Result<()> {
         sql(self.db.execute(
-            "DELETE FROM outbox WHERE state='ACCEPTED' AND created<unixepoch()-2592000",
+            "DELETE FROM outbox WHERE state IN ('ACCEPTED','COMPLETED','FAILED') AND created<unixepoch()-2592000",
             [],
         ))?;
         Ok(())

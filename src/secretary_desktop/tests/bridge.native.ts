@@ -2,6 +2,7 @@ import { browser, $ } from "@wdio/globals";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import {execFileSync} from "node:child_process";
 const dir = process.env.SECRETARY_DESKTOP_TEST_DATA!;
 const invoke = async (name: string, args: unknown = {}) =>
   browser.executeAsync(
@@ -37,11 +38,13 @@ describe("FE-01 real WKWebView native bridge", () => {
         (await snapshot()).draft?.text === "真实 WKWebView 原生发送 😀",
       { timeout: 15000 },
     );
-    const prior=new Set((await snapshot()).outbox.map((o:any)=>o.id));
+    const prior = new Set((await snapshot()).outbox.map((o: any) => o.id));
     await $("[data-testid=send]").click();
     await browser.waitUntil(
       async () =>
-        (await snapshot()).outbox?.some((o: any) => o.state === "ACCEPTED" && !prior.has(o.id)),
+        (await snapshot()).outbox?.some(
+          (o: any) => o.state === "ACCEPTED" && !prior.has(o.id),
+        ),
       { timeout: 20000 },
     );
     assert.equal((await snapshot()).draft.text, "");
@@ -112,11 +115,47 @@ describe("FE-01 real WKWebView native bridge", () => {
     );
   });
 });
-if (process.env.BRIDGE_DIALOG) describe('native download chooser',()=>{
- it('cancels without creating a file or changing Core',async()=>{
-  const s=await snapshot();
-  await browser.execute((domain)=>{(window as any).downloadResult=undefined;(window as any).__TAURI__.core.invoke('bridge_download',{expectedDomain:domain,id:'00000000-0000-4000-8000-000000000001'}).then((result:unknown)=>(window as any).downloadResult=result).catch((e:unknown)=>(window as any).downloadResult=String(e));},s.domain);
-  fs.writeFileSync(path.join(dir,'evidence/dialog-ready'),'ready');
-  await browser.waitUntil(async()=>await browser.execute(()=>(window as any).downloadResult)==='CANCELLED',{timeout:90000});
+describe("local persistence while Core is unresponsive",()=>{
+ it("saves the editor while the network worker waits",async()=>{
+  const endpoint=JSON.parse(fs.readFileSync(path.join(dir,"core/core-endpoint.json"),"utf8"));
+  process.kill(endpoint.pid,"SIGSTOP");
+  try {
+   await new Promise(resolve=>setTimeout(resolve,1200));
+   const started=Date.now();await $("[data-testid=draft]").setValue("Core 暂停时保存的草稿");
+   await browser.waitUntil(async()=>execFileSync("python3",["-c","import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); print(c.execute(\"SELECT text FROM drafts WHERE key='message'\").fetchone()[0])",path.join(dir,"fixture/client.sqlite")],{encoding:"utf8"}).trim()==="Core 暂停时保存的草稿",{timeout:3000,interval:100});
+   fs.writeFileSync(path.join(dir,"evidence/slow-core-draft.json"),JSON.stringify({passed:true,save_ms:Date.now()-started,core:"SIGSTOP",transport_timeout_ms:10000}));
+  }finally{process.kill(endpoint.pid,"SIGCONT");}
+  await $("[data-testid=draft]").setValue("重开后保留的草稿");await browser.waitUntil(async()=>(await snapshot()).draft.text==="重开后保留的草稿",{timeout:15000});
+ });
+});
+if (process.env.BRIDGE_DIALOG)
+  describe("native download chooser", () => {
+    it("cancels without creating a file or changing Core", async () => {
+      const s = await snapshot();
+      await browser.execute((domain) => {
+        (window as any).downloadResult = undefined;
+        (window as any).__TAURI__.core
+          .invoke("bridge_download", {
+            expectedDomain: domain,
+            id: "00000000-0000-4000-8000-000000000001",
+          })
+          .then((result: unknown) => ((window as any).downloadResult = result))
+          .catch((e: unknown) => ((window as any).downloadResult = String(e)));
+      }, s.domain);
+      fs.writeFileSync(path.join(dir, "evidence/dialog-ready"), "ready");
+      await browser.waitUntil(
+        async () =>
+          (await browser.execute(() => (window as any).downloadResult)) ===
+          "CANCELLED",
+        { timeout: 90000 },
+      );
+    });
+  });
+if(process.env.BRIDGE_STOP) describe('explicit lifecycle management',()=>{
+ it('rejects stale instance confirmation and stops only by explicit UI confirmation',async()=>{
+  const s=await snapshot();assert.equal((await invoke('bridge_stop',{expectedDomain:s.domain,expectedInstance:'stale-instance'})).failure,'INSTANCE_CHANGED');
+  await $('button=停止当前 Core…').click();await $('button=确认停止').click();
+  await browser.waitUntil(async()=>!fs.existsSync(path.join(dir,'core/core-endpoint.json')),{timeout:10000});
+  assert.equal((await snapshot()).error,'STOP_DISCONNECTED');
  });
 });

@@ -71,8 +71,14 @@ pub fn secure_read(path: &Path, limit: u64) -> Result<Vec<u8>> {
     Ok(data)
 }
 pub fn profiles(path: &Path) -> Result<Vec<Profile>> {
-    let list: Vec<Profile> =
-        serde_json::from_slice(&secure_read(path, 16384)?).map_err(|_| err("INVALID_PROFILE"))?;
+    let list: Vec<Profile> = serde_json::from_slice(&secure_read(path, 16384).map_err(|e| {
+        if e == "ENDPOINT_MISSING" {
+            err("PROFILE_CONFIG_MISSING")
+        } else {
+            e
+        }
+    })?)
+    .map_err(|_| err("INVALID_PROFILE"))?;
     if list.len() > 16 {
         return Err(err("INVALID_PROFILE"));
     }

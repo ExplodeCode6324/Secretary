@@ -1,6 +1,14 @@
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
+const allowed = new Set(
+  JSON.parse(
+    fs.readFileSync(
+      new URL("./bridge-operations.json", import.meta.url),
+      "utf8",
+    ),
+  ),
+);
 const outputs = new Map([
   [
     "src-tauri/contracts/schema.json",
@@ -11,9 +19,7 @@ const outputs = new Map([
     JSON.stringify(
       JSON.parse(
         fs.readFileSync(root + "docs/api/v1/operations.json", "utf8"),
-      ).filter(
-        (o) => !o.path.includes("/admin/") && !o.path.includes("/push-"),
-      ),
+      ).filter((o) => allowed.has(o.method + " " + o.path)),
       null,
       2,
     ) + "\n",

@@ -6,6 +6,7 @@ use tauri::Manager;
 pub struct Native(
     pub Arc<Mutex<Result<Bridge>>>,
     Arc<std::sync::atomic::AtomicBool>,
+    Arc<Mutex<Option<(std::path::PathBuf, String)>>>,
 );
 struct DownloadPermit(Arc<std::sync::atomic::AtomicBool>);
 impl Drop for DownloadPermit {
@@ -38,9 +39,16 @@ pub async fn bridge_connect(
     start: bool,
 ) -> Result<Value> {
     let s = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || with(&s, |b| b.connect(&profile, start)))
-        .await
-        .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        with(&s, |b| {
+            *s.2.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))? = None;
+            let result = b.connect(&profile, start)?;
+            *s.2.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))? = Some(b.draft_context()?);
+            Ok(result)
+        })
+    })
+    .await
+    .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
 }
 #[tauri::command]
 pub async fn bridge_draft(
@@ -51,10 +59,16 @@ pub async fn bridge_draft(
 ) -> Result<Value> {
     let s = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        with(&s, |b| {
-            domain(b, &expected_domain)?;
-            b.save_draft(version, &text)
-        })
+        let context =
+            s.2.lock()
+                .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
+                .clone()
+                .ok_or_else(|| err("DISCONNECTED"))?;
+        if context.1 != expected_domain {
+            return Err(err("DATA_DOMAIN_CONFLICT"));
+        }
+        secretary_desktop_spike::storage::Storage::open_shared(&context.0)?
+            .save_draft(&context.1, "message", version, &text)
     })
     .await
     .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
@@ -203,6 +217,7 @@ pub fn setup(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
     let state = Native(
         Arc::new(Mutex::new(Bridge::new(&root))),
         Arc::new(std::sync::atomic::AtomicBool::new(false)),
+        Arc::new(Mutex::new(None)),
     );
     app.manage(state.clone());
     std::thread::spawn(move || loop {

@@ -66,7 +66,7 @@ pub struct Parser {
 impl Parser {
     pub fn feed(&mut self, bytes: &[u8]) -> Result<Vec<Value>> {
         self.bytes.extend_from_slice(bytes);
-        if self.bytes.len() > 256 * 1024 {
+        if self.bytes.len() > 256 * 1024 + 16384 {
             return Err(err("STREAM_BACKPRESSURE"));
         }
         let mut events = Vec::new();
@@ -163,6 +163,13 @@ impl Synchronizer {
     pub fn tick(&mut self, t: &Transport, s: &mut Storage) -> Result<()> {
         let result = self.apply(t, s);
         if let Err(e) = &result {
+            if e == "CURSOR_EXPIRED" {
+                for query in &mut self.subscriptions {
+                    query.parameters.remove("cursor");
+                }
+                s.clear_cache(t.domain())?;
+                self.refresh = true;
+            }
             self.status = e.clone();
             self.stream = None;
             self.transient = Value::Null;
@@ -226,6 +233,7 @@ impl Synchronizer {
             loop {
                 match stream.receiver.try_recv() {
                     Ok(event) => {
+                        self.failures = 0;
                         if event["kind"] == "transient" {
                             self.transient = event["data"].clone();
                         }

@@ -39,6 +39,9 @@ impl Bridge {
         })
     }
     pub fn connect(&mut self, id: &str, start: bool) -> Result<Value> {
+        if self.active.as_deref() != Some(id) {
+            self.sync = Synchronizer::default();
+        }
         self.sync.reset();
         self.transport = None;
         self.storage = None;
@@ -90,6 +93,15 @@ impl Bridge {
                                 return;
                             }
                         }
+                        if self
+                            .transport
+                            .as_ref()
+                            .is_some_and(|old| old.instance() != t.instance())
+                        {
+                            for query in &mut self.sync.subscriptions {
+                                query.parameters.remove("cursor");
+                            }
+                        }
                         self.transport = Some(t);
                         self.sync.reset();
                     }
@@ -136,6 +148,11 @@ impl Bridge {
         } else {
             self.attempts = 0;
         }
+    }
+    pub fn draft_context(&self) -> Result<(PathBuf, String)> {
+        let id = self.active.as_ref().ok_or_else(|| err("DISCONNECTED"))?;
+        let t = self.transport.as_ref().ok_or_else(|| err("DISCONNECTED"))?;
+        Ok((self.root.join(id), t.domain().into()))
     }
     pub fn snapshot(&self) -> Result<Value> {
         let mut v = if let (Some(t), Some(s)) = (&self.transport, &self.storage) {
@@ -248,7 +265,7 @@ impl Bridge {
             .into(),
         );
         self.stopped = true;
-        Ok(json!({"request_id":id,"status":"STOP_REQUESTED_RECHECK"}))
+        Ok(json!({"request_id":id,"status":self.error}))
     }
     pub fn query(&self, q: &Query) -> Result<Value> {
         self.transport
@@ -270,12 +287,18 @@ impl Bridge {
             }
         }
         let t = self.transport.as_ref().ok_or_else(|| err("DISCONNECTED"))?;
+        for query in &queries {
+            t.capability(&query.operation)?;
+        }
         self.storage
             .as_ref()
             .ok_or_else(|| err("DISCONNECTED"))?
             .clear_cache(t.domain())?;
         self.sync.subscriptions = queries;
         self.sync.reset();
+        self.error = None;
+        self.attempts = 0;
+        self.retry_at = std::time::Instant::now();
         Ok(())
     }
     pub fn anchor(&self, value: &str) -> Result<()> {
@@ -287,8 +310,11 @@ impl Bridge {
     }
 }
 pub fn deliver(t: &Transport, s: &mut Storage) -> Result<()> {
+    let Some(_claim) = s.claim_delivery()? else {
+        return Ok(());
+    };
     let mut processed = 0;
-    for row in s.rows(t.domain())? {
+    for row in s.pending(t.domain())? {
         if row["stop"] == true {
             continue;
         }
@@ -318,7 +344,9 @@ pub fn deliver(t: &Transport, s: &mut Storage) -> Result<()> {
                 let mark = match state {
                     "UNKNOWN" => "UNKNOWN",
                     "QUEUED" | "RUNNING" => "TRACKING",
-                    "ACCEPTED" | "COMPLETED" | "FAILED" => "ACCEPTED",
+                    "ACCEPTED" => "ACCEPTED",
+                    "COMPLETED" => "COMPLETED",
+                    "FAILED" => "FAILED",
                     _ => "UNSUPPORTED_RECEIPT",
                 };
                 s.mark(id, mark, Some(receipt))?;
@@ -342,7 +370,9 @@ pub fn deliver(t: &Transport, s: &mut Storage) -> Result<()> {
                 let state = match receipt["state"].as_str() {
                     Some("UNKNOWN") => "UNKNOWN",
                     Some("QUEUED" | "RUNNING") => "TRACKING",
-                    Some("ACCEPTED" | "COMPLETED" | "FAILED") => "ACCEPTED",
+                    Some("ACCEPTED") => "ACCEPTED",
+                    Some("COMPLETED") => "COMPLETED",
+                    Some("FAILED") => "FAILED",
                     _ => "UNSUPPORTED_RECEIPT",
                 };
                 s.mark(id, state, Some(&receipt))?;

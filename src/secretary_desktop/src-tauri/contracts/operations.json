@@ -78,76 +78,6 @@
   },
   {
     "method": "POST",
-    "path": "/api/v1/settings/draft",
-    "request": "DraftCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/settings/apply",
-    "request": "RevisionCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/settings/applications/{id}/retry",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/settings/applications/{id}/restore-draft",
-    "request": "RevisionCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/session/compact",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/session/resume",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/memory/commitments/{id}/resolve",
-    "request": "ResolveCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/memory/extraction/retry",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/operations/{id}/verify-write",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/operations/{id}/resolve",
-    "request": "OperationResolveCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
     "path": "/api/v1/core/stop",
     "request": "EmptyCommand",
     "response": "Receipt",
@@ -876,27 +806,6 @@
     "status": 200
   },
   {
-    "method": "POST",
-    "path": "/api/v1/scopes",
-    "request": "ScopeCreateCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/scopes/{id}",
-    "request": "ScopeUpdateCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/scopes/{id}/archive",
-    "request": "RevisionCommand",
-    "response": "Receipt",
-    "status": 202
-  },
-  {
     "method": "GET",
     "path": "/api/v1/authorization-rules",
     "response": "RulePage",
@@ -1078,12 +987,5 @@
     "path": "/api/v1/wakeups/{id}",
     "response": "Wakeup",
     "status": 200
-  },
-  {
-    "method": "POST",
-    "path": "/api/v1/wakeups/{id}/cancel",
-    "request": "EmptyCommand",
-    "response": "Receipt",
-    "status": 202
   }
 ]

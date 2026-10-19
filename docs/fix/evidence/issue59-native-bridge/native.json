@@ -10,7 +10,9 @@
     "admin route rejected",
     "wrong data domain blocked",
     "native save dialog cancellation",
-    "independent Core accepts command after client exits"
+    "independent Core accepts command after client exits",
+    "draft persistence while Core SIGSTOP"
   ],
-  "synthetic_fixture": true
+  "synthetic_fixture": true,
+  "slow_core_draft_ms": 54
 }

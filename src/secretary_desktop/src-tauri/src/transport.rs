@@ -123,7 +123,7 @@ impl Transport {
         }
         let category = operation.split('/').next().unwrap_or("");
         let capability = match category {
-            "sync" => "reliable_sync",
+            "sync" | "notifications" => "reliable_sync",
             "assistant" => "assistant_profile",
             "task-requests" | "executions" => "tasks",
             "operations" | "authorization-rules" => "authorizations",

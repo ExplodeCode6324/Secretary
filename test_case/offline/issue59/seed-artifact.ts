@@ -1,7 +1,7 @@
-import { App } from "../../pi_secretary/src/app.ts";
-import { fixtureModel, fixtureStream } from "../../pi_secretary/src/model.ts";
-import { base, id } from "../../pi_secretary/src/store.ts";
-import type { Execution } from "../../pi_secretary/src/contracts.ts";
+import { App } from "../../../src/pi_secretary/src/app.ts";
+import { fixtureModel, fixtureStream } from "../../../src/pi_secretary/src/model.ts";
+import { base, id } from "../../../src/pi_secretary/src/store.ts";
+import type { Execution } from "../../../src/pi_secretary/src/contracts.ts";
 const app = await App.open(process.argv[2], {
   model: fixtureModel,
   stream: fixtureStream,

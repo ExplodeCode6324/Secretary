@@ -7,6 +7,7 @@
   let version = 0;
   let dirty = $state(false);
   let error = $state("");
+  let notice = $state("");
   let busy = $state(false);
   let saving = $state(false);
   let composing = $state(false);
@@ -83,7 +84,10 @@
       chain = Promise.resolve();
       if (pending !== null) save();
       await tick();
-      if (panel) panel.scrollTop = Number(data.anchor) || 0;
+      if (panel) {
+        if (data.anchor === "latest") tail?.scrollIntoView({ block: "end" });
+        else panel.scrollTop = Number(data.anchor) || 0;
+      }
     } catch (e) {
       displayError(e);
     } finally {
@@ -190,6 +194,7 @@
       </p>{/if}
   </section>
   {#if error}<p role="alert">{error}</p>{/if}
+  {#if notice}<p role="status">{notice}</p>{/if}
   {#if data.domain}
     <section aria-label="消息">
       <h2>最近投影</h2>
@@ -235,7 +240,7 @@
         onclick={() =>
           bridge
             .download(data.domain!, artifact)
-            .then((s) => (error = s))
+            .then((s) => (notice = s))
             .catch(displayError)}
         disabled={!artifact}>保存产物…</button
       >

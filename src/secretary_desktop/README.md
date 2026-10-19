@@ -68,11 +68,13 @@ WebView 只有具名 `bridge_*` 命令，无 Core token、通用文件、URL 或
 
 先在 core_root 执行 `npm ci`。原生 start 固定启动 fixture backend，cwd/SECRETARY_DATA/SECRETARY_MODE 显式设置；Finder 启动不依赖 shell cwd/PATH。live 配置使用 `expected_mode: "live"`，先按 Core 运行手册启动 live wrapper，再附着。关闭客户端不会停止 Core，停止须单独确认。不存在配置或权限不符会显示错误；不会猜测其它数据目录。
 
+更换 data_domain 时创建新的 profile ID 并重启客户端，旧 profile 库和未解决命令保留；不需删除旧库。
+
 每个 profile 有独立 `client.sqlite`（WAL/FULL，schema version 1）。草稿、阅读锚点、原始命令与回执均保存在原生库，token 不落盘。一次事务完成“保存 outbox + 清除对应版本草稿”；发送失败先查 receipt，同 ID 同内容重投。`ACCEPTED` 只代表受理，业务结果继续看关联投影。UNKNOWN、已受理回执丢失、认证/数据域冲突阻断自动重发。stop 绑定当前实例且不自动补发。
 
 缓存只保存最多 16 个订阅窗口，切换订阅原子清理旧投影；读取下一页的临时返回值不累计到持久缓存。每次 change 刷新当前订阅，数据和 applied cursor 同事务提交；串行刷新避免旧请求覆盖新状态。SSE 有界队列溢出断开，由同一 sync/changes 路径从持久水位追赶；transient 只在内存保留最新快照。预算：缓存 64 MiB/10,000 项，单响应 2 MiB，同步队列 512 KiB，命令 1 MiB，outbox 1,000 项/32 MiB，草稿 16 MiB，下载 256 MiB。达到意图配额保留草稿并报错；受理记录保留 30 天，未解决记录不自动删除。
 
-类型/操作表由现有 API schema 生成：`npm run contracts:generate` / `npm run contracts:check`。默认排除 admin 和 push 管理路由；扩展桥需同时扩展明确操作子集与回归。
+类型/操作表由现有 API schema 生成：`npm run contracts:generate` / `npm run contracts:check`。固定白名单见 `scripts/bridge-operations.json`，默认排除 admin/push、设置与 scope 写操作；扩展桥需同时扩展明确操作子集与回归。
 
 验证入口：
 
@@ -88,3 +90,5 @@ SECRETARY_DESKTOP_TEST_DATA=/absolute/Secretary/.demo-data/issue59-native BRIDGE
 ```
 
 Rust 集成测试启动真实 fixture Core、HTTP/SSE 和持久 Store；SIGKILL 子测试是父测试主动运行的 worker，单独标为 ignored 不表示强杀验收跳过。原生测试使用隔离 profiles；release 不识别测试配置覆盖、不包含 WDIO 插件。Linux 桌面仍为 NOT_TESTED；Core Linux CI 不变。
+
+草稿落盘使用独立 SQLite 连接，不被网络同步锁阻塞。命令列表快照最多 50 项、正文只预览 2048 字符；完整原始意图仍在数据库中。每 profile 投递文件锁由 OS 在退出/崩溃时释放。

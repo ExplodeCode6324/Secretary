@@ -265,7 +265,7 @@ fn sse_split_unicode_transient_and_bounds() {
     }
     assert_eq!(events.len(), 2);
     assert_eq!(events[0]["data"]["previews"][0], "中文😀");
-    assert!(parser.feed(&vec![b'a'; 256 * 1024 + 1]).is_err());
+    assert!(parser.feed(&vec![b'a'; 256 * 1024 + 16385]).is_err());
 }
 #[test]
 fn protocol_precision_unknown_enums_and_route_controls() {
@@ -532,7 +532,7 @@ fn real_artifact_download_integrity_and_corruption() {
     stop_core(&f);
     let output = Command::new("node")
         .args(["--import", "tsx"])
-        .arg(root().join("src/secretary_desktop/tests/seed-artifact.ts"))
+        .arg(root().join("test_case/offline/issue59/seed-artifact.ts"))
         .arg(&f.p.data_dir)
         .current_dir(root())
         .env("SECRETARY_MODE", "fixture")
@@ -639,5 +639,139 @@ fn storage_migration_permissions_and_domain_isolation() {
     assert_eq!(
         Storage::open(&dir).err().map(|e| e.to_string()).unwrap(),
         "UNSAFE_STORAGE"
+    );
+}
+#[test]
+fn notifications_capability_and_expired_page_recover() {
+    let f = Fixture::new();
+    assert!(f.t.query(&Query::new("notifications")).is_ok());
+    let mut s = f.store("client");
+    let mut sync = Synchronizer::default();
+    let mut q = Query::new("tasks");
+    q.parameters.insert("cursor".into(), json!("stale-cursor"));
+    sync.subscriptions = vec![q];
+    assert_eq!(sync.tick(&f.t, &mut s).err().unwrap(), "CURSOR_EXPIRED");
+    sync.tick(&f.t, &mut s).unwrap();
+    assert!(s.cursor(f.t.domain()).unwrap().is_some());
+}
+#[test]
+fn outbox_fifo_prioritizes_new_work_over_history() {
+    let f = Fixture::new();
+    let mut s = f.store("client");
+    for _ in 0..12 {
+        let body = json!({"request_id":uuid::Uuid::new_v4().to_string(),"text":"history"});
+        let id = s
+            .enqueue(
+                f.t.domain(),
+                f.t.instance(),
+                &Query::new("messages"),
+                &body,
+                None,
+                false,
+            )
+            .unwrap();
+        s.mark(&id, "VERIFY_ACCEPTED", Some(&json!({"state":"ACCEPTED"})))
+            .unwrap();
+    }
+    let first = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+    let second = "00000000-0000-4000-8000-000000000002";
+    for (id, text) in [(first, "first submitted"), (second, "second submitted")] {
+        s.enqueue(
+            f.t.domain(),
+            f.t.instance(),
+            &Query::new("messages"),
+            &json!({"request_id":id,"text":text}),
+            None,
+            false,
+        )
+        .unwrap();
+    }
+    s.db.execute("UPDATE outbox SET updated=1", []).unwrap();
+    let pending = s.pending(f.t.domain()).unwrap();
+    assert_eq!(pending[0]["id"], first);
+    assert_eq!(pending[1]["id"], second);
+    deliver(&f.t, &mut s).unwrap();
+    let data = f.t.query(&Query::new("timeline")).unwrap();
+    let items = data["items"].as_array().unwrap();
+    let a = items
+        .iter()
+        .position(|x| x["text"] == "first submitted")
+        .unwrap();
+    let b = items
+        .iter()
+        .position(|x| x["text"] == "second submitted")
+        .unwrap();
+    assert!(a < b);
+}
+#[test]
+fn rebuild_clears_unknown_sync_and_keeps_outbox() {
+    let f = Fixture::new();
+    let root = f.tmp.path().join("desktop");
+    discovery::private_dir(&root).unwrap();
+    let config = json!([{"id":"test","data_dir":f.p.data_dir,"expected_mode":"fixture","node_abs":f.p.node_abs,"core_root":f.p.core_root,"backend_entry":f.p.backend_entry}]);
+    let path = root.join("profiles.json");
+    fs::write(&path, config.to_string()).unwrap();
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).unwrap();
+    let mut b = Bridge::new(&root).unwrap();
+    b.connect("test", false).unwrap();
+    b.submit(
+        Query::new("messages"),
+        json!({"text":"retain through recovery"}),
+        None,
+    )
+    .unwrap();
+    b.error = Some("UNSUPPORTED_SYNC".into());
+    b.subscribe(vec![Query::new("timeline")]).unwrap();
+    b.tick();
+    assert!(b.error.is_none());
+    let s = b.snapshot().unwrap();
+    assert!(s["cursor"].is_string());
+    assert_eq!(s["outbox"].as_array().unwrap().len(), 1);
+}
+#[test]
+fn stream_boundary_and_delivery_claim() {
+    let mut parser = Parser::default();
+    let text = format!(
+        "event: transient\ndata: {{\"previews\":\"{}\"}}\n\n",
+        "x".repeat(256 * 1024 - 40)
+    );
+    assert_eq!(parser.feed(text.as_bytes()).unwrap().len(), 1);
+    let tmp = tempfile::tempdir().unwrap();
+    let a = Storage::open(&tmp.path().join("db")).unwrap();
+    let b = Storage::open_shared(&tmp.path().join("db")).unwrap();
+    let claim = a.claim_delivery().unwrap().unwrap();
+    assert!(b.claim_delivery().unwrap().is_none());
+    drop(claim);
+    assert!(b.claim_delivery().unwrap().is_some());
+}
+#[test]
+fn real_sse_survives_more_than_thirty_seconds() {
+    let f = Fixture::new();
+    let cursor = f.t.query(&Query::new("sync/cursor")).unwrap()["cursor"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let stream = secretary_desktop_spike::sync::Stream::open(f.t.clone(), cursor);
+    let first = stream
+        .receiver
+        .recv_timeout(std::time::Duration::from_secs(5))
+        .unwrap();
+    assert_eq!(first["kind"], "transient");
+    std::thread::sleep(std::time::Duration::from_secs(31));
+    assert!(matches!(
+        stream.receiver.try_recv(),
+        Err(std::sync::mpsc::TryRecvError::Empty)
+    ));
+    f.t.post(
+        &Query::new("messages"),
+        &json!({"request_id":uuid::Uuid::new_v4().to_string(),"text":"after heartbeat window"}),
+    )
+    .unwrap();
+    assert_eq!(
+        stream
+            .receiver
+            .recv_timeout(std::time::Duration::from_secs(3))
+            .unwrap()["kind"],
+        "change"
     );
 }

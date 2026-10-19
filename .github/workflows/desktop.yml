@@ -1,7 +1,7 @@
 name: Desktop study (macOS)
 on:
   pull_request:
-    paths: ['src/secretary_desktop/**', 'docs/api/v1/**', 'src/pi_secretary/src/**', '.github/workflows/desktop.yml']
+    paths: ['src/secretary_desktop/**', 'docs/api/v1/**', 'src/pi_secretary/src/**', 'test_case/offline/issue59/**', '.github/workflows/desktop.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
           persist-credentials: false
+          submodules: recursive
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
         with:
           node-version: '22'

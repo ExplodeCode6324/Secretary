@@ -1,6 +1,6 @@
 # FE-01 验证记录
 
-当前为实施中证据，最终提交和 CI 结论在完成后补齐。
+修订提交验证中；最终 CI 与 Hermes 结论在完成后补齐。
 
 ## 已执行
 
@@ -21,3 +21,19 @@
 本地使用隔离 fixture Core 和真实持久 Store/HTTP/SSE；不使用用户 live 模型或个人数据。UI 是 FE-01 通信验证入口，正式页面设计由 FE-02/后续阶段完成。Linux 桌面 NOT_TESTED；Core Linux CI 不变。全量 Core 测试及 PostgreSQL、最终 CI/复核尚在进行。
 
 重复入口见 [桌面 README](../../../../src/secretary_desktop/README.md)。原始日志存仓库外，截图和原生 fixture 位于 Git 忽略的 `.demo-data/issue59-native/`。
+
+
+## 实现 R1 复核处置
+
+- B1：投递改为 SQL 有界选择（最多 8 项），PENDING/SENDING/UNCERTAIN 优先，插入 rowid FIFO；跟踪/历史对账按最后检查时间轮转。新增同秒逆字典 ID 和历史积压回归。
+- B2：显式重建清除错误与退避，保留 outbox，再从新水位重建；新增 UNSUPPORTED_SYNC 恢复回归。
+- C1：notifications 显式映射 reliable_sync，真实 Core 回归通过；实例分页过期清游标并重建当前窗口。
+- N1：草稿保存用独立 SQLite 连接，不等待网络同步锁；版本比较与原子入队仍由 SQLite 事务保证。
+- N2/N3：投递只读取 8 行，快照最多 50 条命令、正文预览 2048 字符；SSE 首事件重置退避，帧上限含 16 KiB framing 余量。原命令完整正文仍持久保留。
+- N6/N7/N10：FAILED/COMPLETED 独立显示；操作表改为固定白名单，新增路由不自动开放；每 profile 用 OS 文件锁领取投递，进程退出自动释放，无租约状态机。
+- N5/N9/N11/N12：新域使用新 profile ID，保留旧库及未解决意图；FE-01 不提供删除域入口。缓存仅有最多 16 个活动窗口，切换窗口事务替换，超配额拒绝而不推进水位。订阅能力预检在清缓存前完成。SSE change 是唤醒/变更提示，持久事务统一经 sync/changes 校验追赶，避免并行维护两个应用路径；transient 不进入持久水位。
+- N13：latest 阅读锚点、下载成功提示、stop 返回类型/状态、配置缺失错误码已修正。
+
+本地 Core verify：616 pass / 41 数据库项目 skipped / 0 fail；随后对所有 PostgreSQL 测试文件补跑：53 pass / 0 skipped / 0 fail。首轮 macOS CI 失败于 Node seed 脚本进入浏览器 tsconfig 及未 checkout Core 子模块；seed 已移到 Core 测试目录，desktop CI 加 recursive submodules。
+
+原生 R1 修订验证：整个进程重开保留草稿、新命令按本轮新 ID 验证受理；Core SIGSTOP 后草稿实际落盘 54 ms（HTTP 超时预算 10 s）。原生保存对话框取消已由实际 macOS 面板点击和返回 CANCELLED 双重验证。

@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { Core, Receipt } from "./contracts";
+import type { Core } from "./contracts";
 export type Query = {
   operation: string;
   id?: string;
@@ -49,7 +49,10 @@ export const bridge = {
   anchor: (expectedDomain: string, value: string) =>
     invoke<void>("bridge_anchor", { expectedDomain, value }),
   stop: (expectedDomain: string, expectedInstance: string) =>
-    invoke<Receipt>("bridge_stop", { expectedDomain, expectedInstance }),
+    invoke<{ request_id: string; status: string }>("bridge_stop", {
+      expectedDomain,
+      expectedInstance,
+    }),
   download: (expectedDomain: string, id: string) =>
     invoke<string>("bridge_download", { expectedDomain, id }),
 };
