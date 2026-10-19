@@ -54,3 +54,37 @@ npm run measure -- --scenario stream --baseline
 The harness starts only its own binary and terminates only the process it created. It writes an immutable `index.json`, CPU/RSS samples and UI summaries. Startup: first launch plus ten warm launches, monotonic spawn-to-ready including marker delivery. Idle: 30 seconds settling + 60 seconds sampling. Stream: nominal 20 updates/s for 1,200 updates; wait for actual completion and queue drain, then observe 30 seconds recovery (180-second total deadline; insufficient recovery fails even if updates finish). The harness temporarily prevents sleep with caffeinate scoped to its app PID; it restores this condition on exit. Instrumented runs include 1Hz metrics IPC and streaming frame sampling; the reporting-off idle control disables both; input bookkeeping and a periodic callback remain. Full-DOM baseline retains all message markup with content-visibility; it is a separate comparison. CPU is cumulative user/kernel time difference; 100% means one logical CPU. PID identity uses launch time, with appearance/exit records; CPU deltas are discarded across identity changes. Sampler wall time and unavailable refresh/thermal fields are explicit. WebKit XPC candidates and preexisting shared processes are separate, not falsely attributed via the parent PID. RSS sums can double-count shared memory. Capture footage separately from performance sampling.
 
 See the repository `docs/fix/` plan and `docs/fix/evidence/issue58-feasibility/summary.md` for exact results and remaining gates. No Linux desktop result is claimed.
+
+## FE-01 原生 Core 桥（macOS）
+
+正常启动显示真实连接界面；`SECRETARY_STUDY=1` 保留 FE-00 合成 study，二者证据分开。
+WebView 只有具名 `bridge_*` 命令，无 Core token、通用文件、URL 或 shell IPC。
+
+在 macOS 应用数据目录 `~/Library/Application Support/dev.secretary.study/` 创建 `profiles.json`，目录 0700、文件 0600。例如（替换为你的绝对路径）：
+
+```json
+[{"id":"local-fixture","data_dir":"/absolute/private/fixture-core","expected_mode":"fixture","node_abs":"/absolute/bin/node","core_root":"/absolute/Secretary","backend_entry":"/absolute/Secretary/src/pi_secretary/src/backend.ts"}]
+```
+
+先在 core_root 执行 `npm ci`。原生 start 固定启动 fixture backend，cwd/SECRETARY_DATA/SECRETARY_MODE 显式设置；Finder 启动不依赖 shell cwd/PATH。live 配置使用 `expected_mode: "live"`，先按 Core 运行手册启动 live wrapper，再附着。关闭客户端不会停止 Core，停止须单独确认。不存在配置或权限不符会显示错误；不会猜测其它数据目录。
+
+每个 profile 有独立 `client.sqlite`（WAL/FULL，schema version 1）。草稿、阅读锚点、原始命令与回执均保存在原生库，token 不落盘。一次事务完成“保存 outbox + 清除对应版本草稿”；发送失败先查 receipt，同 ID 同内容重投。`ACCEPTED` 只代表受理，业务结果继续看关联投影。UNKNOWN、已受理回执丢失、认证/数据域冲突阻断自动重发。stop 绑定当前实例且不自动补发。
+
+缓存只保存最多 16 个订阅窗口，切换订阅原子清理旧投影；读取下一页的临时返回值不累计到持久缓存。每次 change 刷新当前订阅，数据和 applied cursor 同事务提交；串行刷新避免旧请求覆盖新状态。SSE 有界队列溢出断开，由同一 sync/changes 路径从持久水位追赶；transient 只在内存保留最新快照。预算：缓存 64 MiB/10,000 项，单响应 2 MiB，同步队列 512 KiB，命令 1 MiB，outbox 1,000 项/32 MiB，草稿 16 MiB，下载 256 MiB。达到意图配额保留草稿并报错；受理记录保留 30 天，未解决记录不自动删除。
+
+类型/操作表由现有 API schema 生成：`npm run contracts:generate` / `npm run contracts:check`。默认排除 admin 和 push 管理路由；扩展桥需同时扩展明确操作子集与回归。
+
+验证入口：
+
+```sh
+npm run contracts:check
+npm run check && npm test
+cargo fmt --manifest-path src-tauri/Cargo.toml --check
+cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+cargo test --manifest-path src-tauri/Cargo.toml -- --test-threads=1
+npm run build:native
+node scripts/bridge-fixture.mjs
+SECRETARY_DESKTOP_TEST_DATA=/absolute/Secretary/.demo-data/issue59-native BRIDGE_TEST=1 npm run test:native
+```
+
+Rust 集成测试启动真实 fixture Core、HTTP/SSE 和持久 Store；SIGKILL 子测试是父测试主动运行的 worker，单独标为 ignored 不表示强杀验收跳过。原生测试使用隔离 profiles；release 不识别测试配置覆盖、不包含 WDIO 插件。Linux 桌面仍为 NOT_TESTED；Core Linux CI 不变。

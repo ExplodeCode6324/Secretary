@@ -12,7 +12,9 @@
     "test:native": "wdio run ./wdio.conf.ts",
     "evidence": "node scripts/evidence.mjs",
     "measure": "python3 scripts/measure.py",
-    "build:native": "VITE_NATIVE_TEST=1 CARGO_TARGET_DIR=target/native-test tauri build --features native-test --config src-tauri/tauri.native-test.conf.json"
+    "build:native": "VITE_NATIVE_TEST=1 CARGO_TARGET_DIR=target/native-test tauri build --features native-test --config src-tauri/tauri.native-test.conf.json",
+    "contracts:check": "node scripts/contracts.mjs --check",
+    "contracts:generate": "node scripts/contracts.mjs"
   },
   "dependencies": {
     "@tauri-apps/api": "2.12.4",
