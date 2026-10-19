@@ -173,8 +173,5 @@
     }
   ],
   "binary_build_commit": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
-  "source_commit_meaning": "test runner checkout; application assets unchanged from binary_build_commit",
-  "raw_only_artifacts": [
-    "full-document.txt"
-  ]
+  "source_commit_meaning": "test runner checkout; application assets unchanged from binary_build_commit"
 }

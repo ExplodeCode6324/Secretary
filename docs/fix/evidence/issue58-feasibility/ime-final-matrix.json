@@ -3,7 +3,7 @@
   "binary_sha256": "19ab592acd466edc84287bf1f7452a6f5320e359b6e05e98a10a93d0bc5fd053",
   "run": "2026-10-19T09-21-34.781Z-manual-native",
   "method": "Cua OS keys and pointer operations; embedded driver observes only. Pinyin confirmed via Chinese Space commit. English/punctuation pasted after actual Chinese composition.",
-  "status": "PASS",
+  "status": "PASS_FOR_RECORDED_CASES",
   "cases": [
     {
       "case": "candidate-enter-0",
@@ -271,5 +271,13 @@
   },
   "raw_ime_sha256": "0617b3bac899015ad1b205ca8672aa44b8850eee399538d737715533cc7c7dcd",
   "real_mouse_candidate_click": "NOT_TESTED (Space candidate commit then actual independent Send click passed)",
-  "voiceover": "NOT_TESTED"
+  "voiceover": "NOT_TESTED",
+  "published_ime_sha256": "7e94e3c57f3ef6418bacef84e823489aedcaeb62ebf86e4b1381d6d06f4d7f4d",
+  "derived_from": {
+    "run": "2026-10-19T09-21-34.781Z-manual-native",
+    "raw_path": ".demo-data/issue58/runs/2026-10-19T09-21-34.781Z-manual-native/ime-complete.json",
+    "raw_sha256": "0617b3bac899015ad1b205ca8672aa44b8850eee399538d737715533cc7c7dcd",
+    "derivation": "Concatenate steps[*].events in recorded order, retaining the first occurrence of each structurally identical event (all fields). The resulting 841 events exactly equal published events; source_commit and run are provenance fields."
+  },
+  "scope": "Only the 28 recorded cases; mouse candidate-panel selection and VoiceOver remain NOT_TESTED."
 }
