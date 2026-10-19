@@ -757,11 +757,19 @@ fn real_sse_survives_more_than_thirty_seconds() {
         .recv_timeout(std::time::Duration::from_secs(5))
         .unwrap();
     assert_eq!(first["kind"], "transient");
-    std::thread::sleep(std::time::Duration::from_secs(31));
-    assert!(matches!(
-        stream.receiver.try_recv(),
-        Err(std::sync::mpsc::TryRecvError::Empty)
-    ));
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(31);
+    while std::time::Instant::now() < until {
+        match stream
+            .receiver
+            .recv_timeout(std::time::Duration::from_secs(1))
+        {
+            Ok(_) => (),
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => (),
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("live consumer stream disconnected")
+            }
+        }
+    }
     f.t.post(
         &Query::new("messages"),
         &json!({"request_id":uuid::Uuid::new_v4().to_string(),"text":"after heartbeat window"}),

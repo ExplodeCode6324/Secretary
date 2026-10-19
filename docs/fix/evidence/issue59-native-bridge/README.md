@@ -4,10 +4,10 @@
 
 ## 已执行
 
-- Rust 18 项通过；另有一个标记 ignored 的 crash_child，由父测试分别以 enqueue/post/receipt 三种阶段实际启动并 SIGKILL，不是跳过强杀验证。
+- Rust 23 项通过；另有一个标记 ignored 的 crash_child，由父测试分别以 enqueue/post/receipt 三种阶段实际启动并 SIGKILL，不是跳过强杀验证。
 - 真 Core HTTP/SSE：权限/模式、Host/Origin、过期 token、响应丢失、同 ID 去重/冲突、实例重启、Core SIGKILL、初始快照追赶、双客户端水位、备份分叉、下载完整性与损坏拒绝。
 - SQLite：原子草稿转 outbox、事务失败不推进水位、真实 SQLITE_FULL、outbox 配额保留草稿、未来迁移拒绝、数据域隔离。
-- macOS WKWebView：原生启动、UI 发送及回执、草稿保存和页面重开、JS/桥快照无 token、admin 拒绝及域冲突阻断。后续最终原生重跑与进程重开结果待补。
+- macOS WKWebView：原生启动、UI 发送及回执、草稿保存和页面重开、JS/桥快照无 token、admin 拒绝及域冲突阻断。最终原生重跑 4 项通过，包括整个进程重开、Core 暂停时保存草稿、过期实例 stop 拒绝与显式 UI 确认停止。
 - 桌面 TypeScript/Svelte 检查、现有 Node/Python 测试、Rust clippy 已通过。
 
 ## 首次失败与修复依据
@@ -18,7 +18,7 @@
 
 ## 边界
 
-本地使用隔离 fixture Core 和真实持久 Store/HTTP/SSE；不使用用户 live 模型或个人数据。UI 是 FE-01 通信验证入口，正式页面设计由 FE-02/后续阶段完成。Linux 桌面 NOT_TESTED；Core Linux CI 不变。全量 Core 测试及 PostgreSQL、最终 CI/复核尚在进行。
+本地使用隔离 fixture Core 和真实持久 Store/HTTP/SSE；不使用用户 live 模型或个人数据。UI 是 FE-01 通信验证入口，正式页面设计由 FE-02/后续阶段完成。Linux 桌面 NOT_TESTED；Core Linux CI 不变。全量 Core 与 PostgreSQL 已完成；最终 CI/复核结果追加 PR。
 
 重复入口见 [桌面 README](../../../../src/secretary_desktop/README.md)。原始日志存仓库外，截图和原生 fixture 位于 Git 忽略的 `.demo-data/issue59-native/`。
 
@@ -31,9 +31,11 @@
 - N1：草稿保存用独立 SQLite 连接，不等待网络同步锁；版本比较与原子入队仍由 SQLite 事务保证。
 - N2/N3：投递只读取 8 行，快照最多 50 条命令、正文预览 2048 字符；SSE 首事件重置退避，帧上限含 16 KiB framing 余量。原命令完整正文仍持久保留。
 - N6/N7/N10：FAILED/COMPLETED 独立显示；操作表改为固定白名单，新增路由不自动开放；每 profile 用 OS 文件锁领取投递，进程退出自动释放，无租约状态机。
-- N5/N9/N11/N12：新域使用新 profile ID，保留旧库及未解决意图；FE-01 不提供删除域入口。缓存仅有最多 16 个活动窗口，切换窗口事务替换，超配额拒绝而不推进水位。订阅能力预检在清缓存前完成。SSE change 是唤醒/变更提示，持久事务统一经 sync/changes 校验追赶，避免并行维护两个应用路径；transient 不进入持久水位。
+- N5/N9/N11/N12：新域使用新 profile ID，保留旧库及未解决意图；FE-01 不提供删除域入口。缓存仅有最多 16 个活动窗口，切换窗口事务替换，超配额拒绝而不推进水位。订阅能力预检在清缓存前完成。SSE change 经校验后消费，持久事务统一由约 1 秒周期的 sync/changes 校验追赶，避免并行维护两个应用路径；transient 不进入持久水位。
 - N13：latest 阅读锚点、下载成功提示、stop 返回类型/状态、配置缺失错误码已修正。
 
 本地 Core verify：616 pass / 41 数据库项目 skipped / 0 fail；随后对所有 PostgreSQL 测试文件补跑：53 pass / 0 skipped / 0 fail。首轮 macOS CI 失败于 Node seed 脚本进入浏览器 tsconfig 及未 checkout Core 子模块；seed 已移到 Core 测试目录，desktop CI 加 recursive submodules。
 
 原生 R1 修订验证：整个进程重开保留草稿、新命令按本轮新 ID 验证受理；Core SIGSTOP 后草稿实际落盘 54 ms（HTTP 超时预算 10 s）。原生保存对话框取消已由实际 macOS 面板点击和返回 CANCELLED 双重验证。
+
+最终补测：真实 SSE 持续消费超过 31 秒后仍收到新命令变更；首次长连接测试未消费启动期事件，错误要求队列为空，已改为持续消费并断言不断线。正式 macOS bundle 构建通过（18.21 MiB）。原生显式 stop 验证 4 项通过，隔离 Core 已由 UI 确认停止。
