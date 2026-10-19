@@ -107,8 +107,10 @@
   function keydown(e: KeyboardEvent) {
     // A candidate-confirmation key or a new independent key establishes the
     // explicit keyboard action; 229/isComposing still prevent candidate sends.
-    compositionEndedWithoutKey = false;
-    const yes = shouldSend(e, composing);
+    const newGesture = e.timeStamp > compositionEndedAt;
+    if (newGesture) compositionEndedWithoutKey = false;
+    const yes =
+      shouldSend(e, composing) && (!compositionEndedWithoutKey || newGesture);
     log(e, yes ? "send" : "keep");
     if (yes) {
       e.preventDefault();
@@ -216,6 +218,8 @@
   function snapshot() {
     return {
       ua: navigator.userAgent,
+      visibility: document.visibilityState,
+      focused: document.hasFocus(),
       frame,
       transforms: phaseFrames[frame],
       sent: [...sent],
@@ -316,6 +320,8 @@
           metrics: snapshot().metrics,
           running,
           queue: pending,
+          visibility: document.visibilityState,
+          focused: document.hasFocus(),
           textarea: textarea?.getBoundingClientRect().toJSON(),
           zoom,
           streamLength: stream.length,
@@ -427,6 +433,7 @@
               if (
                 !composing &&
                 !e.isComposing &&
+                e.timeStamp > compositionEndedAt &&
                 (e.key === "Enter" || e.key === " ")
               )
                 compositionEndedWithoutKey = false;

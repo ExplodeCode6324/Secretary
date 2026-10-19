@@ -295,6 +295,31 @@ describe("actual WKWebView desktop spike", () => {
       "composition-commit-click-blocked",
     );
   });
+  it("blocks a delayed confirmation Enter even when keyCode is 13", async () => {
+    const before = (await read()).sent.length;
+    await browser.execute(async () => {
+      const el = document.querySelector("textarea")!;
+      el.value = "中文";
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+      const enter = new KeyboardEvent("keydown", {
+        key: "Enter",
+        keyCode: 13,
+        bubbles: true,
+        cancelable: true,
+      });
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+      el.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true }),
+      );
+      el.dispatchEvent(enter);
+    });
+    assert.equal((await read()).sent.length, before);
+  });
   it("native zoom changes the actual CSS viewport at every target factor", async () => {
     await browser.execute(() => (window as any).study.setZoom(1));
     const width = await browser.execute(() => window.innerWidth);
