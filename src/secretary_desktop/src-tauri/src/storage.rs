@@ -1,5 +1,5 @@
 use crate::{discovery, err, protocol::Query, Result};
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, TransactionBehavior};
 use serde_json::{json, Value};
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::Path;
@@ -72,7 +72,9 @@ PRAGMA user_version=1; COMMIT;"))?;
         })
     }
     pub fn bind(&mut self, domain: &str, instance: &str) -> Result<()> {
-        let tx = sql(self.db.transaction())?;
+        let tx = sql(self
+            .db
+            .transaction_with_behavior(TransactionBehavior::Immediate))?;
         let other: i64 = sql(tx.query_row(
             "SELECT count(*) FROM domains WHERE domain != ?",
             [domain],
@@ -126,7 +128,9 @@ PRAGMA user_version=1; COMMIT;"))?;
         if key.len() > 128 || text.len() > 1024 * 1024 {
             return Err(err("DRAFT_QUOTA"));
         }
-        let tx = sql(self.db.transaction())?;
+        let tx = sql(self
+            .db
+            .transaction_with_behavior(TransactionBehavior::Immediate))?;
         let old: i64 = sql(tx
             .query_row(
                 "SELECT version FROM drafts WHERE domain=? AND key=?",
@@ -162,14 +166,27 @@ PRAGMA user_version=1; COMMIT;"))?;
         let id = body["request_id"]
             .as_str()
             .ok_or_else(|| err("INVALID_COMMAND"))?;
-        let tx = sql(self.db.transaction())?;
-        let (count, bytes): (i64, i64) = sql(tx.query_row(
-            "SELECT count(*),coalesce(sum(length(CAST(body AS BLOB))),0) FROM outbox",
-            [],
-            |r| Ok((r.get(0)?, r.get(1)?)),
-        ))?;
-        if count >= 1000 || bytes + body.to_string().len() as i64 > 32 * 1024 * 1024 {
-            return Err(err("OUTBOX_QUOTA"));
+        let tx = sql(self
+            .db
+            .transaction_with_behavior(TransactionBehavior::Immediate))?;
+        // Retain resolved history for up to 30 days, bounded by the same budget.
+        // Never evict unresolved intent to make room for a new command.
+        loop {
+            let (count, bytes): (i64, i64) = sql(tx.query_row(
+                "SELECT count(*),coalesce(sum(length(CAST(body AS BLOB))),0) FROM outbox",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            ))?;
+            if count < 1000 && bytes + body.to_string().len() as i64 <= 32 * 1024 * 1024 {
+                break;
+            }
+            let removed = sql(tx.execute(
+                "DELETE FROM outbox WHERE rowid=(SELECT rowid FROM outbox WHERE state IN ('ACCEPTED','COMPLETED','FAILED') ORDER BY rowid LIMIT 1)",
+                [],
+            ))?;
+            if removed == 0 {
+                return Err(err("OUTBOX_QUOTA"));
+            }
         }
         if let Some((key, version)) = draft {
             let old: Option<(i64, String)> = sql(tx
@@ -239,7 +256,9 @@ PRAGMA user_version=1; COMMIT;"))?;
         values: &[(Query, Value)],
         reset: bool,
     ) -> Result<()> {
-        let tx = sql(self.db.transaction())?;
+        let tx = sql(self
+            .db
+            .transaction_with_behavior(TransactionBehavior::Immediate))?;
         if reset {
             sql(tx.execute("DELETE FROM cache WHERE domain=?", [domain]))?;
         }

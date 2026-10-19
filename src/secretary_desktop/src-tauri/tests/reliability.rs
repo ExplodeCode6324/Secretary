@@ -783,3 +783,100 @@ fn real_sse_survives_more_than_thirty_seconds() {
         "change"
     );
 }
+
+#[test]
+fn independent_writers_wait_before_reading_a_wal_snapshot() {
+    use std::sync::mpsc::{channel, RecvTimeoutError};
+    use std::time::Duration;
+    let tmp = tempfile::tempdir().unwrap();
+    let dir = tmp.path().join("db");
+    let mut primary = Storage::open(&dir).unwrap();
+    primary.bind("domain", "instance").unwrap();
+    for operation in 0..4 {
+        let mut shared = Storage::open_shared(&dir).unwrap();
+        // WAL permits readers while another connection holds the writer lock.
+        // DEFERRED reads would pin a snapshot and then fail at write upgrade.
+        let lock = primary
+            .db
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .unwrap();
+        lock.execute("UPDATE domains SET cursor='held'", [])
+            .unwrap();
+        let (ready_tx, ready_rx) = channel();
+        let (result_tx, result_rx) = channel();
+        let worker = std::thread::spawn(move || {
+            ready_tx.send(()).unwrap();
+            let result = match operation {
+                0 => shared
+                    .save_draft("domain", "message", 0, "durable")
+                    .map(|_| ()),
+                1 => shared.project("domain", "new", &[], false),
+                2 => shared
+                    .enqueue(
+                        "domain",
+                        "instance",
+                        &Query::new("messages"),
+                        &json!({"request_id":"concurrent-message","text":"new"}),
+                        None,
+                        false,
+                    )
+                    .map(|_| ()),
+                _ => shared.bind("domain", "instance"),
+            };
+            result_tx.send(result).unwrap();
+        });
+        ready_rx.recv().unwrap();
+        assert_eq!(
+            result_rx.recv_timeout(Duration::from_millis(100)),
+            Err(RecvTimeoutError::Timeout),
+            "writer must wait instead of failing snapshot upgrade"
+        );
+        lock.commit().unwrap();
+        result_rx
+            .recv_timeout(Duration::from_secs(3))
+            .unwrap()
+            .unwrap();
+        worker.join().unwrap();
+    }
+    assert_eq!(
+        primary.draft("domain", "message").unwrap()["text"],
+        "durable"
+    );
+    assert_eq!(primary.rows("domain").unwrap().len(), 1);
+}
+
+#[test]
+fn resolved_history_yields_capacity_without_losing_pending_intent() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut s = Storage::open(&tmp.path().join("db")).unwrap();
+    s.bind("domain", "instance").unwrap();
+    s.db.execute_batch("WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM n WHERE x<1000) INSERT INTO outbox(id,domain,instance,query,body,state) SELECT 'history-'||x,'domain','instance','{}','{}',CASE WHEN x=1 THEN 'PENDING' ELSE 'ACCEPTED' END FROM n").unwrap();
+    s.save_draft("domain", "message", 0, "new").unwrap();
+    s.enqueue(
+        "domain",
+        "instance",
+        &Query::new("messages"),
+        &json!({"request_id":"new-message","text":"new"}),
+        Some(("message", 1)),
+        false,
+    )
+    .unwrap();
+    s.enqueue(
+        "domain",
+        "instance",
+        &Query::new("core/stop"),
+        &json!({"request_id":"explicit-stop"}),
+        None,
+        true,
+    )
+    .unwrap();
+    let rows = s.rows("domain").unwrap();
+    assert_eq!(rows.len(), 1000);
+    assert!(rows.iter().any(|r| r["id"] == "history-1"));
+    assert!(rows.iter().any(|r| r["id"] == "new-message"));
+    assert!(rows.iter().any(|r| r["id"] == "explicit-stop"));
+    assert!(!rows
+        .iter()
+        .any(|r| r["id"] == "history-2" || r["id"] == "history-3"));
+    assert_eq!(s.draft("domain", "message").unwrap()["text"], "");
+}

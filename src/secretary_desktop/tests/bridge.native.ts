@@ -54,6 +54,7 @@ describe("FE-01 real WKWebView native bridge", () => {
     const snap = await snapshot();
     assert(!JSON.stringify(snap).includes(endpoint.token));
     assert(!(await browser.getPageSource()).includes(endpoint.token));
+    assert(!fs.readFileSync(path.join(dir, "core/core.log"), "utf8").includes(endpoint.token));
     assert(
       (
         await invoke("bridge_query", {
@@ -113,6 +114,26 @@ describe("FE-01 real WKWebView native bridge", () => {
         2,
       ),
     );
+  });
+});
+describe("recoverable editor save failure", () => {
+  it("retries the next edit after a rejected save without reconnecting", async () => {
+    const sql = (statement: string) => execFileSync("python3", ["-c", "import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); c.executescript(sys.argv[2]); c.commit()", path.join(dir, "fixture/client.sqlite"), statement]);
+    sql("CREATE TRIGGER reject_draft BEFORE INSERT ON drafts BEGIN SELECT RAISE(ABORT, 'injected storage failure'); END;");
+    try {
+      await $("[data-testid=draft]").setValue("失败后仍保留的编辑内容");
+      await browser.waitUntil(async () => (await $("[role=alert]").getText()).includes("STORAGE_UNAVAILABLE"), { timeout: 5000 });
+      assert.equal(await $("[data-testid=draft]").getValue(), "失败后仍保留的编辑内容");
+    } finally {
+      sql("DROP TRIGGER reject_draft;");
+    }
+    await $("[data-testid=draft]").setValue("重开后保留的草稿");
+    await browser.waitUntil(async () => (await snapshot()).draft.text === "重开后保留的草稿", { timeout: 10000 });
+    // Saving a distinct value proves success rather than matching the old persisted draft.
+    await $("[data-testid=draft]").setValue("保存链已恢复");
+    await browser.waitUntil(async () => (await snapshot()).draft.text === "保存链已恢复", { timeout: 10000 });
+    await $("[data-testid=draft]").setValue("重开后保留的草稿");
+    await browser.waitUntil(async () => (await snapshot()).draft.text === "重开后保留的草稿", { timeout: 10000 });
   });
 });
 describe("local persistence while Core is unresponsive",()=>{

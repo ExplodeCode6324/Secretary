@@ -1,6 +1,6 @@
-# Secretary desktop study · FE-00
+# Secretary desktop · FE-00 / FE-01
 
-macOS Tauri 2 / Svelte feasibility spike. All messages are synthetic; this app does not connect to Core. Linux is deferred by Master and is not a gate for this frontend roadmap. Existing Core Linux checks are independent.
+macOS Tauri 2 / Svelte desktop. Normal launch opens the FE-01 Core bridge described below. The FE-00 study (`SECRETARY_STUDY=1`) uses synthetic messages and does not connect to Core. Linux is deferred by Master and is not a gate for this frontend roadmap. Existing Core Linux checks are independent.
 
 ## Run
 
@@ -15,7 +15,7 @@ npm run tauri -- build
 open 'src-tauri/target/release/bundle/macos/Secretary Study.app'
 ```
 
-`npm run tauri -- dev` uses a local Vite development server. Ordinary Release embeds static assets and opens no listening server. Rust exposes only a whitelisted study configuration, a one-time ready marker, and bounded JSON metrics to its own stdout when explicitly launched by the measurement harness. The ordinary UI has no recurring frame sampler or telemetry IPC; instrumented streaming and the native-test build enable frame sampling. No Core tokens, file access, shell execution, external navigation or remote assets are available to the page. Capability permissions are scoped to `main`: zoom plus those three measurement commands.
+`npm run tauri -- dev` uses a local Vite development server. Ordinary Release embeds static assets and opens no listening server. In study mode, Rust exposes a whitelisted study configuration, a one-time ready marker, and bounded JSON metrics to its own stdout when explicitly launched by the measurement harness. The ordinary UI has no recurring frame sampler or telemetry IPC; instrumented streaming and the native-test build enable frame sampling. No Core tokens, file access, shell execution, external navigation or remote assets are available to the page. Capability permissions are scoped to `main`: zoom those three measurement commands, and the restricted FE-01 bridge commands.
 
 Use **验证工具** at the bottom of the directory for fixtures, streaming, frame-by-frame replay, reduced motion, full-DOM baseline, and native WebView zoom. The default reading view recycles offscreen message contents. Starting text selection retains document contents until selection clears; this intentionally trades selection-time memory for native cross-message selection. Full-DOM baseline is a separate comparison mode. It is not evidence that recycling passed.
 
@@ -92,3 +92,5 @@ SECRETARY_DESKTOP_TEST_DATA=/absolute/Secretary/.demo-data/issue59-native BRIDGE
 Rust 集成测试启动真实 fixture Core、HTTP/SSE 和持久 Store；SIGKILL 子测试是父测试主动运行的 worker，单独标为 ignored 不表示强杀验收跳过。原生测试使用隔离 profiles；release 不识别测试配置覆盖、不包含 WDIO 插件。Linux 桌面仍为 NOT_TESTED；Core Linux CI 不变。
 
 草稿落盘使用独立 SQLite 连接，不被网络同步锁阻塞。命令列表快照最多 50 项、正文只预览 2048 字符；完整原始意图仍在数据库中。每 profile 投递文件锁由 OS 在退出/崩溃时释放。
+
+FE-01 当前边界：草稿写入独立于网络锁；发送和快照仍与同步串行，Core 无响应时可能等待一次请求超时（10 秒）。快照返回活动窗口完整投影，FE-02 应按页面选择窗口，避免大窗口频繁整体渲染。超过 64 KiB 的回执只持久保存摘要，完整信息可经统一桥查询 `requests/{id}`；当前验证界面没有专用完整回执视图。SYNCED 表示持久数据追平，不代表 transient 预览通道持续在线。

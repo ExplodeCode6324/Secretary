@@ -48,7 +48,7 @@
     const value = text;
     const domain = data.domain;
     dirty = true;
-    chain = chain.then(async () => {
+    chain = chain.catch(() => {}).then(async () => {
       if (!domain) return;
       saving = true;
       try {
@@ -62,8 +62,8 @@
         saving = false;
       }
     });
-    // Keep a rejected save visible and retain the editor contents. A reconnect is
-    // required to reconcile the draft version; send must not clear it.
+    // A failed save stays visible and keeps the editor contents. The next edit
+    // retries; version conflicts still require reconnect before sending.
     void chain.catch(() => {});
   }
   async function connect(start = false) {

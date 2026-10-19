@@ -1,7 +1,7 @@
 name: Desktop study (macOS)
 on:
   pull_request:
-    paths: ['src/secretary_desktop/**', 'docs/api/v1/**', 'src/pi_secretary/src/**', 'test_case/offline/issue59/**', '.github/workflows/desktop.yml']
+    paths: ['package.json', 'package-lock.json', 'src/secretary_desktop/**', 'docs/api/v1/**', 'src/pi_secretary/src/**', 'test_case/offline/issue59/**', '.github/workflows/desktop.yml']
   workflow_dispatch:
 permissions:
   contents: read

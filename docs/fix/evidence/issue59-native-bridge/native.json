@@ -11,7 +11,10 @@
     "wrong data domain blocked",
     "native save dialog cancellation",
     "independent Core accepts command after client exits",
-    "draft persistence while Core SIGSTOP"
+    "draft persistence while Core SIGSTOP",
+    "explicit stop rejects stale instance and requires UI confirmation",
+    "editor saves next edit after SQLite failure without reconnect",
+    "token absent from fixture core.log"
   ],
   "synthetic_fixture": true,
   "slow_core_draft_ms": 54
