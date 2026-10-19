@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, copyFileSync } from "node:fs";
 import { resolve } from "node:path";
 const allowed = ["window", "ime", "selection", "phase", "motion", "security"];
 const name = process.argv[2];
@@ -34,16 +34,21 @@ const result =
         env: { ...process.env, STUDY_EVIDENCE_DIR: run, STUDY_CASE: name },
       });
 writeFileSync(
-  run + "/index.json",
+  run + "/invocation.json",
   JSON.stringify(
     {
       case: name,
       status: result.status === 0 ? "PASS" : "FAIL",
-      command: "npm run test:native",
+      command:
+        name === "security"
+          ? "node scripts/security.mjs"
+          : "npm run test:native (all native cases)",
       exit: result.status,
     },
     null,
     2,
   ),
 );
+if (!existsSync(run + "/index.json"))
+  copyFileSync(run + "/invocation.json", run + "/index.json");
 process.exit(result.status ?? 1);

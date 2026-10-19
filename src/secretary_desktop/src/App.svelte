@@ -35,6 +35,7 @@
   let timers: ReturnType<typeof setTimeout>[] = [];
   let streamTimer: ReturnType<typeof setInterval> | undefined;
   let raf = 0;
+  let measuring = false;
   let intervals: number[] = [];
   let updateTimes: number[] = [];
   let inputTimes: number[] = [];
@@ -126,7 +127,14 @@
     await tick();
     scroll.scrollTop = 0;
   }
+  function frameSample(t: number) {
+    if (!running) return;
+    if (last) intervals.push(t - last);
+    last = t;
+    raf = requestAnimationFrame(frameSample);
+  }
   function stopStream() {
+    cancelAnimationFrame(raf);
     if (streamTimer) clearInterval(streamTimer);
     streamTimer = undefined;
     running = false;
@@ -139,6 +147,8 @@
     let n = 0;
     intervals = [];
     updateTimes = [];
+    last = 0;
+    raf = requestAnimationFrame(frameSample);
     streamTimer = setInterval(async () => {
       const t = performance.now();
       pending++;
@@ -252,12 +262,6 @@
         selection = false;
     };
     document.addEventListener("selectionchange", selectionChange);
-    const loop = (t: number) => {
-      if (last && running) intervals.push(t - last);
-      last = t;
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
     Object.assign(window, {
       study: {
         snapshot,
@@ -278,7 +282,8 @@
       try {
         mode = await invoke<string>("study_mode");
       } catch {}
-      if (mode === "load" || mode === "stream") await load();
+      measuring = mode === "load" || mode === "stream";
+      if (measuring) await load();
       await tick();
       requestAnimationFrame(() =>
         requestAnimationFrame(async () => {
@@ -288,10 +293,14 @@
       );
     })();
     const report = setInterval(() => {
+      if (!measuring) return;
       invoke("study_metrics", {
         report: JSON.stringify({
           metrics: snapshot().metrics,
           running,
+          queue: pending,
+          textarea: textarea?.getBoundingClientRect().toJSON(),
+          zoom,
           streamLength: stream.length,
           count: messages.length,
           mounted: document.querySelectorAll(".prose").length,

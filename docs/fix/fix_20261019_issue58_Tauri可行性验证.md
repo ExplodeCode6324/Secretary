@@ -5,7 +5,7 @@
 
 目标：[FE-00 #58](https://github.com/ExplodeCode6324/Secretary/issues/58)，路线 [#57](https://github.com/ExplodeCode6324/Secretary/issues/57)。2026-10-19 已领取；远端 main 与本地 HEAD 均为 `069b734ca9beccb2ed1a5d9756d42f7b62440611`。本阶段先完成计划和 Hermes 复核，Master 授权后实施 spike；这是技术选型停止点，不是完整前端实现。
 
-Master 本轮确定：**先完成 Mac，Linux 暂记 NOT_TESTED**。Mac 未完成必测项时为 `GO_PENDING_MAC_TESTS`，失败为 `MAC_NO_GO`；只有 Mac 全通过才能给出 `MAC_GO`，此时整体仍为 `GO_PENDING_LINUX`。不关闭 #58、不解锁 #59；若决定改变跨平台门槛，由 Master 明确调整路线。
+Master 本轮确定：**先完成 Mac，Linux 暂记 NOT_TESTED**。Mac 未完成必测项时为 `GO_PENDING_MAC_TESTS`，失败为 `MAC_NO_GO`；Mac 全通过、复核与 Master 终审完成后可给出 `MAC_GO` 并完成 #58。Linux 延后，不阻塞 #59 或后续前端 Issue。
 
 复核 agent 使用默认本地 Hermes。Master 指定官方 `deepseek-flash` provider、最新 DeepSeek v4.1 Flash 1017、reasoning `max`；调用前核对实际 model/provider。已核实 Hermes 官方 provider 的 CLI 注册名为 `deepseek`、模型 ID 为 `deepseek-flash`；官方实时模型目录返回 `DeepSeek-V4.1-Flash`，支持 `max`，但没有提供 `1017` 日期字段。实际按 `--provider deepseek --model deepseek-flash --reasoning max` 调用，保持官方产品选择。复核缺少证据、只有泛泛结论或无法发现明显问题时，先给出具体依据，再申请 Opencode Kimi K3 fallback，不自动切换。
 
@@ -75,7 +75,7 @@ Linux 后续验收需登记实际发行版、CPU/GPU、驱动、WebKitGTK 版本
 4. 跑必要的前端逻辑测试（IME 发送状态和重置）、真实 WebView E2E、Mac 手工矩阵、普通 Release 资源基线。补 `README` 中的构建/运行/测试和证据读取命令。
 5. 新增独立 desktop CI，Mac 检查/构建/逻辑测试为本 PR 人工必查项，驱动探索单列，Linux job 延后。路径过滤与 summary 按后文契约执行，现有 Core verify 保持独立；原生人工行为覆盖不能用 Chrome 代替。
 6. 提交范围内代码、经脱敏的必要帧和测量报告；PR 使用 Refs #58，报告净增减、实际测试和未测项。代码复核沿用同一 Hermes 会话；路线要求的 PERRI 再审在交 Master 终审前安排，未获得报告则标为未完成，不用 Hermes 冒名替代。
-7. Master 视觉验收后记录 Mac 单平台结论与仍未完成的 Linux 门槛。只有跨平台必测项通过、复核/CI 和 Master 终审完成，才可宣告整体 GO；任何 FAIL 先修复或 NO-GO 回到选型。不自动合并。
+7. Master 视觉验收后记录 Mac 结论与 Linux NOT_TESTED。只有 Mac 必测项通过、复核/CI 和 Master 终审完成，才可宣告本轮 GO；任何 FAIL 先修复或 NO-GO 回到选型。不自动合并。
 
 计划阶段只做文档检查。实施后运行 desktop 检查/测试、Mac Release 和原生验收，再运行项目 `npm run verify`（数据库回归使用隔离测试库），核对现有 Core CI。此 spike 不需要真实模型/个人数据/设备。
 
@@ -136,7 +136,7 @@ Markdown 走实际解析/排版路径，禁 raw HTML；代码用保留空白的 
 
 矩阵的功能、排版缩放、性能可用性、权限与 Master 视觉均为 GATE；资源绝对值、体积、可选压力档为 REPORT_ONLY。任何 GATE FAIL ⇒ MAC_NO_GO；任何 GATE NOT_TESTED ⇒ GO_PENDING_MAC_TESTS。MAC_GO 要求全部 Mac GATE PASS、Mac CI 必查项成功、Hermes 无阻断、路线再审和 Master 视觉完成。工具探索 E2E 的 NOT_TESTED 与行为门槛分开记；如对应行为没有原生人工覆盖，该 GATE 也为 NOT_TESTED。
 
-判定优先级为 FAIL 高于 NOT_TESTED：同时存在两者时仍为 MAC_NO_GO；只有无 FAIL 且存在未测 GATE 时才给 GO_PENDING_MAC_TESTS。仅 Mac 全通过、Linux 未测时才给 GO_PENDING_LINUX，仍不关闭 #58、不解锁 #59；改变门槛需 Master 明确决定。NO-GO 报告列失败行、根因、是否 Tauri 特有及下一步，不自动换框架。本轮证据全部 OFFLINE fixture + NATIVE/MANUAL，无 LIVE_MODEL/REAL_USE。
+判定优先级为 FAIL 高于 NOT_TESTED：同时存在两者时仍为 MAC_NO_GO；只有无 FAIL 且存在未测 GATE 时才给 GO_PENDING_MAC_TESTS。Mac 全通过后 Linux NOT_TESTED 不阻碍完成 #58 或推进 #59；这是 Master 2026-10-19 的明确范围调整。NO-GO 报告列失败行、根因、是否 Tauri 特有及下一步，不自动换框架。本轮证据全部 OFFLINE fixture + NATIVE/MANUAL，无 LIVE_MODEL/REAL_USE。
 
 Codex 调整意见：不做三帧反向拼接逐像素相等，子像素抗锯齿易导致脆弱测试，结构断言+真实帧+Master 视觉覆盖本 issue 失败模式；不硬定 post-composition 单 rAF 守卫或人工 50ms 按键；不把全 DOM 基线当回收式原型；不添加与本轮授权无关的“二试即报”规则。保留单个 spike PR，按 Mac 窗口、交互/动效、证据三个内部检查点推进，出现需扩展范围的问题再交 Master 决定。
 
