@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-study-metrics"
+description = "Enables the study_metrics command without any pre-configured scope."
+commands.allow = ["study_metrics"]
+
+[[permission]]
+identifier = "deny-study-metrics"
+description = "Denies the study_metrics command without any pre-configured scope."
+commands.deny = ["study_metrics"]

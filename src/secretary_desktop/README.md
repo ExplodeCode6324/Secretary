@@ -1,0 +1,52 @@
+# Secretary desktop study · FE-00
+
+macOS Tauri 2 / Svelte feasibility spike. All messages are synthetic; this app does not connect to Core. Linux is deferred by Master and is not a gate for this frontend roadmap. Existing Core Linux checks are independent.
+
+## Run
+
+Requires macOS, Xcode command-line tools, Node 22.22+, and Rust 1.97.1 (`rustup`, see rust-toolchain.toml). From this directory:
+
+```sh
+export PATH="$HOME/.cargo/bin:$PATH"
+npm ci
+npm run check
+npm test
+npm run tauri -- build
+open 'src-tauri/target/release/bundle/macos/Secretary Study.app'
+```
+
+`npm run tauri -- dev` uses a local Vite development server. Ordinary Release embeds static assets and opens no listening server. Rust exposes only a whitelisted measurement scenario, a one-time ready marker, and bounded JSON metrics to its own stdout when explicitly launched by the measurement harness. No Core tokens, file access, shell execution, external navigation or remote assets are available to the page. Capability permissions are scoped to `main`: zoom plus those three measurement commands.
+
+Use **验证工具** at the bottom of the directory for fixtures, streaming, frame-by-frame replay, reduced motion, full-DOM baseline, and native WebView zoom. The default reading view recycles offscreen message contents. Starting text selection retains document contents until selection clears; this intentionally trades selection-time memory for native cross-message selection. Full-DOM baseline is a separate comparison mode. It is not evidence that recycling passed.
+
+Code blocks are plain pre/code without syntax highlighting. Markdown disables raw HTML, images, and clickable links. The stream updates the growing message rather than rebuilding historical messages. Closing the window affects only this spike.
+
+## Native automation and evidence
+
+The `native-test` Rust feature and separate Tauri configuration add the embedded WDIO server only to a test binary in `target/native-test`. Never use that binary for resource baselines or distribution. Build with `npm run build:native` (Rust on PATH), then run `npm run test:native`. `npm run test:native` tests WKWebView, not Chrome. Synthetic keyboard/composition tests are labeled as such and never replace system IME tests.
+
+`npm run evidence -- window|selection|phase|motion|security` creates an immutable run directory under repository `.demo-data/issue58/runs/`. `npm run evidence -- ime` creates a NOT_TESTED record until the native manual cases below are performed. A successful script is not automatically a product GO; read the case status and the acceptance report.
+
+## Manual Mac acceptance
+
+Run the ordinary Release, record binary SHA and native window owner PID. Capture only the study window, not personal desktop contents. Screen capture may require the existing macOS screen-recording permission.
+
+- Window: close/reopen, minimize/restore, drag, narrow/wide resize. Tab/Shift-Tab and mouse must reach the input and buttons. At 100/125/150/200% WebView zoom, paragraphs and controls remain usable; code can scroll horizontally.
+- Real IME: select the system Pinyin input source, use the fixed text `中文，English。` and repeat each case three times: Enter confirms a candidate, Space selects, Escape cancels, click Send during composition, switch windows during composition, confirm then quickly press an independent Enter, compose while stream runs. Candidate confirmation/cancellation/focus loss must not send. A committed independent send must preserve the exact text and occur once. The recent-events panel records event order and decisions. Export/capture logs with only synthetic text.
+- Selection: load 1,000 records, drag from message 10 to 900 and in reverse, including long code; copy/paste into a plain-text editor and compare with the document text. Test body Cmd+A separately from textarea Cmd+A, selection during 5 seconds of streaming, and selection across insertion of 200 previous messages. No silent truncation or focus/scroll takeover.
+- Phase: capture frame 0 and frames 1/2/3, plus natural playback. The three horizontal slices use the same path and move independently. Input text, caret and hit areas stay fixed. Master evaluates the actual window.
+- Reduced motion: while paused at frame 2 or playing, enable the application switch and then separately the system Reduce Motion option. Both restore the intact neutral icon, with stable focus/layout.
+
+A missing manual result stays NOT_TESTED. Master visual approval cannot be supplied by automation.
+
+## Measure ordinary Release
+
+```sh
+npm run measure -- --scenario startup --rounds 10
+npm run measure -- --scenario idle
+npm run measure -- --scenario stream
+```
+
+The harness starts only its own binary and terminates only the process it created. It writes an immutable `index.json`, CPU/RSS samples and UI summaries. Startup: first launch plus ten warm launches, monotonic spawn-to-ready including marker delivery. Idle: 30 seconds settling + 60 seconds sampling. Stream: 20 updates/s for 60 seconds + 30 seconds recovery. CPU is cumulative user/kernel time difference; 100% means one logical CPU. WebKit XPC candidates and preexisting shared processes are separate, not falsely attributed via the parent PID. RSS sums can double-count shared memory. Capture footage separately from performance sampling.
+
+See the repository `docs/fix/` plan and `docs/fix/evidence/issue58-feasibility/summary.md` for exact results and remaining gates. No Linux desktop result is claimed.

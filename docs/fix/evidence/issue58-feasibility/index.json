@@ -1,0 +1,87 @@
+{
+  "status": "PASS",
+  "command": "npm run test:native",
+  "timestamp": "2026-10-19T08:01:07.803Z",
+  "build": "native-test feature; embedded WKWebView driver, not ordinary Release",
+  "binary_sha256": "8a062beaef5c331f6369ce73d161a892b93a9e00f924f66b7df7e55085bf7125",
+  "source_commit": "069b734ca9beccb2ed1a5d9756d42f7b62440611",
+  "source_dirty": true,
+  "process": [
+    {
+      "pid": 14351,
+      "binary": "secretary-desktop-spike (native-test)"
+    }
+  ],
+  "outcomes": [
+    {
+      "name": "renders local native page and three displaced logical frames",
+      "state": "passed"
+    },
+    {
+      "name": "resets reduced motion mid-frame without shifting input hit area",
+      "state": "passed"
+    },
+    {
+      "name": "guards WebKit composition-order regression (synthetic, not real IME)",
+      "state": "passed"
+    },
+    {
+      "name": "loads variable-height content, recycles nodes and preserves a retained selection",
+      "state": "passed"
+    },
+    {
+      "name": "does not submit preedit when an accessibility click ends composition",
+      "state": "passed"
+    },
+    {
+      "name": "native WebView zoom accepts all target factors",
+      "state": "passed"
+    }
+  ],
+  "artifacts": [
+    {
+      "name": "final.json",
+      "sha256": "26467867dc603b6247ef591786a03bb83696de809a287e18b87dfb1334802200"
+    },
+    {
+      "name": "phase-0.json",
+      "sha256": "09c5589f6aaa1120f709af7427e98e912a033cea160ace6a43bd649f2bf5e30d"
+    },
+    {
+      "name": "phase-0.png",
+      "sha256": "2fee9ef4d3da73829c54d744683cbf523f13e4e67166b0566e72895147cebfc2"
+    },
+    {
+      "name": "phase-1.json",
+      "sha256": "82bfee89434b581156a2be9056e8fa18c6980363fa0d3f0ab0f0271a07899bd7"
+    },
+    {
+      "name": "phase-1.png",
+      "sha256": "795731e74679c45227fd4528174f285b6cdeda90c0ca3284fac79bc1e0a34f3b"
+    },
+    {
+      "name": "phase-2.json",
+      "sha256": "6bea7d46a0cd93bbf5062e78a4c9f42f528507dbe16a057a1210501499991956"
+    },
+    {
+      "name": "phase-2.png",
+      "sha256": "5496e4d9204a6733145bfdfcad09bfa2ecfc9a26f38ca2fdf7bafaaa3b259701"
+    },
+    {
+      "name": "phase-3.json",
+      "sha256": "03c03d3e8f7e3171052e60d9dcda402068b6570dd7be81918d976a85bb345828"
+    },
+    {
+      "name": "phase-3.png",
+      "sha256": "b478514f9b0ce347850d2799041ece5fdc0d7195fd392a96ed09cd18c12d923b"
+    },
+    {
+      "name": "selection.json",
+      "sha256": "65c7df1cd7a7fea5feadb2d74bee2fa30f5212de2a6ef4c3a16bd4b369d9aa1f"
+    },
+    {
+      "name": "synthetic-ime.json",
+      "sha256": "e8f60146c6690432102455d227bfc07172aaf765d83cdb589e5698380baacc0b"
+    }
+  ]
+}
