@@ -152,3 +152,9 @@ Hermes `deepseek` / `deepseek-flash` / `max` 返回 CHANGES_REQUIRED，发现正
 工具修订包括保留完整 native index、公开别名实际运行全套测试、PID 启动身份与出现/退出记录、显式遥测开关、取消空闲 rAF、带/不带遥测及 full-DOM 对照。Mac-only 范围已落实到 #57–#67；PERRI 再审经 Master 明确授权发送。实时验收状态统一见 [证据报告](evidence/issue58-feasibility/summary.md)，上面的初始矩阵不代表已实施结果。
 
 真实系统 IME、物理跨视口复制、系统 reduced-motion 与 Master 视觉不能由合成事件或程序化 Range 代替，未完成项继续 NOT_TESTED。实现和自动回归完成不等于 MAC_GO，不自动合并或领取 #59。
+
+### R5–R8 与 PERRI 复核
+
+真实 IME 反例否定了 R5 对旧点击守卫的条件通过。R6/R7 对原始事件时间和派发顺序复核后，采纳严格较晚的 pointer/key 手势判定，拒绝内容分类启发式；R8 因 Master 搬迁网络暂停，无最终结论。实际21步拼音证据属于8d5f905，后续共享守卫需对应真实复测。
+
+PERRI B1 指出增长正文替换选区 DOM，B2 指出最小窗口叠加缩放溢出以及侧栏反馈消失。已分别冻结选区期间显示投影（接收继续、解除追赶），以及增加窄视口单栏和输入区反馈。新增原生回归通过，合计13项；物理剪贴板与系统验收仍分列。恢复工作后由同Hermes会话及PERRI复核最终候选。

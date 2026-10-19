@@ -13,7 +13,8 @@
             "wdio:default",
             "wdio-webdriver:default",
             "core:event:allow-listen",
-            "core:event:allow-unlisten"
+            "core:event:allow-unlisten",
+            "core:window:allow-set-size"
           ]
         }
       ]

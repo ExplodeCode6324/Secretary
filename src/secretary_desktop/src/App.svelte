@@ -29,6 +29,11 @@
   let zoom = $state(1);
   let pending = 0;
   let stream = $state("");
+  let displayedStream = $state("");
+  // Keep selected text nodes stable while incoming data continues to accumulate.
+  $effect(() => {
+    if (!selection) displayedStream = stream;
+  });
   let running = $state(false);
   let sent = $state<string[]>([]);
   let events = $state<unknown[]>([]);
@@ -388,7 +393,7 @@
               id: 99999,
               role: "secretary",
               time: "现在",
-              source: stream,
+              source: displayedStream,
             }}
             retain={true}
           />{/if}
@@ -450,6 +455,7 @@
           >
         </div>
       </div>
+      <p class="composer-status" role="status">{status}</p>
     </footer>
   </main>
   <aside class="margin">

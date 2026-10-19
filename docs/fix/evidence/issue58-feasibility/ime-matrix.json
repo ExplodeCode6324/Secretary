@@ -1,0 +1,159 @@
+{
+  "status": "PASS_FOR_RECORDED_SEVEN_CASE_MATRIX",
+  "method": "Cua OS keys/mouse/window switching; embedded driver observes only; system Pinyin confirmed with actual 中文 commit",
+  "source_commit": "8d5f905",
+  "binary_sha256": "1f9c9a98c0bbff4b0899e273d1a25a00214f90b7990fe8ab00488205f0802fb3",
+  "run": "2026-10-19T08-40-11.347Z-manual-native",
+  "steps": [
+    {
+      "case": "composition-click",
+      "repeat": 1,
+      "expected": "no send",
+      "time": 1792399232825
+    },
+    {
+      "case": "composition-click",
+      "repeat": 2,
+      "expected": "no send",
+      "time": 1792399233826
+    },
+    {
+      "case": "composition-click",
+      "repeat": 3,
+      "expected": "no send",
+      "time": 1792399234847
+    },
+    {
+      "case": "Enter candidate commit",
+      "repeat": 1,
+      "expected": "no send",
+      "time": 1792399255644
+    },
+    {
+      "case": "Enter candidate commit",
+      "repeat": 2,
+      "expected": "no send",
+      "time": 1792399256169
+    },
+    {
+      "case": "Enter candidate commit",
+      "repeat": 3,
+      "expected": "no send",
+      "time": 1792399256687
+    },
+    {
+      "case": "Space then independent send",
+      "repeat": 1,
+      "expected": "中文，English。",
+      "time": 1792399257369
+    },
+    {
+      "case": "Space then independent send",
+      "repeat": 2,
+      "expected": "中文，English。",
+      "time": 1792399258035
+    },
+    {
+      "case": "Space then independent send",
+      "repeat": 3,
+      "expected": "中文，English。",
+      "time": 1792399258709
+    },
+    {
+      "case": "Escape cancel",
+      "repeat": 1,
+      "expected": "no send",
+      "time": 1792399284577
+    },
+    {
+      "case": "Escape cancel",
+      "repeat": 2,
+      "expected": "no send",
+      "time": 1792399285084
+    },
+    {
+      "case": "Escape cancel",
+      "repeat": 3,
+      "expected": "no send",
+      "time": 1792399285605
+    },
+    {
+      "case": "window switch composition",
+      "repeat": 1,
+      "expected": "no send",
+      "time": 1792399286657
+    },
+    {
+      "case": "window switch composition",
+      "repeat": 2,
+      "expected": "no send",
+      "time": 1792399287705
+    },
+    {
+      "case": "window switch composition",
+      "repeat": 3,
+      "expected": "no send",
+      "time": 1792399288752
+    },
+    {
+      "case": "candidate then independent Return",
+      "repeat": 1,
+      "expected": "zhongwen",
+      "time": 1792399299792
+    },
+    {
+      "case": "candidate then independent Return",
+      "repeat": 2,
+      "expected": "zhongwen",
+      "time": 1792399300292
+    },
+    {
+      "case": "candidate then independent Return",
+      "repeat": 3,
+      "expected": "zhongwen",
+      "time": 1792399300792
+    },
+    {
+      "case": "compose during stream",
+      "repeat": 1,
+      "expected": "中文，English。",
+      "time": 1792399319219
+    },
+    {
+      "case": "compose during stream",
+      "repeat": 2,
+      "expected": "中文，English。",
+      "time": 1792399319886
+    },
+    {
+      "case": "compose during stream",
+      "repeat": 3,
+      "expected": "中文，English。",
+      "time": 1792399320555
+    }
+  ],
+  "sent": [
+    "中文，English。",
+    "中文，English。",
+    "中文，English。",
+    "zhongwen",
+    "zhongwen",
+    "zhongwen",
+    "中文，English。",
+    "中文，English。",
+    "中文，English。"
+  ],
+  "compositions": {
+    "compositionstart": 23,
+    "compositionend": 23
+  },
+  "blocked_clicks": 3,
+  "stream_active_at_final": true,
+  "input_metrics": {
+    "count": 239,
+    "max": 45,
+    "p50": 7,
+    "p95": 16
+  },
+  "limits": "Native-test build; observed Mac Pinyin only. Enter commits romanized text per OS semantics, then independent Return sends it. Space cases send exact 中文，English。. A transient capture error occurred between case groups; no send action was replayed; execution resumed from Escape group. VoiceOver activation and mouse candidate selection not covered."
+}

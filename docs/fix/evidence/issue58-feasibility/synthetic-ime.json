@@ -5,55 +5,61 @@
     {
       "composing": false,
       "decision": "",
+      "eventTime": 2091,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2138,
+      "t": 2092,
       "type": "input",
       "value": "中文，English。"
     },
     {
       "composing": true,
       "decision": "",
+      "eventTime": 2092,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2138,
+      "t": 2092,
       "type": "compositionstart",
       "value": "中文，English。"
     },
     {
       "composing": false,
       "decision": "",
+      "eventTime": 2092,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2138,
+      "t": 2092,
       "type": "compositionend",
       "value": "中文，English。"
     },
     {
       "composing": false,
       "decision": "keep",
+      "eventTime": 2092,
       "isComposing": false,
       "key": "Enter",
       "keyCode": 229,
-      "t": 2139.0000000000005,
+      "t": 2093,
       "type": "keydown",
       "value": "中文，English。"
     },
     {
       "composing": false,
       "decision": "send",
+      "eventTime": 2121,
       "isComposing": false,
       "key": "Enter",
       "keyCode": 13,
-      "t": 2173,
+      "t": 2121,
       "type": "keydown",
       "value": "中文，English。"
     }
   ],
   "focus": "TEXTAREA",
+  "focused": true,
   "frame": 1,
   "metrics": {
     "frames": {
@@ -64,9 +70,9 @@
     },
     "inputs": {
       "count": 1,
-      "max": 10,
-      "p50": 10,
-      "p95": 10
+      "max": 12,
+      "p50": 12,
+      "p95": 12
     },
     "updates": {
       "count": 0,
@@ -86,14 +92,14 @@
   "streamLength": 0,
   "systemReduce": false,
   "textarea": {
-    "bottom": 726,
+    "bottom": 708,
     "height": 55,
     "left": 229,
     "right": 953,
-    "top": 671,
+    "top": 653,
     "width": 724,
     "x": 229,
-    "y": 671
+    "y": 653
   },
   "transforms": [
     -4,
@@ -101,5 +107,6 @@
     -1
   ],
   "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "visibility": "visible",
   "zoom": 1
 }

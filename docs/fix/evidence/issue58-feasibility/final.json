@@ -1,190 +1,371 @@
 {
   "baseline": false,
-  "count": 1201,
+  "count": 1202,
   "events": [
     {
       "composing": false,
       "decision": "",
+      "eventTime": 2091,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2138,
+      "t": 2092,
       "type": "input",
       "value": "中文，English。"
     },
     {
       "composing": true,
       "decision": "",
+      "eventTime": 2092,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2138,
+      "t": 2092,
       "type": "compositionstart",
       "value": "中文，English。"
     },
     {
       "composing": false,
       "decision": "",
+      "eventTime": 2092,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2138,
+      "t": 2092,
       "type": "compositionend",
       "value": "中文，English。"
     },
     {
       "composing": false,
       "decision": "keep",
+      "eventTime": 2092,
       "isComposing": false,
       "key": "Enter",
       "keyCode": 229,
-      "t": 2139.0000000000005,
+      "t": 2093,
       "type": "keydown",
       "value": "中文，English。"
     },
     {
       "composing": false,
       "decision": "send",
+      "eventTime": 2121,
       "isComposing": false,
       "key": "Enter",
       "keyCode": 13,
-      "t": 2173,
+      "t": 2121,
       "type": "keydown",
       "value": "中文，English。"
     },
     {
       "composing": false,
       "decision": "",
+      "eventTime": 2568,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2600,
+      "t": 2568,
       "type": "input",
       "value": "zhongwen"
     },
     {
       "composing": true,
       "decision": "",
+      "eventTime": 2568,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2600,
+      "t": 2568,
       "type": "compositionstart",
       "value": "zhongwen"
     },
     {
       "composing": false,
       "decision": "",
+      "eventTime": 2568,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2600,
+      "t": 2568,
       "type": "compositionend",
       "value": "zhongwen"
     },
     {
       "composing": false,
       "decision": "composition-commit-click-blocked",
+      "eventTime": 2568,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2600,
+      "t": 2568,
       "type": "click",
       "value": "zhongwen"
     },
     {
       "composing": false,
       "decision": "",
+      "eventTime": 2600,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 2628,
+      "t": 2600,
       "type": "blur",
       "value": "zhongwen"
     },
     {
       "composing": false,
       "decision": "",
+      "eventTime": 2991,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 3022.0000000000005,
+      "t": 2991,
       "type": "input",
       "value": "中文，English。"
     },
     {
       "composing": true,
       "decision": "",
+      "eventTime": 2991,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 3023,
+      "t": 2991,
       "type": "compositionstart",
       "value": "中文，English。"
     },
     {
       "composing": false,
       "decision": "",
+      "eventTime": 2991,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 3023,
+      "t": 2991,
       "type": "compositionend",
       "value": "中文，English。"
     },
     {
       "composing": false,
       "decision": "send",
+      "eventTime": 3045,
       "isComposing": null,
       "key": null,
       "keyCode": null,
-      "t": 3023,
+      "t": 3045,
       "type": "click",
       "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3057,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3057,
+      "type": "input",
+      "value": "中文，English。"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 3057,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3057,
+      "type": "compositionstart",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3057,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3057,
+      "type": "compositionend",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3057,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3057,
+      "type": "blur",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "send",
+      "eventTime": 3058.0000000000005,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3058.0000000000005,
+      "type": "click",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3067,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3067,
+      "type": "input",
+      "value": "zhongwen"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 3067,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3067,
+      "type": "compositionstart",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3087,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3087,
+      "type": "compositionend",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "composition-commit-click-blocked",
+      "eventTime": 3087,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3087,
+      "type": "click",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3126,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3126,
+      "type": "input",
+      "value": "中文"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 3126,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3126,
+      "type": "compositionstart",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3137,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3137,
+      "type": "compositionend",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "keep",
+      "eventTime": 3126,
+      "isComposing": false,
+      "key": "Enter",
+      "keyCode": 13,
+      "t": 3137,
+      "type": "keydown",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 9712,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 9712,
+      "type": "blur",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 10101,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 10102,
+      "type": "blur",
+      "value": "中文"
     }
   ],
-  "focus": "TEXTAREA",
+  "focus": "BUTTON",
+  "focused": true,
   "frame": 0,
   "metrics": {
     "frames": {
-      "count": 0,
-      "max": null,
-      "p50": null,
-      "p95": null
+      "count": 331,
+      "max": 253,
+      "p50": 17,
+      "p95": 18
     },
     "inputs": {
-      "count": 3,
+      "count": 6,
       "max": 14,
-      "p50": 10,
+      "p50": 12,
       "p95": 14
     },
     "updates": {
-      "count": 0,
-      "max": null,
-      "p50": null,
-      "p95": null
+      "count": 110,
+      "max": 1.000000000001819,
+      "p50": 0,
+      "p95": 1
     }
   },
-  "mounted": 12,
+  "mounted": 13,
   "queue": 0,
   "reduce": false,
   "running": false,
   "selection": false,
   "sent": [
     "中文，English。",
+    "中文，English。",
     "中文，English。"
   ],
-  "streamLength": 0,
+  "streamLength": 3551,
   "systemReduce": false,
   "textarea": {
-    "bottom": 726,
+    "bottom": 708,
     "height": 55,
     "left": 229,
     "right": 953,
-    "top": 671,
+    "top": 653,
     "width": 724,
     "x": 229,
-    "y": 671
+    "y": 653
   },
   "transforms": [
     0,
@@ -192,5 +373,6 @@
     0
   ],
   "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "visibility": "visible",
   "zoom": 1
 }

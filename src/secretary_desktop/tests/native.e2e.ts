@@ -341,6 +341,59 @@ describe("actual WKWebView desktop spike", () => {
       assert.equal((await read()).zoom, z);
     }
   });
+  it("preserves a selection in growing stream text for five seconds then catches up", async () => {
+    await browser.execute(() => (window as any).study.startStream());
+    await browser.waitUntil(async () => (await read()).streamLength > 200);
+    const selected = await browser.execute(() => {
+      const prose = document.querySelector('[data-message="99999"] .prose')!;
+      const range = document.createRange();
+      range.selectNodeContents(prose);
+      const selection = getSelection()!;
+      selection.removeAllRanges(); selection.addRange(range);
+      return selection.toString();
+    });
+    await browser.waitUntil(async () => (await read()).selection);
+    const length = (await read()).streamLength;
+    const visible = await browser.execute(() => document.querySelector('[data-message="99999"] .prose')!.innerHTML);
+    await browser.pause(5100);
+    assert.ok((await read()).streamLength > length + 1000);
+    assert.equal(await browser.execute(() => getSelection()!.toString()), selected);
+    assert.equal(await browser.execute(() => document.querySelector('[data-message="99999"] .prose')!.innerHTML), visible);
+    await browser.execute(() => getSelection()!.removeAllRanges());
+    await browser.waitUntil(async () => await browser.execute(() => document.querySelector('[data-message="99999"] .prose')!.innerHTML) !== visible);
+    await browser.execute(() => (window as any).study.stopStream());
+    writeFileSync(output + "/stream-selection.json", JSON.stringify({method: "native programmatic Range, physical clipboard separate", selected, state: await read()}, null, 2));
+  });
+  it("keeps input, navigation and feedback reachable at minimum window and 150/200 percent zoom", async () => {
+    await browser.execute(async () => {
+      await (window as any).__TAURI__.window.getCurrentWindow().setSize(new (window as any).__TAURI__.dpi.LogicalSize(640,480));
+    });
+    const evidence = [];
+    for (const z of [1.5, 2]) {
+      await browser.execute((z) => (window as any).study.setZoom(z), z);
+      await browser.pause(300);
+      const geometry = await browser.execute(() => {
+        const bounds = (selector: string) => {
+          const el = document.querySelector(selector) as HTMLElement;
+          el.focus(); const r = el.getBoundingClientRect();
+          return {left:r.left, right:r.right, top:r.top, bottom:r.bottom, width:r.width, height:r.height, focused:document.activeElement===el};
+        };
+        return {width:innerWidth,height:innerHeight,scrollWidth:document.documentElement.scrollWidth,
+          input:bounds("textarea"), send:bounds(".send"), navigation:bounds(".study-toggle"), status:bounds(".composer-status")};
+      });
+      assert.ok(geometry.scrollWidth <= geometry.width + 1);
+      for (const key of ["input","send","navigation","status"] as const) {
+        const r=geometry[key]; assert.ok(r.width>0 && r.height>0 && r.left>=0 && r.right<=geometry.width+1 && r.top>=0 && r.bottom<=geometry.height+1, JSON.stringify({z,key,geometry}));
+        if(key!=="status") assert.ok(r.focused);
+      }
+      evidence.push({zoom:z,...geometry});
+    }
+    writeFileSync(output + "/minimum-window.json",JSON.stringify(evidence,null,2));
+    await browser.execute(async () => {
+      await (window as any).__TAURI__.window.getCurrentWindow().setSize(new (window as any).__TAURI__.dpi.LogicalSize(1180,820));
+      await (window as any).study.setZoom(1);
+    });
+  });
   after(async () => {
     writeFileSync(
       output + "/final.json",

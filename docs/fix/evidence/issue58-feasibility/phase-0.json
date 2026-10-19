@@ -35,6 +35,7 @@
     "count": 8,
     "events": [],
     "focus": "BODY",
+    "focused": true,
     "frame": 0,
     "metrics": {
       "frames": {
@@ -65,14 +66,14 @@
     "streamLength": 0,
     "systemReduce": false,
     "textarea": {
-      "bottom": 726,
+      "bottom": 708,
       "height": 55,
       "left": 229,
       "right": 953,
-      "top": 671,
+      "top": 653,
       "width": 724,
       "x": 229,
-      "y": 671
+      "y": 653
     },
     "transforms": [
       0,
@@ -80,6 +81,7 @@
       0
     ],
     "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+    "visibility": "visible",
     "zoom": 1
   }
 }

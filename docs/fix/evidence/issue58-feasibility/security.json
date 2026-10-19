@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "capability": {
+    "identifier": "main",
+    "description": "Single local study window: WebView zoom only.",
+    "windows": [
+      "main"
+    ],
+    "permissions": [
+      "core:webview:allow-set-webview-zoom",
+      "allow-study-mode",
+      "allow-study-ready",
+      "allow-study-metrics"
+    ]
+  },
+  "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; form-action 'none'",
+  "pid": 25869,
+  "listeningTCP": [],
+  "binary_sha256": "350f010699152c0e208b0883f64fa75780358627b9cafd48f352d40f73779f6d",
+  "scope": "ordinary Release main-process listeners and default-feature dependency tree; not a system-wide port audit"
+}

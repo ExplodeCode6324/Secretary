@@ -1,0 +1,91 @@
+{
+  "status": "FAIL_BEFORE_FIX",
+  "source_run": "2026-10-19T08-37-31.838Z-manual-native",
+  "sent": [
+    "zhongwen"
+  ],
+  "events": [
+    {
+      "detail": 0,
+      "eventTime": 27602,
+      "key": "g",
+      "observedAt": 27638,
+      "target": "",
+      "trusted": true,
+      "type": "keydown"
+    },
+    {
+      "detail": 0,
+      "eventTime": 27608,
+      "key": "w",
+      "observedAt": 27642,
+      "target": "",
+      "trusted": true,
+      "type": "keydown"
+    },
+    {
+      "detail": 0,
+      "eventTime": 27612.000000000004,
+      "key": "e",
+      "observedAt": 27646,
+      "target": "",
+      "trusted": true,
+      "type": "keydown"
+    },
+    {
+      "detail": 0,
+      "eventTime": 27625,
+      "key": "n",
+      "observedAt": 27654,
+      "target": "",
+      "trusted": true,
+      "type": "keydown"
+    },
+    {
+      "detail": 0,
+      "eventTime": 28060.000000000004,
+      "key": null,
+      "observedAt": 28060.000000000004,
+      "target": "",
+      "trusted": true,
+      "type": "compositionend"
+    },
+    {
+      "detail": 1,
+      "eventTime": 28058,
+      "key": null,
+      "observedAt": 28075,
+      "target": "send",
+      "trusted": true,
+      "type": "pointerdown"
+    },
+    {
+      "detail": 0,
+      "eventTime": 28075,
+      "key": null,
+      "observedAt": 28075,
+      "target": "",
+      "trusted": true,
+      "type": "blur"
+    },
+    {
+      "detail": 1,
+      "eventTime": 28109,
+      "key": null,
+      "observedAt": 28109,
+      "target": "send",
+      "trusted": true,
+      "type": "pointerup"
+    },
+    {
+      "detail": 1,
+      "eventTime": 28109,
+      "key": null,
+      "observedAt": 28109,
+      "target": "send",
+      "trusted": true,
+      "type": "click"
+    }
+  ],
+  "finding": "Native pointerdown timestamp predates compositionend although dispatch follows it; clearing the guard by dispatch-time composing state submits romanized preedit."
+}
