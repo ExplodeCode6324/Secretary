@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-19T19:50:02.698Z",
+  "platform": "macOS WKWebView",
+  "passed": [
+    "native start",
+    "new UI command accepted",
+    "durable draft survives WebView reload",
+    "durable draft survives application process reopen",
+    "token absent from JS/page/bridge snapshot",
+    "admin route rejected",
+    "wrong data domain blocked",
+    "native save dialog cancellation",
+    "independent Core accepts command after client exits",
+    "draft persistence while Core SIGSTOP",
+    "explicit stop rejects stale instance and requires UI confirmation",
+    "editor saves next edit after SQLite failure without reconnect",
+    "token absent from fixture core.log"
+  ],
+  "synthetic_fixture": true,
+  "slow_core_draft_ms": 54
+}

@@ -1,3 +1,4 @@
+mod ipc;
 use std::sync::atomic::{AtomicBool, Ordering};
 static READY: AtomicBool = AtomicBool::new(false);
 #[tauri::command]
@@ -11,6 +12,7 @@ fn study_mode() -> serde_json::Value {
     };
     serde_json::json!({
         "scenario": scenario,
+        "study": std::env::var("SECRETARY_STUDY").as_deref() == Ok("1") || !scenario.is_empty(),
         "measure": std::env::var("SECRETARY_STUDY_MEASURE").as_deref() == Ok("1")
     })
 }
@@ -38,8 +40,18 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             study_mode,
             study_ready,
-            study_metrics
+            study_metrics,
+            ipc::bridge_profiles,
+            ipc::bridge_connect,
+            ipc::bridge_draft,
+            ipc::bridge_submit,
+            ipc::bridge_query,
+            ipc::bridge_subscribe,
+            ipc::bridge_anchor,
+            ipc::bridge_stop,
+            ipc::bridge_download
         ])
+        .setup(ipc::setup)
         .run(tauri::generate_context!())
         .expect("desktop runtime failed");
 }

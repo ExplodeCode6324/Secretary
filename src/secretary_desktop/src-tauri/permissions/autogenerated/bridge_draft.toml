@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-bridge-draft"
+description = "Enables the bridge_draft command without any pre-configured scope."
+commands.allow = ["bridge_draft"]
+
+[[permission]]
+identifier = "deny-bridge-draft"
+description = "Denies the bridge_draft command without any pre-configured scope."
+commands.deny = ["bridge_draft"]
