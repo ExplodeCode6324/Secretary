@@ -55,7 +55,7 @@ Rust 仅创建桌面窗口。优先保留原生标题栏完成拖拽/缩放，�
 
 IME 必须通过系统输入法操作。合成 composition 事件仅用于回归状态逻辑，WebDriver sendKeys 不作为原生 IME 通过证据。自动化无法操作系统 IME 时，提供可重演步骤交 Master/人工实测，明确保持 NOT_TESTED。
 
-Linux 后续验收需登记实际发行版、CPU/GPU、驱动、WebKitGTK 版本、桌面和 X11/Wayland、输入法及字体。候选环境为 Ubuntu 24.04 GNOME，但尚未确定机器。本轮不在 ELIZA/ADELE 或其他机器安装 GUI/修改服务。Xvfb 的原生 WebView 自动化仅证明该虚拟图形栈，不替代实际桌面 IME/图形验收；若出现渲染问题，逐项比较硬件渲染、软件渲染及 X11/Wayland，记录对应性能。只对受影响环境采用验证过的设置，不全局关闭沙箱或降低安全配置。
+Linux 桌面实现与验收本轮及后续前端 Issue 均延后，不安排目标机器、不安装图形环境；现有 Core Linux CI 保持原状。
 
 ## 资源与性能基线
 
@@ -143,3 +143,12 @@ Codex 调整意见：不做三帧反向拼接逐像素相等，子像素抗锯�
 R2：八类意见已闭环，有据异议均被接受；剩余两处要求为 FAIL/NOT_TESTED 判定优先级，以及每次运行证据隔离保留。已补齐。
 
 R3：同一 Hermes 会话确认两处 CLOSED，最终 **PASS，计划具备执行条件，无剩余阻断**。三轮复用 session `20261019_151715_df749f`，未 fallback。文档检查、新计划独立链接/空白检查通过。本 PASS 仅针对计划；尚未实施，Mac 未测、Linux NOT_TESTED，等待 Master 授权实施。
+
+
+### R4 实现复核与处置（2026-10-19）
+
+Hermes `deepseek` / `deepseek-flash` / `max` 返回 CHANGES_REQUIRED，发现正文单击可能黏住全量挂载、组合结束后的独立发送点击被误拦。两项均修正并补真实 WKWebView 回归；键盘全选与前插、实际 WebView 缩放加入覆盖，共 8 项通过。保留同手势 AX 点击拦截与独立 pointerdown 发送两个不同语义。
+
+工具修订包括保留完整 native index、公开别名实际运行全套测试、PID 启动身份与出现/退出记录、显式遥测开关、取消空闲 rAF、带/不带遥测及 full-DOM 对照。Mac-only 范围已落实到 #57–#67；PERRI 再审经 Master 明确授权发送。实时验收状态统一见 [证据报告](evidence/issue58-feasibility/summary.md)，上面的初始矩阵不代表已实施结果。
+
+真实系统 IME、物理跨视口复制、系统 reduced-motion 与 Master 视觉不能由合成事件或程序化 Range 代替，未完成项继续 NOT_TESTED。实现和自动回归完成不等于 MAC_GO，不自动合并或领取 #59。

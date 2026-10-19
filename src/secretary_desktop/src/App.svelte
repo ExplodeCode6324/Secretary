@@ -420,6 +420,14 @@
         <div class="composer-bottom">
           <span>Enter 发送 · Shift Enter 换行</span><button
             class="send"
+            onkeydown={(e) => {
+              if (
+                !composing &&
+                !e.isComposing &&
+                (e.key === "Enter" || e.key === " ")
+              )
+                compositionEndedWithoutKey = false;
+            }}
             onpointerdown={(e) => {
               if (composing) e.preventDefault();
               else compositionEndedWithoutKey = false;

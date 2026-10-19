@@ -15,7 +15,7 @@ npm run tauri -- build
 open 'src-tauri/target/release/bundle/macos/Secretary Study.app'
 ```
 
-`npm run tauri -- dev` uses a local Vite development server. Ordinary Release embeds static assets and opens no listening server. Rust exposes only a whitelisted measurement scenario, a one-time ready marker, and bounded JSON metrics to its own stdout when explicitly launched by the measurement harness. No Core tokens, file access, shell execution, external navigation or remote assets are available to the page. Capability permissions are scoped to `main`: zoom plus those three measurement commands.
+`npm run tauri -- dev` uses a local Vite development server. Ordinary Release embeds static assets and opens no listening server. Rust exposes only a whitelisted study configuration, a one-time ready marker, and bounded JSON metrics to its own stdout when explicitly launched by the measurement harness. The ordinary UI has no recurring frame sampler or telemetry IPC; instrumented streaming and the native-test build enable frame sampling. No Core tokens, file access, shell execution, external navigation or remote assets are available to the page. Capability permissions are scoped to `main`: zoom plus those three measurement commands.
 
 Use **验证工具** at the bottom of the directory for fixtures, streaming, frame-by-frame replay, reduced motion, full-DOM baseline, and native WebView zoom. The default reading view recycles offscreen message contents. Starting text selection retains document contents until selection clears; this intentionally trades selection-time memory for native cross-message selection. Full-DOM baseline is a separate comparison mode. It is not evidence that recycling passed.
 
@@ -25,7 +25,7 @@ Code blocks are plain pre/code without syntax highlighting. Markdown disables ra
 
 The `native-test` Rust feature and separate Tauri configuration add the embedded WDIO server only to a test binary in `target/native-test`. Never use that binary for resource baselines or distribution. Build with `npm run build:native` (Rust on PATH), then run `npm run test:native`. `npm run test:native` tests WKWebView, not Chrome. Synthetic keyboard/composition tests are labeled as such and never replace system IME tests.
 
-`npm run evidence -- window|selection|phase|motion|security` creates an immutable run directory under repository `.demo-data/issue58/runs/`. `npm run evidence -- ime` creates a NOT_TESTED record until the native manual cases below are performed. A successful script is not automatically a product GO; read the case status and the acceptance report.
+`npm run evidence -- window|selection|phase|motion|security` creates an immutable run directory under repository `.demo-data/issue58/runs/`. `npm run evidence -- ime` creates a NOT_TESTED record until the native manual cases below are performed. The window/selection/phase/motion aliases run the complete native suite, with the requested focus recorded separately in invocation.json; they do not claim an isolated manual case. A successful script is not automatically a product GO; read the case status and the acceptance report.
 
 ## Manual Mac acceptance
 
@@ -37,6 +37,8 @@ Run the ordinary Release, record binary SHA and native window owner PID. Capture
 - Phase: capture frame 0 and frames 1/2/3, plus natural playback. The three horizontal slices use the same path and move independently. Input text, caret and hit areas stay fixed. Master evaluates the actual window.
 - Reduced motion: while paused at frame 2 or playing, enable the application switch and then separately the system Reduce Motion option. Both restore the intact neutral icon, with stable focus/layout.
 
+For an observing-only recorder, use `STUDY_MANUAL=1 npm run test:native`; operate the real system IME and window yourself. It records native events without synthesizing composition and stops after ten minutes. Confirm the input source by observing Chinese candidate commit before counting a run; English autocorrection is not IME evidence.
+
 A missing manual result stays NOT_TESTED. Master visual approval cannot be supplied by automation.
 
 ## Measure ordinary Release
@@ -45,8 +47,10 @@ A missing manual result stays NOT_TESTED. Master visual approval cannot be suppl
 npm run measure -- --scenario startup --rounds 10
 npm run measure -- --scenario idle
 npm run measure -- --scenario stream
+npm run measure -- --scenario idle --uninstrumented
+npm run measure -- --scenario stream --baseline
 ```
 
-The harness starts only its own binary and terminates only the process it created. It writes an immutable `index.json`, CPU/RSS samples and UI summaries. Startup: first launch plus ten warm launches, monotonic spawn-to-ready including marker delivery. Idle: 30 seconds settling + 60 seconds sampling. Stream: 20 updates/s for 60 seconds + 30 seconds recovery. CPU is cumulative user/kernel time difference; 100% means one logical CPU. WebKit XPC candidates and preexisting shared processes are separate, not falsely attributed via the parent PID. RSS sums can double-count shared memory. Capture footage separately from performance sampling.
+The harness starts only its own binary and terminates only the process it created. It writes an immutable `index.json`, CPU/RSS samples and UI summaries. Startup: first launch plus ten warm launches, monotonic spawn-to-ready including marker delivery. Idle: 30 seconds settling + 60 seconds sampling. Stream: 20 updates/s for 60 seconds + 30 seconds recovery. Instrumented runs include 1Hz metrics IPC and streaming frame sampling; the uninstrumented idle control disables both. Full-DOM baseline retains all message markup with content-visibility; it is a separate comparison. CPU is cumulative user/kernel time difference; 100% means one logical CPU. PID identity uses launch time, with appearance/exit records; CPU deltas are discarded across identity changes. Sampler wall time and unavailable refresh/thermal fields are explicit. WebKit XPC candidates and preexisting shared processes are separate, not falsely attributed via the parent PID. RSS sums can double-count shared memory. Capture footage separately from performance sampling.
 
 See the repository `docs/fix/` plan and `docs/fix/evidence/issue58-feasibility/summary.md` for exact results and remaining gates. No Linux desktop result is claimed.

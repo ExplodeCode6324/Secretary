@@ -235,6 +235,24 @@ describe("actual WKWebView desktop spike", () => {
     assert.equal((await read()).sent.length, before + 1);
     assert.equal((await read()).sent.at(-1), "中文，English。");
   });
+  it("accepts an independent keyboard activation of Send after composition", async () => {
+    const before = (await read()).sent.length;
+    await browser.execute(() => {
+      const el = document.querySelector("textarea")!;
+      el.value = "中文，English。";
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      el.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+      el.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true }),
+      );
+      (document.querySelector(".send") as HTMLButtonElement).focus();
+    });
+    await browser.keys("Enter");
+    assert.equal((await read()).sent.length, before + 1);
+    assert.equal((await read()).sent.at(-1), "中文，English。");
+  });
   it("native zoom changes the actual CSS viewport at every target factor", async () => {
     await browser.execute(() => (window as any).study.setZoom(1));
     const width = await browser.execute(() => window.innerWidth);
