@@ -1,0 +1,433 @@
+{
+  "baseline": false,
+  "count": 1202,
+  "events": [
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 2212,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2212,
+      "type": "input",
+      "value": "中文，English。"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 2212,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2212,
+      "type": "compositionstart",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 2212,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2212,
+      "type": "compositionend",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "keep",
+      "eventTime": 2212,
+      "isComposing": false,
+      "key": "Enter",
+      "keyCode": 229,
+      "t": 2213,
+      "type": "keydown",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "send",
+      "eventTime": 2243,
+      "isComposing": false,
+      "key": "Enter",
+      "keyCode": 13,
+      "t": 2243,
+      "type": "keydown",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 2697,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2697,
+      "type": "input",
+      "value": "zhongwen"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 2697,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2697,
+      "type": "compositionstart",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 2697,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2697,
+      "type": "compositionend",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "composition-commit-click-blocked",
+      "eventTime": 2697,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2697,
+      "type": "click",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 2726,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 2726,
+      "type": "blur",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3122,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3122,
+      "type": "input",
+      "value": "中文，English。"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 3122,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3122,
+      "type": "compositionstart",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3122,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3122,
+      "type": "compositionend",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "send",
+      "eventTime": 3175.0000000000005,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3175.0000000000005,
+      "type": "click",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3186,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3186,
+      "type": "input",
+      "value": "中文，English。"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 3186,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3186,
+      "type": "compositionstart",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3186,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3186,
+      "type": "compositionend",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3186,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3186,
+      "type": "blur",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "send",
+      "eventTime": 3188,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3188,
+      "type": "click",
+      "value": "中文，English。"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3198,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3198,
+      "type": "input",
+      "value": "zhongwen"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 3198,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3198,
+      "type": "compositionstart",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3224,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3224,
+      "type": "compositionend",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "composition-commit-click-blocked",
+      "eventTime": 3224,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3224,
+      "type": "click",
+      "value": "zhongwen"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3257,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3257,
+      "type": "input",
+      "value": "中文"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 3258,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3258,
+      "type": "compositionstart",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 3274,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 3274,
+      "type": "compositionend",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "keep",
+      "eventTime": 3258,
+      "isComposing": false,
+      "key": "Enter",
+      "keyCode": 13,
+      "t": 3274,
+      "type": "keydown",
+      "value": "中文"
+    },
+    {
+      "composing": true,
+      "decision": "",
+      "eventTime": 9491,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 9491,
+      "type": "compositionstart",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 9491,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 9491,
+      "type": "compositionend",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "composition-commit-click-blocked",
+      "eventTime": 9491,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 9491,
+      "type": "click",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 9853,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 9853,
+      "type": "blur",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 10243,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 10243,
+      "type": "blur",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 10628,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 10629,
+      "type": "blur",
+      "value": "中文"
+    },
+    {
+      "composing": false,
+      "decision": "",
+      "eventTime": 10998.000000000002,
+      "isComposing": null,
+      "key": null,
+      "keyCode": null,
+      "t": 10998.000000000002,
+      "type": "blur",
+      "value": "中文"
+    }
+  ],
+  "focus": "BUTTON",
+  "focused": false,
+  "frame": 0,
+  "metrics": {
+    "frames": {
+      "count": 329,
+      "max": 260,
+      "p50": 17,
+      "p95": 18
+    },
+    "inputs": {
+      "count": 6,
+      "max": 12,
+      "p50": 10,
+      "p95": 12
+    },
+    "updates": {
+      "count": 109,
+      "max": 1.000000000001819,
+      "p50": 0,
+      "p95": 1.0000000000009095
+    }
+  },
+  "mounted": 13,
+  "queue": 0,
+  "reduce": false,
+  "running": false,
+  "selection": false,
+  "sent": [
+    "中文，English。",
+    "中文，English。",
+    "中文，English。"
+  ],
+  "streamLength": 3517,
+  "systemReduce": false,
+  "textarea": {
+    "bottom": 708,
+    "height": 55,
+    "left": 229,
+    "right": 953,
+    "top": 653,
+    "width": 724,
+    "x": 229,
+    "y": 653
+  },
+  "transforms": [
+    0,
+    0,
+    0
+  ],
+  "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+  "visibility": "visible",
+  "zoom": 1
+}

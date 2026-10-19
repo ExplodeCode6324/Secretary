@@ -1,0 +1,11 @@
+{
+  "identifier": "main",
+  "description": "Single local study window: WebView zoom only.",
+  "windows": ["main"],
+  "permissions": [
+    "core:webview:allow-set-webview-zoom",
+    "allow-study-mode",
+    "allow-study-ready",
+    "allow-study-metrics"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "application_build_commit": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+  "native_test_checkout": "1fb76ab",
+  "ordinary_sha256": "12607b834eb593421c5377f24a83ff75f1bebe2b5449f76223e0e189ce358cb2",
+  "native_sha256": "19ab592acd466edc84287bf1f7452a6f5320e359b6e05e98a10a93d0bc5fd053",
+  "application_source_diff_after_build": "",
+  "subsequent_changes": "Test assertions/recorder, measurement contract, documentation/evidence only. Application assets and Rust sources unchanged."
+}

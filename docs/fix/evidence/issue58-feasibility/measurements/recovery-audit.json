@@ -1,0 +1,19 @@
+{
+  "method": "Independent validation of preserved b492 raw index times with corrected M1 completion contract. No original index rewritten.",
+  "checks": [
+    {
+      "run": "20261019T093020.369397Z-measure-stream",
+      "completion_seconds": 61.209761416,
+      "sampled_seconds": 91.969532833,
+      "verified_recovery_seconds": 30.759771417000003,
+      "pass": true
+    },
+    {
+      "run": "20261019T093153.424335Z-measure-stream",
+      "completion_seconds": 61.378067666,
+      "sampled_seconds": 91.651082958,
+      "verified_recovery_seconds": 30.273015292000004,
+      "pass": true
+    }
+  ]
+}

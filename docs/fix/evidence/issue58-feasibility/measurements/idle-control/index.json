@@ -1,0 +1,41 @@
+{
+  "scenario": "idle",
+  "binary_sha256": "12607b834eb593421c5377f24a83ff75f1bebe2b5449f76223e0e189ce358cb2",
+  "platform": "macOS-15.8.2-arm64-arm-64bit",
+  "machine": "arm64",
+  "sha": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+  "build_dirty": false,
+  "cpu_unit": "100% = one logical CPU; cumulative CPU time delta / monotonic interval",
+  "webkit_attribution": "new WebKit PID set relative to prelaunch; candidates, not proven exclusive; shared preexisting separately listed",
+  "thermal": "NOT_MEASURED",
+  "power_assertion": "temporary caffeinate -d -i -u scoped to owned app PID; no persisted settings",
+  "window_css": "1180x820 nominal native window; content in ui snapshot",
+  "zoom": 1,
+  "screen_recording": false,
+  "instrumentation": "REPORTING/RAF OFF (input bookkeeping and periodic callback remain)",
+  "baseline_full_dom": false,
+  "display_configuration": [
+    {
+      "_spdisplays_pixels": "2940 x 1912",
+      "_spdisplays_resolution": "1470 x 956 @ 60.00Hz",
+      "spdisplays_main": "spdisplays_yes",
+      "spdisplays_pixelresolution": "spdisplays_2560x1664Retina"
+    }
+  ],
+  "low_power": "0",
+  "power": "Now drawing from 'AC Power'",
+  "startup_seconds": 0.45901854200000003,
+  "existing_webkit_pids": [
+    1375
+  ],
+  "completion_seconds": null,
+  "sampled_seconds": 90.958871916,
+  "sampler_wall_seconds": {
+    "mean": 0.06477184311764725,
+    "max": 0.07362891699999352,
+    "note": "ps collection wall time, not CPU; external sampler remains in both control and instrumented runs"
+  },
+  "phase": "idle: first 30s settle, next 60s sample; stream: until actual 1200-update completion and drained queue, then 30s recovery",
+  "after_exit_new_webkit_pids": [],
+  "status": "MEASURED"
+}

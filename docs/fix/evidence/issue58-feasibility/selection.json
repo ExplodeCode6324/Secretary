@@ -1,0 +1,116 @@
+{
+  "method": "programmatic native DOM range, not physical drag/clipboard",
+  "chars": 455420,
+  "state": {
+    "baseline": false,
+    "count": 1200,
+    "events": [
+      {
+        "composing": false,
+        "decision": "",
+        "eventTime": 2212,
+        "isComposing": null,
+        "key": null,
+        "keyCode": null,
+        "t": 2212,
+        "type": "input",
+        "value": "中文，English。"
+      },
+      {
+        "composing": true,
+        "decision": "",
+        "eventTime": 2212,
+        "isComposing": null,
+        "key": null,
+        "keyCode": null,
+        "t": 2212,
+        "type": "compositionstart",
+        "value": "中文，English。"
+      },
+      {
+        "composing": false,
+        "decision": "",
+        "eventTime": 2212,
+        "isComposing": null,
+        "key": null,
+        "keyCode": null,
+        "t": 2212,
+        "type": "compositionend",
+        "value": "中文，English。"
+      },
+      {
+        "composing": false,
+        "decision": "keep",
+        "eventTime": 2212,
+        "isComposing": false,
+        "key": "Enter",
+        "keyCode": 229,
+        "t": 2213,
+        "type": "keydown",
+        "value": "中文，English。"
+      },
+      {
+        "composing": false,
+        "decision": "send",
+        "eventTime": 2243,
+        "isComposing": false,
+        "key": "Enter",
+        "keyCode": 13,
+        "t": 2243,
+        "type": "keydown",
+        "value": "中文，English。"
+      }
+    ],
+    "focus": "TEXTAREA",
+    "focused": false,
+    "frame": 0,
+    "metrics": {
+      "frames": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "inputs": {
+        "count": 1,
+        "max": 12,
+        "p50": 12,
+        "p95": 12
+      },
+      "updates": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      }
+    },
+    "mounted": 12,
+    "queue": 0,
+    "reduce": false,
+    "running": false,
+    "selection": false,
+    "sent": [
+      "中文，English。"
+    ],
+    "streamLength": 0,
+    "systemReduce": false,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "transforms": [
+      0,
+      0,
+      0
+    ],
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+    "visibility": "visible",
+    "zoom": 1
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "scenario": "startup",
+  "binary_sha256": "12607b834eb593421c5377f24a83ff75f1bebe2b5449f76223e0e189ce358cb2",
+  "platform": "macOS-15.8.2-arm64-arm-64bit",
+  "machine": "arm64",
+  "sha": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+  "build_dirty": false,
+  "cpu_unit": "100% = one logical CPU; cumulative CPU time delta / monotonic interval",
+  "webkit_attribution": "new WebKit PID set relative to prelaunch; candidates, not proven exclusive; shared preexisting separately listed",
+  "thermal": "NOT_MEASURED",
+  "power_assertion": "temporary caffeinate -d -i -u scoped to owned app PID; no persisted settings",
+  "window_css": "1180x820 nominal native window; content in ui snapshot",
+  "zoom": 1,
+  "screen_recording": false,
+  "instrumentation": "INSTRUMENTED (1Hz IPC; streaming rAF sampler)",
+  "baseline_full_dom": false,
+  "display_configuration": [
+    {
+      "_spdisplays_pixels": "2940 x 1912",
+      "_spdisplays_resolution": "1470 x 956 @ 60.00Hz",
+      "spdisplays_main": "spdisplays_yes",
+      "spdisplays_pixelresolution": "spdisplays_2560x1664Retina"
+    }
+  ],
+  "low_power": "0",
+  "power": "Now drawing from 'AC Power'",
+  "first_seconds": 0.40737533299999995,
+  "warm_seconds": [
+    0.42107054200000005,
+    0.4038637079999998,
+    0.40492145799999957,
+    0.4066676669999998,
+    0.40475904199999935,
+    0.4036742499999999,
+    0.4150358340000011,
+    0.4051772499999995,
+    0.44906391600000006,
+    0.4077688749999986
+  ],
+  "median_seconds": 0.40592245849999964,
+  "max_seconds": 0.44906391600000006,
+  "status": "MEASURED"
+}

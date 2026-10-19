@@ -1,0 +1,62 @@
+{
+  "source_commit": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+  "run": "2026-10-19T09-21-34.781Z-manual-native",
+  "system_reduce_motion": {
+    "status": "PASS",
+    "method": "System Settings actual Reduce Motion toggle off/on/off; app held frame2",
+    "before": {
+      "frame": 2,
+      "systemReduce": false,
+      "textarea": {
+        "bottom": 708,
+        "height": 55,
+        "left": 229,
+        "right": 953,
+        "top": 653,
+        "width": 724,
+        "x": 229,
+        "y": 653
+      }
+    },
+    "enabled": {
+      "frame": 0,
+      "systemReduce": true,
+      "textarea": {
+        "bottom": 708,
+        "height": 55,
+        "left": 229,
+        "right": 953,
+        "top": 653,
+        "width": 724,
+        "x": 229,
+        "y": 653
+      },
+      "transforms": [
+        0,
+        0,
+        0
+      ]
+    },
+    "restored_setting": "off"
+  },
+  "window": {
+    "status": "PASS",
+    "method": "Cua Cmd+M produced visibility:hidden/focused:false; Window menu restore produced visible/true. Actual titlebar drag and lower-right resize 1180x820 -> 902x652 -> 1180x820. Ordinary Release Cmd+W exited app; reopening produced normal window."
+  },
+  "short_physical_copy": {
+    "status": "PASS",
+    "method": "Actual pointer drag of first paragraph, Cmd+C, textarea Cmd+V",
+    "expected": "整理今天的工作，从一个清楚的起点开始。",
+    "actual": "整理今天的工作，从一个清楚的起点开始。"
+  },
+  "full_document_clipboard": "PARTIAL: see clipboard-comparison.json; full payload present, terminal paragraph separators differ",
+  "bidirectional_10_to_900_drag": "PASS: Master reported three repetitions in each direction on 2026-10-20; no noticeable jump/stall/truncation, selection retained during streaming and prepend. See master-acceptance.json for scope.",
+  "master_visual": "PASS_FOR_TECHNICAL_FEASIBILITY_ONLY: animation principle accepted; formal UI must align with secretary-phase-ui-design.",
+  "raw_files": {
+    "window-resize.json": "076ee78f395b78cf9f32526de5d35768f50d0a58cd22a2397c4f6d63416eebf7",
+    "window-minimize.json": "fd93765577f83177ff1fca7f9e992c9b752d1586e18a531b470899fdb2ca0cb0",
+    "system-motion.json": "2f456d943fe5e3cdbd1bd94e7c105fff7685c7444407aeeacdb5381bcc737004",
+    "clipboard-full.txt": "ed19b8bdc02a906f3b5c6bb797135dec31e612a98cc60e2385dbad14f3929b75",
+    "physical-copy-short.json": "1908ab0c1b2e3de43de23c41b9e331c89ab60c49883e935020568207e7491bce"
+  }
+}

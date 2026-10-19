@@ -1,0 +1,25 @@
+{
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": [
+        "main",
+        {
+          "identifier": "native-driver",
+          "windows": [
+            "main"
+          ],
+          "permissions": [
+            "wdio:default",
+            "wdio-webdriver:default",
+            "core:event:allow-listen",
+            "core:event:allow-unlisten",
+            "core:window:allow-set-size"
+          ]
+        }
+      ]
+    }
+  },
+  "productName": "Secretary Study Test",
+  "identifier": "dev.secretary.study.test"
+}

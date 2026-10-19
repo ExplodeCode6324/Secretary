@@ -1,0 +1,87 @@
+{
+  "clips": [
+    {
+      "height": "12",
+      "x": "-10",
+      "y": "0"
+    },
+    {
+      "height": "12",
+      "x": "-10",
+      "y": "12"
+    },
+    {
+      "height": "12",
+      "x": "-10",
+      "y": "24"
+    }
+  ],
+  "paths": [
+    {
+      "d": "M16 3 L29 10.5 V25.5 L16 33 L3 25.5 V10.5 Z M16 3 V18 M3 10.5 L16 18 L29 10.5 M16 18 V33",
+      "transform": "translate(3 0)"
+    },
+    {
+      "d": "M16 3 L29 10.5 V25.5 L16 33 L3 25.5 V10.5 Z M16 3 V18 M3 10.5 L16 18 L29 10.5 M16 18 V33",
+      "transform": "translate(-5 0)"
+    },
+    {
+      "d": "M16 3 L29 10.5 V25.5 L16 33 L3 25.5 V10.5 Z M16 3 V18 M3 10.5 L16 18 L29 10.5 M16 18 V33",
+      "transform": "translate(2 0)"
+    }
+  ],
+  "snapshot": {
+    "baseline": false,
+    "count": 8,
+    "events": [],
+    "focus": "BODY",
+    "focused": false,
+    "frame": 2,
+    "metrics": {
+      "frames": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      }
+    },
+    "mounted": 7,
+    "queue": 0,
+    "reduce": false,
+    "running": false,
+    "selection": false,
+    "sent": [],
+    "streamLength": 0,
+    "systemReduce": false,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "transforms": [
+      3,
+      -5,
+      2
+    ],
+    "ua": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)",
+    "visibility": "visible",
+    "zoom": 1
+  }
+}
