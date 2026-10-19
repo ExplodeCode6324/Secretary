@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
     "check": "svelte-check --tsconfig ./tsconfig.json",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --test tests/*.test.ts && python3 -m unittest discover -s tests -p 'test_*.py'",
     "tauri": "tauri",
     "test:native": "wdio run ./wdio.conf.ts",
     "evidence": "node scripts/evidence.mjs",

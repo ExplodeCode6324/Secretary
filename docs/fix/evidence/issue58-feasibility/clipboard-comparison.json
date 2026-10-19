@@ -1,0 +1,12 @@
+{
+  "method": "Actual OS Cmd+A/Cmd+C then Cmd+V into textarea; compared with independent WKWebView document selection of the same 1000-message fixture. Newline normalization only. Not long-distance physical drag.",
+  "manual_run": "2026-10-19T09-21-34.781Z-manual-native",
+  "reference_run": "2026-10-19T09-34-18.292Z-native",
+  "chars": 468913,
+  "reference_chars": 468915,
+  "exact_match": false,
+  "sha256": "ed19b8bdc02a906f3b5c6bb797135dec31e612a98cc60e2385dbad14f3929b75",
+  "reference_sha256": "4aee50a27ad499a08e6309ddc144a0d3f07ec24d9688ad03d1e09096920c3772",
+  "difference": "Reference native Selection.toString has two additional terminal LF characters. All preceding 468913 characters are identical. Strict exact_match remains false; no trimming used to manufacture PASS.",
+  "gate": "PARTIAL; not the required bidirectional 10\u2013900 physical drag/copy matrix"
+}

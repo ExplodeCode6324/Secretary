@@ -13,7 +13,7 @@
     "resets reduced motion mid-frame without shifting input hit area: passed",
     "guards WebKit composition-order regression (synthetic, not real IME): passed",
     "loads variable-height content, recycles nodes and preserves a retained selection: passed",
-    "does not submit preedit when an accessibility click ends composition: passed",
+    "blocks a programmatic no-pointer click after composition (not VoiceOver): passed",
     "recycles after a click and retains a keyboard-selected document: passed",
     "sends exactly once on an independent pointer gesture after composition ended: passed",
     "guards synthetic keyboard activation of Send after composition: passed",
@@ -21,16 +21,16 @@
     "blocks a delayed confirmation Enter even when keyCode is 13: passed",
     "native zoom changes the actual CSS viewport at every target factor: passed",
     "preserves a selection in growing stream text for five seconds then catches up: passed",
-    "keeps input, navigation and feedback reachable at minimum window and 150/200 percent zoom: passed"
+    "keeps input, navigation and feedback reachable at minimum window and all four target zoom factors: passed"
   ],
-  "timestamp": "2026-10-19T08:57:22.586Z",
+  "timestamp": "2026-10-19T09:34:27.450Z",
   "build": "native-test feature; embedded WKWebView driver, not ordinary Release",
   "binary_sha256": "19ab592acd466edc84287bf1f7452a6f5320e359b6e05e98a10a93d0bc5fd053",
-  "source_commit": "2f10d92f2fc0d6db004fd0d7d423ef5a0a1fe309",
-  "source_dirty": true,
+  "source_commit": "1fb76ab6f1125f6599df1fd7ae41664cd73446e9",
+  "source_dirty": false,
   "process": [
     {
-      "pid": 27035,
+      "pid": 29814,
       "binary": "secretary-desktop-spike (native-test)"
     }
   ],
@@ -38,134 +38,143 @@
     {
       "name": "renders local native page and three displaced logical frames",
       "state": "passed",
-      "started": "2026-10-19T08:57:14.235Z",
-      "ended": "2026-10-19T08:57:14.434Z"
+      "started": "2026-10-19T09:34:18.322Z",
+      "ended": "2026-10-19T09:34:18.525Z"
     },
     {
       "name": "resets reduced motion mid-frame without shifting input hit area",
       "state": "passed",
-      "started": "2026-10-19T08:57:14.434Z",
-      "ended": "2026-10-19T08:57:14.498Z"
+      "started": "2026-10-19T09:34:18.525Z",
+      "ended": "2026-10-19T09:34:18.588Z"
     },
     {
       "name": "guards WebKit composition-order regression (synthetic, not real IME)",
       "state": "passed",
-      "started": "2026-10-19T08:57:14.498Z",
-      "ended": "2026-10-19T08:57:14.547Z"
+      "started": "2026-10-19T09:34:18.588Z",
+      "ended": "2026-10-19T09:34:18.640Z"
     },
     {
       "name": "loads variable-height content, recycles nodes and preserves a retained selection",
       "state": "passed",
-      "started": "2026-10-19T08:57:14.547Z",
-      "ended": "2026-10-19T08:57:14.973Z"
+      "started": "2026-10-19T09:34:18.640Z",
+      "ended": "2026-10-19T09:34:19.072Z"
     },
     {
-      "name": "does not submit preedit when an accessibility click ends composition",
+      "name": "blocks a programmatic no-pointer click after composition (not VoiceOver)",
       "state": "passed",
-      "started": "2026-10-19T08:57:14.973Z",
-      "ended": "2026-10-19T08:57:14.980Z"
+      "started": "2026-10-19T09:34:19.072Z",
+      "ended": "2026-10-19T09:34:19.078Z"
     },
     {
       "name": "recycles after a click and retains a keyboard-selected document",
       "state": "passed",
-      "started": "2026-10-19T08:57:14.980Z",
-      "ended": "2026-10-19T08:57:15.396Z"
+      "started": "2026-10-19T09:34:19.078Z",
+      "ended": "2026-10-19T09:34:19.497Z"
     },
     {
       "name": "sends exactly once on an independent pointer gesture after composition ended",
       "state": "passed",
-      "started": "2026-10-19T08:57:15.396Z",
-      "ended": "2026-10-19T08:57:15.462Z"
+      "started": "2026-10-19T09:34:19.497Z",
+      "ended": "2026-10-19T09:34:19.561Z"
     },
     {
       "name": "guards synthetic keyboard activation of Send after composition",
       "state": "passed",
-      "started": "2026-10-19T08:57:15.462Z",
-      "ended": "2026-10-19T08:57:15.472Z"
+      "started": "2026-10-19T09:34:19.562Z",
+      "ended": "2026-10-19T09:34:19.573Z"
     },
     {
       "name": "blocks delayed pointerdown belonging to the composition-ending gesture",
       "state": "passed",
-      "started": "2026-10-19T08:57:15.472Z",
-      "ended": "2026-10-19T08:57:15.531Z"
+      "started": "2026-10-19T09:34:19.573Z",
+      "ended": "2026-10-19T09:34:19.632Z"
     },
     {
       "name": "blocks a delayed confirmation Enter even when keyCode is 13",
       "state": "passed",
-      "started": "2026-10-19T08:57:15.531Z",
-      "ended": "2026-10-19T08:57:15.589Z"
+      "started": "2026-10-19T09:34:19.632Z",
+      "ended": "2026-10-19T09:34:19.690Z"
     },
     {
       "name": "native zoom changes the actual CSS viewport at every target factor",
       "state": "passed",
-      "started": "2026-10-19T08:57:15.589Z",
-      "ended": "2026-10-19T08:57:15.972Z"
+      "started": "2026-10-19T09:34:19.690Z",
+      "ended": "2026-10-19T09:34:20.063Z"
     },
     {
       "name": "preserves a selection in growing stream text for five seconds then catches up",
       "state": "passed",
-      "started": "2026-10-19T08:57:15.972Z",
-      "ended": "2026-10-19T08:57:21.704Z"
+      "started": "2026-10-19T09:34:20.063Z",
+      "ended": "2026-10-19T09:34:25.813Z"
     },
     {
-      "name": "keeps input, navigation and feedback reachable at minimum window and 150/200 percent zoom",
+      "name": "keeps input, navigation and feedback reachable at minimum window and all four target zoom factors",
       "state": "passed",
-      "started": "2026-10-19T08:57:21.704Z",
-      "ended": "2026-10-19T08:57:22.574Z"
+      "started": "2026-10-19T09:34:25.813Z",
+      "ended": "2026-10-19T09:34:27.438Z"
     }
   ],
   "artifacts": [
     {
       "name": "final.json",
-      "sha256": "e26dfe2c8e65994ebff32f55c1a2940e1fa6ad94391b5a9efc9d221a3947d375"
+      "sha256": "f23a7150c4fae15c658b9dfc59bea10f2442437feaeca66d7c3b3807ead027f1"
+    },
+    {
+      "name": "full-document.txt",
+      "sha256": "4aee50a27ad499a08e6309ddc144a0d3f07ec24d9688ad03d1e09096920c3772"
     },
     {
       "name": "minimum-window.json",
-      "sha256": "a47a9a153f1408b156f079ff2e949fa622b48d54a20abd0df07bd59dd76c87d4"
+      "sha256": "b9b0d59409e1683dd25ed88cfd9f24e16695f9157bf2161c601fad4bcc113111"
     },
     {
       "name": "phase-0.json",
-      "sha256": "330b6099bcf7f328b3ea7690701e4b265395a0cb29cc76eb42d43ce7911a17c8"
+      "sha256": "c4fcb448f73ae527b2d2a80b160798c65d9c7e9a8d760481def7e8f87b892352"
     },
     {
       "name": "phase-0.png",
-      "sha256": "72275b43371e1868ceac850dedd5dde90668fbc6729df29a215216fd80cef8ef"
+      "sha256": "5f779e1810c3d1c4cfbbc0817f20d6d281130b5e141793d9fc61750de05024bb"
     },
     {
       "name": "phase-1.json",
-      "sha256": "04911f4b67ef3fc19c048f77835307872de21fa62e9337ef3159b9877d158ddd"
+      "sha256": "e5261dbed6ff777f2de35e370f957ef8ccffc6fe36353a1380968f42117cea10"
     },
     {
       "name": "phase-1.png",
-      "sha256": "6ca95655f7d72275d64f7e2ee632ee261e8e2847b20539e9eb69edeca2711937"
+      "sha256": "3d8fb8d9895a7f82ff6cca19afc21619874b25c337a0e67e02cfcd9a62c5802a"
     },
     {
       "name": "phase-2.json",
-      "sha256": "bdff0a2208fa403e6cb28e5d05867bef1711e3d7fce22d75bced8dc361852c17"
+      "sha256": "10b3a53ca253e9bfb62ff7ce8c90dc73a98ce400074dfd0d2095079bbd204090"
     },
     {
       "name": "phase-2.png",
-      "sha256": "d7351b17574cc10b3f004acaec72e2c02e3d58883c63db09e24dec8af1b581b5"
+      "sha256": "cfdadafeac3aee29079b91146eb9987d0da7277032588e321a5e3cd485912b87"
     },
     {
       "name": "phase-3.json",
-      "sha256": "865bf3b976a64a6889d5ce7595177fe1e993d2a176a4da552b960d0f5b202837"
+      "sha256": "c735df2f1025d4885b071df5191574b535561339433a263e00bb0c7e27fe6611"
     },
     {
       "name": "phase-3.png",
-      "sha256": "211fec68abbe5de91ab75b3d68b2fd5c6a017a0e3daf96ba5ff0d9e7744db27d"
+      "sha256": "f120ff82ea1c6797946ad7e1db7120ce5b8ad08ffa813f9ac9a0940c3bcdb19d"
     },
     {
       "name": "selection.json",
-      "sha256": "1b7e0c4ab4f11459473483a86076e52f23d71092644804d402e5a2ca981603d5"
+      "sha256": "6927e132af7b314eb20a493de0a21b6c8b238a7eb87464d265ce76a598c2d615"
     },
     {
       "name": "stream-selection.json",
-      "sha256": "6d55caa5a5f4f65c76708bbac7b1971d4050fcf3ec167f06c9c1a4fe3b4f97a8"
+      "sha256": "c6ca2001c985d95c8730f095fa5806e070344fdcee3d4e55fa100edfd697b59f"
     },
     {
       "name": "synthetic-ime.json",
-      "sha256": "51b9740ce16f2141eb42ad496b44f878d2c0a78596427b90be1c39313566ee1b"
+      "sha256": "dfa85d623b56583fcafa52b5bd0e5cf3f06c15a3c819526c0ffb8e0de1b43377"
     }
+  ],
+  "binary_build_commit": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+  "source_commit_meaning": "test runner checkout; application assets unchanged from binary_build_commit",
+  "raw_only_artifacts": [
+    "full-document.txt"
   ]
 }

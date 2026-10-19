@@ -2,6 +2,7 @@
 import argparse,csv,hashlib,json,os,platform,queue,statistics,subprocess,threading,time
 from datetime import datetime,timezone
 from pathlib import Path
+from measurement_contract import validate_stream
 ROOT=Path(__file__).resolve().parents[1]
 REPO=ROOT.parents[1]
 BIN=ROOT/'src-tauri/target/release/secretary-desktop-spike'
@@ -102,10 +103,11 @@ try:
   (run/'lifecycle.json').write_text(json.dumps(lifecycle,indent=2))
   meta['completion_seconds']=completed_at
   meta['sampled_seconds']=last-start
+  meta['recovery_seconds']=None if completed_at is None else last-start-completed_at
   meta['sampler_wall_seconds']={'mean':statistics.mean(sampler_seconds),'max':max(sampler_seconds),'note':'ps collection wall time, not CPU; external sampler remains in both control and instrumented runs'}
   (run/'ui.json').write_text(json.dumps(reports,indent=2))
   meta.update(phase='idle: first 30s settle, next 60s sample; stream: until actual 1200-update completion and drained queue, then 30s recovery',after_exit_new_webkit_pids=[pid for pid,v in processes().items() if pid not in before and 'WebKit' in v['name']])
- if args.scenario=='stream' and completed_at is None:raise RuntimeError('stream did not finish 1200 updates and drain its queue within 180 seconds')
+ if args.scenario=='stream':validate_stream(completed_at,meta['sampled_seconds'])
  meta['status']='MEASURED'
 except BaseException as e:
  meta.update(status='FAIL',error=str(e));raise

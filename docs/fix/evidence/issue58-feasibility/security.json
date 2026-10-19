@@ -14,8 +14,8 @@
     ]
   },
   "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; form-action 'none'",
-  "pid": 25869,
+  "pid": 28900,
   "listeningTCP": [],
-  "binary_sha256": "350f010699152c0e208b0883f64fa75780358627b9cafd48f352d40f73779f6d",
+  "binary_sha256": "12607b834eb593421c5377f24a83ff75f1bebe2b5449f76223e0e189ce358cb2",
   "scope": "ordinary Release main-process listeners and default-feature dependency tree; not a system-wide port audit"
 }

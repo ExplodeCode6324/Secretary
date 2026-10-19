@@ -35,7 +35,7 @@
     "count": 8,
     "events": [],
     "focus": "BODY",
-    "focused": true,
+    "focused": false,
     "frame": 2,
     "metrics": {
       "frames": {

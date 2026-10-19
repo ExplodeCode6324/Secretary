@@ -1,0 +1,575 @@
+[
+  {
+    "run": "20261019T092659.652953Z-measure-startup",
+    "label": "startup",
+    "metadata": {
+      "scenario": "startup",
+      "binary_sha256": "12607b834eb593421c5377f24a83ff75f1bebe2b5449f76223e0e189ce358cb2",
+      "platform": "macOS-15.8.2-arm64-arm-64bit",
+      "machine": "arm64",
+      "sha": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+      "build_dirty": false,
+      "cpu_unit": "100% = one logical CPU; cumulative CPU time delta / monotonic interval",
+      "webkit_attribution": "new WebKit PID set relative to prelaunch; candidates, not proven exclusive; shared preexisting separately listed",
+      "thermal": "NOT_MEASURED",
+      "power_assertion": "temporary caffeinate -d -i -u scoped to owned app PID; no persisted settings",
+      "window_css": "1180x820 nominal native window; content in ui snapshot",
+      "zoom": 1,
+      "screen_recording": false,
+      "instrumentation": "INSTRUMENTED (1Hz IPC; streaming rAF sampler)",
+      "baseline_full_dom": false,
+      "display_configuration": [
+        {
+          "_spdisplays_pixels": "2940 x 1912",
+          "_spdisplays_resolution": "1470 x 956 @ 60.00Hz",
+          "spdisplays_main": "spdisplays_yes",
+          "spdisplays_pixelresolution": "spdisplays_2560x1664Retina"
+        }
+      ],
+      "low_power": "0",
+      "power": "Now drawing from 'AC Power'",
+      "first_seconds": 0.40737533299999995,
+      "warm_seconds": [
+        0.42107054200000005,
+        0.4038637079999998,
+        0.40492145799999957,
+        0.4066676669999998,
+        0.40475904199999935,
+        0.4036742499999999,
+        0.4150358340000011,
+        0.4051772499999995,
+        0.44906391600000006,
+        0.4077688749999986
+      ],
+      "median_seconds": 0.40592245849999964,
+      "max_seconds": 0.44906391600000006,
+      "status": "MEASURED"
+    }
+  },
+  {
+    "run": "20261019T092716.466909Z-measure-idle",
+    "label": "idle",
+    "metadata": {
+      "scenario": "idle",
+      "binary_sha256": "12607b834eb593421c5377f24a83ff75f1bebe2b5449f76223e0e189ce358cb2",
+      "platform": "macOS-15.8.2-arm64-arm-64bit",
+      "machine": "arm64",
+      "sha": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+      "build_dirty": false,
+      "cpu_unit": "100% = one logical CPU; cumulative CPU time delta / monotonic interval",
+      "webkit_attribution": "new WebKit PID set relative to prelaunch; candidates, not proven exclusive; shared preexisting separately listed",
+      "thermal": "NOT_MEASURED",
+      "power_assertion": "temporary caffeinate -d -i -u scoped to owned app PID; no persisted settings",
+      "window_css": "1180x820 nominal native window; content in ui snapshot",
+      "zoom": 1,
+      "screen_recording": false,
+      "instrumentation": "INSTRUMENTED (1Hz IPC; streaming rAF sampler)",
+      "baseline_full_dom": false,
+      "display_configuration": [
+        {
+          "_spdisplays_pixels": "2940 x 1912",
+          "_spdisplays_resolution": "1470 x 956 @ 60.00Hz",
+          "spdisplays_main": "spdisplays_yes",
+          "spdisplays_pixelresolution": "spdisplays_2560x1664Retina"
+        }
+      ],
+      "low_power": "0",
+      "power": "Now drawing from 'AC Power'",
+      "startup_seconds": 0.402013375,
+      "existing_webkit_pids": [
+        1375
+      ],
+      "completion_seconds": null,
+      "sampled_seconds": 91.00746966700001,
+      "sampler_wall_seconds": {
+        "mean": 0.06528631327058779,
+        "max": 0.07333674999999573,
+        "note": "ps collection wall time, not CPU; external sampler remains in both control and instrumented runs"
+      },
+      "phase": "idle: first 30s settle, next 60s sample; stream: until actual 1200-update completion and drained queue, then 30s recovery",
+      "after_exit_new_webkit_pids": [],
+      "status": "MEASURED"
+    },
+    "last_ui": {
+      "seconds": 89.714527,
+      "count": 1000,
+      "focused": true,
+      "metrics": {
+        "frames": {
+          "count": 0,
+          "max": null,
+          "p50": null,
+          "p95": null
+        },
+        "inputs": {
+          "count": 0,
+          "max": null,
+          "p50": null,
+          "p95": null
+        },
+        "updates": {
+          "count": 0,
+          "max": null,
+          "p50": null,
+          "p95": null
+        }
+      },
+      "mounted": 7,
+      "queue": 0,
+      "running": false,
+      "streamLength": 0,
+      "textarea": {
+        "bottom": 708,
+        "height": 55,
+        "left": 229,
+        "right": 953,
+        "top": 653,
+        "width": 724,
+        "x": 229,
+        "y": 653
+      },
+      "visibility": "visible",
+      "zoom": 1
+    },
+    "visibility_counts": {
+      "visible": 63
+    },
+    "phases": {
+      "steady": {
+        "app": {
+          "cpu_mean": 0.11454167604667288,
+          "cpu_max": 0.9358212968528528,
+          "rss_mean_mib": 79.47697368421052,
+          "rss_max_mib": 79.515625,
+          "samples": 57
+        },
+        "new-webkit-candidate": {
+          "cpu_mean": 0.2787696269334301,
+          "cpu_max": 0.9513681982822616,
+          "rss_mean_mib": 136.11979166666666,
+          "rss_max_mib": 136.171875,
+          "samples": 57
+        },
+        "shared-existing": {
+          "cpu_mean": 0.0,
+          "cpu_max": 0.0,
+          "rss_mean_mib": 6.984375,
+          "rss_max_mib": 6.984375,
+          "samples": 57
+        },
+        "app-plus-new-candidates": {
+          "cpu_mean": 0.39331130298010303,
+          "cpu_max": 1.8716425937057055,
+          "rss_mean_mib": 215.5967653508772,
+          "rss_max_mib": 215.640625,
+          "samples": 57
+        }
+      }
+    },
+    "raw_sha256": {
+      "lifecycle.json": "be1ac59844b9cf0eab036baaf3d56b64c0f17e4d22a418050691fb6f01633ddb",
+      "samples.csv": "8dfb2f2409cdac079300c08a3324bfa5bb463f29ab2c0d3f373189c4c893536b",
+      "ui.json": "e00e030fe16431a68780ef9750671288b7cf5f8896d9e003972535f09957324b",
+      "index.json": "5aaf48b53557f19394a0582e0caa553676e1f80ceca101a46a70dfc156d8a2a8"
+    }
+  },
+  {
+    "run": "20261019T092848.400343Z-measure-idle",
+    "label": "idle-control",
+    "metadata": {
+      "scenario": "idle",
+      "binary_sha256": "12607b834eb593421c5377f24a83ff75f1bebe2b5449f76223e0e189ce358cb2",
+      "platform": "macOS-15.8.2-arm64-arm-64bit",
+      "machine": "arm64",
+      "sha": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+      "build_dirty": false,
+      "cpu_unit": "100% = one logical CPU; cumulative CPU time delta / monotonic interval",
+      "webkit_attribution": "new WebKit PID set relative to prelaunch; candidates, not proven exclusive; shared preexisting separately listed",
+      "thermal": "NOT_MEASURED",
+      "power_assertion": "temporary caffeinate -d -i -u scoped to owned app PID; no persisted settings",
+      "window_css": "1180x820 nominal native window; content in ui snapshot",
+      "zoom": 1,
+      "screen_recording": false,
+      "instrumentation": "REPORTING/RAF OFF (input bookkeeping and periodic callback remain)",
+      "baseline_full_dom": false,
+      "display_configuration": [
+        {
+          "_spdisplays_pixels": "2940 x 1912",
+          "_spdisplays_resolution": "1470 x 956 @ 60.00Hz",
+          "spdisplays_main": "spdisplays_yes",
+          "spdisplays_pixelresolution": "spdisplays_2560x1664Retina"
+        }
+      ],
+      "low_power": "0",
+      "power": "Now drawing from 'AC Power'",
+      "startup_seconds": 0.45901854200000003,
+      "existing_webkit_pids": [
+        1375
+      ],
+      "completion_seconds": null,
+      "sampled_seconds": 90.958871916,
+      "sampler_wall_seconds": {
+        "mean": 0.06477184311764725,
+        "max": 0.07362891699999352,
+        "note": "ps collection wall time, not CPU; external sampler remains in both control and instrumented runs"
+      },
+      "phase": "idle: first 30s settle, next 60s sample; stream: until actual 1200-update completion and drained queue, then 30s recovery",
+      "after_exit_new_webkit_pids": [],
+      "status": "MEASURED"
+    },
+    "last_ui": null,
+    "visibility_counts": {},
+    "phases": {
+      "steady": {
+        "app": {
+          "cpu_mean": 0.0,
+          "cpu_max": 0.0,
+          "rss_mean_mib": 78.86328125,
+          "rss_max_mib": 78.890625,
+          "samples": 56
+        },
+        "new-webkit-candidate": {
+          "cpu_mean": 0.13332562657694286,
+          "cpu_max": 1.8626175952908661,
+          "rss_mean_mib": 136.14006696428572,
+          "rss_max_mib": 136.171875,
+          "samples": 56
+        },
+        "shared-existing": {
+          "cpu_mean": 0.0,
+          "cpu_max": 0.0,
+          "rss_mean_mib": 6.984375,
+          "rss_max_mib": 6.984375,
+          "samples": 56
+        },
+        "app-plus-new-candidates": {
+          "cpu_mean": 0.13332562657694286,
+          "cpu_max": 1.8626175952908661,
+          "rss_mean_mib": 215.00334821428572,
+          "rss_max_mib": 215.046875,
+          "samples": 56
+        }
+      }
+    },
+    "raw_sha256": {
+      "lifecycle.json": "8c6f4f1433b1860ec75c6c0a3c51d771e55dcef478b63dd0d41037ef1840cf58",
+      "samples.csv": "fdb6a469c5866f218df2c55a61e684b9cc8aafa949f70b56e37e50bdac79dfdb",
+      "ui.json": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "index.json": "c813b0744ecf1f213e97fb1f24098d5c1c55fa0ebfa73275b6b80ee84c12e670"
+    }
+  },
+  {
+    "run": "20261019T093020.369397Z-measure-stream",
+    "label": "stream",
+    "metadata": {
+      "scenario": "stream",
+      "binary_sha256": "12607b834eb593421c5377f24a83ff75f1bebe2b5449f76223e0e189ce358cb2",
+      "platform": "macOS-15.8.2-arm64-arm-64bit",
+      "machine": "arm64",
+      "sha": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+      "build_dirty": false,
+      "cpu_unit": "100% = one logical CPU; cumulative CPU time delta / monotonic interval",
+      "webkit_attribution": "new WebKit PID set relative to prelaunch; candidates, not proven exclusive; shared preexisting separately listed",
+      "thermal": "NOT_MEASURED",
+      "power_assertion": "temporary caffeinate -d -i -u scoped to owned app PID; no persisted settings",
+      "window_css": "1180x820 nominal native window; content in ui snapshot",
+      "zoom": 1,
+      "screen_recording": false,
+      "instrumentation": "INSTRUMENTED (1Hz IPC; streaming rAF sampler)",
+      "baseline_full_dom": false,
+      "display_configuration": [
+        {
+          "_spdisplays_pixels": "2940 x 1912",
+          "_spdisplays_resolution": "1470 x 956 @ 60.00Hz",
+          "spdisplays_main": "spdisplays_yes",
+          "spdisplays_pixelresolution": "spdisplays_2560x1664Retina"
+        }
+      ],
+      "low_power": "0",
+      "power": "Now drawing from 'AC Power'",
+      "startup_seconds": 0.44519633300000006,
+      "existing_webkit_pids": [
+        1375
+      ],
+      "completion_seconds": 61.209761416,
+      "sampled_seconds": 91.969532833,
+      "sampler_wall_seconds": {
+        "mean": 0.052699953057470765,
+        "max": 0.1263035410000004,
+        "note": "ps collection wall time, not CPU; external sampler remains in both control and instrumented runs"
+      },
+      "phase": "idle: first 30s settle, next 60s sample; stream: until actual 1200-update completion and drained queue, then 30s recovery",
+      "after_exit_new_webkit_pids": [],
+      "status": "MEASURED"
+    },
+    "last_ui": {
+      "seconds": 91.233066375,
+      "count": 1000,
+      "focused": true,
+      "metrics": {
+        "frames": {
+          "count": 3637,
+          "max": 40,
+          "p50": 17,
+          "p95": 29
+        },
+        "inputs": {
+          "count": 0,
+          "max": null,
+          "p50": null,
+          "p95": null
+        },
+        "updates": {
+          "count": 1200,
+          "max": 2.0000000000009095,
+          "p50": 1,
+          "p95": 1.000000000007276
+        }
+      },
+      "mounted": 8,
+      "queue": 0,
+      "running": false,
+      "streamLength": 38669,
+      "textarea": {
+        "bottom": 708,
+        "height": 55,
+        "left": 229,
+        "right": 953,
+        "top": 653,
+        "width": 724,
+        "x": 229,
+        "y": 653
+      },
+      "visibility": "visible",
+      "zoom": 1
+    },
+    "visibility_counts": {
+      "visible": 91
+    },
+    "phases": {
+      "active": {
+        "app": {
+          "cpu_mean": 2.106132673908971,
+          "cpu_max": 3.788081163245179,
+          "rss_mean_mib": 79.67242324561404,
+          "rss_max_mib": 79.875,
+          "samples": 57
+        },
+        "new-webkit-candidate": {
+          "cpu_mean": 36.12742762548422,
+          "cpu_max": 49.046339229420504,
+          "rss_mean_mib": 169.5794956140351,
+          "rss_max_mib": 192.671875,
+          "samples": 57
+        },
+        "shared-existing": {
+          "cpu_mean": 0.0,
+          "cpu_max": 0.0,
+          "rss_mean_mib": 6.9868421052631575,
+          "rss_max_mib": 7.0,
+          "samples": 57
+        },
+        "app-plus-new-candidates": {
+          "cpu_mean": 38.23356029939319,
+          "cpu_max": 50.96972508155464,
+          "rss_mean_mib": 249.25191885964912,
+          "rss_max_mib": 272.4375,
+          "samples": 57
+        }
+      },
+      "recovery": {
+        "app": {
+          "cpu_mean": 0.1997298028663316,
+          "cpu_max": 0.9379320343571125,
+          "rss_mean_mib": 79.73716517857143,
+          "rss_max_mib": 79.765625,
+          "samples": 28
+        },
+        "new-webkit-candidate": {
+          "cpu_mean": 0.7660394615958848,
+          "cpu_max": 2.809019229278858,
+          "rss_mean_mib": 192.46707589285714,
+          "rss_max_mib": 192.671875,
+          "samples": 28
+        },
+        "shared-existing": {
+          "cpu_mean": 0.0,
+          "cpu_max": 0.0,
+          "rss_mean_mib": 6.984375,
+          "rss_max_mib": 6.984375,
+          "samples": 28
+        },
+        "app-plus-new-candidates": {
+          "cpu_mean": 0.9657692644622163,
+          "cpu_max": 3.712865974008282,
+          "rss_mean_mib": 272.20424107142856,
+          "rss_max_mib": 272.4375,
+          "samples": 28
+        }
+      }
+    },
+    "raw_sha256": {
+      "lifecycle.json": "f901be5857cae44c0fcb105617e6f7949637d25489c5725353e0c7bb8ca3ae50",
+      "samples.csv": "dc4d40fb68b78154b552c1156bb250667c8c509709447975156b6929a0566e79",
+      "ui.json": "d340cb760ead6237eb8b8788af540c05954e83df8b2f65329b3985a3e63e4b0c",
+      "index.json": "083092743d8b32f988af68be3ddd7743dd768851815c5b33a90d7b1b14c6427d"
+    }
+  },
+  {
+    "run": "20261019T093153.424335Z-measure-stream",
+    "label": "stream-baseline",
+    "metadata": {
+      "scenario": "stream",
+      "binary_sha256": "12607b834eb593421c5377f24a83ff75f1bebe2b5449f76223e0e189ce358cb2",
+      "platform": "macOS-15.8.2-arm64-arm-64bit",
+      "machine": "arm64",
+      "sha": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+      "build_dirty": false,
+      "cpu_unit": "100% = one logical CPU; cumulative CPU time delta / monotonic interval",
+      "webkit_attribution": "new WebKit PID set relative to prelaunch; candidates, not proven exclusive; shared preexisting separately listed",
+      "thermal": "NOT_MEASURED",
+      "power_assertion": "temporary caffeinate -d -i -u scoped to owned app PID; no persisted settings",
+      "window_css": "1180x820 nominal native window; content in ui snapshot",
+      "zoom": 1,
+      "screen_recording": false,
+      "instrumentation": "INSTRUMENTED (1Hz IPC; streaming rAF sampler)",
+      "baseline_full_dom": true,
+      "display_configuration": [
+        {
+          "_spdisplays_pixels": "2940 x 1912",
+          "_spdisplays_resolution": "1470 x 956 @ 60.00Hz",
+          "spdisplays_main": "spdisplays_yes",
+          "spdisplays_pixelresolution": "spdisplays_2560x1664Retina"
+        }
+      ],
+      "low_power": "0",
+      "power": "Now drawing from 'AC Power'",
+      "startup_seconds": 0.49020074999999996,
+      "existing_webkit_pids": [
+        1375
+      ],
+      "completion_seconds": 61.378067666,
+      "sampled_seconds": 91.651082958,
+      "sampler_wall_seconds": {
+        "mean": 0.04866177493103488,
+        "max": 0.07403354199999512,
+        "note": "ps collection wall time, not CPU; external sampler remains in both control and instrumented runs"
+      },
+      "phase": "idle: first 30s settle, next 60s sample; stream: until actual 1200-update completion and drained queue, then 30s recovery",
+      "after_exit_new_webkit_pids": [],
+      "status": "MEASURED"
+    },
+    "last_ui": {
+      "seconds": 91.403802041,
+      "count": 1000,
+      "focused": true,
+      "metrics": {
+        "frames": {
+          "count": 3634,
+          "max": 44,
+          "p50": 17,
+          "p95": 32
+        },
+        "inputs": {
+          "count": 0,
+          "max": null,
+          "p50": null,
+          "p95": null
+        },
+        "updates": {
+          "count": 1200,
+          "max": 1.000000000007276,
+          "p50": 0.999999999992724,
+          "p95": 1.000000000003638
+        }
+      },
+      "mounted": 1001,
+      "queue": 0,
+      "running": false,
+      "streamLength": 38669,
+      "textarea": {
+        "bottom": 708,
+        "height": 55,
+        "left": 229,
+        "right": 953,
+        "top": 653,
+        "width": 724,
+        "x": 229,
+        "y": 653
+      },
+      "visibility": "visible",
+      "zoom": 1
+    },
+    "visibility_counts": {
+      "visible": 91
+    },
+    "phases": {
+      "active": {
+        "app": {
+          "cpu_mean": 3.7393939540445875,
+          "cpu_max": 6.750211247619934,
+          "rss_mean_mib": 83.56030701754386,
+          "rss_max_mib": 87.390625,
+          "samples": 57
+        },
+        "new-webkit-candidate": {
+          "cpu_mean": 47.54004510122038,
+          "cpu_max": 65.25823246397954,
+          "rss_mean_mib": 215.56496710526315,
+          "rss_max_mib": 247.09375,
+          "samples": 57
+        },
+        "shared-existing": {
+          "cpu_mean": 0.0,
+          "cpu_max": 0.0,
+          "rss_mean_mib": 6.7055921052631575,
+          "rss_max_mib": 6.71875,
+          "samples": 57
+        },
+        "app-plus-new-candidates": {
+          "cpu_mean": 51.279439055264966,
+          "cpu_max": 71.01631179903657,
+          "rss_mean_mib": 299.125274122807,
+          "rss_max_mib": 334.4375,
+          "samples": 57
+        }
+      },
+      "recovery": {
+        "app": {
+          "cpu_mean": 0.19259554435696957,
+          "cpu_max": 1.868362715021675,
+          "rss_mean_mib": 87.27424568965517,
+          "rss_max_mib": 87.328125,
+          "samples": 29
+        },
+        "new-webkit-candidate": {
+          "cpu_mean": 1.0295356456029974,
+          "cpu_max": 13.07853900515162,
+          "rss_mean_mib": 247.04849137931035,
+          "rss_max_mib": 247.1875,
+          "samples": 29
+        },
+        "shared-existing": {
+          "cpu_mean": 0.0,
+          "cpu_max": 0.0,
+          "rss_mean_mib": 6.703125,
+          "rss_max_mib": 6.703125,
+          "samples": 29
+        },
+        "app-plus-new-candidates": {
+          "cpu_mean": 1.222131189959967,
+          "cpu_max": 14.946901720173296,
+          "rss_mean_mib": 334.3227370689655,
+          "rss_max_mib": 334.515625,
+          "samples": 29
+        }
+      }
+    },
+    "raw_sha256": {
+      "lifecycle.json": "890dea97ce9bec86d013a51d8b7673559bbc8716af28f81d572ab5b3f06c83ca",
+      "samples.csv": "0f6a2f28327d84be57154ffdead87b7394e657ac6a73b5c49e7a526517cad33c",
+      "ui.json": "6e02c07eb7ebbe3c02652415c0ea64fdd71cb47122d9586080be2b9041e186e1",
+      "index.json": "638a7ccff6c1ee1cf0a48cbf62bc2c99a589d61a1e0e99a4bb7c57a27cd5232d"
+    }
+  }
+]

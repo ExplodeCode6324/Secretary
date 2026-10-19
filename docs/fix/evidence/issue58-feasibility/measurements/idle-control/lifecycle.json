@@ -1,0 +1,37 @@
+[
+  {
+    "seconds": 1.075096833,
+    "event": "appeared",
+    "pid": 1375,
+    "identity": "Sun Oct 18 02:41:39 2026",
+    "process": "com.apple.WebKit.Networking"
+  },
+  {
+    "seconds": 1.075096833,
+    "event": "appeared",
+    "pid": 29244,
+    "identity": "Mon Oct 19 17:28:48 2026",
+    "process": "secretary-desktop-spike"
+  },
+  {
+    "seconds": 1.075096833,
+    "event": "appeared",
+    "pid": 29246,
+    "identity": "Mon Oct 19 17:28:48 2026",
+    "process": "com.apple.WebKit.GPU"
+  },
+  {
+    "seconds": 1.075096833,
+    "event": "appeared",
+    "pid": 29247,
+    "identity": "Mon Oct 19 17:28:48 2026",
+    "process": "com.apple.WebKit.WebContent"
+  },
+  {
+    "seconds": 1.075096833,
+    "event": "appeared",
+    "pid": 29248,
+    "identity": "Mon Oct 19 17:28:48 2026",
+    "process": "com.apple.WebKit.Networking"
+  }
+]

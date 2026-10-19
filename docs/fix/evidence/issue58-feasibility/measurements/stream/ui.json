@@ -1,0 +1,3733 @@
+[
+  {
+    "seconds": 0.899288083,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 53,
+        "max": 22,
+        "p50": 17,
+        "p95": 20
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 17,
+        "max": 2,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 555,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 1.898284416,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 113,
+        "max": 23,
+        "p50": 17,
+        "p95": 20
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 37,
+        "max": 2,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 1199,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 2.8979375,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 173,
+        "max": 23,
+        "p50": 17,
+        "p95": 19
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 57,
+        "max": 2,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 1843,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 3.8990294580000002,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 233,
+        "max": 23,
+        "p50": 17,
+        "p95": 19
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 77,
+        "max": 2,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 2487,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 4.897538333,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 293,
+        "max": 24,
+        "p50": 17,
+        "p95": 19
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 96,
+        "max": 2,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 3099,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 5.8978948749999995,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 353,
+        "max": 24,
+        "p50": 17,
+        "p95": 19
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 116,
+        "max": 2,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 3743,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 6.898620291,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 413,
+        "max": 24,
+        "p50": 17,
+        "p95": 20
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 136,
+        "max": 2,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 4387,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 7.898860416,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 473,
+        "max": 24,
+        "p50": 17,
+        "p95": 19
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 156,
+        "max": 2,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 5031,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 8.900018166,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 533,
+        "max": 26,
+        "p50": 17,
+        "p95": 20
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 175,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 5643,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 9.899776875,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 593,
+        "max": 26,
+        "p50": 17,
+        "p95": 21
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 195,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 6287,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 10.899688416,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 653,
+        "max": 26,
+        "p50": 17,
+        "p95": 20
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 215,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 6931,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 11.900165541,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 713,
+        "max": 28,
+        "p50": 17,
+        "p95": 21
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 235,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 7575,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 12.902349916,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 773,
+        "max": 28,
+        "p50": 17,
+        "p95": 22
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 255,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 8219,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 13.907556165999999,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 833,
+        "max": 28,
+        "p50": 17,
+        "p95": 21
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 275,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 8863,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 14.908478958,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 893,
+        "max": 28,
+        "p50": 17,
+        "p95": 22
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 294,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 9475,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 15.910215916,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 953,
+        "max": 28,
+        "p50": 17,
+        "p95": 22
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 314,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 10119,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 16.911064208000003,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1013,
+        "max": 29,
+        "p50": 17,
+        "p95": 22
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 334,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 10763,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 17.9109935,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1073,
+        "max": 29,
+        "p50": 17,
+        "p95": 23
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 354,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 11407,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 18.912778416000002,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1133,
+        "max": 29,
+        "p50": 17,
+        "p95": 23
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 374,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 2
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 12051,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 19.926361583000002,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1194,
+        "max": 31,
+        "p50": 17,
+        "p95": 23
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 394,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.9999999999998863
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 12695,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 20.913656250000003,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1254,
+        "max": 31,
+        "p50": 17,
+        "p95": 23
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 413,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 13307,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 21.913972791000003,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1314,
+        "max": 31,
+        "p50": 17,
+        "p95": 23
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 433,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 13951,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 22.914093291,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1374,
+        "max": 31,
+        "p50": 17,
+        "p95": 23
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 453,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 14595,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 23.926077125000003,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1434,
+        "max": 31,
+        "p50": 17,
+        "p95": 24
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 473,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 15239,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 24.935540666,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1494,
+        "max": 32,
+        "p50": 17,
+        "p95": 24
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 493,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 15883,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 25.944508666,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1555,
+        "max": 32,
+        "p50": 17,
+        "p95": 24
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 513,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 16527,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 26.96066025,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1616,
+        "max": 32,
+        "p50": 17,
+        "p95": 25
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 533,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 17171,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 27.944798375,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1676,
+        "max": 32,
+        "p50": 17,
+        "p95": 24
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 552,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 17783,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 28.944743541,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1736,
+        "max": 32,
+        "p50": 17,
+        "p95": 25
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 572,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 18427,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 29.944912625,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1796,
+        "max": 32,
+        "p50": 17,
+        "p95": 25
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 592,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 19071,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 30.945104583000003,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1855,
+        "max": 34,
+        "p50": 17,
+        "p95": 25
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 612,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 19730,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 31.94548425,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1916,
+        "max": 34,
+        "p50": 17,
+        "p95": 25
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 631,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 20347,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 32.945503125,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 1976,
+        "max": 34,
+        "p50": 17,
+        "p95": 25
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 651,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 20991,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 33.945758666,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2036,
+        "max": 34,
+        "p50": 17,
+        "p95": 26
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 671,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 21635,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 34.94578175,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2096,
+        "max": 34,
+        "p50": 17,
+        "p95": 25
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 691,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 22279,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 35.946627166,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2156,
+        "max": 34,
+        "p50": 17,
+        "p95": 26
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 711,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 22923,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 36.946024208000004,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2215,
+        "max": 34,
+        "p50": 17,
+        "p95": 26
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 731,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 23567,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 37.959115791,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2276,
+        "max": 34,
+        "p50": 17,
+        "p95": 26
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 751,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 24211,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 38.970933291,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2337,
+        "max": 34,
+        "p50": 17,
+        "p95": 26
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 771,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 24855,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 39.980179166,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2398,
+        "max": 35,
+        "p50": 17,
+        "p95": 26
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 791,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 25499,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 40.991057083,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2458,
+        "max": 35,
+        "p50": 17,
+        "p95": 26
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 811,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 26143,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 42.00101325,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2519,
+        "max": 36,
+        "p50": 17,
+        "p95": 26
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 831,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 26787,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 43.015449875,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2580,
+        "max": 36,
+        "p50": 17,
+        "p95": 26
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 851,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 27431,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 44.028927625,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2640,
+        "max": 36,
+        "p50": 17,
+        "p95": 27
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 871,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 28075,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 45.044433708,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2701,
+        "max": 38,
+        "p50": 17,
+        "p95": 27
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 891,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 28719,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 46.053852166,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2762,
+        "max": 38,
+        "p50": 17,
+        "p95": 27
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 911,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 29363,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 47.065344291,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2823,
+        "max": 38,
+        "p50": 17,
+        "p95": 27
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 931,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 30007,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 48.073046458,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2883,
+        "max": 38,
+        "p50": 17,
+        "p95": 27
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 951,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 30651,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 49.082251166,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 2944,
+        "max": 38,
+        "p50": 17,
+        "p95": 28
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 971,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 31295,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 50.089936666,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3004,
+        "max": 38,
+        "p50": 17,
+        "p95": 27
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 991,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 31939,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 51.102163458,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3065,
+        "max": 38,
+        "p50": 17,
+        "p95": 28
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1011,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000003638
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 32583,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 52.116434958,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3126,
+        "max": 38,
+        "p50": 17,
+        "p95": 28
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1031,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 33227,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 53.123847666,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3186,
+        "max": 38,
+        "p50": 17,
+        "p95": 28
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1051,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 33871,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 54.135022416,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3247,
+        "max": 39,
+        "p50": 17,
+        "p95": 28
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1071,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 34515,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 55.150606875,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3308,
+        "max": 39,
+        "p50": 17,
+        "p95": 28
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1091,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 35159,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 56.160728,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3368,
+        "max": 39,
+        "p50": 17,
+        "p95": 28
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1111,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 35803,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 57.17314325,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3429,
+        "max": 39,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1131,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 36447,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 58.185552458000004,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3490,
+        "max": 39,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1151,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 37091,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 59.198186958,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3550,
+        "max": 39,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1171,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 37735,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 60.206107833000004,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3611,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1191,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": true,
+    "streamLength": 38379,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 61.209761416,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 62.211804083000004,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 63.210770499999995,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 64.21063291600001,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 65.210269708,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 66.211690541,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 67.215098333,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 68.215471833,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 69.217223,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 70.216166375,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 71.216319708,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 72.217368833,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 73.218385208,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 74.2194175,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 75.2184305,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 76.219424208,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 77.22186645800001,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 78.222761375,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 79.220488291,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 80.220250666,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 81.222040458,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 82.225669458,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 83.226762333,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 84.227944583,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 85.228201875,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 86.228753583,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 87.23101320800001,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 88.23211645800001,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 89.230324958,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 90.232815083,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  },
+  {
+    "seconds": 91.233066375,
+    "count": 1000,
+    "focused": true,
+    "metrics": {
+      "frames": {
+        "count": 3637,
+        "max": 40,
+        "p50": 17,
+        "p95": 29
+      },
+      "inputs": {
+        "count": 0,
+        "max": null,
+        "p50": null,
+        "p95": null
+      },
+      "updates": {
+        "count": 1200,
+        "max": 2.0000000000009095,
+        "p50": 1,
+        "p95": 1.000000000007276
+      }
+    },
+    "mounted": 8,
+    "queue": 0,
+    "running": false,
+    "streamLength": 38669,
+    "textarea": {
+      "bottom": 708,
+      "height": 55,
+      "left": 229,
+      "right": 953,
+      "top": 653,
+      "width": 724,
+      "x": 229,
+      "y": 653
+    },
+    "visibility": "visible",
+    "zoom": 1
+  }
+]

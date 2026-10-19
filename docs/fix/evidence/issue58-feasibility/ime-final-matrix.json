@@ -1,0 +1,275 @@
+{
+  "source_commit": "b49287eaa38ae69c70d99bcfcc9977f4dfae79a7",
+  "binary_sha256": "19ab592acd466edc84287bf1f7452a6f5320e359b6e05e98a10a93d0bc5fd053",
+  "run": "2026-10-19T09-21-34.781Z-manual-native",
+  "method": "Cua OS keys and pointer operations; embedded driver observes only. Pinyin confirmed via Chinese Space commit. English/punctuation pasted after actual Chinese composition.",
+  "status": "PASS",
+  "cases": [
+    {
+      "case": "candidate-enter-0",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "candidate-enter-1",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "candidate-enter-2",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "space-commit-send-0",
+      "expected_additional_sends": [
+        "中文，English。"
+      ],
+      "actual_additional_sends": [
+        "中文，English。"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "space-commit-send-1",
+      "expected_additional_sends": [
+        "中文，English。"
+      ],
+      "actual_additional_sends": [
+        "中文，English。"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "space-commit-send-2",
+      "expected_additional_sends": [
+        "中文，English。"
+      ],
+      "actual_additional_sends": [
+        "中文，English。"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "escape-cancel-0",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "escape-cancel-1",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "escape-cancel-2",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "independent-second-enter-0",
+      "expected_additional_sends": [
+        "zhongwen"
+      ],
+      "actual_additional_sends": [
+        "zhongwen"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "independent-second-enter-1",
+      "expected_additional_sends": [
+        "zhongwen"
+      ],
+      "actual_additional_sends": [
+        "zhongwen"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "independent-second-enter-2",
+      "expected_additional_sends": [
+        "zhongwen"
+      ],
+      "actual_additional_sends": [
+        "zhongwen"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "composition-send-click-0",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "composition-send-click-1",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "composition-send-click-2",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "composition-window-switch-0",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "composition-window-switch-1",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "composition-window-switch-2",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "streaming-composition-0",
+      "expected_additional_sends": [
+        "中文，English。"
+      ],
+      "actual_additional_sends": [
+        "中文，English。"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "streaming-composition-1",
+      "expected_additional_sends": [
+        "中文，English。"
+      ],
+      "actual_additional_sends": [
+        "中文，English。"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "streaming-composition-2",
+      "expected_additional_sends": [
+        "中文，English。"
+      ],
+      "actual_additional_sends": [
+        "中文，English。"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "space-commit-independent-click-0",
+      "expected_additional_sends": [
+        "中文"
+      ],
+      "actual_additional_sends": [
+        "中文"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "space-commit-independent-click-1",
+      "expected_additional_sends": [
+        "中文"
+      ],
+      "actual_additional_sends": [
+        "中文"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "space-commit-independent-click-2",
+      "expected_additional_sends": [
+        "中文"
+      ],
+      "actual_additional_sends": [
+        "中文"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "keyboard-send-button",
+      "expected_additional_sends": [],
+      "actual_additional_sends": [],
+      "pass": true,
+      "visibility": "visible",
+      "note": "queued keys before compositionend were correctly blocked; explicit later key activation tested separately"
+    },
+    {
+      "case": "independent-keyboard-button-0",
+      "expected_additional_sends": [
+        "中文"
+      ],
+      "actual_additional_sends": [
+        "中文"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "independent-keyboard-button-1",
+      "expected_additional_sends": [
+        "中文"
+      ],
+      "actual_additional_sends": [
+        "中文"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    },
+    {
+      "case": "independent-keyboard-button-2",
+      "expected_additional_sends": [
+        "中文"
+      ],
+      "actual_additional_sends": [
+        "中文"
+      ],
+      "pass": true,
+      "visibility": "visible"
+    }
+  ],
+  "input_metrics": {
+    "count": 349,
+    "max": 40,
+    "p50": 5,
+    "p95": 15
+  },
+  "raw_ime_sha256": "0617b3bac899015ad1b205ca8672aa44b8850eee399538d737715533cc7c7dcd",
+  "real_mouse_candidate_click": "NOT_TESTED (Space candidate commit then actual independent Send click passed)",
+  "voiceover": "NOT_TESTED"
+}

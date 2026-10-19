@@ -8,61 +8,61 @@
       {
         "composing": false,
         "decision": "",
-        "eventTime": 2091,
+        "eventTime": 2212,
         "isComposing": null,
         "key": null,
         "keyCode": null,
-        "t": 2092,
+        "t": 2212,
         "type": "input",
         "value": "中文，English。"
       },
       {
         "composing": true,
         "decision": "",
-        "eventTime": 2092,
+        "eventTime": 2212,
         "isComposing": null,
         "key": null,
         "keyCode": null,
-        "t": 2092,
+        "t": 2212,
         "type": "compositionstart",
         "value": "中文，English。"
       },
       {
         "composing": false,
         "decision": "",
-        "eventTime": 2092,
+        "eventTime": 2212,
         "isComposing": null,
         "key": null,
         "keyCode": null,
-        "t": 2092,
+        "t": 2212,
         "type": "compositionend",
         "value": "中文，English。"
       },
       {
         "composing": false,
         "decision": "keep",
-        "eventTime": 2092,
+        "eventTime": 2212,
         "isComposing": false,
         "key": "Enter",
         "keyCode": 229,
-        "t": 2093,
+        "t": 2213,
         "type": "keydown",
         "value": "中文，English。"
       },
       {
         "composing": false,
         "decision": "send",
-        "eventTime": 2121,
+        "eventTime": 2243,
         "isComposing": false,
         "key": "Enter",
         "keyCode": 13,
-        "t": 2121,
+        "t": 2243,
         "type": "keydown",
         "value": "中文，English。"
       }
     ],
     "focus": "TEXTAREA",
-    "focused": true,
+    "focused": false,
     "frame": 0,
     "metrics": {
       "frames": {
