@@ -1,6 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { conversation, approvalProblem, previews } from "../src/workflow";
+import {
+  conversation,
+  approvalProblem,
+  previews,
+  approvalDisplay,
+  retainPreview,
+} from "../src/workflow";
 import type { Message, Timeline, Authorization } from "../src/contracts";
 const m: Message = {
   id: "message:call",
@@ -84,4 +90,30 @@ test("consent requires complete current data, no pending intent, and a live dead
   assert(
     approvalProblem({ ...auth, expires_at: "2026-01-01" }, Date.now(), false),
   );
+});
+
+test("consent display exposes invisible direction and zero-width controls", () => {
+  const text = approvalDisplay({ command: "safe\u202Eevil\u200B" });
+  assert(text.includes("\\u202e"));
+  assert(text.includes("\\u200b"));
+  assert(!text.includes("\u202E"));
+});
+
+test("disconnect retains latest preview until a new snapshot; durable text wins", () => {
+  const retained = retainPreview(live, { connected: false, data: null });
+  assert.equal(
+    (conversation(page([m]), retained, new Set())[0] as Message).text,
+    "实时文本",
+  );
+  assert.equal(
+    (
+      conversation(
+        page([{ ...m, persistence: "durable", text: "final" }]),
+        retained,
+        new Set(),
+      )[0] as Message
+    ).text,
+    "final",
+  );
+  assert.equal(retainPreview(retained, { connected: true, data: null }), null);
 });

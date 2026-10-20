@@ -9,7 +9,12 @@
     Attention,
     RequestStatus,
   } from "./contracts";
-  import { projection, capability, approvalProblem } from "./workflow";
+  import {
+    projection,
+    capability,
+    approvalProblem,
+    approvalDisplay,
+  } from "./workflow";
   import Results from "./Results.svelte";
   import { onMount } from "svelte";
   let { data }: { data: Snapshot } = $props();
@@ -163,7 +168,17 @@
   const unresolved = $derived(
     !!pending || !!data.approvals?.some((a) => a.target === authId),
   );
-  const problem = $derived(approvalProblem(auth, now, unresolved));
+  const uncertain = $derived(
+    data.approvals?.find(
+      (a) =>
+        a.target === authId && ["UNKNOWN", "RECEIPT_MISSING"].includes(a.state),
+    ),
+  );
+  const problem = $derived(
+    uncertain
+      ? `已有提交状态为 ${uncertain.state}，为避免重复决策暂不能重试；请先核对 Core 授权状态及原请求回执`
+      : approvalProblem(auth, now, unresolved),
+  );
   onMount(() => {
     const t = setInterval(() => (now = Date.now()), 500);
     return () => {
@@ -343,10 +358,8 @@
         <h3>操作详情 · {auth.state}</h3>
         <p>{auth.id} · revision {auth.revision}</p>
         <p>到期：{auth.expires_at ?? "无"}</p>
-        <pre data-testid="approval-parameters">{JSON.stringify(
+        <pre data-testid="approval-parameters">{approvalDisplay(
             auth.display,
-            null,
-            2,
           )}</pre>
         <p>Scope：{JSON.stringify(auth.scope)}</p>
         {#if auth.remember_context}<p>

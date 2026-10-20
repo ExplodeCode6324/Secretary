@@ -80,3 +80,15 @@ NATIVE_SPEC=./tests/workflow.native.ts npm run test:native --prefix src/secretar
 Release 空闲 10 次、每秒一次 `ps` 采样：原生桌面进程平均 3.65% CPU、Core 2.63%；不含 WebKit 子进程，因此不是整个应用的能耗结论。当前保留 Core 约 10Hz 瞬态流；未为此次最小链路增加新的 Core 去噪机制。第二客户端拒绝已通过 journal 中的 ApiCommand ID 与不可变 arguments 的 REJECT 交叉归因，未用 decided_by 区分客户端。
 
 实施复核等待期间补了一项预算账本回归：恢复全局截止时间不能用首次 provider admission 时间代替最初启动时间。launcher 现在将计时原点单独持久化并写入每个 admission，恢复时校验一致性；没有调用的预检重启也不能重置时限。旧账本若缺原点则拒绝继续，不能猜测或重置。本次实际运行已于 11:36:29 UTC 停止；即便以最早 Core 目录创建 11:00:53 保守计时，也未超过 40 分钟。总计 42 admissions，40 项有 usage，146131 reported tokens；缺失 usage 不估算。该后续修改仅影响测试启动器，已有 live 业务结果未重跑消耗预算。
+
+## 实施复核 R1 的修订
+
+Claude Opus 5.5 Extra 在浏览器同一会话用英文复核 `86e6fa9`，结论 CHANGES_REQUIRED。它读取完整差异，并在 Node 下执行 conversation helper 的两个边界用例；没有独立运行 Rust、Core、Tauri 或 CI。
+
+- B1：持久变更帧仍可能填满容量 2 的提示队列，导致无必要重连。已保留解析校验并合并满队列提示；权威事务及 cursor 仍从 sync/changes 读取。新增真实 fixture Core 的 4Hz 持久提交 + 10Hz 瞬态 + 1Hz 消费测试，连续 10 秒逐区间检查至少 3 个提交、稳定 epoch、非空预览与持久追平。同一测试换回旧实现会因 connected=false 失败，修复后通过。UI 同域同实例断线保留上次文本并标记重连，新快照/持久记录替换它。
+- B2：当前窗口内的阅读锚点恢复不再进入静态历史页；底部保存 latest；历史页明确提供查看最新入口且不混入实时预览；发送后回到实时投影。增加原生 WKWebView 滚动、重开、发送并看到双方持久消息的回归。
+- 非阻断项：审批参数将 bidi/零宽控制字符显示为转义文本；UNKNOWN/RECEIPT_MISSING 明确解释为何暂不能重复提交；INVALID_RESPONSE 可重新建立流，UNSUPPORTED_SYNC 仍显式停止并有区别测试。同步轻量 IPC 暂保持，已有 p95=3ms 测量支持当前规模；全 transient payload 优化留后续测量驱动。预算 limiter 实际串行整个调用（至 result），比只限制开始间隔更严格；停滞调用由场景/全局截止时间终止。
+
+这些回归使用离线 fixture Core，不追加真实模型花费。原始失败日志保留：最初突发测试使用聊天请求，不能保证每秒已提交密度，改为同步 client 注册事务；一次 UI 故障注入未能接管 IPC，移除该注入，断线保留由纯函数回归验证，原生回归只验证真实桥接的阅读恢复。
+
+R1 修订验证：desktop check 零错误/警告，14 个 TS + 4 个 Python 测试通过；Rust 29 PASS / 1 既有 ignored；clippy -D warnings 通过；native-test 与普通 Release 均构建成功。新增 reading.native.ts 在真实 WKWebView/离线 Core 中通过（21.1s），验证锚点恢复仍显示实时双方持久消息、底部保存 latest；其首次文本比对因 getText 去除末尾空白失败，断言改为比较 trim 后正文再通过。fixture Core 测后显式停止。最新源代码尚待 Claude R2 与对应 CI；Master 终审仍待确认。

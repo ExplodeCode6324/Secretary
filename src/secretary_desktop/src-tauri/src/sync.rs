@@ -2,7 +2,7 @@ use crate::{err, protocol::Query, storage::Storage, transport::Transport, Result
 use serde_json::Value;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    mpsc::{sync_channel, Receiver},
+    mpsc::{sync_channel, Receiver, TrySendError},
     Arc, Mutex,
 };
 use std::time::{Duration, Instant};
@@ -67,9 +67,14 @@ impl Stream {
                                     m["connected"] = Value::Bool(true);
                                     m["data"] = value["data"].clone();
                                 } else {
-                                    sender
-                                        .try_send(value)
-                                        .map_err(|_| err("STREAM_BACKPRESSURE"))?;
+                                    // Parsed durable frames are only wake hints: the
+                                    // authoritative transaction/cursor comes from
+                                    // sync/changes. A queued hint already covers
+                                    // another validated change, so coalesce bursts.
+                                    match sender.try_send(value) {
+                                        Ok(()) | Err(TrySendError::Full(_)) => (),
+                                        Err(TrySendError::Disconnected(_)) => return Ok(()),
+                                    }
                                 }
                             }
                         }
@@ -230,7 +235,6 @@ impl Synchronizer {
         if let Some(error) = failure {
             if [
                 "UNSUPPORTED_SYNC",
-                "INVALID_RESPONSE",
                 "AUTH_REQUIRED",
                 "DATA_DOMAIN_CONFLICT",
                 "INSTANCE_CHANGED",

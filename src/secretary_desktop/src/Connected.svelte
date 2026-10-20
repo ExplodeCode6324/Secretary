@@ -3,16 +3,23 @@
   import { bridge, type Snapshot } from "./bridge";
   import Conversation from "./Conversation.svelte";
   import Work from "./Work.svelte";
-  import { conversation, projection, capability } from "./workflow";
+  import {
+    conversation,
+    projection,
+    capability,
+    retainPreview,
+  } from "./workflow";
   import type { Timeline } from "./contracts";
   let data = $state<Snapshot>({ profiles: [], sync: "DISCONNECTED" });
   let live = $state<unknown>(null);
+  let reconnecting = $state(false);
   let history = $state<Timeline | null>(null);
   let finalized = new Set<string>();
-  let timeline = $derived(
-    history ?? projection<Timeline>(data.cache, "timeline"),
+  let base = $derived(projection<Timeline>(data.cache, "timeline"));
+  let timeline = $derived(history ?? base);
+  let items = $derived(
+    conversation(timeline, history ? null : live, finalized),
   );
-  let items = $derived(conversation(timeline, live, finalized));
   let polling = false,
     livePolling = false;
   let profile = $state("");
@@ -42,15 +49,26 @@
         e.getBoundingClientRect().bottom >
         (panel?.getBoundingClientRect().top ?? 0),
     );
-    const value = first
-      ? JSON.stringify({
-          v: 1,
-          id: first.dataset.messageId,
-          offset:
-            first.getBoundingClientRect().top -
-            (panel?.getBoundingClientRect().top ?? 0),
-        })
-      : String(panel?.scrollTop ?? 0);
+    const atBottom =
+      panel &&
+      (panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 24 ||
+        (tail &&
+          tail.getBoundingClientRect().top >=
+            panel.getBoundingClientRect().top &&
+          tail.getBoundingClientRect().bottom <=
+            panel.getBoundingClientRect().bottom));
+    const value =
+      !history && atBottom
+        ? "latest"
+        : first
+          ? JSON.stringify({
+              v: 1,
+              id: first.dataset.messageId,
+              offset:
+                first.getBoundingClientRect().top -
+                (panel?.getBoundingClientRect().top ?? 0),
+            })
+          : String(panel?.scrollTop ?? 0);
     if (domain)
       anchorTimer = setTimeout(() => {
         void bridge.anchor(domain, value).catch(displayError);
@@ -104,6 +122,7 @@
     busy = true;
     generation++;
     live = null;
+    reconnecting = false;
     history = null;
     finalized = new Set();
     error = "";
@@ -119,7 +138,13 @@
       if (data.anchor?.startsWith("{")) {
         try {
           const saved = JSON.parse(data.anchor);
-          if (saved.v === 1 && typeof saved.id === "string")
+          if (
+            saved.v === 1 &&
+            typeof saved.id === "string" &&
+            !projection<Timeline>(data.cache, "timeline")?.items.some(
+              (item) => item.id === saved.id,
+            )
+          )
             history = await bridge.query<Timeline>(data.domain!, {
               operation: "timeline/around",
               parameters: { message_id: saved.id },
@@ -177,6 +202,7 @@
             dirty = false;
           }
           notice = "已持久排队：" + id;
+          await latest();
         }
       });
     try {
@@ -222,6 +248,7 @@
       if (disposed || round !== generation) return;
       if (data.core?.instance_id !== next.core?.instance_id) {
         live = null;
+        reconnecting = false;
         history = null;
         finalized = new Set();
       }
@@ -251,10 +278,14 @@
           round === generation &&
           d === data.domain &&
           i === data.core?.instance_id
-        )
-          live = snapshot?.connected ? snapshot.data : null;
+        ) {
+          reconnecting = !snapshot?.connected;
+          // A disconnect is not a deletion. Retain the last preview in this
+          // domain/instance until a fresh snapshot or durable row replaces it.
+          live = retainPreview(live, snapshot);
+        }
       } catch {
-        if (round === generation) live = null;
+        if (round === generation) reconnecting = true;
       } finally {
         livePolling = false;
       }
@@ -313,6 +344,12 @@
   {#if data.domain}
     <section aria-label="消息">
       <h2>对话</h2>
+      {#if history}<p data-testid="history-banner">
+          正在阅读历史页面。<button onclick={latest}>查看最新消息</button>
+        </p>{/if}
+      {#if reconnecting && !history}<p role="status">
+          正在重新连接，保留上次预览
+        </p>{/if}
       <button onclick={resync}>重建投影</button>
       {#if timeline?.before}<button onclick={older}>较早消息</button>{/if}
       {#key data.domain + ":" + data.core?.instance_id}<Conversation

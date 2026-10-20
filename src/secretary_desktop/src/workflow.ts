@@ -141,3 +141,17 @@ export function messageLabel(m: Message) {
           : "等待最终记录"
       : "最终状态未知";
 }
+// Show invisible directional/format controls literally in consent parameters.
+export function approvalDisplay(value: unknown): string {
+  return JSON.stringify(value, null, 2).replace(
+    /[\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/g,
+    (c) => "\\u" + c.charCodeAt(0).toString(16).padStart(4, "0"),
+  );
+}
+
+export function retainPreview(
+  current: unknown,
+  snapshot: Pick<Transient, "connected" | "data"> | null,
+): unknown {
+  return snapshot?.connected ? snapshot.data : current;
+}
