@@ -1,7 +1,27 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
   import { bridge, type Snapshot } from "./bridge";
+  import Conversation from "./Conversation.svelte";
+  import Work from "./Work.svelte";
+  import {
+    conversation,
+    projection,
+    capability,
+    retainPreview,
+  } from "./workflow";
+  import type { Timeline } from "./contracts";
   let data = $state<Snapshot>({ profiles: [], sync: "DISCONNECTED" });
+  let live = $state<unknown>(null);
+  let reconnecting = $state(false);
+  let history = $state<Timeline | null>(null);
+  let finalized = new Set<string>();
+  let base = $derived(projection<Timeline>(data.cache, "timeline"));
+  let timeline = $derived(history ?? base);
+  let items = $derived(
+    conversation(timeline, history ? null : live, finalized),
+  );
+  let polling = false,
+    livePolling = false;
   let profile = $state("");
   let text = $state("");
   let version = 0;
@@ -22,11 +42,36 @@
   function anchor() {
     clearTimeout(anchorTimer);
     const domain = data.domain;
+    const first = [
+      ...(panel?.querySelectorAll<HTMLElement>("[data-message-id]") ?? []),
+    ].find(
+      (e) =>
+        e.getBoundingClientRect().bottom >
+        (panel?.getBoundingClientRect().top ?? 0),
+    );
+    const atBottom =
+      panel &&
+      (panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 24 ||
+        (tail &&
+          tail.getBoundingClientRect().top >=
+            panel.getBoundingClientRect().top &&
+          tail.getBoundingClientRect().bottom <=
+            panel.getBoundingClientRect().bottom));
+    const value =
+      !history && atBottom
+        ? "latest"
+        : first
+          ? JSON.stringify({
+              v: 1,
+              id: first.dataset.messageId,
+              offset:
+                first.getBoundingClientRect().top -
+                (panel?.getBoundingClientRect().top ?? 0),
+            })
+          : String(panel?.scrollTop ?? 0);
     if (domain)
       anchorTimer = setTimeout(() => {
-        void bridge
-          .anchor(domain, String(panel?.scrollTop ?? 0))
-          .catch(displayError);
+        void bridge.anchor(domain, value).catch(displayError);
       }, 300);
   }
   async function resync() {
@@ -36,6 +81,7 @@
         { operation: "assistant" },
         { operation: "timeline" },
         { operation: "attention" },
+        { operation: "tasks" },
       ]);
     } catch (e) {
       displayError(e);
@@ -48,20 +94,22 @@
     const value = text;
     const domain = data.domain;
     dirty = true;
-    chain = chain.catch(() => {}).then(async () => {
-      if (!domain) return;
-      saving = true;
-      try {
-        const d = await bridge.draft(domain, version, value);
-        version = d.version;
-        if (text === value) dirty = false;
-      } catch (e) {
-        displayError(e);
-        throw e;
-      } finally {
-        saving = false;
-      }
-    });
+    chain = chain
+      .catch(() => {})
+      .then(async () => {
+        if (!domain) return;
+        saving = true;
+        try {
+          const d = await bridge.draft(domain, version, value);
+          version = d.version;
+          if (text === value) dirty = false;
+        } catch (e) {
+          displayError(e);
+          throw e;
+        } finally {
+          saving = false;
+        }
+      });
     // A failed save stays visible and keeps the editor contents. The next edit
     // retries; version conflicts still require reconnect before sending.
     void chain.catch(() => {});
@@ -73,6 +121,10 @@
     }
     busy = true;
     generation++;
+    live = null;
+    reconnecting = false;
+    history = null;
+    finalized = new Set();
     error = "";
     try {
       await chain.catch(() => {});
@@ -83,10 +135,40 @@
       dirty = false;
       chain = Promise.resolve();
       if (pending !== null) save();
+      if (data.anchor?.startsWith("{")) {
+        try {
+          const saved = JSON.parse(data.anchor);
+          if (
+            saved.v === 1 &&
+            typeof saved.id === "string" &&
+            !projection<Timeline>(data.cache, "timeline")?.items.some(
+              (item) => item.id === saved.id,
+            )
+          )
+            history = await bridge.query<Timeline>(data.domain!, {
+              operation: "timeline/around",
+              parameters: { message_id: saved.id },
+            });
+        } catch {
+          notice = "阅读位置不可用，已加载最近消息";
+        }
+      }
       await tick();
       if (panel) {
         if (data.anchor === "latest") tail?.scrollIntoView({ block: "end" });
-        else panel.scrollTop = Number(data.anchor) || 0;
+        else if (data.anchor?.startsWith("{")) {
+          try {
+            const saved = JSON.parse(data.anchor);
+            const element = [
+              ...panel.querySelectorAll<HTMLElement>("[data-message-id]"),
+            ].find((e) => e.dataset.messageId === saved.id);
+            if (element)
+              panel.scrollTop +=
+                element.getBoundingClientRect().top -
+                panel.getBoundingClientRect().top -
+                (Number(saved.offset) || 0);
+          } catch {}
+        } else panel.scrollTop = Number(data.anchor) || 0;
       }
     } catch (e) {
       displayError(e);
@@ -96,26 +178,52 @@
   }
   async function send() {
     if (busy || composing || !text.trim() || !data.domain) return;
+    const value = text,
+      domain = data.domain,
+      round = generation;
     busy = true;
     error = "";
+    notice = "正在保存发送意图…";
+    chain = chain
+      .catch(() => {})
+      .then(async () => {
+        const saved = await bridge.draft(domain, version, value);
+        version = saved.version;
+        const id = await bridge.submit(
+          domain,
+          { operation: "messages" },
+          { text: value },
+          version,
+        );
+        version++; // the same transaction cleared this draft version
+        if (round === generation) {
+          if (text === value) {
+            text = "";
+            dirty = false;
+          }
+          notice = "已持久排队：" + id;
+          await latest();
+        }
+      });
     try {
-      save();
       await chain;
-      await bridge.submit(
-        data.domain,
-        { operation: "messages" },
-        { text },
-        version,
-      );
-      const next = await bridge.snapshot();
-      data = next;
-      text = next.draft?.text ?? "";
-      version = next.draft?.version ?? 0;
-      dirty = false;
     } catch (e) {
       displayError(e);
     } finally {
       busy = false;
+    }
+  }
+  async function older() {
+    if (!timeline?.before || !data.domain) return;
+    const round = generation;
+    try {
+      const page = await bridge.query<Timeline>(data.domain, {
+        operation: "timeline",
+        parameters: { cursor: timeline.before, direction: "before" },
+      });
+      if (round === generation) history = page;
+    } catch (e) {
+      displayError(e);
     }
   }
   async function stop() {
@@ -132,14 +240,24 @@
     }
   }
   async function refresh() {
+    if (polling) return;
+    polling = true;
     const round = generation;
     try {
       const next = await bridge.snapshot();
       if (disposed || round !== generation) return;
+      if (data.core?.instance_id !== next.core?.instance_id) {
+        live = null;
+        reconnecting = false;
+        history = null;
+        finalized = new Set();
+      }
       data = next;
       if (!profile) profile = next.profiles[0]?.id ?? "";
     } catch (e) {
       displayError(e);
+    } finally {
+      polling = false;
     }
   }
   onMount(() => {
@@ -147,13 +265,41 @@
     const timer = setInterval(() => {
       if (!busy && !saving) void refresh();
     }, 1500);
+    const transientTimer = setInterval(async () => {
+      if (livePolling || !data.domain || !data.core) return;
+      livePolling = true;
+      const round = generation,
+        d = data.domain,
+        i = data.core.instance_id;
+      try {
+        const snapshot = await bridge.transient(d, i);
+        if (
+          !disposed &&
+          round === generation &&
+          d === data.domain &&
+          i === data.core?.instance_id
+        ) {
+          reconnecting = !snapshot?.connected;
+          // A disconnect is not a deletion. Retain the last preview in this
+          // domain/instance until a fresh snapshot or durable row replaces it.
+          live = retainPreview(live, snapshot);
+        }
+      } catch {
+        if (round === generation) reconnecting = true;
+      } finally {
+        livePolling = false;
+      }
+    }, 250);
     return () => {
       disposed = true;
+      clearInterval(transientTimer);
       clearInterval(timer);
       clearTimeout(anchorTimer);
     };
   });
-  function latest() {
+  async function latest() {
+    history = null;
+    await tick();
     tail?.scrollIntoView({ block: "end" });
     if (data.domain)
       void bridge.anchor(data.domain, "latest").catch(displayError);
@@ -197,14 +343,19 @@
   {#if notice}<p role="status">{notice}</p>{/if}
   {#if data.domain}
     <section aria-label="消息">
-      <h2>最近投影</h2>
+      <h2>对话</h2>
+      {#if history}<p data-testid="history-banner">
+          正在阅读历史页面。<button onclick={latest}>查看最新消息</button>
+        </p>{/if}
+      {#if reconnecting && !history}<p role="status">
+          正在重新连接，保留上次预览
+        </p>{/if}
       <button onclick={resync}>重建投影</button>
-      {#each Object.entries(data.cache ?? {}) as [key, value]}
-        <details open={key.includes("timeline")}>
-          <summary>{JSON.parse(key).operation}</summary>
-          <pre>{JSON.stringify(value, null, 2)}</pre>
-        </details>
-      {/each}
+      {#if timeline?.before}<button onclick={older}>较早消息</button>{/if}
+      {#key data.domain + ":" + data.core?.instance_id}<Conversation
+          {items}
+          domain={data.domain}
+        />{/key}
       <div bind:this={tail}></div>
       <button onclick={latest}>跳到最新消息</button>
     </section>
@@ -216,35 +367,17 @@
         bind:value={text}
         oninput={save}
         oncompositionstart={() => (composing = true)}
-        oncompositionend={() => (composing = false)}
-        disabled={busy}></textarea>
+        oncompositionend={() => (composing = false)}></textarea>
       <button
         onclick={send}
-        disabled={busy || composing || !text.trim()}
+        disabled={busy ||
+          composing ||
+          !text.trim() ||
+          !capability(data.core, "messages")}
         data-testid="send">保存并发送</button
       ><span>{saving ? "保存中" : dirty ? "尚未保存" : "草稿已保存"}</span>
     </section>
-    <section aria-label="命令记录">
-      <h2>命令与回执</h2>
-      {#each data.outbox ?? [] as item}<article data-testid="outbox-item">
-          <code>{item.id}</code> <strong>{item.state}</strong>
-          <details>
-            <summary>命令与回执</summary>
-            <pre>{item.body}</pre>
-            <pre>{item.receipt ?? "尚未确认受理"}</pre>
-          </details>
-        </article>{/each}
-    </section>
-    <section>
-      <label>产物 ID <input bind:value={artifact} /></label><button
-        onclick={() =>
-          bridge
-            .download(data.domain!, artifact)
-            .then((s) => (notice = s))
-            .catch(displayError)}
-        disabled={!artifact}>保存产物…</button
-      >
-    </section>
+    {#key data.domain + ":" + data.core?.instance_id}<Work {data} />{/key}
     <section>
       <button onclick={() => (stopConfirm = true)} disabled={busy}
         >停止当前 Core…</button
@@ -279,8 +412,7 @@
     font-size: 17px;
   }
   button,
-  select,
-  input {
+  select {
     margin: 4px;
     padding: 7px 10px;
   }
@@ -295,17 +427,6 @@
     width: 100%;
     min-height: 100px;
     box-sizing: border-box;
-  }
-  pre {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    font-size: 12px;
-    max-height: 420px;
-    overflow: auto;
-  }
-  article {
-    padding: 8px;
-    border-top: 1px solid #dce5ef;
   }
   p[role="alert"] {
     color: #a83232;

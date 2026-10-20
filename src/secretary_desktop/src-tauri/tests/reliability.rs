@@ -498,7 +498,7 @@ fn real_sse_receives_change_and_transient() {
             .recv_timeout(std::time::Duration::from_millis(500))
         {
             change |= e["kind"] == "change";
-            transient |= e["kind"] == "transient";
+            transient |= !stream.mailbox.lock().unwrap()["data"].is_null();
             if change && transient {
                 break;
             }
@@ -752,11 +752,8 @@ fn real_sse_survives_more_than_thirty_seconds() {
         .unwrap()
         .to_owned();
     let stream = secretary_desktop_spike::sync::Stream::open(f.t.clone(), cursor);
-    let first = stream
-        .receiver
-        .recv_timeout(std::time::Duration::from_secs(5))
-        .unwrap();
-    assert_eq!(first["kind"], "transient");
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    assert!(!stream.mailbox.lock().unwrap()["data"].is_null());
     let until = std::time::Instant::now() + std::time::Duration::from_secs(31);
     while std::time::Instant::now() < until {
         match stream
@@ -879,4 +876,169 @@ fn resolved_history_yields_capacity_without_losing_pending_intent() {
         .iter()
         .any(|r| r["id"] == "history-2" || r["id"] == "history-3"));
     assert_eq!(s.draft("domain", "message").unwrap()["text"], "");
+}
+
+#[test]
+fn real_tick_cadence_keeps_transient_alive() {
+    let f = Fixture::new();
+    let mut s = f.store("cadence");
+    let mut sync = Synchronizer::default();
+    sync.tick(&f.t, &mut s).unwrap();
+    let mut epoch = None;
+    for _ in 0..10 {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        sync.tick(&f.t, &mut s).unwrap();
+        assert!(
+            !sync.transient.is_null(),
+            "preview lost at real consumer cadence"
+        );
+        let current = sync.mailbox.lock().unwrap()["epoch"].clone();
+        if let Some(old) = &epoch {
+            assert_eq!(old, &current, "unexpected reconnect");
+        }
+        epoch = Some(current);
+    }
+}
+
+#[test]
+fn durable_bursts_coalesce_without_interrupting_transient_at_real_tick_cadence() {
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
+    use std::time::{Duration, Instant};
+    let f = Fixture::new();
+    let mut s = f.store("burst-cadence");
+    let mut sync = Synchronizer::default();
+    sync.tick(&f.t, &mut s).unwrap();
+    let initial = s.cursor(f.t.domain()).unwrap().unwrap();
+    let epoch = sync.mailbox.lock().unwrap()["epoch"].clone();
+    let posted = Arc::new(AtomicUsize::new(0));
+    let producer_count = posted.clone();
+    let t = f.t.clone();
+    let producer = std::thread::spawn(move || {
+        let start = Instant::now();
+        // At least four committed inputs/second alongside Core's 100ms
+        // transient sampling; the consumer still only drains once/second.
+        for n in 0..44 {
+            t.post(
+                &Query::new("clients"),
+                &json!({
+                    "request_id":uuid::Uuid::new_v4().to_string(),
+                    "name":format!("burst cadence {n}")
+                }),
+            )
+            .unwrap();
+            producer_count.fetch_add(1, Ordering::Relaxed);
+            std::thread::sleep(
+                (start + Duration::from_millis((n + 1) * 250))
+                    .saturating_duration_since(Instant::now()),
+            );
+        }
+    });
+    let started = Instant::now();
+    let mut previous_version = 0;
+    let mut committed = s.cursor(f.t.domain()).unwrap();
+    for _ in 0..10 {
+        std::thread::sleep(Duration::from_secs(1));
+        // Receiving hints cannot commit the durable cursor independently.
+        assert_eq!(
+            s.cursor(f.t.domain()).unwrap(),
+            committed,
+            "SSE hints must not advance the applied cursor"
+        );
+        let mut arrivals = Query::new("sync/changes");
+        arrivals.parameters.insert("after".into(), json!(committed));
+        let incoming = f.t.query(&arrivals).unwrap();
+        assert!(
+            incoming["transactions"].as_array().unwrap().len() >= 3,
+            "each consumer interval must contain at least three committed transactions"
+        );
+        sync.tick(&f.t, &mut s).unwrap();
+        committed = s.cursor(f.t.domain()).unwrap();
+        let mailbox = sync.mailbox.lock().unwrap().clone();
+        assert_eq!(mailbox["epoch"], epoch, "durable burst caused reconnect");
+        assert_eq!(mailbox["connected"], true);
+        assert!(!mailbox["data"].is_null());
+        assert!(
+            !sync.transient.is_null(),
+            "transient wiped during durable burst"
+        );
+        let version = mailbox["version"].as_str().unwrap().parse::<u64>().unwrap();
+        assert!(version > previous_version, "transient did not evolve");
+        previous_version = version;
+    }
+    assert!(started.elapsed() >= Duration::from_secs(10));
+    producer.join().unwrap();
+    assert_eq!(posted.load(Ordering::Relaxed), 44);
+    f.t.post(
+        &Query::new("messages"),
+        &json!({
+            "request_id":uuid::Uuid::new_v4().to_string(),
+            "text":"burst cadence convergence"
+        }),
+    )
+    .unwrap();
+    sync.tick(&f.t, &mut s).unwrap();
+    assert_ne!(s.cursor(f.t.domain()).unwrap().unwrap(), initial);
+    let mut q = Query::new("sync/changes");
+    q.parameters.insert("after".into(), json!(initial));
+    let changes = f.t.query(&q).unwrap();
+    assert!(
+        changes["transactions"].as_array().unwrap().len() >= 30,
+        "test must exercise at least three durable commits/second"
+    );
+    let cache = s.snapshot(f.t.domain()).unwrap();
+    assert!(
+        cache["cache"]
+            .as_object()
+            .unwrap()
+            .values()
+            .any(|v| v["items"]
+                .as_array()
+                .is_some_and(|items| items.iter().any(|i| i["text"]
+                    .as_str()
+                    .is_some_and(|text| text.contains("burst cadence convergence"))))),
+        "authoritative catch-up must converge after hint coalescing"
+    );
+}
+
+#[test]
+fn malformed_stream_can_retry_but_unknown_sync_semantics_halt() {
+    let f = Fixture::new();
+    let mut s = f.store("stream-retry");
+    let mut sync = Synchronizer::default();
+    sync.tick(&f.t, &mut s).unwrap();
+    let original = sync.mailbox.lock().unwrap()["epoch"].clone();
+    // Model a completed stream parser failure, preserving its error evidence.
+    sync.stream = None;
+    sync.mailbox.lock().unwrap()["error"] = json!("INVALID_RESPONSE");
+    sync.tick(&f.t, &mut s).unwrap();
+    assert_ne!(sync.mailbox.lock().unwrap()["epoch"], original);
+    sync.stream = None;
+    sync.mailbox.lock().unwrap()["error"] = json!("UNSUPPORTED_SYNC");
+    let before = s.cursor(f.t.domain()).unwrap();
+    assert_eq!(sync.tick(&f.t, &mut s).unwrap_err(), "UNSUPPORTED_SYNC");
+    assert!(sync.stream.is_none());
+    assert_eq!(s.cursor(f.t.domain()).unwrap(), before);
+}
+
+#[test]
+fn approval_intents_are_unique_until_resolved_across_connections() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut one = Storage::open(&tmp.path().join("client")).unwrap();
+    one.bind("domain", "instance").unwrap();
+    let mut two = Storage::open(&tmp.path().join("client")).unwrap();
+    let mut q = Query::new("authorizations/{id}/decision");
+    q.id = Some(uuid::Uuid::new_v4().to_string());
+    let body = json!({"request_id":uuid::Uuid::new_v4().to_string(),"decision":"APPROVE"});
+    one.enqueue("domain", "instance", &q, &body, None, false)
+        .unwrap();
+    let second = json!({"request_id":uuid::Uuid::new_v4().to_string(),"decision":"REJECT"});
+    assert_eq!(
+        two.enqueue("domain", "instance", &q, &second, None, false)
+            .unwrap_err(),
+        "APPROVAL_PENDING"
+    );
+    assert_eq!(one.rows("domain").unwrap().len(), 1);
 }

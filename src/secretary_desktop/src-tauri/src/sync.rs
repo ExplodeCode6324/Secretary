@@ -2,21 +2,37 @@ use crate::{err, protocol::Query, storage::Storage, transport::Transport, Result
 use serde_json::Value;
 use std::sync::{
     atomic::{AtomicBool, Ordering},
-    mpsc::{sync_channel, Receiver},
-    Arc,
+    mpsc::{sync_channel, Receiver, TrySendError},
+    Arc, Mutex,
 };
 use std::time::{Duration, Instant};
+pub type Mailbox = Arc<Mutex<Value>>;
 pub struct Stream {
+    pub mailbox: Mailbox,
+    epoch: String,
     pub receiver: Receiver<Value>,
     cancel: Arc<AtomicBool>,
 }
 impl Drop for Stream {
     fn drop(&mut self) {
         self.cancel.store(true, Ordering::Relaxed);
+        if let Ok(mut m) = self.mailbox.lock() {
+            if m["epoch"] == self.epoch {
+                m["connected"] = Value::Bool(false);
+                m["data"] = Value::Null;
+            }
+        }
     }
 }
 impl Stream {
     pub fn open(t: Transport, cursor: String) -> Self {
+        Self::with_mailbox(t, cursor, Arc::new(Mutex::new(Value::Null)))
+    }
+    pub fn with_mailbox(t: Transport, cursor: String, mailbox: Mailbox) -> Self {
+        let epoch = uuid::Uuid::new_v4().to_string();
+        *mailbox.lock().expect("mailbox") = serde_json::json!({"domain":t.domain(),"instance":t.instance(),"epoch":epoch,"version":"0","connected":false,"data":null});
+        let published = mailbox.clone();
+        let generation = epoch.clone();
         let (sender, receiver) = sync_channel(2);
         let cancel = Arc::new(AtomicBool::new(false));
         let stop = cancel.clone();
@@ -27,11 +43,12 @@ impl Stream {
             else {
                 return;
             };
-            let _ = runtime.block_on(async {
+            let result = runtime.block_on(async {
                 let mut response =
                     tokio::time::timeout(Duration::from_secs(3), t.stream_async(&cursor))
                         .await
                         .map_err(|_| err("NETWORK_UNAVAILABLE"))??;
+                let mut version = 0u64;
                 let mut parser = Parser::default();
                 let mut last = Instant::now();
                 while !stop.load(Ordering::Relaxed) {
@@ -39,9 +56,26 @@ impl Stream {
                         Ok(Ok(Some(bytes))) => {
                             last = Instant::now();
                             for value in parser.feed(&bytes)? {
-                                sender
-                                    .try_send(value)
-                                    .map_err(|_| err("STREAM_BACKPRESSURE"))?;
+                                if value["kind"] == "transient" {
+                                    version += 1;
+                                    let mut m =
+                                        published.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))?;
+                                    if m["epoch"] != generation {
+                                        return Ok(());
+                                    }
+                                    m["version"] = Value::String(version.to_string());
+                                    m["connected"] = Value::Bool(true);
+                                    m["data"] = value["data"].clone();
+                                } else {
+                                    // Parsed durable frames are only wake hints: the
+                                    // authoritative transaction/cursor comes from
+                                    // sync/changes. A queued hint already covers
+                                    // another validated change, so coalesce bursts.
+                                    match sender.try_send(value) {
+                                        Ok(()) | Err(TrySendError::Full(_)) => (),
+                                        Err(TrySendError::Disconnected(_)) => return Ok(()),
+                                    }
+                                }
                             }
                         }
                         Ok(Ok(None)) => break,
@@ -55,8 +89,22 @@ impl Stream {
                 }
                 Ok(()) as Result<()>
             });
+            if let Ok(mut m) = published.lock() {
+                if m["epoch"] == generation {
+                    m["connected"] = Value::Bool(false);
+                    m["data"] = Value::Null;
+                    if let Err(error) = result {
+                        m["error"] = Value::String(error);
+                    }
+                }
+            }
         });
-        Self { receiver, cancel }
+        Self {
+            receiver,
+            cancel,
+            mailbox,
+            epoch,
+        }
     }
 }
 #[derive(Default)]
@@ -120,6 +168,7 @@ pub struct Synchronizer {
     pub subscriptions: Vec<Query>,
     pub stream: Option<Stream>,
     pub transient: Value,
+    pub mailbox: Mailbox,
     pub status: String,
     next_stream: Instant,
     failures: u32,
@@ -132,9 +181,11 @@ impl Default for Synchronizer {
                 Query::new("assistant"),
                 Query::new("timeline"),
                 Query::new("attention"),
+                Query::new("tasks"),
             ],
             stream: None,
             transient: Value::Null,
+            mailbox: Arc::new(Mutex::new(Value::Null)),
             status: "DISCONNECTED".into(),
             next_stream: Instant::now(),
             failures: 0,
@@ -146,6 +197,7 @@ impl Synchronizer {
     pub fn disconnect(&mut self) {
         self.stream = None;
         self.transient = Value::Null;
+        *self.mailbox.lock().expect("mailbox") = Value::Null;
         self.status = "DISCONNECTED".into();
     }
     pub fn reset(&mut self) {
@@ -177,6 +229,21 @@ impl Synchronizer {
         result
     }
     fn apply(&mut self, t: &Transport, s: &mut Storage) -> Result<()> {
+        let failure = self.mailbox.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))?["error"]
+            .as_str()
+            .map(str::to_owned);
+        if let Some(error) = failure {
+            if [
+                "UNSUPPORTED_SYNC",
+                "AUTH_REQUIRED",
+                "DATA_DOMAIN_CONFLICT",
+                "INSTANCE_CHANGED",
+            ]
+            .contains(&error.as_str())
+            {
+                return Err(error);
+            }
+        }
         let domain = t.domain();
         let mut cursor = s.cursor(domain)?;
         if cursor.is_none() {
@@ -254,8 +321,10 @@ impl Synchronizer {
             }
         }
         if self.stream.is_none() && Instant::now() >= self.next_stream {
-            self.stream = Some(Stream::open(t.clone(), after));
+            self.stream = Some(Stream::with_mailbox(t.clone(), after, self.mailbox.clone()));
         }
+        self.transient =
+            self.mailbox.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))?["data"].clone();
         self.status = "SYNCED".into();
         Ok(())
     }

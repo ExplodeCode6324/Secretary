@@ -5,6 +5,7 @@ fn main() {
             "study_ready",
             "study_metrics",
             "bridge_profiles",
+            "bridge_transient",
             "bridge_connect",
             "bridge_draft",
             "bridge_submit",

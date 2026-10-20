@@ -149,6 +149,28 @@ impl Bridge {
             self.attempts = 0;
         }
     }
+    pub fn enqueue_context(&self) -> Result<(PathBuf, Transport)> {
+        if self.stopped {
+            return Err(err("DISCONNECTED"));
+        }
+        if self.error.as_deref().is_some_and(|e| {
+            [
+                "UNAUTHENTICATED",
+                "FORBIDDEN_ORIGIN",
+                "DATA_DOMAIN_CONFLICT",
+                "IDENTITY_MISMATCH",
+                "CORE_MODE_MISMATCH",
+                "UNSUPPORTED_SYNC",
+            ]
+            .contains(&e)
+        }) {
+            return Err(self.error.clone().expect("checked"));
+        }
+        Ok((
+            self.draft_context()?.0,
+            self.transport.clone().ok_or_else(|| err("DISCONNECTED"))?,
+        ))
+    }
     pub fn draft_context(&self) -> Result<(PathBuf, String)> {
         let id = self.active.as_ref().ok_or_else(|| err("DISCONNECTED"))?;
         let t = self.transport.as_ref().ok_or_else(|| err("DISCONNECTED"))?;
@@ -183,12 +205,7 @@ impl Bridge {
             .ok_or_else(|| err("DISCONNECTED"))?
             .save_draft(t.domain(), "message", version, text)
     }
-    pub fn submit(
-        &mut self,
-        q: Query,
-        mut body: Value,
-        draft_version: Option<i64>,
-    ) -> Result<String> {
+    pub fn submit(&mut self, q: Query, body: Value, draft_version: Option<i64>) -> Result<String> {
         if self.stopped {
             return Err(err("DISCONNECTED"));
         }
@@ -208,24 +225,15 @@ impl Bridge {
                 return Err(e.clone());
             }
         }
-        body["request_id"] = json!(uuid::Uuid::new_v4().to_string());
-        protocol::command(&q, &body)?;
-        t.capability(&q.operation)?;
-        if draft_version.is_some() && q.operation != "messages" {
-            return Err(err("INVALID_COMMAND"));
-        }
-        self.storage
-            .as_mut()
-            .ok_or_else(|| err("DISCONNECTED"))?
-            .enqueue(
-                t.domain(),
-                t.instance(),
-                &q,
-                &body,
-                draft_version.map(|v| ("message", v)),
-                false,
-            )
+        enqueue(
+            t,
+            self.storage.as_mut().ok_or_else(|| err("DISCONNECTED"))?,
+            &q,
+            body,
+            draft_version,
+        )
     }
+
     pub fn stop(&mut self) -> Result<Value> {
         let t = self.transport.as_ref().ok_or_else(|| err("DISCONNECTED"))?;
         let s = self.storage.as_mut().ok_or_else(|| err("DISCONNECTED"))?;
@@ -394,4 +402,30 @@ pub fn deliver(t: &Transport, s: &mut Storage) -> Result<()> {
         }
     }
     Ok(())
+}
+
+pub fn enqueue(
+    t: &Transport,
+    storage: &mut Storage,
+    q: &Query,
+    mut body: Value,
+    draft_version: Option<i64>,
+) -> Result<String> {
+    if q.operation == "core/stop" {
+        return Err(err("USE_EXPLICIT_STOP"));
+    }
+    body["request_id"] = json!(uuid::Uuid::new_v4().to_string());
+    protocol::command(q, &body)?;
+    t.capability(&q.operation)?;
+    if draft_version.is_some() && q.operation != "messages" {
+        return Err(err("INVALID_COMMAND"));
+    }
+    storage.enqueue(
+        t.domain(),
+        t.instance(),
+        q,
+        &body,
+        draft_version.map(|v| ("message", v)),
+        false,
+    )
 }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-bridge-transient"
+description = "Enables the bridge_transient command without any pre-configured scope."
+commands.allow = ["bridge_transient"]
+
+[[permission]]
+identifier = "deny-bridge-transient"
+description = "Denies the bridge_transient command without any pre-configured scope."
+commands.deny = ["bridge_transient"]

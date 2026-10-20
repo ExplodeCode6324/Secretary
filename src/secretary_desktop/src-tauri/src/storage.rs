@@ -169,6 +169,12 @@ PRAGMA user_version=1; COMMIT;"))?;
         let tx = sql(self
             .db
             .transaction_with_behavior(TransactionBehavior::Immediate))?;
+        if q.operation == "authorizations/{id}/decision" {
+            let pending: i64 = sql(tx.query_row("SELECT count(*) FROM outbox WHERE domain=? AND json_extract(query,'$.operation')=? AND json_extract(query,'$.id')=? AND state IN ('PENDING','SENDING','UNCERTAIN','TRACKING','VERIFY_ACCEPTED','UNKNOWN','RECEIPT_MISSING')", params![domain, q.operation, q.id], |r| r.get(0)))?;
+            if pending > 0 {
+                return Err(err("APPROVAL_PENDING"));
+            }
+        }
         // Retain resolved history for up to 30 days, bounded by the same budget.
         // Never evict unresolved intent to make room for a new command.
         loop {
@@ -322,8 +328,13 @@ PRAGMA user_version=1; COMMIT;"))?;
                 r.get(0)
             })
             .optional())?;
+        let approvals: Vec<Value> = self.select_rows(domain, "SELECT id,query,'',state,NULL,accepted,stop,instance FROM outbox WHERE domain=? AND state IN ('PENDING','SENDING','UNCERTAIN','TRACKING','VERIFY_ACCEPTED','UNKNOWN','RECEIPT_MISSING')")?.into_iter().filter_map(|row| {
+            let q: Query = serde_json::from_str(row["query"].as_str()?).ok()?;
+            if q.operation != "authorizations/{id}/decision" { return None; }
+            Some(json!({"id":row["id"],"target":q.id,"state":row["state"]}))
+        }).collect();
         Ok(
-            json!({"domain":domain,"cursor":self.cursor(domain)?,"draft":self.draft(domain,"message")?,"outbox":self.select_rows(domain,"SELECT id,query,substr(body,1,2048),state,receipt,accepted,stop,instance FROM outbox WHERE domain=? ORDER BY rowid DESC LIMIT 50")?,"cache":cache,"anchor":anchor}),
+            json!({"approvals":approvals,"domain":domain,"cursor":self.cursor(domain)?,"draft":self.draft(domain,"message")?,"outbox":self.select_rows(domain,"SELECT id,query,substr(body,1,2048),state,receipt,accepted,stop,instance FROM outbox WHERE domain=? ORDER BY rowid DESC LIMIT 50")?,"cache":cache,"anchor":anchor}),
         )
     }
     pub fn anchor(&self, domain: &str, value: &str) -> Result<()> {

@@ -602,6 +602,9 @@ export interface Message {
   call_id: string | null;
   incomplete: boolean;
   next_cursor: string | null;
+  persistence?: "transient" | "durable";
+  preview_status?: "running" | "saved" | "incomplete";
+  truncated?: boolean;
   [k: string]: unknown;
 }
 /**

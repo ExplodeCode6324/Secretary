@@ -6,7 +6,15 @@ use tauri::Manager;
 pub struct Native(
     pub Arc<Mutex<Result<Bridge>>>,
     Arc<std::sync::atomic::AtomicBool>,
-    Arc<Mutex<Option<(std::path::PathBuf, String)>>>,
+    Arc<
+        Mutex<
+            Option<(
+                std::path::PathBuf,
+                secretary_desktop_spike::transport::Transport,
+            )>,
+        >,
+    >,
+    Arc<Mutex<secretary_desktop_spike::sync::Mailbox>>,
 );
 struct DownloadPermit(Arc<std::sync::atomic::AtomicBool>);
 impl Drop for DownloadPermit {
@@ -17,7 +25,10 @@ impl Drop for DownloadPermit {
 fn with<T>(state: &Native, f: impl FnOnce(&mut Bridge) -> Result<T>) -> Result<T> {
     let mut lock = state.0.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))?;
     let b = lock.as_mut().map_err(|e| e.clone())?;
-    f(b)
+    let result = f(b);
+    *state.2.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))? = b.enqueue_context().ok();
+    *state.3.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))? = b.sync.mailbox.clone();
+    result
 }
 fn domain(b: &Bridge, expected: &str) -> Result<()> {
     if b.transport.as_ref().map(|t| t.domain()) != Some(expected) {
@@ -33,6 +44,29 @@ pub async fn bridge_profiles(state: tauri::State<'_, Native>) -> Result<Value> {
         .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
 }
 #[tauri::command]
+pub fn bridge_transient(
+    state: tauri::State<'_, Native>,
+    expected_domain: String,
+    expected_instance: String,
+) -> Result<Value> {
+    let mailbox = state
+        .3
+        .lock()
+        .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
+        .clone();
+    let value = mailbox
+        .lock()
+        .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
+        .clone();
+    if value.is_null() {
+        return Ok(Value::Null);
+    }
+    if value["domain"] != expected_domain || value["instance"] != expected_instance {
+        return Err(err("INSTANCE_CHANGED"));
+    }
+    Ok(value)
+}
+#[tauri::command]
 pub async fn bridge_connect(
     state: tauri::State<'_, Native>,
     profile: String,
@@ -43,7 +77,6 @@ pub async fn bridge_connect(
         with(&s, |b| {
             *s.2.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))? = None;
             let result = b.connect(&profile, start)?;
-            *s.2.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))? = Some(b.draft_context()?);
             Ok(result)
         })
     })
@@ -64,11 +97,15 @@ pub async fn bridge_draft(
                 .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
                 .clone()
                 .ok_or_else(|| err("DISCONNECTED"))?;
-        if context.1 != expected_domain {
+        if context.1.domain() != expected_domain {
             return Err(err("DATA_DOMAIN_CONFLICT"));
         }
-        secretary_desktop_spike::storage::Storage::open_shared(&context.0)?
-            .save_draft(&context.1, "message", version, &text)
+        secretary_desktop_spike::storage::Storage::open_shared(&context.0)?.save_draft(
+            context.1.domain(),
+            "message",
+            version,
+            &text,
+        )
     })
     .await
     .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
@@ -83,10 +120,15 @@ pub async fn bridge_submit(
 ) -> Result<String> {
     let s = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        with(&s, |b| {
-            domain(b, &expected_domain)?;
-            b.submit(query, body, draft_version)
-        })
+        // Hold the short local context lock through enqueue: a concurrent connect
+        // must not move the selected domain between validation and persistence.
+        let guard = s.2.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))?;
+        let (path, t) = guard.as_ref().ok_or_else(|| err("DISCONNECTED"))?;
+        if t.domain() != expected_domain {
+            return Err(err("DATA_DOMAIN_CONFLICT"));
+        }
+        let mut storage = secretary_desktop_spike::storage::Storage::open_shared(path)?;
+        secretary_desktop_spike::bridge::enqueue(t, &mut storage, &query, body, draft_version)
     })
     .await
     .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
@@ -99,10 +141,11 @@ pub async fn bridge_query(
 ) -> Result<Value> {
     let s = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
-        with(&s, |b| {
+        let t = with(&s, |b| {
             domain(b, &expected_domain)?;
-            b.query(&query)
-        })
+            b.transport.clone().ok_or_else(|| err("DISCONNECTED"))
+        })?;
+        t.query(&query)
     })
     .await
     .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
@@ -152,6 +195,7 @@ pub async fn bridge_stop(
             if b.transport.as_ref().map(|t| t.instance()) != Some(expected_instance.as_str()) {
                 return Err(err("INSTANCE_CHANGED"));
             }
+            *s.2.lock().map_err(|_| err("BRIDGE_UNAVAILABLE"))? = None;
             b.stop()
         })
     })
@@ -177,9 +221,35 @@ pub async fn bridge_download(
         return Err(err("DOWNLOAD_BUSY"));
     }
     let permit = DownloadPermit(s.1.clone());
+    let download_state = s.clone();
+    let artifact_id = id.clone();
+    let download_domain = expected_domain.clone();
+    let suggested = tauri::async_runtime::spawn_blocking(move || {
+        let t = with(&download_state, |b| {
+            domain(b, &download_domain)?;
+            b.transport.clone().ok_or_else(|| err("DISCONNECTED"))
+        })?;
+        let mut q = Query::new("artifacts/{id}");
+        q.id = Some(artifact_id);
+        let metadata = t.query(&q)?;
+        let name: String = metadata["name"]
+            .as_str()
+            .unwrap_or("artifact")
+            .chars()
+            .filter(|c| !c.is_control() && !['/', '\\', ':'].contains(c))
+            .take(120)
+            .collect();
+        Ok::<_, String>(if name.trim_matches('.').is_empty() {
+            "artifact".into()
+        } else {
+            name
+        })
+    })
+    .await
+    .map_err(|_| err("BRIDGE_UNAVAILABLE"))??;
     // The save destination is granted by a native dialog, never supplied by JS.
     let target = rfd::AsyncFileDialog::new()
-        .set_file_name("artifact")
+        .set_file_name(&suggested)
         .save_file()
         .await;
     let Some(target) = target else {
@@ -218,6 +288,7 @@ pub fn setup(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
         Arc::new(Mutex::new(Bridge::new(&root))),
         Arc::new(std::sync::atomic::AtomicBool::new(false)),
         Arc::new(Mutex::new(None)),
+        Arc::new(Mutex::new(Arc::new(Mutex::new(Value::Null)))),
     );
     app.manage(state.clone());
     std::thread::spawn(move || loop {

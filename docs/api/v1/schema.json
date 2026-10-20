@@ -1457,6 +1457,24 @@
               "type": "null"
             }
           ]
+        },
+        "persistence": {
+          "type": "string",
+          "enum": [
+            "transient",
+            "durable"
+          ]
+        },
+        "preview_status": {
+          "type": "string",
+          "enum": [
+            "running",
+            "saved",
+            "incomplete"
+          ]
+        },
+        "truncated": {
+          "type": "boolean"
         }
       },
       "required": [
