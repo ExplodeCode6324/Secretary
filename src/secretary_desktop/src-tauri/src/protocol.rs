@@ -42,7 +42,12 @@ pub fn route(method: &str, query: &Query) -> Result<String> {
     let mut path = query.operation.clone();
     if path.contains("{id}") {
         let id = query.id.as_deref().ok_or_else(|| err("INVALID_ID"))?;
-        if uuid::Uuid::parse_str(id).is_err() {
+        let parsed = if query.operation == "messages/{id}/content" {
+            id.strip_prefix("message:").unwrap_or(id)
+        } else {
+            id
+        };
+        if uuid::Uuid::parse_str(parsed).is_err() {
             return Err(err("INVALID_ID"));
         }
         path = path.replace("{id}", id);

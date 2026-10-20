@@ -498,7 +498,7 @@ fn real_sse_receives_change_and_transient() {
             .recv_timeout(std::time::Duration::from_millis(500))
         {
             change |= e["kind"] == "change";
-            transient |= e["kind"] == "transient";
+            transient |= !stream.mailbox.lock().unwrap()["data"].is_null();
             if change && transient {
                 break;
             }
@@ -752,11 +752,8 @@ fn real_sse_survives_more_than_thirty_seconds() {
         .unwrap()
         .to_owned();
     let stream = secretary_desktop_spike::sync::Stream::open(f.t.clone(), cursor);
-    let first = stream
-        .receiver
-        .recv_timeout(std::time::Duration::from_secs(5))
-        .unwrap();
-    assert_eq!(first["kind"], "transient");
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    assert!(!stream.mailbox.lock().unwrap()["data"].is_null());
     let until = std::time::Instant::now() + std::time::Duration::from_secs(31);
     while std::time::Instant::now() < until {
         match stream
@@ -879,4 +876,46 @@ fn resolved_history_yields_capacity_without_losing_pending_intent() {
         .iter()
         .any(|r| r["id"] == "history-2" || r["id"] == "history-3"));
     assert_eq!(s.draft("domain", "message").unwrap()["text"], "");
+}
+
+#[test]
+fn real_tick_cadence_keeps_transient_alive() {
+    let f = Fixture::new();
+    let mut s = f.store("cadence");
+    let mut sync = Synchronizer::default();
+    sync.tick(&f.t, &mut s).unwrap();
+    let mut epoch = None;
+    for _ in 0..10 {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        sync.tick(&f.t, &mut s).unwrap();
+        assert!(
+            !sync.transient.is_null(),
+            "preview lost at real consumer cadence"
+        );
+        let current = sync.mailbox.lock().unwrap()["epoch"].clone();
+        if let Some(old) = &epoch {
+            assert_eq!(old, &current, "unexpected reconnect");
+        }
+        epoch = Some(current);
+    }
+}
+
+#[test]
+fn approval_intents_are_unique_until_resolved_across_connections() {
+    let tmp = tempfile::tempdir().unwrap();
+    let mut one = Storage::open(&tmp.path().join("client")).unwrap();
+    one.bind("domain", "instance").unwrap();
+    let mut two = Storage::open(&tmp.path().join("client")).unwrap();
+    let mut q = Query::new("authorizations/{id}/decision");
+    q.id = Some(uuid::Uuid::new_v4().to_string());
+    let body = json!({"request_id":uuid::Uuid::new_v4().to_string(),"decision":"APPROVE"});
+    one.enqueue("domain", "instance", &q, &body, None, false)
+        .unwrap();
+    let second = json!({"request_id":uuid::Uuid::new_v4().to_string(),"decision":"REJECT"});
+    assert_eq!(
+        two.enqueue("domain", "instance", &q, &second, None, false)
+            .unwrap_err(),
+        "APPROVAL_PENDING"
+    );
+    assert_eq!(one.rows("domain").unwrap().len(), 1);
 }

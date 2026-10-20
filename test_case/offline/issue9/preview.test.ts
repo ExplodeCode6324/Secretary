@@ -23,6 +23,12 @@ test("PRE: high-frequency previews stay transient; persisted final call identity
         } as AssistantMessageEvent,
       });
     assert.equal(f.app.store.sequence, sequence);
+    const before: any = await f.client.query("timeline?streaming=false");
+    const inflight = before.items.find((m: any) => m.call_id === call);
+    assert.equal(inflight.persistence, "transient");
+    assert.equal(inflight.preview_status, "running");
+    assert.equal(inflight.text, "");
+    assert.equal(inflight.truncated, true);
     assert(p.snapshot(sid, false)[0].truncated);
     f.app.store.commit(
       [],
@@ -47,6 +53,7 @@ test("PRE: high-frequency previews stay transient; persisted final call identity
     );
     assert.equal(messages.length, 1);
     const message = messages[0];
+    assert.equal(message.persistence, "durable");
     let text = message.text,
       cursor = message.next_cursor;
     while (cursor) {

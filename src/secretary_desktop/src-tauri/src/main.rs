@@ -42,6 +42,7 @@ fn main() {
             study_ready,
             study_metrics,
             ipc::bridge_profiles,
+            ipc::bridge_transient,
             ipc::bridge_connect,
             ipc::bridge_draft,
             ipc::bridge_submit,

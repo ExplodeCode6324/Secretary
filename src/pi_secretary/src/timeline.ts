@@ -387,6 +387,8 @@ export class Timeline {
       at: row.at,
       call_id: row.call_id,
       incomplete: row.incomplete || (p && p.status === "incomplete"),
+      persistence: row.source ? "durable" : "transient",
+      ...(p ? { preview_status: p.status } : {}),
       running: p && p.status === "running",
       truncated: p && p.truncated,
       ...this.body(row, o),

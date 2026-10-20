@@ -10,6 +10,7 @@
     "allow-study-ready",
     "allow-study-metrics",
     "allow-bridge-profiles",
+    "allow-bridge-transient",
     "allow-bridge-connect",
     "allow-bridge-draft",
     "allow-bridge-submit",

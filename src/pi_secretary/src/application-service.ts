@@ -1420,6 +1420,9 @@ export class ApplicationService {
       text: item.text,
       ...(thinking ? { thinking: item.thinking } : {}),
       call_id: item.call_id ?? null,
+      persistence: item.persistence,
+      ...(item.preview_status ? { preview_status: item.preview_status } : {}),
+      ...(item.truncated !== undefined ? { truncated: !!item.truncated } : {}),
       incomplete: !!item.incomplete,
       next_cursor:
         offset < item.textLength || thinkingOffset < item.thinkingLength
