@@ -14,7 +14,7 @@ The typed renderer ports frozen v1.0 geometry and masked three-state reconstruct
 | --- | --- |
 | Core `npm run verify` | 616 pass, 41 PostgreSQL-dependent skips, 0 failure; 657 total. Docs/type checks passed. Remote CI must supply its configured database coverage. |
 | Desktop contracts / Svelte | Contract check and type check passed, 0 warnings. |
-| Desktop node / Python | 20 node tests, 6 Python tests passed, including controller ownership/coalescing/reduced-motion and invalid measurement rejection. |
+| Desktop node / Python | 21 node tests, 6 Python tests passed, including controller ownership/coalescing/reduced-motion and invalid measurement rejection. |
 | Rust | 1 launch-parser test and 29 integration tests passed; 1 subprocess crash helper ignored by design. Clippy passed. |
 | WKWebView PhaseUI | 8 tests passed: A/B/C three-state visibility and masks; cleanup/OFF; divider gate/contact/global bound; navigation draft/scroll and synthetic composition guard; dialog focus; exact breakpoint widths, four zoom levels, dark mode. |
 | WKWebView real bridge | 6 tests passed with isolated offline fixture Core: diagnostic view refused on normal launch, durable send, reopen/receipt, save retry after real storage rejection, responsiveness under blocked Core, stale stop rejection and explicit stop. |
@@ -54,3 +54,11 @@ Retained adaptation: message/work/result/status/row boundaries preserve the real
 Claude re-read `4d710ea` and ran five source tests plus an input-event probe. It accepted the revised measurement method, but found bubbled input key/caret events replaying the field boundary and the sidebar edge moving with its scroll container. Input targets now react only to focus contact and explicit submission, with no pointer/keyboard/click replay; all target keyboard activation also rejects composing/keyCode229 events. A non-scrolling sidebar owns the full-height edge while an inner wrapper scrolls. Native tests assert no boundary effects from Space/Enter/composition/caret events, and verify edge geometry after scrolling at 200% zoom and all navigation targets at minimum height. Eight native cases passed. The arrow shaft's blue keyframe was restored too.
 
 The six runs on `4d710ea` were only coverage calibration, not final resource evidence. All final cohorts must use the replacement binary.
+
+## R5 and measurement calibration
+
+Claude fetched `8e74ef4`, re-ran six source tests and its input probe, and returned PASS_PENDING_VALIDATION: production corrections were ready for the matrix, with final measurements/CI/manual acceptance separate.
+
+Subsequent OFF calibrations exposed timer-callback-parity scheduling: only 80, 79 and 92 actions ran in 60 seconds, so the validator rejected all three. Foreground requests and manual raising did not establish a focus explanation (recorded background ticks were zero). These are retained as invalid calibration data, never final comparison runs. The replay now follows absolute clock deadlines from its existing instrumented rAF loop, at most one scheduled tick per frame, rather than assuming every interval callback arrives. Workload remains 60 seconds, 120 interactions / 240 bridge ticks / 1,200 stress ticks. Every non-idle run must complete its tick budget, stay within 250ms maximum schedule lateness, remain focused/visible, and recover cleanly. Reporting-off idle retains no rAF loop. The diagnostic window requests foreground focus; ordinary launch still refuses that command.
+
+The replacement OFF calibration delivered 120 actions / 240 ticks, zero background ticks, max schedule lateness34ms and clean recovery. Mixed30/60Hz schedule regression passed; native suite8/8 and Release security checks passed. All pre-freeze runs remain calibration only. Input-scroll is still synthetic value replacement, and callback-time latency is not physical input latency.

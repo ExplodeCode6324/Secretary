@@ -26,7 +26,8 @@ async fn phaseui_view(
     window
         .set_size(tauri::LogicalSize::new(width, height))
         .map_err(|e| e.to_string())?;
-    window.set_zoom(zoom).map_err(|e| e.to_string())
+    window.set_zoom(zoom).map_err(|e| e.to_string())?;
+    window.set_focus().map_err(|e| e.to_string())
 }
 #[tauri::command]
 fn study_ready() {

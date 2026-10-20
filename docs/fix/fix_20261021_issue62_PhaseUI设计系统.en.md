@@ -218,3 +218,6 @@ Plan-only validation: `npm run docs:check` PASS (610 Markdown files, 8,375 local
 
 
 R3 implementation review clarification: primary resource cohorts run without computed-style frame sampling; separate coverage cohorts quantify temporal visibility and reject systematic missing states (below 95% complete eligible effects in single/navigation). Mode order rotates per seed; binary hash is enforced. The input-scroll replay replaces the whole value every 500ms and is labeled accordingly.
+
+
+Calibration correction: replay follows clock deadlines on the existing measurement rAF loop, at most one scheduled tick per frame. Verify the full fixed tick budget, maximum lateness≤250ms and zero hidden/unfocused active ticks; reject incomplete schedules rather than lowering the100-action gate. Reporting-off idle retains no rAF loop.

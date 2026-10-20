@@ -4,9 +4,12 @@ def validate(report, scenario, mode, seed, ready):
     for key,value in [('phaseui',True),('scenario',scenario),('mode',mode),('seed',seed),('completed',True),('queue',0)]:
         if report.get(key)!=value:errors.append('invalid '+key)
     if not ready:errors.append('missing readiness')
+    if report.get('background_ticks')!=0:errors.append('window was hidden or unfocused during active schedule')
     if report.get('samples',0)<1000:errors.append('insufficient rAF samples')
     if report.get('active_ms',0)<59000:errors.append('incomplete active schedule')
     if report.get('recovery_ms',0)<30000:errors.append('incomplete recovery')
+    if scenario!='idle' and report.get('active_ticks')!=report.get('expected_ticks'):errors.append('incomplete fixed replay schedule')
+    if scenario!='idle' and report.get('schedule_lateness_max_ms',float('inf'))>250:errors.append('replay deadline exceeded 250ms')
     if scenario=='stream-stress' and report.get('updates')!=1200:errors.append('stream did not drain 1200 updates')
     if scenario not in ['idle','stream-stress'] and report.get('updates',0)<100:errors.append('insufficient actions')
     recovery=report.get('recovery',{});baseline=report.get('baseline',{})
