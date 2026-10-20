@@ -9,11 +9,22 @@
     mode,
     seed,
     measure,
-  }: { scenario: string; mode: MotionMode; seed: number; measure: boolean } =
-    $props();
+    coverage = true,
+    theme = "light",
+    width = 1180,
+  }: {
+    scenario: string;
+    mode: MotionMode;
+    seed: number;
+    measure: boolean;
+    coverage?: boolean;
+    theme?: "light" | "dark";
+    width?: number;
+  } = $props();
   const fixture = fixtureBridge();
   onMount(() => {
-    motionController.configure({ seed, measure });
+    motionController.configure({ seed, measure, coverage });
+    void invoke("phaseui_view", { width, zoom: 1 });
     let raf = 0,
       previous = 0,
       count = 0,
@@ -118,7 +129,7 @@
           action = true;
         }
         if (action && measure)
-          requestAnimationFrame((t) => latencies.push(t - now));
+          requestAnimationFrame(() => latencies.push(performance.now() - now));
       },
       scenario === "stream-stress" ? 50 : 250,
     );
@@ -131,8 +142,13 @@
         scenario,
         mode,
         seed,
-        completed: true,
-        queue: 0,
+        completed:
+          !!drainedAt &&
+          fixture.status().pending === 0 &&
+          fixture.status().previewLength === 0,
+        queue: fixture.status().pending,
+        coverage,
+        theme,
         samples: deltas.length,
         raf_p50: percentile(deltas, 0.5),
         raf_p95: percentile(deltas, 0.95),
@@ -187,5 +203,6 @@
   bridge={fixture.port}
   synthetic
   initialMode={mode}
+  initialTheme={theme}
   transientCadence={scenario === "stream-stress" ? 50 : 250}
 />

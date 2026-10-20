@@ -7,15 +7,24 @@ fn study_mode() -> Result<launch::Launch, String> {
     launch::current()
 }
 #[tauri::command]
-async fn phaseui_view(window: tauri::WebviewWindow, width: f64, zoom: f64) -> Result<(), String> {
+async fn phaseui_view(
+    window: tauri::WebviewWindow,
+    width: f64,
+    zoom: f64,
+    height: Option<f64>,
+) -> Result<(), String> {
     if launch::current()?.phase.is_empty() {
         return Err("DIAGNOSTIC_ONLY".into());
     }
-    if !(480.0..=1800.0).contains(&width) || ![1.0, 1.25, 1.5, 2.0].contains(&zoom) {
+    let height = height.unwrap_or(820.0);
+    if !(480.0..=1400.0).contains(&height)
+        || !(480.0..=1800.0).contains(&width)
+        || ![1.0, 1.25, 1.5, 2.0].contains(&zoom)
+    {
         return Err("INVALID_VIEW".into());
     }
     window
-        .set_size(tauri::LogicalSize::new(width, 820.0))
+        .set_size(tauri::LogicalSize::new(width, height))
         .map_err(|e| e.to_string())?;
     window.set_zoom(zoom).map_err(|e| e.to_string())
 }

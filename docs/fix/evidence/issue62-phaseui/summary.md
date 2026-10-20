@@ -14,17 +14,17 @@ The typed renderer ports frozen v1.0 geometry and masked three-state reconstruct
 | --- | --- |
 | Core `npm run verify` | 616 pass, 41 PostgreSQL-dependent skips, 0 failure; 657 total. Docs/type checks passed. Remote CI must supply its configured database coverage. |
 | Desktop contracts / Svelte | Contract check and type check passed, 0 warnings. |
-| Desktop node / Python | 19 node tests, 5 Python tests passed, including controller ownership/coalescing/reduced-motion and invalid measurement rejection. |
+| Desktop node / Python | 19 node tests, 6 Python tests passed, including controller ownership/coalescing/reduced-motion and invalid measurement rejection. |
 | Rust | 1 launch-parser test and 29 integration tests passed; 1 subprocess crash helper ignored by design. Clippy passed. |
-| WKWebView PhaseUI | 6 tests passed: A/B/C three-state visibility and masks; cleanup/OFF; divider gate/contact/global bound; navigation draft/scroll and synthetic composition guard; dialog focus; exact breakpoint widths, four zoom levels, dark mode. |
-| WKWebView real bridge | 5 tests passed with isolated offline fixture Core: durable send, reopen/receipt, save retry after real storage rejection, responsiveness under blocked Core, stale stop rejection and explicit stop. |
+| WKWebView PhaseUI | 7 tests passed: A/B/C three-state visibility and masks; cleanup/OFF; divider gate/contact/global bound; navigation draft/scroll and synthetic composition guard; dialog focus; exact breakpoint widths, four zoom levels, dark mode. |
+| WKWebView real bridge | 6 tests passed with isolated offline fixture Core: diagnostic view refused on normal launch, durable send, reopen/receipt, save retry after real storage rejection, responsiveness under blocked Core, stale stop rejection and explicit stop. |
 | WKWebView reading | Offline Core anchor reload and subsequent durable replies passed. |
 | Ordinary Release | Built successfully without native driver. Computer-use observed actual three-column layout, native controls, textarea/caret, brand fit and selected-row join. |
 | System IME | NOT_TESTED: installed input sources include Simplified Pinyin, but computer-use attempts only produced English autocorrection, not a verified Chinese candidate session. Synthetic composition is separate. |
 | VoiceOver | NOT_TESTED; accessible names, modal focus and hidden-state checks covered through native automation. |
 | Master aesthetics / performance decision | Pending, never inferred from automated checks. |
 
-First failures retained under ignored `.demo-data/issue62`: initial Svelte declaration/prop issues, test helper's omitted bounds argument, and missing `phaseui_view` capability registration. Each was corrected and the affected check rerun. Native-test builds are not resource baselines. Subsequent small presentation additions require final snapshot rerun before delivery.
+First failures retained under ignored `.demo-data/issue62`: initial Svelte declaration/prop issues, test helper's omitted bounds argument, and missing `phaseui_view` capability registration. Each was corrected and the affected check rerun. Native-test builds are not resource baselines. R3 adds real activation feedback, scroll reachability and diagnostic refusal tests. The minimum-height first failure exposed subpixel viewport rounding (0.8px); the assertion now permits one CSS pixel after waiting for resize/zoom completion.
 
 ## Deviation ledger
 
@@ -38,3 +38,13 @@ First failures retained under ignored `.demo-data/issue62`: initial Svelte decla
 ## Reproduction and provenance
 
 The bilingual R2 plan is in `docs/fix/`; public component contract is `src/secretary_desktop/src/phaseui/README.md`. Run `npm run check`, `npm test`, Rust fmt/clippy/test, and ordinary `npm run tauri -- build` from the desktop project. Resource script is `scripts/phaseui_measure.py`; `phaseui_measurement_contract.py` rejects incomplete schedules and missing reports. Raw runs and review exchanges stay under ignored `.demo-data/issue62/`. Final source SHA, ordinary binary SHA-256, CI and reviewer disposition will be recorded after the candidate is frozen.
+
+## R3 review disposition (implementation)
+
+Claude independently fetched `ebd7fc9`, read the non-document diff and frozen sources, and ran five source tests with Node type stripping plus an import hook (its npm installation was unavailable). It did not run native/Rust/resource/CI checks. Verdict: CHANGES_REQUIRED.
+
+Accepted corrections: expired hover contacts now replay on press/Enter/Space/click; newly selected navigation plays its boundary; both submit routes play send feedback while `aria-disabled` prevents another submit without cancelling the current visual. Sidebar scrolls independently at enlarged zoom; vertical divider paths have a real selected-row gap. Capability inventory includes diagnostic view and ordinary-launch refusal has a native test. Gallery mode controls share state; visibility loss clears effects; divider hit testing is once per probe.
+
+Resource methodology revision: rotate mode order per seed; all primary resource runs disable computed-style frame coverage sampling. Separate coverage cohorts report completed/covered/interrupted counts, reject coverage below 95% in the single/navigation diagnostic workloads, and remain explicitly logical visibility proxies. Cohorts enforce one binary hash. Completion/drain fields derive from fixture state. The input-scroll workload replaces the value every 500ms; it is not physical per-keystroke latency. Action latency uses the actual rAF callback execution time.
+
+Retained adaptation: message/work/result/status/row boundaries preserve the real business UI's grouping while adopting PhaseUI primitives. Frozen conversation examples have fewer row separators; these additions are declared deviations and included in divider/probe cost. Master decides their visual acceptance.

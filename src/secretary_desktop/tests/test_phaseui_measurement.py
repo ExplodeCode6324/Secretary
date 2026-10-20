@@ -9,3 +9,9 @@ class PhaseMeasurement(unittest.TestCase):
         self.assertEqual(validate(good,'stream-stress','base',62,True),[])
         for patch in [dict(updates=1199),dict(recovery_ms=29999),dict(samples=0),dict(mode='off'),dict(completed=False),dict(recovery=dict(effects=1,nodes=0,timers=1,listeners=10))]:
             self.assertTrue(validate({**good,**patch},'stream-stress','base',62,True))
+
+    def test_systematic_missing_frame_is_invalid(self):
+        good=dict(phaseui=True,scenario='single',mode='base',seed=62,completed=True,queue=0,samples=3600,active_ms=60000,recovery_ms=30001,updates=120,coverage=True,motion=dict(completed=120,covered=120),recovery=dict(effects=0,nodes=0,timers=0,listeners=10),baseline=dict(listeners=10))
+        self.assertEqual(validate(good,'single','base',62,True),[])
+        self.assertTrue(validate({**good,'motion':dict(completed=120,covered=1)},'single','base',62,True))
+        self.assertEqual(validate({**good,'coverage':False,'motion':dict(completed=120,covered=0)},'single','base',62,True),[])

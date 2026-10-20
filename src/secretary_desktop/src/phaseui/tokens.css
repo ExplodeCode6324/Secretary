@@ -191,7 +191,7 @@
 .phase-directory a[aria-current="page"]:after {
   content: "";
   position: absolute;
-  right: -1px;
+  right: 0;
   top: 0;
   bottom: 0;
   width: 2px;
@@ -773,7 +773,8 @@ body,
 }
 
 .phase-sidebar {
-  overflow: visible;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
   border-right: 0;
 }
@@ -869,4 +870,9 @@ body,
 .phase-work article {
   position: relative;
   border-bottom: 0;
+}
+
+.phase-button[aria-disabled="true"] {
+  cursor: default;
+  opacity: 0.55;
 }

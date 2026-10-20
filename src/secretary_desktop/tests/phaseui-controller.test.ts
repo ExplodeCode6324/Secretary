@@ -75,6 +75,7 @@ function setup() {
   const media = Object.assign(new EventTarget(), { matches: false });
   const document = Object.assign(new EventTarget(), {
     documentElement: new Element(),
+    hidden: false,
     createElementNS: () => new Element(),
     createElement: () => new Element(),
   });
@@ -107,7 +108,7 @@ function setup() {
       else Reflect.deleteProperty(globalThis, k);
     }
   };
-  return { media, window, node, layer, cleanup };
+  return { media, window, document, node, layer, cleanup };
 }
 test("contact coalesces; disable, blur, reduced and destruction restore owned resources", () => {
   const f = setup();
@@ -125,6 +126,25 @@ test("contact coalesces; disable, blur, reduced and destruction restore owned re
     f.node.dispatchEvent(new Event("focusin"));
     f.node.dispatchEvent(new Event("pointerdown"));
     assert.equal(c.active.get(node), effect);
+    c.clear(node); // Completed hover, pointer remains over the same target.
+    f.node.dispatchEvent(new Event("pointerdown"));
+    assert(c.active.has(node), "press replays after hover completion");
+    c.clear(node);
+    f.node.dispatchEvent(
+      Object.assign(new Event("keydown"), { key: "Enter", repeat: false }),
+    );
+    assert(
+      c.active.has(node),
+      "keyboard activation replays after contact completion",
+    );
+    c.clear(node);
+    f.node.dispatchEvent(new Event("click"));
+    assert(c.active.has(node), "click recovers an expired activation");
+    f.document.hidden = true;
+    f.document.dispatchEvent(new Event("visibilitychange"));
+    assert.equal(c.active.size, 0);
+    f.document.hidden = false;
+    c.play(node);
     binding.update({ kind: "border", disabled: true });
     assert.equal(c.counts().effects, 0);
     assert.equal(c.counts().nodes, 0);

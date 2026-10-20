@@ -12,13 +12,28 @@ const cap = JSON.parse(
 );
 assert.deepEqual(cfg.app.security.capabilities, ["main"]);
 assert.deepEqual(cap.windows, ["main"]);
-assert.deepEqual([...cap.permissions].sort(), [
-  ...["profiles","transient","connect","draft","submit","query","subscribe","anchor","stop","download"].map(x=>"allow-bridge-"+x),
-  "allow-study-metrics",
-  "allow-study-mode",
-  "allow-study-ready",
-  "core:webview:allow-set-webview-zoom",
-].sort());
+assert.deepEqual(
+  [...cap.permissions].sort(),
+  [
+    ...[
+      "profiles",
+      "transient",
+      "connect",
+      "draft",
+      "submit",
+      "query",
+      "subscribe",
+      "anchor",
+      "stop",
+      "download",
+    ].map((x) => "allow-bridge-" + x),
+    "allow-phaseui-view",
+    "allow-study-metrics",
+    "allow-study-mode",
+    "allow-study-ready",
+    "core:webview:allow-set-webview-zoom",
+  ].sort(),
+);
 assert.ok(!cfg.app.withGlobalTauri);
 assert.ok(cfg.app.security.csp.includes("object-src 'none'"));
 const tree = spawnSync(

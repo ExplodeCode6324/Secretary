@@ -13,8 +13,9 @@ def validate(report, scenario, mode, seed, ready):
     for key in ['effects','nodes','timers']:
         if recovery.get(key)!=0:errors.append('unreleased '+key)
     if recovery.get('listeners')!=baseline.get('listeners'):errors.append('listener recovery differs')
-    if scenario in ['single','navigation'] and mode!='off':
+    if report.get('coverage') and scenario in ['single','navigation'] and mode!='off':
         motion=report.get('motion',{})
         if motion.get('completed',0)<10:errors.append('insufficient completed effects')
-        if motion.get('covered',0)==0:errors.append('no complete three-frame visibility samples')
+        completed=motion.get('completed',0)
+        if completed and motion.get('covered',0)/completed<0.95:errors.append('systematic missing frame: complete coverage below 95%')
     return errors

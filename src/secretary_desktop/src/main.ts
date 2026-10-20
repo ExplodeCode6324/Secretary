@@ -11,6 +11,9 @@ try {
     motion: MotionMode;
     seed: number;
     measure: boolean;
+    coverage: boolean;
+    theme: "light" | "dark";
+    width: number;
   }>("study_mode");
   if (mode.study) {
     await import("./style.css");
@@ -35,11 +38,15 @@ try {
           mode: mode.motion,
           seed: mode.seed,
           measure: mode.measure,
+          coverage: mode.coverage,
+          theme: mode.theme,
+          width: mode.width,
         },
       });
     } else {
       const { default: Connected } = await import("./Connected.svelte");
       mount(Connected, { target });
+      void invoke("study_ready");
     }
   }
 } catch (error) {

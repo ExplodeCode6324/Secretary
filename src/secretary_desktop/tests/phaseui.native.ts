@@ -15,16 +15,32 @@ const play = async (selector: string) =>
   );
 const counts = async () =>
   browser.execute(() => (window as any).phaseTest.counts());
-const view = async (width: number, zoom = 1) =>
-  browser.executeAsync(
-    (width, zoom, done) =>
+const view = async (width: number, zoom = 1, height = 820) => {
+  const result = await browser.executeAsync(
+    (width, zoom, height, done) =>
       (window as any).__TAURI__.core
-        .invoke("phaseui_view", { width, zoom })
+        .invoke("phaseui_view", { width, zoom, height })
         .then(() => done(true))
         .catch((e: unknown) => done(String(e))),
     width,
     zoom,
+    height,
   );
+  assert.equal(result, true);
+  await browser.waitUntil(
+    async () =>
+      await browser.execute(
+        (w, z, h) =>
+          Math.abs(innerWidth - w / z) < 2 &&
+          Math.abs(innerHeight - (h - 28) / z) < 2,
+        width,
+        zoom,
+        height,
+      ),
+    { timeout: 5000 },
+  );
+  return result;
+};
 describe("PhaseUI in native WKWebView", () => {
   before(async () => {
     fs.mkdirSync(out, { recursive: true });
@@ -191,6 +207,57 @@ describe("PhaseUI in native WKWebView", () => {
       { timeout: 5000 },
     );
   });
+  it("plays the selected navigation boundary and both real submit paths", async () => {
+    await config({ mode: "base", freeze: 2 });
+    await $("[data-page=tasks]").click();
+    assert(
+      await browser.execute(
+        () =>
+          document
+            .querySelector("[data-page=tasks] [data-phase-layer]")!
+            .querySelectorAll("svg").length >= 2,
+      ),
+    );
+    await $("[data-page=conversation]").click();
+    for (const method of ["click", "shortcut"]) {
+      await $("#draft").setValue("feedback " + method);
+      await config({ mode: "base", freeze: 2 });
+      await browser.execute((method) => {
+        if (method === "click")
+          document
+            .querySelector<HTMLButtonElement>("[data-testid=send]")!
+            .click();
+        else
+          document.querySelector("#draft")!.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: "Enter",
+              metaKey: true,
+              bubbles: true,
+            }),
+          );
+      }, method);
+      await browser.waitUntil(
+        async () => (await $("#draft").getValue()) === "",
+      );
+      assert(
+        await browser.execute(() =>
+          (window as any).phaseTest.active.has(
+            document.querySelector("[data-testid=send]"),
+          ),
+        ),
+        method + " retains feedback after draft clears",
+      );
+      assert(
+        await browser.execute(
+          () =>
+            document
+              .querySelector("[data-testid=send] [data-phase-layer]")!
+              .querySelectorAll("svg").length >= 2,
+        ),
+      );
+    }
+    await config({ freeze: 0 });
+  });
   it("restores dialog focus and exposes only visible page controls", async () => {
     await $("button=连接").click();
     await $("dialog").waitForDisplayed();
@@ -213,6 +280,15 @@ describe("PhaseUI in native WKWebView", () => {
       await browser.waitUntil(
         async () => (await browser.execute(() => innerWidth)) === width,
       );
+      await browser.waitUntil(
+        async () =>
+          (await browser.execute(
+            () =>
+              document.querySelector(".phase-rail")!.getBoundingClientRect()
+                .width,
+          )) === (width <= 850 ? 48 : width <= 1100 ? 230 : 270),
+        { timeout: 3000 },
+      );
       const r = await browser.execute(() => ({
         width: innerWidth,
         side: document.querySelector(".phase-sidebar")!.getBoundingClientRect()
@@ -230,7 +306,64 @@ describe("PhaseUI in native WKWebView", () => {
     }
     for (const zoom of [1, 1.25, 1.5, 2]) {
       await view(1180, zoom);
+      await browser.execute(() =>
+        document
+          .querySelector("[data-page=settings]")!
+          .scrollIntoView({ block: "nearest" }),
+      );
+      const visible = await browser.execute(() => {
+        const n = document
+          .querySelector("[data-page=settings]")!
+          .getBoundingClientRect();
+        return (
+          n.top >= 0 &&
+          n.bottom <= innerHeight + 1 &&
+          document.documentElement.scrollTop === 0
+        );
+      });
+      assert(visible, `settings reachable at zoom ${zoom}`);
       await browser.saveScreenshot(`${out}/zoom-${zoom}.png`);
+    }
+    await view(600, 1.25, 480);
+    await browser.execute(() =>
+      document
+        .querySelector("[data-page=settings]")!
+        .scrollIntoView({ block: "nearest" }),
+    );
+    const narrow = await browser.execute(() => ({
+      height: innerHeight,
+      rect: document
+        .querySelector("[data-page=settings]")!
+        .getBoundingClientRect()
+        .toJSON(),
+      scroll: document.querySelector(".phase-sidebar")!.scrollTop,
+      extent: document.querySelector(".phase-sidebar")!.scrollHeight,
+    }));
+    fs.writeFileSync(`${out}/minimum-height.json`, JSON.stringify(narrow));
+    assert(narrow.rect.bottom <= narrow.height + 1, JSON.stringify(narrow));
+    for (const page of [
+      "conversation",
+      "tasks",
+      "memory",
+      "artifacts",
+      "attention",
+      "settings",
+    ]) {
+      const box = await browser.execute((page) => {
+        const node = document.querySelector(`[data-page="${page}"]`)!;
+        node.scrollIntoView({ block: "nearest" });
+        const r = node.getBoundingClientRect();
+        return {
+          top: r.top,
+          bottom: r.bottom,
+          height: innerHeight,
+          root: document.documentElement.scrollTop,
+        };
+      }, page);
+      assert(
+        box.top >= -1 && box.bottom <= box.height + 1 && box.root === 0,
+        JSON.stringify({ page, ...box }),
+      );
     }
     await view(1180);
     await $("button=深色模式").click();

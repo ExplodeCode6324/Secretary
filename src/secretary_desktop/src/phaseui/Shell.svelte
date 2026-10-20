@@ -27,6 +27,7 @@
     synthetic = false,
     initialMode,
     fontSize = 14,
+    initialTheme = "light",
   }: {
     name?: string;
     page?: Page;
@@ -37,8 +38,12 @@
     synthetic?: boolean;
     initialMode?: MotionMode;
     fontSize?: number;
+    initialTheme?: "light" | "dark";
   } = $props();
   let theme = $state("light");
+  $effect(() => {
+    if (synthetic) theme = initialTheme;
+  });
   let mode = $state<MotionMode>("base");
   let collapsed = $state(false);
   const pages: [Page, string, string][] = [

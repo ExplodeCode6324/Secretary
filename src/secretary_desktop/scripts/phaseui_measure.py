@@ -17,11 +17,11 @@ def processes():
         result[pid]={'identity':identity,'cpu':cpu,'rss_kib':int(rss),'name':name}
     return result
 
-def run(scenario,mode,seed,uninstrumented=False):
-    folder=REPO/'.demo-data/issue62/runs'/f'{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")}-{scenario}-{mode}'
+def run(scenario,mode,seed,uninstrumented=False,coverage=False,theme="light",width=1180,cohort="resource"):
+    folder=REPO/'.demo-data/issue62/runs'/f'{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")}-{cohort}-{scenario}-{mode}'
     folder.mkdir(parents=True)
     before=processes();env={k:v for k,v in os.environ.items() if not k.startswith(('SECRETARY_STUDY','SECRETARY_PHASEUI'))}
-    env.update(SECRETARY_PHASEUI_SCENARIO=scenario,SECRETARY_PHASEUI_MOTION=mode,SECRETARY_PHASEUI_SEED=str(seed),SECRETARY_STUDY_MEASURE='0' if uninstrumented else '1')
+    env.update(SECRETARY_PHASEUI_SCENARIO=scenario,SECRETARY_PHASEUI_MOTION=mode,SECRETARY_PHASEUI_SEED=str(seed),SECRETARY_STUDY_MEASURE='0' if uninstrumented else '1',SECRETARY_PHASEUI_COVERAGE="1" if coverage else "0",SECRETARY_PHASEUI_THEME=theme,SECRETARY_PHASEUI_WIDTH=str(width))
     start=time.monotonic();proc=subprocess.Popen([str(BIN)],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     awake=subprocess.Popen(['caffeinate','-d','-i','-u','-w',str(proc.pid)],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     lines=queue.Queue()
@@ -47,7 +47,7 @@ def run(scenario,mode,seed,uninstrumented=False):
             if proc.poll() is not None:raise RuntimeError('app exited during measurement')
         errors=[] if uninstrumented and ready else validate(report,scenario,mode,seed,ready)
         if not ready:errors.append('missing readiness')
-        meta={'scenario':scenario,'mode':mode,'seed':seed,'binary_sha256':hashlib.sha256(BIN.read_bytes()).hexdigest(),'platform':platform.platform(),'machine':platform.machine(),'sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip(),'dirty':bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],cwd=REPO,text=True).strip()),'reporting':not uninstrumented,'report':report,'valid':not errors,'errors':errors,'sampler_p95_seconds':sorted(sampler)[int(len(sampler)*.95)],'webkit_attribution':'New WebKit PIDs are candidates, not proven exclusive. Existing shared processes kept separately. RSS may double count shared memory.','cpu_unit':'100% = one logical CPU','paint_gpu':'NOT_TESTED','thermal':'NOT_MEASURED','display':subprocess.check_output(['system_profiler','SPDisplaysDataType'],text=True),'power':subprocess.check_output(['pmset','-g','batt'],text=True).splitlines()[0]}
+        meta={'cohort':cohort,'coverage':coverage,'theme':theme,'width':width,'scenario':scenario,'mode':mode,'seed':seed,'binary_sha256':hashlib.sha256(BIN.read_bytes()).hexdigest(),'platform':platform.platform(),'machine':platform.machine(),'sha':subprocess.check_output(['git','rev-parse','HEAD'],cwd=REPO,text=True).strip(),'dirty':bool(subprocess.check_output(['git','status','--porcelain','--untracked-files=no'],cwd=REPO,text=True).strip()),'reporting':not uninstrumented,'report':report,'valid':not errors,'errors':errors,'sampler_p95_seconds':sorted(sampler)[int(len(sampler)*.95)],'webkit_attribution':'New WebKit PIDs are candidates, not proven exclusive. Existing shared processes kept separately. RSS may double count shared memory.','cpu_unit':'100% = one logical CPU','paint_gpu':'NOT_TESTED','thermal':'NOT_MEASURED','display':subprocess.check_output(['system_profiler','SPDisplaysDataType'],text=True),'power':subprocess.check_output(['pmset','-g','batt'],text=True).splitlines()[0]}
         (folder/'index.json').write_text(json.dumps(meta,indent=2));(folder/'samples.json').write_text(json.dumps(samples));(folder/'stdout.txt').write_text('\n'.join(log))
         print(json.dumps({'run':str(folder),'valid':not errors,'errors':errors}),flush=True)
         if errors:raise RuntimeError('; '.join(errors))
@@ -59,8 +59,13 @@ def run(scenario,mode,seed,uninstrumented=False):
         if awake.poll() is None:awake.terminate()
         awake.wait(timeout=10)
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--scenario',choices=['all','idle','single','navigation','input-scroll','stream-stress','bridge-cadence'],default='all');p.add_argument('--mode',choices=['all','off','base','extended'],default='all');p.add_argument('--rounds',type=int,default=3);p.add_argument('--uninstrumented',action='store_true');args=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--scenario',choices=['all','idle','single','navigation','input-scroll','stream-stress','bridge-cadence'],default='all');p.add_argument('--mode',choices=['all','off','base','extended'],default='all');p.add_argument('--rounds',type=int,default=3);p.add_argument('--uninstrumented',action='store_true');p.add_argument('--coverage',action='store_true');p.add_argument('--theme',choices=['light','dark'],default='light');p.add_argument('--width',type=int,default=1180);p.add_argument('--cohort',default='resource');args=p.parse_args()
     if args.uninstrumented and args.scenario!='idle':p.error('reporting-off control requires idle')
+    expected_hash=hashlib.sha256(BIN.read_bytes()).hexdigest()
     for scenario in (['idle','single','navigation','input-scroll','stream-stress','bridge-cadence'] if args.scenario=='all' else [args.scenario]):
         for repetition in range(args.rounds):
-            for mode in (['off','base','extended'] if args.mode=='all' else [args.mode]):run(scenario,mode,62+repetition,args.uninstrumented)
+            modes=['off','base','extended'] if args.mode=='all' else [args.mode]
+            offset=repetition % len(modes)
+            for mode in modes[offset:]+modes[:offset]:
+                if hashlib.sha256(BIN.read_bytes()).hexdigest()!=expected_hash:raise RuntimeError('binary changed within cohort')
+                run(scenario,mode,62+repetition,args.uninstrumented,args.coverage,args.theme,args.width,args.cohort)

@@ -80,12 +80,15 @@
     </div>
     <div class="phase-filters">
       <Button
-        onclick={() => motionController.configure({ mode: "base", freeze: 0 })}
-        >BASE</Button
+        onclick={() => {
+          motionMode = "base";
+          motionController.configure({ freeze: 0 });
+        }}>BASE</Button
       ><Button
-        onclick={() =>
-          motionController.configure({ mode: "extended", freeze: 0 })}
-        >EXTENDED</Button
+        onclick={() => {
+          motionMode = "extended";
+          motionController.configure({ freeze: 0 });
+        }}>EXTENDED</Button
       >{#each [0, 1, 2, 3] as frame}<Button
           onclick={() => motionController.configure({ freeze: frame })}
           >{frame ? "帧 " + frame : "播放"}</Button

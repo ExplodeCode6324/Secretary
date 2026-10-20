@@ -26,11 +26,13 @@
     bridge = realBridge,
     synthetic = false,
     initialMode,
+    initialTheme,
     transientCadence = 250,
   }: {
     bridge?: BridgePort;
     synthetic?: boolean;
     initialMode?: MotionMode;
+    initialTheme?: "light" | "dark";
     transientCadence?: number;
   } = $props();
   let page = $state<Page>("conversation");
@@ -59,6 +61,10 @@
     }
     page = next;
     await tick();
+    const selected = document.querySelector<HTMLElement>(
+      `[data-page="${next}"]`,
+    );
+    if (selected) motionController.play(selected);
     if (next === "conversation") {
       if (panel) panel.scrollTop = readingOffset;
       if (editor && selection)
@@ -249,7 +255,19 @@
     }
   }
   async function send() {
-    if (busy || composing || !text.trim() || !data.domain) return;
+    if (
+      busy ||
+      composing ||
+      !text.trim() ||
+      !data.domain ||
+      !capability(data.core, "messages")
+    )
+      return;
+    const sendButton = document.querySelector<HTMLElement>(
+      '[data-testid="send"]',
+    );
+    if (sendButton && !motionController.active.has(sendButton))
+      motionController.play(sendButton);
     const boundary = document.getElementById("composer-boundary");
     if (boundary && !motionController.active.has(boundary))
       motionController.play(boundary);
@@ -392,6 +410,7 @@
   connection={() => (connectionOpen = true)}
   {synthetic}
   {initialMode}
+  {initialTheme}
 >
   {#snippet status()}<span data-testid="status"
       >{data.sync}{data.error ? " · " + data.error : ""}</span
@@ -463,7 +482,8 @@
         aria-label="保存并发送"
         data-testid="send"
         onclick={send}
-        disabled={busy ||
+        disabled={!capability(data.core, "messages")}
+        aria-disabled={busy ||
           composing ||
           !text.trim() ||
           !capability(data.core, "messages")}

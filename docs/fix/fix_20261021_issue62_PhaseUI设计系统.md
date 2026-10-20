@@ -216,3 +216,6 @@ Claude R1 已接受B1/B3/B4/B5、测量/ownership定义及Core名称小修，只
 最后两条非阻断建议处置：采用reviewer给出的明确适配选项，无框文字按钮在**键盘focus/activation也显示同一条既有下划线**，让三帧有可见源；保留focus outline并登记偏差。OFF同时关闭CSS **transition和animation**，静态状态即时生效。这两项是reviewer提供选项的具体落实，仍随本计划交Master批准。
 
 本轮验证：`npm run docs:check` PASS（610份Markdown、8,375个本地链接、零错误；119本地化源/357页面/638单元current）；`git diff --check`及新文件空白检查PASS。仓库只修改两份计划和fix索引，源码基线仍为4f1f052。未实施、未新增原生性能验收、未通过Secretary执行付费模型、未部署、未创建PR或合并。下一步：**Master批准或修订计划，再开始实施。**
+
+
+R3 实现复核澄清：主资源测量关闭 computed-style 帧采样，另设可见性采样组；单控件/导航场景完整合格效果覆盖率低于 95% 时判为系统性缺帧。每轮轮换模式顺序，并强制同一二进制哈希。输入滚动回放每 500ms 替换全文，明确不等同真实逐键输入延迟。

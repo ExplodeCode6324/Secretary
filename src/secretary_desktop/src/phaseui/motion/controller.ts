@@ -24,6 +24,7 @@ export type MotionOptions = {
   labels: boolean;
   separatorKeys: boolean;
   measure: boolean;
+  coverage: boolean;
 };
 type Effect = {
   animations: Animation[];
@@ -57,6 +58,7 @@ export class MotionController {
     labels: true,
     separatorKeys: true,
     measure: false,
+    coverage: true,
   };
   readonly active = new Map<HTMLElement, Effect>();
   readonly targets = new Map<HTMLElement, Registration>();
@@ -99,6 +101,14 @@ export class MotionController {
     sync();
     this.listen(media, "change", sync, this.globalClean);
     this.listen(window, "blur", () => this.clearAll(), this.globalClean);
+    this.listen(
+      document,
+      "visibilitychange",
+      () => {
+        if (document.hidden) this.clearAll();
+      },
+      this.globalClean,
+    );
     this.listen(window, "resize", () => this.clearDividers(), this.globalClean);
     const scroll = () => this.clearDividers();
     document.addEventListener("scroll", scroll, true);
@@ -147,7 +157,9 @@ export class MotionController {
         node,
         "pointerdown",
         () => {
-          if (!r.contact) enter();
+          if (!this.enabled(node)) return;
+          r.contact = true;
+          if (!this.active.has(node)) this.play(node);
           r.pressed = true;
           node.classList.add("phase-pressed");
           this.adjacent(node);
@@ -168,7 +180,9 @@ export class MotionController {
         "keydown",
         ((e: KeyboardEvent) => {
           if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
-            enter();
+            if (!this.enabled(node)) return;
+            r.contact = true;
+            if (!this.active.has(node)) this.play(node);
             node.classList.add("phase-pressed");
             this.adjacent(node);
           }
@@ -179,6 +193,14 @@ export class MotionController {
         node,
         "keyup",
         () => node.classList.remove("phase-pressed"),
+        r.clean,
+      );
+      this.listen(
+        node,
+        "click",
+        () => {
+          if (!this.active.has(node)) this.play(node);
+        },
         r.clean,
       );
       this.listen(node, "focusin", () => this.adjacent(node), r.clean);
@@ -302,7 +324,8 @@ export class MotionController {
     };
     if (!this.options.freeze)
       e.timer = setTimeout(() => this.clear(node), duration + 30);
-    if (this.options.measure && !this.frameRequest) this.sampleFrames();
+    if (this.options.measure && this.options.coverage && !this.frameRequest)
+      this.sampleFrames();
     return { e, animate };
   }
   private sampleFrames() {
@@ -627,7 +650,12 @@ export class MotionController {
       paths[1],
       [
         { transform: "translateX(0)", opacity: 1, offset: 0 },
-        { transform: "translateX(11px)", opacity: 1, offset: 0.35 },
+        {
+          transform: "translateX(11px)",
+          opacity: 1,
+          stroke: "var(--blue)",
+          offset: 0.35,
+        },
         { transform: "translateX(16px)", opacity: 0, offset: 0.5 },
         { transform: "translateX(-8px)", opacity: 0, offset: 0.51 },
         { transform: "translateX(2px)", opacity: 1, offset: 0.75 },
@@ -659,10 +687,11 @@ export class MotionController {
     const now = performance.now();
     if (now - this.lastProbe < 50) return;
     this.lastProbe = now;
+    const hit = document.elementFromPoint(x, y);
     for (const [n, r] of this.targets) {
       if (r.options.kind !== "divider") continue;
       const b = n.getBoundingClientRect();
-      const hit = document.elementFromPoint(x, y);
+      if (!b.width || !b.height) continue;
       const occluded = hit && !n.parentElement?.contains(hit);
       const near =
         !occluded &&
@@ -694,6 +723,21 @@ export class MotionController {
       ?.querySelector<HTMLElement>("[data-nav-divider]");
     if (line) this.tryDivider(line);
   }
+  private dividerPath(node: HTMLElement, length: number, vertical: boolean) {
+    const selected = vertical
+      ? node.parentElement?.querySelector<HTMLElement>(
+          '.phase-directory [aria-current="page"]',
+        )
+      : null;
+    if (!selected) return `M0 .5H${length}`;
+    const top = node.getBoundingClientRect().top,
+      row = selected.getBoundingClientRect();
+    const start = Math.max(0, row.top - top - 2),
+      end = Math.min(length, row.bottom - top + 2);
+    return start < end
+      ? `M0 .5H${start} M${end} .5H${length}`
+      : `M0 .5H${length}`;
+  }
   private tryDivider(node: HTMLElement) {
     const r = this.targets.get(node);
     if (
@@ -724,7 +768,7 @@ export class MotionController {
     mountFault(
       document,
       svg,
-      [`M0 .5H${w}`],
+      [this.dividerPath(node, w, !!r.options.vertical)],
       {
         kind: 0,
         duration: 150,

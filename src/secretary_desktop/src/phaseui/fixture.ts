@@ -126,6 +126,7 @@ export function fixtureBridge() {
       running = false;
       preview = ""; // End the bounded synthetic workload; recovery returns to the initial row set.
     },
+    status: () => ({ pending: running ? 1 : 0, previewLength: preview.length }),
     state,
   };
 }

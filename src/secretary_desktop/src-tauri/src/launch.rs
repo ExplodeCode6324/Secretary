@@ -7,6 +7,9 @@ pub struct Launch {
     pub motion: String,
     pub seed: u32,
     pub measure: bool,
+    pub coverage: bool,
+    pub theme: String,
+    pub width: u32,
 }
 pub fn parse(get: impl Fn(&str) -> Option<String>) -> Result<Launch, String> {
     let value = |key| get(key).unwrap_or_default();
@@ -41,6 +44,21 @@ pub fn parse(get: impl Fn(&str) -> Option<String>) -> Result<Launch, String> {
         .unwrap_or_else(|| "62".into())
         .parse::<u32>()
         .map_err(|_| "PhaseUI seed must be an unsigned 32-bit integer")?;
+    let coverage = get("SECRETARY_PHASEUI_COVERAGE").unwrap_or_else(|| "1".into());
+    if !["0", "1"].contains(&coverage.as_str()) {
+        return Err("Invalid coverage selector".into());
+    }
+    let theme = get("SECRETARY_PHASEUI_THEME").unwrap_or_else(|| "light".into());
+    if !["light", "dark"].contains(&theme.as_str()) {
+        return Err("Invalid theme".into());
+    }
+    let width = get("SECRETARY_PHASEUI_WIDTH")
+        .unwrap_or_else(|| "1180".into())
+        .parse::<u32>()
+        .map_err(|_| "Invalid width")?;
+    if !(480..=1800).contains(&width) {
+        return Err("Invalid width".into());
+    }
     Ok(Launch {
         study: study_flag || !scenario.is_empty(),
         scenario,
@@ -48,6 +66,9 @@ pub fn parse(get: impl Fn(&str) -> Option<String>) -> Result<Launch, String> {
         motion,
         seed,
         measure: value("SECRETARY_STUDY_MEASURE") == "1",
+        coverage: coverage == "1",
+        theme,
+        width,
     })
 }
 pub fn current() -> Result<Launch, String> {
@@ -84,6 +105,9 @@ mod tests {
             vec![("SECRETARY_PHASEUI_SEED", "-1")],
             vec![("SECRETARY_PHASEUI_SEED", "4294967296")],
             vec![("SECRETARY_PHASEUI_MOTION", "fast")],
+            vec![("SECRETARY_PHASEUI_COVERAGE", "maybe")],
+            vec![("SECRETARY_PHASEUI_THEME", "unknown")],
+            vec![("SECRETARY_PHASEUI_WIDTH", "479")],
         ] {
             assert!(config(&input).is_err());
         }
