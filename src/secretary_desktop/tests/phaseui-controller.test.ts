@@ -181,3 +181,39 @@ test("contact coalesces; disable, blur, reduced and destruction restore owned re
     f.cleanup();
   }
 });
+
+test("input contact never replays for typing, composition or caret clicks", () => {
+  const f = setup(),
+    c = new MotionController(),
+    node = f.node as unknown as HTMLElement;
+  try {
+    const binding = c.register(node, { kind: "input" });
+    f.node.dispatchEvent(new Event("pointerenter"));
+    assert.equal(c.active.size, 0);
+    f.node.dispatchEvent(new Event("focusin"));
+    assert(c.active.has(node));
+    c.clear(node);
+    for (const event of [
+      new Event("pointerdown"),
+      new Event("click"),
+      ...["Enter", " "].flatMap((key) =>
+        [false, true].map((isComposing) =>
+          Object.assign(new Event("keydown"), {
+            key,
+            isComposing,
+            repeat: false,
+          }),
+        ),
+      ),
+    ]) {
+      f.node.dispatchEvent(event);
+      assert.equal(c.active.size, 0);
+    }
+    c.play(node);
+    assert(c.active.has(node), "explicit submit can still play boundary");
+    binding.destroy();
+  } finally {
+    c.clearAll();
+    f.cleanup();
+  }
+});

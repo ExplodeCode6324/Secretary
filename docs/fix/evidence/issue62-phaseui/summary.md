@@ -14,9 +14,9 @@ The typed renderer ports frozen v1.0 geometry and masked three-state reconstruct
 | --- | --- |
 | Core `npm run verify` | 616 pass, 41 PostgreSQL-dependent skips, 0 failure; 657 total. Docs/type checks passed. Remote CI must supply its configured database coverage. |
 | Desktop contracts / Svelte | Contract check and type check passed, 0 warnings. |
-| Desktop node / Python | 19 node tests, 6 Python tests passed, including controller ownership/coalescing/reduced-motion and invalid measurement rejection. |
+| Desktop node / Python | 20 node tests, 6 Python tests passed, including controller ownership/coalescing/reduced-motion and invalid measurement rejection. |
 | Rust | 1 launch-parser test and 29 integration tests passed; 1 subprocess crash helper ignored by design. Clippy passed. |
-| WKWebView PhaseUI | 7 tests passed: A/B/C three-state visibility and masks; cleanup/OFF; divider gate/contact/global bound; navigation draft/scroll and synthetic composition guard; dialog focus; exact breakpoint widths, four zoom levels, dark mode. |
+| WKWebView PhaseUI | 8 tests passed: A/B/C three-state visibility and masks; cleanup/OFF; divider gate/contact/global bound; navigation draft/scroll and synthetic composition guard; dialog focus; exact breakpoint widths, four zoom levels, dark mode. |
 | WKWebView real bridge | 6 tests passed with isolated offline fixture Core: diagnostic view refused on normal launch, durable send, reopen/receipt, save retry after real storage rejection, responsiveness under blocked Core, stale stop rejection and explicit stop. |
 | WKWebView reading | Offline Core anchor reload and subsequent durable replies passed. |
 | Ordinary Release | Built successfully without native driver. Computer-use observed actual three-column layout, native controls, textarea/caret, brand fit and selected-row join. |
@@ -48,3 +48,9 @@ Accepted corrections: expired hover contacts now replay on press/Enter/Space/cli
 Resource methodology revision: rotate mode order per seed; all primary resource runs disable computed-style frame coverage sampling. Separate coverage cohorts report completed/covered/interrupted counts, reject coverage below 95% in the single/navigation diagnostic workloads, and remain explicitly logical visibility proxies. Cohorts enforce one binary hash. Completion/drain fields derive from fixture state. The input-scroll workload replaces the value every 500ms; it is not physical per-keystroke latency. Action latency uses the actual rAF callback execution time.
 
 Retained adaptation: message/work/result/status/row boundaries preserve the real business UI's grouping while adopting PhaseUI primitives. Frozen conversation examples have fewer row separators; these additions are declared deviations and included in divider/probe cost. Master decides their visual acceptance.
+
+## R4 review disposition
+
+Claude re-read `4d710ea` and ran five source tests plus an input-event probe. It accepted the revised measurement method, but found bubbled input key/caret events replaying the field boundary and the sidebar edge moving with its scroll container. Input targets now react only to focus contact and explicit submission, with no pointer/keyboard/click replay; all target keyboard activation also rejects composing/keyCode229 events. A non-scrolling sidebar owns the full-height edge while an inner wrapper scrolls. Native tests assert no boundary effects from Space/Enter/composition/caret events, and verify edge geometry after scrolling at 200% zoom and all navigation targets at minimum height. Eight native cases passed. The arrow shaft's blue keyframe was restored too.
+
+The six runs on `4d710ea` were only coverage calibration, not final resource evidence. All final cohorts must use the replacement binary.

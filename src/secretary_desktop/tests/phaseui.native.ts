@@ -207,6 +207,32 @@ describe("PhaseUI in native WKWebView", () => {
       { timeout: 5000 },
     );
   });
+  it("does not replay composer effects on typing or caret clicks", async () => {
+    await config({ mode: "base", freeze: 0 });
+    const result = await browser.execute(() => {
+      const c = (window as any).phaseTest,
+        editor = document.querySelector("#draft")!,
+        boundary = document.querySelector("#composer-boundary")!;
+      (editor as HTMLElement).focus();
+      c.clear(boundary);
+      const effects = [];
+      for (const event of [
+        new PointerEvent("pointerdown", { bubbles: true }),
+        new MouseEvent("click", { bubbles: true }),
+        ...["Enter", " "].flatMap((key) =>
+          [false, true].map(
+            (isComposing) =>
+              new KeyboardEvent("keydown", { key, isComposing, bubbles: true }),
+          ),
+        ),
+      ]) {
+        editor.dispatchEvent(event);
+        effects.push(c.active.has(boundary));
+      }
+      return effects;
+    });
+    assert(result.every((v) => !v));
+  });
   it("plays the selected navigation boundary and both real submit paths", async () => {
     await config({ mode: "base", freeze: 2 });
     await $("[data-page=tasks]").click();
@@ -322,6 +348,21 @@ describe("PhaseUI in native WKWebView", () => {
         );
       });
       assert(visible, `settings reachable at zoom ${zoom}`);
+      const line = await browser.execute(() => ({
+        edge: document
+          .querySelector(".phase-sidebar > [data-edge=right]")!
+          .getBoundingClientRect()
+          .toJSON(),
+        shell: document
+          .querySelector(".phase-sidebar")!
+          .getBoundingClientRect()
+          .toJSON(),
+      }));
+      assert(
+        Math.abs(line.edge.top - line.shell.top) < 1 &&
+          Math.abs(line.edge.bottom - line.shell.bottom) < 1,
+        "edge remains full height after sidebar scroll",
+      );
       await browser.saveScreenshot(`${out}/zoom-${zoom}.png`);
     }
     await view(600, 1.25, 480);
@@ -336,8 +377,8 @@ describe("PhaseUI in native WKWebView", () => {
         .querySelector("[data-page=settings]")!
         .getBoundingClientRect()
         .toJSON(),
-      scroll: document.querySelector(".phase-sidebar")!.scrollTop,
-      extent: document.querySelector(".phase-sidebar")!.scrollHeight,
+      scroll: document.querySelector(".phase-sidebar-scroll")!.scrollTop,
+      extent: document.querySelector(".phase-sidebar-scroll")!.scrollHeight,
     }));
     fs.writeFileSync(`${out}/minimum-height.json`, JSON.stringify(narrow));
     assert(narrow.rect.bottom <= narrow.height + 1, JSON.stringify(narrow));

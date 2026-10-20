@@ -102,46 +102,49 @@
 >
   <div class="phase-shell">
     <aside class="phase-sidebar">
-      <Divider edge="right" /><a
-        class="phase-brand"
-        href="#conversation"
-        aria-label={displayName(name)}
-        title={displayName(name)}
-        onclick={(e) => {
-          e.preventDefault();
-          navigate("conversation");
-        }}
-        use:motion={{ kind: "identity" }}
-        ><span data-identity-source>{displayName(name)}</span><span
-          data-phase-layer
-          aria-hidden="true"
-        ></span></a
-      >
-      <nav class="phase-directory" aria-label="主导航">
-        {#each pages as [id, label, icon]}{#if id === "settings"}<Divider
-              navigation
-            />{/if}<a
-            href={"#" + id}
-            data-page={id}
-            aria-label={label}
-            title={label}
-            aria-current={id === page ? "page" : undefined}
-            onclick={(e) => {
-              e.preventDefault();
-              navigate(id);
-            }}
-            use:motion={{
-              kind: "glyph",
-              label: true,
-              adjacent: id === "attention" || id === "settings",
-            }}
-            ><Icon name={icon} /><span data-nav-label>{label}</span><span
-              data-phase-layer
-              aria-hidden="true"
-            ></span></a
-          >{/each}
-      </nav>
-      <footer>Secretary / PhaseUI</footer>
+      <Divider edge="right" />
+      <div class="phase-sidebar-scroll">
+        <a
+          class="phase-brand"
+          href="#conversation"
+          aria-label={displayName(name)}
+          title={displayName(name)}
+          onclick={(e) => {
+            e.preventDefault();
+            navigate("conversation");
+          }}
+          use:motion={{ kind: "identity" }}
+          ><span data-identity-source>{displayName(name)}</span><span
+            data-phase-layer
+            aria-hidden="true"
+          ></span></a
+        >
+        <nav class="phase-directory" aria-label="主导航">
+          {#each pages as [id, label, icon]}{#if id === "settings"}<Divider
+                navigation
+              />{/if}<a
+              href={"#" + id}
+              data-page={id}
+              aria-label={label}
+              title={label}
+              aria-current={id === page ? "page" : undefined}
+              onclick={(e) => {
+                e.preventDefault();
+                navigate(id);
+              }}
+              use:motion={{
+                kind: "glyph",
+                label: true,
+                adjacent: id === "attention" || id === "settings",
+              }}
+              ><Icon name={icon} /><span data-nav-label>{label}</span><span
+                data-phase-layer
+                aria-hidden="true"
+              ></span></a
+            >{/each}
+        </nav>
+        <footer>Secretary / PhaseUI</footer>
+      </div>
     </aside>
     <div
       class="phase-workspace"

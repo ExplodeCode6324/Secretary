@@ -134,6 +134,11 @@
 .phase-sidebar {
   background: var(--sidebar);
   border-right: 1px solid var(--line);
+  min-height: 0;
+  position: relative;
+}
+.phase-sidebar-scroll {
+  height: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -641,7 +646,7 @@
   .phase-workspace.collapsed {
     grid-template-columns: minmax(0, 1fr) 48px;
   }
-  .phase-sidebar {
+  .phase-sidebar-scroll {
     padding-left: 20px;
     padding-right: 16px;
   }
@@ -688,7 +693,7 @@
   .phase-shell {
     grid-template-columns: 64px minmax(0, 1fr);
   }
-  .phase-sidebar {
+  .phase-sidebar-scroll {
     padding: 26px 0 12px;
   }
   .phase-brand {
@@ -772,9 +777,12 @@ body,
   border: 0;
 }
 
-.phase-sidebar {
+.phase-sidebar-scroll {
   overflow-y: auto;
   overflow-x: hidden;
+}
+.phase-sidebar {
+  overflow: hidden;
   position: relative;
   border-right: 0;
 }

@@ -148,7 +148,14 @@ export class MotionController {
         node.classList.remove("phase-pressed");
         this.clear(node, true);
       };
-      this.listen(node, "pointerenter", enter, r.clean);
+      this.listen(
+        node,
+        "pointerenter",
+        () => {
+          if (r.options.kind !== "input") enter();
+        },
+        r.clean,
+      );
       this.listen(node, "focusin", enter, r.clean);
       this.listen(node, "pointerleave", leave, r.clean);
       this.listen(node, "focusout", leave, r.clean);
@@ -157,7 +164,7 @@ export class MotionController {
         node,
         "pointerdown",
         () => {
-          if (!this.enabled(node)) return;
+          if (r.options.kind === "input" || !this.enabled(node)) return;
           r.contact = true;
           if (!this.active.has(node)) this.play(node);
           r.pressed = true;
@@ -179,6 +186,8 @@ export class MotionController {
         node,
         "keydown",
         ((e: KeyboardEvent) => {
+          if (r.options.kind === "input" || e.isComposing || e.keyCode === 229)
+            return;
           if ((e.key === "Enter" || e.key === " ") && !e.repeat) {
             if (!this.enabled(node)) return;
             r.contact = true;
@@ -199,7 +208,8 @@ export class MotionController {
         node,
         "click",
         () => {
-          if (!this.active.has(node)) this.play(node);
+          if (r.options.kind !== "input" && !this.active.has(node))
+            this.play(node);
         },
         r.clean,
       );
@@ -638,7 +648,7 @@ export class MotionController {
       paths[0],
       [
         { transform: "scaleX(1)", opacity: 1, offset: 0 },
-        { transform: "scaleX(1.4)", offset: 0.3 },
+        { transform: "scaleX(1.4)", stroke: "var(--blue)", offset: 0.3 },
         { transform: "scaleX(.4)", opacity: 0.2, offset: 0.55 },
         { transform: "scaleX(.8)", offset: 0.75 },
         { transform: "scaleX(1)", opacity: 1, offset: 1 },
