@@ -2778,5 +2778,415 @@
     "`npm run tauri -- dev` uses a local Vite development server. Ordinary Release embeds static assets and opens no listening server. In study mode, Rust exposes a whitelisted study configuration, a one-time ready marker, and bounded JSON metrics to its own stdout when explicitly launched by the measurement harness. The ordinary UI has no recurring frame sampler or telemetry IPC; instrumented streaming and the native-test build enable frame sampling. No Core tokens, file access, shell execution, external navigation or remote assets are available to the page. Capability permissions are scoped to `main`: zoom, those three measurement commands, and the restricted FE-01 bridge commands.",
     "`npm run tauri -- dev` はローカル Vite 開発サーバーを使います。通常の Release は静的資産を埋め込み、待受サーバーを開きません。study モードでは計測ハーネスで明示起動した場合のみ、Rust が許可済み study 設定、一度限りの準備完了マーカー、上限付き JSON 指標を自身の stdout に出します。通常 UI には定期的フレームサンプラーやテレメトリー IPC はなく、計測付き streaming と native-test ビルドでフレーム計測を有効にします。ページには Core トークン、ファイルアクセス、shell 実行、外部遷移、リモート資産を提供しません。権限は `main` に限定され、zoom と 3 つの計測コマンド、および制限された FE-01 ブリッジコマンドが対象です。",
     "`npm run tauri -- dev` utilise un serveur Vite local. La Release ordinaire embarque les ressources statiques sans serveur d’écoute. En mode étude, Rust expose sur son stdout une configuration autorisée, un marqueur unique de disponibilité et des métriques JSON bornées, uniquement si le harnais de mesure le lance explicitement. L’interface ordinaire n’a ni échantillonnage récurrent de trames ni IPC de télémétrie ; le streaming instrumenté et native-test activent cet échantillonnage. La page ne dispose ni de tokens Core, ni de fichiers, shell, navigation externe ou ressources distantes. Les permissions sont limitées à `main` : zoom, les trois commandes de mesure et les commandes restreintes du pont FE-01."
+  ],
+  "# 现行前端规范": [
+    "# Current Frontend Spec",
+    "# 現行フロントエンド仕様",
+    "# Spécification frontend actuelle"
+  ],
+  "版本：FE-DOC R1，2026-10-21。Master 已批准 R1 计划及设计裁定；本文档集待 Master 终审。#61 合并且 Master 明确确认后，#62 才可开始。": [
+    "Version: FE-DOC R1, 2026-10-21. Master approved the R1 plan and design decisions; this document set awaits final review. #62 starts only after #61 is merged and explicitly confirmed by Master.",
+    "版：FE-DOC R1、2026-10-21。Master は R1 計画と設計判断を承認済みです。本書群の最終審査は未完了です。#61 のマージと Master の明示的確認後に #62 を開始します。",
+    "Version : FE-DOC R1, 2026-10-21. Master a approuvé le plan R1 et les décisions de conception ; cet ensemble attend la revue finale. #62 commence après la fusion de #61 et la confirmation explicite de Master."
+  ],
+  "这是仓库唯一的现行前端规范入口；各语言版本表达同一规范。冻结 v1.0 是唯一权威视觉来源：**如果不确定，就翻 v1.0 的设计，先按它的来，后续按 Master 意见调整。**": [
+    "This is the repository’s single current frontend specification entry; all language editions describe the same specification. Frozen v1.0 is the sole authoritative visual source: **when uncertain, consult v1.0 and follow it first; revise later as Master directs.**",
+    "ここがリポジトリ唯一の現行フロントエンド仕様入口です。各言語版は同じ仕様です。凍結済み v1.0 を唯一の視覚的基準とし、**迷ったら v1.0 を確認してまず従い、後で Master の指示に応じて調整します。**",
+    "Ce document est l’unique entrée de la spécification frontend actuelle ; les éditions linguistiques décrivent la même spécification. La v1.0 figée est la seule référence visuelle : **en cas de doute, consulter et suivre d’abord v1.0, puis ajuster selon Master.**"
+  ],
+  "当前实现基线为 `5f73c23`（FE-02 / PR #75），具备最小真实业务链路；完整视觉组件属于 #62，对话、任务、记忆/设置、产物/通知页面分别由 #63～#66 完成。当前仅验收 macOS；Linux 桌面 deferred / NOT_TESTED，不阻塞路线，Core Linux CI 保持不变。": [
+    "The implementation baseline is `5f73c23` (FE-02 / PR #75), with the minimum real workflow. Full visual components belong to #62; conversation, tasks, memory/settings and artifacts/notifications belong to #63–#66 respectively. Current desktop acceptance targets macOS. Linux is deferred / NOT_TESTED and is not a roadmap gate; Core Linux CI is unchanged.",
+    "実装基準は `5f73c23`（FE-02 / PR #75）で、最小の実業務フローがあります。完全な視覚コンポーネントは #62、対話、タスク、記憶/設定、成果物/通知は順に #63～#66 です。現行の検証対象は macOS。Linux デスクトップは deferred / NOT_TESTED で進行条件に含めず、Core Linux CI は維持します。",
+    "La base implémentée est `5f73c23` (FE-02 / PR #75), avec un flux métier réel minimal. Les composants visuels relèvent de #62 ; conversation, tâches, mémoire/réglages et livrables/notifications de #63 à #66. La recette actuelle vise macOS. Linux reste deferred / NOT_TESTED, sans bloquer la progression ; la CI Core Linux reste inchangée."
+  ],
+  "本次 #61 只整合文档。Master 已撤回真实部署要求：不启动部署，不提前实现 #62。运行入口见[桌面说明](../../src/secretary_desktop/README.md)，历史材料见[历史索引](../old/README.md)。": [
+    "#61 consolidates documentation only. Master withdrew the deployment request: no deployment or early #62 implementation is included. See [desktop instructions](../../src/secretary_desktop/README.md) for running it and the [historical index](../old/README.md) for past material.",
+    "#61 は文書の統合のみです。Master はデプロイ依頼を撤回したため、デプロイや #62 の先行実装は行いません。実行は[デスクトップ説明](../../src/secretary_desktop/README.md)、過去資料は[履歴索引](../old/README.md)を参照してください。",
+    "#61 concerne uniquement la documentation. Master a retiré la demande de déploiement : aucun déploiement ni démarrage anticipé de #62. Consulter les [instructions bureau](../../src/secretary_desktop/README.md) et l’[index historique](../old/README.md)."
+  ],
+  "# 架构与流程": [
+    "# Architecture and flows",
+    "# 構成とフロー",
+    "# Architecture et flux"
+  ],
+  "Svelte/TypeScript 负责阅读、编辑和可重建视图；Tauri Rust 负责受限 IPC、本机发现、HTTP/SSE、凭据与持久缓存/outbox；独立 Core 负责 Host、Scheduler、任务、授权与业务数据。页面不持有 bearer，不直接连接 Core，也不复制 Core 状态机。": [
+    "Svelte/TypeScript owns reading, editing and rebuildable views. Tauri Rust owns restricted IPC, local discovery, HTTP/SSE, credentials and durable cache/outbox. Independent Core owns Host, Scheduler, tasks, authorization and business data. Pages neither hold bearer tokens nor connect directly to Core, and do not duplicate its state machines.",
+    "Svelte/TypeScript は閲覧、編集、再構築可能な表示を担当します。Tauri Rust は制限付き IPC、ローカル検出、HTTP/SSE、資格情報、永続キャッシュ/outbox を担当します。独立 Core は Host、Scheduler、タスク、認可、業務データを管理します。ページは bearer を保持せず、Core に直接接続せず、その状態機械を複製しません。",
+    "Svelte/TypeScript gère lecture, édition et vues reconstructibles. Tauri Rust gère IPC restreint, découverte locale, HTTP/SSE, identifiants et cache/outbox persistants. Core indépendant gère Host, Scheduler, tâches, autorisations et données métier. Les pages ne détiennent pas de jeton bearer, ne contactent pas Core directement et ne reproduisent pas ses machines à états."
+  ],
+  "普通启动显示 FE-02 连接窗口；选择已配置 profile，连接或明确启动 Core。关闭窗口只结束客户端；停止 Core 是独立的确认操作。`SECRETARY_STUDY=1` 显示合成 study，不能用它证明真实业务或完整 PhaseUI。Release 使用内嵌资源，开发 Vite 服务不代表生产部署。": [
+    "Normal startup opens the FE-02 connection window. Select a configured profile to connect or explicitly start Core. Closing the window ends only the client; stopping Core requires a separate confirmation. `SECRETARY_STUDY=1` opens a synthetic study, which proves neither real workflows nor full PhaseUI. Release embeds assets; the development Vite server is not a production deployment.",
+    "通常起動は FE-02 接続画面です。設定済み profile を選び、接続または明示的に Core を起動します。ウィンドウを閉じても終了するのはクライアントのみで、Core 停止は別途確認します。`SECRETARY_STUDY=1` は合成 study で、実業務や完全な PhaseUI の証明にはなりません。Release は資源を内包し、開発用 Vite は本番デプロイではありません。",
+    "Le démarrage normal ouvre la connexion FE-02. Sélectionner un profil configuré pour se connecter ou démarrer explicitement Core. Fermer la fenêtre termine seulement le client ; arrêter Core nécessite une confirmation séparée. `SECRETARY_STUDY=1` ouvre une étude synthétique, sans prouver les flux réels ou PhaseUI complet. Release embarque les ressources ; Vite est réservé au développement."
+  ],
+  "发送顺序：保留编辑文本 → 保存带版本草稿 → 在本地事务中持久化原 request_id/命令并清除对应草稿 → UI 清空仍匹配该版本的输入 → 网络提交和回执对账。排队、HTTP 202、命令回执与任务完成分别展示；未知结果不自动重发成新请求。保存或入队失败保留文本。Cmd+Enter 发送，Enter 换行，IME 组合与候选确认不触发发送。": [
+    "Sending: retain editor text → save a versioned draft → durably store the original request_id/command and clear that draft in a local transaction → clear matching editor text → submit and reconcile receipts. Show queued state, HTTP 202, command receipt and task completion separately; unknown outcomes do not automatically become new requests. Preserve text on save/queue failure. Cmd+Enter sends, Enter inserts a newline; composition and candidate confirmation never send.",
+    "送信順序：編集内容を保持 → 版付き草稿を保存 → 元の request_id/コマンドをローカルトランザクションで永続化し該当草稿を消去 → 一致する入力を消去 → 通信と受領結果の照合。待機、HTTP 202、コマンド受領、タスク完了は区別します。結果不明を新規要求として自動再送しません。保存/待機登録失敗時は本文を保持します。Cmd+Enter で送信、Enter で改行し、IME 変換/候補確定では送信しません。",
+    "Envoi : conserver le texte → enregistrer un brouillon versionné → persister request_id/commande d’origine et effacer ce brouillon dans une transaction locale → effacer le texte encore correspondant → transmettre et rapprocher les reçus. Distinguer attente, HTTP 202, reçu et fin de tâche ; un résultat inconnu ne devient pas automatiquement une nouvelle requête. Conserver le texte en cas d’échec de sauvegarde/file. Cmd+Enter envoie, Enter insère une ligne ; composition et validation IME n’envoient jamais."
+  ],
+  "持久快照、增量 cursor 与瞬态预览分开处理；瞬态不能被当作已提交历史。同数据域/实例断线可保留最近文本并标重连，持久消息到达后按身份替换；切域不混用旧数据。跨页保留域隔离草稿及消息 ID/偏移阅读锚点，普通滚动不改变关联范围。加载更早消息不抢阅读位置，“跳到最新”是显式动作。": [
+    "Keep durable snapshots, delta cursors and transient previews separate; previews are not committed history. Reconnection in the same domain/instance can retain recent text with a reconnecting label; durable messages replace it by identity. Never mix domains. Preserve domain-specific drafts and message-ID/offset anchors across pages; scrolling does not change association scope. Loading older messages preserves reading position; jumping to latest is explicit.",
+    "永続スナップショット、差分 cursor、一時プレビューは分離し、プレビューを確定履歴にしません。同一データ領域/インスタンスの再接続中は直近本文を表示付きで保持でき、永続メッセージで同一性に従い置換します。領域を混在させません。画面間で領域別草稿とメッセージ ID/オフセットを保持し、スクロールで関連範囲を変えません。過去の追加読み込みは閲覧位置を維持し、最新への移動は明示操作です。",
+    "Séparer instantanés persistants, curseurs de changements et aperçus transitoires ; ceux-ci ne sont pas un historique validé. Une reconnexion dans le même domaine/instance peut conserver le texte avec un libellé approprié ; les messages persistants le remplacent par identité. Ne pas mélanger les domaines. Conserver brouillons et ancres ID/décalage entre pages ; défiler ne change pas les associations. Charger le passé conserve la position ; revenir au récent est explicite."
+  ],
+  "导航按 v1.0 的对话、任务、记忆、产物、待处理、设置组织；动效画廊是开发复核入口。右栏保留正在进行、近期产物、快捷操作的位置，未实现功能留空占位。通过服务端实体 ID 定位关联，定位失败说明原因；不以名称猜测关系。助手名空白回退 `Secretary`，不显示“主会话”。": [
+    "Use v1.0 navigation: conversation, tasks, memory, artifacts, attention and settings. The motion gallery is for development review. Preserve ongoing work, recent artifacts and shortcut positions in the right rail; leave unimplemented features empty. Resolve relationships by server entity IDs and explain failed navigation rather than guessing by name. Blank assistant names fall back to `Secretary`; omit “main session” copy.",
+    "v1.0 に従い対話、タスク、記憶、成果物、要対応、設定を配置します。動きの画廊は開発レビュー用です。右欄の進行中、最近の成果物、ショートカット位置を保持し、未実装は空欄にします。関連はサーバーの実体 ID で特定し、失敗理由を示し、名前から推測しません。空の助手名は `Secretary` にし、「主セッション」は表示しません。",
+    "Reprendre la navigation v1.0 : conversation, tâches, mémoire, livrables, attention et réglages. La galerie d’animations sert à la revue de développement. Garder les emplacements travail en cours, livrables récents et raccourcis ; laisser vides les fonctions non implémentées. Résoudre les associations par ID serveur et expliquer les échecs, sans inférence par nom. Un nom vide devient `Secretary` ; omettre « session principale »."
+  ],
+  "通知继承既有 presented/read 合同：初始同步水位以前的通知只进入列表，实际显示后按 client_id 上报 presented；read 单独提交且全局共享。持久展示记录抑制重启重复弹出；截断内容按前缀展示，不把截断 JSON 当完整对象解析。这些是后续通知 UI 的要求，FE-02 尚未交付完整通知页面。": [
+    "Notifications retain presented/read semantics: notifications at or below the initial sync watermark populate the list only; report presented for client_id after actual display. Submit read separately; it is global. Persist display records to suppress duplicate presentation after restart. Treat truncated content as a prefix, not complete JSON. These are requirements for later notification UI, not a claim that FE-02 provides the full page.",
+    "通知は既存の presented/read 契約を継承します。初期同期水位以前は一覧のみ、実表示後に client_id で presented を報告します。read は別途送信し全体共有です。表示記録を永続化し再起動時の重複表示を抑制します。切り詰め内容は接頭部として扱い、完全な JSON として解析しません。これは後続 UI の要件で、FE-02 の完全な通知画面を意味しません。",
+    "Les notifications conservent presented/read : celles antérieures ou égales au niveau initial de synchronisation alimentent seulement la liste ; déclarer presented avec client_id après affichage réel. read est séparé et global. Persister les affichages pour éviter les doublons au redémarrage. Traiter le contenu tronqué comme un préfixe, pas du JSON complet. Ce sont des exigences futures, pas une page complète livrée par FE-02."
+  ],
+  "# PhaseUI 视觉规范": [
+    "# PhaseUI visual specification",
+    "# PhaseUI 視覚仕様",
+    "# Spécification visuelle PhaseUI"
+  ],
+  "唯一视觉来源为冻结 v1.0（`8cdb9219bed9493147ba10f7d47423df56cbcc44`）。以下规则将源码、真实原型与 Master R1 裁定对应；没有确定的细节先按 v1.0，不另造“现代化”替代设计。内容优先，目录、段落、表格和表单建立秩序；静态安静，交互局部显影。": [
+    "Frozen v1.0 (`8cdb9219bed9493147ba10f7d47423df56cbcc44`) is the only visual source. These rules connect source, the actual prototype and Master’s R1 decisions. Follow v1.0 for unspecified details instead of inventing a modernized replacement. Content comes first, organized through directories, paragraphs, tables and forms; the resting view is quiet, with local effects during interaction.",
+    "凍結 v1.0（`8cdb9219bed9493147ba10f7d47423df56cbcc44`）が唯一の視覚基準です。ソース、実際の原型、Master の R1 判断を対応させます。不明な細部は v1.0 に従い、現代風の代替を作りません。内容を優先し、目次、段落、表、フォームで整理し、静止時は静かに、操作時のみ局所的に変化します。",
+    "La v1.0 figée (`8cdb9219bed9493147ba10f7d47423df56cbcc44`) est l’unique source visuelle. Ces règles relient code, prototype réel et décisions R1 de Master. Suivre v1.0 pour les détails indéterminés, sans créer une alternative modernisée. Le contenu prime, structuré par navigation, paragraphes, tableaux et formulaires ; le repos est calme et les effets locaux accompagnent l’interaction."
+  ],
+  "## 布局与边界": [
+    "## Layout and boundaries",
+    "## 配置と境界",
+    "## Disposition et limites"
+  ],
+  "以网页版为比例基准：正常三栏为左196px、中央 `minmax(0,1fr)`、右270px；1100px及以下切换左166px/右230px；右栏收起48px；850px及以下右栏默认收起，展开覆盖而不挤正文；600px及以下左栏64px、品牌竖排。连续调整窗口宽度时，中部吸收变化，两侧在同一档位保持不变；窄屏按上述断点适配。": [
+    "Use the web proportions: normal columns are left 196px, center `minmax(0,1fr)`, right 270px. At ≤1100px use 166px/230px sidebars; collapsed right rail is 48px. At ≤850px it starts collapsed and expands as an overlay without squeezing text. At ≤600px the left rail is 64px with vertical branding. Continuous resizing changes the center, keeping sidebars fixed within each breakpoint.",
+    "Web 版の比率を使います。通常は左196px、中央 `minmax(0,1fr)`、右270px。1100px以下は左166px/右230px、右欄収納時48px。850px以下では初期収納し、展開は本文を圧縮しない重ね表示です。600px以下は左64pxと縦書きブランド。連続的な幅変更は中央が吸収し、同じ段階内の側欄幅は固定します。",
+    "Reprendre les proportions web : gauche 196px, centre `minmax(0,1fr)`, droite 270px. À ≤1100px, côtés de 166px/230px ; rail droit replié de 48px. À ≤850px, repli initial et ouverture superposée sans comprimer le texte. À ≤600px, gauche de 64px et marque verticale. Le centre absorbe le redimensionnement continu ; les côtés restent fixes dans chaque palier."
+  ],
+  "左右侧栏通顶通底，以色块分隔，不套卡片。左栏选中行使用中央主体底色，并实际中断对应竖边线，使目录融入正文。右栏的正在进行、近期产物、快捷操作组成一个整体；未实现内容保留空位。结构线尽量接到所属模块边缘，文字靠内边距对齐，少用内缩短线；不跨越无关栏目。": [
+    "Both sidebars span the full layout height and are separated by color surfaces, not cards. The selected left row uses the central background and interrupts the matching vertical border, joining the document. Ongoing work, recent artifacts and shortcuts form one right-rail module; unimplemented content remains empty. Structural rules reach their module edges where possible; text uses padding. Avoid inset decorative rules and crossing unrelated columns.",
+    "両側欄は上下いっぱいの色面で分け、カード化しません。左の選択行は中央と同じ背景色で対応する縦線を中断し、本文につなげます。右の進行中、最近の成果物、ショートカットは一体のモジュールで、未実装内容は空欄です。構造線は可能な限り所属領域の端まで延ばし、文字は内余白で揃えます。短い装飾線や無関係な欄を跨ぐ線は避けます。",
+    "Les deux côtés occupent toute la hauteur et se distinguent par leurs aplats, sans cartes. La ligne gauche sélectionnée reprend le fond central et interrompt sa bordure verticale pour rejoindre le document. Travail en cours, livrables récents et raccourcis forment un seul module droit ; les fonctions absentes restent vides. Les règles rejoignent les bords de leur module ; le texte utilise des marges internes. Éviter les lignes décoratives en retrait et celles traversant des colonnes étrangères."
+  ],
+  "## 颜色与文字": [
+    "## Colors and typography",
+    "## 色と文字",
+    "## Couleurs et typographie"
+  ],
+  "以下数值来自 v1.0 最终主题规则。状态颜色直接沿用 v1.0 选择器和语义，不能只读文件头 token 后另配状态色；颜色伴随文字，装饰双色不表示业务完成。": [
+    "The values below come from v1.0 theme rules. Keep its status selectors and meanings; do not invent status colors after reading only initial tokens. Pair color with text; decorative blue layers do not signal business completion.",
+    "下記は v1.0 のテーマ規則です。状態色は同版のセレクタと意味を継承し、先頭 token だけから別配色を作りません。色には文字を伴わせ、装飾の青系二色は業務完了を示しません。",
+    "Les valeurs suivantes proviennent des thèmes v1.0. Conserver ses sélecteurs et significations d’état ; ne pas inventer de palette à partir des seuls tokens initiaux. Associer texte et couleur ; les couches bleues décoratives ne signalent pas l’achèvement métier."
+  ],
+  "正文系统无衬线，基准14px、行高1.65；品牌、时间等系统等宽字体，不加载外部字体。品牌字形带蓝/浅蓝硬边（−1px/1px，浅蓝下移0.5px），无静态容器框；助手名来自配置，空白回退 `Secretary`。长名截断时保留全文访问。Master/助手头像固定尺寸并保留原边框，不新增虚假按钮或 Tab 停靠点。": [
+    "Body text uses system sans-serif at baseline 14px/1.65; branding and timestamps use system monospace, without external fonts. Brand glyphs have hard blue/light-blue edges (−1px/1px, light blue 0.5px down), without a static container frame. Use the configured assistant name, defaulting to `Secretary`; truncation retains access to the full name. Master/assistant avatars retain fixed sizes and original borders, without fake buttons or extra tab stops.",
+    "本文はシステムのサンセリフで基準14px/1.65、ブランドと時刻などはシステム等幅を使い、外部フォントを読み込みません。ブランド字形は青/淡青の硬い縁（−1px/1px、淡青は下へ0.5px）で、固定枠はありません。設定名を使い空白は `Secretary`、省略時も全文を参照可能にします。両者のアバターは固定寸法と元の枠を保ち、偽ボタンや余分な Tab 停止点を追加しません。",
+    "Le corps utilise une police système sans empattement, base 14px/1,65 ; marque et horaires utilisent une police système à chasse fixe, sans police externe. Les glyphes portent des bords nets bleu/bleu clair (−1px/1px, bleu clair décalé de 0,5px vers le bas), sans cadre statique. Utiliser le nom configuré, sinon `Secretary`, avec accès au nom complet après troncature. Les avatars gardent dimensions et bordures, sans faux bouton ni arrêt Tab supplémentaire."
+  ],
+  "## 动效与页面来源": [
+    "## Motion and page sources",
+    "## 動きと画面の出典",
+    "## Sources des animations et pages"
+  ],
+  "三层是显示组成：带真实缺口的重构底层、局部裁片、少量双色残像；三帧是时间上的不同离散状态。移走的源片段原位置必须留空，不能以完整图标叠彩边替代。第二帧反向换区，第三帧收窄减量；0%、26.67%、53.33%显影，80%恢复。源几何、排版、命中范围固定；禁止全屏 RGB、伪日志、弹跳或泛化缩放旋转。": [
+    "Three layers describe display composition: reconstructed base with real gaps, local slices and sparse two-color residues. Three frames are distinct discrete time states. Moved source fragments leave gaps; an intact icon with colored outlines is insufficient. Frame two reverses direction/region; frame three narrows and reduces displacement. States appear at 0%, 26.67%, 53.33%, restoring at 80%. Source geometry, layout and hit areas remain fixed. No full-screen RGB, fake logs, bouncing or general scaling/rotation.",
+    "三層は表示構成（実際の欠損を持つ再構成底層、局所切片、少量の二色残像）、三フレームは時間上の別々の離散状態です。移動元は欠ける必要があり、完全な図形に色縁を重ねるだけでは不足です。第二は逆方向/別領域、第三は狭く少量にし、0%、26.67%、53.33%で表示、80%で復元します。源形状、配置、ヒット領域は固定。全画面 RGB、偽ログ、跳ね、一般的な拡縮/回転は禁止です。",
+    "Trois couches décrivent la composition : base reconstruite avec lacunes réelles, fragments locaux et rares résidus bicolores. Trois images sont des états temporels discrets distincts. Les fragments déplacés laissent un vide ; un contour coloré sur une icône intacte ne suffit pas. La deuxième inverse sens/zone ; la troisième réduit bande et déplacement. Affichage à 0 %, 26,67 %, 53,33 %, retour à 80 %. Géométrie, disposition et cibles restent fixes. Aucun RGB plein écran, faux journal, rebond ou transformation générale d’échelle/rotation."
+  ],
+  "发送箭头420ms投射是指定例外，不推广到其他图标。分隔线每次片段≤18px、约1px错位，沿用700ms冷却及全页最多一处；Master R1 要求随机决定是否播放，不是每次接近都触发，也不是后台自动循环。具体概率在 #62 试验中记录。": [
+    "The 420ms send-arrow projection is an explicit exception, not a rule for other icons. Separator fragments are ≤18px with about 1px displacement; keep the 700ms cooldown and one active separator globally. Master’s R1 adds a random play/skip decision, not playback on every approach or a background loop. Record the chosen probability in #62 experiments.",
+    "送信矢印の420ms投射は指定例外で、他のアイコンへ拡張しません。分隔線は一片≤18px、約1pxずれ、700ms冷却と全体一箇所を維持します。R1 は再生するかどうかのランダム判断を追加し、毎回の接近や背景ループではありません。確率は #62 試験で記録します。",
+    "La projection de la flèche d’envoi en 420ms est une exception explicite. Les fragments de séparateur mesurent ≤18px et se déplacent d’environ 1px ; garder 700ms de repos et un seul effet global. R1 ajoute une décision aléatoire de jouer ou non, sans déclenchement systématique ni boucle de fond. Consigner la probabilité lors des essais #62."
+  ],
+  "对话采用日期线、头像/姓名/时间与段落；任务采用表格和行内展开；产物采用文件名与相邻元信息；记忆采用摘要与记录分组；待处理分开决定和授权；设置先草稿再复核。以下冻结代码和图片是具体构造/分镜来源，概念图不覆盖最终代码。": [
+    "Conversation uses date rules, avatar/name/time and paragraphs; tasks use tables with inline disclosure; artifacts use filenames with adjacent metadata; memory groups summaries and records; attention separates decisions from authorization; settings use drafts followed by review. Frozen code/images below define concrete construction and storyboards; concept art does not override final code.",
+    "対話は日付線、アバター/名前/時刻、段落、タスクは表と行内展開、成果物は名前と隣接メタ情報、記憶は要約と記録のまとまりです。要対応は判断と認可を分け、設定は草稿後にレビューします。以下の凍結コード/画像を具体的な構造と分鏡の出典とし、概念画で最終コードを上書きしません。",
+    "La conversation utilise dates, avatar/nom/heure et paragraphes ; les tâches des tableaux à détails intégrés ; les livrables noms et métadonnées adjacentes ; la mémoire des groupes de résumés et fiches. Séparer décisions et autorisations, puis brouillon et revue des réglages. Les sources figées ci-dessous définissent la construction et les séquences ; les concepts ne remplacent pas le code final."
+  ],
+  "# 组件与状态": [
+    "# Components and states",
+    "# コンポーネントと状態",
+    "# Composants et états"
+  ],
+  "显示状态与业务状态正交：stable/hover/pressed/focus/disabled 描述交互；idle/pending/succeeded/failed/offline/stale 描述业务。只应用组件需要的状态。pending 保留阅读和导航；真实成功来自回执/业务对象，不能由动效结束推断。offline/stale 保留可读缓存并标明状态，不伪装新鲜数据。": [
+    "Display and business states are independent: stable/hover/pressed/focus/disabled describe interaction; idle/pending/succeeded/failed/offline/stale describe business. Apply only relevant states. Pending preserves reading/navigation. Success comes from receipts/business objects, never animation completion. Offline/stale views retain readable cache with explicit status rather than pretending it is fresh.",
+    "表示状態と業務状態は独立です。stable/hover/pressed/focus/disabled は操作、idle/pending/succeeded/failed/offline/stale は業務を表します。必要な状態のみ適用し、pending 中も閲覧/移動を保ちます。成功は受領結果/業務実体から判断し、動きの完了ではありません。offline/stale はキャッシュを状態表示付きで読めるようにし、最新と偽りません。",
+    "Les états visuels et métier sont indépendants : stable/hover/pressed/focus/disabled pour l’interaction ; idle/pending/succeeded/failed/offline/stale pour le métier. N’appliquer que les états pertinents. Pending conserve lecture/navigation. Le succès vient des reçus/objets métier, jamais de la fin d’animation. Hors ligne/périmé conserve un cache lisible avec un état explicite."
+  ],
+  "## 组件行为": [
+    "## Component behavior",
+    "## コンポーネント動作",
+    "## Comportement des composants"
+  ],
+  "**目录项与图标。** 使用原生链接/按钮，aria-current 表示当前页。hover/focus 触发同次三帧，pressed 立即反馈、释放延续该次效果；点击只执行一次。selected 是持续的底色与接边状态，不能等动画结束才选中。每种图标固定源几何，裁片来自本体；辅助路径不能当常显图标。": [
+    "**Directory items and icons.** Use native links/buttons and aria-current for the current page. Hover/focus share one three-frame effect; press responds immediately and release continues it. Execute each activation once. Selection is a persistent surface/boundary state, applied without waiting for animation. Each icon has fixed source geometry; fragments come from its body, not helper paths displayed as the base icon.",
+    "**目次項目とアイコン。** ネイティブのリンク/ボタンと aria-current を使います。hover/focus は同じ三フレーム効果を共有し、押下は即応、解放は継続、操作は一度のみ実行します。選択は持続する背景/境界状態で、動きの終了を待ちません。アイコンの源形状を固定し、本体から切片を取り、補助パスを常時本体にしません。",
+    "**Navigation et icônes.** Utiliser liens/boutons natifs et aria-current. Survol/focus partagent un effet à trois images ; pression immédiate et relâchement poursuivent le même effet. Chaque activation s’exécute une fois. La sélection est persistante et immédiate. Chaque icône garde sa géométrie ; les fragments viennent du corps, sans afficher les chemins auxiliaires comme icône permanente."
+  ],
+  "**输入与发送。** 原生 textarea 保持 DOM、选择、光标及候选位置稳定；focus 为边界色与短重绘。Cmd+Enter 或发送按钮立即进入持久发送流程，Enter 换行，IME 期间不发送。提交时输入右边线140ms、发送方块160ms三帧，箭头420ms；保存/入队失败保留草稿，视觉复位不等于发送成功。disabled 保留文字和焦点可见性，不播放故障。": [
+    "**Composer and send.** Keep the native textarea DOM, selection, caret and candidate position stable; focus uses boundary color and brief redraw. Cmd+Enter or Send begins durable submission immediately; Enter inserts a newline and IME composition never sends. On submission animate the right input edge for 140ms, the send square in three frames for 160ms and the arrow for 420ms. Save/queue failures preserve drafts; visual restoration is not success. Disabled state keeps text and focus feedback readable without fault effects.",
+    "**入力と送信。** textarea の DOM、選択、カーソル、候補位置を安定させ、focus は境界色と短い再描画です。Cmd+Enter または送信で即座に永続送信を開始し、Enter は改行、IME 中は送信しません。右辺140ms、送信四角160ms三フレーム、矢印420ms。保存/登録失敗は草稿を保持し、復元を成功としません。disabled は文字と焦点表示を読めるままにし、故障効果を停止します。",
+    "**Saisie et envoi.** Garder stables DOM du textarea, sélection, curseur et position IME ; le focus colore le bord et produit un bref redessin. Cmd+Enter ou Envoyer commence immédiatement l’envoi persistant ; Enter ajoute une ligne et la composition IME n’envoie pas. Animer le bord droit 140ms, le carré d’envoi sur trois images 160ms et la flèche 420ms. Conserver le brouillon en cas d’échec ; le retour visuel ne prouve pas le succès. Disabled reste lisible sans effet de défaut."
+  ],
+  "**任务行。** 任务名称/目标、状态、更新时间、展开操作构成表格行；展开在同一表格插入详情，aria-expanded 同步，收起保留该行焦点。loading/pending、失败、空列表用明确文字；任务状态和 Execution/审批状态分别读取，不从人工示例推导状态机。取消任务或执行是独立业务命令，不与取消动画混用。": [
+    "**Task rows.** Table rows contain name/goal, status, update time and disclosure. Insert detail in the same table, synchronize aria-expanded and retain row-control focus when collapsing. Label loading/pending, failure and empty lists. Read Task, Execution and approval states separately instead of deriving a state machine from examples. Cancelling work is a separate business command from cancelling decoration.",
+    "**タスク行。** 名前/目標、状態、更新時刻、展開操作を表の行にします。同表内に詳細を挿入し aria-expanded を同期、収納時も操作位置の焦点を保ちます。読み込み/待機、失敗、空を明記します。Task、Execution、認可状態は別々に読み、例から状態機械を推定しません。業務取消と装飾中断は別です。",
+    "**Lignes de tâches.** Nom/objectif, état, date et ouverture forment une ligne de tableau. Insérer les détails dans ce tableau, synchroniser aria-expanded et garder le focus au repli. Indiquer chargement/attente, erreur et liste vide. Lire séparément Task, Execution et autorisation, sans déduire la machine à états des exemples. Annuler le travail est distinct d’arrêter l’animation."
+  ],
+  "**产物行与弹层。** 默认文件名入口加类型/时间/来源，降低外框与独立底色；对照卡片只在诊断画廊。真实保存走原生对话框与完整性校验，区分保存中、取消、失败、完成。弹层使用原生 dialog 或等效焦点管理：打开定位焦点、Tab 留在弹层、Escape 关闭、回到触发控件；危险操作需要明确确认，装饰不改变授权状态。": [
+    "**Artifact rows and dialogs.** Default to filename plus type/time/source with minimal framing or separate surface; comparison cards belong only in diagnostics. Real saving uses a native dialog and integrity verification, distinguishing saving, cancellation, failure and completion. Use native dialog or equivalent focus management: focus on open, contain Tab, close with Escape and return to the trigger. Consequential operations have explicit confirmation; decoration does not alter authorization.",
+    "**成果物行とダイアログ。** 名前入口と種類/時刻/出典を基本に、枠と独立背景を減らします。比較カードは診断のみです。保存はネイティブダイアログと整合性検証を使い、保存中、取消、失敗、完了を区別します。dialog または同等の焦点管理で、開く時の焦点、Tab の内部循環、Escape 閉鎖、起点への復帰を保ちます。重要操作は明示確認し、装飾で認可を変えません。",
+    "**Livrables et fenêtres modales.** Préférer nom de fichier, type/heure/source, avec peu de cadres et fonds distincts ; les cartes comparatives restent diagnostiques. L’enregistrement utilise un dialogue natif et un contrôle d’intégrité, distinguant progression, annulation, erreur et fin. Employer dialog natif ou gestion équivalente : focus initial, Tab interne, Escape et retour au déclencheur. Confirmer les opérations importantes ; la décoration ne modifie pas l’autorisation."
+  ],
+  "**头像、分隔线与左栏扩展。** Master/助手头像均使用180ms三帧；不改变头像语义。结构分隔线随机触发且全页最多一处，随机未命中即不播放。#62 画廊额外试验左栏文字和按钮间已有分隔线：仅改变临时显示层，不增无用横线，不移动字排或命中范围；与基础三帧对照后交 Master 评估。": [
+    "**Avatars, separators and sidebar extension.** Both Master and assistant avatars use 180ms three-frame effects without changing image semantics. Structural separators trigger randomly with at most one active globally; a skipped draw produces no effect. In #62’s gallery, also try sidebar text and existing inter-button separators using temporary display layers only. Do not add unnecessary lines or move text layout/hit areas. Compare against base coverage for Master’s assessment.",
+    "**アバター、分隔線、左欄拡張。** Master/助手とも180ms三フレームで画像の意味を変えません。構造線はランダムに全体最大一箇所、抽選で外れた場合は再生しません。#62 画廊で左欄文字と既存のボタン間線を一時表示層のみで試します。不要な線を増やさず、文字配置やヒット範囲を動かしません。基本版と比較して Master が評価します。",
+    "**Avatars, séparateurs et extension latérale.** Les avatars Master et assistant utilisent trois images sur 180ms sans changer leur sémantique. Les séparateurs déclenchent aléatoirement, un seul à la fois ; un tirage négatif ne produit aucun effet. Essayer aussi texte latéral et séparateurs existants entre boutons dans la galerie #62, via couches temporaires uniquement. Ne pas ajouter de lignes inutiles ni déplacer texte/cibles. Comparer à la base pour Master."
+  ],
+  "## 中断与降级": [
+    "## Interruption and fallback",
+    "## 中断と代替表示",
+    "## Interruption et repli"
+  ],
+  "每控件最多一个效果记录，新操作替换旧效果，同次接触不重复启动。移出、拖离取消、失焦、禁用、卸载或关闭动效时恢复源显示并清理 animation、timer 与临时节点；分隔线还在滚动/尺寸变化时清理。临时层 pointer-events:none、aria-hidden，不重复朗读。": [
+    "Keep at most one effect record per control; new activity replaces the old effect and the same contact does not restart it. Restore source display and clean animations, timers and temporary nodes on leave, drag cancellation, blur, disable, unmount or motion-off. Separators also clear on scroll/resize. Temporary layers use pointer-events:none and aria-hidden, without duplicate announcements.",
+    "一控件一効果までとし、新操作で置換、同じ接触では再起動しません。離脱、ドラッグ取消、失焦、無効化、破棄、動き停止で源表示を戻し animation、timer、一時ノードを除去します。線はスクロール/寸法変更でも除去します。一時層は pointer-events:none と aria-hidden で重複読上げを防ぎます。",
+    "Un seul effet par contrôle ; une nouvelle activité remplace l’ancien sans redémarrage du même contact. Restaurer la source et nettoyer animations, temporisateurs et nœuds lors de sortie, annulation de glisser, perte de focus, désactivation, démontage ou arrêt des effets. Nettoyer les séparateurs au défilement/redimensionnement. Les couches temporaires utilisent pointer-events:none et aria-hidden, sans annonces doublées."
+  ],
+  "reduced-motion、减弱、关闭和线稿模式不播放故障，也不补播积压事件；选中、焦点、禁用、成功/失败仍清楚。测试冻结第一/二/三帧只验证几何，关闭冻结后必须检查自然播放、快速打断和恢复。稳定显示不限制勾选、展开方向或真实数值变化。": [
+    "Reduced motion, reduced intensity, motion-off and wireframe modes suppress fault effects without replaying backlog. Selection, focus, disabled and outcomes remain clear. Frozen frames 1/2/3 verify geometry only; also test natural playback, rapid interruption and restoration after unfreezing. Stable decoration does not prevent real check, expansion-direction or value changes.",
+    "reduced-motion、弱化、停止、線画では故障効果も滞留再生も行わず、選択、焦点、無効、結果は明瞭にします。第一/二/三フレームの固定は形状確認のみで、解除後に自然再生、迅速な中断、復元を確認します。安定表示でもチェック、展開方向、実値は通常通り変化できます。",
+    "Les modes reduced-motion, intensité réduite, arrêt et filaire suppriment les défauts sans rejouer d’événements accumulés. Sélection, focus, désactivation et résultats restent lisibles. Les images figées 1/2/3 vérifient seulement la géométrie ; tester aussi lecture naturelle, interruption rapide et restauration. La stabilité décorative n’empêche pas les changements réels de coche, direction ou valeur."
+  ],
+  "# 前端验收矩阵": [
+    "# Frontend acceptance matrix",
+    "# フロントエンド受け入れ検証",
+    "# Matrice de recette frontend"
+  ],
+  "状态分开记录：OBSERVED 表示本轮实际浏览器观察；INHERITED 表示既有版本证据；NOT_TESTED 表示尚未执行；PENDING_MASTER 表示等待本人美学/文档复核。#61 为文档验收，不能把浏览器原型或 FE-02 的技术通过升级为 #62 的视觉通过。Linux 桌面全部 deferred / NOT_TESTED，Core Linux CI 不受影响。": [
+    "Record statuses separately: OBSERVED is direct browser observation this session; INHERITED is evidence from earlier versions; NOT_TESTED is unperformed work; PENDING_MASTER awaits personal aesthetic/document review. #61 accepts documents, not #62 visuals inferred from a prototype or FE-02 technical results. All Linux desktop cases are deferred / NOT_TESTED; Core Linux CI is unaffected.",
+    "OBSERVED は今回の実ブラウザー観察、INHERITED は既存版の証拠、NOT_TESTED は未実施、PENDING_MASTER は本人の美学/文書審査待ちです。#61 は文書検証であり、原型や FE-02 の技術結果を #62 の視覚合格にしません。Linux デスクトップはすべて deferred / NOT_TESTED、Core Linux CI は維持します。",
+    "Distinguer OBSERVED (observation directe de cette session), INHERITED (preuve antérieure), NOT_TESTED (non exécuté) et PENDING_MASTER (revue personnelle esthétique/documentaire). #61 valide la documentation, pas les visuels #62 par déduction d’un prototype ou résultat FE-02. Linux bureau reste deferred / NOT_TESTED ; la CI Core Linux est inchangée."
+  ],
+  "## 现有证据": [
+    "## Existing evidence",
+    "## 既存証拠",
+    "## Preuves existantes"
+  ],
+  "## macOS 后续验收（均未在 #61 执行）": [
+    "## Future macOS acceptance (not executed in #61)",
+    "## 今後の macOS 検証（#61 では未実施）",
+    "## Recette macOS future (non exécutée dans #61)"
+  ],
+  "## 三帧性能评估（#62）": [
+    "## Three-frame performance evaluation (#62)",
+    "## 三フレーム性能評価（#62）",
+    "## Évaluation des performances à trois images (#62)"
+  ],
+  "同一构建比较关闭装饰、v1.0 完整三帧覆盖、三帧加左栏文字/已有分隔线三组；设备、数据、窗口、DPR、主题、操作序列相同，每组至少三次。固定随机种子用于可比测量，再以自然随机检查观感。场景包括空闲、单控件、快速跨控件/导航、输入/滚动、固定 fixture 消息流同时触发动效。": [
+    "Compare decoration-off, full v1.0 three-frame coverage and coverage plus sidebar text/existing separators in the same build. Keep device, data, window, DPR, theme and actions identical, with at least three runs per group. Fix the random seed for comparison, then assess natural randomness. Include idle, single control, rapid cross-control/navigation, typing/scrolling and fixture message streaming with effects.",
+    "同一ビルドで装飾なし、v1.0 完全三フレーム、左欄文字/既存線を追加の三群を比較します。機器、データ、窓、DPR、テーマ、操作を固定し各三回以上。測定は乱数種を固定し、自然乱数でも見た目を確認します。空閑、単控件、迅速な控件間移動、入力/スクロール、fixture 流と動きの同時実行を含めます。",
+    "Comparer sans décoration, couverture v1.0 complète et extension texte/séparateurs latéraux dans le même build. Garder appareil, données, fenêtre, DPR, thème et actions identiques, au moins trois essais par groupe. Fixer la graine pour comparer, puis vérifier le rendu aléatoire naturel. Inclure repos, contrôle isolé, navigation rapide, saisie/défilement et flux fixture avec effets."
+  ],
+  "记录主线程构建/更新、输入到下次绘制/点击反馈 p50/p95、帧间隔/长帧、长任务及可得的绘制/合成指标；记录包含 WebView 的相关进程 CPU、内存峰值与回落，以及效果/节点/timer 清理。GPU/能耗工具不可得时标 NOT_TESTED。报告绝对值与相对关闭动效基线的差值，对照 FE-00/02 响应证据，不凭节点数估算性能比例。": [
+    "Record main-thread construction/update time, input-to-next-paint/click-feedback p50/p95, frame intervals/long frames, long tasks and available paint/compositing metrics. Include CPU and peak/recovered memory for relevant processes including WebView, plus effect/node/timer cleanup. Mark unavailable GPU/energy metrics NOT_TESTED. Report absolute values and deltas from decoration-off, compare FE-00/02 responsiveness evidence, and never infer resource percentages from node counts.",
+    "主スレッド構築/更新、入力から次描画/クリック応答 p50/p95、フレーム間隔/長フレーム、長タスク、取得可能な描画/合成を記録します。WebView を含む関連プロセスの CPU、メモリ頂点/回復、効果/ノード/timer 清理も含めます。GPU/電力未取得は NOT_TESTED。絶対値と装飾なしとの差を示し、FE-00/02 と比較し、ノード数から資源率を推定しません。",
+    "Mesurer construction/mise à jour du thread principal, délai saisie-prochaine peinture/clic p50/p95, intervalles/images longues, tâches longues et métriques de peinture/composition disponibles. Inclure CPU et mémoire maximale/récupérée des processus avec WebView, ainsi que nettoyage des effets/nœuds/timers. Marquer GPU/énergie indisponibles NOT_TESTED. Publier valeurs absolues et écarts à la base sans effets, comparer FE-00/02, sans déduire des pourcentages des nœuds."
+  ],
+  "在真实 macOS Tauri 窗口检查三帧可辨、文字可读、光标/选择稳定和可打断；Master 判断美学及可感知卡顿。发现瓶颈先优化构造、复用与清理，保留三逻辑帧。浏览器预览不能代替原生性能验收；本次没有执行该测量或付费模型调用。": [
+    "In real macOS Tauri verify distinguishable frames, readable text, stable caret/selection and interruption; Master judges aesthetics and perceptible stutter. Optimize construction, reuse and cleanup when bottlenecks appear, preserving three logical frames. Browser previews cannot replace native performance acceptance. No such measurements or paid model calls were performed in #61.",
+    "実 macOS Tauri で三フレーム識別、可読性、カーソル/選択安定、中断を確認し、Master が美学と体感停止を判断します。問題時は三フレームを維持して構築、再利用、清理を最適化します。ブラウザーは原生性能検証の代わりにならず、#61 では測定も有料モデル呼出しも未実施です。",
+    "Dans Tauri macOS réel, vérifier images distinctes, texte lisible, curseur/sélection stables et interruption ; Master juge l’esthétique et les saccades. Optimiser construction, réutilisation et nettoyage tout en conservant trois images logiques. Le navigateur ne remplace pas la recette native. Aucune de ces mesures ni appel payant n’a été exécuté dans #61."
+  ],
+  "# 来源迁移与能力归属": [
+    "# Source migration and capability ownership",
+    "# 出典移行と機能の所属",
+    "# Migration des sources et capacités"
+  ],
+  "盘点基线：Core `5f73c23`，设计 `8cdb9219bed9493147ba10f7d47423df56cbcc44`。对仓库 Markdown 检索 SwiftUI、PhaseUI、native-client-design、secretary_macos、FE-00～07；本次不把上游 Pi 的通用前端文档纳入 Secretary 规范。逐文件命中及分类保存在[盘点清单](../fix/evidence/issue61-phaseui/source-inventory.md)。历史原文、失败与结项证据保留，不追改为新版本通过。": [
+    "Inventory baselines: Core `5f73c23`, design `8cdb9219bed9493147ba10f7d47423df56cbcc44`. Search repository Markdown for SwiftUI, PhaseUI, native-client-design, secretary_macos and FE-00–07; upstream Pi’s generic frontend documents are outside Secretary specifications. Per-file matches/classification are in the [inventory](../fix/evidence/issue61-phaseui/source-inventory.md). Preserve original history, failures and closure evidence rather than rewriting them as new-version passes.",
+    "盤点基準は Core `5f73c23`、設計 `8cdb9219bed9493147ba10f7d47423df56cbcc44`。Markdown で SwiftUI、PhaseUI、native-client-design、secretary_macos、FE-00～07 を検索し、上流 Pi の一般フロントエンド文書は Secretary 仕様外とします。ファイル別分類は[一覧](../fix/evidence/issue61-phaseui/source-inventory.md)。原文、失敗、結項証拠を保持し、新版合格に書き換えません。",
+    "Bases : Core `5f73c23`, conception `8cdb9219bed9493147ba10f7d47423df56cbcc44`. Rechercher SwiftUI, PhaseUI, native-client-design, secretary_macos et FE-00–07 dans les Markdown du dépôt ; les documents génériques Pi restent hors spécification Secretary. Les fichiers/classifications figurent dans l’[inventaire](../fix/evidence/issue61-phaseui/source-inventory.md). Préserver historiques, échecs et clôtures sans les réécrire en validations actuelles."
+  ],
+  "## 能力映射": [
+    "## Capability map",
+    "## 機能対応",
+    "## Correspondance des capacités"
+  ],
+  "以下 API 路径已对照 operations.json；“Core 已有”不代表 UI 已接入。每个功能按真实实现定位，未实现位置留空，不能填原型人工记录。": [
+    "The API paths below were checked against operations.json. Core support does not imply UI integration. Locate each capability in real implementation; leave unimplemented positions empty instead of filling them with prototype records.",
+    "下記 API は operations.json と照合済みです。Core 対応は UI 接続を意味しません。実装で機能を確認し、未実装位置は人工記録で埋めず空欄にします。",
+    "Les chemins API ci-dessous ont été vérifiés dans operations.json. Leur présence dans Core ne prouve pas leur intégration UI. Vérifier les fonctions dans le code réel et laisser vides les emplacements non implémentés."
+  ],
+  "## R1 裁定与继承条款": [
+    "## R1 decisions and retained clauses",
+    "## R1 判断と継承条項",
+    "## Décisions R1 et clauses conservées"
+  ],
+  "Master 已确定：v1.0 唯一视觉权威；空白助手名 `Secretary`；Cmd+Enter 发送、Enter 换行；保留域隔离草稿/阅读位置；未实现功能留空；状态色按 v1.0。补充中央伸缩/固定侧栏、选中行色块融合、分隔线顶格、全对象三帧覆盖和分隔线随机触发。左栏文字/已有按钮间线的扩展与性能比较属于 #62 试验。以上明确裁定覆盖原型的固定 PERRI、本地 Enter 发送和每次接近播放等示例行为。": [
+    "Master confirmed v1.0 as sole visual authority, `Secretary` for blank names, Cmd+Enter to send/Enter for newline, domain-specific drafts/reading continuity, empty unimplemented features and v1.0 status colors. Added flexible center/fixed sidebars, joined selected surfaces, edge-aligned rules, complete three-frame coverage and random separator triggering. Sidebar text/existing inter-button lines and performance comparison are #62 experiments. These explicit decisions override example behavior such as fixed PERRI, local Enter sending and playback on every approach.",
+    "Master は v1.0 唯一基準、空名 `Secretary`、Cmd+Enter 送信/Enter 改行、領域別草稿/閲覧継続、未実装空欄、v1.0 状態色を確定しました。中央伸縮/固定側欄、選択色面接続、端までの線、全対象三フレームと線のランダム発火を追加しました。左欄文字/既存ボタン間線と性能比較は #62 試験です。これらは固定 PERRI、ローカル Enter 送信、毎接近再生などの例より優先します。",
+    "Master confirme v1.0 comme seule autorité, `Secretary` pour nom vide, Cmd+Enter pour envoyer/Enter pour nouvelle ligne, brouillons/lecture par domaine, espaces vides et couleurs v1.0. S’ajoutent centre flexible/côtés fixes, surfaces sélectionnées jointes, lignes jusqu’aux bords, couverture trois images et déclenchement aléatoire. Texte latéral/lignes existantes et comparaison de performance relèvent des essais #62. Ces décisions priment sur PERRI fixe, Enter local et déclenchement à chaque approche du prototype."
+  ],
+  "旧 v0.3 的有效交互要求已转换为框架无关条款：草稿/阅读位置和先持久化再清空、稳定 request_id 与回执/未知结果、实体 ID 关联/定位、通知 presented/read 和历史水位，见架构与流程。旧 SwiftUI、Xcode、固定 pt/配色及 VoiceOver 唯一验收方式不再是门槛；macOS 可继续用 VoiceOver 检查可访问性，但以行为为验收标准。": [
+    "Valid v0.3 requirements are now framework-independent: drafts/reading position and persistence before clearing, stable request_id with receipts/unknown outcomes, entity-ID relationships/navigation, notification presented/read and historical watermark; see architecture and flows. SwiftUI, Xcode, fixed pt/palette and VoiceOver-only acceptance are retired requirements. VoiceOver remains useful on macOS, with behavior as the acceptance criterion.",
+    "v0.3 の有効要件は枠組みに依存しない条項に変換済みです。草稿/閲覧位置と消去前永続化、安定 request_id と受領/不明結果、実体 ID 関連/定位、通知 presented/read と履歴水位は構成文書へ。SwiftUI、Xcode、固定 pt/配色、VoiceOver のみの合格条件は廃止します。macOS で VoiceOver は使えますが動作で判定します。",
+    "Les exigences valides v0.3 deviennent indépendantes du framework : brouillons/position, persistance avant effacement, request_id stable et reçus/résultats inconnus, associations/navigation par ID, presented/read et niveau historique. Voir architecture. SwiftUI, Xcode, pt/palette fixes et recette exclusivement VoiceOver ne sont plus requis. VoiceOver reste utile sur macOS ; le comportement détermine la validation."
+  ],
+  "[现行前端规范](docs/frontend/README.md)统一说明 PhaseUI 视觉、组件、架构与验收；FE-02 最小真实业务链路已随 [PR #75](https://github.com/ExplodeCode6324/Secretary/pull/75) 合并，完整视觉系统由 [#62](https://github.com/ExplodeCode6324/Secretary/issues/62) 在 #61 文档合并及 Master 确认后实施。运行见[桌面说明](src/secretary_desktop/README.md)。当前桌面仅验收 macOS，Linux 暂缓；设备 #6/#11～#14 保持冻结。SwiftUI 已退役，旧设计仅用于历史追溯。": [
+    "[Current Frontend Spec](docs/frontend/README.md) defines PhaseUI visuals, components, architecture and acceptance. The minimum FE-02 real workflow merged in [PR #75](https://github.com/ExplodeCode6324/Secretary/pull/75); [#62](https://github.com/ExplodeCode6324/Secretary/issues/62) implements the full visual system after #61 merges and Master confirms. See [desktop instructions](src/secretary_desktop/README.md). Current desktop acceptance targets macOS; Linux is deferred and device issues #6/#11–#14 remain frozen. SwiftUI is retired; its design is historical only.",
+    "[現行フロントエンド仕様](docs/frontend/README.md)に PhaseUI の視覚、コンポーネント、構成、検証を統合しました。最小実業務 FE-02 は [PR #75](https://github.com/ExplodeCode6324/Secretary/pull/75) でマージ済み。完全な視覚系は #61 マージと Master 確認後に [#62](https://github.com/ExplodeCode6324/Secretary/issues/62) で実装します。[実行説明](src/secretary_desktop/README.md)を参照してください。現行対象は macOS、Linux は延期、機器 #6/#11～#14 は凍結です。SwiftUI は廃止済みで設計は履歴のみです。",
+    "La [spécification frontend actuelle](docs/frontend/README.md) rassemble visuels PhaseUI, composants, architecture et recette. Le flux réel minimal FE-02 a été fusionné via [PR #75](https://github.com/ExplodeCode6324/Secretary/pull/75) ; [#62](https://github.com/ExplodeCode6324/Secretary/issues/62) réalisera le système visuel après fusion de #61 et confirmation de Master. Voir les [instructions bureau](src/secretary_desktop/README.md). La recette vise macOS ; Linux est reporté et les appareils #6/#11–#14 restent gelés. SwiftUI est retiré, sa conception est historique."
+  ],
+  "现行前端设计、组件、技术分工和验收统一从 [Current Frontend Spec](frontend/README.md) 进入。": [
+    "Use [Current Frontend Spec](frontend/README.md) for current frontend design, components, technical responsibilities and acceptance.",
+    "現行の設計、コンポーネント、技術分担、検証は [Current Frontend Spec](frontend/README.md) を参照してください。",
+    "Consulter [Current Frontend Spec](frontend/README.md) pour la conception, les composants, les responsabilités techniques et la recette actuels."
+  ],
+  "# Secretary desktop · FE-02": [
+    "# Secretary desktop · FE-02",
+    "# Secretary デスクトップ · FE-02",
+    "# Secretary bureau · FE-02"
+  ],
+  "macOS Tauri 2 / Svelte desktop. FE-02 provides the minimum real Core workflow (PR #75); full PhaseUI is still assigned to #62. The [Current Frontend Spec](../../docs/frontend/README.md) is the single design and acceptance entry. Normal launch opens the connected workflow; `SECRETARY_STUDY=1` opens the synthetic FE-00 study. Linux desktop implementation and acceptance are deferred; existing Core Linux CI is unchanged.": [
+    "macOS Tauri 2 / Svelte desktop. FE-02 provides the minimum real Core workflow (PR #75); full PhaseUI is still assigned to #62. The [Current Frontend Spec](../../docs/frontend/README.md) is the single design and acceptance entry. Normal launch opens the connected workflow; `SECRETARY_STUDY=1` opens the synthetic FE-00 study. Linux desktop implementation and acceptance are deferred; existing Core Linux CI is unchanged.",
+    "macOS Tauri 2 / Svelte デスクトップです。FE-02 は最小の実 Core フロー（PR #75）、完全な PhaseUI は #62 です。[Current Frontend Spec](../../docs/frontend/README.md) が設計と検証の唯一の入口です。通常起動は接続フロー、`SECRETARY_STUDY=1` は合成 FE-00 study です。Linux デスクトップは延期し、Core Linux CI は維持します。",
+    "Application macOS Tauri 2 / Svelte. FE-02 fournit le flux Core réel minimal (PR #75) ; PhaseUI complet relève de #62. [Current Frontend Spec](../../docs/frontend/README.md) est l’unique entrée de conception et recette. Le démarrage normal ouvre le flux connecté ; `SECRETARY_STUDY=1` ouvre l’étude FE-00 synthétique. Linux bureau est reporté ; la CI Core Linux reste inchangée."
+  ],
+  "- [架构与流程](architecture-and-flows.md)：真实桌面、桥接、Core 和能力边界。": [
+    "- [Architecture and flows](architecture-and-flows.md): desktop, bridge, Core and capability boundaries.",
+    "- [構成とフロー](architecture-and-flows.md)：デスクトップ、ブリッジ、Core、機能境界。",
+    "- [Architecture et flux](architecture-and-flows.md) : bureau, pont, Core et périmètres."
+  ],
+  "- [PhaseUI 视觉](phaseui-design.md)：颜色、布局、字形与动效来源。": [
+    "- [PhaseUI design](phaseui-design.md): colors, layout, typography and motion sources.",
+    "- [PhaseUI 設計](phaseui-design.md)：色、レイアウト、文字、動きの出典。",
+    "- [Conception PhaseUI](phaseui-design.md) : couleurs, disposition, typographie et animations."
+  ],
+  "- [组件与状态](components-and-states.md)：构造、三帧、取消与输入语义。": [
+    "- [Components and states](components-and-states.md): structure, three frames, cancellation and input.",
+    "- [コンポーネントと状態](components-and-states.md)：構造、三フレーム、中断、入力。",
+    "- [Composants et états](components-and-states.md) : structure, trois images, interruption et saisie."
+  ],
+  "- [验收矩阵](acceptance.md)：当前证据、后续原生检查及性能评估。": [
+    "- [Acceptance](acceptance.md): current evidence, future native checks and performance evaluation.",
+    "- [受け入れ検証](acceptance.md)：既存証拠、今後のネイティブ確認、性能評価。",
+    "- [Recette](acceptance.md) : preuves, contrôles natifs futurs et évaluation des performances."
+  ],
+  "- [来源迁移](source-migration.md)：历史条款、能力映射与 R1 裁定。": [
+    "- [Source migration](source-migration.md): historical clauses, capability mapping and R1 decisions.",
+    "- [出典移行](source-migration.md)：旧条項、機能対応、R1 判断。",
+    "- [Migration des sources](source-migration.md) : clauses historiques, capacités et décisions R1."
+  ],
+  "| 范围 | 证据与结论 | 状态 |": [
+    "| Scope | Evidence and conclusion | Status |",
+    "| 範囲 | 証拠と結論 | 状態 |",
+    "| Périmètre | Preuve et conclusion | Statut |"
+  ],
+  "| v1.0 原型，464×671 窄视口 | 深浅色、发送本地示例、右栏覆盖/收起、任务行展开、产物 dialog/Escape 焦点返回、三帧冻结及恢复，见 R1 计划 | OBSERVED |": [
+    "| v1.0 prototype, 464×671 viewport | Themes, local example sending, rail overlay/collapse, inline task detail, artifact dialog/Escape focus return, frozen frames and restoration; see R1 plan | OBSERVED |",
+    "| v1.0 原型、464×671 | テーマ、ローカル送信例、右欄重ね/収納、行内詳細、成果物 dialog/Escape 焦点復帰、固定フレームと復元。R1 計画参照 | OBSERVED |",
+    "| Prototype v1.0, 464×671 | Thèmes, envoi local, rail superposé/replié, détail de tâche, dialog/Escape et retour du focus, images figées/restauration ; voir R1 | OBSERVED |"
+  ],
+  "| 冻结 v1.0 发布 | 原仓库宽/窄截图与生命周期检查；保留其平台和测试边界 | INHERITED |": [
+    "| Frozen v1.0 release | Original wide/narrow images and lifecycle checks, retaining their platform/coverage limits | INHERITED |",
+    "| 凍結 v1.0 公開 | 元の広幅/狭幅画像とライフサイクル確認。元の対象範囲を維持 | INHERITED |",
+    "| Publication v1.0 figée | Images larges/étroites et contrôles de cycle de vie originaux, avec leurs limites | INHERITED |"
+  ],
+  "| FE-02 真实桥接 | PR #75 已合并；真实对话、任务/授权/结果/保存及 IME 的版本证据不代表完整 PhaseUI | INHERITED |": [
+    "| FE-02 real bridge | PR #75 merged; version-specific conversation/task/authorization/result/save/IME evidence is not full PhaseUI | INHERITED |",
+    "| FE-02 実ブリッジ | PR #75 マージ済み。対話/タスク/認可/結果/保存/IME の版別証拠は完全な PhaseUI ではない | INHERITED |",
+    "| Pont réel FE-02 | PR #75 fusionnée ; preuves versionnées conversation/tâche/autorisation/résultat/sauvegarde/IME, pas PhaseUI complet | INHERITED |"
+  ],
+  "| 本文档集 | R1 计划已批准，整合文档待 Master 终审；没有部署 | PENDING_MASTER |": [
+    "| This document set | R1 plan approved; consolidated documents await Master; no deployment | PENDING_MASTER |",
+    "| 本書群 | R1 計画承認済み、統合文書は Master 審査待ち。デプロイなし | PENDING_MASTER |",
+    "| Ces documents | Plan R1 approuvé ; revue finale de Master attendue, aucun déploiement | PENDING_MASTER |"
+  ],
+  "| 场景 | 通过条件 | 阶段/状态 |": [
+    "| Scenario | Pass criteria | Phase/status |",
+    "| 場面 | 合格条件 | 段階/状態 |",
+    "| Scénario | Critère | Phase/statut |"
+  ],
+  "| 宽度与缩放 | 实际 Tauri 窗口在1100/850/600断点两侧及100/125/150/200%缩放；中央伸缩、侧栏固定/按档切换、线条接边，内容可读可操作 | #62 / NOT_TESTED |": [
+    "| Width/zoom | Real Tauri window on both sides of 1100/850/600 breakpoints and at 100/125/150/200% zoom; flexible center, fixed/breakpoint sidebars, aligned rules, readable operable content | #62 / NOT_TESTED |",
+    "| 幅/拡大 | 実 Tauri で1100/850/600の両側と100/125/150/200%。中央伸縮、側欄固定/段階切替、線の整列、可読/操作可能 | #62 / NOT_TESTED |",
+    "| Largeur/zoom | Tauri réel autour des seuils 1100/850/600 et zoom 100/125/150/200 % ; centre flexible, côtés fixes/par palier, lignes alignées, contenu utilisable | #62 / NOT_TESTED |"
+  ],
+  "| 深浅色与名称 | v1.0 颜色/状态色，选中行融入主体；空白名 Secretary，长名可获取全文 | #62 / NOT_TESTED |": [
+    "| Themes/name | v1.0 colors/status colors and joined selected row; blank name Secretary, full long name accessible | #62 / NOT_TESTED |",
+    "| テーマ/名前 | v1.0 配色と選択行接続、空白名 Secretary、長名全文参照 | #62 / NOT_TESTED |",
+    "| Thèmes/nom | Palette v1.0 et ligne sélectionnée intégrée ; nom vide Secretary, nom long accessible | #62 / NOT_TESTED |"
+  ],
+  "| 全组件状态 | 按钮、输入、目录、任务/产物行、弹层覆盖适用的交互和业务状态；失败与 disabled 不伪装成功 | #62～#66 / NOT_TESTED |": [
+    "| Component states | Buttons, inputs, navigation, task/artifact rows and dialogs cover applicable interaction/business states; failures/disabled never imply success | #62–#66 / NOT_TESTED |",
+    "| 状態 | ボタン、入力、目次、タスク/成果物行、dialog の適用状態。失敗/無効を成功としない | #62～#66 / NOT_TESTED |",
+    "| États | Boutons, saisie, navigation, lignes et dialogues couvrent les états applicables ; erreur/disabled ne signifie pas succès | #62–#66 / NOT_TESTED |"
+  ],
+  "| 系统 IME | 中文候选确认/取消、鼠标发送、切窗、组合后独立 Cmd+Enter；每项三次，零误发、有效提交一次；Enter 换行 | #62/#63 / NOT_TESTED |": [
+    "| System IME | Candidate confirm/cancel, mouse send, window switching, independent Cmd+Enter after composition; three repetitions each, no accidental send and one valid submission; Enter newline | #62/#63 / NOT_TESTED |",
+    "| システム IME | 候補確定/取消、マウス送信、切窓、変換後の独立 Cmd+Enter を各三回、誤送信ゼロ、有効送信一回、Enter 改行 | #62/#63 / NOT_TESTED |",
+    "| IME système | Confirmation/annulation, clic Envoyer, changement de fenêtre, Cmd+Enter indépendant après composition ; trois répétitions, zéro envoi accidentel, un envoi valide ; Enter ajoute une ligne | #62/#63 / NOT_TESTED |"
+  ],
+  "| 键盘/辅助技术 | Tab/Shift+Tab、Enter/Space 激活、弹层 Escape/焦点返回；可访问名称与状态朗读；临时层不重复朗读 | #62 / NOT_TESTED |": [
+    "| Keyboard/assistive technology | Tab/Shift+Tab, Enter/Space activation, dialog Escape/focus return; accessible names/state announcements, no duplicate temporary-layer speech | #62 / NOT_TESTED |",
+    "| キーボード/支援 | Tab/Shift+Tab、Enter/Space、dialog Escape/焦点復帰、名前/状態読上げ、一時層重複なし | #62 / NOT_TESTED |",
+    "| Clavier/accessibilité | Tab/Shift+Tab, Enter/Space, Escape/retour focus, noms/états annoncés sans doublons des couches temporaires | #62 / NOT_TESTED |"
+  ],
+  "| 动效 | 三帧分镜与自然播放，快速反复触发/移出/失焦/禁用/卸载，头像及分隔线覆盖；reduced-motion/关闭不补播 | #62 / NOT_TESTED |": [
+    "| Motion | Three-frame storyboards and natural playback, rapid retrigger/leave/blur/disable/unmount, avatars/separators; reduced-motion/off without backlog | #62 / NOT_TESTED |",
+    "| 動き | 三フレームと自然再生、再発火/離脱/失焦/無効/破棄、アバター/線、reduced-motion/停止後の滞留なし | #62 / NOT_TESTED |",
+    "| Animation | Séquences figées et lecture naturelle, répétition/sortie/perte focus/désactivation/démontage, avatars/lignes ; reduced-motion/arrêt sans rattrapage | #62 / NOT_TESTED |"
+  ],
+  "| 阅读连续性 | 跨页草稿/ID锚点、历史分页、文本选择/复制、流更新不抢位置，显式跳到最新 | #63 / NOT_TESTED |": [
+    "| Reading continuity | Cross-page drafts/ID anchors, pagination, selection/copy, streaming without scroll theft, explicit jump to latest | #63 / NOT_TESTED |",
+    "| 閲覧継続 | 草稿/ID位置、過去ページ、選択/コピー、流更新で位置奪取なし、明示的最新移動 | #63 / NOT_TESTED |",
+    "| Lecture | Brouillons/ancres, pagination, sélection/copie, flux sans déplacement imposé, retour explicite au récent | #63 / NOT_TESTED |"
+  ],
+  "| 真实业务 | pending/成功/失败/离线/陈旧/未知结果，审批冲突、产物保存/取消、通知 presented/read；真实对象与回执一致 | #63～#66 / NOT_TESTED |": [
+    "| Business | Pending/success/failure/offline/stale/unknown, approval conflict, artifact save/cancel, notification presented/read consistent with actual entities/receipts | #63–#66 / NOT_TESTED |",
+    "| 業務 | 待機/成功/失敗/オフライン/旧/不明、認可競合、保存/取消、presented/read が実体/受領と一致 | #63～#66 / NOT_TESTED |",
+    "| Métier | Attente/succès/erreur/hors ligne/périmé/inconnu, conflit d’autorisation, sauvegarde/annulation, presented/read conformes aux objets/reçus | #63–#66 / NOT_TESTED |"
+  ],
+  "| Source | 实际状态 / 保留 | 废弃或更新 | 新归属 |": [
+    "| Source | Actual status / retained | Retired or updated | Destination |",
+    "| Source | 実態 / 保持 | 廃止または更新 | 移行先 |",
+    "| Source | État / conservation | Retrait ou mise à jour | Destination |"
+  ],
+  "| README.zh-CN.md、docs/README.md、生成译文 | 当前导航；保留 Core/设备范围 | #58 进行中旧描述、缺少现行入口 | frontend/README.md |": [
+    "| README.zh-CN.md, docs/README.md, generated editions | Current navigation; retain Core/device scope | Old #58-in-progress status and missing entry | frontend/README.md |",
+    "| README.zh-CN.md、docs/README.md、生成版 | 現行案内、Core/機器範囲保持 | 古い #58 進行状態と入口不足 | frontend/README.md |",
+    "| README.zh-CN.md, docs/README.md, traductions | Navigation actuelle ; périmètres Core/appareils | Ancien état #58 et entrée manquante | frontend/README.md |"
+  ],
+  "| src/secretary_desktop/README.md、语言视图 | 保留运行/桥接/测试说明 | FE-00/01 标题和当前状态改为 FE-02 | architecture-and-flows.md |": [
+    "| src/secretary_desktop/README.md, language views | Retain run/bridge/test instructions | Update FE-00/01 heading/status to FE-02 | architecture-and-flows.md |",
+    "| src/secretary_desktop/README.md、言語版 | 実行/橋接/テスト保持 | FE-00/01 表題/状態を FE-02 に | architecture-and-flows.md |",
+    "| src/secretary_desktop/README.md, traductions | Exécution/pont/tests conservés | Titre/état FE-00/01 vers FE-02 | architecture-and-flows.md |"
+  ],
+  "| docs/old/native-client-design-v0.3.md | 历史；保留草稿、回执、关联、通知、视口条款 | SwiftUI/Xcode、pt、旧配色/导航不再约束实现；正文保留并加 superseded 提示 | architecture / components |": [
+    "| docs/old/native-client-design-v0.3.md | Historical; retain drafts, receipts, associations, notifications, viewport | SwiftUI/Xcode, pt, old colors/navigation no longer bind implementation; preserve body with superseded notice | architecture / components |",
+    "| docs/old/native-client-design-v0.3.md | 履歴、草稿/受領/関連/通知/視点保持 | SwiftUI/Xcode、pt、旧配色/目次を廃止。原文と superseded 注記 | architecture / components |",
+    "| docs/old/native-client-design-v0.3.md | Historique ; brouillons/reçus/associations/notifications/vue | SwiftUI/Xcode, pt, anciennes couleurs/navigation non normatifs ; corps conservé et notice superseded | architecture / components |"
+  ],
+  "| docs/old/、BrainStorm、旧概念图 | 历史/概念；保留出处 | 不作为现行视觉依据 | historical index / v1.0 |": [
+    "| docs/old, BrainStorm, old concepts | Historical/conceptual; retain origin | Not current visual authority | historical index / v1.0 |",
+    "| docs/old、BrainStorm、旧概念 | 履歴/概念、出典保持 | 現行視覚基準にしない | historical index / v1.0 |",
+    "| docs/old, BrainStorm, concepts | Historiques/concepts, sources conservées | Aucune autorité visuelle actuelle | historical index / v1.0 |"
+  ],
+  "| docs/api/v1/*verification.md、fix/archive、既有 evidence | 原版本验收；保留失败和 NOT_TESTED | 不改写结论，不作为新视觉通过 | acceptance.md 引用版本证据 |": [
+    "| docs/api/v1/*verification.md, fix/archive, existing evidence | Versioned acceptance; preserve failures/NOT_TESTED | Do not rewrite conclusions or infer new visual approval | acceptance.md references versioned evidence |",
+    "| docs/api/v1/*verification.md、fix/archive、既存 evidence | 版別検証、失敗/NOT_TESTED 保持 | 結論を書き換えず新視覚合格としない | acceptance.md |",
+    "| docs/api/v1/*verification.md, fix/archive, preuves existantes | Recette versionnée, échecs/NOT_TESTED conservés | Ni réécriture ni nouvelle validation visuelle déduite | acceptance.md |"
+  ],
+  "| docs/operations.md 与译文 | Core 运行要求仍有效 | 仅补现行前端导航 | frontend/README.md |": [
+    "| docs/operations.md and editions | Core operations remain valid | Add current frontend navigation only | frontend/README.md |",
+    "| docs/operations.md と言語版 | Core 運用有効 | 現行入口のみ補足 | frontend/README.md |",
+    "| docs/operations.md et traductions | Opérations Core valides | Ajouter seulement la navigation frontend | frontend/README.md |"
+  ],
+  "| 设计 v1.0 的代码/规范/截图 | 唯一权威视觉来源 | 本地假发送/人工状态不当业务合同；应用 R1 明确覆盖项 | phaseui / components |": [
+    "| v1.0 source/spec/images | Sole visual authority | Local fake sending/synthetic states are not business contracts; apply explicit R1 overrides | phaseui / components |",
+    "| v1.0 コード/仕様/画像 | 唯一の視覚基準 | 仮送信/人工状態は業務契約外。R1 明示変更適用 | phaseui / components |",
+    "| Code/spec/images v1.0 | Seule autorité visuelle | Envois locaux/états fictifs hors contrats métier ; appliquer R1 | phaseui / components |"
+  ],
+  "| #57、#62～#66 | 保留分期及前置 | 现行链接、macOS 范围与 #62 名称/快捷键说明 | 同一个 frontend 入口 |": [
+    "| #57, #62–#66 | Preserve phases/dependencies | Current links, macOS scope, #62 naming/shortcuts | One frontend entry |",
+    "| #57、#62～#66 | 段階/依存保持 | 入口、macOS、#62 名前/キー更新 | 単一 frontend 入口 |",
+    "| #57, #62–#66 | Phases/dépendances conservées | Liens actuels, macOS, nom/raccourcis #62 | Entrée frontend unique |"
   ]
 }

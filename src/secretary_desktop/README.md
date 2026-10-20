@@ -1,6 +1,6 @@
-# Secretary desktop · FE-00 / FE-01
+# Secretary desktop · FE-02
 
-macOS Tauri 2 / Svelte desktop. Normal launch opens the FE-01 Core bridge described below. The FE-00 study (`SECRETARY_STUDY=1`) uses synthetic messages and does not connect to Core. Linux is deferred by Master and is not a gate for this frontend roadmap. Existing Core Linux checks are independent.
+macOS Tauri 2 / Svelte desktop. FE-02 provides the minimum real Core workflow (PR #75); full PhaseUI is still assigned to #62. The [Current Frontend Spec](../../docs/frontend/README.md) is the single design and acceptance entry. Normal launch opens the connected workflow; `SECRETARY_STUDY=1` opens the synthetic FE-00 study. Linux desktop implementation and acceptance are deferred; existing Core Linux CI is unchanged.
 
 ## Run
 

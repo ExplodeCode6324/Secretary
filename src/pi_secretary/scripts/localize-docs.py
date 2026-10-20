@@ -21,7 +21,7 @@ SOURCES = ['README.zh-CN.md'] + [
         'operations', 'data-model', 'state-machines', 'database',
         'api/v1/README', 'api/v1/push',
     )
-] + sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'docs/data').glob('*.md')) + [
+] + sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'docs/frontend').glob('*.md')) + sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'docs/data').glob('*.md')) + [
     'src/secretary_desktop/README.md', 'test_case/README.md',
     'test_case/offline/README.md', 'test_case/online/README.md',
     'test_case/offline/issue2/README.md', 'test_case/offline/issue5/README.md',

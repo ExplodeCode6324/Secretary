@@ -1,5 +1,7 @@
 # 运行手册
 
+现行前端设计、组件、技术分工和验收统一从 [Current Frontend Spec](frontend/README.md) 进入。
+
 从仓库根目录执行命令。需要 Node.js ≥22.19、npm、Python 3 和固定 Pi 子模块；World 与历史检索使用 PostgreSQL。
 
 ## 安装与启停

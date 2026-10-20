@@ -1,5 +1,7 @@
 > 本文是项目开工前的原始设计。保留原文供追溯，不代表当前 Pi 实现已具备全部设计能力。当前实现说明见 [文档索引](README.md)。
 
+> **Historical / superseded**：本文保留原版本来源与结论；现行前端规范以 [Current Frontend Spec](frontend/README.md) 为准，旧技术、配色与验收要求不自动继承。
+
 # Secretary 逻辑架构设计（BrainStorm Baseline v3）
 
 ## 1. 逻辑架构图
