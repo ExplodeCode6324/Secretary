@@ -15,8 +15,8 @@
     "test:instructions:live": "tsx test_case/online/test-instructions-live.ts",
     "stop": "tsx src/pi_secretary/src/core-cli.ts stop",
     "types:generate": "node src/pi_secretary/scripts/generate-types.mjs",
-    "docs:generate": "python3 src/pi_secretary/scripts/generate-docs.py",
-    "docs:check": "python3 src/pi_secretary/scripts/check-docs.py",
+    "docs:generate": "python3 src/pi_secretary/scripts/generate-docs.py && npm run docs:localize",
+    "docs:check": "python3 src/pi_secretary/scripts/check-docs.py && npm run docs:localize:check",
     "test:task-reuse:live": "tsx test_case/online/test-task-reuse-live.ts",
     "test:task-reuse": "tsx --test test_case/offline/runtime/task-reuse.test.ts",
     "test:continuity:live": "tsx test_case/online/test-continuity-astra-live.ts",
@@ -24,7 +24,9 @@
     "start:core": "tsx src/pi_secretary/src/core-cli.ts start",
     "test:api": "tsx --test test_case/offline/issue8/*.test.ts",
     "api:generate": "node src/pi_secretary/scripts/generate-api.mjs",
-    "test:db:clean": "tsx test_case/offline/helpers/clean-postgres.ts"
+    "test:db:clean": "tsx test_case/offline/helpers/clean-postgres.ts",
+    "docs:localize": "python3 src/pi_secretary/scripts/localize-docs.py",
+    "docs:localize:check": "python3 src/pi_secretary/scripts/localize-docs.py --check"
   },
   "dependencies": {
     "@earendil-works/chord": "0.87.0",
