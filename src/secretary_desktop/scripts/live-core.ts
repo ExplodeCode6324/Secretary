@@ -40,7 +40,18 @@ const calls: Record<string, unknown>[] = fs.existsSync(
 )
   ? JSON.parse(fs.readFileSync(path.join(root, "calls.json"), "utf8"))
   : [];
-const limiter = new LiveBudget(undefined, calls as any);
+const originPath = path.join(root, "budget-origin.json");
+const savedOrigin = fs.existsSync(originPath)
+  ? JSON.parse(fs.readFileSync(originPath, "utf8"))
+  : undefined;
+if (savedOrigin !== undefined)
+  assert(typeof savedOrigin === "number" && Number.isFinite(savedOrigin));
+const limiter = new LiveBudget(undefined, calls as any, savedOrigin);
+if (savedOrigin === undefined)
+  fs.writeFileSync(originPath, JSON.stringify(limiter.started), {
+    mode: 0o600,
+    flag: "wx",
+  });
 let halt = false,
   stopping = false;
 let app: App;

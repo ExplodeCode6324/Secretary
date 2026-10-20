@@ -13,11 +13,27 @@ export class LiveBudget {
       totalMs: 2400000,
       spacingMs: 20000,
     },
-    history: { scenario: string; started_at: string; deadline: number }[] = [],
+    history: {
+      scenario: string;
+      started_at: string;
+      deadline: number;
+      run_started_at: number;
+    }[] = [],
+    runStartedAt?: number,
   ) {
-    this.started = history.length
-      ? Math.min(...history.map((c) => Date.parse(c.started_at)))
-      : Date.now();
+    this.started =
+      runStartedAt ?? (history.length ? history[0].run_started_at : Date.now());
+    if (
+      !Number.isFinite(this.started) ||
+      history.some(
+        (c) =>
+          c.run_started_at !== this.started ||
+          !Number.isFinite(Date.parse(c.started_at)) ||
+          this.started > Date.parse(c.started_at),
+      )
+    ) {
+      throw Error("LIVE_LEDGER_ORIGIN_MISSING_OR_INCONSISTENT");
+    }
     for (const c of history) {
       const at = Date.parse(c.started_at);
       const entry = this.scenarios.get(c.scenario) ?? {
@@ -72,6 +88,7 @@ export class LiveBudget {
       entry.count++;
       this.last = Date.now();
       return {
+        run_started_at: this.started,
         number: this.total,
         scenarioNumber: entry.count,
         deadline,
