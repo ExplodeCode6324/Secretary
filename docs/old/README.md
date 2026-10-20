@@ -1,5 +1,7 @@
 # 历史设计
 
+> **Historical / superseded**：本文保留原版本来源与结论；现行前端规范以 [Current Frontend Spec](../frontend/README.md) 为准，旧技术、配色与验收要求不自动继承。
+
 这里保存早期设计和实现说明，内容按原版本保留。当前架构、运行命令和开发路线从[文档入口](../README.md)读取。
 
 | 目录 | 原始内容 |
