@@ -71,6 +71,8 @@ test("API authentication, hostile origins, retired routes and strict authority f
           .status,
         404,
       );
+    await c.command("assistant/profile", { request_id: id(), expected_revision: (await c.assistant()).revision, name: "secretary" });
+    assert.equal((await c.assistant()).name, "secretary");
     const before = app.store.sequence;
     await assert.rejects(
       c.command("messages", { request_id: id(), text: "x", actor: "MASTER" }),
@@ -122,7 +124,7 @@ test("two clients: concurrent dedup, cross-command conflict, canonical binding, 
       /REQUEST_CONFLICT/,
     );
     const p = await c.assistant();
-    assert.equal(p.name, "secretary");
+    assert.equal(p.name, "Secretary");
     const rename = {
       request_id: id(),
       expected_revision: p.revision,
@@ -145,7 +147,7 @@ test("two clients: concurrent dedup, cross-command conflict, canonical binding, 
       expected_revision: revision,
       name: " \t ",
     });
-    assert.equal((await c.assistant()).name, "secretary");
+    assert.equal((await c.assistant()).name, "Secretary");
     const before = app.store.sequence;
     for (const route of [
       "core",

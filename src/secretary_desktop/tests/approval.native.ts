@@ -11,6 +11,7 @@ const state = () => read("state.json");
 const setup = read("setup.json");
 describe("FE-02 real native approval and recovery barrier", () => {
   it("inspects and approves a bounded marker operation", async () => {
+    await $("button=连接").click();
     await $("[data-testid=attach]").waitForClickable({ timeout: 20000 });
     await $("[data-testid=attach]").click();
     await $("[data-testid=draft]").waitForDisplayed({ timeout: 20000 });
@@ -32,6 +33,7 @@ describe("FE-02 real native approval and recovery barrier", () => {
     const a = state().authorizations.find(
       (a: any) => a.state === "PENDING" && !existing.has(a.id),
     );
+    await $("[data-page=attention]").click();
     await $(`[data-auth-id="${a.id}"]`).waitForClickable({ timeout: 20000 });
     await $(`[data-auth-id="${a.id}"]`).click();
     await $("[data-testid=approval-parameters]").waitForDisplayed({

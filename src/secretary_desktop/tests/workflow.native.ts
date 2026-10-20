@@ -14,7 +14,8 @@ async function send(text: string) {
   await $("[data-testid=send]").click();
 }
 async function attach() {
-  await $("[data-testid=attach]").waitForClickable({ timeout: 20000 });
+  await $("button=连接").click();
+    await $("[data-testid=attach]").waitForClickable({ timeout: 20000 });
   await $("[data-testid=attach]").click();
   await $("[data-testid=draft]").waitForDisplayed({ timeout: 20000 });
 }
@@ -80,6 +81,7 @@ describe("FE-02 real model / native WKWebView", () => {
       fs.readFileSync(path.join(setup.scratch, "fe02-allowed.txt"), "utf8"),
       "FE02 real model allowed write succeeded\n",
     );
+    await $("[data-page=tasks]").click();
     await $("[data-testid=task]").waitForClickable({ timeout: 15000 });
     await $("[data-testid=task]").click();
     await $("[data-testid=result]").waitForDisplayed({ timeout: 20000 });

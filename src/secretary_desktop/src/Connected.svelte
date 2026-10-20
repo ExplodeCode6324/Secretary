@@ -1,6 +1,10 @@
 <script lang="ts">
   import { onMount, tick } from "svelte";
-  import { bridge, type Snapshot } from "./bridge";
+  import {
+    bridge as realBridge,
+    type BridgePort,
+    type Snapshot,
+  } from "./bridge";
   import Conversation from "./Conversation.svelte";
   import Work from "./Work.svelte";
   import {
@@ -10,7 +14,70 @@
     retainPreview,
   } from "./workflow";
   import type { Timeline } from "./contracts";
+  import { Shell, Button, Dialog, Field, Status, Divider } from "./phaseui";
+  import type { Page } from "./phaseui/Shell.svelte";
+  import {
+    motionController,
+    type MotionMode,
+  } from "./phaseui/motion/controller";
+  import { sendShortcut } from "./phaseui/input";
+  import { displayName } from "./phaseui/identity";
+  let {
+    bridge = realBridge,
+    synthetic = false,
+    initialMode,
+    transientCadence = 250,
+  }: {
+    bridge?: BridgePort;
+    synthetic?: boolean;
+    initialMode?: MotionMode;
+    transientCadence?: number;
+  } = $props();
+  let page = $state<Page>("conversation");
+  let connectionOpen = $state(false);
+  let readingOffset = 0;
+  let selection: { start: number; end: number } | null = null;
+  let editor: HTMLTextAreaElement;
+  const titles = {
+    conversation: "对话",
+    tasks: "任务",
+    memory: "记忆",
+    artifacts: "产物",
+    attention: "待处理",
+    settings: "设置",
+  };
+  async function navigate(next: Page) {
+    if (next === page) return;
+    if (page === "conversation") {
+      if (editor) {
+        selection = { start: editor.selectionStart, end: editor.selectionEnd };
+        editor.blur();
+      }
+      composing = false;
+      readingOffset = panel?.scrollTop ?? 0;
+      anchor(true);
+    }
+    page = next;
+    await tick();
+    if (next === "conversation") {
+      if (panel) panel.scrollTop = readingOffset;
+      if (editor && selection)
+        editor.setSelectionRange(selection.start, selection.end);
+    }
+  }
+  function keydown(event: KeyboardEvent) {
+    if (sendShortcut(event, composing)) {
+      event.preventDefault();
+      void send();
+    }
+  }
   let data = $state<Snapshot>({ profiles: [], sync: "DISCONNECTED" });
+  let assistant = $derived(
+    displayName(
+      projection<import("./contracts").Assistant>(data.cache, "assistant")
+        ?.name,
+    ),
+  );
   let live = $state<unknown>(null);
   let reconnecting = $state(false);
   let history = $state<Timeline | null>(null);
@@ -39,7 +106,8 @@
   let generation = 0;
   let panel = $state<HTMLElement>();
   let anchorTimer: ReturnType<typeof setTimeout>;
-  function anchor() {
+  function anchor(immediate = false) {
+    if (page !== "conversation") return;
     clearTimeout(anchorTimer);
     const domain = data.domain;
     const first = [
@@ -69,10 +137,13 @@
                 (panel?.getBoundingClientRect().top ?? 0),
             })
           : String(panel?.scrollTop ?? 0);
-    if (domain)
-      anchorTimer = setTimeout(() => {
+    if (domain) {
+      const persist = () => {
         void bridge.anchor(domain, value).catch(displayError);
-      }, 300);
+      };
+      if (immediate) persist();
+      else anchorTimer = setTimeout(persist, 300);
+    }
   }
   async function resync() {
     if (!data.domain) return;
@@ -153,6 +224,7 @@
           notice = "阅读位置不可用，已加载最近消息";
         }
       }
+      connectionOpen = false;
       await tick();
       if (panel) {
         if (data.anchor === "latest") tail?.scrollIntoView({ block: "end" });
@@ -178,6 +250,9 @@
   }
   async function send() {
     if (busy || composing || !text.trim() || !data.domain) return;
+    const boundary = document.getElementById("composer-boundary");
+    if (boundary && !motionController.active.has(boundary))
+      motionController.play(boundary);
     const value = text,
       domain = data.domain,
       round = generation;
@@ -265,31 +340,34 @@
     const timer = setInterval(() => {
       if (!busy && !saving) void refresh();
     }, 1500);
-    const transientTimer = setInterval(async () => {
-      if (livePolling || !data.domain || !data.core) return;
-      livePolling = true;
-      const round = generation,
-        d = data.domain,
-        i = data.core.instance_id;
-      try {
-        const snapshot = await bridge.transient(d, i);
-        if (
-          !disposed &&
-          round === generation &&
-          d === data.domain &&
-          i === data.core?.instance_id
-        ) {
-          reconnecting = !snapshot?.connected;
-          // A disconnect is not a deletion. Retain the last preview in this
-          // domain/instance until a fresh snapshot or durable row replaces it.
-          live = retainPreview(live, snapshot);
+    const transientTimer = setInterval(
+      async () => {
+        if (livePolling || !data.domain || !data.core) return;
+        livePolling = true;
+        const round = generation,
+          d = data.domain,
+          i = data.core.instance_id;
+        try {
+          const snapshot = await bridge.transient(d, i);
+          if (
+            !disposed &&
+            round === generation &&
+            d === data.domain &&
+            i === data.core?.instance_id
+          ) {
+            reconnecting = !snapshot?.connected;
+            // A disconnect is not a deletion. Retain the last preview in this
+            // domain/instance until a fresh snapshot or durable row replaces it.
+            live = retainPreview(live, snapshot);
+          }
+        } catch {
+          if (round === generation) reconnecting = true;
+        } finally {
+          livePolling = false;
         }
-      } catch {
-        if (round === generation) reconnecting = true;
-      } finally {
-        livePolling = false;
-      }
-    }, 250);
+      },
+      synthetic ? transientCadence : 250,
+    );
     return () => {
       disposed = true;
       clearInterval(transientTimer);
@@ -300,135 +378,145 @@
   async function latest() {
     history = null;
     await tick();
-    tail?.scrollIntoView({ block: "end" });
+    if (page === "conversation") tail?.scrollIntoView({ block: "end" });
+    else readingOffset = Number.MAX_SAFE_INTEGER;
     if (data.domain)
       void bridge.anchor(data.domain, "latest").catch(displayError);
   }
 </script>
 
-<main class="connected" bind:this={panel} onscroll={anchor}>
-  <header>
-    <h1>Secretary</h1>
-    <p>本机 Core · 原生通信</p>
-  </header>
-  <section aria-label="连接">
-    <label
-      >连接配置 <select bind:value={profile} disabled={busy}
-        >{#each data.profiles as p}<option value={p.id}
-            >{p.id} · {p.mode}</option
-          >{/each}</select
-      ></label
-    >
-    <button
-      onclick={() => connect()}
-      disabled={busy || !profile}
-      data-testid="attach">附着 / 重新连接</button
-    >
-    <button
-      onclick={() => connect(true)}
-      disabled={busy || !profile}
-      data-testid="start">启动本机 Core</button
-    >
-    <span data-testid="status"
+<Shell
+  name={assistant}
+  {page}
+  {navigate}
+  connection={() => (connectionOpen = true)}
+  {synthetic}
+  {initialMode}
+>
+  {#snippet status()}<span data-testid="status"
       >{data.sync}{data.error ? " · " + data.error : ""}</span
-    >
-    {#if data.domain}<p>
-        数据域：{data.domain} · 实例：{data.core?.instance_id}
+    >{/snippet}
+  <div class="phase-page-heading"><h1>{titles[page]}</h1></div>
+  {#if error}<Status state="error">{error}</Status>{/if}
+  {#if notice}<Status state="pending">{notice}</Status>{/if}
+  {#if !data.domain}<div class="phase-scroll">
+      <p class="phase-empty">请选择连接配置以使用 Secretary。</p>
+      <Button onclick={() => (connectionOpen = true)}>连接本机 Core</Button>
+    </div>{/if}
+  <main
+    class="phase-scroll connected"
+    bind:this={panel}
+    hidden={page !== "conversation" || !data.domain}
+    onscroll={() => anchor()}
+    aria-label="对话记录"
+  >
+    {#if history}<p data-testid="history-banner">
+        正在阅读历史页面。<Button variant="text" onclick={latest}
+          >查看最新消息</Button
+        >
       </p>{/if}
-    {#if !data.profiles.length}<p>
-        请先在应用数据目录配置 profiles.json。配置示例见桌面工程 README。
-      </p>{/if}
-  </section>
-  {#if error}<p role="alert">{error}</p>{/if}
-  {#if notice}<p role="status">{notice}</p>{/if}
-  {#if data.domain}
-    <section aria-label="消息">
-      <h2>对话</h2>
-      {#if history}<p data-testid="history-banner">
-          正在阅读历史页面。<button onclick={latest}>查看最新消息</button>
-        </p>{/if}
-      {#if reconnecting && !history}<p role="status">
-          正在重新连接，保留上次预览
-        </p>{/if}
-      <button onclick={resync}>重建投影</button>
-      {#if timeline?.before}<button onclick={older}>较早消息</button>{/if}
-      {#key data.domain + ":" + data.core?.instance_id}<Conversation
+    {#if reconnecting && !history}<Status state="offline"
+        >正在重新连接，保留上次预览</Status
+      >{/if}
+    <Button variant="text" onclick={resync}>重建投影</Button>
+    {#if timeline?.before}<Button variant="text" onclick={older}
+        >较早消息</Button
+      >{/if}
+    {#if data.domain}{#key data.domain + ":" + data.core?.instance_id}<Conversation
           {items}
           domain={data.domain}
-        />{/key}
-      <div bind:this={tail}></div>
-      <button onclick={latest}>跳到最新消息</button>
-    </section>
-    <section aria-label="发送">
-      <label for="draft">输入</label>
-      <textarea
+          name={assistant}
+          {bridge}
+        />{/key}{/if}
+    <div bind:this={tail}></div>
+    <Button variant="text" onclick={latest}>跳到最新消息</Button>
+  </main>
+  <section
+    class="phase-composer"
+    aria-label="发送"
+    hidden={page !== "conversation" || !data.domain}
+  >
+    <Divider edge="top" />
+    <Field id="composer-boundary"
+      ><label for="draft" class="sr-only">消息内容</label><textarea
         id="draft"
         data-testid="draft"
+        bind:this={editor}
         bind:value={text}
         oninput={save}
+        onkeydown={keydown}
         oncompositionstart={() => (composing = true)}
-        oncompositionend={() => (composing = false)}></textarea>
-      <button
+        oncompositionend={() => (composing = false)}
+        placeholder="写下你的想法…"></textarea></Field
+    >
+    <div class="phase-composer-row">
+      <span
+        >Cmd + Enter 发送 · Enter 换行<br />{saving
+          ? "保存中"
+          : dirty
+            ? "尚未保存"
+            : "草稿已保存"}</span
+      ><Button
+        variant="send"
+        primary
+        icon="send"
+        aria-label="保存并发送"
+        data-testid="send"
         onclick={send}
         disabled={busy ||
           composing ||
           !text.trim() ||
           !capability(data.core, "messages")}
-        data-testid="send">保存并发送</button
-      ><span>{saving ? "保存中" : dirty ? "尚未保存" : "草稿已保存"}</span>
-    </section>
-    {#key data.domain + ":" + data.core?.instance_id}<Work {data} />{/key}
-    <section>
-      <button onclick={() => (stopConfirm = true)} disabled={busy}
-        >停止当前 Core…</button
-      >{#if stopConfirm}<p>这会停止当前独立 Core 服务。</p>
-        <button onclick={stop}>确认停止</button><button
-          onclick={() => (stopConfirm = false)}>取消</button
-        >{/if}
-    </section>
-  {/if}
-</main>
-
-<style>
-  .connected {
-    display: block;
-    max-width: 1100px;
-    margin: 24px auto;
-    padding: 0 24px;
-    color: #182b46;
-    background: #fff;
-    overflow: auto;
-    height: calc(100vh - 48px);
-  }
-  header,
-  section {
-    border-bottom: 1px solid #ccd9e8;
-    padding: 16px 0;
-  }
-  h1 {
-    font-size: 24px;
-  }
-  h2 {
-    font-size: 17px;
-  }
-  button,
-  select {
-    margin: 4px;
-    padding: 7px 10px;
-  }
-  button {
-    border: 1px solid #9ab4d3;
-    color: #164b8a;
-    background: #f3f8ff;
-    cursor: pointer;
-  }
-  textarea {
-    display: block;
-    width: 100%;
-    min-height: 100px;
-    box-sizing: border-box;
-  }
-  p[role="alert"] {
-    color: #a83232;
-  }
-</style>
+      />
+    </div>
+  </section>
+  {#if data.domain}{#key data.domain + ":" + data.core?.instance_id}<Work
+        {data}
+        {page}
+        {bridge}
+      />{/key}{/if}
+  {#if data.domain && ["memory", "settings", "artifacts"].includes(page)}<div
+      class="phase-scroll"
+    >
+      <p class="phase-empty">
+        此栏目尚未接入。{page === "artifacts"
+          ? "已有执行产物可从任务详情保存。"
+          : ""}
+      </p>
+    </div>{/if}
+  <Dialog bind:open={connectionOpen} title="连接本机 Core">
+    <label for="profile">连接配置</label><Field disabled={busy}
+      ><select id="profile" bind:value={profile} disabled={busy}
+        >{#each data.profiles as p}<option value={p.id}
+            >{p.id} · {p.mode}</option
+          >{/each}</select
+      ></Field
+    >
+    {#if !data.profiles.length}<p>
+        请先配置本机 profiles.json，配置方法见桌面运行说明。
+      </p>{/if}
+    <div class="actions">
+      <Button
+        onclick={() => connect()}
+        disabled={busy || !profile}
+        data-testid="attach">附着 / 重新连接</Button
+      ><Button
+        onclick={() => connect(true)}
+        disabled={busy || !profile}
+        data-testid="start">启动本机 Core</Button
+      >
+    </div>
+    {#if data.domain}<p>数据域：<code>{data.domain}</code></p>
+      <p>实例：<code>{data.core?.instance_id}</code></p>
+      <Divider /><Button
+        variant="text"
+        onclick={() => (stopConfirm = true)}
+        disabled={busy}>停止当前 Core…</Button
+      >{/if}
+    {#if stopConfirm}<p>这会停止当前独立 Core 服务。</p>
+      <Button onclick={stop}>确认停止</Button><Button
+        onclick={() => (stopConfirm = false)}>取消</Button
+      >{/if}
+    {#if error}<Status state="error">{error}</Status>{/if}
+  </Dialog>
+</Shell>

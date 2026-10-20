@@ -7,6 +7,7 @@
   "permissions": [
     "core:webview:allow-set-webview-zoom",
     "allow-study-mode",
+    "allow-phaseui-view",
     "allow-study-ready",
     "allow-study-metrics",
     "allow-bridge-profiles",

@@ -22,6 +22,7 @@ const snapshot = async () => {
 };
 describe("FE-01 real WKWebView native bridge", () => {
   it("starts independent fixture Core and sends a durable message through UI", async () => {
+    await $("button=连接").click();
     await $("[data-testid=start]").waitForClickable({ timeout: 20000 });
     await $("[data-testid=start]").click();
     await browser.waitUntil(async () => !!(await snapshot()).domain, {
@@ -83,6 +84,7 @@ describe("FE-01 real WKWebView native bridge", () => {
   });
   it("reopens the WebView, reattaches and retains the draft and receipt", async () => {
     await browser.refresh();
+    await $("button=连接").click();
     await $("[data-testid=attach]").waitForClickable({ timeout: 15000 });
     await $("[data-testid=attach]").click();
     await browser.waitUntil(
@@ -175,7 +177,7 @@ if (process.env.BRIDGE_DIALOG)
 if(process.env.BRIDGE_STOP) describe('explicit lifecycle management',()=>{
  it('rejects stale instance confirmation and stops only by explicit UI confirmation',async()=>{
   const s=await snapshot();assert.equal((await invoke('bridge_stop',{expectedDomain:s.domain,expectedInstance:'stale-instance'})).failure,'INSTANCE_CHANGED');
-  await $('button=停止当前 Core…').click();await $('button=确认停止').click();
+  await $('button=连接').click();await $('button=停止当前 Core…').click();await $('button=确认停止').click();
   await browser.waitUntil(async()=>!fs.existsSync(path.join(dir,'core/core-endpoint.json')),{timeout:10000});
   assert.equal((await snapshot()).error,'STOP_DISCONNECTED');
  });

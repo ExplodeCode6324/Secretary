@@ -19,3 +19,7 @@ Ce document est l’unique entrée de la spécification frontend actuelle ; les 
 La base implémentée est `5f73c23` (FE-02 / PR #75), avec un flux métier réel minimal. Les composants visuels relèvent de #62 ; conversation, tâches, mémoire/réglages et livrables/notifications de #63 à #66. La recette actuelle vise macOS. Linux reste deferred / NOT_TESTED, sans bloquer la progression ; la CI Core Linux reste inchangée.
 
 #61 concerne uniquement la documentation. Master a retiré la demande de déploiement : aucun déploiement ni démarrage anticipé de #62. Consulter les [instructions bureau](../desktop/README.md) et l’[index historique](../../old/README.md).
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { bridge, type Snapshot } from "./bridge";
+  import {
+    bridge as realBridge,
+    type BridgePort,
+    type Snapshot,
+  } from "./bridge";
   import type {
     TaskPage,
     TaskDetail,
@@ -17,7 +21,12 @@
   } from "./workflow";
   import Results from "./Results.svelte";
   import { onMount } from "svelte";
-  let { data }: { data: Snapshot } = $props();
+  import { Button, Divider } from "./phaseui";
+  let {
+    data,
+    page = "tasks",
+    bridge = realBridge,
+  }: { data: Snapshot; page?: string; bridge?: BridgePort } = $props();
   let tasks = $derived(projection<TaskPage>(data.cache, "tasks"));
   let attention = $derived(projection<Attention>(data.cache, "attention"));
   let taskId = $state("");
@@ -271,22 +280,25 @@
   }
 </script>
 
-<div class="work">
-  <section aria-label="任务">
+<div
+  class="phase-work phase-scroll"
+  hidden={!["tasks", "attention"].includes(page)}
+>
+  <section aria-label="任务" hidden={page !== "tasks"}>
     <h2>任务</h2>
-    {#each (taskPage ?? tasks)?.items ?? [] as t (t.id)}<button
-        class:selected={taskId === t.id}
+    {#each (taskPage ?? tasks)?.items ?? [] as t (t.id)}<Button
+        class={taskId === t.id ? "selected" : ""}
         data-testid="task"
         data-task-id={t.id}
-        onclick={() => (taskId = t.id)}>{t.goal} · {t.state}</button
+        onclick={() => (taskId = t.id)}>{t.goal} · {t.state}</Button
       >{/each}
-    {#if (taskPage ?? tasks)?.next_cursor}<button onclick={nextTasks}
-        >下一页任务</button
-      >{/if}{#if taskPage}<button
+    {#if (taskPage ?? tasks)?.next_cursor}<Button onclick={nextTasks}
+        >下一页任务</Button
+      >{/if}{#if taskPage}<Button
         onclick={() => {
           pageGeneration++;
           taskPage = null;
-        }}>最近任务</button
+        }}>最近任务</Button
       >{/if}
     {#if detailLoading}<p>正在刷新详情…</p>{/if}{#if detailError}<p
         role="alert"
@@ -294,6 +306,7 @@
         {detailError}
       </p>{/if}
     {#if task}<article data-testid="task-detail">
+        <Divider edge="bottom" />
         <h3>{task.goal}</h3>
         <p>{task.id} · {task.state}</p>
         <p>Scope：{task.scope_id ?? "unknown"}</p>
@@ -321,30 +334,31 @@
                 2,
               )}</pre>
           </details>
-          {#if ["RUNNING", "WAIT_AUTH", "WAIT_DECISION", "READY"].includes(execution.state)}<button
+          {#if ["RUNNING", "WAIT_AUTH", "WAIT_DECISION", "READY"].includes(execution.state)}<Button
               onclick={cancel}
               disabled={detailLoading ||
                 task.id !== taskId ||
                 !capability(data.core, "tasks") ||
                 !!data.error ||
-                execution.cancel_requested}>请求取消执行</button
+                execution.cancel_requested}>请求取消执行</Button
             >{/if}{/if}
         {#key task.id + ":" + execution?.id + ":" + (execution?.result ?? task.result)?.id}
           <Results
             result={execution?.result ?? task.result}
             {artifacts}
+            {bridge}
             domain={data.domain!}
           />
         {/key}
       </article>{/if}
-    <button onclick={() => refresh++}>刷新详情</button>
+    <Button onclick={() => refresh++}>刷新详情</Button>
   </section>
-  <section aria-label="待批准操作">
+  <section aria-label="待批准操作" hidden={page !== "attention"}>
     <h2>需要批准</h2>
-    {#each attention?.items.filter((x) => x.type === "authorization") ?? [] as a (a.id)}<button
+    {#each attention?.items.filter((x) => x.type === "authorization") ?? [] as a (a.id)}<Button
         data-testid="authorization"
         data-auth-id={a.id}
-        onclick={() => (authId = a.id)}>查看操作 {a.id}</button
+        onclick={() => (authId = a.id)}>查看操作 {a.id}</Button
       >{/each}
     {#if attention?.counts.decisions}<p>
         另有 {attention.counts.decisions} 项用户决策等待处理，本阶段未提供该入口。
@@ -355,6 +369,7 @@
         {approvalError}
       </p>{/if}
     {#if auth}<article data-testid="approval-detail">
+        <Divider edge="bottom" />
         <h3>操作详情 · {auth.state}</h3>
         <p>{auth.id} · revision {auth.revision}</p>
         <p>到期：{auth.expires_at ?? "无"}</p>
@@ -376,35 +391,36 @@
             disabled={!!problem || authLoading}
           />我已查看以上实际参数</label
         >
-        <button
+        <Button
           data-testid="approve"
           disabled={!!problem ||
             !inspected ||
             authLoading ||
             !!data.error ||
             !capability(data.core, "authorizations")}
-          onclick={() => decide("APPROVE")}>批准本次操作</button
+          onclick={() => decide("APPROVE")}>批准本次操作</Button
         >
-        <button
+        <Button
           data-testid="reject"
           disabled={!!problem ||
             !inspected ||
             authLoading ||
             !!data.error ||
             !capability(data.core, "authorizations")}
-          onclick={() => decide("REJECT")}>拒绝本次操作</button
+          onclick={() => decide("REJECT")}>拒绝本次操作</Button
         >
       </article>{/if}
   </section>
-  <section aria-label="命令记录">
+  <section aria-label="命令记录" hidden={page !== "attention"}>
     <h2>命令与回执</h2>
     <p>
       ACCEPTED 表示受理；业务结果见任务详情。消息到后续 TaskPlan 的关联未由 API
       暴露。
     </p>
     {#each data.outbox ?? [] as row (row.id)}<article data-testid="outbox-item">
-        <code>{row.id}</code> <strong>{row.state}</strong><button
-          onclick={() => fullReceipt(row.id)}>完整回执</button
+        <Divider edge="bottom" />
+        <code>{row.id}</code> <strong>{row.state}</strong><Button
+          onclick={() => fullReceipt(row.id)}>完整回执</Button
         >
         <details>
           <summary>原始提交与回执摘要</summary>
@@ -415,28 +431,3 @@
     {#if receipt}<pre>{JSON.stringify(receipt, null, 2)}</pre>{/if}
   </section>
 </div>
-
-<style>
-  section {
-    padding: 16px 0;
-    border-top: 1px solid #ccd9e8;
-  }
-  article {
-    padding: 10px 0;
-  }
-  button.selected {
-    background: #cee4ff;
-  }
-  pre {
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    max-height: 420px;
-    overflow: auto;
-  }
-  code {
-    overflow-wrap: anywhere;
-  }
-  label {
-    display: block;
-  }
-</style>

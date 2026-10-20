@@ -44,6 +44,7 @@ const invoke = (name: string, args: unknown = {}) =>
   ) as Promise<any>;
 describe("real authorization stale and hash conflicts", () => {
   it("rejects via a second public client and keeps stale intent from executing", async () => {
+    await $("button=连接").click();
     await $("[data-testid=attach]").waitForClickable({ timeout: 20000 });
     await $("[data-testid=attach]").click();
     await $("[data-testid=draft]").waitForDisplayed({ timeout: 20000 });

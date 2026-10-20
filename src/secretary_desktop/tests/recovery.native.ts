@@ -23,6 +23,7 @@ describe("real task completed without desktop, original profile reopens", () => 
     assert.equal(closed.desktop_processes.length, 0);
     assert(["RUNNING", "DISPATCHING"].includes(closed.state));
     process.kill(setup.pid, 0);
+    await $("button=连接").click();
     await $("[data-testid=attach]").waitForClickable({ timeout: 20000 });
     await $("[data-testid=attach]").click();
     await $("[data-testid=draft]").waitForDisplayed({ timeout: 20000 });

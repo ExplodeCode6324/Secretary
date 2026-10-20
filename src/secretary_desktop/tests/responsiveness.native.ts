@@ -8,6 +8,7 @@ const setup = JSON.parse(
 );
 describe("responsive native editor during network stall", () => {
   it("keeps input and local enqueue responsive with Core paused", async () => {
+    await $("button=连接").click();
     await $("[data-testid=attach]").waitForClickable({ timeout: 20000 });
     await $("[data-testid=attach]").click();
     await $("[data-testid=draft]").waitForDisplayed({ timeout: 20000 });

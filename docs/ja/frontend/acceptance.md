@@ -41,3 +41,7 @@ OBSERVED は今回の実ブラウザー観察、INHERITED は既存版の証拠�
 実 macOS Tauri で三フレーム識別、可読性、カーソル/選択安定、中断を確認し、Master が美学と体感停止を判断します。問題時は三フレームを維持して構築、再利用、清理を最適化します。ブラウザーは原生性能検証の代わりにならず、#61 では測定も有料モデル呼出しも未実施です。
 
 [measurement entry](../../../src/secretary_desktop/scripts/measure.py) · [v1.0 cost analysis](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/TAURI-MOTION-COST.md)
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

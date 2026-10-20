@@ -26,6 +26,7 @@ async function send(text: string) {
 }
 describe("reading anchor recovery in native WKWebView (offline Core fixture)", () => {
   it("restores an anchor inside the current window without freezing new durable replies", async () => {
+    await $("button=连接").click();
     await $("[data-testid=start]").waitForClickable({ timeout: 20000 });
     await $("[data-testid=start]").click();
     await $("[data-testid=draft]").waitForDisplayed({ timeout: 20000 });
@@ -45,6 +46,7 @@ describe("reading anchor recovery in native WKWebView (offline Core fixture)", (
     );
     const saved = JSON.parse((await snapshot()).anchor);
     await browser.refresh();
+    await $("button=连接").click();
     await $("[data-testid=attach]").waitForClickable({ timeout: 20000 });
     await $("[data-testid=attach]").click();
     await $("[data-testid=draft]").waitForDisplayed({ timeout: 20000 });
@@ -54,7 +56,7 @@ describe("reading anchor recovery in native WKWebView (offline Core fixture)", (
     const replies = await $$("[data-testid=message]").map((m) => m.getText());
     assert(
       replies.some(
-        (t) => t.includes("您") && t.includes("READING-AFTER-REOPEN"),
+        (t) => t.includes("Master") && t.includes("READING-AFTER-REOPEN"),
       ),
     );
     assert(

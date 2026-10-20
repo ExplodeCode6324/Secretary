@@ -15,3 +15,7 @@
 当前实现基线为 `5f73c23`（FE-02 / PR #75），具备最小真实业务链路；完整视觉组件属于 #62，对话、任务、记忆/设置、产物/通知页面分别由 #63～#66 完成。当前仅验收 macOS；Linux 桌面 deferred / NOT_TESTED，不阻塞路线，Core Linux CI 保持不变。
 
 本次 #61 只整合文档。Master 已撤回真实部署要求：不启动部署，不提前实现 #62。运行入口见[桌面说明](../../src/secretary_desktop/README.md)，历史材料见[历史索引](../old/README.md)。
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

@@ -37,3 +37,7 @@
 在真实 macOS Tauri 窗口检查三帧可辨、文字可读、光标/选择稳定和可打断；Master 判断美学及可感知卡顿。发现瓶颈先优化构造、复用与清理，保留三逻辑帧。浏览器预览不能代替原生性能验收；本次没有执行该测量或付费模型调用。
 
 [measurement entry](../../src/secretary_desktop/scripts/measure.py) · [v1.0 cost analysis](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/TAURI-MOTION-COST.md)
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

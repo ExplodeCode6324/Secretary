@@ -284,13 +284,22 @@ pub fn setup(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
     let root = std::env::var_os("SECRETARY_DESKTOP_TEST_DATA")
         .map(std::path::PathBuf::from)
         .unwrap_or(root);
+    let config = crate::launch::current().map_err(std::io::Error::other)?;
+    let diagnostic = !config.phase.is_empty();
     let state = Native(
-        Arc::new(Mutex::new(Bridge::new(&root))),
+        Arc::new(Mutex::new(if diagnostic {
+            Err(err("DIAGNOSTIC_MODE"))
+        } else {
+            Bridge::new(&root)
+        })),
         Arc::new(std::sync::atomic::AtomicBool::new(false)),
         Arc::new(Mutex::new(None)),
         Arc::new(Mutex::new(Arc::new(Mutex::new(Value::Null)))),
     );
     app.manage(state.clone());
+    if diagnostic {
+        return Ok(());
+    }
     std::thread::spawn(move || loop {
         std::thread::sleep(std::time::Duration::from_millis(1000));
         let _ = with(&state, |b| {

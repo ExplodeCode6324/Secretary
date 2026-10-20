@@ -2,8 +2,19 @@
   import type { Message, TimelineItem } from "./contracts";
   import { render } from "./study";
   import { messageLabel } from "./workflow";
-  import { bridge } from "./bridge";
-  let { items, domain }: { items: TimelineItem[]; domain: string } = $props();
+  import { bridge as realBridge, type BridgePort } from "./bridge";
+  import { Avatar, Button, Divider } from "./phaseui";
+  let {
+    items,
+    domain,
+    name = "Secretary",
+    bridge = realBridge,
+  }: {
+    items: TimelineItem[];
+    domain: string;
+    name?: string;
+    bridge?: BridgePort;
+  } = $props();
   let extras = $state<Record<string, Message>>({});
   let error = $state("");
   let loading = $state("");
@@ -32,21 +43,31 @@
 {#each items as item (item.id)}
   {#if item.kind === "message"}
     {@const m = extras[item.id + ":" + item.revision] ?? item}
-    <article data-message-id={m.id} data-testid="message" class="message-row">
+    <article data-message-id={m.id} data-testid="message" class="phase-message">
+      <Divider edge="bottom" />
       <header>
+        <Avatar
+          name={["master", "user"].includes(m.role)
+            ? "Master"
+            : m.role === "system"
+              ? "System"
+              : name}
+          assistant={["assistant", "secretary"].includes(m.role)}
+        />
         <strong
           >{["master", "user"].includes(m.role)
-            ? "您"
+            ? "Master"
             : m.role === "system"
-              ? "系统"
-              : "Secretary"}</strong
+              ? "System"
+              : name}</strong
         > <time>{m.at ?? ""}</time>
         <small>{messageLabel(m)}{m.truncated ? " · 预览截断" : ""}</small>
       </header>
       <div class="prose">{@html render(m.text)}</div>
-      {#if m.next_cursor}<button
+      {#if m.next_cursor}<Button
+          variant="text"
           disabled={loading !== ""}
-          onclick={() => more(m)}>继续读取内容</button
+          onclick={() => more(m)}>继续读取内容</Button
         >{/if}
     </article>
   {:else}<p class="activity">
@@ -54,22 +75,3 @@
         .status ?? ""}
     </p>{/if}
 {/each}
-
-<style>
-  .message-row {
-    padding: 12px 0;
-    border-bottom: 1px solid #e0e8f1;
-    overflow-wrap: anywhere;
-  }
-  header {
-    font-size: 13px;
-    color: #516582;
-  }
-  small {
-    margin-left: 8px;
-  }
-  .activity {
-    color: #64758b;
-    font-size: 13px;
-  }
-</style>

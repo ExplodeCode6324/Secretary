@@ -19,3 +19,7 @@
 実装基準は `5f73c23`（FE-02 / PR #75）で、最小の実業務フローがあります。完全な視覚コンポーネントは #62、対話、タスク、記憶/設定、成果物/通知は順に #63～#66 です。現行の検証対象は macOS。Linux デスクトップは deferred / NOT_TESTED で進行条件に含めず、Core Linux CI は維持します。
 
 #61 は文書の統合のみです。Master はデプロイ依頼を撤回したため、デプロイや #62 の先行実装は行いません。実行は[デスクトップ説明](../desktop/README.md)、過去資料は[履歴索引](../../old/README.md)を参照してください。
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.
