@@ -115,8 +115,9 @@ describe("real authorization stale and hash conflicts", () => {
         ),
       { timeout: 20000 },
     );
+    const rejectRequest = crypto.randomUUID();
     await client.command(`authorizations/${a.id}/decision`, {
-      request_id: crypto.randomUUID(),
+      request_id: rejectRequest,
       expected_revision: detail.revision,
       display_hash: detail.display_hash,
       decision: "REJECT",
@@ -148,6 +149,7 @@ describe("real authorization stale and hash conflicts", () => {
       path.join(root, "stale-evidence.json"),
       JSON.stringify({
         authorization: a.id,
+        second_client_reject_request: rejectRequest,
         hash_request: hash.value,
         stale_request: stale.value,
         state: "APPROVAL_CONFLICT",

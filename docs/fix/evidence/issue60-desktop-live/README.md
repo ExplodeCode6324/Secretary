@@ -76,3 +76,5 @@ NATIVE_SPEC=./tests/workflow.native.ts npm run test:native --prefix src/secretar
 ```
 
 其余 native specs：approval（实际参数审批与关闭前屏障）、recovery（原 profile 恢复/结果/闲置详情请求/IPC）、stale（第二客户端拒绝、错误 hash、SSE）、responsiveness（Core 暂停时输入及排队）。恢复验收应先记录客户端进程不存在且执行尚未完成，再等 Core 独立完成，最后重开；已提前完成不能计作该验收。
+
+Release 空闲 10 次、每秒一次 `ps` 采样：原生桌面进程平均 3.65% CPU、Core 2.63%；不含 WebKit 子进程，因此不是整个应用的能耗结论。当前保留 Core 约 10Hz 瞬态流；未为此次最小链路增加新的 Core 去噪机制。第二客户端拒绝已通过 journal 中的 ApiCommand ID 与不可变 arguments 的 REJECT 交叉归因，未用 decided_by 区分客户端。
