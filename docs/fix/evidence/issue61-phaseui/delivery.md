@@ -16,3 +16,9 @@ Local validation: npm run docs:check PASS (610 Markdown files, 8373 local links,
 ## Review status
 
 Master final review PENDING. #61 remains open and #62 remains gated on merge plus Master confirmation. Existing FE-02 results and the earlier v1.0 browser observations are referenced with their original scope, not rerun or claimed as new native visual acceptance.
+
+## First CI failure and correction
+
+At `59dd358`, Core macOS and desktop macOS passed. Core Linux ran 657 tests: 655 passed, one skipped, one failed. The existing issue20 documentation-check test created a minimal repository without the newly required frontend graph; the checker raised FileNotFoundError for README.zh-CN.md. This was caused by this documentation-check extension, not an unrelated Core failure.
+
+The fixture now includes the minimum valid frontend graph. The checker reports missing tracked documents and missing entry/navigation as structured errors. Regression coverage verifies a missing component link and missing navigation source, while retaining ignored-untracked-report and tracked-broken-link cases. `node --import tsx --test test_case/offline/issue20/docs-check.test.ts` PASS; `npm run docs:check` and `git diff --check` PASS after correction. The PR checks record results for the corrected HEAD.
