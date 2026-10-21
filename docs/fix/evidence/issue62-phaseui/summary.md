@@ -1,6 +1,6 @@
 # Issue #62 implementation evidence
 
-Status: implementation candidate; resource matrix, Claude implementation review and Master final review pending. No merge authorization. macOS only; Linux desktop NOT_TESTED.
+Status: implementation and formal resource evidence prepared; final evidence review, final-head CI and Master acceptance pending. No merge authorization. macOS only; Linux desktop NOT_TESTED.
 
 ## Implemented surfaces
 
@@ -20,7 +20,7 @@ The typed renderer ports frozen v1.0 geometry and masked three-state reconstruct
 | WKWebView real bridge | 6 tests passed with isolated offline fixture Core: diagnostic view refused on normal launch, durable send, reopen/receipt, save retry after real storage rejection, responsiveness under blocked Core, stale stop rejection and explicit stop. |
 | WKWebView reading | Offline Core anchor reload and subsequent durable replies passed. |
 | Ordinary Release | Built successfully without native driver. Computer-use observed actual three-column layout, native controls, textarea/caret, brand fit and selected-row join. |
-| System IME | NOT_TESTED: installed input sources include Simplified Pinyin, but computer-use attempts only produced English autocorrection, not a verified Chinese candidate session. Synthetic composition is separate. |
+| System IME | NOT_TESTED: Simplified Pinyin and its shortcuts are installed/enabled. Final computer-use attempt showed underlined Latin composition text, but the candidate window was inaccessible and candidate confirmation was not verified. Earlier attempts showed English autocorrection. Synthetic composition is separate. |
 | VoiceOver | NOT_TESTED; accessible names, modal focus and hidden-state checks covered through native automation. |
 | Master aesthetics / performance decision | Pending, never inferred from automated checks. |
 
@@ -37,7 +37,7 @@ First failures retained under ignored `.demo-data/issue62`: initial Svelte decla
 
 ## Reproduction and provenance
 
-The bilingual R2 plan is in `docs/fix/`; public component contract is `src/secretary_desktop/src/phaseui/README.md`. Run `npm run check`, `npm test`, Rust fmt/clippy/test, and ordinary `npm run tauri -- build` from the desktop project. Resource script is `scripts/phaseui_measure.py`; `phaseui_measurement_contract.py` rejects incomplete schedules and missing reports. Raw runs and review exchanges stay under ignored `.demo-data/issue62/`. Final source SHA, ordinary binary SHA-256, CI and reviewer disposition will be recorded after the candidate is frozen.
+The bilingual R2 plan is in `docs/fix/`; public component contract is `src/secretary_desktop/src/phaseui/README.md`. Run `npm run check`, `npm test`, Rust fmt/clippy/test, and ordinary `npm run tauri -- build` from the desktop project. Resource script is `scripts/phaseui_measure.py`; `phaseui_measurement_contract.py` rejects incomplete schedules and missing reports. Raw runs and review exchanges stay under ignored `.demo-data/issue62/`. Frozen source and binary hashes appear below. Final-head CI and reviewer disposition are recorded on PR #77 after the evidence commit, without changing the measured implementation.
 
 ## R3 review disposition (implementation)
 
@@ -62,3 +62,34 @@ Claude fetched `8e74ef4`, re-ran six source tests and its input probe, and retur
 Subsequent OFF calibrations exposed timer-callback-parity scheduling: only 80, 79 and 92 actions ran in 60 seconds, so the validator rejected all three. Foreground requests and manual raising did not establish a focus explanation (recorded background ticks were zero). These are retained as invalid calibration data, never final comparison runs. The replay now follows absolute clock deadlines from its existing instrumented rAF loop, at most one scheduled tick per frame, rather than assuming every interval callback arrives. Workload remains 60 seconds, 120 interactions / 240 bridge ticks / 1,200 stress ticks. Every non-idle run must complete its tick budget, stay within 250ms maximum schedule lateness, remain focused/visible, and recover cleanly. Reporting-off idle retains no rAF loop. The diagnostic window requests foreground focus; ordinary launch still refuses that command.
 
 The replacement OFF calibration delivered 120 actions / 240 ticks, zero background ticks, max schedule lateness34ms and clean recovery. Mixed30/60Hz schedule regression passed; native suite8/8 and Release security checks passed. All pre-freeze runs remain calibration only. Input-scroll is still synthetic value replacement, and callback-time latency is not physical input latency.
+
+## Frozen implementation and formal experiment
+
+Implementation source: `e1efb80adf17919abe9d92cdb0d28d5ad99d5fea`. Ordinary Release SHA-256: `6314ae731beb89843a7f3dc0721e7568035be343f480a133b8335871ae27267b`. Evidence-only commits after this SHA do not change the measured implementation. Every valid run records a clean tracked worktree and this same binary. Native-test builds and all earlier calibrations are excluded.
+
+The primary matrix contains 54 valid runs: six scenarios × three modes × three seeds, with mode order rotated. Separate logical coverage uses six runs. Reporting-off idle has nine process-only controls; its validity means readiness and the full sampling duration, not the report-based visibility, completion or recovery contract. Focused dark and narrow checks use the highest absolute CPU workload, stream-stress, for nine runs each. They are not complete matrices for those settings.
+
+One additional primary attempt (bridge-cadence/OFF/seed64) emitted readiness but no report within180s; the runner correctly rejected it. Process CPU became near-zero after approximately40s. No thermal/performance warning was recorded, and no final visibility/focus report was available, so the cause remains undetermined. The exact unchanged seed/mode repeat completed240updates and120actions with21ms maximum lateness and clean recovery. The failed attempt remains public in invalid-attempts.json and is excluded only from valid-run aggregates; it is not silently erased or called a pass.
+
+The main matrix shows a material resource cost during repeated navigation: candidate WebKit CPU median is7.28% OFF,16.16% BASE and17.35% EXTENDED. Candidate recovery-minus-baseline RSS medians are17.47,81.26 and108.25MiB respectively. Over three10-second recovery buckets RSS is approximately flat, and effect/node/timer counts are zero with listeners/targets restored to baseline. This establishes bounded recovery counters for these runs, not return of process RSS to initial values or a long-duration no-leak proof.
+
+The absolute CPU-heavy stream workload has candidate medians25.09%,26.87%,27.72%; application medians2.36%,2.36%,3.41%. Input-scroll remains close across modes and does not replay input borders per update. Lower rAF intervals in animated single-control runs reflect callback cadence and do not prove faster physical presentation.
+
+R6 Claude review independently read e1efb80 and ran seven source tests and two Python contract tests. It returned PASS_PENDING_VALIDATION, accepting the clock-deadline replay and diagnostic-only focus change. It did not execute native resource or system IME tests. The advice to compare callback latency only within compatible cohorts, keep foreground validity, and separate maximum lateness from any unmeasured percentile is retained here.
+
+
+## Results and reviewable artifacts
+
+- [Full comparisons, ranges and absolute deltas](resource-tables.md)
+- [All 87 valid measurements](measurements.csv), [provenance](measurement-provenance.json), [one invalid attempt](invalid-attempts.json)
+- [Ordinary Release light preview](native-light.png), [dark preview](native-dark.png). Artificial fixture data only; captured separately from timed runs. These are layout observations, not temporal-frame proof.
+
+All 78 valid report-producing runs returned effects/nodes/timers to zero and listener/target counts exactly to baseline. All active schedules completed their expected update/action budget with zero hidden/unfocused ticks; maximum recorded schedule lateness was 51ms. Animation construction maximum was 10ms. Within compatible main-cohort comparisons, the largest mode difference of median p95 next-callback latency was navigation EXTENDED, +11ms versus OFF (36ms vs25ms), below the proposed one-refresh-interval investigation trigger. This synthetic callback latency cannot establish physical input latency or actual presented frames. `over_25ms` / `over_33ms` are callback-interval counts relative to nominal60Hz thresholds, not dropped display frames.
+
+Reporting-off idle medians (application / candidate CPU) were OFF0.000%/0.844%, BASE0.016%/0.978%, EXTENDED0.017%/1.043%. Reporting-on idle was approximately2.1%/3.4–3.6%, so instrumentation overhead is material and disclosed; it is not mechanically subtracted from active workloads. Process sampler p95 cost across valid reported runs was57.7–62.0ms per approximately one-second sample. Phase windows aligned to report receipt have roughly one-second uncertainty. Existing shared WebKit resource values are retained separately in CSV. No exclusive WebKit ownership, total physical RAM, GPU/paint/energy, continuous thermal or long-duration leak acceptance is claimed.
+
+Dark and600px narrow stress cohorts each passed9/9. Candidate CPU medians were24.13/25.86/27.20% (dark OFF/BASE/EXTENDED), and24.03/26.27/26.39% (narrow). These checks cover the highest absolute load, while the navigation resource delta remains a separate tradeoff for Master. BASE remains default and EXTENDED experimental; the measurements do not automatically accept their visual or resource tradeoffs.
+
+System IME candidate Enter/Space/Escape, composing-send/Cmd+Enter, switch and streaming cases have **not** completed the planned three-repetition manual matrix. Computer-use could interact with the editor and navigation but did not expose/confirm the actual candidate panel; no system setting was edited. VoiceOver speech validation remains NOT_TESTED because no verified speech observation was obtained. These are explicit pending manual gates, not synthetic passes or waived criteria. Linux desktop remains deferred/NOT_TESTED.
+
+The implementation-source CI at e1efb80 passed Core Linux, Core macOS, desktop macOS and aggregate verify. The evidence-only commit must also pass its CI before final delivery. Master retains final visual/performance acceptance and merge authorization; do not merge on the basis of this record alone.

@@ -1,0 +1,12 @@
+[
+  {
+    "run": "20261021T002006.512836Z-resource-bridge-cadence-off",
+    "cohort": "resource",
+    "scenario": "bridge-cadence",
+    "mode": "off",
+    "seed": 64,
+    "binary_sha256": "6314ae731beb89843a7f3dc0721e7568035be343f480a133b8335871ae27267b",
+    "report_received": false,
+    "disposition": "Excluded from paired performance aggregates; retained failed attempt. See summary for investigation and exact-repeat result."
+  }
+]

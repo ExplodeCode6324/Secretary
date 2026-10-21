@@ -221,3 +221,8 @@ R3 implementation review clarification: primary resource cohorts run without com
 
 
 Calibration correction: replay follows clock deadlines on the existing measurement rAF loop, at most one scheduled tick per frame. Verify the full fixed tick budget, maximum lateness≤250ms and zero hidden/unfocused active ticks; reject incomplete schedules rather than lowering the100-action gate. Reporting-off idle retains no rAF loop.
+
+
+## Implementation evidence and final acceptance
+
+Implementation is frozen at `e1efb80`. See the [evidence record](evidence/issue62-phaseui/summary.md) and [resource comparisons](evidence/issue62-phaseui/resource-tables.md):87 valid formal measurements and one retained missing-report timeout. Focused dark/narrow checks and native functional evidence are complete. The planned three-repeat system IME matrix and VoiceOver speech validation remain unverified; synthetic events do not replace them. Final evidence-head CI and the same Claude Opus5.5 Extra session verdict will be recorded on PR #77. Master retains final acceptance and merge authorization; no merge in this task.

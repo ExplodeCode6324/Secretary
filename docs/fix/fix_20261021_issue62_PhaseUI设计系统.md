@@ -222,3 +222,8 @@ R3 实现复核澄清：主资源测量关闭 computed-style 帧采样，另设�
 
 
 校准修正：回放按时钟截止时间在既有测量 rAF 循环中派发，每帧最多一次计划 tick。检查固定 tick 总量、最大迟到≤250ms、活动期隐藏/失焦 tick 为零；不降低至少100次动作门槛。关闭报告的空闲对照仍不运行 rAF 循环。
+
+
+## 实施证据与终审状态
+
+实现已冻结于 `e1efb80`；87 个有效正式测量及 1 次保留的无报告超时见[实施证据](evidence/issue62-phaseui/summary.md)与[性能对照](evidence/issue62-phaseui/resource-tables.md)。深色/窄窗重点复测、原生功能和 CI 证据已归档。系统 IME 三次重复矩阵与 VoiceOver 语音验证仍未完成，不以合成事件测试替代。最终证据提交的 CI 与同一 Claude Opus 5.5 Extra 会话结论将记录在 PR #77；Master 终审与合并授权仍待确认，本次不合并。

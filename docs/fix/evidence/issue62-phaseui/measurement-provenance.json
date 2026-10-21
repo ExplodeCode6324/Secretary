@@ -1,0 +1,24 @@
+{
+  "source_sha": "e1efb80adf17919abe9d92cdb0d28d5ad99d5fea",
+  "binary_sha256": "6314ae731beb89843a7f3dc0721e7568035be343f480a133b8335871ae27267b",
+  "valid_counts": {
+    "resource": 54,
+    "final-coverage": 6,
+    "idle-control": 9,
+    "dark-worst": 9,
+    "narrow-worst": 9
+  },
+  "invalid_attempts": 1,
+  "platform": "macOS 15.8.2 / Apple M2 / arm64",
+  "webkit_framework_build": "20621.3.11.11.3",
+  "display": "built-in Retina display, DPR2",
+  "power": "AC; low power mode off when checked",
+  "thermal": "no thermal/performance warning recorded at calibration check; continuous temperature NOT_MEASURED",
+  "method": "Phase windows aligned to report receipt; process samples have approximately one-second alignment uncertainty. Candidate RSS sums are not physical/exclusive memory. CPU100%=one core.",
+  "resource_coverage_sampling": false,
+  "coverage_gate": ">=95% completed eligible effects in separate single/navigation cohorts",
+  "latency": "synthetic action scheduled within rAF; callback time to next rAF, not physical/manual input latency",
+  "frame_metric": "rAF callback interval, not physical presentation, paint or GPU time",
+  "manual_ime_voiceover": "reported separately",
+  "earlier_calibrations": "excluded, including all invalid schedules and earlier binary hashes"
+}
