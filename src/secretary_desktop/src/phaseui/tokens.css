@@ -59,11 +59,10 @@
     "Noto Serif", "Noto Sans CJK SC", "PingFang SC", "Apple Color Emoji", serif;
   --header-height: 188px;
   --toolbar-height: 76px;
-  --nav-row-height: max(45px, calc(var(--font-size) * 1.65 + 22px));
+  --nav-row-height: calc(max(24px, var(--font-size) * 1.65) + 22px);
   font: var(--font-size)/1.65 var(--font-ui);
   color-scheme: light;
   font-synthesis: none;
-  scrollbar-color: var(--muted) var(--document);
   color: var(--ink);
   background: var(--document);
   height: 100vh;
@@ -962,23 +961,6 @@ body,
   color: var(--muted);
   overflow-wrap: anywhere;
 }
-.phaseui * {
-  scrollbar-color: var(--muted) var(--document);
-}
-.phaseui ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-.phaseui ::-webkit-scrollbar-track,
-.phaseui ::-webkit-scrollbar-corner {
-  background: var(--document);
-}
-.phaseui ::-webkit-scrollbar-thumb {
-  background: var(--muted);
-  border: 3px solid var(--document);
-  border-radius: 6px;
-}
-
 .phaseui[data-theme="light"] .phase-brand {
   color: #000;
 }

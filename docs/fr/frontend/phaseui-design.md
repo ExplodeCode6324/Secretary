@@ -16,7 +16,7 @@ Les deux côtés occupent toute la hauteur et se distinguent par leurs aplats, s
 
 [layout + breakpoints](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2221) · [selected row](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1997) · [edge rules](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2308)
 
-La ligne pleine largeur sous le titre s’aligne sur le bas de Conversation : hauteur supérieure commune188px,183px à≤600px ; barre76/64px. Applicable à tous les seuils et tailles14–18px. Les erreurs hors envoi et notifications de lecture sont sous la ligne ; l’état d’envoi est sous l’éditeur. Définir color-scheme light/dark et utiliser le fond du document pour les pistes de défilement.
+La ligne pleine largeur sous le titre s’aligne sur le bas de Conversation : hauteur supérieure commune188px,183px à≤600px ; barre76/64px. Applicable à tous les seuils et tailles14–18px. Les erreurs hors envoi et notifications de lecture sont sous la ligne ; l’état d’envoi est sous l’éditeur. Définir color-scheme light/dark et conserver l’apparence système des barres de défilement sans imposer largeur ou fond.
 
 ## Couleurs et typographie
 

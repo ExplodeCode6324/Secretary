@@ -16,7 +16,7 @@ Web 版の比率を使います。通常は左196px、中央 `minmax(0,1fr)`、�
 
 [layout + breakpoints](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2221) · [selected row](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1997) · [edge rules](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2308)
 
-見出し下の全幅線を左の会話行の下端と揃える。上部共通高188px、幅≤600pxでは183px、ツールバー76/64px。全ブレークポイントと14–18px文字サイズに適用する。送信以外のエラーと閲覧通知は線の下、送信状態は入力欄の下に置く。アプリのcolor-schemeをlight/darkに設定し、スクロール軌道は本文背景色にする。
+見出し下の全幅線を左の会話行の下端と揃える。上部共通高188px、幅≤600pxでは183px、ツールバー76/64px。全ブレークポイントと14–18px文字サイズに適用する。送信以外のエラーと閲覧通知は線の下、送信状態は入力欄の下に置く。アプリのcolor-schemeをlight/darkに設定し、スクロールバーのシステム形状を維持し、軌道幅や背景色を強制しない。
 
 ## 色と文字
 

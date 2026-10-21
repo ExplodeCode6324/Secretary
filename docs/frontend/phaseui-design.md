@@ -12,7 +12,7 @@
 
 [layout + breakpoints](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2221) · [selected row](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1997) · [edge rules](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2308)
 
-标题块底部全宽横线与左栏“对话”行底边对齐：共享顶部总高188px，≤600px为183px，工具栏76/64px；适用于所有断点及14–18px字号。非发送错误和阅读提示放在横线下方，发送提示在输入框下方。应用设置 light/dark color-scheme，滚动条轨道使用正文背景。
+标题块底部全宽横线与左栏“对话”行底边对齐：共享顶部总高188px，≤600px为183px，工具栏76/64px；适用于所有断点及14–18px字号。非发送错误和阅读提示放在横线下方，发送提示在输入框下方。应用设置 light/dark color-scheme，滚动条沿用系统形态并随主题显示，不强制轨道宽度或背景。
 
 ## 颜色与文字
 

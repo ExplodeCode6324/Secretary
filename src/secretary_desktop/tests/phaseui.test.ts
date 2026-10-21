@@ -76,7 +76,7 @@ test("diagnostic bridge owns only in-memory data and preserves draft version saf
   assert(live?.data);
 });
 
-test("divider frames preserve the source length and displace multiple non-overlapping segments in both directions", () => {
+test("divider frames use specified non-overlapping gaps and alternating vertical offsets", () => {
   for (const width of [48, 200, 1400]) {
     const source = dividerSample(width);
     const frames = [
@@ -85,7 +85,30 @@ test("divider frames preserve the source length and displace multiple non-overla
       thirdFrame(source, { width, height: 1 }),
     ];
     assert.equal(new Set(frames.map((f) => JSON.stringify(f.slices))).size, 3);
-    for (const frame of frames) {
+    const positions = [
+      [0.22, 0.62],
+      [0.42, 0.76],
+      [0.15, 0.55, 0.61],
+    ];
+    const offsets = [
+      [1.5, -1.5],
+      [-1.5, 1.5],
+      [1.5, -1.5, 1.5],
+    ];
+    for (const [index, frame] of frames.entries()) {
+      assert.deepEqual(
+        frame.slices!.map((s) => s.band.x),
+        positions[index].map((p) => p * width),
+      );
+      assert.deepEqual(
+        frame.slices!.map((s) => s.dy),
+        offsets[index],
+      );
+      assert(
+        frame.slices!.every(
+          (s) => s.band.width === Math.min(14, width * 0.035),
+        ),
+      );
       const slices = frame.slices!;
       assert(slices.length >= 2);
       assert(slices.some((s) => s.dy > 0) && slices.some((s) => s.dy < 0));

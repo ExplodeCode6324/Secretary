@@ -191,9 +191,9 @@ function mountFaultFrame(
       const moved = el(document, "g", { class: "displaced-slice" });
       const cropped = el(document, "g", { "clip-path": `url(#${sliceId})` });
       if (hasDropout) {
-        const dropMask = makeMask("-drop");
+        const dropMask = makeMask(`-drop-${index}`);
         addDropout(dropMask);
-        cropped.setAttribute("mask", `url(#${id}-drop)`);
+        cropped.setAttribute("mask", `url(#${id}-drop-${index})`);
       }
       draw(cropped);
       moved.append(cropped);

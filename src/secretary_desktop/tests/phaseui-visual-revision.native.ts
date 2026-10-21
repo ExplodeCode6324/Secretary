@@ -43,6 +43,7 @@ describe("Master visual corrections in native WKWebView", () => {
           const style = (s: string) =>
             getComputedStyle(document.querySelector(s)!);
           return {
+            dpr: devicePixelRatio,
             fonts: [...document.fonts]
               .filter((f) => f.status === "loaded")
               .map((f) => f.family),
@@ -59,7 +60,14 @@ describe("Master visual corrections in native WKWebView", () => {
             shadow: style("[data-identity-source]").textShadow,
           };
         });
-        assert(Math.abs(result.delta) < 1, JSON.stringify(result));
+        fs.writeFileSync(
+          `${out}/alignment-${width}-${fontSize}.json`,
+          JSON.stringify(result, null, 2),
+        );
+        assert(
+          Math.abs(result.delta) * result.dpr < 0.5,
+          JSON.stringify(result),
+        );
         for (const face of ["Noto Sans", "Noto Serif", "Noto Sans CJK SC"])
           assert(
             result.fonts.some((f) => f.replaceAll('"', "") === face),
@@ -92,14 +100,14 @@ describe("Master visual corrections in native WKWebView", () => {
     const styles = await browser.execute(() => ({
       scheme: getComputedStyle(document.querySelector("main.connected")!)
         .colorScheme,
-      track: getComputedStyle(
+      scrollbarWidth: getComputedStyle(
         document.querySelector("main.connected")!,
-        "::-webkit-scrollbar-track",
-      ).backgroundColor,
+        "::-webkit-scrollbar",
+      ).width,
       outline: getComputedStyle(document.querySelector("#draft")!).outlineStyle,
     }));
     assert.equal(styles.scheme, "dark");
-    assert.equal(styles.track, "rgb(0, 0, 0)");
+    assert.notEqual(styles.scrollbarWidth, "10px");
     assert.equal(styles.outline, "none");
     await painted();
     await browser.saveScreenshot(`${out}/dark-enabled.png`);
@@ -135,6 +143,7 @@ describe("Master visual corrections in native WKWebView", () => {
             const c = (window as any).phaseTest;
             c.configure({ mode: "extended", freeze: frame, seed: 0 });
             const n = document.querySelector(selector)!;
+            n.querySelector<HTMLTextAreaElement>("textarea")?.focus();
             c.targets.get(n).last = -1000;
             c.play(n);
             const shown = [...n.querySelectorAll("[data-phase-frame]")].filter(
@@ -149,6 +158,9 @@ describe("Master visual corrections in native WKWebView", () => {
                 x.getAttribute("style"),
               ),
               residue: e.querySelectorAll(".signal-residue").length,
+              strokes: [...e.querySelectorAll(".rendered-base path")].map((p) =>
+                p.getAttribute("stroke-width"),
+              ),
             }));
           },
           selector,
@@ -159,6 +171,8 @@ describe("Master visual corrections in native WKWebView", () => {
         assert(result[0].gaps.length >= 2);
         assert.equal(result[0].slices.length, result[0].gaps.length);
         assert.equal(result[0].residue, 0);
+        if (selector.includes("composer"))
+          assert(result[0].strokes.every((w) => w === "2"));
         geometries.push(JSON.stringify(result[0].gaps));
         await painted();
         await browser.saveScreenshot(
