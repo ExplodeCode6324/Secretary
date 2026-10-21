@@ -45,9 +45,9 @@ Each cell is the median of three runs, followed by the full run range. CPU100% i
 
 | Scenario | Mode | App CPU mean % | New WebKit candidate CPU mean % | App peak RSS MiB | Candidate peak RSS MiB | rAF p95 ms | Next-callback p95 ms | Schedule max lateness ms |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
-| idle | off | 0.00 [0.00–0.00] | 0.84 [0.79–0.96] | 80.58 [80.19–80.59] | 123.72 [123.19–125.06] | N/A | N/A | N/A |
-| idle | base | 0.02 [0.00–0.02] | 0.98 [0.94–1.13] | 80.38 [80.02–80.55] | 124.67 [124.14–124.95] | N/A | N/A | N/A |
-| idle | extended | 0.02 [0.00–0.02] | 1.04 [0.89–1.11] | 80.28 [80.23–80.67] | 125.30 [123.22–126.95] | N/A | N/A | N/A |
+| idle | off | 0.00 [0.00–0.02] | 0.93 [0.91–1.03] | 80.58 [80.19–80.59] | 123.72 [123.19–125.06] | N/A | N/A | N/A |
+| idle | base | 0.00 [0.00–0.02] | 1.03 [1.03–1.16] | 80.38 [80.02–80.55] | 124.67 [124.14–124.95] | N/A | N/A | N/A |
+| idle | extended | 0.02 [0.02–0.02] | 1.03 [0.98–1.13] | 80.28 [80.23–80.67] | 125.30 [123.22–126.95] | N/A | N/A | N/A |
 
 ## Absolute mode deltas vs OFF
 

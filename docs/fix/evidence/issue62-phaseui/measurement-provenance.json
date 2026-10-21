@@ -14,7 +14,7 @@
   "display": "built-in Retina display, DPR2",
   "power": "AC; low power mode off when checked",
   "thermal": "no thermal/performance warning recorded at calibration check; continuous temperature NOT_MEASURED",
-  "method": "Phase windows aligned to report receipt; process samples have approximately one-second alignment uncertainty. Candidate RSS sums are not physical/exclusive memory. CPU100%=one core.",
+  "method": "Reported-run phase windows align to report receipt with approximately one-second uncertainty; reporting-off idle uses the fixed process-relative30\u201390s window, approximately aligned to the configured30s settle/60s active period (no final report exists). Candidate RSS sums are not physical/exclusive memory. CPU100%=one core.",
   "resource_coverage_sampling": false,
   "coverage_gate": ">=95% completed eligible effects in separate single/navigation cohorts",
   "latency": "synthetic action scheduled within rAF; callback time to next rAF, not physical/manual input latency",
