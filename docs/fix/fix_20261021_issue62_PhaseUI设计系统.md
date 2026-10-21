@@ -238,7 +238,7 @@ Master 要求修正七项：深色滚动条；分隔线三帧多处上下错位�
 
 ### R9 具体参数与复核处置
 
-字体离线包：Noto Sans / Noto Serif 可变 normal 与 italic（100–900），Noto Sans SC 可变 normal（100–900，Noto Sans CJK 简体成员）；保留上游完整字形集，附 OFL，不做应用特定裁剪。禁止字体合成，缺字依次回退 Noto Sans CJK SC、PingFang SC、Apple Color Emoji 与通用字体。会话/编辑器包括代码使用 Noto Serif，时间及 UI 使用 Noto Sans；中文按 Master 要求使用无衬线 CJK。展示混排样例供终审，不擅自替换为 Noto Serif CJK。Vite 禁止资源内联，字体仅 self 文件，检查实际 document.fonts 加载。
+字体离线包：Noto Sans / Noto Serif 可变 normal 与 italic（100–900），Noto Sans SC 可变 normal（100–900，Noto Sans CJK 简体成员）；保留上游完整字形集，附 OFL，不做应用特定裁剪。禁止字体合成，缺字依次回退 Noto Sans CJK SC、PingFang SC、Apple Color Emoji 与通用字体。会话/编辑器使用 Noto Serif，代码块与行内代码保留系统等宽字体，时间及 UI 使用 Noto Sans；中文按 Master 要求使用无衬线 CJK。展示混排样例供终审，不擅自替换为 Noto Serif CJK。Vite 禁止资源内联，字体仅 self 文件，检查实际 document.fonts 加载。
 
 分隔线150ms：三帧分别2/2/3段；每段 min(14px, 线长×0.035)，位置分别22%/62%、42%/76%、15%/55%/61%；偏移分别+1.5/−1.5、−1.5/+1.5、+1.5/−1.5/+1.5px。参数集中定义。竖线旋转后表现为左右错位，裁片不得跨越左栏选中行留白。25%触发概率、700ms冷却、全页最多一处保持不变。源段有真缺口，无残影。输入边框140ms，聚焦单线宽2px，不增加第二矩形；输入失败仍在上方 error 显示并清空等待文案。
 
@@ -247,3 +247,6 @@ Master 要求修正七项：深色滚动条；分隔线三帧多处上下错位�
 更新 docs/frontend 对应正文与本地化副本。品牌无静态/动态色偏，浅色黑色，深色语义文字色。R8其余五项（主按钮蓝填充、图标发送、浅色助手头像、框外提示/按钮、ISO时间）仍待 Master 终审，本轮没有默示批准。完整重跑54次主矩阵、6次覆盖、9次无报告空闲、各9次深色与窄屏压力，共87次；旧数据单独保留。滚动条检查区分已实测应用主题与尚未完成的系统显示偏好组合，不能据截图声称两种系统偏好均通过。
 
 R9 CHANGES_REQUIRED 已采纳上述具体化、规范同步与完整复测；2px聚焦、品牌单色、独立发送状态已落实。重新提交文本窄复核，源码/性能/CI最终结论另行取得。
+
+
+R10 条件通过的唯一必改项已采纳：代码保留等宽。其余澄清：Master 原文要求黑色，因此品牌浅色使用纯黑；发送失败只清空状态行，保留草稿；竖线把固定比例映射到剔除留白的可用线段；Noto Sans SC 的 @font-face 别名明确为 Noto Sans CJK SC，无 local()；页面特定控件放在标题横线下；字体加载期间不启动装饰动效。正式重测前冻结新提交，重新源码复核。

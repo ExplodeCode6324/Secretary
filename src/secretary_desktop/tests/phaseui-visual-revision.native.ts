@@ -48,6 +48,7 @@ describe("Master visual corrections in native WKWebView", () => {
               .map((f) => f.family),
             ui: style(".phase-brand").fontFamily,
             prose: style(".phase-message .prose").fontFamily,
+            code: style(".phase-message pre").fontFamily,
             delta:
               document
                 .querySelector(".phase-page-heading")!
@@ -66,6 +67,7 @@ describe("Master visual corrections in native WKWebView", () => {
           );
         assert(result.ui.includes("Noto Sans"));
         assert(result.prose.includes("Noto Serif"));
+        assert(result.code.includes("monospace"));
         assert.equal(result.shadow, "none");
         await painted();
         await browser.saveScreenshot(

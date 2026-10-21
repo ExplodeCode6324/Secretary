@@ -217,3 +217,23 @@ test("input contact never replays for typing, composition or caret clicks", () =
     f.cleanup();
   }
 });
+test("font loading suppresses decoration without queuing a replay", () => {
+  const f = setup(),
+    c = new MotionController();
+  const node = f.node as unknown as HTMLElement;
+  const fonts = { status: "loading" };
+  Object.assign(f.document, { fonts });
+  try {
+    const binding = c.register(node, { kind: "border" });
+    c.play(node);
+    assert.equal(c.active.size, 0);
+    fonts.status = "loaded";
+    assert.equal(c.active.size, 0);
+    c.play(node);
+    assert(c.active.has(node));
+    binding.destroy();
+  } finally {
+    c.clearAll();
+    f.cleanup();
+  }
+});

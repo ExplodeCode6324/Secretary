@@ -131,7 +131,9 @@
   color: var(--muted);
 }
 .phaseui code,
-.phaseui pre,
+.phaseui pre {
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
 .phaseui time {
   font-family: inherit;
 }

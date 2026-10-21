@@ -241,6 +241,7 @@ export class MotionController {
   enabled(node: HTMLElement) {
     return (
       node.isConnected &&
+      document.fonts?.status !== "loading" &&
       !this.reduced &&
       ["base", "extended"].includes(this.options.mode) &&
       !this.targets.get(node)?.options.disabled &&

@@ -45,6 +45,7 @@ describe("PhaseUI in native WKWebView", () => {
   before(async () => {
     fs.mkdirSync(out, { recursive: true });
     await $("[data-page=conversation]").waitForDisplayed({ timeout: 20000 });
+    await browser.executeAsync((done) => document.fonts.ready.then(() => done(true)));
   });
   it("normal shell geometry, actual gaps and three distinct temporal frames", async () => {
     assert.equal(await $(".phaseui").getAttribute("data-theme"), "light");

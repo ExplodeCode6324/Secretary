@@ -19,6 +19,7 @@ describe("PhaseUI public gallery consumers", () => {
     await $('input[aria-label="品牌名称"]').waitForDisplayed({
       timeout: 20000,
     });
+    await browser.executeAsync((done) => document.fonts.ready.then(() => done(true)));
   });
   it("keeps all gallery mode controls consistent with shell CSS", async () => {
     for (const label of ["BASE", "EXTENDED"]) {

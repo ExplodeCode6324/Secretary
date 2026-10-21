@@ -30,7 +30,7 @@
 | `--red` | `#b84550` | `#ed8791` |
 | `--green` | `#42715a` | `#92bfa3` |
 
-按 Master 2026-10-22 裁定：UI、品牌和时间使用 Noto Sans，会话正文、代码与编辑器使用 Noto Serif；中文回退 Noto Sans SC（Noto Sans CJK 简体成员），再回退 PingFang SC、Apple Color Emoji 与通用字体。基准14px、行高1.65。字体及 OFL 随应用离线打包，不运行时下载；拉丁字体 normal/italic 与 CJK normal 使用100–900可变字重，禁止合成字体。品牌为普通黑色文字，深色模式使用浅色语义文字色，静态和动效均无彩色错边；无容器框。助手名来自配置，空白回退 `Secretary`，长名截断保留全文访问。头像尺寸与语义不变。
+按 Master 2026-10-22 裁定：UI、品牌和时间使用 Noto Sans，会话正文与编辑器使用 Noto Serif；中文回退 Noto Sans SC（Noto Sans CJK 简体成员），再回退 PingFang SC、Apple Color Emoji 与通用字体。代码块和行内代码保持系统等宽字体。基准14px、行高1.65。字体及 OFL 随应用离线打包，不运行时下载；拉丁字体 normal/italic 与 CJK normal 使用100–900可变字重，禁止合成字体。品牌为普通黑色文字，深色模式使用浅色语义文字色，静态和动效均无彩色错边；无容器框。助手名来自配置，空白回退 `Secretary`，长名截断保留全文访问。头像尺寸与语义不变。
 
 [base tokens](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1) · [dark theme](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1679) · [brand](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2350) · [identity()](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L537)
 

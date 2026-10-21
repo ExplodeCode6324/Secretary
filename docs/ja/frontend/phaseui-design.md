@@ -34,7 +34,7 @@ Web 版の比率を使います。通常は左196px、中央 `minmax(0,1fr)`、�
 | `--red` | `#b84550` | `#ed8791` |
 | `--green` | `#42715a` | `#92bfa3` |
 
-Master の2026-10-22裁定：UI・ブランド・時刻は Noto Sans、会話本文・コード・入力欄は Noto Serif を使う。中国語は Noto Sans SC（Noto Sans CJK簡体字版）、PingFang SC、Apple Color Emoji、汎用字体の順にフォールバックする。基準14px、行高1.65。字体とOFLをアプリに同梱し実行時に取得しない。ラテン文字normal/italicとCJK normalは100–900の可変ウェイトを使い、字体合成は禁止する。ブランドは明色で黒、暗色で意味的な明るい文字色とし、静止時も動作時も色ずれや枠を付けない。助手名が空なら `Secretary`、省略名も全文アクセス可能にする。アバターの寸法と意味は変えない。
+Master の2026-10-22裁定：UI・ブランド・時刻は Noto Sans、会話本文・入力欄は Noto Serif を使う。中国語は Noto Sans SC（Noto Sans CJK簡体字版）、PingFang SC、Apple Color Emoji、汎用字体の順にフォールバックする。コードブロックとインラインコードはシステム等幅字体を維持する。基準14px、行高1.65。字体とOFLをアプリに同梱し実行時に取得しない。ラテン文字normal/italicとCJK normalは100–900の可変ウェイトを使い、字体合成は禁止する。ブランドは明色で黒、暗色で意味的な明るい文字色とし、静止時も動作時も色ずれや枠を付けない。助手名が空なら `Secretary`、省略名も全文アクセス可能にする。アバターの寸法と意味は変えない。
 
 [base tokens](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1) · [dark theme](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1679) · [brand](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2350) · [identity()](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L537)
 
