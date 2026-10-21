@@ -1,6 +1,8 @@
 [
   {
     "run": "20261021T002006.512836Z-resource-bridge-cadence-off",
+    "sha": "e1efb80adf17919abe9d92cdb0d28d5ad99d5fea",
+    "dirty": false,
     "cohort": "resource",
     "scenario": "bridge-cadence",
     "mode": "off",
