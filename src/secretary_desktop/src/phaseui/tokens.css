@@ -1,3 +1,39 @@
+@font-face {
+  font-family: "Noto Sans";
+  src: url("./fonts/notosans-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Serif";
+  src: url("./fonts/notoserif-italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans";
+  src: url("./fonts/notosans.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Serif";
+  src: url("./fonts/notoserif.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Noto Sans CJK SC";
+  src: url("./fonts/notosanssc.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
 /* Frozen v1.0.0 final computed palette; semantic surfaces avoid paper/surface inversion. */
 .phaseui {
   --document: #fffcf6;
@@ -16,17 +52,25 @@
   --line-width: 1px;
   --motion-small: 140ms;
   --motion-identity: 180ms;
-  font:
-    var(--font-size)/1.65 -apple-system,
-    BlinkMacSystemFont,
-    "PingFang SC",
+  --font-ui:
+    "Noto Sans", "Noto Sans CJK SC", "PingFang SC", "Apple Color Emoji",
     sans-serif;
+  --font-session:
+    "Noto Serif", "Noto Sans CJK SC", "PingFang SC", "Apple Color Emoji", serif;
+  --header-height: 188px;
+  --toolbar-height: 76px;
+  --nav-row-height: max(45px, calc(var(--font-size) * 1.65 + 22px));
+  font: var(--font-size)/1.65 var(--font-ui);
+  color-scheme: light;
+  font-synthesis: none;
+  scrollbar-color: var(--muted) var(--document);
   color: var(--ink);
   background: var(--document);
   height: 100vh;
   overflow: hidden;
 }
 .phaseui[data-theme="dark"] {
+  color-scheme: dark;
   --document: #000;
   --sidebar: #141414;
   --ink: #e0e4e8;
@@ -89,7 +133,11 @@
 .phaseui code,
 .phaseui pre,
 .phaseui time {
-  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-family: inherit;
+}
+.phase-message .prose,
+.phaseui .phase-input textarea {
+  font-family: var(--font-session);
 }
 .phaseui pre {
   white-space: pre-wrap;
@@ -148,11 +196,11 @@
 .phase-brand {
   position: relative;
   color: var(--ink);
-  font:
-    700 30px/1.2 ui-monospace,
-    monospace;
+  font: 600 22px/1.2 var(--font-ui);
   display: block;
-  margin: 4px 0 76px;
+  margin: 4px 0 0;
+  height: calc(var(--header-height) - var(--nav-row-height) - 40px);
+  flex-shrink: 0;
   max-width: 100%;
   text-decoration: none;
 }
@@ -161,9 +209,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-shadow:
-    -1px 0 var(--blue),
-    1px 0.5px var(--light-blue);
+  text-shadow: none;
 }
 .phase-directory {
   display: flex;
@@ -180,7 +226,7 @@
   color: var(--muted);
   text-decoration: none;
   padding: 10px 20px 10px 39px;
-  min-height: 45px;
+  min-height: var(--nav-row-height);
   border-top: 1px solid transparent;
   border-bottom: 1px solid transparent;
 }
@@ -212,9 +258,7 @@
 .phase-sidebar footer {
   margin-top: auto;
   padding-top: 40px;
-  font:
-    10px ui-monospace,
-    monospace;
+  font: 10px var(--font-ui);
   color: var(--muted);
 }
 .phase-workspace {
@@ -238,7 +282,7 @@
   background: var(--document);
 }
 .phase-toolbar {
-  height: 76px;
+  height: var(--toolbar-height);
   flex-shrink: 0;
   border-bottom: 1px solid var(--line);
   padding: 16px 36px;
@@ -248,7 +292,11 @@
   gap: 14px;
 }
 .phase-page-heading {
-  padding: 36px 36px 28px;
+  position: relative;
+  height: calc(var(--header-height) - var(--toolbar-height));
+  display: flex;
+  align-items: center;
+  padding: 0 36px;
   flex-shrink: 0;
 }
 .phase-scroll {
@@ -385,6 +433,7 @@
   background: var(--document);
 }
 .phase-input:focus-within {
+  box-shadow: inset 0 0 0 1px var(--blue);
   border-color: var(--blue);
 }
 .phase-input textarea,
@@ -395,7 +444,7 @@
   color: inherit;
   background: transparent;
   border: 0;
-  outline-offset: 4px;
+  outline: none;
   resize: vertical;
 }
 .phase-input textarea {
@@ -427,9 +476,7 @@
   height: 32px;
   flex-shrink: 0;
   border: 1px solid var(--line);
-  font:
-    12px ui-monospace,
-    monospace;
+  font: 12px var(--font-ui);
   background: var(--sidebar);
   display: inline-flex;
   align-items: center;
@@ -603,6 +650,7 @@
   inset: 0;
 }
 .phase-border-fault {
+  box-shadow: none !important;
   border-color: transparent !important;
 }
 .phase-line-fault:after {
@@ -690,6 +738,10 @@
   }
 }
 @media (max-width: 600px) {
+  .phaseui {
+    --header-height: 183px;
+    --toolbar-height: 64px;
+  }
   .phase-shell {
     grid-template-columns: 64px minmax(0, 1fr);
   }
@@ -697,10 +749,11 @@
     padding: 26px 0 12px;
   }
   .phase-brand {
-    margin: 0 auto 32px;
+    margin: 0 auto;
+    height: calc(var(--header-height) - var(--nav-row-height) - 26px);
     width: 26px;
     font-size: 20px;
-    max-height: 80px;
+    max-height: none;
   }
   .phase-brand [data-identity-source] {
     writing-mode: vertical-rl;
@@ -883,4 +936,47 @@ body,
 .phase-button[aria-disabled="true"] {
   cursor: default;
   opacity: 0.55;
+}
+
+/* The single outer boundary owns input focus; the editor never draws a second box. */
+.phaseui .phase-input :is(textarea, input, select):focus-visible {
+  outline: none;
+}
+.phase-border-fault > [data-phase-layer] {
+  inset: -1px;
+}
+.phase-divider-fault > [data-phase-layer] {
+  top: -1px;
+}
+.phase-divider-fault[data-edge="left"] > [data-phase-layer],
+.phase-divider-fault[data-edge="right"] > [data-phase-layer] {
+  top: 0;
+  left: -1px;
+}
+.phase-send-status {
+  min-height: 1.65em;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.phaseui * {
+  scrollbar-color: var(--muted) var(--document);
+}
+.phaseui ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.phaseui ::-webkit-scrollbar-track,
+.phaseui ::-webkit-scrollbar-corner {
+  background: var(--document);
+}
+.phaseui ::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border: 3px solid var(--document);
+  border-radius: 6px;
+}
+
+.phaseui[data-theme="light"] .phase-brand {
+  color: #000;
 }

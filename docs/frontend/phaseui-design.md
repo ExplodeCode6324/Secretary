@@ -12,6 +12,8 @@
 
 [layout + breakpoints](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2221) · [selected row](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1997) · [edge rules](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2308)
 
+标题块底部全宽横线与左栏“对话”行底边对齐：共享顶部总高188px，≤600px为183px，工具栏76/64px；适用于所有断点及14–18px字号。非发送错误和阅读提示放在横线下方，发送提示在输入框下方。应用设置 light/dark color-scheme，滚动条轨道使用正文背景。
+
 ## 颜色与文字
 
 以下数值来自 v1.0 最终主题规则。状态颜色直接沿用 v1.0 选择器和语义，不能只读文件头 token 后另配状态色；颜色伴随文字，装饰双色不表示业务完成。
@@ -28,7 +30,7 @@
 | `--red` | `#b84550` | `#ed8791` |
 | `--green` | `#42715a` | `#92bfa3` |
 
-正文系统无衬线，基准14px、行高1.65；品牌、时间等系统等宽字体，不加载外部字体。品牌字形带蓝/浅蓝硬边（−1px/1px，浅蓝下移0.5px），无静态容器框；助手名来自配置，空白回退 `Secretary`。长名截断时保留全文访问。Master/助手头像固定尺寸并保留原边框，不新增虚假按钮或 Tab 停靠点。
+按 Master 2026-10-22 裁定：UI、品牌和时间使用 Noto Sans，会话正文、代码与编辑器使用 Noto Serif；中文回退 Noto Sans SC（Noto Sans CJK 简体成员），再回退 PingFang SC、Apple Color Emoji 与通用字体。基准14px、行高1.65。字体及 OFL 随应用离线打包，不运行时下载；拉丁字体 normal/italic 与 CJK normal 使用100–900可变字重，禁止合成字体。品牌为普通黑色文字，深色模式使用浅色语义文字色，静态和动效均无彩色错边；无容器框。助手名来自配置，空白回退 `Secretary`，长名截断保留全文访问。头像尺寸与语义不变。
 
 [base tokens](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1) · [dark theme](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1679) · [brand](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2350) · [identity()](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L537)
 
@@ -44,7 +46,7 @@
 | Send square / arrow | 160 / 420 ms |
 | Composer boundary / separator | 140 / 150 ms |
 
-发送箭头420ms投射是指定例外，不推广到其他图标。分隔线每次片段≤18px、约1px错位，沿用700ms冷却及全页最多一处；Master R1 要求随机决定是否播放，不是每次接近都触发，也不是后台自动循环。具体概率在 #62 试验中记录。
+发送箭头420ms投射是指定例外。按 Master 2026-10-22 裁定，分隔线150ms三帧分别重构2/2/3个短段，每段 min(14px, 可见线长×0.035)，位置依次22%/62%、42%/76%、15%/55%/61%，方向依次下/上、上/下、下/上/下，幅度1.5px。竖线对应左右错位并避开选中行留白。源段移走留真缺口，不画彩色残影；参数集中定义。每次接触25%概率、700ms冷却、全页最多一处，不后台循环。
 
 [geometry](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/prototype.js#L1) · [plan / mask](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L5) · [three frames](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L204) · [controller](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L312) · [separators](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L694) · [gallery](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/prototype.js#L334)
 

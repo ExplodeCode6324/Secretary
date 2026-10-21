@@ -16,6 +16,8 @@ Web 版の比率を使います。通常は左196px、中央 `minmax(0,1fr)`、�
 
 [layout + breakpoints](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2221) · [selected row](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1997) · [edge rules](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2308)
 
+見出し下の全幅線を左の会話行の下端と揃える。上部共通高188px、幅≤600pxでは183px、ツールバー76/64px。全ブレークポイントと14–18px文字サイズに適用する。送信以外のエラーと閲覧通知は線の下、送信状態は入力欄の下に置く。アプリのcolor-schemeをlight/darkに設定し、スクロール軌道は本文背景色にする。
+
 ## 色と文字
 
 下記は v1.0 のテーマ規則です。状態色は同版のセレクタと意味を継承し、先頭 token だけから別配色を作りません。色には文字を伴わせ、装飾の青系二色は業務完了を示しません。
@@ -32,7 +34,7 @@ Web 版の比率を使います。通常は左196px、中央 `minmax(0,1fr)`、�
 | `--red` | `#b84550` | `#ed8791` |
 | `--green` | `#42715a` | `#92bfa3` |
 
-本文はシステムのサンセリフで基準14px/1.65、ブランドと時刻などはシステム等幅を使い、外部フォントを読み込みません。ブランド字形は青/淡青の硬い縁（−1px/1px、淡青は下へ0.5px）で、固定枠はありません。設定名を使い空白は `Secretary`、省略時も全文を参照可能にします。両者のアバターは固定寸法と元の枠を保ち、偽ボタンや余分な Tab 停止点を追加しません。
+Master の2026-10-22裁定：UI・ブランド・時刻は Noto Sans、会話本文・コード・入力欄は Noto Serif を使う。中国語は Noto Sans SC（Noto Sans CJK簡体字版）、PingFang SC、Apple Color Emoji、汎用字体の順にフォールバックする。基準14px、行高1.65。字体とOFLをアプリに同梱し実行時に取得しない。ラテン文字normal/italicとCJK normalは100–900の可変ウェイトを使い、字体合成は禁止する。ブランドは明色で黒、暗色で意味的な明るい文字色とし、静止時も動作時も色ずれや枠を付けない。助手名が空なら `Secretary`、省略名も全文アクセス可能にする。アバターの寸法と意味は変えない。
 
 [base tokens](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1) · [dark theme](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1679) · [brand](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2350) · [identity()](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L537)
 
@@ -48,7 +50,7 @@ Web 版の比率を使います。通常は左196px、中央 `minmax(0,1fr)`、�
 | Send square / arrow | 160 / 420 ms |
 | Composer boundary / separator | 140 / 150 ms |
 
-送信矢印の420ms投射は指定例外で、他のアイコンへ拡張しません。分隔線は一片≤18px、約1pxずれ、700ms冷却と全体一箇所を維持します。R1 は再生するかどうかのランダム判断を追加し、毎回の接近や背景ループではありません。確率は #62 試験で記録します。
+送信矢印の420ms投射は指定例外。Master の2026-10-22裁定により、区切り線は150msの三フレームで2/2/3個の短片を再構成する。長さは min(14px, 可視線長×0.035)、位置は22%/62%、42%/76%、15%/55%/61%、方向は下/上、上/下、下/上/下、振幅1.5px。縦線は左右にずらし、選択行の空白を避ける。元の短片に実際の欠けを作り、色付き残像を描かない。パラメータは集約する。接触ごと25%の確率、700ms冷却、全体で最大一箇所を維持し、背景ループは禁止する。
 
 [geometry](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/prototype.js#L1) · [plan / mask](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L5) · [three frames](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L204) · [controller](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L312) · [separators](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L694) · [gallery](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/prototype.js#L334)
 

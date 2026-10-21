@@ -101,6 +101,7 @@
   let dirty = $state(false);
   let error = $state("");
   let notice = $state("");
+  let sendNotice = $state("");
   let busy = $state(false);
   let saving = $state(false);
   let composing = $state(false);
@@ -198,6 +199,7 @@
     }
     busy = true;
     generation++;
+    sendNotice = "";
     live = null;
     reconnecting = false;
     history = null;
@@ -276,7 +278,7 @@
       round = generation;
     busy = true;
     error = "";
-    notice = "正在保存发送意图…";
+    sendNotice = "正在保存发送意图…";
     chain = chain
       .catch(() => {})
       .then(async () => {
@@ -294,13 +296,15 @@
             text = "";
             dirty = false;
           }
-          notice = "已持久排队：" + id;
+          sendNotice =
+            (synthetic ? "模拟请求已排队：" : "已保存到本机发送队列：") + id;
           await latest();
         }
       });
     try {
       await chain;
     } catch (e) {
+      sendNotice = "";
       displayError(e);
     } finally {
       busy = false;
@@ -415,7 +419,10 @@
   {#snippet status()}<span data-testid="status"
       >{data.sync}{data.error ? " · " + data.error : ""}</span
     >{/snippet}
-  <div class="phase-page-heading"><h1>{titles[page]}</h1></div>
+  <div class="phase-page-heading">
+    <h1>{titles[page]}</h1>
+    <Divider edge="bottom" />
+  </div>
   {#if error}<Status state="error">{error}</Status>{/if}
   {#if notice}<Status state="pending">{notice}</Status>{/if}
   {#if !data.domain}<div class="phase-scroll">
@@ -488,6 +495,9 @@
           !text.trim() ||
           !capability(data.core, "messages")}
       />
+    </div>
+    <div class="phase-send-status" role="status" aria-live="polite">
+      {sendNotice}
     </div>
   </section>
   {#if data.domain}{#key data.domain + ":" + data.core?.instance_id}<Work

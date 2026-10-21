@@ -21,8 +21,8 @@
     "docs/frontend/README.md": "38be79089c9f757ad3d3e7da7cad428f295301af5a77bac5c11df5e629c4905f",
     "docs/frontend/acceptance.md": "d11cddd39a3990692a84e8a0e187ed2e01ed972ad199c11bbb0ad8603eea17f1",
     "docs/frontend/architecture-and-flows.md": "1e1d9305d67e429847f2e29c1b8234713b766fb38472915221cb86074e39970d",
-    "docs/frontend/components-and-states.md": "bf10814cea4ce54781f581359f533aa9cedcea0253664f4d77d7e265ce92ec16",
-    "docs/frontend/phaseui-design.md": "9739b7aae14e053687019beb1eded004b19aa42ed53b4528612438327d664f93",
+    "docs/frontend/components-and-states.md": "7fbaa32524fa1321d1dd3e00acb1800d8045059e2de5d7243e2f3f2945ef3337",
+    "docs/frontend/phaseui-design.md": "0dd299a21197fcd472d4f42bebaf77fcc4da62afe6701d27aa25120a50fd0437",
     "docs/frontend/source-migration.md": "59d0e328ce239b5d80fcae177b32f4e65bfaf18b03971d4001f513f73d484110",
     "docs/data/ActionScope.md": "78cd762ab776a749ee042df9efa98e0563cb4236422da668d3af568e72062b64",
     "docs/data/ApiCommand.md": "c29ad52119561cd9cf95fa9ef4fbc57efde769a68566b35bd67af28e4864cd41",
@@ -126,7 +126,7 @@
     "test_case/offline/issue2/README.md": "ca30d99aa6262c09c0bc0952ce53b9b3adbb844565884c452fe63c91f8a4bdc6",
     "test_case/offline/issue5/README.md": "3baf27bf3d3e621631ea183b92f6830ea77de42e976ad5d1a4da76e9bcf86a0f"
   },
-  "catalog_sha256": "8df13c525b1126ffd67b397835e2b4ca4af84ecaad61a0ccb041b7fde82d8351",
+  "catalog_sha256": "4eb1e3174c9d32d1977f5225d888bf4a8afc435e97ca43fb870394fd8189552e",
   "outputs": [
     "README.fr.md",
     "README.ja.md",

@@ -55,6 +55,20 @@ describe("FE-01 real WKWebView native bridge", () => {
       { timeout: 20000 },
     );
     assert.equal((await snapshot()).draft.text, "");
+    assert(
+      (await $(".phase-send-status").getText()).startsWith(
+        "已保存到本机发送队列：",
+      ),
+    );
+    assert(
+      await browser.execute(
+        () =>
+          document.querySelector(".phase-send-status")!.getBoundingClientRect()
+            .top >
+          document.querySelector("#composer-boundary")!.getBoundingClientRect()
+            .bottom,
+      ),
+    );
     const endpoint = JSON.parse(
       fs.readFileSync(path.join(dir, "core/core-endpoint.json"), "utf8"),
     );

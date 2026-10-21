@@ -2,7 +2,11 @@
 import type { Shape } from "../geometry";
 export type Bounds = { width: number; height: number };
 export type Band = { x: number; y: number; width: number; height: number };
+export type Slice = { band: Band; dx: number; dy: number };
 export type Sample = {
+  slices?: Slice[];
+  secondSlices?: Slice[];
+  thirdSlices?: Slice[];
   kind: number;
   duration: number;
   band: Band;
@@ -166,74 +170,81 @@ function mountFaultFrame(
   draw(base);
   layer.append(base);
   if (hasSlice) {
-    const cut = el(document, "rect", {
-      ...sample.band,
-      fill: "black",
-      stroke: "none",
-      class: "source-gap",
-    });
-    baseMask.append(cut);
-    const clip = el(document, "clipPath", {
-      id: id + "-slice",
-      clipPathUnits: "userSpaceOnUse",
-    });
-    clip.append(el(document, "rect", { ...sample.band }));
-    defs.append(clip);
-    const moved = el(document, "g", { class: "displaced-slice" });
-    const cropped = el(document, "g", { "clip-path": `url(#${id}-slice)` });
-    if (hasDropout) {
-      const dropMask = makeMask("-drop");
-      addDropout(dropMask);
-      cropped.setAttribute("mask", `url(#${id}-drop)`);
-    }
-    draw(cropped);
-    moved.append(cropped);
-    layer.append(moved);
-    const dx = sample.dx,
-      dy = sample.dy || 0;
-    const frames = [
-      { transform: `translate(${dx}px,${dy}px)`, offset: 0 },
-      { transform: "translate(0px,0px)", offset: 0.48 },
-      { transform: `translate(${dx * 0.5}px,${dy}px)`, offset: 0.64 },
-      { transform: "translate(0px,0px)", offset: 1 },
+    const slices = sample.slices ?? [
+      { band: sample.band, dx: sample.dx, dy: sample.dy || 0 },
     ];
-    animate(moved, frames, sample.duration);
-    if (residue) {
-      const echo = el(document, "g", {
-        "clip-path": `url(#${id}-slice)`,
-        class: "signal-residue",
-        color: "var(--light-blue)",
+    for (const [index, slice] of slices.entries()) {
+      const sliceId = `${id}-slice-${index}`;
+      const cut = el(document, "rect", {
+        ...slice.band,
+        fill: "black",
+        stroke: "none",
+        class: "source-gap",
       });
-      paths.forEach((d) =>
-        echo.append(
-          el(document, "path", {
-            d,
-            fill: "none",
-            stroke: "currentColor",
-            "stroke-width": sample.residueWidth ?? 1,
-          }),
-        ),
-      );
-      layer.append(echo);
-      animate(
-        echo,
-        [
-          {
-            opacity: 0.45,
-            transform: `translate(${-dx / 2}px,0px)`,
-            offset: 0,
-          },
-          { opacity: 0, transform: "translate(0px,0px)", offset: 0.5 },
-          { opacity: 0, offset: 1 },
-        ],
-        sample.duration,
-      );
+      baseMask.append(cut);
+      const clip = el(document, "clipPath", {
+        id: sliceId,
+        clipPathUnits: "userSpaceOnUse",
+      });
+      clip.append(el(document, "rect", { ...slice.band }));
+      defs.append(clip);
+      const moved = el(document, "g", { class: "displaced-slice" });
+      const cropped = el(document, "g", { "clip-path": `url(#${sliceId})` });
+      if (hasDropout) {
+        const dropMask = makeMask("-drop");
+        addDropout(dropMask);
+        cropped.setAttribute("mask", `url(#${id}-drop)`);
+      }
+      draw(cropped);
+      moved.append(cropped);
+      layer.append(moved);
+      const dx = slice.dx,
+        dy = slice.dy;
+      const frames = [
+        { transform: `translate(${dx}px,${dy}px)`, offset: 0 },
+        { transform: "translate(0px,0px)", offset: 0.48 },
+        { transform: `translate(${dx * 0.5}px,${dy}px)`, offset: 0.64 },
+        { transform: "translate(0px,0px)", offset: 1 },
+      ];
+      animate(moved, frames, sample.duration);
+      if (residue) {
+        const echo = el(document, "g", {
+          "clip-path": `url(#${sliceId})`,
+          class: "signal-residue",
+          color: "var(--light-blue)",
+        });
+        paths.forEach((d) =>
+          echo.append(
+            el(document, "path", {
+              d,
+              fill: "none",
+              stroke: "currentColor",
+              "stroke-width": sample.residueWidth ?? 1,
+            }),
+          ),
+        );
+        layer.append(echo);
+        animate(
+          echo,
+          [
+            {
+              opacity: 0.45,
+              transform: `translate(${-dx / 2}px,0px)`,
+              offset: 0,
+            },
+            { opacity: 0, transform: "translate(0px,0px)", offset: 0.5 },
+            { opacity: 0, offset: 1 },
+          ],
+          sample.duration,
+        );
+      }
     }
   }
 }
 export function secondFrame(sample: Sample, bounds: Bounds): Sample {
   return {
     ...sample,
+    slices: sample.secondSlices,
     band: sample.secondBand || {
       ...sample.band,
       y: Math.min(
@@ -254,6 +265,7 @@ export function secondFrame(sample: Sample, bounds: Bounds): Sample {
 export function thirdFrame(sample: Sample, bounds: Bounds): Sample {
   return {
     ...sample,
+    slices: sample.thirdSlices,
     band: sample.thirdBand || {
       ...sample.band,
       y: Math.max(0, sample.band.y - sample.band.height - 2),
@@ -338,4 +350,35 @@ export function mountFault(
     ],
     sample.duration,
   );
+}
+
+// Every displaced segment has a matching source gap in each discrete frame.
+export function dividerSample(
+  length: number,
+  gap?: { start: number; end: number },
+): Sample {
+  const visibleLength = length - (gap ? gap.end - gap.start : 0);
+  const width = Math.min(14, visibleLength * 0.035);
+  const position = (fraction: number) => {
+    if (!gap) return length * fraction;
+    const left = Math.max(0, gap.start - width);
+    const right = Math.max(0, length - gap.end - width);
+    const x = fraction * (left + right);
+    return x < left ? x : gap.end + x - left;
+  };
+  const frame = (positions: number[], signs: number[]): Slice[] =>
+    positions.map((x, i) => ({
+      band: { x: position(x), y: -3, width, height: 7 },
+      dx: 0,
+      dy: signs[i] * 1.5,
+    }));
+  return {
+    kind: 0,
+    duration: 150,
+    band: { x: 0, y: -3, width, height: 7 },
+    dx: 0,
+    slices: frame([0.22, 0.62], [1, -1]),
+    secondSlices: frame([0.42, 0.76], [-1, 1]),
+    thirdSlices: frame([0.15, 0.55, 0.61], [1, -1, 1]),
+  };
 }

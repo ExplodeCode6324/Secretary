@@ -1,5 +1,12 @@
 import { geometry } from "../geometry";
-import { el, mountFault, plan, type Animate, type Sample } from "./renderer";
+import {
+  el,
+  mountFault,
+  plan,
+  dividerSample,
+  type Animate,
+  type Sample,
+} from "./renderer";
 export type MotionMode = "off" | "base" | "extended" | "reduced" | "outline";
 export type MotionTarget = {
   kind?:
@@ -486,7 +493,11 @@ export class MotionController {
     };
     for (let i = 0; i < 4; i++) {
       const group = frame(i);
-      for (const part of i === 3 ? ["base"] : ["base", "slice", "echo"]) {
+      for (const part of i === 3
+        ? ["base"]
+        : node.classList.contains("phase-brand")
+          ? ["base", "slice"]
+          : ["base", "slice", "echo"]) {
         const copy = document.createElement("span");
         copy.textContent = source.textContent;
         copy.className = "identity-copy";
@@ -573,11 +584,13 @@ export class MotionController {
         "phase-border-fault",
       ),
     );
+    const stroke = kind === "input" && node.matches(":focus-within") ? 2 : 1;
+    const inset = stroke / 2;
     const paths = navigation
       ? [`M0 .5H${w} M0 ${h - 0.5}H${w}`]
       : underline
         ? [`M0 ${h - 1}H${w}`]
-        : [`M.5 .5H${w - 0.5}V${h - 0.5}H.5Z`];
+        : [`M${inset} ${inset}H${w - inset}V${h - inset}H${inset}Z`];
     const sample: Sample = {
       kind: 0,
       duration: send ? 160 : 140,
@@ -605,6 +618,24 @@ export class MotionController {
       dy: underline ? 1 : 0,
       fill: send ? "currentColor" : undefined,
     };
+    if (kind === "input") {
+      const horizontal = (x: number, y: number, dy: number) => ({
+        band: { x: w * x, y: y - 3, width: Math.min(24, w * 0.08), height: 6 },
+        dx: 0,
+        dy,
+      });
+      const vertical = (y: number, dx: number) => ({
+        band: { x: w - 3, y: h * y, width: 6, height: Math.min(14, h * 0.2) },
+        dx,
+        dy: 0,
+      });
+      sample.slices = [horizontal(0.2, 0.5, -1), vertical(0.35, 1)];
+      sample.secondSlices = [horizontal(0.62, h - 0.5, 1), vertical(0.65, -1)];
+      sample.thirdSlices = [
+        horizontal(0.42, 0.5, 1),
+        horizontal(0.72, h - 0.5, -1),
+      ];
+    }
     mountFault(
       document,
       svg,
@@ -613,7 +644,7 @@ export class MotionController {
       { width: w, height: h },
       animate,
       false,
-      1,
+      stroke,
     );
   }
   private arrow(
@@ -733,19 +764,23 @@ export class MotionController {
       ?.querySelector<HTMLElement>("[data-nav-divider]");
     if (line) this.tryDivider(line);
   }
-  private dividerPath(node: HTMLElement, length: number, vertical: boolean) {
+  private dividerGap(node: HTMLElement, length: number, vertical: boolean) {
     const selected = vertical
       ? node.parentElement?.querySelector<HTMLElement>(
           '.phase-directory [aria-current="page"]',
         )
       : null;
-    if (!selected) return `M0 .5H${length}`;
+    if (!selected) return undefined;
     const top = node.getBoundingClientRect().top,
       row = selected.getBoundingClientRect();
     const start = Math.max(0, row.top - top - 2),
       end = Math.min(length, row.bottom - top + 2);
-    return start < end
-      ? `M0 .5H${start} M${end} .5H${length}`
+    return start < end ? { start, end } : undefined;
+  }
+  private dividerPath(node: HTMLElement, length: number, vertical: boolean) {
+    const gap = this.dividerGap(node, length, vertical);
+    return gap
+      ? `M0 .5H${gap.start} M${gap.end} .5H${length}`
       : `M0 .5H${length}`;
   }
   private tryDivider(node: HTMLElement) {
@@ -759,6 +794,7 @@ export class MotionController {
       return;
     r.last = performance.now();
     if (this.random() >= 0.25) return;
+    const started = performance.now();
     const effect = this.begin(node, 150);
     if (!effect) return;
     this.divider = node;
@@ -773,37 +809,18 @@ export class MotionController {
     }
     node.classList.add("phase-divider-fault");
     e.cleanup.push(() => node.classList.remove("phase-divider-fault"));
-    const start = w * (0.2 + this.random() * 0.55),
-      len = Math.min(18, w * 0.14);
     mountFault(
       document,
       svg,
       [this.dividerPath(node, w, !!r.options.vertical)],
-      {
-        kind: 0,
-        duration: 150,
-        band: { x: start, y: -3, width: len, height: 7 },
-        secondBand: {
-          x: Math.max(0, start - len * 1.4),
-          y: -3,
-          width: len,
-          height: 7,
-        },
-        thirdBand: {
-          x: Math.min(w - len, start + len),
-          y: -3,
-          width: len,
-          height: 7,
-        },
-        dx: (this.random() < 0.5 ? -1 : 1) * 0.5,
-        dy: 1,
-        residueWidth: 0.7,
-      },
+      dividerSample(w, this.dividerGap(node, w, !!r.options.vertical)),
       { width: w, height: 1 },
       animate,
-      true,
+      false,
       1,
     );
+    if (this.options.measure)
+      this.metrics.construction.push(performance.now() - started);
   }
 }
 export const motionController = new MotionController();

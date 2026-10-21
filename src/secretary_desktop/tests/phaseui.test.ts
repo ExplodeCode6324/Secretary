@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { initial, displayName } from "../src/phaseui/identity";
 import { sendShortcut } from "../src/phaseui/input";
 import { seeded } from "../src/phaseui/motion/controller";
-import { plan, secondFrame, thirdFrame } from "../src/phaseui/motion/renderer";
+import {
+  plan,
+  secondFrame,
+  thirdFrame,
+  dividerSample,
+} from "../src/phaseui/motion/renderer";
 import { geometry } from "../src/phaseui/geometry";
 import { fixtureBridge } from "../src/phaseui/fixture";
 test("identity preserves explicit casing and Unicode graphemes", () => {
@@ -69,4 +74,47 @@ test("diagnostic bridge owns only in-memory data and preserves draft version saf
   f.advance();
   const live = await f.port.transient("phaseui-fixture", "fixture-instance");
   assert(live?.data);
+});
+
+test("divider frames preserve the source length and displace multiple non-overlapping segments in both directions", () => {
+  for (const width of [48, 200, 1400]) {
+    const source = dividerSample(width);
+    const frames = [
+      source,
+      secondFrame(source, { width, height: 1 }),
+      thirdFrame(source, { width, height: 1 }),
+    ];
+    assert.equal(new Set(frames.map((f) => JSON.stringify(f.slices))).size, 3);
+    for (const frame of frames) {
+      const slices = frame.slices!;
+      assert(slices.length >= 2);
+      assert(slices.some((s) => s.dy > 0) && slices.some((s) => s.dy < 0));
+      for (const [i, slice] of slices.entries()) {
+        assert.equal(slice.dx, 0);
+        assert(slice.band.x >= 0 && slice.band.x + slice.band.width <= width);
+        if (i)
+          assert(
+            slices[i - 1].band.x + slices[i - 1].band.width < slice.band.x,
+          );
+      }
+    }
+  }
+});
+
+test("vertical divider slices never enter the selected-row blank interval", () => {
+  for (const gap of [
+    { start: 0, end: 48 },
+    { start: 143, end: 188 },
+    { start: 750, end: 800 },
+  ]) {
+    const sample = dividerSample(800, gap);
+    for (const frame of [
+      sample,
+      secondFrame(sample, { width: 800, height: 1 }),
+      thirdFrame(sample, { width: 800, height: 1 }),
+    ]) {
+      for (const { band } of frame.slices!)
+        assert(band.x + band.width <= gap.start || band.x >= gap.end);
+    }
+  }
 });

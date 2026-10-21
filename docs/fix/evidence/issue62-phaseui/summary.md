@@ -1,5 +1,7 @@
 # Issue #62 implementation evidence
 
+**2026-10-22 revision:** Master requested seven visual corrections. See [current visual revision](visual-revision.md). The measurements below describe the prior implementation, not the revised binary.
+
 Status: implementation and formal resource evidence prepared; final evidence review, final-head CI and Master acceptance pending. No merge authorization. macOS only; Linux desktop NOT_TESTED.
 
 ## Implemented surfaces
