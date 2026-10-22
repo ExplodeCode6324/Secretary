@@ -31,6 +31,8 @@ Domain errors after admission retain the receipt. The rejection rules above appl
 
 Responses use `{api_version:"1",data:...}`; errors use `{api_version:"1",error:{code,message}}`. revision, event sequence, World version, and byte lengths are decimal strings; counts and limit are bounded integers; timestamps are UTC ISO 8601. Requests are schema-validated; clients decode known response fields.
 
+Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
+
 Ordinary lists default to 30 entries, maximum 100. A cursor binds the instance, query scope/filters, and last stable key; changing limit can continue, but CURSOR_EXPIRED requires reloading. Lists paginate by stable keys such as first transaction position and ID; sync fills changes. Timeline, message content, and World have their own cursor semantics. GET reads state; a separate viewed command extends HOT retention when users view execution details.
 
 | Content | Usage |

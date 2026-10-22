@@ -42,3 +42,7 @@ Master confirme v1.0 comme seule autorité, `Secretary` pour nom vide, Cmd+Enter
 Les exigences valides v0.3 deviennent indépendantes du framework : brouillons/position, persistance avant effacement, request_id stable et reçus/résultats inconnus, associations/navigation par ID, presented/read et niveau historique. Voir architecture. SwiftUI, Xcode, pt/palette fixes et recette exclusivement VoiceOver ne sont plus requis. VoiceOver reste utile sur macOS ; le comportement détermine la validation.
 
 [architecture and flows](architecture-and-flows.md) · [historical v0.3](../../old/native-client-design-v0.3.md) · [API operations](../../api/v1/operations.json) · [R1 plan](../../fix/fix_20261021_issue61_PhaseUI现行规范.md)
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

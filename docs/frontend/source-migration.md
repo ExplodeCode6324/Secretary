@@ -38,3 +38,7 @@ Master 已确定：v1.0 唯一视觉权威；空白助手名 `Secretary`；Cmd+E
 旧 v0.3 的有效交互要求已转换为框架无关条款：草稿/阅读位置和先持久化再清空、稳定 request_id 与回执/未知结果、实体 ID 关联/定位、通知 presented/read 和历史水位，见架构与流程。旧 SwiftUI、Xcode、固定 pt/配色及 VoiceOver 唯一验收方式不再是门槛；macOS 可继续用 VoiceOver 检查可访问性，但以行为为验收标准。
 
 [architecture and flows](architecture-and-flows.md) · [historical v0.3](../old/native-client-design-v0.3.md) · [API operations](../api/v1/operations.json) · [R1 plan](../fix/fix_20261021_issue61_PhaseUI现行规范.md)
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

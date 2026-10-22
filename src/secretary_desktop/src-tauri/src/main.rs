@@ -1,20 +1,33 @@
 mod ipc;
+mod launch;
 use std::sync::atomic::{AtomicBool, Ordering};
 static READY: AtomicBool = AtomicBool::new(false);
 #[tauri::command]
-fn study_mode() -> serde_json::Value {
-    let scenario = match std::env::var("SECRETARY_STUDY_SCENARIO").as_deref() {
-        Ok("load") => "load",
-        Ok("stream") => "stream",
-        Ok("load-baseline") => "load-baseline",
-        Ok("stream-baseline") => "stream-baseline",
-        _ => "",
-    };
-    serde_json::json!({
-        "scenario": scenario,
-        "study": std::env::var("SECRETARY_STUDY").as_deref() == Ok("1") || !scenario.is_empty(),
-        "measure": std::env::var("SECRETARY_STUDY_MEASURE").as_deref() == Ok("1")
-    })
+fn study_mode() -> Result<launch::Launch, String> {
+    launch::current()
+}
+#[tauri::command]
+async fn phaseui_view(
+    window: tauri::WebviewWindow,
+    width: f64,
+    zoom: f64,
+    height: Option<f64>,
+) -> Result<(), String> {
+    if launch::current()?.phase.is_empty() {
+        return Err("DIAGNOSTIC_ONLY".into());
+    }
+    let height = height.unwrap_or(820.0);
+    if !(480.0..=1400.0).contains(&height)
+        || !(480.0..=1800.0).contains(&width)
+        || ![1.0, 1.25, 1.5, 2.0].contains(&zoom)
+    {
+        return Err("INVALID_VIEW".into());
+    }
+    window
+        .set_size(tauri::LogicalSize::new(width, height))
+        .map_err(|e| e.to_string())?;
+    window.set_zoom(zoom).map_err(|e| e.to_string())?;
+    window.set_focus().map_err(|e| e.to_string())
 }
 #[tauri::command]
 fn study_ready() {
@@ -39,6 +52,7 @@ fn main() {
     builder
         .invoke_handler(tauri::generate_handler![
             study_mode,
+            phaseui_view,
             study_ready,
             study_metrics,
             ipc::bridge_profiles,

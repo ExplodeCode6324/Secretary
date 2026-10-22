@@ -27,6 +27,8 @@ POST 使用 application/json，body 最大 1 MiB，包含 UUID request_id。owne
 
 响应为 `{api_version:"1",data:...}`，错误为 `{api_version:"1",error:{code,message}}`。revision、事件 sequence、World version 和字节长度使用十进制字符串，数量与 limit 使用有界整数，时间为 UTC ISO 8601。请求按 schema 校验，客户端按已知字段解码响应。
 
+Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
+
 普通列表默认 30、最多 100；cursor 绑定实例、查询范围/筛选和最后稳定键，改变 limit 可继续，CURSOR_EXPIRED 后重新载入。列表按首次事务位置与 ID 等稳定键分页，变化通过同步补齐；timeline、消息内容与 World 使用各自游标语义。GET 读取状态；用户访问执行详情通过独立 viewed 命令续留 HOT。
 
 | 内容 | 使用方式 |

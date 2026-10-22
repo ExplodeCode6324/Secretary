@@ -8,6 +8,7 @@ const setup = JSON.parse(
 );
 describe("responsive native editor during network stall", () => {
   it("keeps input and local enqueue responsive with Core paused", async () => {
+    await $("button=连接").click();
     await $("[data-testid=attach]").waitForClickable({ timeout: 20000 });
     await $("[data-testid=attach]").click();
     await $("[data-testid=draft]").waitForDisplayed({ timeout: 20000 });
@@ -28,14 +29,18 @@ describe("responsive native editor during network stall", () => {
       for (let i = 0; i < 25; i++)
         await $("[data-testid=draft]").setValue("合成输入延迟验收 " + i);
       const before = await browser.execute(
-        () => document.body.innerText.match(/已持久排队：[^\n]+/)?.[0],
+        () =>
+          document.body.innerText.match(/已保存到本机发送队列：[^\n]+/)?.[0],
       );
       const start = Date.now();
       await $("[data-testid=send]").click();
       await browser.waitUntil(
         async () => {
           const text = await browser.execute(
-            () => document.body.innerText.match(/已持久排队：[^\n]+/)?.[0],
+            () =>
+              document.body.innerText.match(
+                /已保存到本机发送队列：[^\n]+/,
+              )?.[0],
           );
           return !!text && text !== before;
         },

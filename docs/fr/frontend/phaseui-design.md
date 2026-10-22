@@ -16,6 +16,8 @@ Les deux côtés occupent toute la hauteur et se distinguent par leurs aplats, s
 
 [layout + breakpoints](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2221) · [selected row](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1997) · [edge rules](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2308)
 
+La ligne pleine largeur sous le titre s’aligne sur le bas de Conversation : hauteur supérieure commune188px,183px à≤600px ; barre76/64px. Applicable à tous les seuils et tailles14–18px. Les erreurs hors envoi et notifications de lecture sont sous la ligne ; l’état d’envoi est sous l’éditeur. Définir color-scheme light/dark et conserver l’apparence système des barres de défilement sans imposer largeur ou fond.
+
 ## Couleurs et typographie
 
 Les valeurs suivantes proviennent des thèmes v1.0. Conserver ses sélecteurs et significations d’état ; ne pas inventer de palette à partir des seuls tokens initiaux. Associer texte et couleur ; les couches bleues décoratives ne signalent pas l’achèvement métier.
@@ -32,7 +34,7 @@ Les valeurs suivantes proviennent des thèmes v1.0. Conserver ses sélecteurs et
 | `--red` | `#b84550` | `#ed8791` |
 | `--green` | `#42715a` | `#92bfa3` |
 
-Le corps utilise une police système sans empattement, base 14px/1,65 ; marque et horaires utilisent une police système à chasse fixe, sans police externe. Les glyphes portent des bords nets bleu/bleu clair (−1px/1px, bleu clair décalé de 0,5px vers le bas), sans cadre statique. Utiliser le nom configuré, sinon `Secretary`, avec accès au nom complet après troncature. Les avatars gardent dimensions et bordures, sans faux bouton ni arrêt Tab supplémentaire.
+Décision de Master du2026-10-22 : Noto Sans pour l’UI, la marque et les horodatages ; Noto Serif pour le texte des conversations et l’éditeur. Repli chinois : Noto Sans SC (membre chinois simplifié de Noto Sans CJK), puis PingFang SC, Apple Color Emoji et familles génériques. Les blocs de code et le code en ligne conservent une police système à chasse fixe. Base14px, interligne1.65. Les polices et licences OFL sont intégrées hors ligne, sans téléchargement à l’exécution : variantes latines normal/italic et CJK normal, graisses variables100–900, sans synthèse. La marque est noire en thème clair et utilise l’encre claire sémantique en thème sombre, sans franges colorées fixes ou animées ni cadre. Le nom configuré utilise `Secretary` s’il est vide ; le nom complet reste accessible après troncature. Dimensions et sémantique des avatars inchangées.
 
 [base tokens](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1) · [dark theme](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1679) · [brand](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2350) · [identity()](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L537)
 
@@ -48,7 +50,7 @@ Trois couches décrivent la composition : base reconstruite avec lacunes réelle
 | Send square / arrow | 160 / 420 ms |
 | Composer boundary / separator | 140 / 150 ms |
 
-La projection de la flèche d’envoi en 420ms est une exception explicite. Les fragments de séparateur mesurent ≤18px et se déplacent d’environ 1px ; garder 700ms de repos et un seul effet global. R1 ajoute une décision aléatoire de jouer ou non, sans déclenchement systématique ni boucle de fond. Consigner la probabilité lors des essais #62.
+La projection de420ms de la flèche d’envoi reste une exception. Décision de Master du2026-10-22 : effet de séparateur de150ms, avec2/2/3 segments reconstruits, longueur min(14px, longueur visible×0.035), positions22%/62%,42%/76%,15%/55%/61%, décalages bas/haut, haut/bas, bas/haut/bas de1.5px. Les lignes verticales se décalent à gauche/droite et évitent le vide de la ligne sélectionnée. Les segments déplacés laissent de vrais trous, sans résidu coloré ; paramètres centralisés. Probabilité25% par contact, délai700ms, un seul séparateur actif, aucune boucle de fond.
 
 [geometry](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/prototype.js#L1) · [plan / mask](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L5) · [three frames](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L204) · [controller](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L312) · [separators](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L694) · [gallery](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/prototype.js#L334)
 

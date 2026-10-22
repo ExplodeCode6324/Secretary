@@ -42,3 +42,7 @@ Master は v1.0 唯一基準、空名 `Secretary`、Cmd+Enter 送信/Enter 改�
 v0.3 の有効要件は枠組みに依存しない条項に変換済みです。草稿/閲覧位置と消去前永続化、安定 request_id と受領/不明結果、実体 ID 関連/定位、通知 presented/read と履歴水位は構成文書へ。SwiftUI、Xcode、固定 pt/配色、VoiceOver のみの合格条件は廃止します。macOS で VoiceOver は使えますが動作で判定します。
 
 [architecture and flows](architecture-and-flows.md) · [historical v0.3](../../old/native-client-design-v0.3.md) · [API operations](../../api/v1/operations.json) · [R1 plan](../../fix/fix_20261021_issue61_PhaseUI现行规范.md)
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

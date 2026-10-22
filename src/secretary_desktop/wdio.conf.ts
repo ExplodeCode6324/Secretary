@@ -1,5 +1,5 @@
 import { resolve } from "node:path";
-if (!process.env.BRIDGE_TEST) process.env.SECRETARY_STUDY = "1";
+if (!process.env.BRIDGE_TEST && !process.env.SECRETARY_PHASEUI_SCENARIO) process.env.SECRETARY_STUDY = "1";
 export const config = {
   runner: "local",
   specs: [

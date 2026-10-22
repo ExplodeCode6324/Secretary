@@ -31,6 +31,8 @@ POST は application/json を使い、body は最大 1 MiB、UUID の request_id
 
 応答は `{api_version:"1",data:...}`、エラーは `{api_version:"1",error:{code,message}}` です。revision、イベント sequence、World version、バイト長は十進文字列、件数と limit は上限付き整数、時刻は UTC ISO 8601 です。リクエストは schema で検証し、クライアントは既知のフィールドをデコードします。
 
+Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
+
 通常の一覧はデフォルト 30 件、最大 100 件です。cursor はインスタンス、クエリ範囲・フィルター、最後の安定キーに結び付き、limit を変更しても続行できますが、CURSOR_EXPIRED では再読み込みします。初回トランザクション位置や ID などの安定キーでページングし、変化は同期で補います。timeline、メッセージ本文、World は固有のカーソル規則を持ちます。GET は状態を読むだけで、実行詳細の閲覧による HOT 延長は独立した viewed コマンドで行います。
 
 | 内容 | 使い方 |

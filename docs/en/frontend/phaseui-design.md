@@ -16,6 +16,8 @@ Both sidebars span the full layout height and are separated by color surfaces, n
 
 [layout + breakpoints](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2221) · [selected row](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1997) · [edge rules](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2308)
 
+The full-width heading-bottom rule aligns with the Conversation row bottom: shared top height 188px, 183px at≤600px; toolbar 76/64px. This applies at all breakpoints and 14–18px text sizes. Non-send errors and reading notices appear below the rule; send status is below the editor. Set application light/dark color-scheme and retain system scrollbar appearance without forcing track width or background.
+
 ## Colors and typography
 
 The values below come from v1.0 theme rules. Keep its status selectors and meanings; do not invent status colors after reading only initial tokens. Pair color with text; decorative blue layers do not signal business completion.
@@ -32,7 +34,7 @@ The values below come from v1.0 theme rules. Keep its status selectors and meani
 | `--red` | `#b84550` | `#ed8791` |
 | `--green` | `#42715a` | `#92bfa3` |
 
-Body text uses system sans-serif at baseline 14px/1.65; branding and timestamps use system monospace, without external fonts. Brand glyphs have hard blue/light-blue edges (−1px/1px, light blue 0.5px down), without a static container frame. Use the configured assistant name, defaulting to `Secretary`; truncation retains access to the full name. Master/assistant avatars retain fixed sizes and original borders, without fake buttons or extra tab stops.
+Master’s 2026-10-22 decision: UI, branding and timestamps use Noto Sans; conversation prose and the editor use Noto Serif. Chinese falls back to Noto Sans SC (the Simplified Chinese Noto Sans CJK member), then PingFang SC, Apple Color Emoji and generic families. Code blocks and inline code retain system monospace. Base size 14px, line height 1.65. Bundle fonts and OFL licenses offline, with no runtime download: Latin normal/italic and CJK normal variable weights 100–900; disable font synthesis. Branding is plain black in light mode and semantic light ink in dark mode, with no colored fringes either statically or during motion and no container. The configured assistant name falls back to `Secretary`; truncated names remain fully accessible. Avatar dimensions and semantics stay unchanged.
 
 [base tokens](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1) · [dark theme](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L1679) · [brand](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/style.css#L2350) · [identity()](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L537)
 
@@ -48,7 +50,7 @@ Three layers describe display composition: reconstructed base with real gaps, lo
 | Send square / arrow | 160 / 420 ms |
 | Composer boundary / separator | 140 / 150 ms |
 
-The 420ms send-arrow projection is an explicit exception, not a rule for other icons. Separator fragments are ≤18px with about 1px displacement; keep the 700ms cooldown and one active separator globally. Master’s R1 adds a random play/skip decision, not playback on every approach or a background loop. Record the chosen probability in #62 experiments.
+The 420ms send-arrow projection remains a specific exception. Master’s2026-10-22 decision: each 150ms divider effect reconstructs 2/2/3 segments in its three frames, length min(14px, visible line length×0.035), at 22%/62%, 42%/76%, 15%/55%/61%, with down/up, up/down, down/up/down offsets of 1.5px. Vertical lines use left/right displacement and avoid the selected-row blank interval. Removed source segments leave real gaps, without colored residue; parameters are centralized. Keep a 25% chance per contact, 700ms cooldown, one active divider globally, and no background loop.
 
 [geometry](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/prototype.js#L1) · [plan / mask](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L5) · [three frames](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L204) · [controller](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L312) · [separators](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L694) · [gallery](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/prototype.js#L334)
 

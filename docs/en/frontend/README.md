@@ -19,3 +19,7 @@ This is the repository’s single current frontend specification entry; all lang
 The implementation baseline is `5f73c23` (FE-02 / PR #75), with the minimum real workflow. Full visual components belong to #62; conversation, tasks, memory/settings and artifacts/notifications belong to #63–#66 respectively. Current desktop acceptance targets macOS. Linux is deferred / NOT_TESTED and is not a roadmap gate; Core Linux CI is unchanged.
 
 #61 consolidates documentation only. Master withdrew the deployment request: no deployment or early #62 implementation is included. See [desktop instructions](../desktop/README.md) for running it and the [historical index](../../old/README.md) for past material.
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

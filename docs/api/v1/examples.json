@@ -21,7 +21,7 @@
     }
   },
   "assistant": {
-    "name": "secretary",
+    "name": "Secretary",
     "actor_id": "assistant",
     "revision": "1"
   },

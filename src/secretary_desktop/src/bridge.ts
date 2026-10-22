@@ -9,7 +9,7 @@ export type Draft = { text: string; version: number };
 export type Snapshot = {
   profiles: { id: string; mode: string }[];
   cursor?: string;
-  approvals?: {id:string;target:string;state:string}[];
+  approvals?: { id: string; target: string; state: string }[];
   profile?: string;
   domain?: string;
   core?: Core;
@@ -27,7 +27,11 @@ export type Snapshot = {
   anchor?: string;
 };
 export const bridge = {
-  transient: (expectedDomain:string,expectedInstance:string) => invoke<import('./workflow').Transient|null>('bridge_transient',{expectedDomain,expectedInstance}),
+  transient: (expectedDomain: string, expectedInstance: string) =>
+    invoke<import("./workflow").Transient | null>("bridge_transient", {
+      expectedDomain,
+      expectedInstance,
+    }),
   snapshot: () => invoke<Snapshot>("bridge_profiles"),
   connect: (profile: string, start = false) =>
     invoke<Snapshot>("bridge_connect", { profile, start }),
@@ -59,3 +63,5 @@ export const bridge = {
   download: (expectedDomain: string, id: string) =>
     invoke<string>("bridge_download", { expectedDomain, id }),
 };
+
+export type BridgePort = typeof bridge;

@@ -819,7 +819,7 @@ export class ApplicationService {
       const p = store.get<AssistantProfile>("AssistantProfile", PROFILE);
       return {
         actor_id: "assistant",
-        name: p.name.trim() || "secretary",
+        name: p.name.trim() || "Secretary",
         revision: String(p.revision),
       };
     }

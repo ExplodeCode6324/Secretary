@@ -31,6 +31,8 @@ Les erreurs métier après admission conservent l’accusé. Les règles de reje
 
 Les réponses utilisent `{api_version:"1",data:...}` ; les erreurs, `{api_version:"1",error:{code,message}}`. revision, sequence d’événement, version World et longueurs en octets sont des chaînes décimales ; les nombres d’éléments et limit sont des entiers bornés ; les dates sont en UTC ISO 8601. Les requêtes sont validées par schéma ; les clients décodent les champs connus.
 
+Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
+
 Les listes ordinaires renvoient 30 éléments par défaut, 100 au maximum. Le curseur lie l’instance, le périmètre ou les filtres et la dernière clé stable ; limit peut changer, mais CURSOR_EXPIRED exige un rechargement. Les listes paginent par clés stables telles que la première position de transaction et l’ID ; la synchronisation complète les changements. Timeline, contenu des messages et World ont leurs propres règles de curseur. GET lit l’état ; une commande viewed séparée prolonge HOT lors de la consultation des détails d’exécution.
 
 | Contenu | Utilisation |

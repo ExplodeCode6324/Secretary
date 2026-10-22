@@ -41,3 +41,7 @@ Record main-thread construction/update time, input-to-next-paint/click-feedback 
 In real macOS Tauri verify distinguishable frames, readable text, stable caret/selection and interruption; Master judges aesthetics and perceptible stutter. Optimize construction, reuse and cleanup when bottlenecks appear, preserving three logical frames. Browser previews cannot replace native performance acceptance. No such measurements or paid model calls were performed in #61.
 
 [measurement entry](../../../src/secretary_desktop/scripts/measure.py) · [v1.0 cost analysis](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/TAURI-MOTION-COST.md)
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

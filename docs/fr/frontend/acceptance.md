@@ -41,3 +41,7 @@ Mesurer construction/mise à jour du thread principal, délai saisie-prochaine p
 Dans Tauri macOS réel, vérifier images distinctes, texte lisible, curseur/sélection stables et interruption ; Master juge l’esthétique et les saccades. Optimiser construction, réutilisation et nettoyage tout en conservant trois images logiques. Le navigateur ne remplace pas la recette native. Aucune de ces mesures ni appel payant n’a été exécuté dans #61.
 
 [measurement entry](../../../src/secretary_desktop/scripts/measure.py) · [v1.0 cost analysis](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/TAURI-MOTION-COST.md)
+
+## PhaseUI implementation candidate (#62)
+
+The production component mapping and explicit adaptations are recorded in the [component contract](../../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.

@@ -1,12 +1,18 @@
 <script lang="ts">
+  import { Button, Divider } from "./phaseui";
   import type { Result, Artifact } from "./contracts";
-  import { bridge } from "./bridge";
+  import { bridge as realBridge, type BridgePort } from "./bridge";
   let {
     result,
     artifacts,
     domain,
-  }: { result: Result | null; artifacts: Artifact[]; domain: string } =
-    $props();
+    bridge = realBridge,
+  }: {
+    result: Result | null;
+    artifacts: Artifact[];
+    domain: string;
+    bridge?: BridgePort;
+  } = $props();
   let notice = $state("");
   let downloading = $state(false);
   async function download(id: string) {
@@ -33,6 +39,7 @@
     {#each result.limitations as limitation}<p>限制：{limitation}</p>{/each}
     {#each artifacts as artifact (artifact.id)}
       <article data-testid="artifact">
+        <Divider edge="bottom" />
         <strong>{artifact.name}</strong>
         <p>{artifact.bytes} bytes · {artifact.media_type} · {artifact.state}</p>
         <p>
@@ -46,8 +53,10 @@
           <p>{artifact.content_version}</p>
           <p>Scope：{artifact.scope_id ?? "unknown"}</p>
         </details>
-        <button disabled={downloading} onclick={() => download(artifact.id)}
-          >保存产物…</button
+        <Button
+          variant="text"
+          disabled={downloading}
+          onclick={() => download(artifact.id)}>保存产物…</Button
         >
       </article>{/each}
     {#if notice}<p role="status">
