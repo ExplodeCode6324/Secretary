@@ -91,3 +91,9 @@ wakeups propose listes, détails et `{id}/cancel`, avec filtres PENDING/FIRED/CA
 - L’API publique wakeups permet consultation et annulation ; la création utilise l’outil schedule_wakeup de la session principale.
 
 Voir le [guide d’exploitation](../../operations.md) pour les mises à niveau et vérifications, et les [rapports historiques](../../../api/v1/verification.md) pour les recettes propres aux versions.
+
+## FE-04 Message projection
+
+Les projections de messages peuvent inclure la source, l’ID de l’événement original, les ID directement liés, le résultat et la disponibilité de l’aperçu, issus uniquement des enregistrements existants. Un aperçu saved ne constitue pas un succès durable ; un aperçu expiré signale l’absence d’enregistrement final.
+
+Optional fields: `source_kind`, `source_event_id`, `outcome`, `preview_availability`, `request_id`, `task_id`, `execution_id`, `result_id`, `decision_request_id`, `notification_id`. See the authored `Message` schema for enum values.

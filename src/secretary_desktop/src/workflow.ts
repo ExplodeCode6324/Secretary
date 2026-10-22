@@ -60,7 +60,11 @@ export function conversation(
     if (finalized.has(p.id)) continue;
     const id = "message:" + p.id,
       old = rows.get(id);
-    if (old?.kind === "message" && old.persistence === "durable") continue;
+    if (
+      old?.kind === "message" &&
+      (old.persistence === "durable" || old.preview_availability === "expired")
+    )
+      continue;
     rows.set(id, {
       id,
       kind: "message",
@@ -70,10 +74,12 @@ export function conversation(
       text: p.blocks
         .filter((b) => b.type === "text")
         .map((b) => b.text)
-        .join(""),
+        .join("\n"),
       call_id: p.id,
       persistence: "transient",
       preview_status: p.status,
+      preview_availability: "active",
+      source_kind: "assistant_response",
       truncated: p.truncated,
       incomplete: p.status === "incomplete",
       next_cursor: null,
@@ -90,7 +96,13 @@ export function projection<T>(
 ): T | undefined {
   for (const [key, value] of Object.entries(cache ?? {})) {
     try {
-      if (JSON.parse(key).operation === operation) return value as T;
+      const query = JSON.parse(key);
+      if (
+        query.operation === operation &&
+        query.id == null &&
+        Object.keys(query.parameters ?? {}).length === 0
+      )
+        return value as T;
     } catch {
       /* unrecognized cache key */
     }
@@ -129,6 +141,19 @@ export function approvalProblem(
   return "";
 }
 export function messageLabel(m: Message) {
+  if (m.preview_availability === "expired" && m.persistence !== "durable")
+    return "预览已失效，无最终记录";
+  const outcome = (
+    {
+      completed: "完成",
+      continued: "步骤继续",
+      truncated: "输出截断",
+      failed: "失败",
+      interrupted: "已中断",
+      unknown: "结果未知",
+    } as Record<string, string>
+  )[m.outcome ?? ""];
+  if (m.persistence === "durable" && outcome) return "已记录 · " + outcome;
   return m.persistence === "durable"
     ? m.incomplete
       ? "已记录 · 未完整"

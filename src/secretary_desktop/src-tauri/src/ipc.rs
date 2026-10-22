@@ -311,3 +311,77 @@ pub fn setup(app: &mut tauri::App) -> std::result::Result<(), Box<dyn std::error
     });
     Ok(())
 }
+
+#[tauri::command]
+pub async fn bridge_copy_text(text: String) -> Result<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        secretary_desktop_spike::presentation::copy_text(text)
+    })
+    .await
+    .map_err(|_| err("COPY_FAILED"))?
+}
+#[tauri::command]
+pub async fn bridge_open_url(url: String) -> Result<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        secretary_desktop_spike::presentation::open_url(&url)
+    })
+    .await
+    .map_err(|_| err("OPEN_FAILED"))?
+}
+#[tauri::command]
+pub async fn bridge_message_outbox(
+    state: tauri::State<'_, Native>,
+    expected_domain: String,
+    before: Option<i64>,
+) -> Result<Value> {
+    let s = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        with(&s, |b| {
+            domain(b, &expected_domain)?;
+            b.storage
+                .as_ref()
+                .ok_or_else(|| err("DISCONNECTED"))?
+                .message_outbox(&expected_domain, before)
+        })
+    })
+    .await
+    .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
+}
+#[tauri::command]
+pub async fn bridge_message_body(
+    state: tauri::State<'_, Native>,
+    expected_domain: String,
+    id: String,
+) -> Result<Value> {
+    let s = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        with(&s, |b| {
+            domain(b, &expected_domain)?;
+            b.storage
+                .as_ref()
+                .ok_or_else(|| err("DISCONNECTED"))?
+                .message_body(&expected_domain, &id)
+        })
+    })
+    .await
+    .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
+}
+#[tauri::command]
+pub async fn bridge_discard_message(
+    state: tauri::State<'_, Native>,
+    expected_domain: String,
+    id: String,
+) -> Result<()> {
+    let s = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        with(&s, |b| {
+            domain(b, &expected_domain)?;
+            b.storage
+                .as_ref()
+                .ok_or_else(|| err("DISCONNECTED"))?
+                .discard_message(&expected_domain, &id)
+        })
+    })
+    .await
+    .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
+}

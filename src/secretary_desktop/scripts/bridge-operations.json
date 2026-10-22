@@ -4,6 +4,7 @@
   "POST /api/v1/notifications/{id}/presented",
   "POST /api/v1/notifications/{id}/read",
   "POST /api/v1/messages",
+  "POST /api/v1/session/resume",
   "POST /api/v1/task-requests",
   "POST /api/v1/task-requests/{id}/cancel",
   "POST /api/v1/executions/{id}/cancel",

@@ -187,7 +187,7 @@ PRAGMA user_version=1; COMMIT;"))?;
                 break;
             }
             let removed = sql(tx.execute(
-                "DELETE FROM outbox WHERE rowid=(SELECT rowid FROM outbox WHERE state IN ('ACCEPTED','COMPLETED','FAILED') ORDER BY rowid LIMIT 1)",
+                "DELETE FROM outbox WHERE rowid=(SELECT rowid FROM outbox WHERE state IN ('ACCEPTED','COMPLETED','FAILED') AND NOT (state='FAILED' AND json_extract(query,'$.operation')='messages') ORDER BY rowid LIMIT 1)",
                 [],
             ))?;
             if removed == 0 {
@@ -344,9 +344,43 @@ PRAGMA user_version=1; COMMIT;"))?;
         sql(self.db.execute("INSERT INTO anchors VALUES(?,?) ON CONFLICT(domain) DO UPDATE SET value=excluded.value",params![domain,value]))?;
         Ok(())
     }
+    pub fn message_outbox(&self, domain: &str, before: Option<i64>) -> Result<Value> {
+        let mut st = sql(self.db.prepare("SELECT rowid,id,state FROM outbox WHERE domain=? AND json_extract(query,'$.operation')='messages' AND state NOT IN ('ACCEPTED','COMPLETED') AND rowid<? ORDER BY rowid DESC LIMIT 51"))?;
+        let rows = sql(st.query_map(params![domain, before.unwrap_or(i64::MAX)], |r| Ok(json!({"position":r.get::<_,i64>(0)?, "id":r.get::<_,String>(1)?, "state":r.get::<_,String>(2)?}))))?;
+        let mut items: Vec<Value> = rows.map(sql).collect::<Result<_>>()?;
+        let more = items.len() > 50;
+        items.truncate(50);
+        let next = if more {
+            items.last().map(|r| r["position"].clone())
+        } else {
+            None
+        };
+        Ok(json!({"items":items,"next":next}))
+    }
+    pub fn message_body(&self, domain: &str, id: &str) -> Result<Value> {
+        Uuid::parse_str(id).map_err(|_| err("INVALID_ID"))?;
+        let (body, state): (String, String) = sql(self.db.query_row("SELECT body,state FROM outbox WHERE domain=? AND id=? AND json_extract(query,'$.operation')='messages'",params![domain,id], |r| Ok((r.get(0)?,r.get(1)?))))?;
+        if body.len() > 1024 * 1024 {
+            return Err(err("COMMAND_TOO_LARGE"));
+        }
+        let body: Value = serde_json::from_str(&body).map_err(|_| err("INVALID_STORAGE"))?;
+        let text = body["text"]
+            .as_str()
+            .ok_or_else(|| err("INVALID_STORAGE"))?;
+        Ok(json!({"id":id,"state":state,"text":text}))
+    }
+    pub fn discard_message(&self, domain: &str, id: &str) -> Result<()> {
+        Uuid::parse_str(id).map_err(|_| err("INVALID_ID"))?;
+        // Only a confirmed FAILED receipt is discardable. Unknown/new codes stay protected.
+        let count = sql(self.db.execute("DELETE FROM outbox WHERE domain=? AND id=? AND json_extract(query,'$.operation')='messages' AND state='FAILED' AND accepted=1 AND json_extract(receipt,'$.state')='FAILED'",params![domain,id]))?;
+        if count != 1 {
+            return Err(err("OUTBOX_NOT_DISCARDABLE"));
+        }
+        Ok(())
+    }
     pub fn cleanup(&self) -> Result<()> {
         sql(self.db.execute(
-            "DELETE FROM outbox WHERE state IN ('ACCEPTED','COMPLETED','FAILED') AND created<unixepoch()-2592000",
+            "DELETE FROM outbox WHERE state IN ('ACCEPTED','COMPLETED','FAILED') AND NOT (state='FAILED' AND json_extract(query,'$.operation')='messages') AND created<unixepoch()-2592000",
             [],
         ))?;
         Ok(())

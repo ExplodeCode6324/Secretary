@@ -21,6 +21,16 @@ type Meta = Key & {
   event?: string;
   activity?: HistoricalActivity;
   previewVersion?: number;
+  preview_availability?: "active" | "expired";
+  source_kind?: string;
+  source_event_id?: string;
+  outcome?: string;
+  request_id?: string;
+  task_id?: string;
+  execution_id?: string;
+  result_id?: string;
+  decision_request_id?: string;
+  notification_id?: string;
 };
 type Cursor = Key & {
   generation: string;
@@ -153,6 +163,7 @@ export class Timeline {
         let role = "system",
           call_id: string | undefined,
           incomplete = false;
+        const metadata: Partial<Meta> = { source_event_id: e.event_id };
         if (e.event_type === "main.message") {
           const m = this.app.store.read<any>(e.payload);
           if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
@@ -167,14 +178,49 @@ export class Timeline {
             continue;
           role = "secretary";
           call_id = m.display_call_id;
-          incomplete = ["error", "aborted"].includes(m.stopReason);
+          metadata.source_kind = "assistant_response";
+          metadata.outcome =
+            (
+              {
+                stop: "completed",
+                toolUse: "continued",
+                length: "truncated",
+                error: "failed",
+                aborted: "interrupted",
+              } as Record<string, string>
+            )[m.stopReason] ?? "unknown";
+          incomplete = ["length", "error", "aborted"].includes(m.stopReason);
         } else if (e.event_type === "input.accepted") {
-          role =
-            this.app.store.read<Input>(e.payload).producer === "MASTER"
-              ? "master"
-              : "system";
-        } else if (e.event_type === "notification.queued") role = "secretary";
+          const input = this.app.store.read<Input>(e.payload);
+          role = input.producer === "MASTER" ? "master" : "system";
+          metadata.source_kind =
+            role === "master" ? "master_input" : "system_input";
+          if (
+            role === "master" &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+              input.dedupe_key,
+            )
+          )
+            metadata.request_id = input.dedupe_key;
+        } else if (e.event_type === "notification.queued") {
+          role = "secretary";
+          metadata.source_kind = "notification";
+          metadata.notification_id = this.app.store.read<Notification>(
+            e.payload,
+          ).id;
+        } else {
+          const feedback = this.app.store.read<Feedback>(e.payload);
+          metadata.source_kind = "task_feedback";
+          for (const key of [
+            "task_id",
+            "execution_id",
+            "result_id",
+            "decision_request_id",
+          ] as const)
+            if (feedback[key]) metadata[key] = feedback[key]!;
+        }
         this.put({
+          ...metadata,
           id: call_id ? "message:" + call_id : e.event_id,
           session,
           kind: "message",
@@ -242,11 +288,19 @@ export class Timeline {
     this.live = current;
     if (this.previewRevision !== this.app.host.previews.revision) {
       this.previewRevision = this.app.host.previews.revision;
+      const previous = this.previews;
       this.previews = new Map(
         this.app.host.previews
           .snapshot(this.app.host.sessionID, true)
           .map((p) => [p.id, p]),
       );
+      for (const id of previous.keys()) {
+        const old = this.rows.get("message:" + id);
+        if (old && !old.source && !this.previews.has(id)) {
+          const { revision: _revision, ...row } = old;
+          this.put({ ...row, preview_availability: "expired" });
+        }
+      }
       for (const p of this.previews.values()) {
         const id = "message:" + p.id,
           old = this.rows.get(id);
@@ -263,6 +317,8 @@ export class Timeline {
             (this.rows.get("model:" + p.id)?.order ??
               this.app.store.sequence * 1000) + 100,
           previewVersion: p.version,
+          preview_availability: "active",
+          source_kind: "assistant_response",
         });
       }
     }
@@ -386,6 +442,24 @@ export class Timeline {
       role: row.role,
       at: row.at,
       call_id: row.call_id,
+      ...Object.fromEntries(
+        [
+          "source_kind",
+          "source_event_id",
+          "outcome",
+          "request_id",
+          "task_id",
+          "execution_id",
+          "result_id",
+          "decision_request_id",
+          "notification_id",
+        ]
+          .filter((k) => (row as any)[k] !== undefined)
+          .map((k) => [k, (row as any)[k]]),
+      ),
+      ...(!row.source
+        ? { preview_availability: p ? "active" : "expired" }
+        : {}),
       incomplete: row.incomplete || (p && p.status === "incomplete"),
       persistence: row.source ? "durable" : "transient",
       ...(p ? { preview_status: p.status } : {}),

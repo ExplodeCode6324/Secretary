@@ -50,6 +50,18 @@ fn main() {
         .plugin(tauri_plugin_wdio::init())
         .plugin(tauri_plugin_wdio_webdriver::init());
     builder
+        .plugin(
+            tauri::plugin::Builder::<tauri::Wry>::new("navigation-boundary")
+                .on_navigation(|_, url| {
+                    // Config-created window also passes through this plugin hook.
+                    #[cfg(debug_assertions)]
+                    if url.origin().ascii_serialization() == "http://127.0.0.1:1420" {
+                        return true;
+                    }
+                    url.scheme() == "tauri" && url.host_str() == Some("localhost")
+                })
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             study_mode,
             phaseui_view,
@@ -64,7 +76,12 @@ fn main() {
             ipc::bridge_subscribe,
             ipc::bridge_anchor,
             ipc::bridge_stop,
-            ipc::bridge_download
+            ipc::bridge_download,
+            ipc::bridge_copy_text,
+            ipc::bridge_open_url,
+            ipc::bridge_message_outbox,
+            ipc::bridge_message_body,
+            ipc::bridge_discard_message,
         ])
         .setup(ipc::setup)
         .run(tauri::generate_context!())

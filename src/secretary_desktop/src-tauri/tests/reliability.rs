@@ -1042,3 +1042,97 @@ fn approval_intents_are_unique_until_resolved_across_connections() {
     );
     assert_eq!(one.rows("domain").unwrap().len(), 1);
 }
+
+#[test]
+fn accepted_post_with_invalid_response_reconciles_original_id_without_repost() {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    for fault in ["version", "contract"] {
+        let f = Fixture::new();
+        let mut s = f.store("uncertain");
+        let file = f.p.data_dir.join("core-endpoint.json");
+        let original = fs::read(&file).unwrap();
+        let mut endpoint: Value = serde_json::from_slice(&original).unwrap();
+        let upstream = endpoint["url"].as_str().unwrap().to_string();
+        let token = endpoint["token"].as_str().unwrap().to_string();
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        endpoint["url"] = json!(format!("http://{}", listener.local_addr().unwrap()));
+        fs::write(&file, endpoint.to_string()).unwrap();
+        let proxy = std::thread::spawn(move || {
+            let client = reqwest::blocking::Client::builder()
+                .no_proxy()
+                .build()
+                .unwrap();
+            let mut posts = 0;
+            for _ in 0..4 {
+                let (mut socket, _) = listener.accept().unwrap();
+                socket
+                    .set_read_timeout(Some(std::time::Duration::from_secs(15)))
+                    .unwrap();
+                let mut request = Vec::new();
+                let end = loop {
+                    let mut byte = [0u8; 1];
+                    socket.read_exact(&mut byte).unwrap();
+                    request.push(byte[0]);
+                    if request.ends_with(b"\r\n\r\n") {
+                        break request.len();
+                    }
+                };
+                let header = String::from_utf8(request[..end].to_vec()).unwrap();
+                let first: Vec<_> = header.lines().next().unwrap().split_whitespace().collect();
+                let method = reqwest::Method::from_bytes(first[0].as_bytes()).unwrap();
+                let length = header
+                    .lines()
+                    .find_map(|l| {
+                        l.to_ascii_lowercase()
+                            .strip_prefix("content-length: ")
+                            .and_then(|v| v.parse::<usize>().ok())
+                    })
+                    .unwrap_or(0);
+                let mut body = vec![0u8; length];
+                socket.read_exact(&mut body).unwrap();
+                let response = client
+                    .request(method.clone(), format!("{upstream}{}", first[1]))
+                    .bearer_auth(&token)
+                    .header("X-Secretary-API-Version", "1")
+                    .header("Content-Type", "application/json")
+                    .body(body)
+                    .send()
+                    .unwrap();
+                let status = response.status().as_u16();
+                let mut value: Value = response.json().unwrap();
+                if method == reqwest::Method::POST {
+                    posts += 1;
+                    assert_eq!(status, 202);
+                    if fault == "version" {
+                        value["api_version"] = json!("future");
+                    } else {
+                        value["data"] = json!({"invalid_receipt":true});
+                    }
+                }
+                let output = value.to_string();
+                write!(socket,"HTTP/1.1 {status} Response\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{output}", output.len()).unwrap();
+            }
+            posts
+        });
+        let t = Transport::attach(&f.p).unwrap();
+        let body = json!({"request_id":uuid::Uuid::new_v4().to_string(),"text":"accepted body with damaged response"});
+        s.enqueue(
+            t.domain(),
+            t.instance(),
+            &Query::new("messages"),
+            &body,
+            None,
+            false,
+        )
+        .unwrap();
+        assert!(deliver(&t, &mut s).is_err());
+        assert_eq!(s.rows(t.domain()).unwrap()[0]["state"], "UNCERTAIN");
+        deliver(&t, &mut s).unwrap();
+        let saved = s.rows(t.domain()).unwrap();
+        assert_eq!(saved[0]["id"], body["request_id"]);
+        assert_ne!(saved[0]["state"], "UNCERTAIN");
+        assert_eq!(proxy.join().unwrap(), 1);
+        fs::write(file, original).unwrap();
+    }
+}

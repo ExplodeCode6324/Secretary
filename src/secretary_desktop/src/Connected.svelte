@@ -6,14 +6,24 @@
     type Snapshot,
   } from "./bridge";
   import Conversation from "./Conversation.svelte";
+  import RelatedRail from "./conversation/RelatedRail.svelte";
+  import Recovery from "./conversation/Recovery.svelte";
+  import {
+    ReadingWindow,
+    ContentStore,
+    ReadBudget,
+    thinkingPreference,
+    saveThinking,
+  } from "./conversation/model";
   import Work from "./Work.svelte";
   import {
     conversation,
     projection,
     capability,
     retainPreview,
+    previews,
   } from "./workflow";
-  import type { Timeline } from "./contracts";
+  import type { Timeline, TimelineItem } from "./contracts";
   import { Shell, Button, Dialog, Field, Status, Divider } from "./phaseui";
   import type { Page } from "./phaseui/Shell.svelte";
   import {
@@ -28,13 +38,16 @@
     initialMode,
     initialTheme,
     transientCadence = 250,
+    metrics = (_value: Record<string, number>) => {},
   }: {
     bridge?: BridgePort;
     synthetic?: boolean;
     initialMode?: MotionMode;
     initialTheme?: "light" | "dark";
     transientCadence?: number;
+    metrics?: (value: Record<string, number>) => void;
   } = $props();
+  let htmlBytes = 0;
   let page = $state<Page>("conversation");
   let connectionOpen = $state(false);
   let readingOffset = 0;
@@ -87,12 +100,208 @@
   let live = $state<unknown>(null);
   let reconnecting = $state(false);
   let history = $state<Timeline | null>(null);
+  let inHistory = $state(false);
+  let thinking = $state(true);
+  let readingBusy = $state(false);
+  let readingStale = $state(false);
+  let locate = $state("");
+  let locateKind = $state("message_id");
+  let findText = $state("");
+  let related = $state<TimelineItem | null>(null);
+  let workTarget = $state<{
+    type: "task" | "authorization";
+    id: string;
+    sequence: number;
+  } | null>(null);
+  const readBudget = new ReadBudget();
+  const reader: ReadingWindow = new ReadingWindow(
+    readBudget,
+    () => content.size,
+  );
+  const content: ContentStore = new ContentStore(readBudget, () => reader.size);
+  let refreshedVersion = "",
+    lastRefresh = 0;
+  function pins() {
+    const ids = new Set<string>();
+    const selection = getSelection();
+    for (const el of panel?.querySelectorAll<HTMLElement>("[data-row-id]") ??
+      []) {
+      if (
+        (selection &&
+          !selection.isCollapsed &&
+          selection.rangeCount &&
+          selection.getRangeAt(0).intersectsNode(el)) ||
+        el.contains(document.activeElement) ||
+        el.querySelector("details[open]")
+      )
+        ids.add(el.dataset.rowId!);
+    }
+    const anchor = capture();
+    if (anchor) ids.add(anchor.id);
+    return ids;
+  }
+  function capture() {
+    const top = panel?.getBoundingClientRect().top ?? 0;
+    const row = [
+      ...(panel?.querySelectorAll<HTMLElement>("[data-row-id]") ?? []),
+    ].find((el) => el.getBoundingClientRect().bottom > top);
+    return row
+      ? {
+          id: row.dataset.rowId!,
+          offset: row.getBoundingClientRect().top - top,
+        }
+      : null;
+  }
+  function follow() {
+    return (
+      !inHistory &&
+      !!panel &&
+      panel.scrollHeight - panel.scrollTop - panel.clientHeight <= 24 &&
+      (getSelection()?.isCollapsed ?? true) &&
+      !panel.querySelector("details:focus-within, details[open]:focus-within")
+    );
+  }
+  async function restore(
+    saved: ReturnType<typeof capture>,
+    tailFollow = false,
+  ) {
+    await tick();
+    if (tailFollow && page === "conversation") {
+      tail?.scrollIntoView({ block: "end" });
+      return;
+    }
+    const row = [
+      ...(panel?.querySelectorAll<HTMLElement>("[data-row-id]") ?? []),
+    ].find((el) => el.dataset.rowId === saved?.id);
+    if (row && saved && panel)
+      panel.scrollTop +=
+        row.getBoundingClientRect().top -
+        panel.getBoundingClientRect().top -
+        saved.offset;
+  }
+  function flags() {
+    return { limit: 50, thinking, streaming: false };
+  }
+  async function loadWindow(
+    direction: "before" | "after" | "replace",
+    id?: string,
+    kind = "message_id",
+  ) {
+    if (!data.domain || readingBusy) return;
+    const saved = capture(),
+      round = generation;
+    const cursor = direction === "before" ? timeline?.before : timeline?.after;
+    if (direction !== "replace" && !cursor) return;
+    readingBusy = true;
+    error = "";
+    try {
+      await reader.load(
+        bridge,
+        data.domain,
+        {
+          operation: id ? "timeline/around" : "timeline",
+          parameters: {
+            ...flags(),
+            ...(id
+              ? { [kind]: id }
+              : direction === "replace"
+                ? {}
+                : { cursor: cursor!, direction }),
+          },
+        },
+        direction,
+        pins(),
+      );
+      if (round !== generation) return;
+      history = reader.value ?? null;
+      readingStale = false;
+      inHistory = !!id || direction !== "replace";
+      content.retain(history?.items ?? []);
+      await restore(saved);
+      if (id) {
+        const target = history?.items.find(
+          (r) =>
+            r.id === id || (r.kind === "message" && r.source_event_id === id),
+        );
+        if (target)
+          [...(panel?.querySelectorAll<HTMLElement>("[data-row-id]") ?? [])]
+            .find((el) => el.dataset.rowId === target.id)
+            ?.scrollIntoView({ block: "center" });
+      }
+    } catch (e) {
+      if (round === generation) displayError(e);
+    } finally {
+      if (round === generation) readingBusy = false;
+    }
+  }
+  async function toggleThinking() {
+    thinking = !thinking;
+    if (data.domain) saveThinking(data.domain, thinking, localStorage);
+    const saved = capture();
+    const wasHistory = inHistory;
+    const retained = history?.items.map((r) =>
+      r.kind === "message"
+        ? {
+            ...content.get(r),
+            thinking: undefined,
+            next_cursor: null,
+            loaded_portion: true,
+          }
+        : r,
+    );
+    reader.clear();
+    content.clear();
+    generation++;
+    readingBusy = false;
+    if (history)
+      history = {
+        ...history,
+        before: null,
+        after: null,
+        items: retained ?? history.items,
+      };
+    notice = "显示偏好已改变，正在重新读取当前范围。";
+    await loadWindow("replace", wasHistory ? saved?.id : undefined);
+    inHistory = wasHistory;
+    await restore(saved);
+    notice = "";
+  }
+  function searchLoaded() {
+    const query = findText.trim().toLocaleLowerCase();
+    if (!query) return;
+    const row = items.find((r) =>
+      (r.kind === "message" ? content.get(r).text : JSON.stringify(r.activity))
+        .toLocaleLowerCase()
+        .includes(query),
+    );
+    if (!row) {
+      notice = "已加载窗口中没有匹配内容。";
+      return;
+    }
+    [...(panel?.querySelectorAll<HTMLElement>("[data-row-id]") ?? [])]
+      .find((el) => el.dataset.rowId === row.id)
+      ?.scrollIntoView({ block: "center" });
+    notice = "匹配已加载窗口；未搜索其他历史。";
+  }
+  function openWork(type: "task" | "authorization", id: string) {
+    workTarget = { type, id, sequence: (workTarget?.sequence ?? 0) + 1 };
+    void navigate(type === "task" ? "tasks" : "attention");
+  }
+  async function restoreDraft(value: string) {
+    if (text.trim()) throw Error("编辑器已有草稿，请先保留或清空后恢复。");
+    text = value;
+    save();
+    await chain;
+    await navigate("conversation");
+    editor?.focus();
+  }
   let finalized = new Set<string>();
   let base = $derived(projection<Timeline>(data.cache, "timeline"));
   let timeline = $derived(history ?? base);
   let items = $derived(
-    conversation(timeline, history ? null : live, finalized),
+    conversation(timeline, inHistory ? null : live, finalized),
   );
+  const previewChecks = new Set<string>();
   let polling = false,
     livePolling = false;
   let profile = $state("");
@@ -107,6 +316,7 @@
   let composing = $state(false);
   let artifact = $state("");
   let stopConfirm = $state(false);
+  let resumeConfirm = $state(false);
   let tail = $state<HTMLElement>();
   let chain = Promise.resolve();
   let disposed = false;
@@ -118,7 +328,7 @@
     clearTimeout(anchorTimer);
     const domain = data.domain;
     const first = [
-      ...(panel?.querySelectorAll<HTMLElement>("[data-message-id]") ?? []),
+      ...(panel?.querySelectorAll<HTMLElement>("[data-row-id]") ?? []),
     ].find(
       (e) =>
         e.getBoundingClientRect().bottom >
@@ -133,12 +343,15 @@
           tail.getBoundingClientRect().bottom <=
             panel.getBoundingClientRect().bottom));
     const value =
-      !history && atBottom
+      !inHistory && atBottom
         ? "latest"
         : first
           ? JSON.stringify({
-              v: 1,
-              id: first.dataset.messageId,
+              v: 2,
+              domain,
+              session: data.core?.session_id,
+              mode: inHistory ? "history" : "reading",
+              id: first.dataset.rowId,
               offset:
                 first.getBoundingClientRect().top -
                 (panel?.getBoundingClientRect().top ?? 0),
@@ -157,6 +370,7 @@
     try {
       await bridge.subscribe(data.domain, [
         { operation: "assistant" },
+        { operation: "session" },
         { operation: "timeline" },
         { operation: "attention" },
         { operation: "tasks" },
@@ -203,12 +417,20 @@
     live = null;
     reconnecting = false;
     history = null;
+    inHistory = false;
+    reader.clear();
+    content.clear();
+    readingBusy = false;
+    related = null;
     finalized = new Set();
+    previewChecks.clear();
     error = "";
     try {
       await chain.catch(() => {});
       const pending = dirty ? text : null;
       data = await bridge.connect(profile, start);
+      thinking = thinkingPreference(data.domain!, localStorage);
+      await loadWindow("replace");
       text = pending ?? data.draft?.text ?? "";
       version = data.draft?.version ?? 0;
       dirty = false;
@@ -218,16 +440,13 @@
         try {
           const saved = JSON.parse(data.anchor);
           if (
-            saved.v === 1 &&
+            [1, 2].includes(saved.v) &&
             typeof saved.id === "string" &&
             !projection<Timeline>(data.cache, "timeline")?.items.some(
               (item) => item.id === saved.id,
             )
           )
-            history = await bridge.query<Timeline>(data.domain!, {
-              operation: "timeline/around",
-              parameters: { message_id: saved.id },
-            });
+            await loadWindow("replace", saved.id);
         } catch {
           notice = "阅读位置不可用，已加载最近消息";
         }
@@ -240,8 +459,8 @@
           try {
             const saved = JSON.parse(data.anchor);
             const element = [
-              ...panel.querySelectorAll<HTMLElement>("[data-message-id]"),
-            ].find((e) => e.dataset.messageId === saved.id);
+              ...panel.querySelectorAll<HTMLElement>("[data-row-id]"),
+            ].find((e) => e.dataset.rowId === saved.id);
             if (element)
               panel.scrollTop +=
                 element.getBoundingClientRect().top -
@@ -298,7 +517,7 @@
           }
           sendNotice =
             (synthetic ? "模拟请求已排队：" : "已保存到本机发送队列：") + id;
-          await latest();
+          // Sending never changes the reading position. Tail-follow is handled by projection updates.
         }
       });
     try {
@@ -310,17 +529,21 @@
       busy = false;
     }
   }
-  async function older() {
-    if (!timeline?.before || !data.domain) return;
-    const round = generation;
+  async function resumeSession() {
+    if (!data.domain || busy || !capability(data.core, "messages")) return;
+    busy = true;
     try {
-      const page = await bridge.query<Timeline>(data.domain, {
-        operation: "timeline",
-        parameters: { cursor: timeline.before, direction: "before" },
-      });
-      if (round === generation) history = page;
+      const id = await bridge.submit(
+        data.domain,
+        { operation: "session/resume" },
+        {},
+      );
+      notice = "恢复请求已排队，等待 Core 回执：" + id;
+      resumeConfirm = false;
     } catch (e) {
       displayError(e);
+    } finally {
+      busy = false;
     }
   }
   async function stop() {
@@ -341,19 +564,57 @@
     polling = true;
     const round = generation;
     try {
+      const savedPosition = capture(),
+        tailFollow = follow();
       const next = await bridge.snapshot();
       if (disposed || round !== generation) return;
       if (data.core?.instance_id !== next.core?.instance_id) {
         live = null;
         reconnecting = false;
         history = null;
+        inHistory = false;
+        reader.clear();
+        content.clear();
+        related = null;
+        generation++;
+        readingBusy = false;
         finalized = new Set();
+        previewChecks.clear();
       }
       data = next;
+      const currentBase = projection<Timeline>(data.cache, "timeline");
+      if (
+        data.domain &&
+        currentBase &&
+        page === "conversation" &&
+        !document.hidden &&
+        !data.error &&
+        currentBase.version !== refreshedVersion &&
+        Date.now() - lastRefresh >= 2000 &&
+        !reader.busy
+      ) {
+        lastRefresh = Date.now();
+        if (!reader.pages.length) {
+          thinking = thinkingPreference(data.domain, localStorage);
+          await loadWindow("replace");
+        } else {
+          readingStale = true;
+          await reader.refresh(
+            bridge,
+            data.domain,
+            tailFollow ? new Set() : pins(),
+          );
+          readingStale = false;
+          history = reader.value ?? null;
+        }
+        refreshedVersion = currentBase.version;
+      }
+      await restore(savedPosition, tailFollow);
       if (!profile) profile = next.profiles[0]?.id ?? "";
     } catch (e) {
       displayError(e);
     } finally {
+      metrics({ rows: items.length, pages: reader.pages.length, rawBytes: reader.size + content.size, htmlBytes, foregroundReads: readBudget.active, transientRows: previews(live).length });
       polling = false;
     }
   }
@@ -364,7 +625,14 @@
     }, 1500);
     const transientTimer = setInterval(
       async () => {
-        if (livePolling || !data.domain || !data.core) return;
+        if (
+          livePolling ||
+          !data.domain ||
+          !data.core ||
+          page !== "conversation" ||
+          document.hidden
+        )
+          return;
         livePolling = true;
         const round = generation,
           d = data.domain,
@@ -377,10 +645,49 @@
             d === data.domain &&
             i === data.core?.instance_id
           ) {
+            const savedPosition = capture(),
+              tailFollow = follow();
             reconnecting = !snapshot?.connected;
             // A disconnect is not a deletion. Retain the last preview in this
             // domain/instance until a fresh snapshot or durable row replaces it.
+            if (snapshot?.connected) {
+              const fresh = new Set(previews(snapshot.data).map((p) => p.id));
+              for (const old of previews(live))
+                if (!fresh.has(old.id) && previewChecks.size < 8)
+                  previewChecks.add(old.id);
+            }
             live = retainPreview(live, snapshot);
+            if (previewChecks.size && readBudget.active < 2) {
+              const id = previewChecks.values().next().value!;
+              previewChecks.delete(id);
+              try {
+                const row = await readBudget.run(() =>
+                  bridge.query<import("./contracts").Message>(d, {
+                    operation: "messages/{id}/content",
+                    id: "message:" + id,
+                    parameters: { thinking: false, streaming: false },
+                  }),
+                );
+                if (
+                  !disposed &&
+                  round === generation &&
+                  i === data.core?.instance_id &&
+                  row.id === "message:" + id
+                ) {
+                  for (const p of reader.pages)
+                    p.value = {
+                      ...p.value,
+                      items: p.value.items.map((old) =>
+                        old.id === row.id ? row : old,
+                      ),
+                    };
+                  history = reader.value ?? history;
+                }
+              } catch {
+                /* normal snapshot refresh remains authoritative */
+              }
+            }
+            await restore(savedPosition, tailFollow);
           }
         } catch {
           if (round === generation) reconnecting = true;
@@ -394,11 +701,18 @@
       disposed = true;
       clearInterval(transientTimer);
       clearInterval(timer);
+      anchor(true);
       clearTimeout(anchorTimer);
+      reader.clear();
+      content.clear();
     };
   });
   async function latest() {
-    history = null;
+    reader.clear();
+    content.clear();
+    readingBusy = false;
+    await loadWindow("replace");
+    inHistory = false;
     await tick();
     if (page === "conversation") tail?.scrollIntoView({ block: "end" });
     else readingOffset = Number.MAX_SAFE_INTEGER;
@@ -419,6 +733,14 @@
   {#snippet status()}<span data-testid="status"
       >{data.sync}{data.error ? " · " + data.error : ""}</span
     >{/snippet}
+  {#snippet ongoing()}{#if data.domain}<RelatedRail
+        {data}
+        selected={related}
+        {bridge}
+        budget={readBudget}
+        reset={() => (related = null)}
+        {openWork}
+      />{/if}{/snippet}
   <div class="phase-page-heading">
     <h1>{titles[page]}</h1>
     <Divider edge="bottom" />
@@ -436,26 +758,70 @@
     onscroll={() => anchor()}
     aria-label="对话记录"
   >
-    {#if history}<p data-testid="history-banner">
+    {#if inHistory}<p data-testid="history-banner">
         正在阅读历史页面。<Button variant="text" onclick={latest}
-          >查看最新消息</Button
+          >转到最新消息</Button
         >
       </p>{/if}
-    {#if reconnecting && !history}<Status state="offline"
+    {#if reconnecting && !inHistory}<Status state="offline"
         >正在重新连接，保留上次预览</Status
       >{/if}
-    <Button variant="text" onclick={resync}>重建投影</Button>
-    {#if timeline?.before}<Button variant="text" onclick={older}
-        >较早消息</Button
+    <div class="conversation-tools">
+      <Button variant="text" onclick={resync}>重建投影</Button>
+      <Button variant="text" aria-pressed={thinking} onclick={toggleThinking}
+        >思考：{thinking ? "开" : "关"}</Button
+      >
+      <label
+        >定位类型<select bind:value={locateKind}
+          ><option value="message_id">消息 / 活动 ID</option><option
+            value="event_id">事件 ID</option
+          ></select
+        ></label
+      >
+      <label>定位 ID<input bind:value={locate} maxlength="256" /></label><Button
+        variant="text"
+        disabled={readingBusy || !locate.trim()}
+        onclick={() => loadWindow("replace", locate.trim(), locateKind)}
+        >定位</Button
+      >
+      <label
+        >搜索已加载窗口<input bind:value={findText} maxlength="256" /></label
+      ><Button variant="text" onclick={searchLoaded}>查找</Button>
+    </div>
+    {#if readingStale}<p role="status">历史缓存待刷新；内容可能已变化。</p>{/if}
+    {#if (projection<import("./contracts").Session>(data.cache, "session")?.state ?? data.core?.state) === "RECOVERY_BLOCKED"}<Status
+        state="error"
+        >会话恢复被阻塞，已受理的消息仍保留。<Button
+          variant="text"
+          disabled={busy}
+          onclick={() => (resumeConfirm = true)}>恢复会话…</Button
+        ></Status
+      >{/if}
+    {#if !items.length}<p>当前没有可显示的记录。</p>{/if}
+    {#if timeline?.before}<Button
+        variant="text"
+        disabled={readingBusy}
+        onclick={() => loadWindow("before")}>较早消息</Button
       >{/if}
     {#if data.domain}{#key data.domain + ":" + data.core?.instance_id}<Conversation
           {items}
           domain={data.domain}
           name={assistant}
           {bridge}
+          stats={(value) => (htmlBytes = value)}
+          store={content}
+          {thinking}
+          active={page === "conversation" && !reconnecting && !data.error}
+          select={(item) => (related = item)}
+          reloadRow={(id) => loadWindow("replace", id)}
         />{/key}{/if}
+    {#if timeline?.after}<Button
+        variant="text"
+        disabled={readingBusy}
+        onclick={() => loadWindow("after")}>较新消息</Button
+      >{/if}
     <div bind:this={tail}></div>
-    <Button variant="text" onclick={latest}>跳到最新消息</Button>
+    <Button variant="text" onclick={latest}>转到最新消息</Button>
   </main>
   <section
     class="phase-composer"
@@ -503,6 +869,7 @@
   {#if data.domain}{#key data.domain + ":" + data.core?.instance_id}<Work
         {data}
         {page}
+        target={workTarget}
         {bridge}
       />{/key}{/if}
   {#if data.domain && ["memory", "settings", "artifacts"].includes(page)}<div
@@ -514,6 +881,20 @@
           : ""}
       </p>
     </div>{/if}
+  {#if data.domain && page === "attention"}<Recovery
+      domain={data.domain}
+      {bridge}
+      restore={restoreDraft}
+      {items}
+    />{/if}
+  <Dialog bind:open={resumeConfirm} title="恢复会话"
+    ><p>
+      Core 将继续未完成回合，可能再次调用模型。此操作不重新发送已受理的消息。
+    </p>
+    <Button disabled={busy} onclick={resumeSession}>确认恢复会话</Button><Button
+      onclick={() => (resumeConfirm = false)}>取消</Button
+    ></Dialog
+  >
   <Dialog bind:open={connectionOpen} title="连接本机 Core">
     <label for="profile">连接配置</label><Field disabled={busy}
       ><select id="profile" bind:value={profile} disabled={busy}

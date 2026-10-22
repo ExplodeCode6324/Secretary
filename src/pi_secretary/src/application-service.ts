@@ -1421,6 +1421,22 @@ export class ApplicationService {
       ...(thinking ? { thinking: item.thinking } : {}),
       call_id: item.call_id ?? null,
       persistence: item.persistence,
+      ...Object.fromEntries(
+        [
+          "source_kind",
+          "source_event_id",
+          "outcome",
+          "request_id",
+          "task_id",
+          "execution_id",
+          "result_id",
+          "decision_request_id",
+          "notification_id",
+          "preview_availability",
+        ]
+          .filter((k) => item[k] !== undefined)
+          .map((k) => [k, item[k]]),
+      ),
       ...(item.preview_status ? { preview_status: item.preview_status } : {}),
       ...(item.truncated !== undefined ? { truncated: !!item.truncated } : {}),
       incomplete: !!item.incomplete,

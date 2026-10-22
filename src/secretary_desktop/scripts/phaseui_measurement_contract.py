@@ -21,4 +21,8 @@ def validate(report, scenario, mode, seed, ready):
         if motion.get('completed',0)<10:errors.append('insufficient completed effects')
         completed=motion.get('completed',0)
         if completed and motion.get('covered',0)/completed<0.95:errors.append('systematic missing frame: complete coverage below 95%')
+    if scenario.startswith('conversation-'):
+        peak=report.get('conversation',{}).get('peak',{})
+        for key,limit in [('rows',150),('pages',3),('rawBytes',8*1024*1024),('htmlBytes',8*1024*1024),('foregroundReads',2),('transientRows',8)]:
+            if key not in peak or peak[key]>limit:errors.append('conversation limit '+key)
     return errors

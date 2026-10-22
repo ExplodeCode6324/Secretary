@@ -9,8 +9,18 @@ import { modelConfig, type StreamFn } from "../../pi_secretary/src/model.ts";
 import { Scopes } from "../../pi_secretary/src/scopes.ts";
 import { LiveBudget } from "./live-budget.ts";
 import pg from "pg";
-const root = path.resolve(process.env.ISSUE60_RUN ?? "");
-assert(root.includes("/.demo-data/issue60/"), "isolated run root required");
+assert(
+  !(process.env.ISSUE60_RUN && process.env.ISSUE63_RUN),
+  "one issue namespace required",
+);
+const issue = process.env.ISSUE63_RUN ? "63" : "60";
+const root = path.resolve(
+  process.env.ISSUE63_RUN ?? process.env.ISSUE60_RUN ?? "",
+);
+assert(
+  root.includes(`/.demo-data/issue${issue}/`),
+  "isolated run root required",
+);
 fs.mkdirSync(root, { recursive: true, mode: 0o700 });
 fs.chmodSync(root, 0o700);
 const data = path.join(root, "core");
@@ -33,7 +43,7 @@ const db = new pg.Client({ connectionString: dsn });
 await db.connect();
 const identity = (await db.query("select current_database() as name")).rows[0]
   .name;
-assert(identity.startsWith("secretary_issue60_"));
+assert(identity.startsWith(`secretary_issue${issue}_`));
 await db.end();
 const calls: Record<string, unknown>[] = fs.existsSync(
   path.join(root, "calls.json"),
@@ -54,6 +64,7 @@ if (savedOrigin === undefined)
   });
 let halt = false,
   stopping = false;
+let activeAbort: AbortController | null = null;
 let app: App;
 let server: Awaited<ReturnType<typeof serveCore>>;
 const globalAbort = new AbortController();
@@ -99,7 +110,10 @@ function config(role: "main" | "task") {
     };
     calls.push(record);
     write("calls.json", calls);
+    const callAbort = new AbortController();
+    activeAbort = callAbort;
     const signal = AbortSignal.any([
+      callAbort.signal,
       globalAbort.signal,
       AbortSignal.timeout(Math.max(1, ticket.deadline - Date.now())),
       ...(options?.signal ? [options.signal] : []),
@@ -125,11 +139,13 @@ function config(role: "main" | "task") {
         .finally(() => {
           record.elapsed_ms = Date.now() - start;
           write("calls.json", calls);
+          if (activeAbort === callAbort) activeAbort = null;
           ticket.release();
         });
       return source;
     } catch (e) {
       record.error = "PROVIDER_START_FAILED";
+      if (activeAbort === callAbort) activeAbort = null;
       ticket.release();
       write("calls.json", calls);
       throw e;
@@ -145,9 +161,11 @@ const scratch = path.join(root, "scratch");
 fs.mkdirSync(scratch, { recursive: true, mode: 0o700 });
 const scopes = new Scopes(app.store);
 const scope =
-  app.store.all<any>("Scope").find((s) => s.name === "FE02 scratch") ??
+  app.store
+    .all<any>("Scope")
+    .find((s) => s.name === `FE${issue === "63" ? "04" : "02"} scratch`) ??
   scopes.save({
-    name: "FE02 scratch",
+    name: `FE${issue === "63" ? "04" : "02"} scratch`,
     kind: "DIRECTORY",
     root_path: scratch,
     default_write: "allow",
@@ -168,7 +186,7 @@ server = await serveCore(app, 0, () => void stop());
 write("core/core-endpoint.json", server.endpoint);
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const profile = {
-  id: "issue60-live",
+  id: `issue${issue}-live`,
   data_dir: data,
   expected_mode: "live",
   node_abs: process.execPath,
@@ -210,6 +228,18 @@ process.on("SIGUSR1", () => {
     pid: process.pid,
   });
 });
+// Explicit FE-04 harness fault: abort only the current real provider stream.
+// This is recorded as injected failure, never natural provider evidence.
+if (issue === "63")
+  process.on("SIGUSR2", () => {
+    const active = !!activeAbort;
+    activeAbort?.abort(new Error("ISSUE63_INJECTED_ABORT"));
+    write("provider-interruption.json", {
+      at: new Date().toISOString(),
+      active,
+      injected: true,
+    });
+  });
 process.once("SIGTERM", () => void stop());
 process.once("SIGINT", () => void stop());
-console.log("ISSUE60_CORE_READY");
+console.log(`ISSUE${issue}_CORE_READY`);

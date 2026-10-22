@@ -1,77 +1,220 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import type { Message, TimelineItem } from "./contracts";
-  import { render } from "./study";
-  import { messageLabel } from "./workflow";
   import { bridge as realBridge, type BridgePort } from "./bridge";
-  import { Avatar, Button, Divider } from "./phaseui";
+  import { Button, Divider } from "./phaseui";
+  import MessageRow from "./conversation/MessageRow.svelte";
+  import { ContentStore, bytes } from "./conversation/model";
+  import { Renderer } from "./conversation/render";
   let {
     items,
     domain,
     name = "Secretary",
     bridge = realBridge,
+    store,
+    thinking = true,
+    active = true,
+    select = () => {},
+    changed = () => {},
+    reloadRow = async (_id: string) => {},
+    stats = (_bytes: number) => {},
   }: {
     items: TimelineItem[];
     domain: string;
     name?: string;
     bridge?: BridgePort;
+    store: ContentStore;
+    thinking?: boolean;
+    active?: boolean;
+    select?: (item: TimelineItem) => void;
+    changed?: () => void;
+    reloadRow?: (id: string) => Promise<void>;
+    stats?: (bytes: number) => void;
   } = $props();
-  let extras = $state<Record<string, Message>>({});
+  const renderer = new Renderer();
+  let revision = $state(0);
   let error = $state("");
   let loading = $state("");
-  async function more(m: Message) {
-    const key = m.id + ":" + m.revision,
-      d = domain;
-    loading = key;
+  let root: HTMLElement;
+  let dead = false,
+    sequence = 0,
+    polling = false,
+    turn = 0;
+  const hydrated = new Set<string>();
+  let observedEpoch = -1;
+  $effect(() => {
+    const epoch = store.epoch;
+    void thinking;
+    if (epoch !== observedEpoch) {
+      observedEpoch = epoch;
+      sequence++;
+      hydrated.clear();
+      renderer.clear();
+      revision++;
+    }
+    store.retain(items);
+    const keys = new Set(
+      items
+        .filter((r) => r.kind === "message")
+        .map((r) => r.id + ":" + r.revision),
+    );
+    for (const key of hydrated) if (!keys.has(key)) hydrated.delete(key);
+    renderer.retain(new Set(items.map((r) => r.id)));
+  });
+  async function read(m: Message, replace = false) {
+    const seq = sequence;
+    loading = m.id;
+    error = "";
     try {
-      const next = await bridge.query<Message>(d, {
-        operation: "messages/{id}/content",
-        id: m.id,
-        parameters: { cursor: m.next_cursor! },
-      });
-      // Message content paths use message IDs; the bridge validates their public format.
-      if (domain === d && next.revision === m.revision)
-        extras[key] = { ...next, text: m.text + next.text };
+      await store.read(m, bridge, domain, thinking, replace);
+      if (seq === sequence) {
+        revision++;
+        changed();
+      }
     } catch (e) {
-      error = String(e);
+      if (seq === sequence)
+        error = String(e).includes("CURSOR_EXPIRED")
+          ? "内容版本已变化，请重新读取；已加载部分仍保留。"
+          : String(e);
     } finally {
-      loading = "";
+      if (seq === sequence) loading = "";
     }
   }
+  function cachedMessage(m: Message, _revision: number) {
+    return store.get(m);
+  }
+  function visible() {
+    const bounds = root?.parentElement?.getBoundingClientRect();
+    return items.filter(
+      (m): m is Message =>
+        m.kind === "message" &&
+        [...(root?.querySelectorAll<HTMLElement>("[data-row-id]") ?? [])].some(
+          (el) =>
+            el.dataset.rowId === m.id &&
+            (!bounds ||
+              (el.getBoundingClientRect().bottom >= bounds.top &&
+                el.getBoundingClientRect().top <= bounds.bottom)),
+        ),
+    );
+  }
+  onMount(() => {
+    const timer = setInterval(async () => {
+      stats(renderer.size);
+      if (polling || !active || !thinking || document.hidden) return;
+      const candidates = visible();
+      const durable = candidates.find(
+        (m) =>
+          m.persistence === "durable" &&
+          m.thinking === undefined &&
+          !hydrated.has(m.id + ":" + m.revision),
+      );
+      if (durable && store.budget.active < 2) {
+        polling = true;
+        const seq = sequence;
+        try {
+          await store.read(durable, bridge, domain, true, true);
+          if (!dead && seq === sequence) {
+            hydrated.add(durable.id + ":" + durable.revision);
+            revision++;
+            changed();
+          }
+        } catch (e) {
+          if (!dead && seq === sequence) error = String(e);
+        } finally {
+          polling = false;
+        }
+        return;
+      }
+      const running = candidates.filter(
+        (m) =>
+          m.persistence === "transient" &&
+          m.preview_status === "running" &&
+          m.preview_availability !== "expired",
+      );
+      const m = running[turn++ % running.length];
+      if (!m) return;
+      polling = true;
+      const seq = sequence,
+        epoch = store.epoch;
+      try {
+        const response = await bridge.query<Message>(domain, {
+          operation: "messages/{id}/content",
+          id: m.id,
+          parameters: { thinking: true, streaming: true },
+        });
+        if (
+          dead ||
+          seq !== sequence ||
+          epoch !== store.epoch ||
+          !thinking ||
+          !active ||
+          response.id !== m.id ||
+          !items.some(
+            (row) =>
+              row.id === m.id &&
+              row.revision === m.revision &&
+              row.kind === "message" &&
+              row.persistence === "transient",
+          )
+        )
+          return;
+        if (bytes(JSON.stringify(response)) > 64 * 1024)
+          throw Error("THINKING_LIMIT");
+        // SSE is always the only transient text source. The query's text and
+        // cursor deliberately never enter the row, even when they are longer.
+        store.put({ ...m, thinking: response.thinking ?? "" });
+        revision++;
+        changed();
+      } catch (e) {
+        if (!dead && seq === sequence) error = String(e);
+      } finally {
+        polling = false;
+      }
+    }, 1000);
+    return () => {
+      dead = true;
+      sequence++;
+      clearInterval(timer);
+      renderer.clear();
+      store.clear();
+    };
+  });
 </script>
 
-{#if error}<p role="alert">{error}</p>{/if}
-{#each items as item (item.id)}
-  {#if item.kind === "message"}
-    {@const m = extras[item.id + ":" + item.revision] ?? item}
-    <article data-message-id={m.id} data-testid="message" class="phase-message">
-      <Divider edge="bottom" />
-      <header>
-        <Avatar
-          name={["master", "user"].includes(m.role)
-            ? "Master"
-            : m.role === "system"
-              ? "System"
-              : name}
-          assistant={["assistant", "secretary"].includes(m.role)}
-        />
-        <strong
-          >{["master", "user"].includes(m.role)
-            ? "Master"
-            : m.role === "system"
-              ? "System"
-              : name}</strong
-        > <time>{m.at ?? ""}</time>
-        <small>{messageLabel(m)}{m.truncated ? " · 预览截断" : ""}</small>
-      </header>
-      <div class="prose">{@html render(m.text)}</div>
-      {#if m.next_cursor}<Button
-          variant="text"
-          disabled={loading !== ""}
-          onclick={() => more(m)}>继续读取内容</Button
-        >{/if}
-    </article>
-  {:else}<p class="activity">
-      {item.activity.phase ?? item.activity.kind ?? "活动"} · {item.activity
-        .status ?? ""}
-    </p>{/if}
-{/each}
+<div bind:this={root}>
+  {#if error}<p role="alert">{error}</p>{/if}
+  {#each items as item (item.id)}
+    {#if item.kind === "message"}
+      {@const cached = cachedMessage(item, revision)}
+      {@const m =
+        item.persistence === "transient"
+          ? { ...item, thinking: cached.thinking }
+          : cached}
+      <MessageRow
+        message={m}
+        {name}
+        {bridge}
+        {renderer}
+        {thinking}
+        loading={loading === item.id}
+        more={() => read(item)}
+        reload={() => reloadRow(item.id)}
+        select={() => select(item)}
+      />
+    {:else}
+      <article class="phase-message activity" data-row-id={item.id}>
+        <Divider edge="bottom" />
+        <details>
+          <summary
+            >{item.activity.kind === "tool" ? "工具调用" : "活动"} · {item
+              .activity.phase ??
+              item.activity.kind ??
+              "活动"} · {item.activity.status ?? "未知状态"}</summary
+          >
+          <pre>{JSON.stringify(item.activity, null, 2).slice(0, 65536)}</pre>
+        </details>
+        <Button variant="text" onclick={() => select(item)}>关联</Button>
+      </article>
+    {/if}
+  {/each}
+</div>

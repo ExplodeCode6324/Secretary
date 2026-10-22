@@ -604,6 +604,27 @@ export interface Message {
   persistence?: "transient" | "durable";
   preview_status?: "running" | "saved" | "incomplete";
   truncated?: boolean;
+  source_event_id?: string;
+  request_id?: string;
+  task_id?: string;
+  execution_id?: string;
+  result_id?: string;
+  decision_request_id?: string;
+  notification_id?: string;
+  source_kind?:
+    | "master_input"
+    | "assistant_response"
+    | "task_feedback"
+    | "notification"
+    | "system_input";
+  outcome?:
+    | "completed"
+    | "continued"
+    | "truncated"
+    | "failed"
+    | "interrupted"
+    | "unknown";
+  preview_availability?: "active" | "expired";
   [k: string]: unknown;
 }
 /**

@@ -1,0 +1,26 @@
+{
+  "real_model": true,
+  "streaming_frames": 16,
+  "sse_interrupted": true,
+  "provider_abort_injected": true,
+  "recovered": true,
+  "tool_summaries_collapsed": true,
+  "call_count": 13,
+  "calls_by_scenario": {
+    "recovery": 2,
+    "conversation": 11
+  },
+  "models": [
+    "main:opencode-go/deepseek-v4.1-flash"
+  ],
+  "command_counts": {
+    "messages": 8,
+    "session/resume": 2
+  },
+  "retention_commands": 0,
+  "first_failure": "Missing explicit session/resume UI for RECOVERY_BLOCKED after injected local stream abort. Fixed with existing command and session projection; full native rerun passed.",
+  "limitations": [
+    "Provider abort and SSE disconnect were injected harness faults, not natural provider failures.",
+    "Native automation does not establish system IME or Master visual approval."
+  ]
+}

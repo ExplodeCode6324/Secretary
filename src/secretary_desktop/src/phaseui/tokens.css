@@ -964,3 +964,88 @@ body,
 .phaseui[data-theme="light"] .phase-brand {
   color: #000;
 }
+
+/* Conversation keeps document flow and bounds wide code/table/link content. */
+.phase-message {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+.phase-message header {
+  flex-wrap: wrap;
+}
+.phase-message time {
+  font-variant-numeric: tabular-nums;
+}
+.phase-message details {
+  margin-block: 0.65rem;
+}
+.phase-message summary {
+  cursor: pointer;
+  font-family: var(--font-ui);
+}
+.phase-message pre,
+.phase-message table {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.phase-message table {
+  display: block;
+  border-collapse: collapse;
+}
+.phase-message th,
+.phase-message td {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--line);
+}
+.phase-message .document-link {
+  font: inherit;
+  color: inherit;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.phase-message .document-link:focus-visible,
+.phase-message summary:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.conversation-tools {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: end;
+  margin-block: 0.75rem;
+  font-family: var(--font-ui);
+}
+.conversation-tools label {
+  display: grid;
+  gap: 0.25rem;
+  max-width: 100%;
+}
+.conversation-tools input,
+.conversation-tools select {
+  max-width: 100%;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--line);
+  padding: 0.35rem;
+}
+.rail-id,
+.rail-relation,
+.link-inspection {
+  overflow-wrap: anywhere;
+}
+.message-recovery {
+  padding: 1rem;
+  overflow: auto;
+  min-height: 12rem;
+}
+.message-recovery pre {
+  max-height: 20rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

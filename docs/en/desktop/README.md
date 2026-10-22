@@ -121,3 +121,17 @@ Rust integration tests launch real fixture Core, HTTP/SSE, and persistent Store.
 Draft persistence uses a separate SQLite connection and is not blocked by the network-sync lock. Command-list snapshots show at most 50 entries with 2048-character body previews; full original intents remain in the database. The OS releases each profile’s delivery-file lock on exit/crash.
 
 Current FE-01 limits: draft writes are independent of the network lock, but send and snapshots still serialize with sync and may wait one request timeout (10 seconds) if Core does not respond. Snapshots return full projections for active windows; FE-02 should select windows per page to avoid frequent full rendering of large windows. Receipts over 64 KiB persist only as summaries; full details are queryable through the unified bridge at `requests/{id}`, but the current validation UI has no dedicated full-receipt view. SYNCED means persisted data has caught up, not continuous availability of the transient preview channel.
+
+## Conversation and unified timeline (FE-04)
+
+Thinking is enabled by default. Thinking bodies and tool-call details start collapsed and can be expanded; collapsed entries show only a summary. Turning thinking off immediately clears its presentation and memory cache. The display preference is saved per data domain.
+
+History supports paging in both directions, message or event ID lookup, and search within the loaded window. At most 3 pages and 150 rows are resident, with 8 MiB for text and thinking and 2 MiB per expanded message. Following occurs only while already at the tail without a text selection. Sending does not force a jump; use “Go to latest messages” explicitly.
+
+Full copy is offered only after the loaded body reaches EOF; otherwise the action explicitly copies the loaded portion. Links require explicit address inspection and opening and allow HTTP/HTTPS only. Remote images display alt text only.
+
+The related rail changes scope only on explicit selection; reads send no viewed/presented/read commands. The attention page provides paginated access to full original unresolved or failed messages. Copying or restoring does not resend, and restoration cannot overwrite an existing draft. Failed messages are protected from local quota eviction and cleanup; only confirmed failed records whose text has been recovered may be explicitly discarded.
+
+When the session enters RECOVERY_BLOCKED, the client offers a confirmed “Resume session” action using the existing session/resume command and original request-receipt protocol to continue unfinished turns. Accepted messages are not resubmitted.
+
+Message projections may include source kind, original event ID, direct related IDs, outcome, and preview availability, derived only from existing records. A saved preview is not durable success; expired previews report no final record.

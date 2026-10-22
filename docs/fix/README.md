@@ -4,6 +4,7 @@
 
 | Issue | 计划 | 状态 |
 | --- | --- | --- |
+| #63 | [主对话与统一时间线（中文）](fix_20261023_issue63_主对话与统一时间线.md) · [English](fix_20261023_issue63_主对话与统一时间线.en.md) | Master 已批准 R2 修订；实施与验证中，随后同一 Claude 会话复核及 PR/CI |
 | #62 | [PhaseUI 设计系统（中文）](fix_20261021_issue62_PhaseUI设计系统.md) · [English](fix_20261021_issue62_PhaseUI设计系统.en.md) | R2 中英文计划；Claude Opus 5.5 Extra 三轮复核 PASS，实施待 Master 批准 |
 | #61 | [PhaseUI 现行规范（中文）](fix_20261021_issue61_PhaseUI现行规范.md) · [English](fix_20261021_issue61_PhaseUI现行规范.en.md) | R1 已批准；文档整合完成，待 Master 终审 |
 | #59 | [原生通信与可靠同步](fix_20261020_issue59_原生通信与可靠同步.md) | PR #69；实现完成，R2 并发修订验证中 |

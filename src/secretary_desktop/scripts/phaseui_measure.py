@@ -18,7 +18,7 @@ def processes():
     return result
 
 def run(scenario,mode,seed,uninstrumented=False,coverage=False,theme="light",width=1180,cohort="resource"):
-    folder=REPO/'.demo-data/issue62/runs'/f'{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")}-{cohort}-{scenario}-{mode}'
+    folder=REPO/('.demo-data/issue63/runs' if scenario.startswith('conversation-') else '.demo-data/issue62/runs')/f'{datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")}-{cohort}-{scenario}-{mode}'
     folder.mkdir(parents=True)
     before=processes();env={k:v for k,v in os.environ.items() if not k.startswith(('SECRETARY_STUDY','SECRETARY_PHASEUI'))}
     env.update(SECRETARY_PHASEUI_SCENARIO=scenario,SECRETARY_PHASEUI_MOTION=mode,SECRETARY_PHASEUI_SEED=str(seed),SECRETARY_STUDY_MEASURE='0' if uninstrumented else '1',SECRETARY_PHASEUI_COVERAGE="1" if coverage else "0",SECRETARY_PHASEUI_THEME=theme,SECRETARY_PHASEUI_WIDTH=str(width))
@@ -60,7 +60,7 @@ def run(scenario,mode,seed,uninstrumented=False,coverage=False,theme="light",wid
         if awake.poll() is None:awake.terminate()
         awake.wait(timeout=10)
 if __name__=='__main__':
-    p=argparse.ArgumentParser();p.add_argument('--scenario',choices=['all','idle','single','navigation','input-scroll','stream-stress','bridge-cadence'],default='all');p.add_argument('--mode',choices=['all','off','base','extended'],default='all');p.add_argument('--rounds',type=int,default=3);p.add_argument('--uninstrumented',action='store_true');p.add_argument('--coverage',action='store_true');p.add_argument('--theme',choices=['light','dark'],default='light');p.add_argument('--width',type=int,default=1180);p.add_argument('--cohort',default='resource');args=p.parse_args()
+    p=argparse.ArgumentParser();p.add_argument('--scenario',choices=['all','idle','single','navigation','input-scroll','stream-stress','bridge-cadence','conversation-stream','conversation-history','conversation-expand'],default='all');p.add_argument('--mode',choices=['all','off','base','extended'],default='all');p.add_argument('--rounds',type=int,default=3);p.add_argument('--uninstrumented',action='store_true');p.add_argument('--coverage',action='store_true');p.add_argument('--theme',choices=['light','dark'],default='light');p.add_argument('--width',type=int,default=1180);p.add_argument('--cohort',default='resource');args=p.parse_args()
     if args.uninstrumented and args.scenario!='idle':p.error('reporting-off control requires idle')
     expected_hash=hashlib.sha256(BIN.read_bytes()).hexdigest()
     for scenario in (['idle','single','navigation','input-scroll','stream-stress','bridge-cadence'] if args.scenario=='all' else [args.scenario]):

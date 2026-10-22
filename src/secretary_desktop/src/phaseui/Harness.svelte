@@ -22,7 +22,14 @@
     theme?: "light" | "dark";
     width?: number;
   } = $props();
-  const fixture = fixtureBridge();
+  // svelte-ignore state_referenced_locally
+  const fixture = fixtureBridge(scenario.startsWith("conversation-"));
+  let conversationStats: Record<string,number> = {};
+  const conversationPeak: Record<string,number> = {};
+  function metrics(value: Record<string,number>) {
+    conversationStats = value;
+    for (const [key,n] of Object.entries(value)) conversationPeak[key] = Math.max(conversationPeak[key] ?? 0,n);
+  }
   onMount(() => {
     motionController.configure({ seed, measure, coverage });
     void invoke("phaseui_view", { width, zoom: 1 });
@@ -87,7 +94,11 @@
       ];
       ticks++;
       if (document.hidden || !document.hasFocus()) backgroundTicks++;
-      if (scenario === "stream-stress" || scenario === "bridge-cadence") {
+      if (
+        scenario === "stream-stress" ||
+        scenario === "bridge-cadence" ||
+        scenario === "conversation-stream"
+      ) {
         fixture.advance();
         count++;
       }
@@ -135,6 +146,42 @@
         count++;
         action = true;
       }
+      if (scenario.startsWith("conversation-") && ticks % 2 === 1) {
+        const buttons = [
+          ...document.querySelectorAll<HTMLButtonElement>(
+            "main.connected button",
+          ),
+        ];
+        const click = (text: string) =>
+          buttons.find((b) => b.textContent?.trim() === text)?.click();
+        if (scenario === "conversation-history")
+          click(count % 3 === 2 ? "转到最新消息" : "较早消息");
+        if (scenario === "conversation-expand") {
+          const row = [
+            ...document.querySelectorAll<HTMLElement>("[data-testid=message]"),
+          ].find((r) => {
+            const b = r.getBoundingClientRect();
+            return b.top >= 188 && b.bottom < innerHeight - 200;
+          });
+          row?.querySelector<HTMLElement>("summary")?.click();
+          [...(row?.querySelectorAll<HTMLButtonElement>("button") ?? [])]
+            .find((b) => b.textContent?.trim() === "复制完整正文")
+            ?.click();
+        }
+        if (scenario === "conversation-stream" && count === 1) {
+          const text = document.querySelector(
+            "[data-testid=message] .prose p",
+          )?.firstChild;
+          if (text) {
+            const range = document.createRange();
+            range.selectNodeContents(text);
+            getSelection()?.removeAllRanges();
+            getSelection()?.addRange(range);
+          }
+        }
+        count++;
+        action = true;
+      }
       if (action && measure)
         requestAnimationFrame(() => latencies.push(performance.now() - now));
     };
@@ -147,6 +194,7 @@
       clearInterval(interval);
       const report = {
         phaseui: true,
+        conversation: { peak: conversationPeak, recovery: conversationStats },
         scenario,
         mode,
         seed,
@@ -215,6 +263,7 @@
 <Connected
   bridge={fixture.port}
   synthetic
+  {metrics}
   initialMode={mode}
   initialTheme={theme}
   transientCadence={scenario === "stream-stress" ? 50 : 250}
