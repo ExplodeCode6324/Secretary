@@ -43,3 +43,9 @@ Claude Opus 5.5 Extra inspected the complete 66-file diff at 806c037. Verdict: C
 Raw first failures remain under the ignored validation folder, including the old native test's broad hidden-dialog selector and an OFF-versus-BASE test-launch mismatch. The corrected native matrix passes.
 
 Native link selection was also verified with the macOS Cmd+C action through the native UI driver and exact pbpaste equality. Two earlier attempts using the embedded WebDriver's synthetic DOM keyboard action did not invoke the system Copy menu; those first failures remain preserved. System Pinyin activation was attempted in a disconnected fixture, but produced zero composition events and zero submits: system IME remains NOT_TESTED, not passed.
+
+## I2 阅读修订与竞争测量
+
+I1 复核（1612d12）返回 **CHANGES_REQUIRED**，仅源码复核。I2 修复 B3：冻结窗口成员，保留现有行 SSE 正文，按 ID 原位更新持久结果；新行通过新动态提示进入。B4 先按当前思考开关获取真实 around 页再翻页，失败恢复旧窗口，并让夹具游标检查作用域。真实 Core 默认 ON 原生翻页、延迟快照/选区/超过 5,000 字符流式正文/开关/原位完成回归通过；35 项 TypeScript 与 6 项 Python 通过。暂停专用 Core 制造竞争时，mutex 等待 1,162,427µs、快照序列化 326µs、端到端 1,166ms，不代表正常延迟或最坏上界；暖快照 51,851 字节，mutex 等待 0µs、序列化 189–433µs。I1 四项 CI 全过；本记录时 I2 精确提交 CI、复核及 18 次普通 Release 资源测量待完成。原真实模型账本保持 13 次，40 分钟窗口结束；最终阅读单轮追加窗口等待 Master 授权，尚未执行或重置。系统拼音、VoiceOver、最终视觉与感知性能仍待人工验收。Reviewer 接受带确认的 session/resume 作为已披露计划差异，最终仍由 Master 决定。
+
+原始记录：`native-scope-i2.log`、`native-reading-i2-pass.log`、`native-contention-i2-rerun.log`（忽略目录）。首次失败保留：阅读断言规范末尾 DOM 换行；竞争测量首版误用锁外查询，修正后实测。最终精确 HEAD 证据冻结后记录到 PR #78。

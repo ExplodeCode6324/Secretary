@@ -47,6 +47,15 @@ describe("Issue63 native conversation synthetic fixture", () => {
       ),
       false,
     );
+    // The real Core signs baseline cursors for thinking=false. Default ON must
+    // bootstrap a correctly scoped page before using an older cursor.
+    await $("button=较早消息").click();
+    await browser.waitUntil(
+      async () => (await $$("[data-row-id]").length) > 50,
+      { timeout: 20000 },
+    );
+    assert(!(await $("[role=alert]").isExisting()));
+    await $("button=转到最新消息").click();
     await locate(fixture.ids[980].id);
     const selector = `[data-message-id="${fixture.ids[980].id}"]`;
     const thought = await $(selector).$("[data-testid=thinking] summary");
@@ -216,6 +225,7 @@ describe("Issue63 native conversation synthetic fixture", () => {
         long_eof_copy: true,
         draft_navigation: true,
         paging: true,
+        default_on_live_cursor_scope: true,
       }),
     );
     const snap = (await invoke("bridge_profiles")).value;

@@ -15,6 +15,7 @@
     thinkingPreference,
     saveThinking,
     rowBytes,
+    reconcileWindow,
   } from "./conversation/model";
   import Work from "./Work.svelte";
   import {
@@ -197,42 +198,53 @@
   ) {
     if (!data.domain || readingBusy) return;
     const round = generation;
-    const cursor = direction === "before" ? timeline?.before : timeline?.after;
+    let cursor = direction === "before" ? timeline?.before : timeline?.after;
     if (direction !== "replace" && !cursor) return;
     readingBusy = true;
     error = "";
-    if (direction !== "replace" && !reader.pages.length && timeline) {
-      const anchorId =
-        timeline.items[Math.floor(timeline.items.length / 2)]?.id;
-      if (anchorId)
-        reader.pages = [
-          {
-            query: {
-              operation: "timeline/around",
-              parameters: { ...flags(), message_id: anchorId },
-            },
-            value: timeline,
-          },
-        ];
-    }
+    const previousPages = reader.pages;
     try {
-      await reader.load(
-        bridge,
-        data.domain,
-        {
-          operation: id ? "timeline/around" : "timeline",
-          parameters: {
-            ...flags(),
-            ...(id
-              ? { [kind]: id }
-              : direction === "replace"
-                ? {}
-                : { cursor: cursor!, direction }),
+      if (
+        direction !== "replace" &&
+        (!inHistory || !reader.pages.length) &&
+        timeline
+      ) {
+        // Baseline cursors are thinking=false. Obtain a real page in the current
+        // scope first; never relabel a baseline cursor or seed a fictitious page.
+        const anchorId =
+          timeline.items[Math.floor(timeline.items.length / 2)]?.id;
+        if (!anchorId) return;
+        await reader.load(
+          bridge,
+          data.domain,
+          {
+            operation: "timeline/around",
+            parameters: { ...flags(), message_id: anchorId },
           },
-        },
-        direction,
-        pins,
-      );
+          "replace",
+        );
+        if (round !== generation) return;
+        cursor =
+          direction === "before" ? reader.value?.before : reader.value?.after;
+      }
+      if (direction === "replace" || cursor)
+        await reader.load(
+          bridge,
+          data.domain,
+          {
+            operation: id ? "timeline/around" : "timeline",
+            parameters: {
+              ...flags(),
+              ...(id
+                ? { [kind]: id }
+                : direction === "replace"
+                  ? {}
+                  : { cursor: cursor!, direction }),
+            },
+          },
+          direction,
+          pins,
+        );
       if (round !== generation) return;
       const saved = capture(),
         sequence = scrollSequence;
@@ -252,7 +264,10 @@
             ?.scrollIntoView({ block: "center" });
       }
     } catch (e) {
-      if (round === generation) displayError(e);
+      if (round === generation) {
+        reader.pages = previousPages;
+        displayError(e);
+      }
     } finally {
       if (round === generation) readingBusy = false;
     }
@@ -321,7 +336,19 @@
   let base = $derived(projection<Timeline>(data.cache, "timeline"));
   let timeline = $derived(history ?? base);
   let items = $derived(
-    conversation(timeline, history ? null : live, finalized),
+    conversation(
+      timeline,
+      inHistory
+        ? null
+        : history
+          ? {
+              previews: previews(live).filter((p) =>
+                history!.items.some((r) => r.id === "message:" + p.id),
+              ),
+            }
+          : live,
+      finalized,
+    ),
   );
   const previewChecks = new Set<string>();
   let polling = false,
@@ -618,9 +645,20 @@
         layoutChanged = true;
       } else if (baseChanged && oldTimeline?.items.length) {
         if (history || !tailFollow) {
-          // Freeze the already displayed window, never a floating latest-page query.
+          // Freeze row membership, not row contents. Preserve the currently
+          // rendered SSE body, then reconcile known IDs with authoritative rows.
           layoutChanged = !history || !newMessages;
-          if (!history) history = oldTimeline;
+          if (!inHistory && currentBase) {
+            const frozen = history ?? { ...oldTimeline, items };
+            try {
+              history = reconcileWindow(frozen, currentBase, content.size);
+              layoutChanged = true;
+            } catch (e) {
+              history = frozen;
+              readingStale = true;
+              notice = "当前窗口需要重新定位：" + String(e);
+            }
+          }
           newMessages = true;
         } else layoutChanged = true;
       } else if (baseChanged) layoutChanged = true;
@@ -758,7 +796,7 @@
             }
             const indicatorChanged = !!history && changed && !newMessages;
             if (history && changed) newMessages = true;
-            if ((!history && changed) || checkedRow || indicatorChanged)
+            if ((!inHistory && changed) || checkedRow || indicatorChanged)
               await restore(savedPosition, tailFollow, seq);
           }
         } catch {
@@ -836,8 +874,9 @@
     aria-label="对话记录"
   >
     {#if history}<p data-testid="history-banner">
-        正在阅读历史页面。<Button variant="text" onclick={latest}
-          >转到最新消息</Button
+        {inHistory ? "正在阅读历史页面。" : "正在保持当前阅读位置。"}<Button
+          variant="text"
+          onclick={latest}>转到最新消息</Button
         >
       </p>{/if}
     {#if newMessages}<p role="status" data-testid="new-messages">

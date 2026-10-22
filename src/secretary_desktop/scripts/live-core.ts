@@ -56,7 +56,44 @@ const savedOrigin = fs.existsSync(originPath)
   : undefined;
 if (savedOrigin !== undefined)
   assert(typeof savedOrigin === "number" && Number.isFinite(savedOrigin));
-const limiter = new LiveBudget(undefined, calls as any, savedOrigin);
+// An optional, explicitly Master-approved one-start extension keeps the original
+// ledger origin/counts. Absence of this file retains the original 40-minute gate.
+const grantPath = path.join(root, "final-review-grant.json");
+let grantLimits: ConstructorParameters<typeof LiveBudget>[0];
+if (fs.existsSync(grantPath)) {
+  assert(issue === "63" && typeof savedOrigin === "number");
+  const grant = JSON.parse(fs.readFileSync(grantPath, "utf8"));
+  assert(
+    grant.authorized_by === "Master" && grant.original_origin === savedOrigin,
+  );
+  assert(
+    Number.isInteger(grant.previous_total) &&
+      grant.previous_total >= 0 &&
+      grant.previous_total < 48,
+  );
+  assert(
+    calls.length >= grant.previous_total &&
+      calls.length <= grant.previous_total + 1,
+  );
+  assert(Number.isFinite(grant.issued_at) && Number.isFinite(grant.expires_at));
+  assert(
+    grant.issued_at >= savedOrigin &&
+      grant.expires_at > grant.issued_at &&
+      grant.expires_at <= grant.issued_at + 600000,
+  );
+  assert(
+    Date.now() >= grant.issued_at && Date.now() < grant.expires_at,
+    "approved extension expired",
+  );
+  grantLimits = {
+    scenarioCalls: 12,
+    totalCalls: grant.previous_total + 1,
+    scenarioMs: 600000,
+    totalMs: grant.expires_at - savedOrigin,
+    spacingMs: 20000,
+  };
+}
+const limiter = new LiveBudget(grantLimits, calls as any, savedOrigin);
 if (savedOrigin === undefined)
   fs.writeFileSync(originPath, JSON.stringify(limiter.started), {
     mode: 0o600,
@@ -87,6 +124,7 @@ const scenario = () => {
       "reject",
       "stale",
       "recovery",
+      ...(grantLimits ? ["final-reading"] : []),
     ].includes(name),
   );
   return name as string;

@@ -79,6 +79,46 @@ describe("Issue63 large content and recovery", () => {
       }
       done(values);
     });
+    const endpoint = JSON.parse(
+      fs.readFileSync(path.join(root, "core/core-endpoint.json"), "utf8"),
+    );
+    assert.equal(endpoint.instance_id, snap.core.instance_id);
+    assert(
+      execFileSync("ps", ["-p", String(endpoint.pid), "-o", "command="], {
+        encoding: "utf8",
+      }).includes("/src/pi_secretary/src/backend.ts"),
+    );
+    process.kill(endpoint.pid, "SIGSTOP");
+    let contended: any;
+    const resume = setTimeout(
+      () => process.kill(endpoint.pid, "SIGCONT"),
+      2300,
+    );
+    try {
+      contended = await browser.executeAsync(async (domain, done) => {
+        const invoke = (window as any).__TAURI__.core.invoke;
+        await invoke("bridge_subscribe", {
+          expectedDomain: domain,
+          queries: [
+            { operation: "assistant" },
+            { operation: "session" },
+            { operation: "timeline" },
+            { operation: "attention" },
+            { operation: "tasks" },
+          ],
+        });
+        // The actual background tick now waits for the paused Core while holding
+        // the Bridge mutex. Wait past its one-second scheduling cadence.
+        await new Promise((r) => setTimeout(r, 1200));
+        const started = performance.now();
+        const snapshot = await invoke("bridge_profiles");
+        done({ ms: performance.now() - started, ...snapshot.native_measure });
+      }, snap.domain);
+    } finally {
+      clearTimeout(resume);
+      process.kill(endpoint.pid, "SIGCONT");
+    }
+    assert(contended.mutex_wait_us >= 200000, JSON.stringify(contended));
     const codeReads = await load(981);
     const limitReads = await load(982, true);
     // Inject an UNKNOWN synthetic local intent into this isolated fixture only.
@@ -152,6 +192,7 @@ describe("Issue63 large content and recovery", () => {
           unknown_body_recovered: true,
           whitespace_draft_protected: true,
           snapshot_ipc: timings,
+          contended_snapshot: contended,
         },
         null,
         2,

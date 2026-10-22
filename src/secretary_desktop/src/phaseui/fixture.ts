@@ -26,11 +26,15 @@ export function fixtureBridge(conversation = false) {
       persistence: "durable",
     }),
   );
+  const cursor = (offset: number, thinking = false, streaming = false) =>
+    `${offset}:${thinking}:${streaming}`;
   const timeline: Timeline = {
-    items: conversation ? messages.slice(-50) : messages,
+    items: conversation
+      ? messages.slice(-50).map((m) => ({ ...m, thinking: undefined }))
+      : messages,
     version: "1",
     generation: "fixture",
-    before: conversation ? "950" : null,
+    before: conversation ? cursor(950) : null,
     after: null,
   };
   const state: Snapshot = {
@@ -135,11 +139,18 @@ export function fixtureBridge(conversation = false) {
             0,
             messages.findIndex((m) => m.id === p.message_id) - 25,
           );
-        else if (p.cursor)
+        else if (p.cursor) {
+          const [offset, thought, stream] = String(p.cursor).split(":");
+          if (
+            thought !== String(!!p.thinking) ||
+            stream !== String(!!p.streaming)
+          )
+            throw Error("CURSOR_EXPIRED");
           start = Math.max(
             0,
-            Number(p.cursor) + (p.direction === "before" ? -50 : 0),
+            Number(offset) + (p.direction === "before" ? -50 : 0),
           );
+        }
         const items = messages.slice(start, start + 50).map((m) => ({
           ...m,
           thinking: p.thinking ? m.thinking : undefined,
@@ -147,8 +158,11 @@ export function fixtureBridge(conversation = false) {
         return structuredClone({
           ...timeline,
           items,
-          before: start ? String(start) : null,
-          after: start + 50 < messages.length ? String(start + 50) : null,
+          before: start ? cursor(start, !!p.thinking, !!p.streaming) : null,
+          after:
+            start + 50 < messages.length
+              ? cursor(start + 50, !!p.thinking, !!p.streaming)
+              : null,
         }) as T;
       }
       if (
@@ -203,9 +217,48 @@ export function fixtureBridge(conversation = false) {
           id: `message:append-${++sequence}`,
           text: `新记录 ${sequence}`,
         });
-      timeline.items = messages.slice(-50);
+      timeline.items = messages
+        .slice(-50)
+        .map((m) => ({ ...m, thinking: undefined }));
       timeline.version = String(sequence + 1);
-      timeline.before = String(messages.length - 50);
+      timeline.before = cursor(messages.length - 50);
+    },
+    publishPreview() {
+      timeline.items = [
+        ...timeline.items.filter((m) => m.id !== "message:synthetic-stream"),
+        {
+          id: "message:synthetic-stream",
+          kind: "message",
+          revision: String(++sequence),
+          role: "secretary",
+          text: "",
+          call_id: "synthetic-stream",
+          persistence: "transient",
+          incomplete: true,
+          next_cursor: null,
+          preview_status: "running",
+        },
+      ];
+      timeline.version = String(sequence);
+    },
+    completePreview() {
+      const row: Message = {
+        id: "message:synthetic-stream",
+        kind: "message",
+        revision: String(++sequence),
+        role: "secretary",
+        text: preview,
+        call_id: "synthetic-stream",
+        persistence: "durable",
+        incomplete: false,
+        next_cursor: null,
+        outcome: "completed",
+      };
+      messages.push(row);
+      timeline.items = [...timeline.items.filter((m) => m.id !== row.id), row];
+      timeline.version = String(sequence);
+      running = false;
+      preview = "";
     },
     advance() {
       running = true;

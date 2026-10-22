@@ -105,6 +105,44 @@ describe("Issue63 asynchronous reading", () => {
     assert.equal(streamed.selection, selected.selection);
     assert(Math.abs(streamed.top - selected.top) <= 2);
     await browser.execute(() => getSelection()!.removeAllRanges());
+    const stream = $("[data-message-id='message:synthetic-stream']");
+    const bodyBefore = await stream.$(".prose:not(.thinking-body)").getText();
+    assert(bodyBefore.length > 5000);
+    await $("button=思考：开").click();
+    assert.equal(
+      await stream.$(".prose:not(.thinking-body)").getText(),
+      bodyBefore,
+    );
+    await $("button=思考：关").click();
+    assert.equal(
+      await stream.$(".prose:not(.thinking-body)").getText(),
+      bodyBefore,
+    );
+    await browser.execute(() =>
+      (window as any).conversationTest.publishPreview(),
+    );
+    await $("[data-testid=new-messages]").waitForExist({ timeout: 5000 });
+    assert.equal(
+      await stream.$(".prose:not(.thinking-body)").getText(),
+      bodyBefore,
+    );
+    await browser.execute(() =>
+      (window as any).conversationTest.completePreview(),
+    );
+    await browser.waitUntil(
+      async () => (await stream.getText()).includes("已记录 · 完成"),
+      { timeout: 5000 },
+    );
+    const finalText = await stream.$(".prose:not(.thinking-body)").getText();
+    fs.writeFileSync(
+      `${out}/completion-debug.json`,
+      JSON.stringify({ bodyBefore, finalText }),
+    );
+    assert.equal(
+      finalText.trimEnd(),
+      bodyBefore.trimEnd() + "。",
+      "EOF reveals only the withheld final grapheme",
+    );
     const commands = await browser.execute(() =>
       (window as any).conversationTest.commands(),
     );
@@ -115,6 +153,9 @@ describe("Issue63 asynchronous reading", () => {
         {
           snapshot_anchor_drift: after.offset - before.offset,
           selection_while_streaming: true,
+          freeze_stream_body_preserved: true,
+          durable_completion_in_place: true,
+          over_5000_units_toggle_preserved: true,
           stream_scroll_drift: streamed.top - selected.top,
           commands,
         },

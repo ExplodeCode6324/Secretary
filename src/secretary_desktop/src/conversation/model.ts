@@ -214,6 +214,35 @@ export class ContentStore {
     }
   }
 }
+// Reconcile a frozen live window without evicting the reading anchor or adding
+// unseen rows. Streaming=false baseline rows cannot erase an admitted SSE body.
+export function reconcileWindow(
+  frozen: Timeline,
+  incoming: Timeline,
+  extraBytes = 0,
+): Timeline {
+  if (frozen.generation !== incoming.generation)
+    throw Error("TIMELINE_RESET_REQUIRED");
+  const updates = new Map(incoming.items.map((r) => [r.id, r]));
+  const items = frozen.items.map((old) => {
+    const next = updates.get(old.id);
+    if (!next) return old;
+    if (
+      old.kind === "message" &&
+      next.kind === "message" &&
+      next.persistence === "transient" &&
+      next.preview_availability !== "expired"
+    )
+      return { ...next, text: next.text || old.text };
+    return next;
+  });
+  if (
+    items.length > LIMITS.rows ||
+    items.reduce((n, r) => n + rowBytes(r), 0) + extraBytes > LIMITS.raw
+  )
+    throw Error("CONTENT_LIMIT");
+  return { ...frozen, version: incoming.version, items };
+}
 export type WindowPage = { query: Query; value: Timeline };
 export class ReadingWindow {
   pages: WindowPage[] = [];

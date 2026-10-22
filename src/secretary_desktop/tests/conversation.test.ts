@@ -10,6 +10,7 @@ import {
   visibleFragment,
   thinkingPreference,
   outboxLabel,
+  reconcileWindow,
 } from "../src/conversation/model";
 import { Renderer, safeUrl } from "../src/conversation/render";
 import { conversation } from "../src/workflow";
@@ -272,4 +273,33 @@ test("transient thinking survives text revisions but clears on durable transitio
   store.put(m);
   store.clear();
   assert.equal(store.get(newer).thinking, undefined);
+});
+
+test("frozen live membership preserves SSE text and reconciles durable completion without eviction", () => {
+  const preview = {
+    ...row(1, "visible SSE"),
+    persistence: "transient" as const,
+  };
+  const frozen = { ...page(0), items: [row(0), preview] };
+  const incoming = {
+    ...frozen,
+    version: "2",
+    items: [{ ...preview, text: "", revision: "2" }, row(2, "new unseen")],
+  };
+  const merged = reconcileWindow(frozen, incoming);
+  assert.equal((merged.items[1] as Message).text, "visible SSE");
+  assert.deepEqual(
+    merged.items.map((r) => r.id),
+    ["0", "1"],
+  );
+  const done = reconcileWindow(merged, {
+    ...incoming,
+    items: [{ ...row(1, "final body"), revision: "3" }],
+  });
+  assert.equal((done.items[1] as Message).persistence, "durable");
+  assert.equal((done.items[1] as Message).text, "final body");
+  assert.throws(
+    () => reconcileWindow(frozen, { ...incoming, generation: "other" }),
+    /RESET/,
+  );
 });
