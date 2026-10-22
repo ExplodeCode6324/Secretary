@@ -12,6 +12,7 @@
     name,
     renderer,
     more,
+    full,
     reload,
     select,
     thinking,
@@ -22,6 +23,7 @@
     name: string;
     renderer: Renderer;
     more: () => void;
+    full: () => Promise<string>;
     reload: () => void;
     select: () => void;
     thinking: boolean;
@@ -31,6 +33,8 @@
   let selected = $state(false);
   let shown = $state("");
   let shownThought = $state("");
+  let copiedBody = $state("");
+  let copiedPartial = $state(true);
   let expanded = $state(false);
   let status = $state("");
   let inspectedUrl = $state("");
@@ -62,6 +66,11 @@
   );
   $effect(() => {
     if (!selected) {
+      copiedBody = message.text;
+      copiedPartial =
+        !!message.next_cursor ||
+        !!message.loaded_portion ||
+        message.persistence !== "durable";
       shown = visibleFragment(
         message.text,
         message.persistence === "durable" && !message.next_cursor,
@@ -176,13 +185,21 @@
         disabled={loading}
         onclick={more}>继续读取内容</Button
       >{/if}
-    <Button variant="text" onclick={() => copy(message.text)}
-      >{message.next_cursor ||
-      message.loaded_portion ||
-      message.persistence !== "durable"
-        ? "复制已加载部分"
-        : "复制完整正文"}</Button
+    <Button variant="text" onclick={() => copy(copiedBody)}
+      >{copiedPartial ? "复制已加载部分" : "复制完整正文"}</Button
     >
+    {#if message.persistence === "durable" && copiedPartial}<Button
+        variant="text"
+        disabled={loading || selected}
+        onclick={async () => {
+          status = "正在读取到末尾…";
+          try {
+            await copy(await full());
+          } catch (e) {
+            status = "未复制完整正文：" + String(e);
+          }
+        }}>读取并复制完整正文</Button
+      >{/if}
     {#if message.persistence === "durable"}<Button
         variant="text"
         disabled={loading}

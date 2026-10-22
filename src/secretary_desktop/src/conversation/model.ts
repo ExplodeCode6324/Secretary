@@ -6,6 +6,7 @@ export const LIMITS = {
   raw: 8 * 1024 * 1024,
   row: 2 * 1024 * 1024,
   html: 8 * 1024 * 1024,
+  cursors: 1024,
 };
 export const bytes = (v: string) => new TextEncoder().encode(v).length;
 export const rowBytes = (r: TimelineItem) =>
@@ -46,13 +47,19 @@ export function visibleFragment(text: string, eof: boolean) {
 }
 export class ReadBudget {
   active = 0;
+  private waiting: (() => void)[] = [];
   async run<T>(read: () => Promise<T>): Promise<T> {
-    if (this.active >= 2) throw Error("READ_BUSY");
-    this.active++;
+    if (this.active < 2) this.active++;
+    else {
+      if (this.waiting.length >= 4) throw Error("READ_BUSY");
+      await new Promise<void>((resolve) => this.waiting.push(resolve));
+    }
     try {
       return await read();
     } finally {
-      this.active--;
+      const next = this.waiting.shift();
+      if (next) next();
+      else this.active--;
     }
   }
 }
@@ -71,7 +78,11 @@ export class ContentStore {
   }
   get(row: Message) {
     const r = this.rows.get(row.id);
-    return r?.revision === row.revision ? r : row;
+    return r?.persistence === "transient" && row.persistence === "transient"
+      ? { ...row, thinking: r.thinking }
+      : r?.revision === row.revision
+        ? r
+        : row;
   }
   clear() {
     this.epoch++;
@@ -84,7 +95,18 @@ export class ContentStore {
     const keep = new Map(items.map((r) => [r.id, String(r.revision)]));
     this.residents = keep;
     for (const [id, row] of this.rows)
-      if (keep.get(id) !== row.revision) {
+      if (
+        keep.get(id) !== row.revision &&
+        !(
+          row.persistence === "transient" &&
+          items.some(
+            (r) =>
+              r.id === id &&
+              r.kind === "message" &&
+              r.persistence === "transient",
+          )
+        )
+      ) {
         this.rows.delete(id);
         this.used.delete(id + ":" + row.revision);
       }
@@ -100,6 +122,30 @@ export class ContentStore {
     if (!old && this.rows.size >= LIMITS.rows) throw Error("CONTENT_LIMIT");
     this.rows.set(row.id, row);
   }
+  async complete(
+    row: Message,
+    bridge: BridgePort,
+    domain: string,
+    thinking: boolean,
+  ): Promise<string> {
+    if (row.persistence !== "durable") throw Error("CONTENT_NOT_DURABLE");
+    const epoch = this.epoch;
+    if (
+      this.get(row).loaded_portion ||
+      (thinking && this.get(row).thinking === undefined)
+    )
+      await this.read(row, bridge, domain, thinking, true);
+    while (this.get(row).next_cursor) {
+      if (
+        epoch !== this.epoch ||
+        (this.residents && this.residents.get(row.id) !== row.revision)
+      )
+        throw Error("CURSOR_EXPIRED");
+      await this.read(row, bridge, domain, thinking);
+    }
+    if (epoch !== this.epoch) throw Error("CURSOR_EXPIRED");
+    return this.get(row).text;
+  }
   async read(
     row: Message,
     bridge: BridgePort,
@@ -107,11 +153,14 @@ export class ContentStore {
     thinking: boolean,
     replace = false,
   ): Promise<void> {
-    const current = this.get(row),
-      cursor = replace ? undefined : current.next_cursor;
+    const current = this.get(row);
+    replace = replace || (thinking && current.thinking === undefined);
+    const cursor = replace ? undefined : current.next_cursor;
     if (!replace && !cursor) return;
     const key = row.id + ":" + row.revision;
-    if (this.busy.has(key)) return;
+    if (this.busy.has(key)) throw Error("READ_BUSY");
+    if (cursor && (this.used.get(key)?.size ?? 0) >= LIMITS.cursors)
+      throw Error("CONTENT_LIMIT");
     if (cursor && this.used.get(key)?.has(cursor))
       throw Error("REPEATED_CURSOR");
     const epoch = this.epoch;
@@ -142,6 +191,8 @@ export class ContentStore {
           this.used.get(key)?.has(next.next_cursor ?? ""))
       )
         throw Error("REPEATED_CURSOR");
+      if (next.next_cursor && !next.text && !(thinking && next.thinking))
+        throw Error("EMPTY_FRAGMENT");
       this.put({
         ...next,
         text: (replace ? "" : current.text) + next.text,
@@ -199,7 +250,7 @@ export class ReadingWindow {
     domain: string,
     query: Query,
     direction: "before" | "after" | "replace",
-    pins = new Set<string>(),
+    pins: Set<string> | (() => Set<string>) = new Set<string>(),
   ) {
     if (this.busy) return;
     this.busy = true;
@@ -234,7 +285,11 @@ export class ReadingWindow {
       ) {
         if (next.length <= 1) throw Error("CONTENT_LIMIT");
         const index = direction === "before" ? next.length - 1 : 0;
-        if (next[index].value.items.some((r) => pins.has(r.id)))
+        if (
+          next[index].value.items.some((r) =>
+            (typeof pins === "function" ? pins() : pins).has(r.id),
+          )
+        )
           throw Error("READING_PINNED");
         next.splice(index, 1);
       }
@@ -244,7 +299,11 @@ export class ReadingWindow {
       if (epoch === this.epoch) this.busy = false;
     }
   }
-  async refresh(bridge: BridgePort, domain: string, pins = new Set<string>()) {
+  async refresh(
+    bridge: BridgePort,
+    domain: string,
+    pins: Set<string> | (() => Set<string>) = new Set<string>(),
+  ) {
     if (this.busy || !this.pages.length) return;
     this.busy = true;
     this.stale = true;
@@ -275,7 +334,12 @@ export class ReadingWindow {
       )
         throw Error("CONTENT_LIMIT");
       const ids = new Set(next.flatMap((p) => p.value.items.map((r) => r.id)));
-      if ([...pins].some((id) => !ids.has(id))) throw Error("READING_PINNED");
+      if (
+        [...(typeof pins === "function" ? pins() : pins)].some(
+          (id) => !ids.has(id),
+        )
+      )
+        throw Error("READING_PINNED");
       this.pages = next;
       this.stale = false;
     } finally {

@@ -53,6 +53,48 @@ describe("Issue63 native conversation synthetic fixture", () => {
     await thought.click();
     assert((await $(selector).getText()).includes("人工思考摘要"));
     await thought.click();
+    const frozen = await browser.execute((selector) => {
+      const article = document.querySelector(selector)!;
+      const body = article.querySelector(".prose:not(.thinking-body)")!;
+      const text = body.querySelector("p")!.firstChild!;
+      const range = document.createRange();
+      range.setStart(text, 0);
+      range.setEnd(text, Math.min(12, text.textContent!.length));
+      getSelection()!.removeAllRanges();
+      getSelection()!.addRange(range);
+      return {
+        selection: getSelection()!.toString(),
+        body: body.textContent,
+        top: article.getBoundingClientRect().top,
+      };
+    }, selector);
+    await browser.waitUntil(async () =>
+      (await $(selector).getText()).includes("选中文本保持不变"),
+    );
+    await browser.execute((selector) => {
+      [
+        ...document
+          .querySelector(selector)!
+          .querySelectorAll<HTMLButtonElement>("button"),
+      ]
+        .find((b) => b.textContent?.trim() === "继续读取内容")!
+        .click();
+    }, selector);
+    await browser.waitUntil(
+      async () => await $(selector).$("button=继续读取内容").isEnabled(),
+    );
+    const selected = await browser.execute((selector) => {
+      const article = document.querySelector(selector)!;
+      return {
+        selection: getSelection()!.toString(),
+        body: article.querySelector(".prose:not(.thinking-body)")!.textContent,
+        top: article.getBoundingClientRect().top,
+      };
+    }, selector);
+    assert.equal(selected.selection, frozen.selection);
+    assert.equal(selected.body, frozen.body);
+    assert(Math.abs(selected.top - frozen.top) <= 2);
+    await browser.execute(() => getSelection()!.removeAllRanges());
     for (let i = 0; i < 40; i++) {
       const more = await $(selector).$("button=继续读取内容");
       if (!(await more.isExisting())) break;
@@ -90,6 +132,48 @@ describe("Issue63 native conversation synthetic fixture", () => {
       url: "file:///tmp/no-open",
     });
     assert.equal(blocked.failure, "INVALID_URL");
+    await locate(fixture.ids[979].id);
+    const linkSelection = await browser.execute((id) => {
+      const link = document.querySelector(
+        `[data-message-id="${id}"] .document-link`,
+      )!;
+      const p = link.closest("p")!;
+      (document.activeElement as HTMLElement)?.blur();
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      getSelection()!.removeAllRanges();
+      getSelection()!.addRange(range);
+      return {
+        text: getSelection()!.toString(),
+        select: getComputedStyle(link).getPropertyValue("-webkit-user-select"),
+      };
+    }, fixture.ids[979].id);
+    assert.equal(linkSelection.select, "text");
+    assert(linkSelection.text.includes("安全链接"));
+    if (process.env.NATIVE_CUA_COPY === "1") {
+      fs.writeFileSync(
+        path.join(root, "copy-ready"),
+        JSON.stringify(linkSelection),
+      );
+      await browser.waitUntil(
+        async () => fs.existsSync(path.join(root, "copy-done")),
+        { timeout: 90000 },
+      );
+    } else {
+      // The embedded driver sends DOM keys, which do not invoke the macOS Copy menu.
+      // Assert the native selection and use the narrow native clipboard fallback.
+      const copied = await invoke("bridge_copy_text", {
+        text: linkSelection.text,
+      });
+      assert(!copied.failure);
+    }
+    await browser.waitUntil(async () =>
+      execFileSync("/usr/bin/pbpaste", [], {
+        encoding: "utf8",
+        env: { ...process.env, LANG: "en_US.UTF-8", LC_ALL: "en_US.UTF-8" },
+      }).includes("安全链接"),
+    );
+    await browser.execute(() => getSelection()!.removeAllRanges());
     await $("button=思考：开").click();
     await $("button=思考：关").waitForExist();
     assert.equal(await $$("[data-testid=thinking]").length, 0);
@@ -126,6 +210,9 @@ describe("Issue63 native conversation synthetic fixture", () => {
         thinking_default_on: true,
         collapsed: true,
         unicode_clipboard: true,
+        native_link_text_selection_copy: true,
+        selected_text_unchanged_on_fragment: true,
+        selected_anchor_drift_px: Math.abs(selected.top - frozen.top),
         long_eof_copy: true,
         draft_navigation: true,
         paging: true,

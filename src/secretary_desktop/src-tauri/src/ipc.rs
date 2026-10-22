@@ -39,9 +39,27 @@ fn domain(b: &Bridge, expected: &str) -> Result<()> {
 #[tauri::command]
 pub async fn bridge_profiles(state: tauri::State<'_, Native>) -> Result<Value> {
     let s = state.inner().clone();
-    tauri::async_runtime::spawn_blocking(move || with(&s, |b| b.snapshot()))
-        .await
-        .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
+    tauri::async_runtime::spawn_blocking(move || {
+        #[cfg(feature = "native-test")]
+        let started = std::time::Instant::now();
+        with(&s, |b| {
+            #[cfg(feature = "native-test")]
+            let acquired = std::time::Instant::now();
+            let value = b.snapshot()?;
+            #[cfg(feature = "native-test")]
+            if std::env::var("SECRETARY_DESKTOP_MEASURE_BRIDGE").as_deref() == Ok("1") {
+                let mut value = value;
+                value["native_measure"] = serde_json::json!({
+                    "mutex_wait_us": acquired.duration_since(started).as_micros() as u64,
+                    "snapshot_us": acquired.elapsed().as_micros() as u64,
+                });
+                return Ok(value);
+            }
+            Ok(value)
+        })
+    })
+    .await
+    .map_err(|_| err("BRIDGE_UNAVAILABLE"))?
 }
 #[tauri::command]
 pub fn bridge_transient(

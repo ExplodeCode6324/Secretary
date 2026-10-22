@@ -287,7 +287,7 @@ describe("PhaseUI in native WKWebView", () => {
   });
   it("restores dialog focus and exposes only visible page controls", async () => {
     await $("button=连接").click();
-    await $("dialog").waitForDisplayed();
+    await $("dialog[open]").waitForDisplayed();
     await browser.keys(["Escape"]);
     await browser.waitUntil(async () => !(await $("dialog").isDisplayed()));
     assert.equal(

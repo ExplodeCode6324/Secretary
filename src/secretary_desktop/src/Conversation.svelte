@@ -80,6 +80,22 @@
       if (seq === sequence) loading = "";
     }
   }
+  async function fullCopy(m: Message) {
+    const seq = sequence;
+    loading = m.id;
+    error = "";
+    try {
+      const text = await store.complete(m, bridge, domain, thinking);
+      if (seq !== sequence) throw Error("CURSOR_EXPIRED");
+      revision++;
+      return text;
+    } finally {
+      if (seq === sequence) {
+        loading = "";
+        revision++;
+      }
+    }
+  }
   function cachedMessage(m: Message, _revision: number) {
     return store.get(m);
   }
@@ -198,20 +214,38 @@
         {thinking}
         loading={loading === item.id}
         more={() => read(item)}
+        full={() => fullCopy(item)}
         reload={() => reloadRow(item.id)}
         select={() => select(item)}
       />
     {:else}
+      {@const at =
+        typeof item.at === "string"
+          ? item.at
+          : typeof item.activity.started_at === "string"
+            ? item.activity.started_at
+            : ""}
       <article class="phase-message activity" data-row-id={item.id}>
         <Divider edge="bottom" />
         <details>
           <summary
-            >{item.activity.kind === "tool" ? "工具调用" : "活动"} · {item
+            ><time datetime={at} title={at}
+              >{at
+                ? new Date(at).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : "时间未知"}</time
+            >
+            · {item.activity.kind === "tool" ? "工具调用" : "活动"} · {item
               .activity.phase ??
               item.activity.kind ??
               "活动"} · {item.activity.status ?? "未知状态"}</summary
           >
           <pre>{JSON.stringify(item.activity, null, 2).slice(0, 65536)}</pre>
+          {#if JSON.stringify(item.activity, null, 2).length > 65536}<p>
+              活动详情已达到显示上限，仅展示前 65,536 个字符。
+            </p>{/if}
         </details>
         <Button variant="text" onclick={() => select(item)}>关联</Button>
       </article>

@@ -68,6 +68,28 @@ test("assistant outcomes preserve source events, and evicted retry previews beco
         partial: { content: [{ type: "text", text: "retry preview" }] },
       } as any,
     });
+    app.host.previews.update({
+      type: "event",
+      id: call,
+      event: {
+        type: "thinking_delta",
+        contentIndex: 1,
+        delta: '中文👩‍💻\\"'.repeat(10000),
+        partial: {
+          content: [
+            { type: "text", text: '正文中文👩‍💻\\"'.repeat(10000) },
+            { type: "thinking", thinking: '思考中文👩‍💻\\"'.repeat(10000) },
+          ],
+        },
+      } as any,
+    });
+    const bounded = timelineFor(app).query(session, {
+      fragment: "message:" + call,
+      streaming: true,
+      thinking: true,
+    }).items[0];
+    assert(Buffer.byteLength(JSON.stringify(bounded), "utf8") <= 64 * 1024);
+    assert(bounded.text.length > 0 && bounded.thinking.length > 0);
     const active = timelineFor(app).query(session, {
       fragment: "message:" + call,
       streaming: true,

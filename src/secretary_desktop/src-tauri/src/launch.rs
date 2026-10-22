@@ -31,6 +31,7 @@ pub fn parse(get: impl Fn(&str) -> Option<String>) -> Result<Launch, String> {
         "conversation-stream",
         "conversation-history",
         "conversation-expand",
+        "conversation-static",
     ]
     .contains(&phase.as_str())
     {

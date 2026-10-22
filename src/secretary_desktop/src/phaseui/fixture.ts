@@ -2,6 +2,9 @@ import type { BridgePort, Snapshot } from "../bridge";
 import type { Message, Timeline } from "../contracts";
 export function fixtureBridge(conversation = false) {
   let sequence = 0;
+  let snapshotDelay = 0;
+  let snapshotPending = false;
+  const calls: string[] = [];
   const messages: Message[] = Array.from(
     { length: conversation ? 1000 : 40 },
     (_, i) => ({
@@ -72,7 +75,14 @@ export function fixtureBridge(conversation = false) {
     discardMessage: async () => {
       throw Error("FIXTURE_NO_OUTBOX");
     },
-    snapshot: async () => structuredClone(state),
+    snapshot: async () => {
+      const delay = snapshotDelay;
+      snapshotDelay = 0;
+      snapshotPending = true;
+      if (delay) await new Promise((resolve) => setTimeout(resolve, delay));
+      snapshotPending = false;
+      return structuredClone(state);
+    },
     connect: async () => structuredClone(state),
     transient: async () => ({
       domain: state.domain!,
@@ -99,6 +109,7 @@ export function fixtureBridge(conversation = false) {
       return (state.draft = { version: version + 1, text });
     },
     submit: async (_domain, query, body) => {
+      calls.push(query.operation);
       if (query.operation !== "messages") throw Error("FIXTURE_UNSUPPORTED");
       messages.push({
         id: `message:sent-${++sequence}`,
@@ -129,12 +140,10 @@ export function fixtureBridge(conversation = false) {
             0,
             Number(p.cursor) + (p.direction === "before" ? -50 : 0),
           );
-        const items = messages
-          .slice(start, start + 50)
-          .map((m) => ({
-            ...m,
-            thinking: p.thinking ? m.thinking : undefined,
-          }));
+        const items = messages.slice(start, start + 50).map((m) => ({
+          ...m,
+          thinking: p.thinking ? m.thinking : undefined,
+        }));
         return structuredClone({
           ...timeline,
           items,
@@ -142,6 +151,20 @@ export function fixtureBridge(conversation = false) {
           after: start + 50 < messages.length ? String(start + 50) : null,
         }) as T;
       }
+      if (
+        query.operation === "messages/{id}/content" &&
+        query.id === "message:synthetic-stream"
+      )
+        return {
+          id: query.id,
+          kind: "message",
+          role: "secretary",
+          revision: String(sequence),
+          text: "must not replace SSE",
+          thinking: "人工流式思考",
+          persistence: "transient",
+          preview_status: "running",
+        } as T;
       if (query.operation === "messages/{id}/content")
         return structuredClone({
           ...messages.find((m) => m.id === query.id),
@@ -168,6 +191,22 @@ export function fixtureBridge(conversation = false) {
   };
   return {
     port,
+    delaySnapshot(ms: number) {
+      snapshotDelay = ms;
+    },
+    pendingSnapshot: () => snapshotPending,
+    commands: () => [...calls],
+    appendRows(n: number) {
+      for (let i = 0; i < n; i++)
+        messages.push({
+          ...messages[0],
+          id: `message:append-${++sequence}`,
+          text: `新记录 ${sequence}`,
+        });
+      timeline.items = messages.slice(-50);
+      timeline.version = String(sequence + 1);
+      timeline.before = String(messages.length - 50);
+    },
     advance() {
       running = true;
       preview += "人工流式片段 " + ++sequence + "。";

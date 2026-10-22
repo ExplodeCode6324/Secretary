@@ -19,6 +19,7 @@ const row = (id: number, text = "body"): Message => ({
   role: "assistant",
   revision: "1",
   text,
+  thinking: "",
   call_id: String(id),
   incomplete: false,
   next_cursor: null,
@@ -205,4 +206,70 @@ test("unknown outbox values are never presented as success or definite rejection
     "RECEIPT_MISSING",
   ])
     assert(!/已完成|失败|已受理/.test(outboxLabel(state)));
+});
+
+test("empty fragments cannot grow cursor metadata without content progress", async () => {
+  const m = { ...row(1), next_cursor: "first" };
+  const store = new ContentStore(new ReadBudget());
+  await assert.rejects(
+    store.read(
+      m,
+      port(async () => ({ ...m, text: "", thinking: "", next_cursor: "new" })),
+      "d",
+      true,
+    ),
+    /EMPTY_FRAGMENT/,
+  );
+  assert.equal(store.get(m), m);
+  assert.equal(store.size, 0);
+});
+test("full copy reaches EOF within caps and two readers service bounded FIFO waiters", async () => {
+  const m = { ...row(1, "first"), next_cursor: "c1", thinking: "" };
+  const store = new ContentStore(new ReadBudget());
+  assert.equal(
+    await store.complete(
+      m,
+      port(async () => ({ ...m, text: " last", next_cursor: null })),
+      "d",
+      true,
+    ),
+    "first last",
+  );
+  const budget = new ReadBudget();
+  let peak = 0;
+  const releases: (() => void)[] = [];
+  const jobs = Array.from({ length: 6 }, () =>
+    budget.run(async () => {
+      peak = Math.max(peak, budget.active);
+      await new Promise<void>((r) => releases.push(r));
+    }),
+  );
+  await assert.rejects(
+    budget.run(async () => {}),
+    /READ_BUSY/,
+  );
+  for (let i = 0; i < 6; i++) {
+    releases.shift()!();
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  await Promise.all(jobs);
+  assert.equal(peak, 2);
+  assert.equal(budget.active, 0);
+});
+test("transient thinking survives text revisions but clears on durable transition and preference epoch", () => {
+  const store = new ContentStore(new ReadBudget());
+  const m = {
+    ...row(1),
+    persistence: "transient" as const,
+    thinking: "thought",
+  };
+  store.put(m);
+  const newer = { ...m, revision: "2", text: "new SSE", thinking: undefined };
+  store.retain([newer]);
+  assert.equal(store.get(newer).thinking, "thought");
+  store.retain([{ ...newer, persistence: "durable" }]);
+  assert.equal(store.get(newer).thinking, undefined);
+  store.put(m);
+  store.clear();
+  assert.equal(store.get(newer).thinking, undefined);
 });

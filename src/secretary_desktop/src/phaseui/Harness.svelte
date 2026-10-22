@@ -24,13 +24,22 @@
   } = $props();
   // svelte-ignore state_referenced_locally
   const fixture = fixtureBridge(scenario.startsWith("conversation-"));
-  let conversationStats: Record<string,number> = {};
-  const conversationPeak: Record<string,number> = {};
-  function metrics(value: Record<string,number>) {
+  let conversationStats: Record<string, number> = {};
+  const conversationPeak: Record<string, number> = {};
+  function metrics(value: Record<string, number>) {
     conversationStats = value;
-    for (const [key,n] of Object.entries(value)) conversationPeak[key] = Math.max(conversationPeak[key] ?? 0,n);
+    for (const [key, n] of Object.entries(value))
+      conversationPeak[key] = Math.max(conversationPeak[key] ?? 0, n);
   }
   onMount(() => {
+    if (import.meta.env.VITE_NATIVE_TEST === "1")
+      (window as unknown as { conversationTest: unknown }).conversationTest =
+        fixture;
+    if (scenario === "conversation-static") {
+      void invoke("phaseui_view", { width, zoom: 1 });
+      void invoke("study_ready");
+      return;
+    }
     motionController.configure({ seed, measure, coverage });
     void invoke("phaseui_view", { width, zoom: 1 });
     let raf = 0,

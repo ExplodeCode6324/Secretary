@@ -33,6 +33,7 @@
   let busy = $state(false);
   let sequence = 0;
   let lastKey = "";
+  let lastScope = "";
   let currentScope = { type: "session", id: "" };
   let attention = $derived(projection<Attention>(data.cache, "attention"));
   $effect(() => {
@@ -47,8 +48,12 @@
     if (key === lastKey) return;
     lastKey = key;
     const seq = ++sequence;
-    result = null;
-    artifact = null;
+    const scopeKey = JSON.stringify([domain, instance, row?.id, session]);
+    if (scopeKey !== lastScope) {
+      result = null;
+      artifact = null;
+    }
+    lastScope = scopeKey;
     error = "";
     if (!domain || !session) return;
     busy = true;
@@ -87,7 +92,10 @@
           result = response;
         }
       } catch (e) {
-        if (seq === sequence) error = String(e);
+        if (seq === sequence)
+          error = String(e).includes("READ_BUSY")
+            ? "读取繁忙，请稍后重试。"
+            : String(e);
       } finally {
         if (seq === sequence) busy = false;
       }
@@ -112,7 +120,10 @@
       );
       if (seq === sequence) result = response;
     } catch (e) {
-      if (seq === sequence) error = String(e);
+      if (seq === sequence)
+        error = String(e).includes("READ_BUSY")
+          ? "读取繁忙，请稍后重试。"
+          : String(e);
     } finally {
       if (seq === sequence) busy = false;
     }
@@ -130,7 +141,10 @@
       );
       if (seq === sequence) artifact = value;
     } catch (e) {
-      if (seq === sequence) error = String(e);
+      if (seq === sequence)
+        error = String(e).includes("READ_BUSY")
+          ? "读取繁忙，请稍后重试。"
+          : String(e);
     } finally {
       if (seq === sequence) busy = false;
     }
