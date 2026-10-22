@@ -256,7 +256,10 @@ const recorder = setInterval(() => {
 }, 500);
 const watchdog = setTimeout(
   () => void stop(),
-  Math.max(1, limiter.started + 40 * 60 * 1000 - Date.now()),
+  Math.max(
+    1,
+    limiter.started + (grantLimits?.totalMs ?? 40 * 60 * 1000) - Date.now(),
+  ),
 );
 // Harness-only fault: interrupt SSE connections without pausing Core work.
 process.on("SIGUSR1", () => {
