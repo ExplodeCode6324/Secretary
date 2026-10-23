@@ -24,6 +24,9 @@
     connection,
     children,
     status,
+    ongoing,
+    artifacts,
+    quickActions,
     synthetic = false,
     initialMode,
     fontSize = 14,
@@ -35,6 +38,9 @@
     connection?: () => void;
     children: Snippet;
     status?: Snippet;
+    ongoing?: Snippet;
+    artifacts?: Snippet;
+    quickActions?: Snippet;
     synthetic?: boolean;
     initialMode?: MotionMode;
     fontSize?: number;
@@ -190,15 +196,15 @@
           <div class="phase-rail-content" hidden={collapsed}>
             <section>
               <h2>正在进行</h2>
-              <div class="empty-slot"></div>
+              {@render ongoing?.()}
             </section>
             <section>
               <h2>近期产物</h2>
-              <div class="empty-slot"></div>
+              {@render artifacts?.()}
             </section>
             <section>
               <h2>快捷操作</h2>
-              <div class="empty-slot"></div>
+              {@render quickActions?.()}
             </section>
           </div>
         </aside>{/if}

@@ -1475,6 +1475,55 @@
         },
         "truncated": {
           "type": "boolean"
+        },
+        "source_event_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "execution_id": {
+          "type": "string"
+        },
+        "result_id": {
+          "type": "string"
+        },
+        "decision_request_id": {
+          "type": "string"
+        },
+        "notification_id": {
+          "type": "string"
+        },
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "master_input",
+            "assistant_response",
+            "task_feedback",
+            "notification",
+            "system_input"
+          ]
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "continued",
+            "truncated",
+            "failed",
+            "interrupted",
+            "unknown"
+          ]
+        },
+        "preview_availability": {
+          "type": "string",
+          "enum": [
+            "active",
+            "expired"
+          ]
         }
       },
       "required": [

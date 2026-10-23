@@ -26,7 +26,20 @@ export type Snapshot = {
   transient?: unknown;
   anchor?: string;
 };
+export type MessageOutbox = {
+  items: { id: string; state: string; position: number }[];
+  next: number | null;
+};
+export type MessageBody = { id: string; state: string; text: string };
 export const bridge = {
+  copyText: (text: string) => invoke<void>("bridge_copy_text", { text }),
+  openUrl: (url: string) => invoke<string>("bridge_open_url", { url }),
+  messageOutbox: (expectedDomain: string, before?: number) =>
+    invoke<MessageOutbox>("bridge_message_outbox", { expectedDomain, before }),
+  messageBody: (expectedDomain: string, id: string) =>
+    invoke<MessageBody>("bridge_message_body", { expectedDomain, id }),
+  discardMessage: (expectedDomain: string, id: string) =>
+    invoke<void>("bridge_discard_message", { expectedDomain, id }),
   transient: (expectedDomain: string, expectedInstance: string) =>
     invoke<import("./workflow").Transient | null>("bridge_transient", {
       expectedDomain,

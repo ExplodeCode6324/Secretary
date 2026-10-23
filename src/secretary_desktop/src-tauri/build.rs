@@ -15,6 +15,11 @@ fn main() {
             "bridge_anchor",
             "bridge_stop",
             "bridge_download",
+            "bridge_copy_text",
+            "bridge_open_url",
+            "bridge_message_outbox",
+            "bridge_message_body",
+            "bridge_discard_message",
         ]),
     ))
     .expect("Tauri build failed");

@@ -71,7 +71,11 @@ test("API authentication, hostile origins, retired routes and strict authority f
           .status,
         404,
       );
-    await c.command("assistant/profile", { request_id: id(), expected_revision: (await c.assistant()).revision, name: "secretary" });
+    await c.command("assistant/profile", {
+      request_id: id(),
+      expected_revision: (await c.assistant()).revision,
+      name: "secretary",
+    });
     assert.equal((await c.assistant()).name, "secretary");
     const before = app.store.sequence;
     await assert.rejects(
@@ -695,5 +699,114 @@ test("approval parameters and arbitrary World/decision JSON retain their exact m
         answer: { value: parameters },
       }),
       { revision: "3", value: parameters, answer: { value: parameters } },
+    );
+  }));
+
+test("Issue63 public timeline retains typed source IDs and accepts activity around locators", () =>
+  fixture(async (app, _server, c) => {
+    const request = id();
+    await c.command("messages", {
+      request_id: request,
+      text: "source contract",
+    });
+    await app.settle();
+    const scope = {
+      session_id: app.host.sessionID,
+      task_id: null,
+      execution_id: null,
+    };
+    const now = new Date().toISOString();
+    const input = {
+      schema_version: 1,
+      record_type: "Input",
+      ...base(),
+      session_id: scope.session_id,
+      dedupe_key: id(),
+      producer: "ENVIRONMENT",
+      state: "CONSUMED",
+      payload: app.store.put({ text: "system fixture" }),
+      loop_id: null,
+      received_at: now,
+      feedback_id: null,
+    };
+    const feedback = {
+      schema_version: 1,
+      record_type: "Feedback",
+      ...base(),
+      state: "DELIVERED",
+      task_id: id(),
+      execution_id: id(),
+      kind: "RESULT",
+      summary: "typed feedback",
+      detail_ref: app.store.put({ fixture: true }),
+      result_id: id(),
+      decision_request_id: null,
+      input_id: null,
+      created_at: now,
+    };
+    const decision = {
+      ...feedback,
+      ...base(),
+      kind: "DECISION_REQUIRED",
+      result_id: null,
+      decision_request_id: id(),
+    };
+    const notice = {
+      schema_version: 1,
+      record_type: "Notification",
+      ...base(),
+      state: "QUEUED",
+      session_id: scope.session_id,
+      channel: "local-ui",
+      message: app.store.put("notice", "text/plain"),
+      delivery_key: id(),
+      receipt: null,
+      requested_at: now,
+    };
+    const events = [
+      app.store.event("input.accepted", input, scope),
+      app.store.event("feedback.delivered", feedback, scope),
+      app.store.event("feedback.delivered", decision, scope),
+      app.store.event("notification.queued", notice, scope),
+    ];
+    app.store.commit([], events);
+    const page: any = await c.query("timeline?limit=50");
+    const master = page.items.find((r: any) => r.request_id === request);
+    assert.equal(master.source_kind, "master_input");
+    const system = page.items.find(
+      (r: any) => r.source_event_id === events[0].event_id,
+    );
+    assert.equal(system.source_kind, "system_input");
+    assert.equal(system.request_id, undefined);
+    for (const [n, source] of [
+      [1, feedback],
+      [2, decision],
+    ] as const) {
+      const row = page.items.find(
+        (r: any) => r.source_event_id === events[n].event_id,
+      );
+      assert.equal(row.source_kind, "task_feedback");
+      for (const key of [
+        "task_id",
+        "execution_id",
+        "result_id",
+        "decision_request_id",
+      ] as const)
+        assert.equal(row[key], source[key] ?? undefined);
+    }
+    assert.equal(
+      page.items.find((r: any) => r.source_event_id === events[3].event_id)
+        .notification_id,
+      notice.id,
+    );
+    const activity = page.items.find((r: any) => r.kind === "activity");
+    assert(activity);
+    const around: any = await c.query(
+      "timeline/around?message_id=" + encodeURIComponent(activity.id),
+    );
+    assert(
+      around.items.some(
+        (r: any) => r.id === activity.id && r.kind === "activity",
+      ),
     );
   }));

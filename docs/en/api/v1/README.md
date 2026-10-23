@@ -91,3 +91,9 @@ wakeups supports lists, details, and `{id}/cancel`, with state filters PENDING/F
 - The public wakeups API supports queries and cancellation; creation uses the main session’s schedule_wakeup tool.
 
 See the [operations guide](../../operations.md) for upgrades and validation, and [historical validation records](../../../api/v1/verification.md) for version-specific acceptance.
+
+## FE-04 Message projection
+
+Message projections may include source kind, original event ID, direct related IDs, outcome, and preview availability, derived only from existing records. A saved preview is not durable success; expired previews report no final record.
+
+Optional fields: `source_kind`, `source_event_id`, `outcome`, `preview_availability`, `request_id`, `task_id`, `execution_id`, `result_id`, `decision_request_id`, `notification_id`. See the authored `Message` schema for enum values.

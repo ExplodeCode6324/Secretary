@@ -26,7 +26,17 @@
     data,
     page = "tasks",
     bridge = realBridge,
-  }: { data: Snapshot; page?: string; bridge?: BridgePort } = $props();
+    target = null,
+  }: {
+    data: Snapshot;
+    page?: string;
+    bridge?: BridgePort;
+    target?: {
+      type: "task" | "authorization";
+      id: string;
+      sequence: number;
+    } | null;
+  } = $props();
   let tasks = $derived(projection<TaskPage>(data.cache, "tasks"));
   let attention = $derived(projection<Attention>(data.cache, "attention"));
   let taskId = $state("");
@@ -71,6 +81,10 @@
       pageGeneration++;
       receiptGeneration++;
     }
+  });
+  $effect(() => {
+    if (target?.type === "task") taskId = target.id;
+    if (target?.type === "authorization") authId = target.id;
   });
   $effect(() => {
     const d = data.domain,

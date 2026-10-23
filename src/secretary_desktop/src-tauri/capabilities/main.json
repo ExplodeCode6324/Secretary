@@ -19,6 +19,11 @@
     "allow-bridge-subscribe",
     "allow-bridge-anchor",
     "allow-bridge-stop",
-    "allow-bridge-download"
+    "allow-bridge-download",
+    "allow-bridge-copy-text",
+    "allow-bridge-open-url",
+    "allow-bridge-message-outbox",
+    "allow-bridge-message-body",
+    "allow-bridge-discard-message"
   ]
 }

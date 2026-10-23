@@ -1,5 +1,6 @@
 pub mod bridge;
 pub mod discovery;
+pub mod presentation;
 pub mod protocol;
 pub mod storage;
 pub mod sync;

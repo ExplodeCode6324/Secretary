@@ -29,3 +29,19 @@ Un seul effet par contrôle ; une nouvelle activité remplace l’ancien sans re
 Les modes reduced-motion, intensité réduite, arrêt et filaire suppriment les défauts sans rejouer d’événements accumulés. Sélection, focus, désactivation et résultats restent lisibles. Les images figées 1/2/3 vérifient seulement la géométrie ; tester aussi lecture naturelle, interruption rapide et restauration. La stabilité décorative n’empêche pas les changements réels de coche, direction ou valeur.
 
 [controller / cleanup](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L312) · [event entries](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L822) · [lifecycle tests](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/tests/signal-motion.test.cjs) · [acceptance matrix](acceptance.md)
+
+## Conversation et chronologie unifiée (FE-04)
+
+La réflexion est activée par défaut. Son contenu et les détails des appels d’outils sont initialement repliés et peuvent être développés ; seul un résumé est affiché lorsqu’ils sont repliés. La désactivation efface immédiatement leur affichage et leur cache mémoire. La préférence est enregistrée par domaine de données.
+
+L’historique permet la pagination dans les deux sens, la recherche par ID de message ou d’événement et la recherche dans la fenêtre chargée. La limite est de 3 pages et 150 lignes, 8 MiB pour le texte et la réflexion, et 2 MiB par message développé. Le suivi ne s’active qu’en fin de liste, sans sélection de texte. L’envoi ne force aucun déplacement ; utilisez « Aller aux derniers messages ».
+
+Quand une longue réponse se termine, le texte déjà affiché reste visible pendant la lecture automatique de la révision finale, avec la préférence de raisonnement actuelle, jusqu’à sa longueur précédente. Il ne revient pas au premier fragment. Un échec conserve le texte et propose un réessai. L’aperçu conservé est signalé jusqu’à sa vérification; le corps entier est confirmé à EOF.
+
+La copie intégrale n’est proposée qu’après lecture jusqu’à EOF ; sinon, l’action copie explicitement la partie chargée. Les liens nécessitent l’inspection de l’adresse et une ouverture explicite, uniquement en HTTP/HTTPS. Les images distantes affichent seulement leur texte alternatif.
+
+Le panneau des relations change de portée uniquement sur sélection explicite ; les lectures n’envoient aucune commande viewed/presented/read. La page des éléments à traiter permet de consulter par pages le texte original complet des messages non résolus ou échoués. Copier ou restaurer ne renvoie pas le message et ne remplace pas un brouillon existant. Les messages échoués sont protégés contre l’éviction et le nettoyage ; seuls les échecs confirmés dont le texte a été récupéré peuvent être supprimés explicitement.
+
+Lorsque la session passe à RECOVERY_BLOCKED, le client propose une action confirmée « Reprendre la session », utilisant la commande existante session/resume et le protocole de reçu de la requête originale pour continuer les tours inachevés. Les messages acceptés ne sont pas renvoyés.
+
+Les projections de messages peuvent inclure la source, l’ID de l’événement original, les ID directement liés, le résultat et la disponibilité de l’aperçu, issus uniquement des enregistrements existants. Un aperçu saved ne constitue pas un succès durable ; un aperçu expiré signale l’absence d’enregistrement final.

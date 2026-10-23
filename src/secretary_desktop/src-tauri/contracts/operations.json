@@ -78,6 +78,13 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/session/resume",
+    "request": "EmptyCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/core/stop",
     "request": "EmptyCommand",
     "response": "Receipt",

@@ -3208,5 +3208,45 @@
     "The full-width heading-bottom rule aligns with the Conversation row bottom: shared top height 188px, 183px at≤600px; toolbar 76/64px. This applies at all breakpoints and 14–18px text sizes. Non-send errors and reading notices appear below the rule; send status is below the editor. Set application light/dark color-scheme and retain system scrollbar appearance without forcing track width or background.",
     "見出し下の全幅線を左の会話行の下端と揃える。上部共通高188px、幅≤600pxでは183px、ツールバー76/64px。全ブレークポイントと14–18px文字サイズに適用する。送信以外のエラーと閲覧通知は線の下、送信状態は入力欄の下に置く。アプリのcolor-schemeをlight/darkに設定し、スクロールバーのシステム形状を維持し、軌道幅や背景色を強制しない。",
     "La ligne pleine largeur sous le titre s’aligne sur le bas de Conversation : hauteur supérieure commune188px,183px à≤600px ; barre76/64px. Applicable à tous les seuils et tailles14–18px. Les erreurs hors envoi et notifications de lecture sont sous la ligne ; l’état d’envoi est sous l’éditeur. Définir color-scheme light/dark et conserver l’apparence système des barres de défilement sans imposer largeur ou fond."
+  ],
+  "主对话与统一时间线（FE-04）": [
+    "Conversation and unified timeline (FE-04)",
+    "会話と統合タイムライン（FE-04）",
+    "Conversation et chronologie unifiée (FE-04)"
+  ],
+  "思考默认开启，思考正文和工具调用详情默认折叠，可展开查看；折叠时仅显示摘要。关闭思考会立即清除其展示与内存缓存，按数据域保存显示偏好。": [
+    "Thinking is enabled by default. Thinking bodies and tool-call details start collapsed and can be expanded; collapsed entries show only a summary. Turning thinking off immediately clears its presentation and memory cache. The display preference is saved per data domain.",
+    "思考は既定で有効です。思考本文とツール呼び出しの詳細は折りたたまれ、展開できます。折りたたみ時は要約のみ表示します。無効にすると表示とメモリキャッシュを直ちに消去します。表示設定はデータドメインごとに保存します。",
+    "La réflexion est activée par défaut. Son contenu et les détails des appels d’outils sont initialement repliés et peuvent être développés ; seul un résumé est affiché lorsqu’ils sont repliés. La désactivation efface immédiatement leur affichage et leur cache mémoire. La préférence est enregistrée par domaine de données."
+  ],
+  "历史支持双向翻页、消息或事件 ID 定位和已加载窗口搜索；最多驻留 3 页、150 行，正文与思考共 8 MiB，单条续读最多 2 MiB。只有已在尾部且没有文本选择时才跟随；发送不会强制跳转，可主动选择“转到最新消息”。": [
+    "History supports paging in both directions, message or event ID lookup, and search within the loaded window. At most 3 pages and 150 rows are resident, with 8 MiB for text and thinking and 2 MiB per expanded message. Following occurs only while already at the tail without a text selection. Sending does not force a jump; use “Go to latest messages” explicitly.",
+    "履歴は双方向のページ移動、メッセージまたはイベント ID による位置指定、読み込み済み範囲の検索に対応します。最大 3 ページ・150 行、本文と思考は合計 8 MiB、1 メッセージの追加読み込みは 2 MiB までです。末尾にいてテキストを選択していない場合のみ追従します。送信では強制移動せず、「最新メッセージへ」で移動できます。",
+    "L’historique permet la pagination dans les deux sens, la recherche par ID de message ou d’événement et la recherche dans la fenêtre chargée. La limite est de 3 pages et 150 lignes, 8 MiB pour le texte et la réflexion, et 2 MiB par message développé. Le suivi ne s’active qu’en fin de liste, sans sélection de texte. L’envoi ne force aucun déplacement ; utilisez « Aller aux derniers messages »."
+  ],
+  "已加载正文到达 EOF 才提供完整复制，否则明确复制已加载部分。链接需主动检查地址并确认打开，仅允许 HTTP/HTTPS；远程图片仅显示替代文字。": [
+    "Full copy is offered only after the loaded body reaches EOF; otherwise the action explicitly copies the loaded portion. Links require explicit address inspection and opening and allow HTTP/HTTPS only. Remote images display alt text only.",
+    "本文が EOF に到達した場合のみ全文コピーを提供し、それ以外は読み込み済み部分のコピーと明示します。リンクはアドレスを確認して明示的に開く必要があり、HTTP/HTTPS のみ許可します。リモート画像は代替テキストのみ表示します。",
+    "La copie intégrale n’est proposée qu’après lecture jusqu’à EOF ; sinon, l’action copie explicitement la partie chargée. Les liens nécessitent l’inspection de l’adresse et une ouverture explicite, uniquement en HTTP/HTTPS. Les images distantes affichent seulement leur texte alternatif."
+  ],
+  "关联栏仅随显式选择改变范围，读取不会发送 viewed/presented/read 命令。待处理页可分页读取未完成或失败消息的完整原文；复制或恢复不自动重发，恢复不会覆盖已有草稿。失败消息受本机配额和清理保护，仅确认失败且已恢复的记录可显式丢弃。": [
+    "The related rail changes scope only on explicit selection; reads send no viewed/presented/read commands. The attention page provides paginated access to full original unresolved or failed messages. Copying or restoring does not resend, and restoration cannot overwrite an existing draft. Failed messages are protected from local quota eviction and cleanup; only confirmed failed records whose text has been recovered may be explicitly discarded.",
+    "関連欄の範囲は明示的な選択でのみ変更され、読み取りは viewed/presented/read コマンドを送信しません。要対応ページでは未解決または失敗したメッセージの完全な原文をページ単位で確認できます。コピーや復元で再送せず、既存の下書きを上書きしません。失敗メッセージは容量制限や清掃による削除から保護され、失敗が確認され本文を回収済みの記録だけを明示的に破棄できます。",
+    "Le panneau des relations change de portée uniquement sur sélection explicite ; les lectures n’envoient aucune commande viewed/presented/read. La page des éléments à traiter permet de consulter par pages le texte original complet des messages non résolus ou échoués. Copier ou restaurer ne renvoie pas le message et ne remplace pas un brouillon existant. Les messages échoués sont protégés contre l’éviction et le nettoyage ; seuls les échecs confirmés dont le texte a été récupéré peuvent être supprimés explicitement."
+  ],
+  "会话进入 RECOVERY_BLOCKED 时，客户端显示“恢复会话”确认入口，使用现有 session/resume 命令与原请求回执协议继续未完成回合；不会重新发送已受理消息。": [
+    "When the session enters RECOVERY_BLOCKED, the client offers a confirmed “Resume session” action using the existing session/resume command and original request-receipt protocol to continue unfinished turns. Accepted messages are not resubmitted.",
+    "セッションが RECOVERY_BLOCKED になると、「セッションを再開」の確認操作を表示します。既存の session/resume コマンドと元のリクエスト・受領応答プロトコルで未完了のターンを続行し、受理済みメッセージは再送しません。",
+    "Lorsque la session passe à RECOVERY_BLOCKED, le client propose une action confirmée « Reprendre la session », utilisant la commande existante session/resume et le protocole de reçu de la requête originale pour continuer les tours inachevés. Les messages acceptés ne sont pas renvoyés."
+  ],
+  "消息投影可附带来源、原事件 ID、直接关联 ID、结果与预览可用性；字段只来自已有记录。saved 预览不等于持久成功，过期预览显示无最终记录。": [
+    "Message projections may include source kind, original event ID, direct related IDs, outcome, and preview availability, derived only from existing records. A saved preview is not durable success; expired previews report no final record.",
+    "メッセージ投影には、既存記録に基づく発生元、元イベント ID、直接関連 ID、結果、プレビュー可用性を付加できます。saved プレビューは永続的成功ではなく、失効したプレビューは最終記録なしと表示します。",
+    "Les projections de messages peuvent inclure la source, l’ID de l’événement original, les ID directement liés, le résultat et la disponibilité de l’aperçu, issus uniquement des enregistrements existants. Un aperçu saved ne constitue pas un succès durable ; un aperçu expiré signale l’absence d’enregistrement final."
+  ],
+  "长回复完成时保留此前已显示的正文，按最终版本和当前思考偏好自动补读至原有长度，不会缩回首段。补读失败仍保留正文并提供重试；核对完成前明确标为保留预览，最终分片到达 EOF 才确认全文完整。": [
+    "When a long reply completes, previously displayed text stays visible while content is automatically read under the final revision and current thinking preference to cover its prior length. It never shrinks to the first fragment. Failed reads retain the text and offer retry; retained preview is labelled until reconciliation, and the full body is confirmed only at final EOF.",
+    "長い返信の完了時は表示済みの本文を保持し、最終リビジョンと現在の思考表示設定で元の長さまで自動的に続きを読み込みます。先頭の断片へ縮みません。失敗時も本文を保持して再試行を提供し、照合完了までは保持したプレビューと表示します。全文の完全性は最終 EOF で確認します。",
+    "Quand une longue réponse se termine, le texte déjà affiché reste visible pendant la lecture automatique de la révision finale, avec la préférence de raisonnement actuelle, jusqu’à sa longueur précédente. Il ne revient pas au premier fragment. Un échec conserve le texte et propose un réessai. L’aperçu conservé est signalé jusqu’à sa vérification; le corps entier est confirmé à EOF."
   ]
 }

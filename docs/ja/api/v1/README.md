@@ -91,3 +91,9 @@ wakeups は一覧、詳細、`{id}/cancel` と PENDING/FIRED/CANCELLED の状態
 - wakeups の公開 API は照会と取消に対応し、作成はメインセッションの schedule_wakeup ツールで行います。
 
 アップグレードと検証は[運用ガイド](../../operations.md)、バージョン別の受け入れ検証は[過去の検証記録](../../../api/v1/verification.md)を参照してください。
+
+## FE-04 Message projection
+
+メッセージ投影には、既存記録に基づく発生元、元イベント ID、直接関連 ID、結果、プレビュー可用性を付加できます。saved プレビューは永続的成功ではなく、失効したプレビューは最終記録なしと表示します。
+
+Optional fields: `source_kind`, `source_event_id`, `outcome`, `preview_availability`, `request_id`, `task_id`, `execution_id`, `result_id`, `decision_request_id`, `notification_id`. See the authored `Message` schema for enum values.

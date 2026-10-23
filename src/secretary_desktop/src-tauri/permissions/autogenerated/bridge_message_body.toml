@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-bridge-message-body"
+description = "Enables the bridge_message_body command without any pre-configured scope."
+commands.allow = ["bridge_message_body"]
+
+[[permission]]
+identifier = "deny-bridge-message-body"
+description = "Denies the bridge_message_body command without any pre-configured scope."
+commands.deny = ["bridge_message_body"]

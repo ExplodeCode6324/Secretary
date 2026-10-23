@@ -29,3 +29,19 @@ Keep at most one effect record per control; new activity replaces the old effect
 Reduced motion, reduced intensity, motion-off and wireframe modes suppress fault effects without replaying backlog. Selection, focus, disabled and outcomes remain clear. Frozen frames 1/2/3 verify geometry only; also test natural playback, rapid interruption and restoration after unfreezing. Stable decoration does not prevent real check, expansion-direction or value changes.
 
 [controller / cleanup](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L312) · [event entries](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/signal-motion.js#L822) · [lifecycle tests](https://github.com/ExplodeCode6324/secretary-phase-ui-design/blob/8cdb9219bed9493147ba10f7d47423df56cbcc44/tests/signal-motion.test.cjs) · [acceptance matrix](acceptance.md)
+
+## Conversation and unified timeline (FE-04)
+
+Thinking is enabled by default. Thinking bodies and tool-call details start collapsed and can be expanded; collapsed entries show only a summary. Turning thinking off immediately clears its presentation and memory cache. The display preference is saved per data domain.
+
+History supports paging in both directions, message or event ID lookup, and search within the loaded window. At most 3 pages and 150 rows are resident, with 8 MiB for text and thinking and 2 MiB per expanded message. Following occurs only while already at the tail without a text selection. Sending does not force a jump; use “Go to latest messages” explicitly.
+
+When a long reply completes, previously displayed text stays visible while content is automatically read under the final revision and current thinking preference to cover its prior length. It never shrinks to the first fragment. Failed reads retain the text and offer retry; retained preview is labelled until reconciliation, and the full body is confirmed only at final EOF.
+
+Full copy is offered only after the loaded body reaches EOF; otherwise the action explicitly copies the loaded portion. Links require explicit address inspection and opening and allow HTTP/HTTPS only. Remote images display alt text only.
+
+The related rail changes scope only on explicit selection; reads send no viewed/presented/read commands. The attention page provides paginated access to full original unresolved or failed messages. Copying or restoring does not resend, and restoration cannot overwrite an existing draft. Failed messages are protected from local quota eviction and cleanup; only confirmed failed records whose text has been recovered may be explicitly discarded.
+
+When the session enters RECOVERY_BLOCKED, the client offers a confirmed “Resume session” action using the existing session/resume command and original request-receipt protocol to continue unfinished turns. Accepted messages are not resubmitted.
+
+Message projections may include source kind, original event ID, direct related IDs, outcome, and preview availability, derived only from existing records. A saved preview is not durable success; expired previews report no final record.

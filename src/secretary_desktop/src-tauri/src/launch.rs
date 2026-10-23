@@ -28,6 +28,10 @@ pub fn parse(get: impl Fn(&str) -> Option<String>) -> Result<Launch, String> {
         "input-scroll",
         "stream-stress",
         "bridge-cadence",
+        "conversation-stream",
+        "conversation-history",
+        "conversation-expand",
+        "conversation-static",
     ]
     .contains(&phase.as_str())
     {

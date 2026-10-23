@@ -179,6 +179,7 @@ impl Default for Synchronizer {
         Self {
             subscriptions: vec![
                 Query::new("assistant"),
+                Query::new("session"),
                 Query::new("timeline"),
                 Query::new("attention"),
                 Query::new("tasks"),

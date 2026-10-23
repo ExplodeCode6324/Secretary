@@ -1,0 +1,13 @@
+{
+  "status": "NOT_ACCEPTED",
+  "reason": "Provider output budget exhausted in reasoning before required long body",
+  "ledger_total": 15,
+  "call_number": 15,
+  "stop_reason": "length",
+  "output_tokens": 4096,
+  "reasoning_tokens": 4096,
+  "original_ledger_preserved": true,
+  "single_admission": true,
+  "additional_calls": 0,
+  "native_result": "Timed out waiting for more than 5500 rendered body characters"
+}

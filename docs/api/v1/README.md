@@ -87,3 +87,9 @@ wakeups 支持列表、详情和 `{id}/cancel`，state 可筛 PENDING/FIRED/CANC
 - wakeups 公开 API 提供查询与取消，创建由主会话 schedule_wakeup 工具完成。
 
 升级与验证入口见[运行手册](../../operations.md)，版本化验收见[历史验证记录](verification.md)。
+
+## FE-04 Message projection
+
+消息投影可附带来源、原事件 ID、直接关联 ID、结果与预览可用性；字段只来自已有记录。saved 预览不等于持久成功，过期预览显示无最终记录。
+
+Optional fields: `source_kind`, `source_event_id`, `outcome`, `preview_availability`, `request_id`, `task_id`, `execution_id`, `result_id`, `decision_request_id`, `notification_id`. See the authored `Message` schema for enum values.

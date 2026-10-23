@@ -390,7 +390,9 @@ pub fn deliver(t: &Transport, s: &mut Storage) -> Result<()> {
                     "NETWORK_UNAVAILABLE"
                     | "CORE_REQUEST_FAILED"
                     | "INVALID_RESPONSE"
-                    | "RESPONSE_TOO_LARGE" => "UNCERTAIN",
+                    | "RESPONSE_TOO_LARGE"
+                    | "UNSUPPORTED_VERSION"
+                    | "CONTRACT_INVALID" => "UNCERTAIN",
                     "UNAUTHENTICATED" | "FORBIDDEN_ORIGIN" => "UNCERTAIN",
                     _ => "REJECTED",
                 };
