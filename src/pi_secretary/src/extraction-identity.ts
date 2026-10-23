@@ -1,7 +1,10 @@
 import { contentText } from "@earendil-works/pi-ai";
 import type { SettingsApplication } from "./contracts.ts";
 import type { AgentMessage } from "./model.ts";
-import { messageIdentityHash } from "./message-identity.ts";
+import {
+  authenticatedIdentityHash,
+  typedMessageText,
+} from "./attachment-form.ts";
 import type { SettingsSource } from "./settings-memory.ts";
 import { hash, type Store } from "./store.ts";
 
@@ -71,10 +74,10 @@ export function legacySettingsAliases(
           const event = events.get(m.id);
           if (!event || event.sequence > source.end_sequence) return [];
           const raw = store.read<AgentMessage>(event.payload);
-          return messageIdentityHash(raw) === digest &&
+          return authenticatedIdentityHash(store, raw) === digest &&
             (raw.role === "user" || raw.role === "assistant") &&
             m.role === raw.role &&
-            m.text === contentText(raw.content)
+            m.text === typedMessageText(store, raw)
             ? [{ message: m, sequence: event.sequence }]
             : [];
         })

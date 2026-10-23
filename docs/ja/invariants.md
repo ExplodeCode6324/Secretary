@@ -59,3 +59,5 @@
 
 18. **管理対象の状態変更は遷移表に一致する必要がある。** Store のコミットとリプレイは Execution、Operation、Input の変更前後を確認します。同状態の更新と schema に適合する初回スナップショットは別扱いとし、業務前提はドメインのガードが引き続き確認します。
     実装：[validateStateTransition](../../src/pi_secretary/src/state-transitions.ts)、[Store.stage](../../src/pi_secretary/src/store.ts)。テスト：[transitions](../../test_case/offline/issue25/transitions.test.ts)、`every state pair`、`replay rejects a correctly hashed journal carrying an illegal transition`。
+
+画像添付は専用取り込み台帳で容量を予約し、不変 CAS を Input に関連付けます。形式、予算、保持、取り消しは[添付ガイド](api/v1/attachments.md)を参照。

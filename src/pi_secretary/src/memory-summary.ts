@@ -1,3 +1,9 @@
+import {
+  summaryMessage,
+  typedMessageText,
+  assertActiveSourceEvents,
+} from "./attachment-form.ts";
+import { putEvidence } from "./evidence.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import { activitiesFor } from "./activity.ts";
 import type {
@@ -57,10 +63,13 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
       l.scope.session_id === this.sessionID &&
       l.event_type === "main.message" &&
       l.sequence > (cs.covered_event_sequence ?? 0) &&
-      l.sequence <= sourceEnd,
+      l.sequence <= sourceEnd &&
+      summaryMessage(this.store, this.store.read<AgentMessage>(l.payload)) !==
+        null,
   );
   const sources = delta.map((l) => l.event_id);
-  const evidence = this.store.put(
+  const evidence = putEvidence(
+    this.store,
     delta.map((l) => this.store.read<AgentMessage>(l.payload)),
   );
   let job: CompactionJob = pending
@@ -153,7 +162,10 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
             event_id: l.event_id,
             sequence: l.sequence,
             source_ref: l.payload,
-            message: this.store.read(l.payload),
+            message: summaryMessage(
+              this.store,
+              this.store.read<AgentMessage>(l.payload),
+            ),
           }),
         })),
         extra: {
@@ -163,7 +175,11 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
             .filter(
               (l) =>
                 l.event_type === "notification.presented" &&
-                l.sequence <= sourceEnd,
+                l.sequence <= sourceEnd &&
+                summaryMessage(
+                  this.store,
+                  this.store.read<AgentMessage>(l.payload),
+                ) !== null,
             )
             .map((l) => {
               const n = presentedNotification(this.store, l);
@@ -230,6 +246,7 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
         });
       },
     });
+    assertActiveSourceEvents(this.store, job.source_event_ids);
     const items = candidate.items;
     enqueueExtractions({
       store: this.store,
@@ -240,8 +257,15 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
       completeMessages: delta.flatMap((l) => {
         const m = this.store.read<AgentMessage>(l.payload);
         return (m.role === "user" || m.role === "assistant") &&
-          !isTimerMessage(this.store, m)
-          ? [{ id: l.event_id, role: m.role, text: contentText(m.content) }]
+          !isTimerMessage(this.store, m) &&
+          !!typedMessageText(this.store, m)
+          ? [
+              {
+                id: l.event_id,
+                role: m.role,
+                text: typedMessageText(this.store, m)!,
+              },
+            ]
           : [];
       }),
     });

@@ -195,17 +195,20 @@ export function errorOf(error: unknown) {
   if (error instanceof ApiError) return error;
   const raw = error instanceof Error ? error.message : String(error);
   const code = /^[A-Z][A-Z0-9_]+/.exec(raw)?.[0] ?? "INTERNAL_ERROR";
-  const status = /NOT_FOUND$/.test(code)
-    ? 404
-    : /CONFLICT|STALE|EXPIRED|RESET_REQUIRED|NOT_OPEN|NOT_UNKNOWN|SCOPE_ARCHIVED|SCOPE_ROOT_RESERVED|SCOPE_CHANGE_NOT_ALLOWED|INVALID_TRANSITION/.test(
-          code,
-        )
+  const status =
+    /ATTACHMENT_MODEL_UNSUPPORTED|ATTACHMENT_BUDGET_UNCONFIGURED/.test(code)
       ? 409
-      : /UNAVAILABLE|BUSY|BLOCKED|IN_PROGRESS/.test(code)
-        ? 503
-        : /INVALID|EMPTY|REQUIRED|ONLY_|DRAFT_|MASTER_/.test(code)
-          ? 400
-          : 500;
+      : /NOT_FOUND$/.test(code)
+        ? 404
+        : /CONFLICT|STALE|EXPIRED|RESET_REQUIRED|NOT_OPEN|NOT_UNKNOWN|SCOPE_ARCHIVED|SCOPE_ROOT_RESERVED|SCOPE_CHANGE_NOT_ALLOWED|INVALID_TRANSITION/.test(
+              code,
+            )
+          ? 409
+          : /UNAVAILABLE|BUSY|BLOCKED|IN_PROGRESS/.test(code)
+            ? 503
+            : /INVALID|EMPTY|REQUIRED|ONLY_|DRAFT_|MASTER_/.test(code)
+              ? 400
+              : 500;
   return new ApiError(code, status);
 }
 export const fingerprint = (value: unknown) => hash(canonical(value));

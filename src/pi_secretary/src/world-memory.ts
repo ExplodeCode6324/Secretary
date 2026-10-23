@@ -1,3 +1,4 @@
+import { assertActiveSourceEvents } from "./attachment-form.ts";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { World } from "./world.ts";
 import type {
@@ -171,20 +172,39 @@ export async function proposeWorld(
       ? currentMasterEvents
       : [];
   if (!eventIDs.length) throw Error("EVIDENCE_REQUIRED");
+  assertActiveSourceEvents(world.store, eventIDs);
   if (eventIDs.length > 20 || new Set(eventIDs).size !== eventIDs.length)
     throw Error("INVALID_SOURCE_EVENTS");
   const isMasterStatement = (event: OperationLogRecord) => {
     if (event.actor !== "MASTER_UI" || event.event_type !== "input.accepted")
       return false;
     const input = world.store.read<Input>(event.payload);
-    return input.record_type === "Input" && input.producer === "MASTER";
+    return (
+      input.record_type === "Input" &&
+      input.producer === "MASTER" &&
+      !input.attachments?.length &&
+      world.store.get<Input>("Input", input.id).state !== "WITHDRAWN"
+    );
   };
   const events = eventIDs.map((eventID) => {
     const event = world.store.logs.find((e) => e.event_id === eventID);
     if (!event || event.scope.session_id !== scope.session_id)
       throw Error("SOURCE_EVENT_MISMATCH");
     world.store.bytes(event.payload);
-    if (event.actor === "MASTER_UI" && !isMasterStatement(event))
+    const sourceInput =
+      event.event_type === "input.accepted"
+        ? world.store.read<Input>(event.payload)
+        : undefined;
+    if (
+      sourceInput &&
+      world.store.get<Input>("Input", sourceInput.id).state === "WITHDRAWN"
+    )
+      throw Error("ATTACHMENT_SOURCE_WITHDRAWN");
+    if (
+      event.actor === "MASTER_UI" &&
+      !isMasterStatement(event) &&
+      !(sourceInput?.producer === "MASTER" && sourceInput.attachments?.length)
+    )
       throw Error("SOURCE_EVENT_NOT_STATEMENT");
     return event;
   });

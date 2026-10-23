@@ -46,7 +46,8 @@
       "enum": [
         "ACCEPTED",
         "CLAIMED",
-        "HANDLED"
+        "HANDLED",
+        "WITHDRAWN"
       ],
       "description": "状态枚举对应 src/state_machine/catalog.json 的 Input"
     },
@@ -992,6 +993,37 @@
               "type": "null"
             }
           ]
+        },
+        "attachments": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/AttachmentBinding"
+          }
+        },
+        "content_digest": {
+          "$ref": "#/$defs/Digest"
+        },
+        "withdrawal": {
+          "type": "object",
+          "properties": {
+            "request_id": {
+              "$ref": "#/$defs/ID"
+            },
+            "at": {
+              "$ref": "#/$defs/Time"
+            },
+            "reason": {
+              "const": "OWNER_WITHDRAWN"
+            }
+          },
+          "required": [
+            "request_id",
+            "at",
+            "reason"
+          ],
+          "additionalProperties": false
         }
       },
       "required": [
@@ -1010,7 +1042,15 @@
         "feedback_id"
       ],
       "additionalProperties": false,
-      "description": "外部输入；工具返回不创建此对象。"
+      "description": "外部输入；工具返回不创建此对象。",
+      "dependentRequired": {
+        "attachments": [
+          "content_digest"
+        ],
+        "content_digest": [
+          "attachments"
+        ]
+      }
     },
     "Context": {
       "type": "object",
@@ -1228,6 +1268,9 @@
             },
             "deployment_limit_verified": {
               "type": "boolean"
+            },
+            "vision_profile_id": {
+              "$ref": "#/$defs/Digest"
             }
           },
           "required": [
@@ -1656,6 +1699,9 @@
                 "source_end_sequence": {
                   "type": "integer",
                   "minimum": 0
+                },
+                "attachment_form_version": {
+                  "const": 1
                 }
               },
               "required": [
@@ -5564,7 +5610,9 @@
             "Scope",
             "WakeTimer",
             "PushTarget",
-            "PushDispatch"
+            "PushDispatch",
+            "Attachment",
+            "AttachmentImport"
           ],
           "description": ""
         },
@@ -7359,6 +7407,195 @@
         "error_code"
       ],
       "additionalProperties": false
+    },
+    "AttachmentBinding": {
+      "type": "object",
+      "properties": {
+        "attachment_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "import_request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[^/\\\\\\x00-\\x1f\\x7f]+$"
+        },
+        "content": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "attachment_id",
+        "import_request_id",
+        "name",
+        "content",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    "Attachment": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Attachment"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "import_request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 255,
+          "pattern": "^[^/\\\\\\x00-\\x1f\\x7f]+$"
+        },
+        "content": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "import_request_id",
+        "name",
+        "content",
+        "width",
+        "height"
+      ],
+      "additionalProperties": false
+    },
+    "AttachmentImport": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "AttachmentImport"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "attachment_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "expected_sha256": {
+          "$ref": "#/$defs/Digest"
+        },
+        "expected_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        },
+        "reserved_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state": {
+          "enum": [
+            "PENDING",
+            "READY",
+            "FAILED"
+          ]
+        },
+        "error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "validation_limits": {
+          "type": "object",
+          "properties": {
+            "file_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5242880
+            },
+            "side": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4096
+            },
+            "pixels": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4194304
+            }
+          },
+          "required": [
+            "file_bytes",
+            "side",
+            "pixels"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "attachment_id",
+        "expected_sha256",
+        "expected_bytes",
+        "reserved_bytes",
+        "state",
+        "error_code",
+        "validation_limits"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [
@@ -7520,6 +7757,12 @@
     },
     {
       "$ref": "#/$defs/PushDispatch"
+    },
+    {
+      "$ref": "#/$defs/Attachment"
+    },
+    {
+      "$ref": "#/$defs/AttachmentImport"
     }
   ]
 }

@@ -1,3 +1,8 @@
+import {
+  authenticatedIdentityHash,
+  assertActiveSourceEvents,
+  attachmentTag,
+} from "./attachment-form.ts";
 import { activitiesFor } from "./activity.ts";
 import { Store, base, hash, id, now, revise, shape } from "./store.ts";
 import type { Stored } from "./store.ts";
@@ -530,6 +535,10 @@ export class Settings {
       activity.step(activityID, "正在校验设置与上下文");
       if (!candidate || candidate.completed !== source.chunks.length)
         throw Error("INCOMPLETE_SUMMARY_COVERAGE");
+      assertActiveSourceEvents(
+        this.store,
+        source.extraction_messages.map((m) => m.id),
+      );
       const changes = source.changes as Changes;
       const current = this.store.get<Consciousness>(
         "Consciousness",
@@ -621,6 +630,10 @@ export class Settings {
       // Retrieval may have failed while World committed/exported or during a
       // restart. Only an already active receipt is safe to adopt without it.
       await prepareContext();
+      assertActiveSourceEvents(
+        this.store,
+        source.extraction_messages.map((m) => m.id),
+      );
       const mutations: Stored[] = [
         revise(current, {
           items: candidate.items,
@@ -638,7 +651,11 @@ export class Settings {
                     a.context_id!,
                   ).raw_context,
                 )
-                .map((m) => hash(JSON.stringify(m))),
+                .map((m) =>
+                  attachmentTag(m)
+                    ? authenticatedIdentityHash(this.store, m)
+                    : hash(JSON.stringify(m)),
+                ),
             ]),
           ],
           last_job_id: null,

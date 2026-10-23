@@ -14,7 +14,8 @@
   "enum": [
     "ACCEPTED",
     "CLAIMED",
-    "HANDLED"
+    "HANDLED",
+    "WITHDRAWN"
   ],
   "description": "状态枚举对应 src/state_machine/catalog.json 的 Input"
 }

@@ -38,7 +38,7 @@
 | `instructions_revision` | integer | いいえ |  {"minimum": 0} |
 | `system_prompt_hash` | Digest | いいえ |  関連：[Digest](Digest.md) |
 | `settings_application_id` | ID または null | いいえ |  関連：[ID](ID.md) |
-| `request_budget` | object | いいえ |  {"additionalProperties": false} |
+| `request_budget` | object | いいえ |  {"additionalProperties": false} 関連：[Digest](Digest.md) |
 | `source_context_id` | ID または null | いいえ |  関連：[ID](ID.md) |
 | `compaction_job_id` | ID または null | いいえ |  関連：[ID](ID.md) |
 | `protected_from_index` | integer | いいえ |  {"minimum": 0} |

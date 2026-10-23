@@ -3378,5 +3378,115 @@
     "thinking_preview and thinking preserve raw model text, which may contain control characters or ANSI sequences. Terminal clients must escape or sanitize it before rendering; the API does not perform terminal-safety processing for clients.",
     "thinking_preview と thinking はモデルの生テキストを保持し、制御文字や ANSI シーケンスを含む場合があります。端末クライアントは表示前にエスケープまたは無害化する必要があります。API はクライアントに代わって端末向けの安全処理を行いません。",
     "thinking_preview et thinking conservent le texte brut du modèle, qui peut contenir des caractères de contrôle ou des séquences ANSI. Les clients de terminal doivent l’échapper ou le neutraliser avant affichage ; l’API n’effectue pas ce traitement à leur place."
+  ],
+  "本地图片附件": [
+    "Local image attachments",
+    "ローカル画像添付",
+    "Images jointes locales"
+  ],
+  "导入与消息": [
+    "Import and messages",
+    "取り込みとメッセージ",
+    "Importation et messages"
+  ],
+  "部署与预算": [
+    "Deployment and budgets",
+    "デプロイと予算",
+    "Déploiement et budgets"
+  ],
+  "撤回与恢复": [
+    "Withdrawal and recovery",
+    "取り消しと復旧",
+    "Retrait et reprise"
+  ],
+  "依赖与验证边界": [
+    "Dependencies and validation boundaries",
+    "依存関係と検証範囲",
+    "Dépendances et périmètre de validation"
+  ],
+  "所有附件接口沿用本机 owner 认证与数据域。只接受静态 PNG/JPEG，按原始字节验证格式并完整解码；拒绝动画、MPO、尾随字节和其他格式。不转换、不缩放、不移除 EXIF：原始元数据（可能包括位置）随原图传给所选 provider。": [
+    "All attachment routes use local-owner authentication and the existing data domain. Only static PNG/JPEG are accepted after byte-based format validation and full decoding; animation, MPO, trailing bytes and other formats are rejected. No conversion, resizing or EXIF removal occurs: original metadata, possibly including location, is sent with the image to the selected provider.",
+    "すべての添付 API は既存のローカル owner 認証とデータ領域を使用します。バイトから形式を検証して完全にデコードした静止 PNG/JPEG のみを受け付けます。アニメーション、MPO、末尾の余分なバイト、その他の形式は拒否します。変換、縮小、EXIF 削除は行わず、位置情報を含む可能性のある元のメタデータも選択した provider に送信します。",
+    "Toutes les routes utilisent l’authentification du propriétaire local et le domaine de données existant. Seuls les PNG/JPEG statiques, validés à partir des octets et entièrement décodés, sont acceptés. Animation, MPO, octets supplémentaires et autres formats sont refusés. Aucune conversion, réduction ou suppression EXIF : les métadonnées originales, éventuellement géographiques, sont transmises au provider choisi."
+  ],
+  "先提交 POST `/api/v1/attachments/import`，冻结 request_id、绝对 source_path、expected_sha256、十进制字符串 expected_bytes 和展示 name。路径可经过符号链接目录，但最后一项必须是普通文件，不能是符号链接。Core 不删除源文件。": [
+    "First POST `/api/v1/attachments/import`, freezing request_id, absolute source_path, expected_sha256, decimal-string expected_bytes and display name. Ancestor directories may be symlinks, but the final component must be a regular file, not a symlink. Core never deletes the source file.",
+    "最初に POST `/api/v1/attachments/import` を送信し、request_id、絶対 source_path、expected_sha256、十進文字列 expected_bytes、表示名 name を固定します。親ディレクトリのシンボリックリンクは許可しますが、最終要素はリンクではなく通常ファイルである必要があります。Core は元ファイルを削除しません。",
+    "Envoyer d’abord POST `/api/v1/attachments/import` en figeant request_id, source_path absolu, expected_sha256, expected_bytes sous forme de chaîne décimale et name. Les répertoires parents peuvent être des liens symboliques, mais le dernier élément doit être un fichier normal. Core ne supprime jamais le fichier source."
+  ],
+  "202 只表示预留已持久化。轮询 GET `/api/v1/requests/{id}`，仅在 COMPLETED 且 result 返回 attachment_id 后才可删除客户端临时文件。导入独立队列从 QUEUED 直接到 COMPLETED 或 FAILED，不走通用 RUNNING/UNKNOWN。IO 结果不确定时保留 QUEUED 与容量，可能返回 ATTACHMENT_IMPORT_RETRY_REQUIRED；修复 IO 后重启恢复，重用原 ID 和完整 body。": [
+    "202 means only that the reservation is durable. Poll GET `/api/v1/requests/{id}`; delete a client temporary file only after COMPLETED and an attachment_id in result. The separate import queue moves directly from QUEUED to COMPLETED or FAILED, bypassing generic RUNNING/UNKNOWN. Uncertain IO retains QUEUED and quota and may report ATTACHMENT_IMPORT_RETRY_REQUIRED; restore IO and restart to recover with the same ID and complete body.",
+    "202 は予約の永続化のみを意味します。GET `/api/v1/requests/{id}` を確認し、COMPLETED と result の attachment_id を確認してからクライアントの一時ファイルを削除します。専用キューは QUEUED から直接 COMPLETED または FAILED へ進みます。不確定な IO では QUEUED と容量を保持し、ATTACHMENT_IMPORT_RETRY_REQUIRED を返す場合があります。IO を修復して再起動し、同じ ID と body で復旧します。",
+    "202 confirme uniquement la réservation durable. Interroger GET `/api/v1/requests/{id}` ; ne supprimer le fichier temporaire client qu’après COMPLETED et un attachment_id dans result. La file dédiée passe directement de QUEUED à COMPLETED ou FAILED. Une IO incertaine conserve QUEUED et la capacité, avec éventuellement ATTACHMENT_IMPORT_RETRY_REQUIRED ; rétablir l’IO puis redémarrer avec les mêmes ID et body."
+  ],
+  "随后 POST `/api/v1/messages` 使用不同 request_id、text 和有序 attachment_ids。允许纯图 text=\"\"，不允许仅空白正文；重复附件 ID 被拒绝。复用 ready ID 可显式重送图片。同 ID 修改任何已提交字段均冲突。源文件删除或替换后，已完成导入仍使用固定 CAS 原件。": [
+    "Then POST `/api/v1/messages` with a different request_id, text and ordered attachment_ids. Image-only text=\"\" is allowed; whitespace-only text and duplicate attachment IDs are rejected. Reusing a ready ID explicitly resends its image. Changing any submitted field under the same ID conflicts. Completed imports keep their fixed CAS originals after source deletion or replacement.",
+    "続いて別の request_id、text、順序付き attachment_ids で POST `/api/v1/messages` を送信します。画像のみの text=\"\" は許可しますが、空白だけの本文や重複 ID は拒否します。ready ID の再利用で画像を明示的に再送できます。同じ ID の送信済みフィールド変更は競合です。取り込み完了後は元ファイルを削除・置換しても固定 CAS 原本を使います。",
+    "Envoyer ensuite POST `/api/v1/messages` avec un autre request_id, text et attachment_ids ordonnés. text=\"\" permet une image seule ; le texte uniquement composé d’espaces et les ID répétés sont refusés. Réutiliser un ID ready renvoie explicitement son image. Modifier un champ déjà soumis avec le même ID provoque un conflit. Les originaux CAS restent fixes après suppression ou remplacement de la source."
+  ],
+  "GET `/api/v1/attachments/{id}`、timeline 和消息内容只返回轻量元数据；显式 GET `/api/v1/attachments/{id}/content` 返回校验过的原始二进制，带长度、ETag、no-store 和 nosniff，不支持 range。运行时内容损坏返回 410 ATTACHMENT_UNAVAILABLE；重启时缺失或截断的持久引用会使 Store.open 失败。": [
+    "GET `/api/v1/attachments/{id}`, timeline and message content expose lightweight metadata only. Explicit GET `/api/v1/attachments/{id}/content` returns verified original binary with length, ETag, no-store and nosniff; ranges are unsupported. Runtime corruption returns 410 ATTACHMENT_UNAVAILABLE. Missing or truncated durable references fail Store.open on restart.",
+    "GET `/api/v1/attachments/{id}`、timeline、メッセージ内容は軽量メタデータのみを返します。明示的な GET `/api/v1/attachments/{id}/content` は長さ、ETag、no-store、nosniff 付きの検証済み原始バイナリを返します。range は非対応です。実行中の破損は 410 ATTACHMENT_UNAVAILABLE、再起動時の参照欠落・切り詰めは Store.open の失敗となります。",
+    "GET `/api/v1/attachments/{id}`, timeline et le contenu des messages exposent uniquement les métadonnées. GET `/api/v1/attachments/{id}/content` renvoie les octets originaux vérifiés avec longueur, ETag, no-store et nosniff, sans plages. Une corruption en cours d’exécution renvoie 410 ATTACHMENT_UNAVAILABLE ; une référence durable manquante ou tronquée fait échouer Store.open au redémarrage."
+  ],
+  "默认限制如下，可通过 SECRETARY_ATTACHMENT_ 加大写字段名的环境变量降低，不能超过下表。降低配置不删除旧内容；pending 导入保留受理时的验证上限。容量满时只拒绝新导入，不禁止发送已有附件。相同内容的新导入身份仍独立计费；失败身份计数保留，CAS 可能已写入时保留字节预留。无自动清理、年龄过期或 unbound 删除。": [
+    "The defaults below can be lowered using environment variables SECRETARY_ATTACHMENT_ plus the uppercase field name, but never exceeded. Lower limits do not delete old content; pending imports retain admission-time validation ceilings. Full quota rejects new imports, not existing attachment sends. New identities for identical content are charged separately; failed identities remain counted, and byte reservations remain when CAS may exist. There is no automatic cleanup, age expiry or unbound deletion.",
+    "下表の既定値は SECRETARY_ATTACHMENT_ と大文字フィールド名を組み合わせた環境変数で下げられますが、超える値は指定できません。既存内容は削除せず、pending は受理時の検証上限を保持します。容量不足でも既存添付の送信は可能です。同一内容の新規 ID は別計上し、失敗 ID と CAS 書き込みの可能性がある容量は保持します。自動清理、有効期限、未関連内容の削除はありません。",
+    "Les valeurs ci-dessous peuvent être abaissées via SECRETARY_ATTACHMENT_ suivi du champ en majuscules, sans être dépassées. Cela ne supprime aucun contenu ; les imports pending gardent leurs limites d’admission. Une capacité pleine bloque seulement les nouveaux imports. Les nouvelles identités de contenu identique sont comptées séparément ; les identités échouées et les octets éventuellement écrits restent réservés. Aucun nettoyage automatique, expiration ou retrait des contenus non liés."
+  ],
+  "SECRETARY_VISION_BUDGET_PROFILES 是 JSON 数组，默认 []。每项必须精确匹配 provider、api、model 和规范化 baseUrl，并提供 version=1、正整数 tokens_per_image、max_side、max_pixels 及非空 source 依据。真实模型上限由部署者根据 provider 文档选择；8192 仅用于离线 fixture，不是通用默认值。未匹配时 capabilities.attachments.allowed=false，发送返回 ATTACHMENT_BUDGET_UNCONFIGURED；不支持图片的模型返回 ATTACHMENT_MODEL_UNSUPPORTED。": [
+    "SECRETARY_VISION_BUDGET_PROFILES is a JSON array, default []. Each entry must exactly match provider, api, model and normalized baseUrl, with version=1, positive-integer tokens_per_image, max_side, max_pixels and a nonempty source rationale. Deployment owners select real limits from provider documentation; 8192 is an offline fixture bound only, never a universal default. Without a match capabilities.attachments.allowed=false and sending returns ATTACHMENT_BUDGET_UNCONFIGURED; text-only models return ATTACHMENT_MODEL_UNSUPPORTED.",
+    "SECRETARY_VISION_BUDGET_PROFILES は既定 [] の JSON 配列です。各項目は provider、api、model、正規化 baseUrl と完全一致し、version=1、正整数 tokens_per_image、max_side、max_pixels、根拠 source が必要です。実モデルの上限は provider 文書に基づき設定します。8192 はオフライン fixture 専用です。一致なしでは capabilities.attachments.allowed=false と ATTACHMENT_BUDGET_UNCONFIGURED、画像非対応モデルでは ATTACHMENT_MODEL_UNSUPPORTED となります。",
+    "SECRETARY_VISION_BUDGET_PROFILES est un tableau JSON, [] par défaut. Chaque entrée doit correspondre exactement à provider, api, model et baseUrl normalisée, avec version=1, tokens_per_image, max_side et max_pixels entiers positifs, et une justification source. L’exploitant choisit les limites réelles selon la documentation du provider ; 8192 est réservé aux fixtures hors ligne. Sans correspondance : capabilities.attachments.allowed=false et ATTACHMENT_BUDGET_UNCONFIGURED. Un modèle texte seul produit ATTACHMENT_MODEL_UNSUPPORTED."
+  ],
+  "该 profile 同时约束准入、发送、最终 adapter payload 与冻结请求重放；最终图片的顺序、MIME 和摘要须与输入一致。token 估算移除 base64 副本后逐图增加上限，wire 上限独立检查。纯文本 identity 和 policy_id 保持原值。aggregate 证据保存版本化 CAS 引用，读取时验证原始 JSON 摘要并精确复原，单消息 CAS 保留完整内容。": [
+    "The profile constrains admission, dispatch, final adapter payload and frozen request replay. Final image order, MIME and digests must match the input. Token estimation removes base64 in a copy and adds the per-image ceiling; wire limits are checked separately. Text-only identities and policy_id remain unchanged. Aggregate evidence stores versioned CAS references and verifies the original JSON digest during exact hydration; per-message CAS retains full content.",
+    "profile は准入、送信、最終 adapter payload、固定要求の再実行すべてに適用されます。画像順序、MIME、ハッシュは入力と一致する必要があります。token 推定用コピーから base64 を除き、画像ごとの上限を加算し、wire 制限は別に検査します。純粋なテキストの identity と policy_id は維持します。aggregate 証拠は CAS 参照で保存し、元 JSON のハッシュを検証して完全復元します。",
+    "Le profile régit admission, envoi, payload final et reprise de la requête figée. Ordre, MIME et empreintes doivent rester identiques. L’estimation retire base64 dans une copie puis ajoute le plafond par image ; la taille wire est vérifiée séparément. Les identités texte et policy_id restent inchangées. Les preuves agrégées utilisent des références CAS versionnées et une réhydratation exacte vérifiant l’empreinte JSON originale ; chaque message conserve son contenu complet."
+  ],
+  "K=0：图片在当前 handling loop、工具迭代和冻结重放中完整保留。HANDLED 后的新 loop 只保留明确写明“本请求无像素”的认证元数据；紧邻追问不会自动重送图片，owner 必须显式复用 ready ID。摘要只读取正文和未识图元数据，承诺提取只读取原始正文；图片来源不能仅凭 input.accepted 被当作 MASTER 事实。": [
+    "K=0: images remain complete throughout their handling loop, tool iterations and frozen replay. New loops after HANDLED retain authenticated metadata explicitly stating that this request has no pixels. Adjacent follow-ups do not resend images automatically; the owner must explicitly reuse a ready ID. Summaries read typed text and uninspected metadata; commitment extraction reads original typed text only. An image source cannot become a MASTER fact solely through input.accepted.",
+    "K=0：処理 loop、ツール反復、固定再実行では画像を完全保持します。HANDLED 後の新 loop は「この要求に画素なし」と明記した認証済みメタデータのみを保持します。直後の質問でも自動再送せず、owner が ready ID を明示的に再利用します。要約は本文と未確認画像メタデータ、約束抽出は元の本文のみを読みます。input.accepted だけで画像由来情報を MASTER 事実にはしません。",
+    "K=0 : les images restent complètes pendant le loop de traitement, ses outils et sa reprise figée. Après HANDLED, les nouveaux loops conservent des métadonnées authentifiées indiquant l’absence de pixels. Les questions suivantes ne renvoient pas automatiquement les images ; le propriétaire doit réutiliser explicitement un ID ready. Résumés : texte saisi et métadonnées non inspectées. Engagements : texte original uniquement. input.accepted seul ne transforme pas une source image en fait MASTER."
+  ],
+  "POST `/api/v1/inputs/{id}/withdraw` 使用新的 request_id 与 expected_revision，撤回整个附件输入（含正文）。要求宿主及维护空闲；CLAIMED 还要求被阻塞、独占同一 loop、无助手输出、无 IN_FLIGHT/RESPONSE_SAVED、无未决或已执行工具效果。否则 409 WITHDRAWAL_UNSAFE。安全撤回在一帧提交 Context/Input/Session/事件/ApiCommand；通知仅进入一个后续 loop，历史永久标记 withdrawn。": [
+    "POST `/api/v1/inputs/{id}/withdraw` uses a new request_id and expected_revision to withdraw the entire attachment input, including text. Host and maintenance must be idle; CLAIMED also requires a blocked exclusive loop, no assistant output, no IN_FLIGHT/RESPONSE_SAVED and no pending or executed tool effects. Otherwise return 409 WITHDRAWAL_UNSAFE. Safe withdrawal commits Context/Input/Session/events/ApiCommand in one frame; the notice enters only one subsequent loop, while history remains marked withdrawn.",
+    "POST `/api/v1/inputs/{id}/withdraw` は新しい request_id と expected_revision で本文を含む添付入力全体を取り消します。宿主と保守は idle である必要があります。CLAIMED では blocked な単独 loop、助手出力なし、IN_FLIGHT/RESPONSE_SAVED なし、ツール効果なしも必要です。それ以外は 409 WITHDRAWAL_UNSAFE。安全な取り消しは一つのフレームで確定し、通知は後続一 loop のみ、履歴は恒久的に withdrawn です。",
+    "POST `/api/v1/inputs/{id}/withdraw` utilise un nouveau request_id et expected_revision pour retirer l’entrée entière, texte compris. Hôte et maintenance doivent être inactifs. CLAIMED exige aussi un loop bloqué exclusif, aucune sortie assistant, aucun IN_FLIGHT/RESPONSE_SAVED ni effet d’outil en attente ou exécuté. Sinon : 409 WITHDRAWAL_UNSAFE. Le retrait sûr valide Context/Input/Session/événements/ApiCommand dans une seule trame ; la notification dure un loop suivant et l’historique reste withdrawn."
+  ],
+  "撤回输入不进入新的摘要、承诺、搜索命中或 World 证据；发布旧候选前重新检查，搜索索引滞后也执行当前撤回过滤。审计原件仍保留。死进程留下的 IN_FLIGHT 不允许撤回，须恢复先前受支持部署并沿用既有恢复；不改变 #80 恢复政策。": [
+    "Withdrawn inputs are excluded from new summaries, commitments, search hits and World evidence. Old candidates are rechecked before publication; lagging search indexes also apply current withdrawal filtering. Audit originals remain. Stale IN_FLIGHT from a dead process cannot be withdrawn: restore the previously supported deployment and use existing recovery. #80 recovery policy is unchanged.",
+    "取り消した入力は新規要約、約束、検索結果、World 証拠から除外します。古い候補も公開前に再検査し、遅延索引にも現在の取り消し状態を適用します。監査原本は保持します。死んだプロセスの IN_FLIGHT は取り消せず、以前の対応デプロイを戻して既存復旧を使います。#80 の復旧方針は変更しません。",
+    "Les entrées retirées sont exclues des nouveaux résumés, engagements, résultats de recherche et preuves World. Les anciens candidats sont revérifiés avant publication ; même un index en retard filtre les retraits actuels. Les originaux d’audit restent. Un IN_FLIGHT résiduel ne peut être retiré : rétablir le déploiement précédemment compatible et utiliser la reprise existante, sans modifier #80."
+  ],
+  "sharp 固定为 0.35.5（Apache-2.0）；lockfile 包含 Linux/macOS 的原生可选依赖。libvips 及其组件的许可证以安装包内 LICENSE/README 为准，分发须保留相应声明。Portable 打包不在本项范围。Core 契约通过真实安装 adapter 的本机 HTTP fixture 验证；真实 provider 识图为 NOT_TESTED，由 #84 准备 profile 和合成图 smoke。新 TUI 消费与真人终端体验尚未验收。": [
+    "sharp is pinned to 0.35.5 (Apache-2.0); the lockfile includes Linux/macOS native optional dependencies. libvips and component licenses are in the installed LICENSE/README files; preserve their notices when distributing. Portable packaging is outside this issue. Core contracts use installed adapters against local HTTP fixtures. Real provider vision is NOT_TESTED; #84 prepares the profile and synthetic smoke. New TUI consumption and human terminal experience remain unaccepted.",
+    "sharp は 0.35.5（Apache-2.0）に固定し、lockfile に Linux/macOS のネイティブ任意依存を含めます。libvips と各部品のライセンスはインストール済み LICENSE/README を参照し、配布時に表示を保持します。Portable 梱包は対象外です。Core 契約は実際の adapter とローカル HTTP fixture で検証します。実 provider の画像認識は NOT_TESTED で、#84 が profile と合成画像 smoke を準備します。新 TUI と人による端末体験は未承認です。",
+    "sharp est fixé à 0.35.5 (Apache-2.0), avec les dépendances natives optionnelles Linux/macOS dans le lockfile. Consulter les LICENSE/README installés pour libvips et ses composants et conserver les mentions lors d’une distribution. Le packaging Portable est hors périmètre. Les contrats Core utilisent les adapters installés et des fixtures HTTP locales. La reconnaissance réelle reste NOT_TESTED ; #84 prépare profile et smoke synthétique. Le nouveau TUI et l’expérience humaine ne sont pas encore validés."
+  ],
+  "附件导入、预算 profile、K=0 驻留和安全撤回见[附件合同](attachments.md)。": [
+    "For imports, budget profiles, K=0 residency and safe withdrawal, see the [attachment contract](attachments.md).",
+    "取り込み、予算 profile、K=0 保持、安全な取り消しは[添付契約](attachments.md)を参照。",
+    "Pour les imports, profiles de budget, résidence K=0 et retraits sûrs, voir le [contrat des pièces jointes](attachments.md)."
+  ],
+  "图片附件通过独立导入账本预留容量，使用不可变 CAS 与 Input 绑定；完整格式、预算、驻留和撤回合同见[附件说明](api/v1/attachments.md)。": [
+    "Image attachments reserve capacity in a separate import ledger and bind immutable CAS to Inputs; see the [attachment guide](api/v1/attachments.md) for formats, budgets, residency and withdrawal.",
+    "画像添付は専用取り込み台帳で容量を予約し、不変 CAS を Input に関連付けます。形式、予算、保持、取り消しは[添付ガイド](api/v1/attachments.md)を参照。",
+    "Les images réservent leur capacité dans un registre dédié et lient le CAS immuable aux Inputs ; voir le [guide des pièces jointes](api/v1/attachments.md) pour formats, budgets, résidence et retrait."
+  ],
+  "列表与消息内容中的 availability 只检查 CAS 文件存在、类型和长度，不证明摘要正确。GET `/api/v1/attachments/{id}`、二进制读取、消息准入和模型发送仍完整核验内容。": [
+    "Availability in lists and message content checks only CAS file existence, type and length; it does not certify the digest. GET `/api/v1/attachments/{id}`, binary reads, message admission and model dispatch still fully verify content.",
+    "一覧とメッセージ内容の availability は CAS ファイルの存在、種類、長さのみを確認し、ハッシュの正しさを保証しません。GET `/api/v1/attachments/{id}`、バイナリ取得、メッセージ受付、モデル送信では内容を完全に検証します。",
+    "Dans les listes et le contenu des messages, availability vérifie uniquement l’existence, le type et la taille du fichier CAS, sans certifier son empreinte. GET `/api/v1/attachments/{id}`, la lecture binaire, l’admission et l’envoi au modèle vérifient toujours tout le contenu."
+  ],
+  "FAILED/INTERRUPTED 的 error/aborted 空诊断不属于实际助手输出：仅当所有 text/thinking 逐字节为空且无工具或未知块时，才可在其余安全条件满足后撤回。新 checkpoint 移除该 loop 的尾随空诊断，原 call/response/event 保留；不代表 provider 未执行或未计费。任何非空正文、思考、空白或工具仍拒绝。": [
+    "An empty error/aborted diagnostic from FAILED/INTERRUPTED is not generated assistant output: withdrawal is allowed only when every text/thinking value is exactly empty, there are no tools or unknown blocks, and all other safety gates pass. The new checkpoint omits only that loop’s trailing empty diagnostics; original call/response/events remain. This does not imply no provider execution or billing. Any nonempty text, thinking, whitespace or tool remains unsafe.",
+    "FAILED/INTERRUPTED の空の error/aborted 診断は生成された回答ではありません。text/thinking が厳密に空で、ツールや未知のブロックがなく、他の安全条件も満たす場合のみ取り消せます。新 checkpoint から当該 loop の末尾の空診断だけを除き、元の call/response/event は保持します。provider が実行・課金していないことを意味しません。空白を含む実際の本文、思考、ツールは拒否します。",
+    "Un diagnostic error/aborted vide de FAILED/INTERRUPTED n’est pas une sortie générée : le retrait exige des valeurs text/thinking strictement vides, aucun outil ni bloc inconnu, et toutes les autres conditions de sécurité. Le nouveau checkpoint omet uniquement ces diagnostics terminaux du loop ; call/response/events restent conservés. Cela ne signifie pas que le provider n’a rien exécuté ou facturé. Tout texte, raisonnement, espace ou outil non vide reste bloquant."
+  ],
+  "MPF 检查也会拒绝部分手机生成的 HDR gain-map JPEG。首版不转换 HDR 或 HEIC；#83/#84 需要向用户说明这一格式边界。": [
+    "The MPF check also rejects HDR gain-map JPEGs produced by some phones. This version does not convert HDR or HEIC; #83/#84 must explain this format boundary to users.",
+    "MPF 検査は一部のスマートフォンが生成する HDR gain-map JPEG も拒否します。初版は HDR や HEIC を変換しません。#83/#84 でこの形式制限を利用者に案内します。",
+    "Le contrôle MPF refuse aussi les JPEG HDR gain-map produits par certains téléphones. Cette version ne convertit ni HDR ni HEIC ; #83/#84 doivent expliquer cette limite aux utilisateurs."
   ]
 }

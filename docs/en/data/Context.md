@@ -38,7 +38,7 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
 | `instructions_revision` | integer | No |  {"minimum": 0} |
 | `system_prompt_hash` | Digest | No |  Related: [Digest](Digest.md) |
 | `settings_application_id` | ID or null | No |  Related: [ID](ID.md) |
-| `request_budget` | object | No |  {"additionalProperties": false} |
+| `request_budget` | object | No |  {"additionalProperties": false} Related: [Digest](Digest.md) |
 | `source_context_id` | ID or null | No |  Related: [ID](ID.md) |
 | `compaction_job_id` | ID or null | No |  Related: [ID](ID.md) |
 | `protected_from_index` | integer | No |  {"minimum": 0} |

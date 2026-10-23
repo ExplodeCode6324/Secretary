@@ -44,8 +44,27 @@ export function searchDocument(
   let taskID = event.scope.task_id;
   if (event.event_type === "input.accepted") {
     const input = store.read<Input>(event.payload);
-    if (input.producer !== "MASTER") return null;
-    body = store.bytes(input.payload).toString();
+    if (
+      input.producer !== "MASTER" ||
+      store.get<Input>("Input", input.id).state === "WITHDRAWN"
+    )
+      return null;
+    body =
+      store.bytes(input.payload).toString() +
+      (input.attachments?.length
+        ? "\nUninspected attachment metadata: " +
+          JSON.stringify(
+            input.attachments.map((a) => ({
+              attachment_id: a.attachment_id,
+              name: a.name,
+              sha256: a.content.sha256,
+              media_type: a.content.media_type,
+              bytes: a.content.bytes,
+              width: a.width,
+              height: a.height,
+            })),
+          )
+        : "");
     kind = "input";
   } else if (event.event_type === "main.message") {
     const message = store.read<AgentMessage>(event.payload);
@@ -279,6 +298,22 @@ export class MemorySearch {
         await db.query("BEGIN");
         for (const frame of frames)
           for (const event of frame.log_records) {
+            if (event.event_type === "input.withdrawn") {
+              const input = this.store.read<Input>(event.payload);
+              const accepted = this.store
+                .events("input.accepted")
+                .find((e) => this.store.read<Input>(e.payload).id === input.id);
+              if (accepted) {
+                await db.query(
+                  "DELETE FROM mem.chunk WHERE source_id=$1 AND event_id=$2",
+                  [this.sourceID, accepted.event_id],
+                );
+                await db.query(
+                  "DELETE FROM mem.document WHERE source_id=$1 AND event_id=$2",
+                  [this.sourceID, accepted.event_id],
+                );
+              }
+            }
             const doc = searchDocument(this.store, event);
             if (!doc) continue;
             await db.query(
@@ -359,28 +394,33 @@ export class MemorySearch {
       await db.query("SET LOCAL statement_timeout=5000");
       const { rows } = await db.query(query);
       await db.query("COMMIT");
-      const hits = rows.map((row) => {
-        const chars = Array.from(row.body as string),
-          at = (row.body as string)
-            .toLocaleLowerCase()
-            .indexOf(options.query.toLocaleLowerCase());
-        const start = Math.max(
-          0,
-          at < 0
-            ? 0
-            : Array.from((row.body as string).slice(0, at)).length - 50,
-        );
-        return {
-          event_id: row.event_id,
-          occurred_at: new Date(row.occurred_at).toISOString(),
-          kind: row.kind,
-          session_id: row.session_id,
-          scope_id: row.scope_id,
-          task_id: row.task_id,
-          snippet: chars.slice(start, start + 200).join(""),
-          offset: row.body_offset + start,
-        };
-      });
+      const hits = rows
+        .filter((row) => {
+          const e = this.store.logs.find((e) => e.event_id === row.event_id);
+          return !!e && !!searchDocument(this.store, e);
+        })
+        .map((row) => {
+          const chars = Array.from(row.body as string),
+            at = (row.body as string)
+              .toLocaleLowerCase()
+              .indexOf(options.query.toLocaleLowerCase());
+          const start = Math.max(
+            0,
+            at < 0
+              ? 0
+              : Array.from((row.body as string).slice(0, at)).length - 50,
+          );
+          return {
+            event_id: row.event_id,
+            occurred_at: new Date(row.occurred_at).toISOString(),
+            kind: row.kind,
+            session_id: row.session_id,
+            scope_id: row.scope_id,
+            task_id: row.task_id,
+            snippet: chars.slice(start, start + 200).join(""),
+            offset: row.body_offset + start,
+          };
+        });
       return { ...this.status(), hits };
     } catch (error) {
       await db?.query("ROLLBACK").catch(() => {});

@@ -59,3 +59,5 @@ These constraints apply to Core persistence and execution paths. Each lists its 
 
 18. **Managed state changes must match transition tables.** Store commit and replay check before/after states of Execution, Operation, and Input. Same-state updates and schema-valid initial snapshots are handled separately; domain guards still check business preconditions.
     Implementation: [validateStateTransition](../../src/pi_secretary/src/state-transitions.ts), [Store.stage](../../src/pi_secretary/src/store.ts). Tests: [transitions](../../test_case/offline/issue25/transitions.test.ts), `every state pair`, `replay rejects a correctly hashed journal carrying an illegal transition`.
+
+Image attachments reserve capacity in a separate import ledger and bind immutable CAS to Inputs; see the [attachment guide](api/v1/attachments.md) for formats, budgets, residency and withdrawal.

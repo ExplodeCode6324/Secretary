@@ -39,7 +39,7 @@
 | [FeedbackPolicy](FeedbackPolicy.md) | 5 |  |
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
 | [Session](Session.md) | 16 | 逻辑主会话；状态变化由宿主单写，进程停止仍保留。 |
-| [Input](Input.md) | 13 | 外部输入；工具返回不创建此对象。 |
+| [Input](Input.md) | 16 | 外部输入；工具返回不创建此对象。 |
 | [Context](Context.md) | 32 | 不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。 |
 | [ModelCall](ModelCall.md) | 17 | 模型传输生命周期；完整响应保存后才解析工具请求。 |
 | [WorkItem](WorkItem.md) | 12 | 事项不等于任务；未履行且无人承接的事项不退出。 |
@@ -104,3 +104,6 @@
 | [WakeTimer](WakeTimer.md) | 13 | 主会话持久定时唤醒；FIRED 与唯一 TIMER Input 同事务提交。 |
 | [PushTarget](PushTarget.md) | 12 |  |
 | [PushDispatch](PushDispatch.md) | 15 |  |
+| [AttachmentBinding](AttachmentBinding.md) | 6 |  |
+| [Attachment](Attachment.md) | 10 |  |
+| [AttachmentImport](AttachmentImport.md) | 12 |  |

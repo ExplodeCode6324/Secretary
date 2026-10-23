@@ -125,3 +125,5 @@ verify は型チェック、Git 管理下 Markdown のリンク検証、`test_ca
 
 - 現在の入り口は Core CLI/API です。SwiftUI 路線は廃止され、クライアントソースは削除されています。[過去の実装](https://github.com/ExplodeCode6324/Secretary/blob/468a9c37939bb721792f353ea4970222a0bf58f2/src/secretary_macos/README.md)は Git から復元できます。
 - 実際のスマートフォンへの到達確認は携帯端末 #11 の範囲です。macOS での実表示の受け入れ検証は、後続クライアントの予定待ちです。
+
+画像添付は専用取り込み台帳で容量を予約し、不変 CAS を Input に関連付けます。形式、予算、保持、取り消しは[添付ガイド](api/v1/attachments.md)を参照。

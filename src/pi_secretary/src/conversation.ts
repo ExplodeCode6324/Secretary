@@ -1,3 +1,4 @@
+import { attachmentInputView } from "./attachments.ts";
 import type { App } from "./app.ts";
 import { activityHistoryFor } from "./activity-history.ts";
 import type { Input, Feedback, Notification } from "./contracts.ts";
@@ -11,6 +12,7 @@ export type UIMessage = {
   call_id?: string;
   incomplete?: boolean;
   order?: number;
+  input_id?: string;
 };
 const conversations = new WeakMap<
   App["store"],
@@ -36,8 +38,10 @@ export function conversation(app: App, showThinking = false): UIMessage[] {
     let thinking: string | undefined,
       call_id: string | undefined,
       incomplete = false;
+    let attachmentInput: string | undefined;
     if (e.event_type === "input.accepted") {
       const input = app.store.read<Input>(e.payload);
+      if (input.attachments?.length) attachmentInput = input.id;
       role = input.producer === "MASTER" ? "master" : "system";
       text = app.store.bytes(input.payload).toString();
     } else if (e.event_type === "main.message") {
@@ -74,9 +78,10 @@ export function conversation(app: App, showThinking = false): UIMessage[] {
       role = "secretary";
       text = app.store.bytes(n.message).toString();
     }
-    if (text || thinking || call_id)
+    if (text || thinking || call_id || attachmentInput)
       output.push({
         id: e.event_id,
+        ...(attachmentInput ? { input_id: attachmentInput } : {}),
         role,
         text,
         at: e.occurred_at,
@@ -89,5 +94,10 @@ export function conversation(app: App, showThinking = false): UIMessage[] {
       });
   }
   cache.position = app.store.logs.length;
-  return output.map((message) => ({ ...message }));
+  return output.map((message) => ({
+    ...message,
+    ...(message.input_id
+      ? attachmentInputView(app.store, message.input_id)
+      : {}),
+  }));
 }

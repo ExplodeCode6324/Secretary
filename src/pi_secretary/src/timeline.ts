@@ -1,3 +1,4 @@
+import { attachmentInputView } from "./attachments.ts";
 import { randomUUID } from "node:crypto";
 import type { App } from "./app.ts";
 import {
@@ -39,6 +40,7 @@ type Meta = Key & {
   source_event_id?: string;
   outcome?: string;
   request_id?: string;
+  input_id?: string;
   task_id?: string;
   execution_id?: string;
   result_id?: string;
@@ -209,6 +211,7 @@ export class Timeline {
           incomplete = abnormalReply(m.stopReason);
         } else if (e.event_type === "input.accepted") {
           const input = this.app.store.read<Input>(e.payload);
+          if (input.attachments?.length) metadata.input_id = input.id;
           role = input.producer === "MASTER" ? "master" : "system";
           metadata.source_kind =
             role === "master" ? "master_input" : "system_input";
@@ -463,6 +466,9 @@ export class Timeline {
       kind: row.kind,
       order: row.order,
       revision: row.revision,
+      ...(row.input_id
+        ? attachmentInputView(this.app.store, row.input_id)
+        : {}),
       cursor,
       role: row.role,
       at: row.at,

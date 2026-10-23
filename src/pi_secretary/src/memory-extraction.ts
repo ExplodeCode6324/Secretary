@@ -1,4 +1,9 @@
 import {
+  typedMessageText,
+  assertActiveSourceEvents,
+} from "./attachment-form.ts";
+import { putEvidence } from "./evidence.ts";
+import {
   contentText,
   type Api,
   type Model,
@@ -191,7 +196,7 @@ export function enqueueExtractions(
         if (
           (raw.role !== "user" && raw.role !== "assistant") ||
           raw.role !== m.role ||
-          contentText(raw.content) !== m.text
+          typedMessageText(store, raw) !== m.text
         )
           throw Error("EXTRACTION_SOURCE_MISSING");
         return raw;
@@ -213,7 +218,7 @@ export function enqueueExtractions(
       ...ids.map((k) => events.get(k)!.sequence),
     ),
     source_ref: store.put(source),
-    evidence_ref: store.put(evidence),
+    evidence_ref: putEvidence(store, evidence),
     existing_ref: null,
     candidate_ref: null,
     state: "QUEUED",
@@ -420,6 +425,18 @@ export function retryExtractions(
 /** Reconcile only new quotes against the latest ledger; never replay old resolutions. */
 export function mergeExtraction(store: Store, job: MemoryExtractionJob) {
   if (job.state !== "SUCCEEDED" || job.merged) return;
+  try {
+    assertActiveSourceEvents(store, job.source_event_ids);
+  } catch {
+    store.commit([
+      revise(job, {
+        state: "FAILED",
+        error: "ATTACHMENT_SOURCE_WITHDRAWN",
+        next_attempt_at: null,
+      }),
+    ]);
+    return;
+  }
   const cs = store
     .all<Consciousness>("Consciousness")
     .find((c) => c.session_id === job.session_id)!;

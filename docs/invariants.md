@@ -55,3 +55,5 @@
 
 18. **受管理的状态变化须命中迁移表。** Store 提交与重放检查 Execution、Operation、Input 的前后状态；同状态更新和符合 schema 的首次快照另行处理，领域守卫继续检查业务前提。
     实现：[validateStateTransition](../src/pi_secretary/src/state-transitions.ts)、[Store.stage](../src/pi_secretary/src/store.ts)。测试：[transitions](../test_case/offline/issue25/transitions.test.ts)，`every state pair`、`replay rejects a correctly hashed journal carrying an illegal transition`。
+
+图片附件通过独立导入账本预留容量，使用不可变 CAS 与 Input 绑定；完整格式、预算、驻留和撤回合同见[附件说明](api/v1/attachments.md)。

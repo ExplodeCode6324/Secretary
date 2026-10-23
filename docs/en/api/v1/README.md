@@ -111,3 +111,5 @@ Default timeline, around, message content and SSE transient provide the same sho
 SSETransient/SSEPreview define the public transient shape; Preview.version remains a number and the event has no durable cursor. The short preview is computed before retention clipping. Redaction, including done/error snapshots, revokes retained reasoning and advances revision; old content cursors return CURSOR_EXPIRED. Retention remains at most 8 previews, 128 blocks and 32,768 UTF-16 units each. Normal redacted-only/tool-only durable replies may still omit a row, so transient expiry does not prove the absence of a durable event.
 
 thinking_preview and thinking preserve raw model text, which may contain control characters or ANSI sequences. Terminal clients must escape or sanitize it before rendering; the API does not perform terminal-safety processing for clients.
+
+For imports, budget profiles, K=0 residency and safe withdrawal, see the [attachment contract](attachments.md).

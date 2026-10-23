@@ -1255,5 +1255,31 @@
     "request": "PushTargetUpdateCommand",
     "response": "Receipt",
     "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/attachments/import",
+    "request": "AttachmentImportCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/attachments/{id}",
+    "response": "AttachmentMetadata",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/attachments/{id}/content",
+    "response": "binary",
+    "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/inputs/{id}/withdraw",
+    "request": "RevisionCommand",
+    "response": "Receipt",
+    "status": 202
   }
 ]

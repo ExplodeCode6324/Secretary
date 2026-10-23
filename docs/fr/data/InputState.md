@@ -14,7 +14,8 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
   "enum": [
     "ACCEPTED",
     "CLAIMED",
-    "HANDLED"
+    "HANDLED",
+    "WITHDRAWN"
   ],
   "description": "状态枚举对应 src/state_machine/catalog.json 的 Input"
 }

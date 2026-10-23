@@ -1,3 +1,4 @@
+import { putEvidence } from "./evidence.ts";
 import {
   assertRequestBudget,
   assertFinalPayload,
@@ -109,7 +110,7 @@ export function durableStream(
               model: model.id,
               provider: model.provider,
               api: model.api,
-              request_ref: store.put(context),
+              request_ref: putEvidence(store, context),
               request_budget: diagnostic ?? null,
               source_context_id: requestMetadata?.sourceContextID ?? null,
               error: String(error),
@@ -157,7 +158,10 @@ export function durableStream(
       return savedResponse(store.read<AssistantMessage>(last.response));
     }
     // Frozen request bytes also retain the original existing-ledger snapshot on replay.
-    if (last) context = store.read<Parameters<StreamFn>[1]>(last.request);
+    if (last) {
+      context = store.read<Parameters<StreamFn>[1]>(last.request);
+      budget = assertRequestBudget(model, context.messages, budgetOptions);
+    }
     if (last?.state === "IN_FLIGHT") {
       last = revise(last, {
         state: "INTERRUPTED",
@@ -226,7 +230,7 @@ export function durableStream(
               scope,
               transport_attempt: attempt,
               logical_key: key,
-              request: store.put(context),
+              request: putEvidence(store, context),
               response: null,
               started_at: null,
               completed_at: null,
@@ -317,7 +321,12 @@ export function durableStream(
                   actualModel,
                 );
                 const final = changed === undefined ? payload : changed;
-                const facts = assertFinalPayload(actualModel, final, budget);
+                const facts = assertFinalPayload(
+                  actualModel,
+                  final,
+                  budget,
+                  context,
+                );
                 store.commit(
                   [],
                   [
@@ -326,7 +335,7 @@ export function durableStream(
                       {
                         call_id: call.id,
                         context_id: input.id,
-                        payload_ref: store.put(final),
+                        payload_ref: putEvidence(store, final),
                         count_method: budget.count_method,
                         ...facts,
                       },

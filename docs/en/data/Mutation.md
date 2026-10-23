@@ -10,7 +10,7 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
 
 | Field | Type / value range | Required | Description and constraints |
 | --- | --- | --- | --- |
-| `object_type` | Session / Input / Context / ModelCall / Consciousness / CompactionJob / TaskPlan / Execution / Dispatch / WorkerReceipt / Checkpoint / TaskResult / Feedback / DecisionRequest / Operation / AuthorizationRequest / AuthorizationRule / SafetyRule / ProgramRegistration / Notification / ArchiveManifest / WorldCommand / UserInstructions / MainPromptSnapshot / SettingsDraft / SettingsApplication / ExtractionRecovery / CoreIdentity / AssistantProfile / ClientRegistration / ApiCommand / MemoryExtractionJob / Scope / WakeTimer / PushTarget / PushDispatch | Yes |  |
+| `object_type` | Session / Input / Context / ModelCall / Consciousness / CompactionJob / TaskPlan / Execution / Dispatch / WorkerReceipt / Checkpoint / TaskResult / Feedback / DecisionRequest / Operation / AuthorizationRequest / AuthorizationRule / SafetyRule / ProgramRegistration / Notification / ArchiveManifest / WorldCommand / UserInstructions / MainPromptSnapshot / SettingsDraft / SettingsApplication / ExtractionRecovery / CoreIdentity / AssistantProfile / ClientRegistration / ApiCommand / MemoryExtractionJob / Scope / WakeTimer / PushTarget / PushDispatch / Attachment / AttachmentImport | Yes |  |
 | `object_id` | ID | Yes |  Related: [ID](ID.md) |
 | `expected_revision` | integer | Yes |  {"minimum": 0, "maximum": 9007199254740991} |
 | `new_revision` | integer | Yes |  {"minimum": 1, "maximum": 9007199254740991} |

@@ -107,3 +107,5 @@ thinking_preview 是可选的 `{text,truncated}` 显示字段。它按原顺序�
 SSETransient/SSEPreview 定义 transient 的公开形状；Preview.version 保持 number，事件没有持久 cursor。短预览在保留容量截断前计算；redaction（包括 done/error 快照）撤销已保留的推理并推进 revision，旧内容游标返回 CURSOR_EXPIRED。仍最多保留 8 个预览、每个 128 块和 32,768 UTF-16 单元；正常 redacted-only/tool-only 持久回复仍可能省略行，因此 transient 过期不证明没有持久事件。
 
 thinking_preview 和 thinking 保留原始模型文本，可能包含控制字符或 ANSI 序列。终端客户端必须在渲染前进行转义或净化；API 不会替客户端执行终端安全处理。
+
+附件导入、预算 profile、K=0 驻留和安全撤回见[附件合同](attachments.md)。

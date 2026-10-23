@@ -10,7 +10,7 @@
 
 | フィールド | 型 / 値の範囲 | 必須 | 説明と制約 |
 | --- | --- | --- | --- |
-| `object_type` | Session / Input / Context / ModelCall / Consciousness / CompactionJob / TaskPlan / Execution / Dispatch / WorkerReceipt / Checkpoint / TaskResult / Feedback / DecisionRequest / Operation / AuthorizationRequest / AuthorizationRule / SafetyRule / ProgramRegistration / Notification / ArchiveManifest / WorldCommand / UserInstructions / MainPromptSnapshot / SettingsDraft / SettingsApplication / ExtractionRecovery / CoreIdentity / AssistantProfile / ClientRegistration / ApiCommand / MemoryExtractionJob / Scope / WakeTimer / PushTarget / PushDispatch | はい |  |
+| `object_type` | Session / Input / Context / ModelCall / Consciousness / CompactionJob / TaskPlan / Execution / Dispatch / WorkerReceipt / Checkpoint / TaskResult / Feedback / DecisionRequest / Operation / AuthorizationRequest / AuthorizationRule / SafetyRule / ProgramRegistration / Notification / ArchiveManifest / WorldCommand / UserInstructions / MainPromptSnapshot / SettingsDraft / SettingsApplication / ExtractionRecovery / CoreIdentity / AssistantProfile / ClientRegistration / ApiCommand / MemoryExtractionJob / Scope / WakeTimer / PushTarget / PushDispatch / Attachment / AttachmentImport | はい |  |
 | `object_id` | ID | はい |  関連：[ID](ID.md) |
 | `expected_revision` | integer | はい |  {"minimum": 0, "maximum": 9007199254740991} |
 | `new_revision` | integer | はい |  {"minimum": 1, "maximum": 9007199254740991} |

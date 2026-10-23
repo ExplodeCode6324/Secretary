@@ -1,3 +1,7 @@
+import {
+  attachmentForm,
+  authenticatedIdentityHash,
+} from "./attachment-form.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import type { Context, Input, SettingsApplication } from "./contracts.ts";
 import type { AgentMessage } from "./model.ts";
@@ -31,6 +35,8 @@ export function historicalMasterAnchors(
       !contentText(message.content).startsWith(HISTORICAL_MASTER_PREFIX)
     )
       continue;
+    // Wrapper ownership is exact CAS identity; its attachment anchors are
+    // separately authenticated against the frozen Settings boundary below.
     const sha = hash(JSON.stringify(message));
     candidates.set(sha, [...(candidates.get(sha) ?? []), message]);
   }
@@ -92,7 +98,16 @@ export function historicalMasterAnchors(
           input.producer !== "MASTER" ||
           input.state !== "HANDLED" ||
           typeof anchor.text !== "string" ||
-          store.bytes(input.payload).toString() !== anchor.text
+          store.bytes(input.payload).toString() !== anchor.text ||
+          (input.attachments?.length
+            ? !source.attachment_boundary ||
+              !anchor.attachment_message ||
+              attachmentForm(
+                store,
+                anchor.attachment_message,
+                source.attachment_boundary,
+              )?.input.id !== input.id
+            : !!anchor.attachment_message)
         );
       })
     )
@@ -109,8 +124,7 @@ export function historicalMasterAnchors(
         selected.some(
           (a) =>
             !source.anchors.some(
-              (original) =>
-                original.input_id === a.input_id && original.text === a.text,
+              (original) => JSON.stringify(original) === JSON.stringify(a),
             ),
         ) ||
         historicalMasterText(selected) !== message.content
@@ -143,8 +157,7 @@ export function historicalMasterAnchors(
           selected.some(
             (a) =>
               !allowed.some(
-                (origin) =>
-                  origin.input_id === a.input_id && origin.text === a.text,
+                (origin) => JSON.stringify(origin) === JSON.stringify(a),
               ),
           )
         )

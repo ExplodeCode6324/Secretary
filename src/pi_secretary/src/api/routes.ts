@@ -32,6 +32,8 @@ export const commands = [
   ["wakeups/:id/cancel", "EmptyCommand"],
   ["push-targets", "PushTargetCreateCommand"],
   ["push-targets/:id", "PushTargetUpdateCommand"],
+  ["attachments/import", "AttachmentImportCommand"],
+  ["inputs/:id/withdraw", "RevisionCommand"],
 ] as const;
 export function commandRoute(path: string) {
   for (const [route, schema] of commands) {

@@ -6,7 +6,8 @@
 
 | Issue | 计划 | 状态 |
 | --- | --- | --- |
-| #80 | [回复终态与推理预览（中文）](fix_20261023_issue80_回复终态与推理预览.md) · [English](fix_20261023_issue80_回复终态与推理预览.en.md) | [PR #86](https://github.com/ExplodeCode6324/Secretary/pull/86)；I1 四项已修正，29 项针对性回归通过；完整验证、CI 与准确 HEAD 复核进行中 |
+| #81 | [附件闭环（中文）](fix_20261023_issue81_附件闭环.md) · [English](fix_20261023_issue81_附件闭环.en.md) | R3；协调已批准实施，Claude Opus 5.5 Extra 三轮计划复核 PASS；[复核记录](evidence/issue81-attachments/plan-review.md)，[实施证据](evidence/issue81-attachments/implementation-review.md)；待准确 HEAD 复核与 CI |
+| #80 | [回复终态与推理预览（中文）](fix_20261023_issue80_回复终态与推理预览.md) · [English](fix_20261023_issue80_回复终态与推理预览.en.md) | 已合并；[PR #86 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/86#issuecomment-6368012380)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/39976324062) |
 | #79 | [Tauri 退役（中文）](fix_20261023_issue79_Tauri退役.md) · [English](fix_20261023_issue79_Tauri退役.en.md) | 已合并；[PR #85 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/85#issuecomment-6364909080)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/39952748532) |
 | #63 | [主对话与统一时间线（中文）](fix_20261023_issue63_主对话与统一时间线.md) · [English](fix_20261023_issue63_主对话与统一时间线.en.md) | Master 已批准 R2 修订；实施与验证中，随后同一 Claude 会话复核及 PR/CI |
 | #62 | [PhaseUI 设计系统（中文）](fix_20261021_issue62_PhaseUI设计系统.md) · [English](fix_20261021_issue62_PhaseUI设计系统.en.md) | R2 中英文计划；Claude Opus 5.5 Extra 三轮复核 PASS，实施待 Master 批准 |

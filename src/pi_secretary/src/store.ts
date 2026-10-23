@@ -1,3 +1,4 @@
+import { EVIDENCE_MEDIA, hydrateEvidence } from "./evidence.ts";
 import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -279,15 +280,21 @@ export class Store {
     const file = path.join(this.dir, rel);
     if (!fs.existsSync(file)) {
       const temp = file + "." + id();
-      const fd = fs.openSync(temp, "wx", 0o600);
       try {
-        fs.writeFileSync(fd, bytes);
-        fs.fsyncSync(fd);
-      } finally {
-        fs.closeSync(fd);
+        const fd = fs.openSync(temp, "wx", 0o600);
+        try {
+          fs.writeFileSync(fd, bytes);
+          fs.fsyncSync(fd);
+        } finally {
+          fs.closeSync(fd);
+        }
+        fs.renameSync(temp, file);
+        syncDir(path.dirname(file));
+      } catch (error) {
+        // Only the temporary file allocated by this call is ours to remove.
+        fs.rmSync(temp, { force: true });
+        throw error;
       }
-      fs.renameSync(temp, file);
-      syncDir(path.dirname(file));
     }
     const ref = {
       path: rel,
@@ -310,6 +317,8 @@ export class Store {
   }
   read<T>(ref: ObjectRef): T {
     const value = JSON.parse(this.bytes(ref).toString());
+    if (ref.media_type === EVIDENCE_MEDIA)
+      return hydrateEvidence(this, value) as T;
     if (ref.media_type !== MESSAGE_LIST_MEDIA) return value as T;
     if (
       value?.encoding !== "message-refs-v1" ||
@@ -336,12 +345,12 @@ export class Store {
   }
   // Content consumers use decoded bytes; ObjectRef.bytes remains physical CAS size.
   contentText(ref: ObjectRef): string {
-    return ref.media_type === MESSAGE_LIST_MEDIA
+    return [MESSAGE_LIST_MEDIA, EVIDENCE_MEDIA].includes(ref.media_type)
       ? JSON.stringify(this.read(ref))
       : this.bytes(ref).toString();
   }
   contentBytes(ref: ObjectRef): number {
-    return ref.media_type === MESSAGE_LIST_MEDIA
+    return [MESSAGE_LIST_MEDIA, EVIDENCE_MEDIA].includes(ref.media_type)
       ? Buffer.byteLength(this.contentText(ref))
       : ref.bytes;
   }
@@ -357,6 +366,12 @@ export class Store {
     legacyDigests: string[] = [],
   ): T | undefined {
     const r = this.receipts.get(request);
+    if (
+      !r &&
+      this.find<import("./contracts.ts").ApiCommand>("ApiCommand", request)
+        ?.command === "attachments/import"
+    )
+      throw Error("REQUEST_CONFLICT");
     if (r && r.hash !== digest && !legacyDigests.includes(r.hash))
       throw Error("REQUEST_CONFLICT");
     return r?.value as T | undefined;
@@ -495,17 +510,50 @@ export class Store {
       this.verifyRefs(r);
       if (
         old &&
-        ["Context", "Checkpoint", "TaskResult", "ArchiveManifest"].includes(
-          r.record_type,
-        )
+        [
+          "Context",
+          "Checkpoint",
+          "TaskResult",
+          "ArchiveManifest",
+          "Attachment",
+        ].includes(r.record_type)
       )
         throw Error("IMMUTABLE_RECORD");
       if (old?.record_type === "Input" && r.record_type === "Input") {
         if (
           r.session_id !== old.session_id ||
-          r.payload.sha256 !== old.payload.sha256
+          (old.attachments?.length &&
+            ["producer", "received_at", "dedupe_key", "feedback_id"].some(
+              (k) => (r as any)[k] !== (old as any)[k],
+            )) ||
+          r.payload.sha256 !== old.payload.sha256 ||
+          JSON.stringify(r.attachments) !== JSON.stringify(old.attachments) ||
+          r.content_digest !== old.content_digest ||
+          (JSON.stringify(r.withdrawal) !== JSON.stringify(old.withdrawal) &&
+            old.state === "WITHDRAWN")
         )
           throw Error("INPUT_IDENTITY_CHANGED");
+      }
+      if (
+        old?.record_type === "AttachmentImport" &&
+        r.record_type === "AttachmentImport"
+      ) {
+        if (
+          old.state !== "PENDING" ||
+          !["READY", "FAILED"].includes(r.state) ||
+          [
+            "attachment_id",
+            "expected_sha256",
+            "expected_bytes",
+            "validation_limits",
+          ].some(
+            (k) =>
+              JSON.stringify((old as any)[k]) !== JSON.stringify((r as any)[k]),
+          ) ||
+          (r.reserved_bytes !== old.reserved_bytes &&
+            !(r.state === "FAILED" && r.reserved_bytes === 0))
+        )
+          throw Error("ATTACHMENT_IMPORT_IDENTITY_CHANGED");
       }
       if (old) validateStateTransition(old, r);
       if (
@@ -536,6 +584,104 @@ export class Store {
       ).length;
     if (sessionCount > 1) throw Error("MULTIPLE_MAIN_SESSIONS");
     for (const r of staged) {
+      if (r.record_type === "AttachmentImport") {
+        const command = candidate.get("ApiCommand:" + r.id);
+        const previous = this.records.get("AttachmentImport:" + r.id);
+        if (
+          command?.record_type !== "ApiCommand" ||
+          command.command !== "attachments/import" ||
+          (!previous && r.state !== "PENDING") ||
+          command.state !==
+            (
+              {
+                PENDING: "QUEUED",
+                READY: "COMPLETED",
+                FAILED: "FAILED",
+              } as const
+            )[r.state]
+        )
+          throw Error("ATTACHMENT_IMPORT_NOT_ATOMIC");
+        const args = this.read<{
+          expected_sha256: string;
+          expected_bytes: string;
+        }>(command.arguments_ref);
+        if (
+          args.expected_sha256 !== r.expected_sha256 ||
+          Number(args.expected_bytes) !== r.expected_bytes ||
+          (r.state !== "FAILED" && r.reserved_bytes !== r.expected_bytes)
+        )
+          throw Error("ATTACHMENT_IMPORT_IDENTITY_CHANGED");
+        if (r.state === "READY") {
+          const a = candidate.get("Attachment:" + r.attachment_id);
+          if (
+            a?.record_type !== "Attachment" ||
+            a.import_request_id !== r.id ||
+            a.content.sha256 !== r.expected_sha256 ||
+            a.content.bytes !== r.expected_bytes
+          )
+            throw Error("ATTACHMENT_READY_NOT_ATOMIC");
+        }
+      }
+      if (r.record_type === "Attachment") {
+        const entry = candidate.get("AttachmentImport:" + r.import_request_id);
+        if (
+          entry?.record_type !== "AttachmentImport" ||
+          entry.state !== "READY" ||
+          entry.attachment_id !== r.id ||
+          !["image/png", "image/jpeg"].includes(r.content.media_type)
+        )
+          throw Error("ATTACHMENT_READY_NOT_ATOMIC");
+      }
+      if (r.record_type === "Input" && r.attachments?.length) {
+        if (
+          r.producer !== "MASTER" ||
+          new Set(r.attachments.map((a) => a.attachment_id)).size !==
+            r.attachments.length
+        )
+          throw Error("ATTACHMENT_INPUT_INVALID");
+        for (const binding of r.attachments) {
+          const a = this.records.get("Attachment:" + binding.attachment_id);
+          if (
+            a?.record_type !== "Attachment" ||
+            JSON.stringify(binding) !==
+              JSON.stringify({
+                attachment_id: a.id,
+                import_request_id: a.import_request_id,
+                name: a.name,
+                content: a.content,
+                width: a.width,
+                height: a.height,
+              })
+          )
+            throw Error("ATTACHMENT_BINDING_INVALID");
+        }
+        const digest = hash(
+          JSON.stringify({
+            version: 2,
+            text_sha256: r.payload.sha256,
+            attachments: r.attachments.map((a) => ({
+              attachment_id: a.attachment_id,
+              sha256: a.content.sha256,
+              bytes: a.content.bytes,
+              media_type: a.content.media_type,
+            })),
+          }),
+        );
+        if (r.content_digest !== digest)
+          throw Error("ATTACHMENT_INPUT_DIGEST_INVALID");
+      }
+      if (r.record_type === "Input" && r.state === "WITHDRAWN") {
+        if (
+          !r.attachments?.length ||
+          !r.withdrawal ||
+          !txn.log_records.some(
+            (e) =>
+              e.event_type === "input.withdrawn" &&
+              this.read<import("./contracts.ts").Input>(e.payload).id === r.id,
+          )
+        )
+          throw Error("WITHDRAWAL_NOT_ATOMIC");
+      }
       if (r.record_type === "WakeTimer") {
         const previous = this.records.get("WakeTimer:" + r.id);
         if (previous?.record_type === "WakeTimer") {

@@ -199,7 +199,7 @@ export function roleModel(
       onPayload: async (payload, actualModel) => {
         const changed = await options?.onPayload?.(payload, actualModel);
         const final = changed === undefined ? payload : changed;
-        assertFinalPayload(actualModel, final, budget);
+        assertFinalPayload(actualModel, final, budget, context);
         return final;
       },
       reasoning: "low",

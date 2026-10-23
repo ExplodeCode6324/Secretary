@@ -125,3 +125,5 @@ verify runs type checks, link checks for Git-tracked Markdown, and `test_case/of
 
 - Current entry points are Core CLI/API. The SwiftUI direction has been retired and client source removed; the [historical implementation](https://github.com/ExplodeCode6324/Secretary/blob/468a9c37939bb721792f353ea4970222a0bf58f2/src/secretary_macos/README.md) can be recovered from Git.
 - Real phone delivery belongs to portable terminal #11; acceptance of actual macOS presentation awaits a later client phase.
+
+Image attachments reserve capacity in a separate import ledger and bind immutable CAS to Inputs; see the [attachment guide](api/v1/attachments.md) for formats, budgets, residency and withdrawal.

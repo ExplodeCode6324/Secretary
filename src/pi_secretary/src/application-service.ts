@@ -1,3 +1,11 @@
+import { visionProfile } from "./vision.ts";
+import { withdrawAttachmentInput } from "./attachment-withdrawal.ts";
+import {
+  AttachmentImports,
+  attachmentMetadata,
+  attachmentLimits,
+  type ImportArguments,
+} from "./attachments.ts";
 import { validatePushConfig } from "./push-service.ts";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
@@ -74,6 +82,7 @@ const longRoutes = new Set([
 /** Admission and public projections only. Domain owners retain business state machines. */
 export class ApplicationService {
   readonly instanceID = id();
+  readonly attachmentImports: AttachmentImports;
   readonly identity: CoreIdentity;
   readonly changes: SyncService;
   readonly notifications: Notifications;
@@ -100,8 +109,15 @@ export class ApplicationService {
   constructor(
     readonly app: App,
     readonly stop?: () => void,
+    options: {
+      attachmentPhase?: (phase: string, requestID: string) => void;
+    } = {},
   ) {
     const store = app.store;
+    this.attachmentImports = new AttachmentImports(
+      store,
+      options.attachmentPhase,
+    );
     const identity = coreIdentity(store);
     this.identity = identity;
     this.operationDisplay = new OperationDisplay(
@@ -126,6 +142,7 @@ export class ApplicationService {
       ]);
     // An interrupted dispatch is reconciled through domain resources, never replayed.
     for (const request of store.all<ApiCommand>("ApiCommand")) {
+      if (request.command === "attachments/import") continue;
       if (request.state === "RUNNING") {
         store.commit([
           revise(request, {
@@ -136,6 +153,7 @@ export class ApplicationService {
         ]);
       } else if (request.state === "QUEUED") this.schedule(request.id);
     }
+    this.attachmentImports.schedule();
     this.sync();
   }
   private authorize(principal: OwnerPrincipal) {
@@ -232,6 +250,10 @@ export class ApplicationService {
       error_code: null,
       result_ref: null,
     };
+    if (route.route === "attachments/import") {
+      this.attachmentImports.admit(request, body as unknown as ImportArguments);
+      return this.receipt(requestID);
+    }
     if (request.state === "QUEUED") {
       request.resource_ids = [{ type: "Session", id: this.app.host.sessionID }];
       if (route.route === "executions/:id/cancel") {
@@ -383,8 +405,20 @@ export class ApplicationService {
           },
         ]);
         return;
+      case "inputs/:id/withdraw":
+        return withdrawAttachmentInput(
+          host,
+          target!,
+          requestID,
+          revision(b.expected_revision),
+        );
       case "messages":
-        return host.accept(b.text as string, requestID, "MASTER");
+        return host.accept(
+          b.text as string,
+          requestID,
+          "MASTER",
+          b.attachment_ids as string[] | undefined,
+        );
       case "task-requests":
         return scheduler.propose(b.goal as string, requestID, host.sessionID, {
           scopeID: b.scope_id as string | null | undefined,
@@ -778,11 +812,7 @@ export class ApplicationService {
             allowed: false,
             reason: "DEVICE_API_NOT_IMPLEMENTED",
           },
-          attachments: {
-            state: "not_supported",
-            allowed: false,
-            reason: "UPLOAD_NOT_IMPLEMENTED",
-          },
+          attachments: this.attachmentCapability(),
           reliable_sync: {
             state: "supported",
             allowed: true,
@@ -799,6 +829,11 @@ export class ApplicationService {
             .map((s) => ({ ...s, default_write: s.default_write ?? "allow" })),
         ),
         q,
+      );
+    if (parts[0] === "attachments" && parts.length === 2)
+      return attachmentMetadata(
+        store,
+        store.get<import("./contracts.ts").Attachment>("Attachment", target),
       );
     if (parts[0] === "scopes" && parts.length === 2)
       return project(scheduler.scopes.get(target));
@@ -1393,6 +1428,35 @@ export class ApplicationService {
           : null,
     };
   }
+  private attachmentCapability() {
+    let reason: string | null = null;
+    try {
+      visionProfile(this.app.host.model);
+    } catch (error) {
+      reason = (error as Error).message;
+    }
+    const limits = attachmentLimits(),
+      usage = this.attachmentImports.usage();
+    return {
+      state: "supported",
+      allowed: reason === null,
+      reason,
+      formats: ["image/png", "image/jpeg"],
+      limits: Object.fromEntries(
+        Object.entries(limits).map(([k, v]) => [
+          k,
+          k.endsWith("bytes") ? String(v) : v,
+        ]),
+      ),
+      import_allowed:
+        usage.import_count < limits.import_count &&
+        usage.reserved_bytes < limits.reserved_bytes,
+      reserved_bytes: String(usage.reserved_bytes),
+      import_count: usage.import_count,
+      residency_policy: "attachment-residency-v1",
+      handled_image_loops: 0,
+    };
+  }
   private messageView(item: any, thinking = false, streaming = false) {
     if (item.kind !== "message")
       return project({
@@ -1428,6 +1492,11 @@ export class ApplicationService {
           "decision_request_id",
           "notification_id",
           "preview_availability",
+          "input_id",
+          "input_revision",
+          "input_state",
+          "attachments",
+          "withdrawn",
         ]
           .filter((k) => item[k] !== undefined)
           .map((k) => [k, item[k]]),
@@ -1475,6 +1544,7 @@ export class ApplicationService {
   }
   async close() {
     this.closed = true;
+    await this.attachmentImports.close();
     await Promise.all(this.running);
   }
 }

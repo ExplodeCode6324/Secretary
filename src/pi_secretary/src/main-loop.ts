@@ -1,3 +1,11 @@
+import { attachmentBindings } from "./attachments.ts";
+import {
+  attachmentContent,
+  attachmentDigest,
+  attachmentForm,
+  projectAttachmentResidency,
+} from "./attachment-form.ts";
+import { assertRequestBudget } from "./budget.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import { budgetConfig, requestBudget } from "./budget.ts";
 import { saveContext } from "./context.ts";
@@ -66,12 +74,27 @@ export function accept(
   text: string,
   requestID = id(),
   producer: Input["producer"] = "MASTER",
+  attachmentIDs: string[] = [],
 ) {
-  if (!text.trim() || Buffer.byteLength(text) > 1024 * 1024)
+  if (
+    (!text.trim() && (text !== "" || !attachmentIDs.length)) ||
+    Buffer.byteLength(text) > 1024 * 1024 ||
+    (attachmentIDs.length > 0 && producer !== "MASTER")
+  )
     throw Error("INVALID_INPUT");
-  const digest = hash(JSON.stringify({ text, producer }));
+  const digest = hash(
+    JSON.stringify(
+      attachmentIDs.length
+        ? { version: 2, text, producer, attachment_ids: attachmentIDs }
+        : { text, producer },
+    ),
+  );
   const old = this.store.receipt<string>(requestID, digest);
   if (old) return this.store.get<Input>("Input", old);
+  if (this.store.find("ApiCommand", requestID)) throw Error("REQUEST_CONFLICT");
+  const attachments = attachmentIDs.length
+    ? attachmentBindings(this.store, attachmentIDs)
+    : undefined;
   const input: Input = {
     schema_version: 1,
     record_type: "Input",
@@ -84,7 +107,18 @@ export function accept(
     loop_id: null,
     received_at: now(),
     feedback_id: null,
+    ...(attachments ? { attachments } : {}),
   };
+  if (attachments) {
+    input.content_digest = attachmentDigest(input);
+    assertRequestBudget(this.model, [
+      {
+        role: "user",
+        content: attachmentContent(this.store, input, "full"),
+        timestamp: Date.parse(input.received_at),
+      },
+    ]);
+  }
   this.store.commit(
     [
       input,
@@ -347,13 +381,22 @@ export async function run(this: MainLoopContext) {
     if (this.memoryDue()) await this.maintain();
     let s = this.session;
     const pending = this.store
-      .indexed<Input>("Input", "state", ["HANDLED"], true)
+      .indexed<Input>("Input", "state", ["HANDLED", "WITHDRAWN"], true)
       .filter((i) => i.session_id === this.sessionID);
     if (!pending.length) return;
     let batch = pending.filter((i) => i.state === "CLAIMED");
     const recovering = batch.length > 0;
     const loopID = recovering ? batch[0].loop_id! : id();
-    if (!batch.length) batch = pending.filter((i) => i.state === "ACCEPTED");
+    if (!batch.length) {
+      const accepted = pending.filter((i) => i.state === "ACCEPTED");
+      const boundary = accepted.findIndex((i) => i.attachments?.length);
+      batch =
+        boundary === 0
+          ? accepted.slice(0, 1)
+          : boundary > 0
+            ? accepted.slice(0, boundary)
+            : accepted;
+    }
     const savedContext = s.last_context_id
       ? this.store.get<Context>("Context", s.last_context_id)
       : null;
@@ -418,7 +461,11 @@ export async function run(this: MainLoopContext) {
             this.store.get<Context>("Context", this.session.last_context_id!)
               .raw_context,
           )
-        : this.history();
+        : projectAttachmentResidency(
+            this.store,
+            this.history(),
+            savedContext?.loop_id,
+          );
       const systemMessage = this.store.read<AgentMessage>(
         snapshot.system_message,
       );
@@ -533,7 +580,7 @@ export async function run(this: MainLoopContext) {
           if (event.message.role === "assistant") displayCallID = undefined;
         }
       });
-      agent.prepareRequest = async () => {
+      const prepare = async () => {
         const checkpoint = saveContext(
           this.store,
           agent.state.messages,
@@ -570,10 +617,20 @@ export async function run(this: MainLoopContext) {
           await this.world?.memorySearch?.catchUp();
           projected = this.crop(agent.state.messages, protectedFromIndex);
         }
+        if (batch.some((i) => i.attachments?.length))
+          assertRequestBudget(this.model, projected, {
+            tools: agent.state.tools,
+          });
         return {
           context: { messages: [...projected], tools: agent.state.tools },
         };
       };
+      agent.prepareRequest = prepare;
+      if (
+        batch.some((i) => i.attachments?.length) &&
+        !messages.slice(protectedFromIndex).some((m) => m.role === "assistant")
+      )
+        await prepare();
       const last = messages.at(-1);
       if (
         replaying &&
@@ -652,6 +709,8 @@ export function recordInputMessages(
       // Pre-fix events used random IDs. Match each original occurrence once;
       // identical text in two Inputs must never collapse into a single source.
       const saved = this.store.read<AgentMessage>(event.payload);
+      if (input.attachments?.length)
+        return attachmentForm(this.store, saved)?.input.id === input.id;
       return (
         saved.role === "user" &&
         saved.timestamp === message.timestamp &&

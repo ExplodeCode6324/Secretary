@@ -72,7 +72,8 @@ jobs:
           python-version: "3.x"
       - run: npm ci
       - name: Core process recovery, push transports and message projections
-        run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts test_case/offline/issue19/store-ownership.test.ts test_case/offline/issue24/transport.test.ts test_case/offline/issue80/*.test.ts
+        # PostgreSQL history/provenance runs in the Linux full suite above.
+        run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts test_case/offline/issue19/store-ownership.test.ts test_case/offline/issue24/transport.test.ts test_case/offline/issue80/*.test.ts test_case/offline/issue81/{api,import,input,provider,recovery,withdrawal-provider}.test.ts
 
   verify:
     name: verify
