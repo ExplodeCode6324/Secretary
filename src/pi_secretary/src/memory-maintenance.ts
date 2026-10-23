@@ -1,3 +1,4 @@
+import { inputMessage } from "./input-projection.ts";
 import { assertRequestBudget, budgetConfig, requestBudget } from "./budget.ts";
 import type {
   CompactionJob,
@@ -203,11 +204,7 @@ export function compact(this: MemoryMaintenanceContext, reset = true) {
                 (i) =>
                   i.session_id === this.sessionID && i.state === "ACCEPTED",
               )
-              .map((i) => ({
-                role: "user" as const,
-                content: this.store.bytes(i.payload).toString(),
-                timestamp: Date.parse(i.received_at),
-              })),
+              .map((i) => inputMessage(this.store, i)),
           );
         try {
           assertRequestBudget(this.model, next, {

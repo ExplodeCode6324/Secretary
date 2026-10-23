@@ -111,3 +111,5 @@ thinking_preview は任意の表示フィールド `{text,truncated}` です。�
 SSETransient/SSEPreview は transient の公開形式を定義します。Preview.version は number のままで、イベントに永続 cursor はありません。短いプレビューは保持容量による切り詰め前に計算します。done/error スナップショットを含む redaction は保持中の推論を取り消して revision を進め、古い内容カーソルには CURSOR_EXPIRED を返します。保持上限は従来どおり 8 プレビュー、各 128 ブロック、32,768 UTF-16 単位です。正常な redacted-only/tool-only の永続応答は行が省略される場合があるため、transient の期限切れは永続イベントの不在を意味しません。
 
 thinking_preview と thinking はモデルの生テキストを保持し、制御文字や ANSI シーケンスを含む場合があります。端末クライアントは表示前にエスケープまたは無害化する必要があります。API はクライアントに代わって端末向けの安全処理を行いません。
+
+取り込み、予算 profile、K=0 保持、安全な取り消しは[添付契約](attachments.md)を参照。

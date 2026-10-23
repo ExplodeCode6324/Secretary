@@ -18,7 +18,7 @@ import type {
   MainPromptSnapshot,
 } from "./contracts.ts";
 import type { Agent, AgentMessage } from "./model.ts";
-export function saveContext(
+export function buildContext(
   store: Store,
   messages: AgentMessage[],
   scope: Scope,
@@ -35,7 +35,7 @@ export function saveContext(
     compactionJobID?: string | null;
     protectedFromIndex?: number;
   } = {},
-): Context {
+) {
   const estimated =
     metadata.budget?.estimated_tokens ?? requestTokens(messages);
   // A checkpoint is recovery evidence, even when no model could accept it.
@@ -175,8 +175,12 @@ export function saveContext(
     omitted_refs: [],
     wm_fact_versions: [],
   };
-  store.commit([c], [store.event("model.context", c, scope)]);
-  return c;
+  return { context: c, event: store.event("model.context", c, scope) };
+}
+export function saveContext(...args: Parameters<typeof buildContext>): Context {
+  const built = buildContext(...args);
+  args[0].commit([built.context], [built.event]);
+  return built.context;
 }
 export function checkpoint(
   store: Store,

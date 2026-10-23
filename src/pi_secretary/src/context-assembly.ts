@@ -1,3 +1,5 @@
+import { attachmentTag } from "./attachment-form.ts";
+import { putEvidence } from "./evidence.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import { assertRequestBudget, requestBudget } from "./budget.ts";
 import { buildCompaction, projectContext } from "./context-projection.ts";
@@ -38,7 +40,11 @@ export function history(this: ContextAssemblyContext): AgentMessage[] {
     throw Error("INCOMPATIBLE_CONTEXT");
   let messages = this.store.read<AgentMessage[]>(c.raw_context);
   const cs = this.store.get<Consciousness>("Consciousness", s.consciousness_id);
-  if (cs.last_job_id && cs.maintenance_version !== 3) {
+  if (
+    cs.last_job_id &&
+    cs.maintenance_version !== 3 &&
+    !messages.some(attachmentTag)
+  ) {
     const job = this.store.get<CompactionJob>("CompactionJob", cs.last_job_id);
     const covered = this.store.read<AgentMessage[]>(job.source_refs[0]);
     if (
@@ -48,7 +54,9 @@ export function history(this: ContextAssemblyContext): AgentMessage[] {
       const inputHashes = new Set(
         this.store
           .all<Input>("Input")
-          .filter((i) => i.session_id === this.sessionID)
+          .filter(
+            (i) => i.session_id === this.sessionID && !i.attachments?.length,
+          )
           .map((i) => i.payload.sha256),
       );
       messages = [
@@ -106,8 +114,8 @@ export function crop(
       this.world.memorySearch.indexedSequence >= this.store.sequence,
   });
   if (!candidate) return this.project(original);
-  const sourceRef = this.store.put(candidate.source),
-    messagesRef = this.store.put(candidate.replacement);
+  const sourceRef = putEvidence(this.store, candidate.source),
+    messagesRef = putEvidence(this.store, candidate.replacement);
   if (
     cs.context_compaction?.source_ref.sha256 === sourceRef.sha256 &&
     cs.context_compaction.messages_ref.sha256 === messagesRef.sha256
@@ -142,6 +150,9 @@ export function crop(
           ? { input_projection_ref: candidate.inputProjectionRef }
           : {}),
         context_compaction: {
+          ...(candidate.source.some(attachmentTag)
+            ? { attachment_form_version: 1 as const }
+            : {}),
           job_id: job.id,
           source_ref: sourceRef,
           messages_ref: messagesRef,

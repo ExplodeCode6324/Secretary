@@ -125,3 +125,5 @@ La [CI](../../.github/workflows/verify.yml) exécute verify complet avec Postgre
 
 - Les points d’entrée actuels sont Core CLI/API. La piste SwiftUI a été abandonnée et le code client retiré ; l’[implémentation historique](https://github.com/ExplodeCode6324/Secretary/blob/468a9c37939bb721792f353ea4970222a0bf58f2/src/secretary_macos/README.md) reste récupérable dans Git.
 - La livraison réelle sur téléphone relève du terminal portable #11 ; la recette de l’affichage effectif sous macOS attend une phase client ultérieure.
+
+Les images réservent leur capacité dans un registre dédié et lient le CAS immuable aux Inputs ; voir le [guide des pièces jointes](api/v1/attachments.md) pour formats, budgets, résidence et retrait.

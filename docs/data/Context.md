@@ -34,7 +34,7 @@
 | `instructions_revision` | integer | 否 |  {"minimum": 0} |
 | `system_prompt_hash` | Digest | 否 |  关联：[Digest](Digest.md) |
 | `settings_application_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
-| `request_budget` | object | 否 |  {"additionalProperties": false} |
+| `request_budget` | object | 否 |  {"additionalProperties": false} 关联：[Digest](Digest.md) |
 | `source_context_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
 | `compaction_job_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
 | `protected_from_index` | integer | 否 |  {"minimum": 0} |

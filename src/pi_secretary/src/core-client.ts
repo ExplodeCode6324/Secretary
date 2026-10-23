@@ -23,6 +23,25 @@ export class CoreClient {
   ): Promise<Receipt> {
     return this.request<Receipt>("POST", route, body);
   }
+  async attachmentContent(attachmentID: string) {
+    if (!/^[a-f0-9-]{36}$/i.test(attachmentID)) throw Error("INVALID_ROUTE");
+    const response = await fetch(
+      this.endpoint.url + "/api/v1/attachments/" + attachmentID + "/content",
+      {
+        headers: {
+          Authorization: `Bearer ${this.endpoint.token}`,
+          "X-Secretary-API-Version": "1",
+        },
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    if (!response.ok)
+      throw Error(
+        ((await response.json()) as { error?: { code: string } }).error?.code ??
+          "CORE_REQUEST_FAILED",
+      );
+    return Buffer.from(await response.arrayBuffer());
+  }
   core() {
     return this.query<Core>("core");
   }

@@ -59,3 +59,5 @@ Ces contraintes s’appliquent aux parcours de persistance et d’exécution de 
 
 18. **Les changements d’état gérés doivent respecter les tables de transition.** Commit et relecture Store vérifient les états avant/après d’Execution, Operation et Input. Les mises à jour sans changement d’état et instantanés initiaux conformes au schéma sont traités séparément ; les gardes métier vérifient toujours les préconditions.
     Implémentation : [validateStateTransition](../../src/pi_secretary/src/state-transitions.ts), [Store.stage](../../src/pi_secretary/src/store.ts). Tests : [transitions](../../test_case/offline/issue25/transitions.test.ts), `every state pair`, `replay rejects a correctly hashed journal carrying an illegal transition`.
+
+Les images réservent leur capacité dans un registre dédié et lient le CAS immuable aux Inputs ; voir le [guide des pièces jointes](api/v1/attachments.md) pour formats, budgets, résidence et retrait.

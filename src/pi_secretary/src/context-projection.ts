@@ -1,4 +1,9 @@
 import {
+  attachmentForm,
+  attachmentTag,
+  authenticatedIdentityHash,
+} from "./attachment-form.ts";
+import {
   applyInputProjection,
   selectInputProjection,
 } from "./input-projection.ts";
@@ -168,12 +173,40 @@ function applyCrop(
 ): AgentMessage[] {
   const prefix = store.read<AgentMessage[]>(mapping.source_ref);
   if (!prefix.length || prefix.length > messages.length) return messages;
+  // Legacy exact-form mappings never authorize attachment-era transformations.
+  if (mapping.attachment_form_version !== 1 && prefix.some(attachmentTag))
+    return messages;
   if (
-    hash(JSON.stringify(messages.slice(0, prefix.length))) !==
-    hash(JSON.stringify(prefix))
+    mapping.attachment_form_version === 1
+      ? JSON.stringify(
+          messages
+            .slice(0, prefix.length)
+            .map((m) => authenticatedIdentityHash(store, m)),
+        ) !==
+        JSON.stringify(prefix.map((m) => authenticatedIdentityHash(store, m)))
+      : hash(JSON.stringify(messages.slice(0, prefix.length))) !==
+        hash(JSON.stringify(prefix))
   )
     return messages;
-  const replacement = store.read<AgentMessage[]>(mapping.messages_ref);
+  let replacement = store.read<AgentMessage[]>(mapping.messages_ref);
+  if (mapping.attachment_form_version === 1) {
+    const occurrences = new Map<string, AgentMessage[]>();
+    for (const message of messages.slice(0, prefix.length)) {
+      if (!attachmentForm(store, message)) continue;
+      const key = authenticatedIdentityHash(store, message);
+      occurrences.set(key, [...(occurrences.get(key) ?? []), message]);
+    }
+    replacement = replacement.map((message) => {
+      if (!attachmentForm(store, message)) return message;
+      const current = occurrences
+        .get(authenticatedIdentityHash(store, message))
+        ?.shift();
+      if (!current) throw Error("ATTACHMENT_CROP_SOURCE_MISMATCH");
+      // Retain the authenticated current form. An older full-image mapping must
+      // not resurrect pixels after the fresh-loop residency boundary chose a stub.
+      return current;
+    });
+  }
   const historical = historicalMasterMessages(
     store,
     index.sessionID,
@@ -182,10 +215,11 @@ function applyCrop(
   );
   if (historical.size && !inputProjection) {
     const retained = new Set(
-      replacement.map((message) => hash(JSON.stringify(message))),
+      replacement.map((message) => authenticatedIdentityHash(store, message)),
     );
     for (const message of historical)
-      if (!retained.has(hash(JSON.stringify(message)))) return messages;
+      if (!retained.has(authenticatedIdentityHash(store, message)))
+        return messages;
   }
   return [...replacement, ...messages.slice(prefix.length)];
 }
@@ -271,7 +305,8 @@ function normalizeHeaders(
     if (
       message.role !== "user" ||
       owned[position] ||
-      "secretary_memory_header" in message
+      "secretary_memory_header" in message ||
+      !!attachmentForm(store, message)
     )
       return null;
     const text = contentText(message.content);
@@ -371,6 +406,7 @@ function normalizeHeaders(
 }
 
 function isMandatory(
+  store: Store,
   index: HeaderIndex,
   message: AgentMessage,
   historical: Set<AgentMessage>,
@@ -378,6 +414,8 @@ function isMandatory(
   return (
     message.role === "system" ||
     historical.has(message) ||
+    (!!attachmentForm(store, message) &&
+      attachmentForm(store, message)!.input.state !== "WITHDRAWN") ||
     (message.role === "user" &&
       !isOwnedHeader(index, message) &&
       index.anchors.has(hash(contentText(message.content))))
@@ -465,6 +503,7 @@ function cutSplitsToolPair(
 }
 
 function sameMessages(a: AgentMessage[], b: AgentMessage[]): boolean {
+  // Same-form candidate no-op detection only; cross-form authority is applyCrop.
   return (
     a.length === b.length && hash(JSON.stringify(a)) === hash(JSON.stringify(b))
   );
@@ -559,7 +598,7 @@ export function buildCompaction({
   // If even the most aggressive cut (anchors only) cannot reach the target,
   // report that immediately instead of scanning every intermediate cut.
   const anchors = source.filter((message) =>
-    isMandatory(index, message, historical),
+    isMandatory(store, index, message, historical),
   );
   const selection = selectInputProjection({
     store,
@@ -602,7 +641,7 @@ export function buildCompaction({
     const candidate = keepProjection([
       ...source
         .slice(0, cut)
-        .filter((message) => isMandatory(index, message, historical)),
+        .filter((message) => isMandatory(store, index, message, historical)),
       ...source.slice(cut),
     ]);
     if (sameMessages(candidate, source)) continue;

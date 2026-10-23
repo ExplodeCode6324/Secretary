@@ -121,3 +121,5 @@ verify 依次执行类型检查、Git 跟踪 Markdown 链接检查及 `test_case
 
 - 当前入口为 Core CLI/API，SwiftUI 路线已废弃，客户端源码已移除，[历史实现](https://github.com/ExplodeCode6324/Secretary/blob/468a9c37939bb721792f353ea4970222a0bf58f2/src/secretary_macos/README.md)可从 Git 恢复。
 - 手机真实送达归随身终端 #11，macOS 实际展示验收等待后续客户端安排。
+
+图片附件通过独立导入账本预留容量，使用不可变 CAS 与 Input 绑定；完整格式、预算、驻留和撤回合同见[附件说明](api/v1/attachments.md)。

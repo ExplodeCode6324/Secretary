@@ -116,7 +116,7 @@ test("BUDGET counts full UTF8 request, replays removals and reserves only effect
           timestamp: 1,
         },
       ]),
-    /UNCOUNTABLE_NON_TEXT/,
+    /ATTACHMENT_MODEL_UNSUPPORTED/,
   );
 });
 test("BUDGET hard gate covers exhausted output, output cap, missing model metadata and final mutations", () => {

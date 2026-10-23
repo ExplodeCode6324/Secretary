@@ -23,11 +23,22 @@
 | `loop_id` | ID または null | はい |  関連：[ID](ID.md) |
 | `received_at` | Time | はい |  関連：[Time](Time.md) |
 | `feedback_id` | ID または null | はい |  関連：[ID](ID.md) |
+| `attachments` | array<AttachmentBinding> | いいえ |  {"minItems": 1, "maxItems": 4} 関連：[AttachmentBinding](AttachmentBinding.md) |
+| `content_digest` | Digest | いいえ |  関連：[Digest](Digest.md) |
+| `withdrawal` | object | いいえ |  {"additionalProperties": false} 関連：[ID](ID.md), [Time](Time.md) |
 
 ## 組み合わせ制約
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "dependentRequired": {
+    "attachments": [
+      "content_digest"
+    ],
+    "content_digest": [
+      "attachments"
+    ]
+  }
 }
 ```

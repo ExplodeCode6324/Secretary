@@ -301,7 +301,13 @@ export function tools(this: MainToolsContext, loopID: string): AgentTool[] {
         const inputs = new Set(
           this.store
             .all<Input>("Input")
-            .filter((i) => i.loop_id === loopID && i.producer === "MASTER")
+            .filter(
+              (i) =>
+                i.loop_id === loopID &&
+                i.producer === "MASTER" &&
+                !i.attachments?.length &&
+                i.state !== "WITHDRAWN",
+            )
             .map((i) => i.id),
         );
         const events = this.store.logs

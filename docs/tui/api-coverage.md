@@ -1,14 +1,12 @@
 # TUI 的 Core API 使用清单
 
-状态：2026-10-23 #80 实施核对；旧客户端已由 #79（PR #85）移除，新 TUI 尚未构建。#80 更新回复终态与短推理预览投影，未新增或删除端点；测试调用不计入客户端消费。下表描述新 TUI 消费情况，不评价旧 Tauri 的接口使用。
-
-规划更新（#81 R3）：拟新增附件导入、附件元数据、内容读取及受保护输入撤回四项操作；当前仅计划，operations.json 尚未改变，实际仍为 82 项、新 TUI 消费 0 项。最终实现后按实际 method/path 更新计数及清单，计划见 [附件闭环](../fix/fix_20261023_issue81_附件闭环.md)。
+状态：2026-10-24 #81 实施核对；附件导入、元数据、二进制读取及受保护输入撤回四项操作已落地。新 TUI 尚未构建，测试调用不计入客户端消费。计划见[附件闭环](../fix/fix_20261023_issue81_附件闭环.md)。
 
 每项实施 Issue 完成时，按当时的 [操作清单](../api/v1/operations.json) 更新本表，并在完成报告链接本次版本、说明使用变化和仍未使用的 API。测试对本地接口的调用不计为 TUI 已消费。未用 API 不要求补齐菜单，也不自动成为结项阻塞。
 
-状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。操作清单核对基线：0bbb110874da978805aeb00c99573ee18fc49260，#80 保持该清单，共 82 项操作（50 GET、32 POST）；新 TUI 已用 0 项、未用 82 项。
+状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。实际操作清单共 86 项（52 GET、34 POST）；新 TUI 已用 0 项、未用 86 项。
 
-本次变化涉及 GET `/api/v1/timeline`、`/api/v1/timeline/around`、`/api/v1/messages/{id}/content`、`/api/v1/sync/stream`、`/api/v1/activities/{id}`，以及共享消息身份在 `/api/v1/related` 中的定位。以下均仍未被新 TUI 消费。
+本次新增 POST `/api/v1/attachments/import`、GET `/api/v1/attachments/{id}`、GET `/api/v1/attachments/{id}/content`、POST `/api/v1/inputs/{id}/withdraw`；扩展 POST `/api/v1/messages`、GET `/api/v1/core`、GET `/api/v1/requests/{id}`、timeline/around、messages/content 和 sync/changes 的相关合同，复用 sync/stream。以下均未被新 TUI 消费。
 
 | Method | Path | 新 TUI 状态 | 对应功能或未用原因 |
 | --- | --- | --- | --- |
@@ -94,3 +92,7 @@
 | GET | /api/v1/push-dispatches/{id} | 未用 | 新 TUI 尚未构建；后续按实际需要接入 |
 | POST | /api/v1/push-targets | 未用 | 新 TUI 尚未构建；后续按实际需要接入 |
 | POST | /api/v1/push-targets/{id} | 未用 | 新 TUI 尚未构建；后续按实际需要接入 |
+| POST | /api/v1/attachments/import | 未用 | 新 TUI 尚未构建；后续按实际需要接入 |
+| GET | /api/v1/attachments/{id} | 未用 | 新 TUI 尚未构建；后续按实际需要接入 |
+| GET | /api/v1/attachments/{id}/content | 未用 | 新 TUI 尚未构建；后续按实际需要接入 |
+| POST | /api/v1/inputs/{id}/withdraw | 未用 | 新 TUI 尚未构建；后续按实际需要接入 |

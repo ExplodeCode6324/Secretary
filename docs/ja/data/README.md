@@ -43,7 +43,7 @@
 | [FeedbackPolicy](FeedbackPolicy.md) | 5 |  |
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
 | [Session](Session.md) | 16 | 論理メインセッション。状態変更はホストのみが書き込み、プロセス停止後も保持します。 |
-| [Input](Input.md) | 13 | 外部入力。ツールの戻り値ではこのオブジェクトを作りません。 |
+| [Input](Input.md) | 16 | 外部入力。ツールの戻り値ではこのオブジェクトを作りません。 |
 | [Context](Context.md) | 32 | 復旧用の不変な完全 CHECKPOINT。MODEL_REQUEST は完全な正規化リクエストの予算が容量検証を通過した場合のみ送信できます。 |
 | [ModelCall](ModelCall.md) | 17 | モデル通信のライフサイクル。完全な応答を保存してからツール要求を解析します。 |
 | [WorkItem](WorkItem.md) | 12 | 事項はタスクとは異なります。未履行かつ引受先のない事項は除外しません。 |
@@ -108,3 +108,6 @@
 | [WakeTimer](WakeTimer.md) | 13 | メインセッションの永続ウェイクアップ。FIRED と一意の TIMER Input を同じトランザクションでコミットします。 |
 | [PushTarget](PushTarget.md) | 12 |  |
 | [PushDispatch](PushDispatch.md) | 15 |  |
+| [AttachmentBinding](AttachmentBinding.md) | 6 |  |
+| [Attachment](Attachment.md) | 10 |  |
+| [AttachmentImport](AttachmentImport.md) | 12 |  |

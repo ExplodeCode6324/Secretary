@@ -157,7 +157,7 @@ export interface Core {
   state: string;
   mode: string;
   capabilities: {
-    [k: string]: Capability;
+    [k: string]: Capability | AttachmentCapability;
   };
 }
 /**
@@ -168,6 +168,24 @@ export interface Capability {
   state: "supported" | "not_supported" | "not_configured";
   allowed: boolean;
   reason: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "AttachmentCapability".
+ */
+export interface AttachmentCapability {
+  state: "supported" | "not_supported" | "not_configured";
+  allowed: boolean;
+  reason: string | null;
+  formats?: ("image/png" | "image/jpeg")[];
+  limits?: {
+    [k: string]: string | number;
+  };
+  import_allowed?: boolean;
+  reserved_bytes?: string;
+  import_count?: number;
+  residency_policy?: "attachment-residency-v1";
+  handled_image_loops?: 0;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -323,6 +341,10 @@ export interface ClientCommand {
 export interface MessageCommand {
   request_id: string;
   text: string;
+  /**
+   * @maxItems 4
+   */
+  attachment_ids?: string[];
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -626,6 +648,14 @@ export interface Message {
     | "unknown";
   preview_availability?: "active" | "expired";
   thinking_preview?: ThinkingPreview;
+  input_id?: string;
+  input_revision?: string;
+  input_state?: "ACCEPTED" | "CLAIMED" | "HANDLED" | "WITHDRAWN";
+  /**
+   * @maxItems 4
+   */
+  attachments?: AttachmentMetadata[];
+  withdrawn?: boolean;
   [k: string]: unknown;
 }
 /**
@@ -643,6 +673,22 @@ export interface ThinkingPreview {
    * Visible source was omitted from this preview; independent of response outcome and retained-body truncation.
    */
   truncated: boolean;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "AttachmentMetadata".
+ */
+export interface AttachmentMetadata {
+  attachment_id: string;
+  import_request_id: string;
+  name: string;
+  media_type: "image/png" | "image/jpeg";
+  bytes: string;
+  sha256: string;
+  width: number;
+  height: number;
+  created_at: string;
+  availability: "available" | "unavailable";
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -1385,4 +1431,15 @@ export interface SSETransient {
     [k: string]: unknown;
   };
   [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "AttachmentImportCommand".
+ */
+export interface AttachmentImportCommand {
+  request_id: string;
+  source_path: string;
+  expected_sha256: string;
+  expected_bytes: string;
+  name: string;
 }

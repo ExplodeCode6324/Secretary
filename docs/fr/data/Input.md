@@ -23,11 +23,22 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `loop_id` | ID ou null | Oui |  Références : [ID](ID.md) |
 | `received_at` | Time | Oui |  Références : [Time](Time.md) |
 | `feedback_id` | ID ou null | Oui |  Références : [ID](ID.md) |
+| `attachments` | array<AttachmentBinding> | Non |  {"minItems": 1, "maxItems": 4} Références : [AttachmentBinding](AttachmentBinding.md) |
+| `content_digest` | Digest | Non |  Références : [Digest](Digest.md) |
+| `withdrawal` | object | Non |  {"additionalProperties": false} Références : [ID](ID.md), [Time](Time.md) |
 
 ## Contraintes combinées
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "dependentRequired": {
+    "attachments": [
+      "content_digest"
+    ],
+    "content_digest": [
+      "attachments"
+    ]
+  }
 }
 ```

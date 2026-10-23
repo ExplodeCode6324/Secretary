@@ -43,7 +43,7 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [FeedbackPolicy](FeedbackPolicy.md) | 5 |  |
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
 | [Session](Session.md) | 16 | Logical main session; only the host writes state changes, which survive process shutdown. |
-| [Input](Input.md) | 13 | External input; tool returns do not create this object. |
+| [Input](Input.md) | 16 | External input; tool returns do not create this object. |
 | [Context](Context.md) | 32 | Immutable full CHECKPOINT for recovery; MODEL_REQUEST may be sent only after the full normalized request passes the capacity budget check. |
 | [ModelCall](ModelCall.md) | 17 | Model transport lifecycle; parse tool requests only after storing the full response. |
 | [WorkItem](WorkItem.md) | 12 | A work item is distinct from a task; an unfulfilled item with no assignee is not removed. |
@@ -108,3 +108,6 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [WakeTimer](WakeTimer.md) | 13 | Durable main-session scheduled wakeup; FIRED and a unique TIMER Input commit in one transaction. |
 | [PushTarget](PushTarget.md) | 12 |  |
 | [PushDispatch](PushDispatch.md) | 15 |  |
+| [AttachmentBinding](AttachmentBinding.md) | 6 |  |
+| [Attachment](Attachment.md) | 10 |  |
+| [AttachmentImport](AttachmentImport.md) | 12 |  |

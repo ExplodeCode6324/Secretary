@@ -105,7 +105,12 @@ for (const kind of ["Execution", "Operation", "Input"] as const) {
   test(`${kind}: every state pair, same-state update and first snapshot; rejected transactions are atomic`, () =>
     fixture(async (store, templates) => {
       const template = templates.find((r) => r.record_type === kind)!;
-      const machine = catalog[kind];
+      // WITHDRAWN is attachment-only and also requires its atomic audit event.
+      // Issue 81 exercises that path; this legacy fixture deliberately stays text-only.
+      const machine = {
+        ...catalog[kind],
+        states: catalog[kind].states.filter((s) => s !== "WITHDRAWN"),
+      };
       for (const from of machine.states)
         for (const to of machine.states) {
           // Creating an already-running historical snapshot is supported. Only updates are gated.
@@ -223,8 +228,9 @@ test("replay rejects a correctly hashed journal carrying an illegal transition w
     assert.equal(fs.readFileSync(journal, "utf8"), bytes);
   }));
 
-test("Authorization next preserves event semantics; only four enforced or called machines remain", () => {
+test("Authorization next preserves event semantics; only enforced or called machines remain", () => {
   assert.deepEqual(Object.keys(catalog).sort(), [
+    "AttachmentImport",
     "Authorization",
     "Execution",
     "Input",

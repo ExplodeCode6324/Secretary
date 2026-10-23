@@ -3,7 +3,15 @@ import { contentText } from "@earendil-works/pi-ai";
 import { activitiesFor } from "./activity.ts";
 import { enqueueExtractions } from "./memory-extraction.ts";
 import { hash } from "./store.ts";
-import { messageIdentityHash } from "./message-identity.ts";
+import {
+  authenticatedIdentityHash,
+  typedMessageText,
+  summaryMessage,
+  attachmentMessage,
+  attachmentForm,
+  assertActiveSourceEvents,
+} from "./attachment-form.ts";
+import { putEvidence } from "./evidence.ts";
 import { historicalMasterText } from "./historical-inputs.ts";
 import { type AgentMessage } from "./model.ts";
 import type { Host } from "./host.ts";
@@ -25,6 +33,7 @@ import {
 } from "./summary.ts";
 import type { SettingsPayload } from "./settings-payload.ts";
 export type SettingsSource = {
+  attachment_boundary?: import("./attachment-form.ts").FormBoundary;
   consciousness: Consciousness;
   context_id: string | null;
   end_sequence: number;
@@ -37,7 +46,11 @@ export type SettingsSource = {
     text: string;
     role?: "user" | "assistant";
   }[];
-  anchors: { input_id: string; text: string }[];
+  anchors: {
+    input_id: string;
+    text: string;
+    attachment_message?: AgentMessage;
+  }[];
   changes: unknown;
 };
 export type SettingsCandidate = SummaryCandidate & {
@@ -73,8 +86,10 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
         );
         if (!event) throw Error("INVALID_SETTINGS_SUMMARY_COVERAGE");
         const message = store.read<AgentMessage>(event.payload);
+        // Raw hashes retain same-form historical coverage; authenticated keys
+        // below are the only path that pairs different attachment renderings.
         covered.add(hash(JSON.stringify(message)));
-        covered.add(messageIdentityHash(message));
+        covered.add(authenticatedIdentityHash(store, message));
       }
   }
   const uniqueRefs = [...new Map(refs.map((r) => [r.sha256, r])).values()];
@@ -84,7 +99,8 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
     if (!Array.isArray(raw)) throw Error("INVALID_MEMORY_SOURCE");
     const occurrences = new Map<string, number>();
     for (const m of raw) {
-      const key = messageIdentityHash(m);
+      if (!summaryMessage(store, m)) continue;
+      const key = authenticatedIdentityHash(store, m);
       const occurrence = (occurrences.get(key) ?? 0) + 1;
       occurrences.set(key, occurrence);
       if (
@@ -111,7 +127,8 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
     )
       continue;
     const m = store.read<AgentMessage>(event.payload);
-    const key = messageIdentityHash(m);
+    if (!summaryMessage(store, m)) continue;
+    const key = authenticatedIdentityHash(store, m);
     if (m.role !== "system") {
       // Replace at most one snapshot occurrence; retain every distinct event ID.
       const snapshotKey = snapshotKeys.get(key)?.shift();
@@ -121,7 +138,7 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
   }
   // Keep event identities in new-policy stores, including identical message bodies.
   // The complete evidence snapshot backs extraction even for events absent from Context.
-  const evidence = store.put([...messages.values()]);
+  const evidence = putEvidence(store, [...messages.values()]);
   // An empty current batch is still evidence; never substitute an older Context.
   uniqueRefs.push(evidence);
   const plan = createSummaryPlan({
@@ -130,12 +147,21 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
     commitments: migrateCommitments(cs),
     sources: [...messages].map(([id, message]) => ({
       id,
-      text: JSON.stringify(message),
+      text: JSON.stringify(summaryMessage(store, message)),
     })),
     extra: { settings_changes: settingsNotice(changes) },
   });
   const chunks = plan.chunks;
   return {
+    ...(Array.from(messages.values()).some((m) => attachmentForm(store, m))
+      ? {
+          attachment_boundary: {
+            session_id: session.id,
+            journal_sequence: store.sequence,
+            journal_digest: store.digest,
+          },
+        }
+      : {}),
     consciousness: cs,
     context_id: session.last_context_id,
     end_sequence: store.eventSequence,
@@ -143,7 +169,9 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
     message_hashes: [
       ...new Set([
         ...covered,
-        ...[...messages.values()].map((m) => hash(JSON.stringify(m))),
+        ...[...messages.values()].map((m) =>
+          authenticatedIdentityHash(store, m),
+        ),
       ]),
     ],
     chunks,
@@ -152,11 +180,12 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
       .filter(
         ([, m]) =>
           (m.role === "user" || m.role === "assistant") &&
-          !isTimerMessage(store, m),
+          !isTimerMessage(store, m) &&
+          !!typedMessageText(store, m),
       )
       .map(([id, m]) => ({
         id,
-        text: "content" in m ? contentText(m.content) : "",
+        text: typedMessageText(store, m) ?? "",
         role: m.role as "user" | "assistant",
       })),
     anchors: store
@@ -170,6 +199,9 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
       .map((i) => ({
         input_id: i.id,
         text: store.bytes(i.payload).toString(),
+        ...(i.attachments?.length
+          ? { attachment_message: attachmentMessage(store, i, "stub") }
+          : {}),
       })),
     changes,
   };
@@ -222,7 +254,8 @@ export function settingsExtractionEvidence(
   const messages = raw.filter(
     (m) =>
       (m.role === "user" || m.role === "assistant") &&
-      !isTimerMessage(host.store, m),
+      !isTimerMessage(host.store, m) &&
+      !!typedMessageText(host.store, m),
   );
   const events = new Map(
     host.store.logs.map((event) => [event.event_id, event]),
@@ -231,15 +264,22 @@ export function settingsExtractionEvidence(
     messages.length !== source.extraction_messages.length ||
     messages.some((message, index) => {
       const expected = source.extraction_messages[index];
+      const form = attachmentForm(
+        host.store,
+        message,
+        source.attachment_boundary,
+      );
+      if (form && !source.attachment_boundary) return true;
       if (
         message.role !== expected.role ||
-        contentText(message.content) !== expected.text
+        typedMessageText(host.store, message) !== expected.text
       )
         return true;
       if (/^[a-f0-9]{64}:\d+$/.test(expected.id))
+        // A raw snapshot ID is same-form evidence, never a full/stub alias.
         return ![
           hash(JSON.stringify(message)),
-          messageIdentityHash(message),
+          authenticatedIdentityHash(host.store, message),
         ].includes(expected.id.slice(0, 64));
       const event = events.get(expected.id);
       return (
@@ -247,8 +287,11 @@ export function settingsExtractionEvidence(
         event.event_type !== "main.message" ||
         event.scope.session_id !== host.sessionID ||
         event.sequence > source.end_sequence ||
-        messageIdentityHash(message) !==
-          messageIdentityHash(host.store.read<AgentMessage>(event.payload))
+        authenticatedIdentityHash(host.store, message) !==
+          authenticatedIdentityHash(
+            host.store,
+            host.store.read<AgentMessage>(event.payload),
+          )
       );
     })
   )
@@ -349,6 +392,10 @@ export async function summarizeSettings(
     current = { ...current, commitments, extraction_complete: true };
     checkpoint(current);
   }
+  assertActiveSourceEvents(
+    host.store,
+    source.extraction_messages.map((m) => m.id),
+  );
   return current;
 }
 export function rebuiltMessages(

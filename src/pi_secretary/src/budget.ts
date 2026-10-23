@@ -1,3 +1,4 @@
+import { visionEstimate, assertImages, imageLeaves } from "./vision.ts";
 import { createHash } from "node:crypto";
 import type { Api, Model, Tool } from "@earendil-works/pi-ai";
 import {
@@ -85,6 +86,7 @@ export function requestTokens(value: unknown): number {
 }
 export type RequestBudget = {
   count_method: "utf8_bytes_upper_estimate_v1";
+  vision_profile_id?: string;
   policy_id: string;
   estimated_tokens: number;
   effective_context_window: number;
@@ -143,16 +145,20 @@ export function requestBudget(
       "content" in message &&
       Array.isArray(message.content) &&
       message.content.some(
-        (part) => !["text", "thinking", "toolCall"].includes(part.type),
+        (part) =>
+          !["text", "thinking", "toolCall", "image"].includes(part.type),
       )
     )
       throw Error(
         "CAPACITY_UNCOUNTABLE_NON_TEXT: configured estimator only supports text and tool JSON",
       );
   }
+  const vision = visionEstimate(model, { model: model.id, ...context });
   let output = clampMaxTokensToContext(
     model,
-    context as Parameters<typeof clampMaxTokensToContext>[1],
+    (vision.profile ? (vision.value as typeof context) : context) as Parameters<
+      typeof clampMaxTokensToContext
+    >[1],
     Math.min(requested, maximum),
   );
   if (model.api === "openai-responses") {
@@ -178,13 +184,26 @@ export function requestBudget(
     (config.inputLimit ?? capacity) - reserve - safety,
   );
   const estimated =
-    requestTokens({ model: model.id, ...context }) + 32 * messages.length;
+    requestTokens(vision.value) + vision.surcharge + 32 * messages.length;
   return {
     count_method: "utf8_bytes_upper_estimate_v1",
+    ...(vision.profile
+      ? {
+          vision_profile_id: createHash("sha256")
+            .update(JSON.stringify(vision.profile))
+            .digest("hex"),
+        }
+      : {}),
     policy_id: createHash("sha256")
       .update(
         JSON.stringify({
           config,
+          ...(vision.profile
+            ? {
+                vision_policy: "attachment-vision-v1",
+                vision_profile: vision.profile,
+              }
+            : {}),
           provider: model.provider,
           api: model.api,
           baseUrl: model.baseUrl,
@@ -250,6 +269,7 @@ export function assertFinalPayload(
   model: Model<Api>,
   payload: unknown,
   budget: RequestBudget,
+  expected?: unknown,
 ): { inputTokens: number; outputTokens: number } {
   if (model.api !== "openai-completions" && model.api !== "openai-responses")
     throw Error(`CAPACITY_UNSUPPORTED_ADAPTER: ${model.api}`);
@@ -272,10 +292,33 @@ export function assertFinalPayload(
   if (output !== budget.effective_output_tokens)
     throw Error("CAPACITY_OUTPUT_LIMIT_CHANGED_BY_ADAPTER");
   if (body.model !== model.id) throw Error("CAPACITY_PAYLOAD_MODEL_CHANGED");
-  const input = requestTokens(body);
+  if (expected !== undefined) assertImages(expected, body);
+  const vision = visionEstimate(model, body);
+  if (
+    (vision.profile
+      ? createHash("sha256")
+          .update(JSON.stringify(vision.profile))
+          .digest("hex")
+      : undefined) !== budget.vision_profile_id
+  )
+    throw Error("ATTACHMENT_BUDGET_PROFILE_CHANGED");
+  if (
+    imageLeaves(body).length &&
+    Buffer.byteLength(JSON.stringify(body)) > wireLimit()
+  )
+    throw Error("CAPACITY_BLOCKED: attachment wire limit");
+  const input = requestTokens(vision.value) + vision.surcharge;
   if (input > budget.usable_input_tokens)
     throw Error(
       `CAPACITY_BLOCKED: final payload=${input}, usable=${budget.usable_input_tokens}`,
     );
   return { inputTokens: input, outputTokens: output };
+}
+
+function wireLimit() {
+  const raw = process.env.SECRETARY_ATTACHMENT_WIRE_BYTES;
+  const n = raw === undefined ? 24 * 1024 ** 2 : Number(raw);
+  if (!Number.isSafeInteger(n) || n <= 0 || n > 24 * 1024 ** 2)
+    throw Error("ATTACHMENT_CONFIG_INVALID");
+  return n;
 }

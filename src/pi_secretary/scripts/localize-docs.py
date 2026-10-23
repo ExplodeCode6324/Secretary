@@ -19,7 +19,7 @@ SOURCES = ['README.zh-CN.md'] + [
     'docs/' + name + '.md' for name in (
         'README', 'architecture', 'data-flow', 'invariants', 'memory-and-prompts',
         'operations', 'data-model', 'state-machines', 'database',
-        'api/v1/README', 'api/v1/push',
+        'api/v1/README', 'api/v1/push', 'api/v1/attachments',
     )
 ] + sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'docs/frontend').glob('*.md')) + sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'docs/data').glob('*.md')) + [
     'test_case/README.md',

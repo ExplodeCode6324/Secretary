@@ -53,7 +53,9 @@ export type SecretaryDemoV1 =
   | WorkScope
   | WakeTimer
   | PushTarget
-  | PushDispatch;
+  | PushDispatch
+  | Attachment
+  | AttachmentImport;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -80,7 +82,7 @@ export type Digest = string;
 /**
  * 状态枚举对应 src/state_machine/catalog.json 的 Input
  */
-export type InputState = "ACCEPTED" | "CLAIMED" | "HANDLED";
+export type InputState = "ACCEPTED" | "CLAIMED" | "HANDLED" | "WITHDRAWN";
 /**
  * 相对 data_root 或 workspace_root；运行时拒绝绝对路径、..、符号链接越界。
  */
@@ -392,6 +394,17 @@ export interface Input {
   loop_id: ID | null;
   received_at: Time;
   feedback_id: ID | null;
+  /**
+   * @minItems 1
+   * @maxItems 4
+   */
+  attachments?: AttachmentBinding[];
+  content_digest?: Digest;
+  withdrawal?: {
+    request_id: ID;
+    at: Time;
+    reason: "OWNER_WITHDRAWN";
+  };
 }
 /**
  * 不可变对象引用；必须校验内容散列。
@@ -407,6 +420,14 @@ export interface ObjectRef {
    * 如 application/json；不得用摘要代替原件。
    */
   media_type: string;
+}
+export interface AttachmentBinding {
+  attachment_id: ID;
+  import_request_id: ID;
+  name: string;
+  content: ObjectRef;
+  width: number;
+  height: number;
 }
 /**
  * 不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。
@@ -470,6 +491,7 @@ export interface Context {
     count_method: "utf8_bytes_upper_estimate_v1";
     policy_id: string;
     deployment_limit_verified: boolean;
+    vision_profile_id?: Digest;
   };
   source_context_id?: ID | null;
   compaction_job_id?: ID | null;
@@ -592,6 +614,7 @@ export interface Consciousness {
     source_ref: ObjectRef;
     messages_ref: ObjectRef;
     source_end_sequence: number;
+    attachment_form_version?: 1;
   };
   input_projection_ref?: ObjectRef;
 }
@@ -1704,7 +1727,9 @@ export interface Mutation {
     | "Scope"
     | "WakeTimer"
     | "PushTarget"
-    | "PushDispatch";
+    | "PushDispatch"
+    | "Attachment"
+    | "AttachmentImport";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -2040,6 +2065,42 @@ export interface PushDispatch {
         | "INTERRUPTED"
       )
     | null;
+}
+export interface Attachment {
+  schema_version: 1;
+  record_type: "Attachment";
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  import_request_id: ID;
+  name: string;
+  content: ObjectRef;
+  width: number;
+  height: number;
+}
+export interface AttachmentImport {
+  schema_version: 1;
+  record_type: "AttachmentImport";
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  attachment_id: ID;
+  expected_sha256: Digest;
+  expected_bytes: number;
+  reserved_bytes: number;
+  state: "PENDING" | "READY" | "FAILED";
+  error_code: string | null;
+  validation_limits: {
+    file_bytes: number;
+    side: number;
+    pixels: number;
+  };
 }
 
 export type Contract = SecretaryDemoV1;

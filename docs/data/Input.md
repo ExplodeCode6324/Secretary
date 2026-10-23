@@ -19,11 +19,22 @@
 | `loop_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `received_at` | Time | 是 |  关联：[Time](Time.md) |
 | `feedback_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
+| `attachments` | array<AttachmentBinding> | 否 |  {"minItems": 1, "maxItems": 4} 关联：[AttachmentBinding](AttachmentBinding.md) |
+| `content_digest` | Digest | 否 |  关联：[Digest](Digest.md) |
+| `withdrawal` | object | 否 |  {"additionalProperties": false} 关联：[ID](ID.md), [Time](Time.md) |
 
 ## 组合约束
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "dependentRequired": {
+    "attachments": [
+      "content_digest"
+    ],
+    "content_digest": [
+      "attachments"
+    ]
+  }
 }
 ```

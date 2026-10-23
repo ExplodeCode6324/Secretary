@@ -111,3 +111,5 @@ Par défaut, timeline, around, le content des messages et SSE transient offrent 
 SSETransient/SSEPreview définissent la structure publique de transient ; Preview.version reste un number et l’événement n’a pas de cursor durable. L’aperçu court est calculé avant la limitation de conservation. La redaction, y compris dans les instantanés done/error, révoque le raisonnement conservé et avance revision ; les anciens curseurs de contenu renvoient CURSOR_EXPIRED. La conservation reste limitée à 8 aperçus de 128 blocs et 32,768 unités UTF-16 chacun. Une réponse durable normale redacted-only/tool-only peut toujours être omise ; l’expiration d’un transient ne prouve donc pas l’absence d’événement durable.
 
 thinking_preview et thinking conservent le texte brut du modèle, qui peut contenir des caractères de contrôle ou des séquences ANSI. Les clients de terminal doivent l’échapper ou le neutraliser avant affichage ; l’API n’effectue pas ce traitement à leur place.
+
+Pour les imports, profiles de budget, résidence K=0 et retraits sûrs, voir le [contrat des pièces jointes](attachments.md).

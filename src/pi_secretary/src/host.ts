@@ -109,6 +109,16 @@ export class Host {
 
     this.context = this.createContext();
   }
+  get withdrawalIdle() {
+    return (
+      !this.active &&
+      !this.maintenance &&
+      !this.extraction &&
+      !this.agent &&
+      !this.closing &&
+      !this.settingsBlocked()
+    );
+  }
   get session() {
     return this.store.get<Session>("Session", this.sessionID);
   }
@@ -116,8 +126,15 @@ export class Host {
     text: string,
     requestID = id(),
     producer: Input["producer"] = "MASTER",
+    attachmentIDs: string[] = [],
   ) {
-    return mainLoop.accept.call(this.context, text, requestID, producer);
+    return mainLoop.accept.call(
+      this.context,
+      text,
+      requestID,
+      producer,
+      attachmentIDs,
+    );
   }
   private missedOffset = 0;
   deliverFeedback() {

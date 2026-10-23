@@ -1,7 +1,10 @@
 import { isTimerMessage } from "./input-origin.ts";
 import { hash, type Store } from "./store.ts";
 import { presentedNotification } from "./notification-service.ts";
-import { messageIdentityHash } from "./message-identity.ts";
+import {
+  authenticatedIdentityHash,
+  typedMessageText,
+} from "./attachment-form.ts";
 import type { AgentMessage } from "./model.ts";
 import type {
   Consciousness,
@@ -36,15 +39,7 @@ function sourcePrecedesDelivery(
       !("content" in value)
     )
       return false;
-    const text =
-      typeof value.content === "string"
-        ? value.content
-        : Array.isArray(value.content)
-          ? value.content
-              .filter((p) => p?.type === "text" && typeof p.text === "string")
-              .map((p) => p.text)
-              .join("\n")
-          : "";
+    const text = typedMessageText(store, value as AgentMessage) ?? "";
     return text.includes(commitment.text);
   };
   const deliveredAt = Date.parse(delivery.occurred_at);
@@ -59,6 +54,7 @@ function sourcePrecedesDelivery(
     event.scope.session_id === cs.session_id &&
     event.sequence < delivery.sequence &&
     beforeDelivery(event.occurred_at);
+  // Exact immutable refs/batch descriptors, not cross-form message identity.
   const same = (a: unknown, b: unknown) =>
     JSON.stringify(a) === JSON.stringify(b);
   const eventByID = new Map(store.logs.map((event) => [event.event_id, event]));
@@ -148,8 +144,22 @@ function sourcePrecedesDelivery(
       if (
         owner.record_type === "CompactionJob" &&
         hash(
-          JSON.stringify(actual.map((event) => store.read(event.payload))),
-        ) !== hash(JSON.stringify(snapshot))
+          JSON.stringify(
+            actual.map((event) =>
+              authenticatedIdentityHash(
+                store,
+                store.read<AgentMessage>(event.payload),
+              ),
+            ),
+          ),
+        ) !==
+          hash(
+            JSON.stringify(
+              snapshot.map((m) =>
+                authenticatedIdentityHash(store, m as AgentMessage),
+              ),
+            ),
+          )
       )
         return false;
       const origins = snapshot
@@ -157,8 +167,10 @@ function sourcePrecedesDelivery(
         .map((message) =>
           actual.filter(
             (event) =>
-              messageIdentityHash(store.read<AgentMessage>(event.payload)) ===
-              messageIdentityHash(message as AgentMessage),
+              authenticatedIdentityHash(
+                store,
+                store.read<AgentMessage>(event.payload),
+              ) === authenticatedIdentityHash(store, message as AgentMessage),
           ),
         );
       return (
@@ -318,17 +330,8 @@ export function reconcileCommitments(
       !["user", "assistant"].includes(String(value.role))
     )
       return;
-    if (typeof value.content === "string") original.push(value.content);
-    else if (Array.isArray(value.content))
-      original.push(
-        value.content
-          .filter(
-            (part) =>
-              part && part.type === "text" && typeof part.text === "string",
-          )
-          .map((part) => part.text)
-          .join("\n"),
-      );
+    const typed = typedMessageText(store, value as AgentMessage);
+    if (typed) original.push(typed);
   };
   visit(parsed);
   for (const item of items)

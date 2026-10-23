@@ -84,6 +84,33 @@ export async function serveCore(
             res,
             url.searchParams,
           );
+        const attachment = /^attachments\/([^/]+)\/content$/.exec(route);
+        if (attachment) {
+          const record = app.store.find<import("./contracts.ts").Attachment>(
+            "Attachment",
+            attachment[1],
+          );
+          if (!record) throw new ApiError("NOT_FOUND", 404);
+          let bytes: Buffer;
+          try {
+            bytes = app.store.bytes(record.content);
+          } catch {
+            throw new ApiError("ATTACHMENT_UNAVAILABLE", 410);
+          }
+          res.writeHead(200, {
+            "Content-Type": "application/octet-stream",
+            "Content-Length": bytes.length,
+            "Content-Disposition":
+              "attachment; filename*=UTF-8''" +
+              encodeURIComponent(record.name).replace(
+                /['()*]/g,
+                (c) => "%" + c.charCodeAt(0).toString(16),
+              ),
+            ETag: '"' + record.content.sha256 + '"',
+          });
+          res.end(bytes);
+          return;
+        }
         const artifact = /^artifacts\/([^/]+)\/content$/.exec(route);
         if (artifact) {
           const entry = service.artifact(artifact[1]);

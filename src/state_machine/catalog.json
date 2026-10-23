@@ -5,12 +5,14 @@
       "owner": "host",
       "initial": "ACCEPTED",
       "terminal": [
-        "HANDLED"
+        "HANDLED",
+        "WITHDRAWN"
       ],
       "states": [
         "ACCEPTED",
         "CLAIMED",
-        "HANDLED"
+        "HANDLED",
+        "WITHDRAWN"
       ],
       "transitions": [
         {
@@ -36,6 +38,22 @@
           "to": "CLAIMED",
           "guard": "same_loop_checkpoint",
           "commit": "续接同一 loop，禁止重新从头执行工具"
+        },
+        {
+          "id": "Input-04",
+          "from": "ACCEPTED",
+          "event": "withdraw",
+          "to": "WITHDRAWN",
+          "guard": "attachment_owner_quiescent_no_output_or_effects",
+          "commit": "原子提交输入撤回及必要的Session/Context"
+        },
+        {
+          "id": "Input-05",
+          "from": "CLAIMED",
+          "event": "withdraw",
+          "to": "WITHDRAWN",
+          "guard": "attachment_owner_quiescent_no_output_or_effects",
+          "commit": "原子提交输入撤回及必要的Session/Context"
         }
       ]
     },
@@ -650,6 +668,37 @@
           "to": "REVOKED",
           "guard": "scope_changed",
           "commit": "操作取消或对象改变，请求作废"
+        }
+      ]
+    },
+    "AttachmentImport": {
+      "owner": "attachment importer",
+      "initial": "PENDING",
+      "terminal": [
+        "READY",
+        "FAILED"
+      ],
+      "states": [
+        "PENDING",
+        "READY",
+        "FAILED"
+      ],
+      "transitions": [
+        {
+          "id": "AttachmentImport-01",
+          "from": "PENDING",
+          "event": "validated",
+          "to": "READY",
+          "guard": "bytes_durable",
+          "commit": "Attachment与ApiCommand完成同帧"
+        },
+        {
+          "id": "AttachmentImport-02",
+          "from": "PENDING",
+          "event": "definite_failure",
+          "to": "FAILED",
+          "guard": "known_failure",
+          "commit": "失败回执与保留或释放容量同帧"
         }
       ]
     }

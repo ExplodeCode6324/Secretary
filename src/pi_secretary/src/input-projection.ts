@@ -1,3 +1,4 @@
+import { attachmentMessage, attachmentForm } from "./attachment-form.ts";
 import { isTimerMessage } from "./input-origin.ts";
 import { contentText, type Api, type Model } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "./model.ts";
@@ -16,7 +17,10 @@ import {
   historicalSubset,
 } from "./historical-inputs.ts";
 import type { SettingsSource } from "./settings-memory.ts";
-import { messageIdentityHash } from "./message-identity.ts";
+import {
+  authenticatedIdentityHash,
+  typedMessageText,
+} from "./attachment-form.ts";
 
 export type CoverageSnapshot = {
   version: 1;
@@ -53,6 +57,11 @@ export function inputMessage(
   store: Store,
   input: Input,
 ): Extract<AgentMessage, { role: "user" }> {
+  if (input.attachments?.length)
+    return attachmentMessage(store, input) as Extract<
+      AgentMessage,
+      { role: "user" }
+    >;
   return {
     role: "user",
     content: store.bytes(input.payload).toString(),
@@ -87,6 +96,8 @@ function identify(
       };
     }
   ).secretary_input;
+  const form = attachmentForm(store, message);
+  if (form) return form.input.session_id === sessionID ? form.input : undefined;
   const text = contentText(message.content);
   if (tag) {
     const input = store.find<Input>("Input", tag.input_id);
@@ -95,6 +106,7 @@ function identify(
       tag.session_id === sessionID &&
       input?.session_id === sessionID &&
       input.producer === "MASTER" &&
+      !input.attachments?.length &&
       tag.content_sha256 === input.payload.sha256 &&
       hash(text) === input.payload.sha256 &&
       message.timestamp === Date.parse(input.received_at)
@@ -107,6 +119,7 @@ function identify(
     .filter(
       (i) =>
         i.session_id === sessionID &&
+        !i.attachments?.length &&
         i.payload.sha256 === hash(text) &&
         Date.parse(i.received_at) === message.timestamp,
     );
@@ -150,7 +163,7 @@ function coveredInputs(
   const events = new Map(store.logs.map((e) => [e.event_id, e]));
   const observe = (message: AgentMessage) => {
     const input = identify(store, snapshot.session_id, message);
-    if (input) result.add(input.id);
+    if (input && input.state !== "WITHDRAWN") result.add(input.id);
   };
   // Inspect immutable owner snapshots at the frozen boundary, never a mutable watermark alone.
   const owners = new Map<string, CompactionJob | SettingsApplication>();
@@ -179,29 +192,44 @@ function coveredInputs(
       .filter(
         (m) =>
           (m.role === "user" || m.role === "assistant") &&
-          !isTimerMessage(store, m),
+          !isTimerMessage(store, m) &&
+          !!typedMessageText(store, m),
       );
     if (raw.length !== source.extraction_messages.length)
       throw Error("INVALID_INPUT_SETTINGS_COVERAGE");
     raw.forEach((message, index) => {
+      const form = attachmentForm(store, message, source.attachment_boundary);
+      if (form && !source.attachment_boundary)
+        throw Error("INVALID_INPUT_SETTINGS_COVERAGE");
       const entry = source.extraction_messages[index];
       const event = events.get(entry.id);
       const exact = /^[a-f0-9]{64}:\d+$/.test(entry.id)
-        ? messageIdentityHash(message) === entry.id.slice(0, 64)
+        ? authenticatedIdentityHash(store, message) === entry.id.slice(0, 64)
         : !!event &&
           event.event_type === "main.message" &&
           event.scope.session_id === snapshot.session_id &&
           event.sequence <= source.end_sequence &&
-          messageIdentityHash(store.read<AgentMessage>(event.payload)) ===
-            messageIdentityHash(message);
+          authenticatedIdentityHash(
+            store,
+            store.read<AgentMessage>(event.payload),
+          ) === authenticatedIdentityHash(store, message);
       if (
         !exact ||
         entry.role !== message.role ||
-        entry.text !== contentText(message.content)
+        entry.text !== typedMessageText(store, message)
       )
         throw Error("INVALID_INPUT_SETTINGS_COVERAGE");
       observe(message);
     });
+    // Image-only inputs have summary metadata but deliberately no quote source.
+    for (const message of store.read<AgentMessage[]>(ref)) {
+      const form = attachmentForm(store, message, source.attachment_boundary);
+      if (form) {
+        if (!source.attachment_boundary)
+          throw Error("INVALID_INPUT_SETTINGS_COVERAGE");
+        observe(message);
+      }
+    }
   };
   for (const owner of owners.values()) {
     if (
@@ -212,7 +240,9 @@ function coveredInputs(
     ) {
       const evidence = new Set(
         owner.source_refs.flatMap((ref) =>
-          store.read<AgentMessage[]>(ref).map(messageIdentityHash),
+          store
+            .read<AgentMessage[]>(ref)
+            .map((m) => authenticatedIdentityHash(store, m)),
         ),
       );
       for (const eventID of owner.source_event_ids) {
@@ -226,7 +256,7 @@ function coveredInputs(
           throw Error("INVALID_INPUT_SUMMARY_COVERAGE");
         const message = store.read<AgentMessage>(event.payload);
         if (
-          !evidence.has(messageIdentityHash(message)) ||
+          !evidence.has(authenticatedIdentityHash(store, message)) ||
           !owner.covered_event_ids.includes(eventID)
         )
           throw Error("INVALID_INPUT_SUMMARY_COVERAGE");
