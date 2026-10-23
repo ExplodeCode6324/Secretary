@@ -530,6 +530,7 @@ export async function run(this: MainLoopContext) {
               ),
             ],
           );
+          if (event.message.role === "assistant") displayCallID = undefined;
         }
       });
       agent.prepareRequest = async () => {

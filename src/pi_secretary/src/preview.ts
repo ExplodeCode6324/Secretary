@@ -1,4 +1,6 @@
 import type { AssistantMessageEvent } from "@earendil-works/pi-ai";
+import type { ThinkingPreview } from "./api/contracts.ts";
+import { thinkingPreview } from "./thinking-preview.ts";
 
 export type Preview = {
   id: string;
@@ -8,6 +10,7 @@ export type Preview = {
   version: number;
   status: "running" | "saved" | "incomplete";
   truncated: boolean;
+  thinking_preview?: ThinkingPreview;
   blocks: { index: number; type: "text" | "thinking"; text: string }[];
 };
 export type PreviewUpdate =
@@ -41,13 +44,36 @@ export class Previews {
       item.status = update.type === "saved" ? "saved" : "incomplete";
     } else if (update.type === "event") {
       const e = update.event;
+      const content =
+        "partial" in e
+          ? e.partial.content
+          : e.type === "done"
+            ? e.message.content
+            : e.type === "error"
+              ? e.error.content
+              : undefined;
+      if (content) {
+        item.thinking_preview = thinkingPreview(content);
+        // A redacted/replaced block revokes previously retained visible reasoning.
+        item.blocks = item.blocks.filter((b) => {
+          const source = content[b.index];
+          return (
+            b.type !== "thinking" ||
+            (source?.type === "thinking" &&
+              !source.redacted &&
+              !!source.thinking)
+          );
+        });
+      }
       if (
         e.type !== "text_delta" &&
         e.type !== "thinking_delta" &&
         e.type !== "text_end" &&
         e.type !== "thinking_end"
-      )
+      ) {
+        if (content) item.version = ++this.revision;
         return;
+      }
       const type = e.type.startsWith("text") ? "text" : "thinking";
       // Signed/redacted blocks with no visible text are never projected.
       const source = e.partial.content[e.contentIndex];
@@ -57,8 +83,10 @@ export class Previews {
           source.type !== "thinking" ||
           source.redacted ||
           !source.thinking)
-      )
+      ) {
+        item.version = ++this.revision;
         return;
+      }
       let block = item.blocks.find((b) => b.index === e.contentIndex);
       if (!block) {
         if (item.blocks.length >= 128) {
@@ -69,11 +97,26 @@ export class Previews {
         block = { index: e.contentIndex, type, text: "" };
         item.blocks.push(block);
       }
-      const next = "delta" in e ? block.text + e.delta : e.content;
+      if (block.type !== type) {
+        block.type = type;
+        block.text = "";
+      }
+      const next =
+        type === "thinking" && source?.type === "thinking"
+          ? source.thinking
+          : "delta" in e
+            ? block.text + e.delta
+            : e.content;
       const available =
         32768 -
         item.blocks.reduce((n, b) => n + (b === block ? 0 : b.text.length), 0);
-      block.text = next.slice(0, available);
+      const end = next.charCodeAt(available - 1);
+      block.text = next.slice(
+        0,
+        next.length > available && end >= 0xd800 && end <= 0xdbff
+          ? available - 1
+          : available,
+      );
       if (next.length > available) item.truncated = true;
     }
     item.version = ++this.revision;
@@ -83,6 +126,9 @@ export class Previews {
       .filter((p) => p.session === session)
       .map((p) => ({
         ...p,
+        ...(p.thinking_preview
+          ? { thinking_preview: { ...p.thinking_preview } }
+          : {}),
         blocks: p.blocks
           .toSorted((a, b) => a.index - b.index)
           .filter((b) => thinking || b.type !== "thinking")

@@ -36,6 +36,7 @@ import { SyncService } from "./sync-service.ts";
 import { Notifications } from "./notification-service.ts";
 import type { PageKey } from "./api/protocol.ts";
 import { timelineFor } from "./timeline.ts";
+import { messageDisplaysFor } from "./message-display.ts";
 import { activityHistoryFor } from "./activity-history.ts";
 import {
   OperationDisplay,
@@ -88,8 +89,6 @@ export class ApplicationService {
   >();
   private taskIDs = new Set<string>();
   private executionIDs = new Map<string, string[]>();
-  private messageEvents = new Map<string, string>();
-  private eventMessages = new Map<string, string>();
   private events = new Map<
     string,
     {
@@ -147,23 +146,11 @@ export class ApplicationService {
       throw new ApiError("FORBIDDEN", 403);
   }
   private sync() {
+    messageDisplaysFor(this.app.store);
     for (; this.frame < this.app.store.projectionFrames.length; this.frame++) {
       const frame = this.app.store.projectionFrames[this.frame];
       for (const event of frame.log_records) {
         this.events.set(event.event_id, event.scope);
-        if (event.event_type === "main.message") {
-          const m = this.app.store.read<{ display_call_id?: string }>(
-            event.payload,
-          );
-          const message = m.display_call_id
-            ? "message:" + m.display_call_id
-            : event.event_id;
-          this.messageEvents.set(message, event.event_id);
-          this.eventMessages.set(event.event_id, message);
-        } else if (event.event_type === "input.accepted") {
-          this.messageEvents.set(event.event_id, event.event_id);
-          this.eventMessages.set(event.event_id, event.event_id);
-        }
       }
       for (const mutation of frame.mutations) {
         if (mutation.object_type === "TaskPlan")
@@ -1145,7 +1132,9 @@ export class ApplicationService {
         this.task(value);
         tasks = [value];
       } else if (scope === "event" || scope === "message") {
-        const event = this.events.get(this.messageEvents.get(value) ?? value);
+        const event = this.events.get(
+          messageDisplaysFor(this.app.store).eventFor(value) ?? value,
+        );
         if (!event) throw new ApiError("NOT_FOUND", 404);
         if (event.session_id !== sid && !event.task_id)
           throw new ApiError("NOT_FOUND", 404);
@@ -1373,7 +1362,10 @@ export class ApplicationService {
       const message = q.get("message_id"),
         event = q.get("event_id");
       if (!!message === !!event) throw new ApiError("INVALID_LOCATOR");
-      locate = message ?? this.eventMessages.get(event!) ?? event!;
+      locate =
+        message ??
+        messageDisplaysFor(this.app.store).forEvent(event!)?.id ??
+        event!;
     }
     const result = t.query(this.app.host.sessionID, {
       thinking,
@@ -1419,6 +1411,9 @@ export class ApplicationService {
       at: item.at,
       text: item.text,
       ...(thinking ? { thinking: item.thinking } : {}),
+      ...(item.thinking_preview
+        ? { thinking_preview: item.thinking_preview }
+        : {}),
       call_id: item.call_id ?? null,
       persistence: item.persistence,
       ...Object.fromEntries(
@@ -1441,7 +1436,8 @@ export class ApplicationService {
       ...(item.truncated !== undefined ? { truncated: !!item.truncated } : {}),
       incomplete: !!item.incomplete,
       next_cursor:
-        offset < item.textLength || thinkingOffset < item.thinkingLength
+        offset < item.textLength ||
+        (thinking && thinkingOffset < item.thinkingLength)
           ? this.cursors.encode(
               "body:" + item.id + ":" + thinking + ":" + streaming,
               { offset, thinkingOffset, version: item.revision },
@@ -1460,7 +1456,14 @@ export class ApplicationService {
             version: number;
           }>("body:" + messageID + ":" + thinking + ":" + streaming, cursor)
         : null;
-    const result = timelineFor(this.app).query(this.app.host.sessionID, {
+    const timeline = timelineFor(this.app);
+    if (
+      saved &&
+      saved.version !==
+        timeline.messageRevision(this.app.host.sessionID, messageID)
+    )
+      throw new ApiError("CURSOR_EXPIRED", 409);
+    const result = timeline.query(this.app.host.sessionID, {
       thinking,
       streaming,
       fragment: messageID,
@@ -1468,8 +1471,6 @@ export class ApplicationService {
       thinkingOffset: saved?.thinkingOffset ?? 0,
     });
     const item = result.items[0];
-    if (saved && saved.version !== item.revision)
-      throw new ApiError("CURSOR_EXPIRED", 409);
     return this.messageView(item, thinking, streaming);
   }
   async close() {

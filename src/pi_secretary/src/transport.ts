@@ -366,7 +366,10 @@ export function durableStream(
         );
         observe({ type: "saved", id: call.id });
         try {
-          activity.end(activityID, "succeeded");
+          if (complete.stopReason === "length") {
+            activity.step(activityID, "输出已截断");
+            activity.end(activityID, "truncated");
+          } else activity.end(activityID, "succeeded");
         } catch {}
         if (metadata.observe) {
           replay.end(complete);

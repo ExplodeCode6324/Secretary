@@ -37,7 +37,7 @@ Assistant names are trimmed for display. An empty name projects as `Secretary`; 
 
 | 内容 | 使い方 |
 | --- | --- |
-| timeline | 最大 200 件、ページ予算 1 MiB。around は message_id または event_id を指定。streaming/thinking の一時プレビューは call_id で最終メッセージと統合 |
+| timeline | 最大 200 件、ページ予算 1 MiB。around は message_id または event_id で位置指定。既定で短い推論プレビューを含み、streaming/thinking で本文展開を制御し、call_id で最終メッセージと統合 |
 | messages/{id}/content | next_cursor で Unicode 分割を継続取得 |
 | operations/{id} | display に parameters/stdout/stderr/reason と state、bytes、content_version、truncated、next_cursor、unavailable_reason を含む。初回部分は順に 16/32/32/4 KiB、完全詳細は最大 256 KiB |
 | operations/{id}/content | part で上記の部分を選び cursor で継続。各部分最大 32 KiB、応答最大 256 KiB。順に連結してから JSON を解析し、CURSOR_EXPIRED は最初から再取得 |
@@ -94,6 +94,18 @@ wakeups は一覧、詳細、`{id}/cancel` と PENDING/FIRED/CANCELLED の状態
 
 ## FE-04 Message projection
 
-メッセージ投影には、既存記録に基づく発生元、元イベント ID、直接関連 ID、結果、プレビュー可用性を付加できます。saved プレビューは永続的成功ではなく、失効したプレビューは最終記録なしと表示します。
+メッセージ投影には既存の記録から得た出所、元イベント ID、直接関連 ID、結果、プレビュー可用性を含められます。saved は永続的な成功を意味せず、期限切れは一時表示の内容が利用できないことだけを示します。
 
 Optional fields: `source_kind`, `source_event_id`, `outcome`, `preview_availability`, `request_id`, `task_id`, `execution_id`, `result_id`, `decision_request_id`, `notification_id`. See the authored `Message` schema for enum values.
+
+## 応答の終了状態と推論プレビュー
+
+異常終了した空の応答も message 行として残り、length/error/aborted は truncated/failed/interrupted、incomplete=true になります。正常な空の stop と tool-only 応答は引き続き省略します。空の error は、衝突のない同一セッションの ModelCall が明示的に INTERRUPTED/CANCELLED の場合だけ interrupted になります。過去の異常な空応答が使用済みの display_call_id を再利用していた場合は、自身のイベント ID と call_id=null を使用します。
+
+length によるモデル活動は、リアルタイム、履歴、再起動後のすべてで truncated、phase は `输出已截断` になります。ModelCall は RESPONSE_SAVED のままで、親の業務状態は変わりません。
+
+thinking_preview は任意の表示フィールド `{text,truncated}` です。空でなく redacted でもない thinking ブロックを元の順序で改行結合し、先頭の拡張書記素クラスタ 20 個を保持します。省略があり接頭部分が空でない場合は U+2026 を 1 個付けます。省略記号を含む JSON 符号化後の text は最大 4 KiB で、クラスタを分割しません。最初のクラスタだけで上限を超える場合は空の text と truncated=true を返します。署名や作成した推論は返さず、モデル入力や識別情報も変更しません。
+
+既定の timeline、around、メッセージ content、SSE transient は同じ短いプレビューを提供します。推論全体の展開には thinking=true、一時的な本文にはさらに streaming=true が必要です。非表示の推論は継続カーソルを生成せず、推論だけのメッセージは既定で next_cursor=null です。明示的な展開は Unicode スカラー境界で分割し、本文または推論の各断片は最大 4,999 UTF-16 単位かつ 28,000 JSON バイト、メッセージ断片全体は最大 64 KiB です。プレビューの truncated、保持本文の切り詰め、outcome=truncated は別の意味です。
+
+SSETransient/SSEPreview は transient の公開形式を定義します。Preview.version は number のままで、イベントに永続 cursor はありません。短いプレビューは保持容量による切り詰め前に計算します。done/error スナップショットを含む redaction は保持中の推論を取り消して revision を進め、古い内容カーソルには CURSOR_EXPIRED を返します。保持上限は従来どおり 8 プレビュー、各 128 ブロック、32,768 UTF-16 単位です。正常な redacted-only/tool-only の永続応答は行が省略される場合があるため、transient の期限切れは永続イベントの不在を意味しません。

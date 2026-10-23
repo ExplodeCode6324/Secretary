@@ -4,7 +4,20 @@ import {
   activityHistoryFor,
   type HistoricalActivity,
 } from "./activity-history.ts";
-import type { ObjectRef, Input, Feedback, Notification } from "./contracts.ts";
+import type {
+  ObjectRef,
+  Input,
+  Feedback,
+  Notification,
+  ModelCall,
+} from "./contracts.ts";
+import {
+  abnormalReply,
+  hasDisplayContent,
+  messageDisplaysFor,
+} from "./message-display.ts";
+import { thinkingPreview, visibleThinking } from "./thinking-preview.ts";
+import type { ThinkingPreview } from "./api/contracts.ts";
 
 export const PAGE_BYTES = 1024 * 1024;
 export const FRAGMENT_BYTES = 64 * 1024;
@@ -142,6 +155,7 @@ export class Timeline {
   }
   sync() {
     this.history.sync();
+    const displays = messageDisplaysFor(this.app.store);
     for (
       ;
       this.position < this.app.store.projectionFrames.length;
@@ -167,17 +181,11 @@ export class Timeline {
         if (e.event_type === "main.message") {
           const m = this.app.store.read<any>(e.payload);
           if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
-          // A tool-only response has an activity, but no empty message row.
-          if (
-            !m.content.some(
-              (b: any) =>
-                (b.type === "text" && b.text) ||
-                (b.type === "thinking" && !b.redacted && b.thinking),
-            )
-          )
-            continue;
+          // Abnormal empty results carry status; normal tool-only stays an activity.
+          const visible = hasDisplayContent(m.content);
+          if (!visible && !abnormalReply(m.stopReason)) continue;
           role = "secretary";
-          call_id = m.display_call_id;
+          call_id = displays.forEvent(e.event_id)?.call_id;
           metadata.source_kind = "assistant_response";
           metadata.outcome =
             (
@@ -189,7 +197,16 @@ export class Timeline {
                 aborted: "interrupted",
               } as Record<string, string>
             )[m.stopReason] ?? "unknown";
-          incomplete = ["length", "error", "aborted"].includes(m.stopReason);
+          if (!visible && m.stopReason === "error" && call_id) {
+            const call = this.app.store.find<ModelCall>("ModelCall", call_id);
+            if (
+              call?.scope.session_id === session &&
+              call.state === "INTERRUPTED" &&
+              call.failure_kind === "CANCELLED"
+            )
+              metadata.outcome = "interrupted";
+          }
+          incomplete = abnormalReply(m.stopReason);
         } else if (e.event_type === "input.accepted") {
           const input = this.app.store.read<Input>(e.payload);
           role = input.producer === "MASTER" ? "master" : "system";
@@ -304,7 +321,11 @@ export class Timeline {
       for (const p of this.previews.values()) {
         const id = "message:" + p.id,
           old = this.rows.get(id);
-        if (old?.source || !p.blocks.some((b) => b.text)) continue;
+        if (
+          old?.source ||
+          (!old && !p.blocks.some((b) => b.text) && !p.thinking_preview)
+        )
+          continue;
         this.put({
           id,
           session: p.session,
@@ -362,6 +383,7 @@ export class Timeline {
   private body(row: Meta, o: TimelineOptions) {
     let text = "",
       thinking = "";
+    let preview: ThinkingPreview | undefined;
     if (row.source) {
       const value = this.app.store.read<any>(row.source);
       if (row.event === "main.message") {
@@ -369,30 +391,32 @@ export class Timeline {
           .filter((b: any) => b.type === "text")
           .map((b: any) => b.text ?? "")
           .join("\n");
+        preview = thinkingPreview(value.content);
         if (o.thinking)
-          thinking = value.content
-            .filter((b: any) => b.type === "thinking" && !b.redacted)
-            .map((b: any) => b.thinking ?? "")
-            .join("\n");
+          thinking = [...visibleThinking(value.content)].join("\n");
       } else if (row.event === "input.accepted")
         text = this.app.store.bytes((value as Input).payload).toString();
       else if (row.event === "feedback.delivered")
         text = `任务反馈 · ${(value as Feedback).summary}\n执行 ${(value as Feedback).execution_id}`;
       else
         text = this.app.store.bytes((value as Notification).message).toString();
-    } else if (o.streaming) {
+    } else {
       const p = this.previews.get(row.call_id!);
-      text =
-        p?.blocks
-          .filter((b) => b.type === "text")
-          .map((b) => b.text)
-          .join("\n") ?? "";
-      if (o.thinking)
-        thinking =
+      preview = p?.thinking_preview;
+      if (o.streaming) {
+        text =
           p?.blocks
-            .filter((b) => b.type === "thinking")
+            .filter((b) => b.type === "text")
             .map((b) => b.text)
             .join("\n") ?? "";
+        if (o.thinking)
+          thinking =
+            p?.blocks
+              .filter((b) => b.type === "thinking")
+              .map((b) => b.text)
+              .filter(Boolean)
+              .join("\n") ?? "";
+      }
     }
     let textOffset = o.textOffset ?? 0,
       thinkingOffset = o.thinkingOffset ?? 0;
@@ -413,8 +437,9 @@ export class Timeline {
     textOffset = boundary(text, textOffset);
     thinkingOffset = boundary(thinking, thinkingOffset);
     return {
-      text: cut(text, textOffset, 30000),
-      ...(o.thinking ? { thinking: cut(thinking, thinkingOffset, 30000) } : {}),
+      text: cut(text, textOffset, 28000),
+      ...(o.thinking ? { thinking: cut(thinking, thinkingOffset, 28000) } : {}),
+      ...(preview ? { thinking_preview: preview } : {}),
       textOffset,
       thinkingOffset,
       textLength: text.length,
@@ -483,6 +508,12 @@ export class Timeline {
       observed_at: snapshot.observed_at,
       store_revision: this.app.store.sequence,
     };
+  }
+  messageRevision(session: string, id: string) {
+    const row = this.rows.get(id);
+    if (!row || row.session !== session || row.kind !== "message")
+      throw Error("TIMELINE_ITEM_NOT_FOUND");
+    return row.revision;
   }
   query(session: string, o: TimelineOptions = {}) {
     const limit = o.limit ?? 200;
