@@ -27,3 +27,16 @@ Claude 的独立证据是基线源码阅读、rg/grep、API计数和预算算术
 #80的两个恢复问题仍由协调单独跟踪；若阻断#81验收，保留证据交协调，不擅自修复或豁免。#80索引状态按已裁定更新为PR86合并/main CI通过，历史记录不改写。
 
 原始请求、AX回复、模型/结果截图、时间戳和检查日志位于本仓库Git忽略目录 `.demo-data/issue81-attachments/review/`；不提交原始会话。R3 PASS截图文件为 `r3-pass.png`，完整原始回复为 `r3-response-10m-ax.txt`。下一阶段复用同一review会话，最终实现仍需准确HEAD的Claude复核、Linux/macOS CI及协调明确合并授权。
+
+## 10. 协调实施审批（2026-10-24）
+
+协调已获Master授权代行本批计划审批，并批准在952bfa0de5dd3e8859d5a59d369e771dcf1a07ce上实施R3、测试、推送PR及准确HEAD复核；合并仍须单独授权。本节取代此前“待批准”的当前状态，保留旧记录作为历史。
+
+- 批准四端点、独立AttachmentImport容量账本、WITHDRAWN、附件独立loop、单帧撤回及5b/5c全部消费者迁移。仅无助手输出、无未决/已执行工具效果的窗口可撤回整个输入。死进程IN_FLIGHT仍拒绝，不改恢复政策。
+- 批准PNG/JPEG、锁定sharp、5MiB/文件、4096单边、4,194,304像素、4图/10MiB每消息、1GiB逻辑预留、10,000导入身份、24MiB wire。公开原始EXIF随图传输，保留unbound内容，无通用GC；降低配置不得破坏旧内容。
+- 批准K=0以保持有界预算及长期会话可用性；当前loop/冻结恢复保留像素，HANDLED后的新loop明确显示无像素，owner以ready ID重送。自然追问未验收，后续简洁重用入口由协调交接#82/#83。
+- 批准aggregate dehydrate/exact hydrate及全部reader核验；纯文本identity、policy_id及历史aliases逐字节兼容。
+- 本项以Core契约退出：两种实际安装adapter到loopback HTTP完整capture及全部R3门槛必需。不调用真实provider、不改生产配置；真实识图NOT_TESTED。真实模型无匹配profile时ATTACHMENT_BUDGET_UNCONFIGURED，不套用8192。profile须实际用于admission/dispatch/replay并有部署文档。真实profile选择和合成图live smoke交#84，须在人体验前完成或明确报告阻塞。
+- 完成准确HEAD Claude PASS、PR/Linux/macOS/main CI及Issue条件后，协调接受契约结项边界。新增实质范围先交协调；#80恢复问题若阻塞保留首次失败，不暗修。继承数据、进程及393个untracked不动。
+
+继续使用同一Claude Opus5.5 Extra会话，首读10分钟/随后5分钟；账号或模型异常请Master裁定fallback。当前实施证据尚未产生。
