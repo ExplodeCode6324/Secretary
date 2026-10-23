@@ -24,4 +24,19 @@
 
 ## R3
 
-待发送精确提交并完成同会话复核。计划PASS仍需协调批准实施；G0真实终端/IME未通过不能越过；合并另需准确HEAD授权。
+- 精确计划提交`937f3031ed2e83953d65b4a3cf196cedd3488ad9`；发送2026-10-24 03:25:31 HKT，首次读取2026-10-24 03:35:40 HKT，最终 **PASS for plan readiness**。
+- 原始证据：`.demo-data/issue82-tui/review/r3-request.txt`、`r3-timing.json`、`r3-first-read-page.txt`、`r3-first-read-ax.txt`、`r3-pass.png`；本地文件清单/hash在`review-evidence-manifest.json`。截图同时显示精确提交、PASS与G0/实施/合并边界。
+- Claude独立fetch精确R3并核对英文附件逐字节一致，检查中英文R3关键机制（非逐句双语审查），复查Pi固定提交的copyActiveSelectionToClipboard及callback无OSC52 fallback，独立相对链接24项均存在。
+- Claude未跑check/test/verify/docs:check、Core/terminal/IME/provider；Terminal2.14、Python3.9.6为Codex本机只读盘点，非reviewer验证。
+- R2四项阻塞全部关闭，无新增阻塞。PASS只覆盖计划；G0全部仍NOT_TESTED，协调未批准实施，未授权合并。
+
+## 最终交付与协调待决
+
+1. 建议批准R3后先执行G0；Mac此前锁屏，需真实可操作终端/中文IME后才可通过。无法执行或实际失败交协调裁决，不进入产品铺开、不以PTY/fixture/截图替代。
+2. 明确请协调接受C1 fixture/live都attach-only的RUN-01范围取舍，产品落地时同步requirements状态。理由：避免现有catch-all attach失败触发错误profile/mode启动；独立Core生命周期命令仍在。
+3. 明确请协调接受独立持久view checkpoint；它满足本issue持久cursor与冷启动一致性要求，已规定合并/低优先级/有界队列及响应验证。没有启动#70–74优化。
+4. 接受R3非阻塞实施注记：Ctrl+O标为“可见文字复制”（软折行变硬换行/尾空白被去除），精确正文用/copy；Apple CLT先做不会触发安装的存在检查并限时检查解释器，不自动安装；helper stdio只用pipes/ignore，不接tty，父退出后的BrokenPipe在原子操作完成/失败后处理；帮助明确Ctrl+C退出、Ctrl+O复制。这些为G0/实现注意事项，未改已PASS的R3计划正文。
+5. 本机docs:check/localization与git diff --check通过；无业务实现、依赖安装或Core/终端/provider测试。相对基线仅4个文档，393继承untracked保留。准确HEAD实现复核/CI/合并授权均属后续阶段。
+
+本记录提交仅追加审查结果与交付状态；中英文R3计划正文保持精确PASS提交原样。
+
