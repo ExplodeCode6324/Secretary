@@ -1,11 +1,13 @@
 # 文档
 
-现行前端设计、组件、技术分工和验收统一从 [Current Frontend Spec](frontend/README.md) 进入。
+当前客户端路线改为 [TUI 需求与后端改造计划](tui/requirements-and-backend-plan.md)，按直接退役 Tauri → Core 适配 → macOS TUI 实施；总路线见 [#57](https://github.com/ExplodeCode6324/Secretary/issues/57)。旧 [PhaseUI 前端规范](frontend/README.md) 已冻结，仅供退役前核对和历史追溯。
 
 从运行手册开始使用 Core；架构与数据流解释模块如何协作，不变量提供实现和测试证据。
 
 | 文档 | 内容 |
 | --- | --- |
+| [TUI 需求与分阶段实施](tui/requirements-and-backend-plan.md) | Master 裁定、接口复用、清理范围与 Issue 顺序 |
+| [TUI API 使用清单](tui/api-coverage.md) | 每项 Issue 完成后记录已用及仍未使用的 Core API |
 | [运行手册](operations.md) | 安装、启停、模型与数据库配置、备份、排障和验证 |
 | [架构](architecture.md) | 模块职责、进程、并发和存储 |
 | [数据流](data-flow.md) | 对话、任务、记忆、设置与通知 |
@@ -19,3 +21,4 @@
 [src/pi_secretary](../src/pi_secretary/src/app.ts) 保存 Core 实现，[src/pi_resource](../src/pi_resource/README.md) 为固定 Pi 子模块。[内部字段](data/README.md)和[数据库参考](database.md)由 schema/SQL 生成，API 的 [schema](api/v1/schema.json)、[操作表](api/v1/operations.json)和 [OpenAPI](api/v1/openapi.json)单独维护公开合同。[离线测试](../test_case/offline/README.md)、[在线测试](../test_case/online/README.md)及[报告](../test_case/reports/README.md)分别组织验证。
 
 [修复计划](fix/README.md)记录当前工作；[历史计划](fix/archive/index.md)、[API 验证](api/v1/verification.md)、[同步验收](api/v1/issue9-verification.md)保留对应版本结论。[原始设计](old/README.md)、[BrainStorm](BrainStorm_Baseline_v3.md)和[已废弃 SwiftUI 设计](old/native-client-design-v0.3.md)用于追溯。产品路线见[项目 README](../README.md#开发路线)。
+

@@ -1,4 +1,6 @@
-# 现行前端规范
+# 旧 Tauri / PhaseUI 规范（已冻结）
+
+> **2026-10-23 路线更新：** Master 已决定直接退役 Tauri，从零实现 TUI。当前执行依据为 [TUI 需求](../tui/requirements-and-backend-plan.md) 与 [总路线 #57](https://github.com/ExplodeCode6324/Secretary/issues/57)。旧客户端删除见 [#79](https://github.com/ExplodeCode6324/Secretary/issues/79)；下文为冻结的旧路线资料，不再指导新功能实施，也不以旧 GUI 未完成验收阻塞 TUI。
 
 版本：FE-DOC R1，2026-10-21。Master 已批准 R1 计划及设计裁定；本文档集待 Master 终审。#61 合并且 Master 明确确认后，#62 才可开始。
 
@@ -19,3 +21,4 @@
 ## PhaseUI implementation candidate (#62)
 
 The production component mapping and explicit adaptations are recorded in the [component contract](../../src/secretary_desktop/src/phaseui/README.md) and [implementation evidence](../fix/evidence/issue62-phaseui/summary.md). The frozen design remains the authority; candidate evidence does not replace Master acceptance. Resource comparison uses [the PhaseUI harness](../../src/secretary_desktop/scripts/phaseui_measure.py), separately from the historical FE-00 measurements.
+

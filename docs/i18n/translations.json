@@ -3248,5 +3248,30 @@
     "When a long reply completes, previously displayed text stays visible while content is automatically read under the final revision and current thinking preference to cover its prior length. It never shrinks to the first fragment. Failed reads retain the text and offer retry; retained preview is labelled until reconciliation, and the full body is confirmed only at final EOF.",
     "長い返信の完了時は表示済みの本文を保持し、最終リビジョンと現在の思考表示設定で元の長さまで自動的に続きを読み込みます。先頭の断片へ縮みません。失敗時も本文を保持して再試行を提供し、照合完了までは保持したプレビューと表示します。全文の完全性は最終 EOF で確認します。",
     "Quand une longue réponse se termine, le texte déjà affiché reste visible pendant la lecture automatique de la révision finale, avec la préférence de raisonnement actuelle, jusqu’à sa longueur précédente. Il ne revient pas au premier fragment. Un échec conserve le texte et propose un réessai. L’aperçu conservé est signalé jusqu’à sa vérification; le corps entier est confirmé à EOF."
+  ],
+  "当前客户端路线改为 [TUI 需求与后端改造计划](tui/requirements-and-backend-plan.md)，按直接退役 Tauri → Core 适配 → macOS TUI 实施；总路线见 [#57](https://github.com/ExplodeCode6324/Secretary/issues/57)。旧 [PhaseUI 前端规范](frontend/README.md) 已冻结，仅供退役前核对和历史追溯。": [
+    "The client roadmap is now defined by the [TUI requirements and backend adaptation plan](tui/requirements-and-backend-plan.md), following this sequence: remove Tauri → adapt Core → implement the macOS TUI. See [#57](https://github.com/ExplodeCode6324/Secretary/issues/57) for the overall roadmap. The former [PhaseUI frontend specification](frontend/README.md) is frozen and retained only for checks before retirement and historical reference.",
+    "現在のクライアント開発方針は [TUI 要件とバックエンド改修計画](tui/requirements-and-backend-plan.md) に変更され、Tauri の直接廃止 → Core の対応改修 → macOS TUI の実装の順で進めます。全体計画は [#57](https://github.com/ExplodeCode6324/Secretary/issues/57) を参照してください。旧 [PhaseUI フロントエンド仕様](frontend/README.md) は凍結済みで、廃止前の確認と経緯の参照にのみ使用します。",
+    "La feuille de route du client suit désormais les [exigences TUI et le plan d’adaptation du backend](tui/requirements-and-backend-plan.md), dans l’ordre suivant : retrait direct de Tauri → adaptation de Core → implémentation de l’interface TUI pour macOS ; voir [#57](https://github.com/ExplodeCode6324/Secretary/issues/57) pour la feuille de route globale. Les anciennes [spécifications frontend de PhaseUI](frontend/README.md) sont gelées et servent uniquement aux vérifications avant le retrait et à la consultation de l’historique."
+  ],
+  "| [TUI 需求与分阶段实施](tui/requirements-and-backend-plan.md) | Master 裁定、接口复用、清理范围与 Issue 顺序 |": [
+    "| [TUI requirements and phased implementation](tui/requirements-and-backend-plan.md) | Master’s decisions, interface reuse, cleanup scope, and Issue order |",
+    "| [TUI 要件と段階的な実装](tui/requirements-and-backend-plan.md) | Master の裁定、インターフェースの再利用、クリーンアップの範囲、Issue の実施順 |",
+    "| [Exigences TUI et mise en œuvre par étapes](tui/requirements-and-backend-plan.md) | Arbitrages de Master, réutilisation des interfaces, périmètre du nettoyage et ordre de traitement des Issues |"
+  ],
+  "| [TUI API 使用清单](tui/api-coverage.md) | 每项 Issue 完成后记录已用及仍未使用的 Core API |": [
+    "| [TUI API usage inventory](tui/api-coverage.md) | Record the Core APIs used and still unused after each Issue is completed |",
+    "| [TUI の API 利用状況一覧](tui/api-coverage.md) | 各 Issue の完了後に、使用済みの Core API と引き続き未使用の Core API を記録 |",
+    "| [Inventaire de l’utilisation des API par l’interface TUI](tui/api-coverage.md) | À la fin de chaque Issue, consigner les API de Core utilisées et celles qui restent inutilisées |"
+  ],
+  "# 旧 Tauri / PhaseUI 规范（已冻结）": [
+    "# Former Tauri / PhaseUI specification (frozen)",
+    "# 旧 Tauri / PhaseUI 仕様（凍結済み）",
+    "# Anciennes spécifications Tauri / PhaseUI (gelées)"
+  ],
+  "> **2026-10-23 路线更新：** Master 已决定直接退役 Tauri，从零实现 TUI。当前执行依据为 [TUI 需求](../tui/requirements-and-backend-plan.md) 与 [总路线 #57](https://github.com/ExplodeCode6324/Secretary/issues/57)。旧客户端删除见 [#79](https://github.com/ExplodeCode6324/Secretary/issues/79)；下文为冻结的旧路线资料，不再指导新功能实施，也不以旧 GUI 未完成验收阻塞 TUI。": [
+    "> **Roadmap update, 2026-10-23:** Master has decided to remove the Tauri client and build the TUI from scratch. Current implementation follows the [TUI requirements](../tui/requirements-and-backend-plan.md) and [overall roadmap #57](https://github.com/ExplodeCode6324/Secretary/issues/57). See [#79](https://github.com/ExplodeCode6324/Secretary/issues/79) for removal of the old client. The material below records the frozen former roadmap; it no longer guides new feature implementation, and remaining acceptance work for the old GUI does not block the TUI.",
+    "> **2026-10-23 方針更新：** Master は Tauri を直接廃止し、TUI をゼロから実装することを決定しました。現在の実施方針は [TUI 要件](../tui/requirements-and-backend-plan.md) と [全体計画 #57](https://github.com/ExplodeCode6324/Secretary/issues/57) に基づきます。旧クライアントの削除については [#79](https://github.com/ExplodeCode6324/Secretary/issues/79) を参照してください。以下は凍結された旧方針の資料であり、新機能の実装指針としては使用しません。また、旧 GUI の受け入れ確認が未完了であることを理由に TUI の実装を止めることもありません。",
+    "> **Mise à jour de la feuille de route du 2026-10-23 :** Master a décidé de retirer directement Tauri et de réaliser l’interface TUI à partir de zéro. La mise en œuvre actuelle s’appuie sur les [exigences TUI](../tui/requirements-and-backend-plan.md) et la [feuille de route globale #57](https://github.com/ExplodeCode6324/Secretary/issues/57). Pour la suppression de l’ancien client, voir [#79](https://github.com/ExplodeCode6324/Secretary/issues/79) ; les informations ci-dessous concernent l’ancienne feuille de route, désormais gelée. Elles ne guident plus la mise en œuvre de nouvelles fonctionnalités, et la recette inachevée de l’ancienne GUI ne doit pas bloquer la réalisation de l’interface TUI."
   ]
 }

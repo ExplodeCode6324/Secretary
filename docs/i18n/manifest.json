@@ -7,7 +7,7 @@
   "scope": "Current guides and generated references; historical designs, fix records, dated acceptance evidence, and the upstream submodule remain in their original languages.",
   "source_sha256": {
     "README.zh-CN.md": "91e89d0a8f55140e1447c028ebac57ba223f6a80041d2740505274ee81337bb1",
-    "docs/README.md": "8054fe79424307748f21a0f5706994d291bd1f3fe5fe365b9243943665a66e95",
+    "docs/README.md": "34cec2b75154f3cc3914d6792d82430a84cc3524e6373317c35d0b30d53abc88",
     "docs/architecture.md": "8dd1fe061e165e2c7cc688aadd348ad0dbdbafd9553c022c7d4a998f13a6177b",
     "docs/data-flow.md": "560e536e13d24ef9f3eb7090d966ec45ba3b8bdfa8977194e7238b73a9905b75",
     "docs/invariants.md": "3334b6e580be267ef32aec37365fd38a1c600c338ff7108d3928bc93f4079aff",
@@ -18,7 +18,7 @@
     "docs/database.md": "00531f18a71aae89f2cf7701c9fa17f0131bdc248156d2cff6097eb719c31bb3",
     "docs/api/v1/README.md": "a122fab774f5c66cd3a35e7d16384adbf054c02b143705350adc82560dcb7e1f",
     "docs/api/v1/push.md": "6e111f4fc509fb8f79b4a99ccad03235e10fc414d52af51dcab1ae9b08bb905b",
-    "docs/frontend/README.md": "38be79089c9f757ad3d3e7da7cad428f295301af5a77bac5c11df5e629c4905f",
+    "docs/frontend/README.md": "2d96f3206bf6306f8890a6ae8c902a92be3bc74464413b05b4efdfc4dacb9505",
     "docs/frontend/acceptance.md": "d11cddd39a3990692a84e8a0e187ed2e01ed972ad199c11bbb0ad8603eea17f1",
     "docs/frontend/architecture-and-flows.md": "1e1d9305d67e429847f2e29c1b8234713b766fb38472915221cb86074e39970d",
     "docs/frontend/components-and-states.md": "b7305c5c20daa812f835d13a4c97d843206140d1a4be0e17ffce42a4da601206",
@@ -126,7 +126,7 @@
     "test_case/offline/issue2/README.md": "ca30d99aa6262c09c0bc0952ce53b9b3adbb844565884c452fe63c91f8a4bdc6",
     "test_case/offline/issue5/README.md": "3baf27bf3d3e621631ea183b92f6830ea77de42e976ad5d1a4da76e9bcf86a0f"
   },
-  "catalog_sha256": "2ec7b986af724e4835b3eaf93e653045bc6e176777c42c5516fed438ab2daf3e",
+  "catalog_sha256": "45523a02a0f455f54bd796541a096518791dc624b370ce1d54cd256ba01d67ae",
   "outputs": [
     "README.fr.md",
     "README.ja.md",
