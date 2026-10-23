@@ -20,7 +20,7 @@ PR #69 已建立；R2 并发修订复核中。冻结提交的最终 CI 与 Herme
 
 本地使用隔离 fixture Core 和真实持久 Store/HTTP/SSE；不使用用户 live 模型或个人数据。UI 是 FE-01 通信验证入口，正式页面设计由 FE-02/后续阶段完成。Linux 桌面 NOT_TESTED；Core Linux CI 不变。全量 Core 与 PostgreSQL 已完成；最终 CI/复核结果追加 PR。
 
-重复入口见 [桌面 README](../../../../src/secretary_desktop/README.md)。原始日志存仓库外，截图和原生 fixture 位于 Git 忽略的 `.demo-data/issue59-native/`。
+重复入口见 [桌面 README](https://github.com/ExplodeCode6324/Secretary/blob/1e450d4f4c32d2376cd0d4451078048549bc5c58/src/secretary_desktop/README.md)。原始日志存仓库外，截图和原生 fixture 位于 Git 忽略的 `.demo-data/issue59-native/`。
 
 
 ## 实现 R1 复核处置
