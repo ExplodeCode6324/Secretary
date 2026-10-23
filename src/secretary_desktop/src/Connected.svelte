@@ -934,6 +934,14 @@
           name={assistant}
           {bridge}
           stats={(value) => (htmlBytes = value)}
+          changing={() => {
+            const saved = capture(),
+              tailFollow = follow(),
+              seq = scrollSequence;
+            return () => {
+              void restore(saved, tailFollow, seq);
+            };
+          }}
           store={content}
           {thinking}
           active={page === "conversation" && !reconnecting && !data.error}

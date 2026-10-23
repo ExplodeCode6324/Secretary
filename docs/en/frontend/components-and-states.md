@@ -36,6 +36,8 @@ Thinking is enabled by default. Thinking bodies and tool-call details start coll
 
 History supports paging in both directions, message or event ID lookup, and search within the loaded window. At most 3 pages and 150 rows are resident, with 8 MiB for text and thinking and 2 MiB per expanded message. Following occurs only while already at the tail without a text selection. Sending does not force a jump; use “Go to latest messages” explicitly.
 
+When a long reply completes, previously displayed text stays visible while content is automatically read under the final revision and current thinking preference to cover its prior length. It never shrinks to the first fragment. Failed reads retain the text and offer retry; retained preview is labelled until reconciliation, and the full body is confirmed only at final EOF.
+
 Full copy is offered only after the loaded body reaches EOF; otherwise the action explicitly copies the loaded portion. Links require explicit address inspection and opening and allow HTTP/HTTPS only. Remote images display alt text only.
 
 The related rail changes scope only on explicit selection; reads send no viewed/presented/read commands. The attention page provides paginated access to full original unresolved or failed messages. Copying or restoring does not resend, and restoration cannot overwrite an existing draft. Failed messages are protected from local quota eviction and cleanup; only confirmed failed records whose text has been recovered may be explicitly discarded.

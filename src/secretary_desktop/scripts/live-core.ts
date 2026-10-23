@@ -8,6 +8,11 @@ import { serveCore } from "../../pi_secretary/src/api-v1.ts";
 import { modelConfig, type StreamFn } from "../../pi_secretary/src/model.ts";
 import { Scopes } from "../../pi_secretary/src/scopes.ts";
 import { LiveBudget } from "./live-budget.ts";
+import {
+  boundedModel,
+  assertFinalReadingRequest,
+  FINAL_READING_SCENARIO,
+} from "./final-reading.ts";
 import pg from "pg";
 assert(
   !(process.env.ISSUE60_RUN && process.env.ISSUE63_RUN),
@@ -23,7 +28,14 @@ assert(
 );
 fs.mkdirSync(root, { recursive: true, mode: 0o700 });
 fs.chmodSync(root, 0o700);
-const data = path.join(root, "core");
+const finalReading = process.env.ISSUE63_FINAL_READING === "1";
+assert(!finalReading || issue === "63");
+const data = path.join(root, finalReading ? "core-final-reading-r3" : "core");
+if (finalReading)
+  assert(
+    !fs.existsSync(data),
+    "final reading requires a fresh isolated Core store; original ledger is retained",
+  );
 fs.mkdirSync(data, { recursive: true, mode: 0o700 });
 process.env.SECRETARY_DATA = data;
 process.env.SECRETARY_MODE = "live";
@@ -93,6 +105,7 @@ if (fs.existsSync(grantPath)) {
     spacingMs: 20000,
   };
 }
+if (finalReading) assert(grantLimits, "explicit one-start grant required");
 const limiter = new LiveBudget(grantLimits, calls as any, savedOrigin);
 if (savedOrigin === undefined)
   fs.writeFileSync(originPath, JSON.stringify(limiter.started), {
@@ -124,7 +137,7 @@ const scenario = () => {
       "reject",
       "stale",
       "recovery",
-      ...(grantLimits ? ["final-reading"] : []),
+      ...(grantLimits ? ["final-reading", FINAL_READING_SCENARIO] : []),
     ].includes(name),
   );
   return name as string;
@@ -135,6 +148,10 @@ function config(role: "main" | "task") {
   const stream: StreamFn = async (m, context, options) => {
     assert(!halt, "LIVE_STOPPED");
     const current = scenario();
+    if (finalReading) {
+      assert(current === FINAL_READING_SCENARIO);
+      assertFinalReadingRequest(role, context.messages, options?.maxTokens);
+    }
     const ticket = await limiter.enter(current, options?.signal);
     const start = Date.now();
     const record: Record<string, unknown> = {
@@ -159,7 +176,8 @@ function config(role: "main" | "task") {
     try {
       const source = await real.stream(m, context, {
         ...options,
-        maxTokens: Math.min(options?.maxTokens ?? 4096, 4096),
+        // Core/transport already computed this limit from the capped model.
+        // Never alter it after the onPayload capacity guard was constructed.
         signal,
       });
       // Observe completion independently: background consumers may only call result().
@@ -189,7 +207,7 @@ function config(role: "main" | "task") {
       throw e;
     }
   };
-  return { model: real.model, stream };
+  return { model: boundedModel(real.model), stream };
 }
 const main = config("main"),
   task = config("task");
@@ -221,10 +239,13 @@ async function stop() {
   await server.close();
 }
 server = await serveCore(app, 0, () => void stop());
-write("core/core-endpoint.json", server.endpoint);
+write(
+  path.relative(root, path.join(data, "core-endpoint.json")),
+  server.endpoint,
+);
 const repo = fileURLToPath(new URL("../../../", import.meta.url));
 const profile = {
-  id: `issue${issue}-live`,
+  id: finalReading ? "issue63-final-reading-r3" : `issue${issue}-live`,
   data_dir: data,
   expected_mode: "live",
   node_abs: process.execPath,

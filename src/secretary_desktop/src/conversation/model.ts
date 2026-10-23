@@ -122,6 +122,36 @@ export class ContentStore {
     if (!old && this.rows.size >= LIMITS.rows) throw Error("CONTENT_LIMIT");
     this.rows.set(row.id, row);
   }
+  // Recover the already displayed prefix, without treating preview text as a
+  // durable fragment or appending across revisions/preference epochs.
+  async readThrough(
+    row: Message,
+    minimum: number,
+    bridge: BridgePort,
+    domain: string,
+    thinking: boolean,
+  ): Promise<void> {
+    if (row.persistence !== "durable") return;
+    const epoch = this.epoch;
+    if (
+      this.get(row).loaded_portion ||
+      (thinking && this.get(row).thinking === undefined)
+    )
+      await this.read(row, bridge, domain, thinking, true);
+    while (this.get(row).next_cursor && this.get(row).text.length < minimum) {
+      if (
+        epoch !== this.epoch ||
+        (this.residents && this.residents.get(row.id) !== row.revision)
+      )
+        throw Error("CURSOR_EXPIRED");
+      await this.read(row, bridge, domain, thinking);
+    }
+    if (
+      epoch !== this.epoch ||
+      (this.residents && this.residents.get(row.id) !== row.revision)
+    )
+      throw Error("CURSOR_EXPIRED");
+  }
   async complete(
     row: Message,
     bridge: BridgePort,

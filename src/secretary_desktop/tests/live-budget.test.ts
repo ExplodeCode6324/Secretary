@@ -119,3 +119,66 @@ test("an interrupted preflight with no calls still retains the global deadline",
     /EXHAUSTED/,
   );
 });
+
+test("final reading caps the model before Core budgeting and denies startup calls before admission", async () => {
+  const { boundedModel, assertFinalReadingRequest, FINAL_READING_MARKER } =
+    await import("../scripts/final-reading");
+  const { requestBudget, assertFinalPayload } =
+    await import("../../pi_secretary/src/budget");
+  const { fixtureModel } = await import("../../pi_secretary/src/model");
+  const model = boundedModel({
+    ...fixtureModel,
+    maxTokens: 16384,
+    contextWindow: 100000,
+  });
+  const budget = requestBudget(model, [], { maxTokens: 16384 });
+  assert.equal(budget.effective_output_tokens, 4096);
+  assert.doesNotThrow(() =>
+    assertFinalPayload(model, { model: model.id, messages: [], max_tokens: 4096 }, budget),
+  );
+  const uncapped = { ...model, maxTokens: 16384 };
+  const oldBudget = requestBudget(uncapped, [], { maxTokens: 16384 });
+  assert.throws(
+    () =>
+      assertFinalPayload(
+        uncapped,
+        { model: model.id, messages: [], max_tokens: 4096 },
+        oldBudget,
+      ),
+    /OUTPUT_LIMIT_CHANGED/,
+  );
+  assert.throws(
+    () =>
+      assertFinalReadingRequest(
+        "main",
+        [{ role: "user", content: "startup summary" }],
+        4096,
+      ),
+    /NOT_ARMED/,
+  );
+  assert.throws(
+    () =>
+      assertFinalReadingRequest(
+        "task",
+        [{ role: "user", content: FINAL_READING_MARKER }],
+        4096,
+      ),
+    /NOT_ARMED/,
+  );
+  assert.throws(
+    () =>
+      assertFinalReadingRequest(
+        "main",
+        [{ role: "user", content: FINAL_READING_MARKER }],
+        8192,
+      ),
+    /NOT_CONFIGURED/,
+  );
+  assert.doesNotThrow(() =>
+    assertFinalReadingRequest(
+      "main",
+      [{ role: "user", content: FINAL_READING_MARKER }],
+      budget.effective_output_tokens,
+    ),
+  );
+});

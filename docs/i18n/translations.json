@@ -3243,5 +3243,10 @@
     "Message projections may include source kind, original event ID, direct related IDs, outcome, and preview availability, derived only from existing records. A saved preview is not durable success; expired previews report no final record.",
     "メッセージ投影には、既存記録に基づく発生元、元イベント ID、直接関連 ID、結果、プレビュー可用性を付加できます。saved プレビューは永続的成功ではなく、失効したプレビューは最終記録なしと表示します。",
     "Les projections de messages peuvent inclure la source, l’ID de l’événement original, les ID directement liés, le résultat et la disponibilité de l’aperçu, issus uniquement des enregistrements existants. Un aperçu saved ne constitue pas un succès durable ; un aperçu expiré signale l’absence d’enregistrement final."
+  ],
+  "长回复完成时保留此前已显示的正文，按最终版本和当前思考偏好自动补读至原有长度，不会缩回首段。补读失败仍保留正文并提供重试；核对完成前明确标为保留预览，最终分片到达 EOF 才确认全文完整。": [
+    "When a long reply completes, previously displayed text stays visible while content is automatically read under the final revision and current thinking preference to cover its prior length. It never shrinks to the first fragment. Failed reads retain the text and offer retry; retained preview is labelled until reconciliation, and the full body is confirmed only at final EOF.",
+    "長い返信の完了時は表示済みの本文を保持し、最終リビジョンと現在の思考表示設定で元の長さまで自動的に続きを読み込みます。先頭の断片へ縮みません。失敗時も本文を保持して再試行を提供し、照合完了までは保持したプレビューと表示します。全文の完全性は最終 EOF で確認します。",
+    "Quand une longue réponse se termine, le texte déjà affiché reste visible pendant la lecture automatique de la révision finale, avec la préférence de raisonnement actuelle, jusqu’à sa longueur précédente. Il ne revient pas au premier fragment. Un échec conserve le texte et propose un réessai. L’aperçu conservé est signalé jusqu’à sa vérification; le corps entier est confirmé à EOF."
   ]
 }

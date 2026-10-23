@@ -16,6 +16,7 @@
     active = true,
     select = () => {},
     changed = () => {},
+    changing = () => () => {},
     reloadRow = async (_id: string) => {},
     stats = (_bytes: number) => {},
   }: {
@@ -28,6 +29,7 @@
     active?: boolean;
     select?: (item: TimelineItem) => void;
     changed?: () => void;
+    changing?: () => () => void;
     reloadRow?: (id: string) => Promise<void>;
     stats?: (bytes: number) => void;
   } = $props();
@@ -41,6 +43,18 @@
     polling = false,
     turn = 0;
   const hydrated = new Set<string>();
+  const prefixes = new Map<string, number>();
+  const failedPrefixes = new Set<string>();
+  const key = (m: Message) => m.id + ":" + m.revision;
+  function preserve(m: Message, length: number) {
+    prefixes.set(key(m), Math.max(prefixes.get(key(m)) ?? 0, length));
+  }
+  function updated() {
+    const restore = changing();
+    revision++;
+    restore();
+    changed();
+  }
   let observedEpoch = -1;
   $effect(() => {
     const epoch = store.epoch;
@@ -49,6 +63,8 @@
       observedEpoch = epoch;
       sequence++;
       hydrated.clear();
+      prefixes.clear();
+      failedPrefixes.clear();
       renderer.clear();
       revision++;
     }
@@ -59,6 +75,11 @@
         .map((r) => r.id + ":" + r.revision),
     );
     for (const key of hydrated) if (!keys.has(key)) hydrated.delete(key);
+    for (const key of prefixes.keys())
+      if (!keys.has(key)) {
+        prefixes.delete(key);
+        failedPrefixes.delete(key);
+      }
     renderer.retain(new Set(items.map((r) => r.id)));
   });
   async function read(m: Message, replace = false) {
@@ -66,10 +87,14 @@
     loading = m.id;
     error = "";
     try {
-      await store.read(m, bridge, domain, thinking, replace);
+      const minimum = prefixes.get(key(m));
+      if (minimum && !replace)
+        await store.readThrough(m, minimum, bridge, domain, thinking);
+      else await store.read(m, bridge, domain, thinking, replace);
       if (seq === sequence) {
-        revision++;
-        changed();
+        failedPrefixes.delete(key(m));
+        prefixes.delete(key(m));
+        updated();
       }
     } catch (e) {
       if (seq === sequence)
@@ -116,12 +141,50 @@
   onMount(() => {
     const timer = setInterval(async () => {
       stats(renderer.size);
-      if (polling || !active || !thinking || document.hidden) return;
+      if (polling || !active || document.hidden) return;
       const candidates = visible();
+      const pending = items.find(
+        (m): m is Message =>
+          m.kind === "message" &&
+          m.persistence === "durable" &&
+          prefixes.has(key(m)) &&
+          !failedPrefixes.has(key(m)),
+      );
+      if (pending && store.budget.active < 2) {
+        polling = true;
+        const seq = sequence;
+        loading = pending.id;
+        error = "";
+        try {
+          await store.readThrough(
+            pending,
+            prefixes.get(key(pending))!,
+            bridge,
+            domain,
+            thinking,
+          );
+          if (!dead && seq === sequence) {
+            prefixes.delete(key(pending));
+            if (thinking) hydrated.add(key(pending));
+            updated();
+          }
+        } catch (e) {
+          if (!dead && seq === sequence) {
+            failedPrefixes.add(key(pending));
+            error = "已保留正文；补读失败，可重试：" + String(e);
+          }
+        } finally {
+          if (seq === sequence) loading = "";
+          polling = false;
+        }
+        return;
+      }
+      if (!thinking) return;
       const durable = candidates.find(
         (m) =>
           m.persistence === "durable" &&
           m.thinking === undefined &&
+          !prefixes.has(key(m)) &&
           !hydrated.has(m.id + ":" + m.revision),
       );
       if (durable && store.budget.active < 2) {
@@ -213,6 +276,7 @@
         {renderer}
         {thinking}
         loading={loading === item.id}
+        preserve={(length) => preserve(item, length)}
         more={() => read(item)}
         full={() => fullCopy(item)}
         reload={() => reloadRow(item.id)}

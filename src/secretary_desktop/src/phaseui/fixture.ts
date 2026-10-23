@@ -68,6 +68,8 @@ export function fixtureBridge(conversation = false) {
     approvals: [],
   };
   let preview = "";
+  let contentDelay = 0,
+    failContent = false;
   let running = false;
   const port: BridgePort = {
     copyText: async () => {},
@@ -167,7 +169,8 @@ export function fixtureBridge(conversation = false) {
       }
       if (
         query.operation === "messages/{id}/content" &&
-        query.id === "message:synthetic-stream"
+        query.id === "message:synthetic-stream" &&
+        running
       )
         return {
           id: query.id,
@@ -179,6 +182,22 @@ export function fixtureBridge(conversation = false) {
           persistence: "transient",
           preview_status: "running",
         } as T;
+      if (
+        query.operation === "messages/{id}/content" &&
+        query.id === "message:synthetic-stream"
+      ) {
+        const m = messages.find((m) => m.id === query.id)!;
+        const offset = Number(query.parameters?.cursor ?? 0);
+        if (contentDelay) await new Promise((r) => setTimeout(r, contentDelay));
+        if (failContent) throw Error("FIXTURE_CONTENT_OFFLINE");
+        return structuredClone({
+          ...m,
+          text: m.text.slice(offset, offset + 4999),
+          thinking: query.parameters?.thinking ? "人工思考验证片段" : undefined,
+          next_cursor:
+            offset + 4999 < m.text.length ? String(offset + 4999) : null,
+        }) as T;
+      }
       if (query.operation === "messages/{id}/content")
         return structuredClone({
           ...messages.find((m) => m.id === query.id),
@@ -241,6 +260,10 @@ export function fixtureBridge(conversation = false) {
       ];
       timeline.version = String(sequence);
     },
+    contentMode(delay: number, fail = false) {
+      contentDelay = delay;
+      failContent = fail;
+    },
     completePreview() {
       const row: Message = {
         id: "message:synthetic-stream",
@@ -255,7 +278,14 @@ export function fixtureBridge(conversation = false) {
         outcome: "completed",
       };
       messages.push(row);
-      timeline.items = [...timeline.items.filter((m) => m.id !== row.id), row];
+      timeline.items = [
+        ...timeline.items.filter((m) => m.id !== row.id),
+        {
+          ...row,
+          text: row.text.slice(0, 4999),
+          next_cursor: row.text.length > 4999 ? "4999" : null,
+        },
+      ];
       timeline.version = String(sequence);
       running = false;
       preview = "";

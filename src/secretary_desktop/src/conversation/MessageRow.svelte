@@ -12,6 +12,7 @@
     name,
     renderer,
     more,
+    preserve,
     full,
     reload,
     select,
@@ -23,6 +24,7 @@
     name: string;
     renderer: Renderer;
     more: () => void;
+    preserve: (length: number) => void;
     full: () => Promise<string>;
     reload: () => void;
     select: () => void;
@@ -35,6 +37,7 @@
   let shownThought = $state("");
   let copiedBody = $state("");
   let copiedPartial = $state(true);
+  let retaining = $state(false);
   let expanded = $state(false);
   let status = $state("");
   let inspectedUrl = $state("");
@@ -66,15 +69,24 @@
   );
   $effect(() => {
     if (!selected) {
-      copiedBody = message.text;
-      copiedPartial =
-        !!message.next_cursor ||
-        !!message.loaded_portion ||
-        message.persistence !== "durable";
-      shown = visibleFragment(
-        message.text,
-        message.persistence === "durable" && !message.next_cursor,
-      );
+      // Core's durable first fragment may be shorter than the rendered SSE
+      // body. Keep those exact nodes until bounded authoritative reads catch up.
+      retaining =
+        message.persistence === "durable" &&
+        !!message.next_cursor &&
+        message.text.length < copiedBody.length;
+      if (retaining) preserve(copiedBody.length);
+      else {
+        copiedBody = message.text;
+        copiedPartial =
+          !!message.next_cursor ||
+          !!message.loaded_portion ||
+          message.persistence !== "durable";
+        shown = visibleFragment(
+          message.text,
+          message.persistence === "durable" && !message.next_cursor,
+        );
+      }
       shownThought = thinking
         ? visibleFragment(
             message.thinking ?? "",
@@ -178,12 +190,15 @@
   {#if message.preview_availability === "expired"}<p>
       预览已失效，无最终记录。
     </p>{/if}
+  {#if retaining}<small data-testid="retained-preview"
+      >保留此前已显示的正文，正在补齐已记录内容；读取失败时可重试。</small
+    >{/if}
   {#if selected}<small>选中文本保持不变；取消选择后显示最新内容。</small>{/if}
   <div class="actions">
     {#if message.next_cursor && message.persistence === "durable"}<Button
         variant="text"
         disabled={loading}
-        onclick={more}>继续读取内容</Button
+        onclick={more}>{retaining ? "重试读取正文" : "继续读取内容"}</Button
       >{/if}
     <Button variant="text" onclick={() => copy(copiedBody)}
       >{copiedPartial ? "复制已加载部分" : "复制完整正文"}</Button

@@ -27,6 +27,7 @@ describe("Issue63 asynchronous reading", () => {
   it("keeps user scroll and selection during delayed snapshots and new durable rows", async () => {
     fs.mkdirSync(out, { recursive: true });
     await $("[data-testid=message]").waitForExist({ timeout: 20000 });
+    if (await $("button=思考：关").isExisting()) await $("button=思考：关").click();
     await $("button=转到最新消息").click();
     await browser.execute(() =>
       (window as any).conversationTest.delaySnapshot(1200),
@@ -106,6 +107,11 @@ describe("Issue63 asynchronous reading", () => {
     assert(Math.abs(streamed.top - selected.top) <= 2);
     await browser.execute(() => getSelection()!.removeAllRanges());
     const stream = $("[data-message-id='message:synthetic-stream']");
+    await browser.waitUntil(
+      async () =>
+        (await stream.$(".prose:not(.thinking-body)").getText()).length > 5000,
+      { timeout: 5000 },
+    );
     const bodyBefore = await stream.$(".prose:not(.thinking-body)").getText();
     assert(bodyBefore.length > 5000);
     await $("button=思考：开").click();
@@ -118,6 +124,8 @@ describe("Issue63 asynchronous reading", () => {
       await stream.$(".prose:not(.thinking-body)").getText(),
       bodyBefore,
     );
+    const failing = process.env.NATIVE_CATCHUP_FAILURE === "1";
+    if (failing) await $("button=思考：开").click();
     await browser.execute(() =>
       (window as any).conversationTest.publishPreview(),
     );
@@ -126,12 +134,36 @@ describe("Issue63 asynchronous reading", () => {
       await stream.$(".prose:not(.thinking-body)").getText(),
       bodyBefore,
     );
-    await browser.execute(() =>
-      (window as any).conversationTest.completePreview(),
-    );
+    await browser.execute((fail) => {
+      (window as any).conversationTest.contentMode(700, fail);
+      (window as any).conversationTest.completePreview();
+    }, failing);
     await browser.waitUntil(
       async () => (await stream.getText()).includes("已记录 · 完成"),
       { timeout: 5000 },
+    );
+    const completionBody = await stream
+      .$(".prose:not(.thinking-body)")
+      .getText();
+    assert(
+      completionBody.length >= bodyBefore.length,
+      "durable first fragment must never shrink displayed text",
+    );
+    if (failing) {
+      await $("[role=alert]").waitForExist({ timeout: 5000 });
+      assert.equal(
+        await stream.$(".prose:not(.thinking-body)").getText(),
+        bodyBefore,
+      );
+      await browser.execute(() =>
+        (window as any).conversationTest.contentMode(0, false),
+      );
+      await stream.$("button=重试读取正文").click();
+    }
+    await browser.waitUntil(
+      async () =>
+        !(await stream.$("[data-testid=retained-preview]").isExisting()),
+      { timeout: 10000 },
     );
     const finalText = await stream.$(".prose:not(.thinking-body)").getText();
     fs.writeFileSync(
@@ -155,6 +187,9 @@ describe("Issue63 asynchronous reading", () => {
           selection_while_streaming: true,
           freeze_stream_body_preserved: true,
           durable_completion_in_place: true,
+          durable_first_fragment_no_shrink: true,
+          failed_catchup_preserves_text: failing,
+          auto_catchup: !failing,
           over_5000_units_toggle_preserved: true,
           stream_scroll_drift: streamed.top - selected.top,
           commands,

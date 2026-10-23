@@ -303,3 +303,79 @@ test("frozen live membership preserves SSE text and reconciles durable completio
     /RESET/,
   );
 });
+
+test("completion catches up to the displayed prefix without reading the whole answer", async () => {
+  const text = "中👩‍💻é".repeat(5000);
+  const m = {
+    ...row(1, text.slice(0, 4999)),
+    revision: "final",
+    next_cursor: "4999",
+    thinking: undefined,
+  };
+  const store = new ContentStore(new ReadBudget());
+  store.retain([m]);
+  const offsets: number[] = [];
+  const bridge = port(async (q) => {
+    const start = Number(q.parameters.cursor ?? 0);
+    offsets.push(start);
+    return {
+      ...m,
+      text: text.slice(start, start + 4999),
+      thinking: q.parameters.thinking ? "" : undefined,
+      next_cursor: start + 4999 < text.length ? String(start + 4999) : null,
+    };
+  });
+  await store.readThrough(m, 16000, bridge, "d", true);
+  assert.equal(store.get(m).text, text.slice(0, 19996));
+  assert.deepEqual(offsets, [0, 4999, 9998, 14997]);
+  assert(
+    store.get(m).next_cursor,
+    "continuation remains explicit beyond the displayed prefix",
+  );
+  assert.equal(await store.complete(m, bridge, "d", true), text);
+});
+
+test("completion catch-up rejects stale epochs and remains bounded after read failure", async () => {
+  const m = { ...row(1, "a".repeat(4999)), next_cursor: "4999" };
+  const store = new ContentStore(new ReadBudget());
+  store.retain([m]);
+  await assert.rejects(
+    store.readThrough(
+      m,
+      12000,
+      port(async () => {
+        throw Error("offline");
+      }),
+      "d",
+      false,
+    ),
+    /offline/,
+  );
+  assert.equal(store.get(m).text.length, 4999);
+  let resolve!: (v: Message) => void;
+  const pending = store.readThrough(
+    m,
+    12000,
+    port(() => new Promise((r) => (resolve = r))),
+    "d",
+    false,
+  );
+  store.clear();
+  resolve({ ...m, text: "late", next_cursor: null });
+  await assert.rejects(pending, /CURSOR_EXPIRED/);
+  assert.equal(store.size, 0);
+});
+
+test("completion uses final revision text at EOF even when the authoritative body differs", async () => {
+  const m = { ...row(1, "final prefix"), next_cursor: "more" };
+  const store = new ContentStore(new ReadBudget());
+  store.retain([m]);
+  await store.readThrough(
+    m,
+    16000,
+    port(async () => ({ ...m, text: " end", next_cursor: null })),
+    "d",
+    false,
+  );
+  assert.equal(store.get(m).text, "final prefix end");
+});
