@@ -1,16 +1,16 @@
-# Issue #82 — macOS TUI 基础与可靠 Main（R1）
+# Issue #82 — macOS TUI 基础与可靠 Main（R2）
 
 日期：2026-10-24（Asia/Hong_Kong）。范围：**仅计划**，实施待协调批准。仓库 [Secretary](https://github.com/ExplodeCode6324/Secretary)，[Issue #82](https://github.com/ExplodeCode6324/Secretary/issues/82)。基线 `f2f3c1929bfb3e2f40e67868861f41f7e94e781a`，分支 `codex/issue82-tui-main`，使用现有 secretary-core checkout。[完整英文计划](fix_20261024_issue82_TUI基础与Main.en.md)与本计划共同约束实施。浏览器 Claude **Opus 5.5 Extra** 使用本项独立会话复核；协调代 Master 审批计划，合并仍需准确 PR HEAD 的单独授权。
 
 ## 1. 范围与核实事实
 
-交付从零实现的 TypeScript TUI：固定底部输入、默认 Main、Task 明确占位及独立草稿、确定性命令、可靠 outbox、顺序粘贴、CoT/历史有界读取、重连与冷启动一致性、客户端独立退出。复用 CoreClient、生成 DTO 和本机 HTTP/SSE。不重写 Core，不迁移旧客户端，不提前实施 #83 的 Task 操作、图片/剪贴板导入及外部查看器，不做结构化引用、一次性业务 CLI、Linux TUI 或 #70–74 优化。#84 承接真实 provider 准备和 Master 日常体验。
+交付从零实现的 TypeScript TUI：固定底部输入、默认 Main、Task 明确占位及独立草稿、确定性命令、可靠 outbox、顺序粘贴、CoT/历史有界读取、重连与冷启动一致性、客户端独立退出。复用 CoreClient、生成 DTO 和本机 HTTP/SSE。不重写 Core 业务/恢复策略，不迁移旧客户端，不提前实施 #83 的 Task 操作、图片/剪贴板导入及外部查看器，不做结构化引用、一次性业务 CLI、Linux TUI 或 #70–74 优化。#84 承接真实 provider 准备和 Master 日常体验。
 
 已核实 main/origin/main 均为基线，tracked clean；393 个继承未跟踪报告已列清单并保留。#79/#80/#81 经 PR85/86/87 合并。现有 Core 进程、数据、分支、日志以及 Portable/Band 均不动，只管理本项创建且可确认归属的测试资源。API 当前 86 项（GET 52、POST 34），新 TUI 消费者 0；#81 fixture/loopback 结果不能算真实 provider 成功。
 
 源码依据位于 `src/pi_secretary/src/`：`core-client.ts`、`api-v1.ts`、`api/contracts.ts`、`application-service.ts`、`sync-service.ts`、`sync-stream.ts`、`timeline.ts`、`conversation.ts`、`thinking-preview.ts`。需求依据为 `docs/tui/requirements-and-backend-plan.md` 的 IN/CMD/PASTE/REL/VIEW/RUN/AUTH 规则。
 
-固定历史行为参考：[conversation.rs@1e450d4](https://github.com/ExplodeCode6324/Secretary/blob/1e450d4f4c32d2376cd0d4451078048549bc5c58/src/secretary_desktop/src-tauri/tests/conversation.rs)。4–50 行保护失败/未知原文、超出前 50 项仍可访问并拒绝跨域；52–85 行容量满拒绝新意图但保住草稿；87–103 行拒绝危险 URL。前两项写入新 PASTE-03/04 针对性用例，第三项在 C1 无外部导航及 #83 后续 URL/argv 约束中保留。不复制或恢复 Rust 实现，不把旧测试当新产品证据。
+固定历史行为参考：[conversation.rs@1e450d4](https://github.com/ExplodeCode6324/Secretary/blob/1e450d4f4c32d2376cd0d4451078048549bc5c58/src/secretary_desktop/src-tauri/tests/conversation.rs)。4–50 行保护失败/未知原文、超出前 50 项仍可访问并拒绝跨域；52–85 行容量满拒绝新意图但保住草稿；87–103 行拒绝危险 URL。前两项写入 AC11/AC12 与 PASTE-04 可靠性用例，PASTE-03 另验证完整文本展开，第三项在 C1 无外部导航及 #83 后续 URL/argv 约束中保留。不复制或恢复 Rust 实现，不把旧测试当新产品证据。
 
 ## 2. 框架、终端与首个实施门槛 G0
 
@@ -40,7 +40,7 @@ Main 普通提交冻结当前草稿发出；功能页普通文本/纯文本提�
 
 ## 4. 持久状态、outbox 与清理
 
-状态放所选 Core data/profile 下独立 `tui-v1/`，不写 Core Store。检查所有权和 symlink，目录 0700、文件 0600，不将 token 写草稿或日志。状态根独占写锁，过期/归属不明确时明确拒绝，不自动抢锁。按 `data_domain_id`、API version、mode 分区；instance_id 只表示连接世代。端点替换/重连/对账/发送前重新 attach 校验。跨域/API/mode 保留隔离草稿/outbox/cache/清理凭据，不自动迁移、重放或依新域删除；同域重启换 instance/token 可重新连接。
+状态放所选 Core data/profile 下独立 `tui-v1/`，不写 Core Store。检查所有权和 symlink，目录 0700、文件 0600，不将 token 写草稿或日志。状态根采用内核 flock 与唯一写者 helper，进程死亡后释放；具体见 R2 实施约束。不得用遗留 PID 文件阻止正常崩溃恢复。按 `data_domain_id`、API version、mode 分区；instance_id 只表示连接世代。端点替换/重连/对账/发送前重新 attach 校验。跨域/API/mode 保留隔离草稿/outbox/cache/清理凭据，不自动迁移、重放或依新域删除；同域重启换 instance/token 可重新连接。
 
 采用小型 fs 原子 manifest + 不可变正文/paste blobs。先 exclusive create 写 blob 并 fsync，再把完整带版本 manifest 写临时文件、fsync、rename、目录 fsync。串行写者一次提交草稿引用、outbox 和该精确 revision 的草稿交接；只有持久完成才允许 POST。写失败保留旧已提交状态并提示未保存/禁止发送。输入可先显示，但保存完成前明确未持久；不声称未刷盘按键抗掉电，正常退出等待保存。损坏文件保留报错，不自动 reset；启动检查 schema/hash/大小/引用/归属。逐一注入 blob、manifest、rename、清理崩溃，要求恢复旧或新完整状态且不丢唯一正文。
 
@@ -52,11 +52,11 @@ Main 普通提交冻结当前草稿发出；功能页普通文本/纯文本提�
 
 只删除已确认本 TUI 创建且处于受管根的 blobs，绝不删源文件；扫描所有草稿/outbox/域引用。回执持久后幂等清理，清理前 crash 重做。用户明确删除的无引用草稿片段可立即删；未知/在途 outbox 不可丢弃。其他孤儿/暂存默认从持久 created_at 起 **三个日历年**，记录时区（默认 Asia/Hong_Kong），2 月 29 日对应周年夹到 2 月 28 日，不用 1095 天。活跃/未知引用优先保护。中断 blob 有 created_at envelope；缺失/损坏来源保留待显式检查。不扩 Core 历史 GC。
 
-默认容量：受管暂存总计 256 MiB、outbox 1,000 项、manifest 2 MiB、单编辑草稿 4 MiB；配置有限正值。计入旧新原子写入与 crash 残留，预留 manifest 替换和交接元数据空间。满额拒绝新编辑/粘贴/入队，保住旧稿，显示用量与显式清理方式；不驱逐受保护/保留期内孤儿。可丢读缓存独立 8 MiB，不含草稿/outbox 唯一正文。配额、磁盘满均实测。
+默认容量：受管暂存总计 256 MiB、outbox 1,000 个未解决项、manifest 2 MiB、单编辑草稿 4 MiB；配置有限正值。计入旧新原子写入与 crash 残留，预留 manifest 替换和交接元数据空间。满额拒绝新编辑/粘贴/入队，保住旧稿，显示用量与显式清理方式；不驱逐受保护/保留期内孤儿。可丢读缓存独立 8 MiB，不含草稿/outbox 唯一正文。配额、磁盘满均实测。
 
 ## 5. 粘贴与显示安全
 
-节点按终端交付的正文保存 tab/newline 原序列，无隐藏归一化。多行折叠为带 opaque UUID/字节数/行数的 UI 节点；标签不进入正文，手打同标签只是文字。多次粘贴、插入、撤销、编辑/删除保序；展开编辑形成新持久 revision，copy/remove 绑定稳定 ID。必要时显式 copy 用固定 macOS 程序加独立参数/stdin，不经 shell；若原生复制足够则避免助手程序。不自动读取剪贴板或支持图片。只展开一次成为冻结正文，重试不重新读可变外部来源。
+先按明确规则将终端交付的 CRLF/孤立 CR 转为 LF，其余正文包括 tab 保序，不 trim、不展开 tab、不补路径空格。行数与冻结载荷均使用该可见规范形式；不能宣称恢复 Terminal 已过滤的原剪贴板字节。多行折叠为带 opaque UUID/字节数/行数的 UI 节点；标签不进入正文，手打同标签只是文字。多次粘贴、插入、撤销、编辑/删除保序；展开编辑形成新持久 revision，copy/remove 绑定稳定 ID。必要时显式 copy 用固定 macOS 程序加独立参数/stdin，不经 shell；若原生复制足够则避免助手程序。不自动读取剪贴板或支持图片。只展开一次成为冻结正文，重试不重新读可变外部来源。
 
 存储/请求正文与显示分开；显示时去除/中和不可信 C0/C1/ESC/CSI/OSC、双向控制字符，newline/tab 用受控布局。禁止文字改变标题/光标/剪贴板/链接；不修改冻结正文、不触发解析。测试转义分片、CJK、ZWJ emoji、marker 仿冒。
 
@@ -76,11 +76,11 @@ transient 按 message_id/call_id 替换；durable 同身份接管，保留 event
 
 ## 7. 文件/API 与交付
 
-新模块 `src/pi_secretary/src/tui/` 包括 entry/app、terminal/editor、commands、state/outbox、paste、sync、history/render/theme；测试 `test_case/offline/issue82/`；G0 探针在 `src/pi_secretary/scripts/`。增加交互 TTY-only `npm run tui`，无一次性 send 参数。复用 attachCore/startCore，退出只关闭连接/raw mode/listeners；不注册 core/stop，不向 Task child 传 owner token，不声称同账号强隔离。CoreClient 仅补必要 typed error/status、abort/bounds 等传输 helper。
+新模块 `src/pi_secretary/src/tui/` 包括 entry/app、terminal/editor、commands、state/outbox、paste、sync、history/render/theme；测试 `test_case/offline/issue82/`；G0 探针在 `src/pi_secretary/scripts/`。增加交互 TTY-only `npm run tui`，无一次性 send 参数。C1 两种模式都只 attach，禁止自动调用 startCore，具体身份/错误/退出策略见 R2；不注册 core/stop，不向 Task child 传 owner token，不声称同账号强隔离。CoreClient 必须补 typed error/status、abort/bounds 与直接发送冻结 UTF-8 字节的 commandFrozen，保持既有调用兼容。
 
 预计消费 10 项：GET core、session、requests/{id}、timeline、timeline/around、messages/{id}/content、sync/cursor、sync/changes、sync/stream；POST messages。活动基本信息来自 timeline/transient；仅实际有详情交互才加 activities/{id}。无新增 Core operation。`docs/tui/api-coverage.md` 保留当前全部 86 method/path，已用列实际 file/function，未用按原因明确；fixture 不算产品消费。更新需求状态、操作/键位说明；生成/本地化遵循既有脚本。
 
-保留 #81 约束：K=0，后续 loop 只有认证元数据，再看像素要显式重发 ready attachment ID；预留有序 ID/input/withdraw 状态，不声称相邻自动看图或 #83 命令已完成。仅 PNG/标准 JPEG，MPF/HDR gain-map JPEG、HEIC 不支持，不静默转换。小文档跟进：docs/fix README 补 #81 PR87 已合并/main CI 通过与最终评论，历史证据不改。
+保留 #81 约束：K=0，后续 loop 只有认证元数据，再看像素要显式重发 ready attachment ID；预留有序 ID/input/withdraw 状态，不声称相邻自动看图或 #83 命令已完成。仅 PNG/标准 JPEG，MPF/HDR gain-map JPEG、HEIC 不支持，不静默转换。R1 已完成 docs/fix README 的 #81 PR87 已合并/main CI 通过与最终评论跟进，历史证据未改。
 
 ## 8. 顺序与验收矩阵
 
@@ -104,3 +104,21 @@ transient 按 message_id/call_id 替换；durable 同身份接管，保留 event
 | 报告 | API 逐项消费/未用与位置；完整验证/CI/Claude 原始限制；源码、fixture、真实终端、provider、Master 体验分开 |
 
 计划阶段未改业务、未装依赖、未跑 Core 测试/终端探针，只做源码/配置/库存读取及后续 docs-only 校验。原始英文请求、回复、截图、时间在 Git 忽略 `.demo-data/issue82-tui/review/`；脱敏结论在 [复核记录](evidence/issue82-tui/plan-review.md)。每次提交首次 10 分钟、后续每 5 分钟查看。账号或模型异常交 Master 决定是否 fallback Hermes，不能自行切换。
+
+## 9. R2 明确实施约束（替代 R1 中未定机制）
+
+Claude 对精确 R1 `78f9aa00fd3e8ef9a3982f4027a9daaa355ecc76` 给出 CHANGES_REQUIRED。以下九项全部采纳，并与英文 R2 对齐；依然仅计划，不能当 G0 或产品已通过。
+
+1. **启动/连接**：C1 在 fixture/live 均只 attach，无自动启动。必填绝对 `--data` 与 `--mode fixture|live`，或显式保存的同等配置；不取 cwd/.demo-data 默认值、不以进程环境猜 mode。头部/help 显示实际 profile/mode。结果区分 ATTACHED、STOPPED（正面确认无端点且无活 Core 锁）、UNREACHABLE（拒绝/超时/启动未完成）、IDENTITY_MISMATCH、MODE_MISMATCH、UNSAFE；缺端点本身不代表可启动。所有错误/wrong-mode 均测试零 spawn。提示独立 Core 生命周期命令，live 指向 npm run start:live；TUI 不读取 provider keys/DB URL，不调用 startCore。未来显式 fixture bootstrap 需另行批准。
+2. **传输结果**：保留 HTTP status/code/v1 envelope/route/network failure，响应有界，支持 AbortSignal。commandFrozen 校验 hash 与 request_id 后逐字节发送冻结 JSON，不重新 stringify。有效 v1 202 且 ID/command=messages 匹配方可认证 POST 接收；GET requests 返回嵌套 receipt/result/resources，不能当裸 Receipt。原绑定重新 GET core 校验且路由可用的 GET requests/{id} 404+v1 JSON NOT_FOUND 才允许同 ID/bytes 重试。INVALID_REQUEST/INVALID_INPUT/INVALID_JSON/REQUEST_TOO_LARGE/UNSUPPORTED_MEDIA_TYPE 的预期 400/413/415，且没有更早未知尝试，才判明确前置拒绝；否则先对账。409 REQUEST_CONFLICT 保留隔离；401 重 attach 再对账；版本/mode/域/安全错误隔离；其余4xx、5xx、非JSON、abort/timeout/断线全部 UNKNOWN，不删正文。GET 回执无指纹：若原成功 POST ACK 丢失，先查询，再以相同冻结 bytes/ID 重入让 Core 校验指纹，成功匹配后才交接清理；“冲突响应丢失+GET同ID不同正文”必须负向测试。
+3. **outbox**：每次 POST 前必须先 fsync attempted=true；只有 attempted=false 的 PREPARED 才可与 dispatcher 串行 discard，已经尝试且仍UNKNOWN的项即使 NOT_FOUND 也不据此删除可能仍在途的请求。每绑定持久 enqueue sequence FIFO，UNKNOWN 头阻塞后续。确定前置拒绝移为 NEEDS_EDIT 并保正文，可显式discard，明确提示后后续可继续；用户显式编辑提交才形成队尾新意图。1,000 上限只计未解决状态；完成最小回执移入 manifest 外分页归档，manifest 只留有界最近索引，归档字节仍计256MiB。created_at 三周年且清理已完成/无引用才可回收，未完成清理票据受保护，不能1000条成功后永久卡住。
+4. **粘贴**：CRLF/CR→LF 是唯一预先规范化，tab等保留。G0 必须粘贴 ESC[201~+Ctrl+S/G/C、重复/嵌套结束标记、含控制码内容，记录真实字节和零动作。自有 Terminal adapter 在原始 stdin 进入 key dispatch 前处理粘贴；含结束标记同一raw chunk的后续控制码隔离，不执行。但这不是对任意分片的完备证明；若 Terminal 把嵌入结束标记/控制码作为可执行输入交付，**G0失败，停止产品实施**，交协调选择有证据的安全终端/协议或经审查的独立提交方案，不用时间启发式伪称解决。
+5. **导航/复制/状态**：Ctrl+U/D 半屏滚动，PageUp/Down（Mac实际对应键）在G0验证，方向键编辑；/select <message_id> 明确选择，供无参CoT使用；Ctrl+Z/Y撤销/重做。固定输入状态始终显示视图、NORMAL/LITERAL/COMMAND、Main或“本地草稿；/send→Main”目标、SAVED/SAVING/ERROR。TuiAltScreen 固定 mouse=true、copyOnSelect=false、openUrl未设、无右键粘贴、无OSC52/OSC8。显式 /copy <message_id> [loaded] 通过固定 /usr/bin/pbcopy stdin复制，不经shell；默认最多四片/128KiB且正文完整，否则不改剪贴板，解释显式loaded仅复制标识清楚的已加载片段。pasteblock copy最多4MiB。G0比较alt/main screen复制，布局仍须固定底部；重大renderer改变交协调。
+6. **锁与退出**：参考既有 lock.py 模式新建小TUI helper，只有它持flock并写全部blobs/manifest/清理，不触Core journal/lock协议；Node父进程不越过helper写。固定路径/argv、最小环境、限长请求ACK pipe；父死stdinEOF，helper完成或失败当前事务后退出释放；helper死立即阻止后续写/POST。测试双开、父SIGKILL、helper kill、重启。ambiguous仅指unsafe路径/归属或不响应活锁持有者，不杀其进程。/quit、Ctrl+C、SIGINT、SIGHUP、SIGTERM、uncaught exception、unhandled rejection统一幂等关闭：停止接入/发送、abort网络、最多2秒flush、finally恢复bracketed paste/mouse/modifyOtherKeys/alt-screen/cursor/raw模式、关pipe。stop({preserveScreen:true})避免退出倾倒聊天；终端消失尽力恢复，未保存不冒称保存，SIGKILL仅恢复最后持久状态。窗口关闭纳入G0/Core继续运行测试。
+7. **同步**：确定采用“有界body-only snapshot + dirty checkpoint”。≤2MiB Main/session snapshot blob、binding/instance/timeline generation、cursor及dirty query keys通过同一manifest提交。每个完整sync事务把cursor与dirty keys一起持久，再异步刷新；刷新仅清掉捕获dirty-generation的键，较新失效保留；失败显示stale。重连实际消费该checkpoint，修复dirty后从其cursor开流。冷启动缓存只作stale/offline显示，始终新C0重建；逐出先持久标记absent/dirty再删除，RESYNC_REQUIRED只重建派生状态。timeline revision/generation仅同instance/generation内可比，绝不与SyncChange record revision比较。处理TIMELINE_RESET_REQUIRED 409、CURSOR_EXPIRED、TIMELINE_ITEM_NOT_FOUND 404，重定位或明确降级；不是请求NOT_FOUND。15秒无字节watchdog标stale重连，503 BUSY退避。SSEPreview.id映射message:<call_id>，但保留服务端实际ID/source_event_id，异常历史可为event_id；本地pending按request_id与durable行替换。
+8. **草稿持续性补强**：typed body存blob，2MiB manifest只存元数据。150ms idle合并保存，连续输入最多1秒触发，仅一项在途；send/切页/quit前flush。undo最多20操作/512KiB替换文字；更大替换在应用前明确不可撤销提示。新revision持久且无draft/outbox/undo引用后，记录superseded_by票据，才可删除被用户编辑替换的旧逻辑draft存储副本；它不是每个按键新建的三年档案。无明确replacement/discard/handoff票据的真实孤儿仍三年，不因配额删。测试大稿反复编辑、undo引用、supersession前后crash。CoT/content每动作最多四片/128KiB已解码内容，单response另设1MiB wire cap且流式计数；Core每片64KiB，调度前不跨剩余留存预算。
+9. **真实输入补充**：G0增加marked text/候选中Ctrl+S/G/C、Enter/Tab及LF/CRLF原始字节、鼠标滚轮/选择、窗口关闭。优先自有Terminal adapter实现pi-tui公开接口与raw输入framing，避开ProcessTerminal每个CR触发AppKit Shift探测/可选native clipboard；published renderer若不能适配则记录依赖交协调，不能悄悄加载。CR/LF/协商Shift+Enter都按换行。真实IME规则仍不降级。
+
+其他采纳：/send必须精确为命令结束或后接单个ASCII空格，只剥离该一个分隔空格，其后空白保留；/sendx未知，/send后立即换行不作有效命令前缀。/cotvisible的on/off按枚举区分，其余必须稳定ID，可再跟on/off。空白预检遵守JS trim（含U+3000），只是本地建议，Core仍权威。InputState为ACCEPTED/CLAIMED/HANDLED/WITHDRAWN，与Receipt状态、Message.outcome独立标记，HANDLED不是回答成功。
+
+跨域UNKNOWN保持保护，提供手工export/relocate文档而非自动丢弃：关闭TUI确认无锁持有者，复制整个自有client状态根至用户选定私有备份，校验hash/manifest/引用，然后把整个profile归档移出活跃配额目录。保留原ID/绑定/正文供未来对账，不标拒绝、不换ID重发、不动Core/源文件；C1不另做in-app abandon命令。
