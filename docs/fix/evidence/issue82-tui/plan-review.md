@@ -16,4 +16,12 @@
 
 ## R2
 
+- 精确提交`7330c920d2d1ad1963969a9c38e2df9df7aa3e18`；03:10:59 HKT发送，03:21:15首次读取，最终CHANGES_REQUIRED（窄修订）。原始时间见r2-timing.json。
+- 原始证据：`.demo-data/issue82-tui/review/r2-request.txt`、`r2-first-read-page.txt`、`r2-first-read-ax.txt`、`r2-first-read.png`。
+- Claude确认九项R1已解决，独立fetch精确R2、英文附件逐字节一致，源码复核了lock、幂等重入/RequestStatus、preserveScreen、键位；24个相对链接无缺失。未跑仓库测试/文档检查/终端/IME/Core/provider，双语是关键机制抽查。
+- R3采纳四项阻塞：不碰Core锁、helper抗终端组信号、checkpoint独立合并/输入优先/响应限额、选区copy入口。非阻塞的UTF-8 locale、键位冲突、真实字段分片大小、配置路径、解释器、Terminal Reset均纳入。
+- Claude明确真实G0是实施硬门槛而非计划阻塞；attach-only与durable checkpoint取舍交协调，不能伪写已测。
+
+## R3
+
 待发送精确提交并完成同会话复核。计划PASS仍需协调批准实施；G0真实终端/IME未通过不能越过；合并另需准确HEAD授权。
