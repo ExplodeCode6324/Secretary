@@ -51,9 +51,18 @@ export function thinkingPreview(
     omitted = true;
     break;
   }
-  const segments = [...segmenter.segment(prefix)].map((s) => s.segment);
+  const segments: string[] = [];
+  let reachedWindowEnd = true;
+  for (const { segment } of segmenter.segment(prefix)) {
+    segments.push(segment);
+    // Twenty display clusters and one lookahead determine whether more exists.
+    if (segments.length === 21) {
+      reachedWindowEnd = false;
+      break;
+    }
+  }
   // A cluster at the bounded window edge can continue outside the window.
-  if (clipped) segments.pop();
+  if (clipped && reachedWindowEnd) segments.pop();
   let text = "",
     count = 0;
   for (const segment of segments) {

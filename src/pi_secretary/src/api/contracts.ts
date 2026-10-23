@@ -635,6 +635,9 @@ export interface Message {
  * via the `definition` "ThinkingPreview".
  */
 export interface ThinkingPreview {
+  /**
+   * Raw model text; terminal consumers must escape or sanitize control characters and ANSI sequences before rendering.
+   */
   text: string;
   /**
    * Visible source was omitted from this preview; independent of response outcome and retained-body truncation.

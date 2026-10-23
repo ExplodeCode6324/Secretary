@@ -6,7 +6,7 @@
 
 | Issue | 计划 | 状态 |
 | --- | --- | --- |
-| #80 | [回复终态与推理预览（中文）](fix_20261023_issue80_回复终态与推理预览.md) · [English](fix_20261023_issue80_回复终态与推理预览.en.md) | R2 Claude Opus 5.5 Extra PASS；实施完成，678 项完整回归通过；待 PR/CI 与准确 HEAD 实现复核 |
+| #80 | [回复终态与推理预览（中文）](fix_20261023_issue80_回复终态与推理预览.md) · [English](fix_20261023_issue80_回复终态与推理预览.en.md) | [PR #86](https://github.com/ExplodeCode6324/Secretary/pull/86)；I1 四项已修正，29 项针对性回归通过；完整验证、CI 与准确 HEAD 复核进行中 |
 | #79 | [Tauri 退役（中文）](fix_20261023_issue79_Tauri退役.md) · [English](fix_20261023_issue79_Tauri退役.en.md) | 已合并；[PR #85 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/85#issuecomment-6364909080)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/39952748532) |
 | #63 | [主对话与统一时间线（中文）](fix_20261023_issue63_主对话与统一时间线.md) · [English](fix_20261023_issue63_主对话与统一时间线.en.md) | Master 已批准 R2 修订；实施与验证中，随后同一 Claude 会话复核及 PR/CI |
 | #62 | [PhaseUI 设计系统（中文）](fix_20261021_issue62_PhaseUI设计系统.md) · [English](fix_20261021_issue62_PhaseUI设计系统.en.md) | R2 中英文计划；Claude Opus 5.5 Extra 三轮复核 PASS，实施待 Master 批准 |

@@ -1,5 +1,7 @@
 import { hash, type Store } from "./store.ts";
 import { toolPhase, type Activity, type ActivitySnapshot } from "./activity.ts";
+import { messageDisplaysFor } from "./message-display.ts";
+import { PROCESS_INTERRUPTED } from "./model-retry.ts";
 import type {
   Context,
   ModelCall,
@@ -282,7 +284,11 @@ export class ActivityHistory {
         : c.state === "FAILED" ||
             (c.state === "INTERRUPTED" &&
               c.failure_kind &&
-              c.failure_kind !== "CANCELLED")
+              c.failure_kind !== "CANCELLED" &&
+              !(
+                c.failure_kind === "TRANSIENT" &&
+                c.error === PROCESS_INTERRUPTED
+              ))
           ? "failed"
           : "interrupted";
     row.phase =
@@ -460,7 +466,11 @@ export class ActivityHistory {
         }[];
       }>(e.payload);
       if (m.role === "assistant" && m.display_call_id) {
-        const association = this.calls.get(m.display_call_id);
+        const call =
+          e.event_type === "main.message"
+            ? messageDisplaysFor(this.store).forEvent(e.event_id)?.call_id
+            : m.display_call_id;
+        const association = call ? this.calls.get(call) : undefined;
         if (association)
           this.messageOrders.set(e.event_id, association.order + 100);
       }

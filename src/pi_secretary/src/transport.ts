@@ -21,6 +21,7 @@ import {
   retryRuntime,
   transportFailure,
   modelLifetime,
+  PROCESS_INTERRUPTED,
 } from "./model-retry.ts";
 
 function savedResponse(message: AssistantMessage) {
@@ -161,7 +162,7 @@ export function durableStream(
       last = revise(last, {
         state: "INTERRUPTED",
         failure_kind: "TRANSIENT",
-        error: "PROCESS_INTERRUPTED",
+        error: PROCESS_INTERRUPTED,
         completed_at: now(),
         retry_at: new Date(
           retryNow(store) + (last.transport_attempt === 1 ? 2000 : 10000),

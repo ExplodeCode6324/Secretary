@@ -105,3 +105,5 @@ thinking_preview 是可选的 `{text,truncated}` 显示字段。它按原顺序�
 默认 timeline、around、消息 content 和 SSE transient 提供相同短预览；thinking=true 才展开完整推理，临时正文另需 streaming=true。隐藏推理不产生续读游标，纯推理消息默认 next_cursor=null。显式展开按 Unicode 标量边界分页，每个正文或推理分片最多 4,999 个 UTF-16 单元、28,000 JSON 字节，总消息分片保持 64 KiB。预览的 truncated、消息保留截断和 outcome=truncated 是三个独立含义。
 
 SSETransient/SSEPreview 定义 transient 的公开形状；Preview.version 保持 number，事件没有持久 cursor。短预览在保留容量截断前计算；redaction（包括 done/error 快照）撤销已保留的推理并推进 revision，旧内容游标返回 CURSOR_EXPIRED。仍最多保留 8 个预览、每个 128 块和 32,768 UTF-16 单元；正常 redacted-only/tool-only 持久回复仍可能省略行，因此 transient 过期不证明没有持久事件。
+
+thinking_preview 和 thinking 保留原始模型文本，可能包含控制字符或 ANSI 序列。终端客户端必须在渲染前进行转义或净化；API 不会替客户端执行终端安全处理。

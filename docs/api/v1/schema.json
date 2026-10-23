@@ -4560,7 +4560,8 @@
       "description": "Non-authoritative visible reasoning prefix: at most 20 extended grapheme clusters and 4096 JSON-encoded text bytes including an added ellipsis. No redacted blocks or signatures.",
       "properties": {
         "text": {
-          "type": "string"
+          "type": "string",
+          "description": "Raw model text; terminal consumers must escape or sanitize control characters and ANSI sequences before rendering."
         },
         "truncated": {
           "type": "boolean",

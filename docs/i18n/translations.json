@@ -3373,5 +3373,10 @@
     "At most 200 items within a 1 MiB page; around locates by message_id or event_id; short reasoning previews are included by default; streaming/thinking control body expansion, merged with final messages by call_id",
     "最大 200 件、ページ予算 1 MiB。around は message_id または event_id で位置指定。既定で短い推論プレビューを含み、streaming/thinking で本文展開を制御し、call_id で最終メッセージと統合",
     "Au plus 200 éléments dans une page de 1 MiB ; around localise par message_id ou event_id ; aperçu court du raisonnement inclus par défaut ; streaming/thinking contrôlent l’expansion du corps, fusionné avec le message final par call_id"
+  ],
+  "thinking_preview 和 thinking 保留原始模型文本，可能包含控制字符或 ANSI 序列。终端客户端必须在渲染前进行转义或净化；API 不会替客户端执行终端安全处理。": [
+    "thinking_preview and thinking preserve raw model text, which may contain control characters or ANSI sequences. Terminal clients must escape or sanitize it before rendering; the API does not perform terminal-safety processing for clients.",
+    "thinking_preview と thinking はモデルの生テキストを保持し、制御文字や ANSI シーケンスを含む場合があります。端末クライアントは表示前にエスケープまたは無害化する必要があります。API はクライアントに代わって端末向けの安全処理を行いません。",
+    "thinking_preview et thinking conservent le texte brut du modèle, qui peut contenir des caractères de contrôle ou des séquences ANSI. Les clients de terminal doivent l’échapper ou le neutraliser avant affichage ; l’API n’effectue pas ce traitement à leur place."
   ]
 }
