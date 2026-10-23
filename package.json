@@ -26,11 +26,13 @@
     "api:generate": "node src/pi_secretary/scripts/generate-api.mjs",
     "test:db:clean": "tsx test_case/offline/helpers/clean-postgres.ts",
     "docs:localize": "python3 src/pi_secretary/scripts/localize-docs.py",
-    "docs:localize:check": "python3 src/pi_secretary/scripts/localize-docs.py --check"
+    "docs:localize:check": "python3 src/pi_secretary/scripts/localize-docs.py --check",
+    "tui:g0": "tsx src/pi_secretary/scripts/issue82-g0.ts"
   },
   "dependencies": {
     "@earendil-works/chord": "0.87.0",
     "@earendil-works/pi-ai": "0.87.0",
+    "@earendil-works/pi-tui": "0.87.0",
     "ajv": "8.20.0",
     "ajv-formats": "3.0.1",
     "pg": "8.23.0",
