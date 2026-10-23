@@ -92,8 +92,20 @@ test("authenticated API transfers binary, preserves async receipt, redacts proje
       attachment_ids: [attachmentID],
     });
     const inputID = send.resource_ids.find((r) => r.type === "Input")!.id;
+    let imageReads = 0;
+    const readBytes = app.store.bytes.bind(app.store);
+    app.store.bytes = (ref) => {
+      if (ref.sha256 === hash(bytes)) imageReads++;
+      return readBytes(ref);
+    };
     const timeline: any = await client.query("timeline"),
       row = timeline.items.find((r: any) => r.input_id === inputID);
+    app.store.bytes = readBytes;
+    assert.equal(
+      imageReads,
+      0,
+      "timeline availability must not hash every image binary",
+    );
     assert.ok(row);
     validate("Message", row);
     assert.equal(row.text, "");

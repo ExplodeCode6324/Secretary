@@ -16,6 +16,8 @@ Envoyer ensuite POST `/api/v1/messages` avec un autre request_id, text et attach
 
 GET `/api/v1/attachments/{id}`, timeline et le contenu des messages exposent uniquement les métadonnées. GET `/api/v1/attachments/{id}/content` renvoie les octets originaux vérifiés avec longueur, ETag, no-store et nosniff, sans plages. Une corruption en cours d’exécution renvoie 410 ATTACHMENT_UNAVAILABLE ; une référence durable manquante ou tronquée fait échouer Store.open au redémarrage.
 
+Dans les listes et le contenu des messages, availability vérifie uniquement l’existence, le type et la taille du fichier CAS, sans certifier son empreinte. GET `/api/v1/attachments/{id}`, la lecture binaire, l’admission et l’envoi au modèle vérifient toujours tout le contenu.
+
 ## Déploiement et budgets
 
 Les valeurs ci-dessous peuvent être abaissées via SECRETARY_ATTACHMENT_ suivi du champ en majuscules, sans être dépassées. Cela ne supprime aucun contenu ; les imports pending gardent leurs limites d’admission. Une capacité pleine bloque seulement les nouveaux imports. Les nouvelles identités de contenu identique sont comptées séparément ; les identités échouées et les octets éventuellement écrits restent réservés. Aucun nettoyage automatique, expiration ou retrait des contenus non liés.
@@ -42,6 +44,10 @@ K=0 : les images restent complètes pendant le loop de traitement, ses outils et
 POST `/api/v1/inputs/{id}/withdraw` utilise un nouveau request_id et expected_revision pour retirer l’entrée entière, texte compris. Hôte et maintenance doivent être inactifs. CLAIMED exige aussi un loop bloqué exclusif, aucune sortie assistant, aucun IN_FLIGHT/RESPONSE_SAVED ni effet d’outil en attente ou exécuté. Sinon : 409 WITHDRAWAL_UNSAFE. Le retrait sûr valide Context/Input/Session/événements/ApiCommand dans une seule trame ; la notification dure un loop suivant et l’historique reste withdrawn.
 
 Les entrées retirées sont exclues des nouveaux résumés, engagements, résultats de recherche et preuves World. Les anciens candidats sont revérifiés avant publication ; même un index en retard filtre les retraits actuels. Les originaux d’audit restent. Un IN_FLIGHT résiduel ne peut être retiré : rétablir le déploiement précédemment compatible et utiliser la reprise existante, sans modifier #80.
+
+Un diagnostic error/aborted vide de FAILED/INTERRUPTED n’est pas une sortie générée : le retrait exige des valeurs text/thinking strictement vides, aucun outil ni bloc inconnu, et toutes les autres conditions de sécurité. Le nouveau checkpoint omet uniquement ces diagnostics terminaux du loop ; call/response/events restent conservés. Cela ne signifie pas que le provider n’a rien exécuté ou facturé. Tout texte, raisonnement, espace ou outil non vide reste bloquant.
+
+Le contrôle MPF refuse aussi les JPEG HDR gain-map produits par certains téléphones. Cette version ne convertit ni HDR ni HEIC ; #83/#84 doivent expliquer cette limite aux utilisateurs.
 
 ## Dépendances et périmètre de validation
 

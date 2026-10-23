@@ -162,6 +162,25 @@ testPostgres(
           .state,
         "APPLIED",
       );
+      const repeated = app.store.read<
+        import("../../../src/pi_secretary/src/settings-memory.ts").SettingsSource
+      >(
+        app.store.get<SettingsApplication>("SettingsApplication", setting.id)
+          .source_ref!,
+      );
+      assert.ok(repeated.anchors.some((a) => a.attachment_message));
+      assert.ok(
+        repeated.attachment_boundary,
+        "covered attachment anchors still require a frozen boundary",
+      );
+      app.host.accept("text after second settings");
+      await app.host.drain();
+      await app.host.compact();
+      assert.equal(
+        app.host.session.state,
+        "IDLE",
+        app.host.session.recovery_error ?? "",
+      );
       for (const text of ["withdrawal-search-unique-prose", ""]) {
         const input = app.host.accept(text, id(), "MASTER", [attachment]);
         const event = app.store

@@ -135,76 +135,97 @@ test("missing/truncated referenced attachment fails Store.open; same-length corr
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
-for (const phase of ["before", "after"])
-  test(`SIGKILL ${phase} withdrawal frame leaves exactly one complete state on same-ID retry`, async () => {
-    const dir = fs.mkdtempSync(
-        path.join(os.tmpdir(), "issue81-withdraw-crash-"),
-      ),
-      data = path.join(dir, "data"),
-      info = path.join(dir, "info.json");
-    const child = spawn(
-      process.execPath,
-      [
-        "--import",
-        "tsx",
-        "test_case/offline/issue81/helpers/withdraw-crash.ts",
-        data,
-        phase,
-        info,
-      ],
-      { stdio: ["ignore", "pipe", "pipe"] },
-    );
-    let output = "";
-    child.stdout.on("data", (c) => (output += c));
-    child.stderr.on("data", (c) => (output += c));
-    const signal = await new Promise<string | null>((r) =>
-      child.on("exit", (_, signal) => r(signal)),
-    );
-    assert.equal(signal, "SIGKILL", output);
-    const frozen = JSON.parse(fs.readFileSync(info, "utf8")),
-      app = await App.open(data, {
-        model: { ...fixtureModel, contextWindow: 128000 },
-        stream: fixtureStream,
-      }),
-      s = new ApplicationService(app);
-    try {
-      assert.equal(
-        app.store.find("ApiCommand", frozen.body.request_id) !== undefined,
-        phase === "after",
-      );
-      s.command(s.principal, frozen.route, frozen.body);
-      const frames = app.store.projectionFrames.filter((f) =>
-        f.mutations.some(
-          (m) =>
-            m.object_type === "ApiCommand" &&
-            m.object_id === frozen.body.request_id,
+for (const diagnostic of [false, true])
+  for (const phase of ["before", "after"])
+    test(`SIGKILL ${phase} withdrawal frame (${diagnostic ? "repeated empty failures" : "preflight"}) leaves exactly one complete state on same-ID retry`, async () => {
+      const dir = fs.mkdtempSync(
+          path.join(os.tmpdir(), "issue81-withdraw-crash-"),
         ),
+        data = path.join(dir, "data"),
+        info = path.join(dir, "info.json");
+      const child = spawn(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          "test_case/offline/issue81/helpers/withdraw-crash.ts",
+          data,
+          phase,
+          info,
+          ...(diagnostic ? ["diagnostic"] : []),
+        ],
+        { stdio: ["ignore", "pipe", "pipe"] },
       );
-      assert.equal(frames.length, 1);
-      assert.ok(
-        ["Context", "Session", "Input", "ApiCommand"].every((t) =>
-          frames[0].mutations.some((m) => m.object_type === t),
-        ),
+      let output = "";
+      child.stdout.on("data", (c) => (output += c));
+      child.stderr.on("data", (c) => (output += c));
+      const signal = await new Promise<string | null>((r) =>
+        child.on("exit", (_, signal) => r(signal)),
       );
-      assert.equal(
-        app.store.get<
-          import("../../../src/pi_secretary/src/contracts.ts").Input
-        >("Input", frozen.inputID).state,
-        "WITHDRAWN",
-      );
-      app.host.accept("continue text");
-      await app.host.drain();
-      assert.equal(
-        app.host.session.state,
-        "IDLE",
-        app.host.session.recovery_error ?? "",
-      );
-    } finally {
-      await s.close();
-      await app.close();
-      fs.rmSync(dir, { recursive: true, force: true });
-    }
-  });
+      assert.equal(signal, "SIGKILL", output);
+      const frozen = JSON.parse(fs.readFileSync(info, "utf8")),
+        app = await App.open(data, {
+          model: { ...fixtureModel, contextWindow: 128000 },
+          stream: fixtureStream,
+        }),
+        s = new ApplicationService(app);
+      try {
+        assert.equal(
+          app.store.find("ApiCommand", frozen.body.request_id) !== undefined,
+          phase === "after",
+        );
+        s.command(s.principal, frozen.route, frozen.body);
+        if (diagnostic) {
+          assert.ok(frozen.diagnosticEvents.length >= 2);
+          for (const eventID of frozen.diagnosticEvents)
+            assert.ok(app.store.eventById(eventID));
+          for (const original of frozen.calls) {
+            const current = app.store.get<
+              import("../../../src/pi_secretary/src/contracts.ts").ModelCall
+            >("ModelCall", original.id);
+            assert.deepEqual(
+              {
+                id: current.id,
+                revision: current.revision,
+                state: current.state,
+                response: current.response,
+              },
+              original,
+            );
+          }
+        }
+        const frames = app.store.projectionFrames.filter((f) =>
+          f.mutations.some(
+            (m) =>
+              m.object_type === "ApiCommand" &&
+              m.object_id === frozen.body.request_id,
+          ),
+        );
+        assert.equal(frames.length, 1);
+        assert.ok(
+          ["Context", "Session", "Input", "ApiCommand"].every((t) =>
+            frames[0].mutations.some((m) => m.object_type === t),
+          ),
+        );
+        assert.equal(
+          app.store.get<
+            import("../../../src/pi_secretary/src/contracts.ts").Input
+          >("Input", frozen.inputID).state,
+          "WITHDRAWN",
+        );
+        app.host.accept("continue text");
+        await app.host.drain();
+        assert.equal(
+          app.host.session.state,
+          "IDLE",
+          app.host.session.recovery_error ?? "",
+        );
+      } finally {
+        await s.close();
+        await app.close();
+        fs.rmSync(dir, { recursive: true, force: true });
+      }
+    });
 for (const phase of ["input", "checkpoint", "request"])
   test(`SIGKILL image ${phase} replays original bytes and repairs exactly one input message`, async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "issue81-input-crash-")),

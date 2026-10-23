@@ -4,11 +4,18 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
+import { randomBytes } from "node:crypto";
+import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
+import { apply } from "../issue28/helpers.ts";
+import { historicalMasterAnchors } from "../../../src/pi_secretary/src/historical-inputs.ts";
+import { emptyFailureDiagnostic } from "../../../src/pi_secretary/src/attachment-withdrawal.ts";
 import { App } from "../../../src/pi_secretary/src/app.ts";
 import { ApplicationService } from "../../../src/pi_secretary/src/application-service.ts";
 import {
   fixtureModel,
   fixtureStream,
+  replyStream,
+  type StreamFn,
   type AgentMessage,
 } from "../../../src/pi_secretary/src/model.ts";
 import { hash, id } from "../../../src/pi_secretary/src/store.ts";
@@ -39,6 +46,7 @@ import {
 } from "../../../src/pi_secretary/src/attachment-form.ts";
 async function fixture(
   run: (app: App, s: ApplicationService, attachmentID: string) => Promise<void>,
+  noisy = false,
 ) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "issue81-input-"));
   const model = {
@@ -63,11 +71,22 @@ async function fixture(
   const app = await App.open(dir, { model, stream: fixtureStream }),
     s = new ApplicationService(app);
   try {
-    const bytes = await sharp({
-        create: { width: 1920, height: 1080, channels: 3, background: "blue" },
-      })
-        .png()
-        .toBuffer(),
+    const bytes = noisy
+        ? await sharp(randomBytes(1152 * 1024 * 3), {
+            raw: { width: 1152, height: 1024, channels: 3 },
+          })
+            .png()
+            .toBuffer()
+        : await sharp({
+            create: {
+              width: 1920,
+              height: 1080,
+              channels: 3,
+              background: "blue",
+            },
+          })
+            .png()
+            .toBuffer(),
       file = path.join(dir, "image.png"),
       request = id();
     fs.writeFileSync(file, bytes);
@@ -139,6 +158,17 @@ test("image input identity, active loop pixels, next-loop K=0, settings metadata
       (m) => attachmentForm(app.store, m)?.input.id === i.id,
     )!;
     assert.equal(typedMessageText(app.store, stub), "describe");
+    app.host.accept("another follow up");
+    await app.host.drain();
+    const later = app.store.read<AgentMessage[]>(
+      app.store.get<Context>("Context", app.host.session.last_context_id!)
+        .raw_context,
+    );
+    assert.deepEqual(
+      later.find((m) => attachmentForm(app.store, m)?.input.id === i.id),
+      stub,
+      "stable stub must not create a new CAS form on every loop",
+    );
     assert.equal(imageLeaves(app.store.read(saved.raw_context)).length, 1);
     const source = settingsSource(app.host, { world: [], instructions: null });
     assert.ok(source.chunks.every((c) => !c.includes('"data":')));
@@ -149,6 +179,82 @@ test("image input identity, active loop pixels, next-loop K=0, settings metadata
       ),
     );
   }));
+for (const content of [
+  [{ type: "text" as const, text: "partial response" }],
+  [{ type: "text" as const, text: " " }],
+  [{ type: "thinking" as const, thinking: "partial reasoning" }],
+  [{ type: "thinking" as const, thinking: " " }],
+  [
+    {
+      type: "toolCall" as const,
+      id: "unsafe-tool",
+      name: "synthetic",
+      arguments: {},
+    },
+  ],
+])
+  test(`failed call with ${content[0].type} output remains unsafe to withdraw`, () =>
+    fixture(async (app, service, a) => {
+      const partial: StreamFn = async (model) => {
+        const answer = await replyStream(content, model).result();
+        answer.stopReason = "error";
+        answer.errorMessage = "synthetic partial failure";
+        const stream = createAssistantMessageEventStream();
+        stream.push({ type: "error", reason: "error", error: answer });
+        stream.end(answer);
+        return stream;
+      };
+      (app.host as unknown as { stream: StreamFn }).stream = partial;
+      const input = app.host.accept("image", id(), "MASTER", [a]);
+      await app.host.drain();
+      assert.equal(app.host.session.state, "RECOVERY_BLOCKED");
+      const before = app.store.sequence;
+      assert.throws(
+        () =>
+          service.command(service.principal, `inputs/${input.id}/withdraw`, {
+            request_id: id(),
+            expected_revision: String(
+              app.store.get<Input>("Input", input.id).revision,
+            ),
+          }),
+        /WITHDRAWAL_UNSAFE/,
+      );
+      assert.equal(app.store.sequence, before);
+    }));
+test("3–5 MiB noisy image survives repeated settings/compaction with search unavailable", () =>
+  fixture(async (app, service, a) => {
+    const input = app.host.accept("noisy image source", id(), "MASTER", [a]);
+    assert.ok(input.attachments![0].content.bytes > 3 * 1024 ** 2);
+    assert.ok(input.attachments![0].content.bytes < 5 * 1024 ** 2);
+    await app.host.drain();
+    await apply(app);
+    app.host.accept("text after first settings");
+    await app.host.drain();
+    await app.host.compact();
+    const source = settingsSource(app.host, { world: [], instructions: null });
+    assert.ok(source.anchors.some((a) => a.attachment_message));
+    assert.ok(source.attachment_boundary);
+    await apply(app);
+    app.host.accept("text after second settings");
+    await app.host.drain();
+    await app.host.compact();
+    assert.equal(
+      app.host.session.state,
+      "IDLE",
+      app.host.session.recovery_error ?? "",
+    );
+    const messages = app.store.read<AgentMessage[]>(
+      app.store.get<Context>("Context", app.host.session.last_context_id!)
+        .raw_context,
+    );
+    historicalMasterAnchors(
+      app.store,
+      input.session_id,
+      app.host.session.consciousness_id,
+      messages,
+    );
+    assert.equal(imageLeaves(messages).length, 0);
+  }, true));
 test("capability change blocks whole input; safe atomic withdrawal and subsequent text continue", () =>
   fixture(async (app, s, a) => {
     const i = app.host.accept("withdraw this private prose", id(), "MASTER", [
@@ -198,6 +304,31 @@ test("capability change blocks whole input; safe atomic withdrawal and subsequen
       request,
     );
   }));
+test("text-only Settings retains raw covered hashes and has no attachment boundary", () =>
+  fixture(async (app) => {
+    app.host.accept("plain text compatibility");
+    await app.host.drain();
+    const source = settingsSource(app.host, { world: [], instructions: null });
+    assert.equal(source.attachment_boundary, undefined);
+    for (const event of app.store.events("main.message"))
+      assert.ok(
+        source.message_hashes.includes(
+          hash(JSON.stringify(app.store.read(event.payload))),
+        ),
+      );
+    await apply(app);
+    const cs = app.store.get<
+      import("../../../src/pi_secretary/src/contracts.ts").Consciousness
+    >("Consciousness", app.host.session.consciousness_id);
+    const messages = app.store.read<AgentMessage[]>(
+      app.store.get<Context>("Context", app.host.session.last_context_id!)
+        .raw_context,
+    );
+    for (const message of messages)
+      assert.ok(
+        cs.covered_message_hashes?.includes(hash(JSON.stringify(message))),
+      );
+  }));
 test("withdrawal is metadata-only under same-length image corruption and expires after one next loop", () =>
   fixture(async (app, s, a) => {
     const i = app.host.accept("private revoked text", id(), "MASTER", [a]);
@@ -239,51 +370,76 @@ test("withdrawal is metadata-only under same-length image corruption and expires
       ),
     );
   }));
-test("withdrawal refuses stale IN_FLIGHT without mutating it", () =>
-  fixture(async (app, s, a) => {
-    const i = app.host.accept("blocked", id(), "MASTER", [a]);
-    app.host.model.input = ["text"];
-    await app.host.drain();
-    const current = app.store.get<Input>("Input", i.id),
-      context = app.store.get<Context>(
-        "Context",
-        app.host.session.last_context_id!,
+for (const callState of ["IN_FLIGHT", "RESPONSE_SAVED"] as const)
+  test(`withdrawal refuses ${callState} without mutating it`, () =>
+    fixture(async (app, s, a) => {
+      const i = app.host.accept("blocked", id(), "MASTER", [a]);
+      app.host.model.input = ["text"];
+      await app.host.drain();
+      const current = app.store.get<Input>("Input", i.id),
+        context = app.store.get<Context>(
+          "Context",
+          app.host.session.last_context_id!,
+        );
+      const { base, now } =
+        await import("../../../src/pi_secretary/src/store.ts");
+      const call: import("../../../src/pi_secretary/src/contracts.ts").ModelCall =
+        {
+          ...base(),
+          schema_version: 1,
+          record_type: "ModelCall",
+          state: callState,
+          context_id: context.id,
+          scope: {
+            session_id: i.session_id,
+            task_id: null,
+            execution_id: null,
+          },
+          transport_attempt: 1,
+          request: app.store.put({ messages: [] }),
+          response:
+            callState === "RESPONSE_SAVED"
+              ? app.store.put(await replyStream([], app.host.model).result())
+              : null,
+          started_at: now(),
+          completed_at: null,
+          error: null,
+        };
+      app.store.commit([call]);
+      const before = app.store.sequence;
+      assert.throws(
+        () =>
+          s.command(s.principal, `inputs/${i.id}/withdraw`, {
+            request_id: id(),
+            expected_revision: String(current.revision),
+          }),
+        /WITHDRAWAL_UNSAFE/,
       );
-    const { base, now } =
-      await import("../../../src/pi_secretary/src/store.ts");
-    const call: import("../../../src/pi_secretary/src/contracts.ts").ModelCall =
-      {
-        ...base(),
-        schema_version: 1,
-        record_type: "ModelCall",
-        state: "IN_FLIGHT",
-        context_id: context.id,
-        scope: { session_id: i.session_id, task_id: null, execution_id: null },
-        transport_attempt: 1,
-        request: app.store.put({ messages: [] }),
-        response: null,
-        started_at: now(),
-        completed_at: null,
-        error: null,
-      };
-    app.store.commit([call]);
-    const before = app.store.sequence;
-    assert.throws(
-      () =>
-        s.command(s.principal, `inputs/${i.id}/withdraw`, {
-          request_id: id(),
-          expected_revision: String(current.revision),
-        }),
-      /WITHDRAWAL_UNSAFE/,
-    );
-    assert.equal(app.store.sequence, before);
-    assert.equal(
-      app.store.get<
-        import("../../../src/pi_secretary/src/contracts.ts").ModelCall
-      >("ModelCall", call.id).state,
-      "IN_FLIGHT",
-    );
-  }));
+      assert.equal(app.store.sequence, before);
+      assert.equal(
+        app.store.get<
+          import("../../../src/pi_secretary/src/contracts.ts").ModelCall
+        >("ModelCall", call.id).state,
+        callState,
+      );
+    }));
+test("empty failure classification rejects unknown blocks and incomplete diagnostic shapes", () => {
+  for (const message of [
+    {
+      role: "assistant",
+      stopReason: "error",
+      content: [{ type: "future", value: "" }],
+    },
+    { role: "assistant", stopReason: "stop", content: [] },
+    { role: "assistant", stopReason: "error", content: [{ type: "text" }] },
+    {
+      role: "assistant",
+      stopReason: "aborted",
+      content: [{ type: "thinking", thinking: " " }],
+    },
+  ])
+    assert.equal(emptyFailureDiagnostic(message as AgentMessage), false);
+});
 for (const kind of ["assistant", "tool"] as const)
   test(`withdrawal refuses durable ${kind} effects before changing any record`, () =>
     fixture(async (app, s, a) => {
@@ -468,5 +624,68 @@ test("crop frozen before HANDLED retains the authenticated current stub without 
           messages: [forged, tail],
         }),
       /ATTACHMENT_CONTENT_MISMATCH/,
+    );
+  }));
+test("handled full form authenticates from immutable owning message despite damaged binary; resend still fails", () =>
+  fixture(async (app, service, a) => {
+    const input = app.host.accept("handled image", id(), "MASTER", [a]);
+    await app.host.drain();
+    const context = app.store.get<Context>(
+      "Context",
+      app.host.session.last_context_id!,
+    );
+    const frozen = app.store.read<AgentMessage[]>(context.raw_context),
+      full = frozen.find(
+        (m) => (m as any).secretary_input?.input_id === input.id,
+      )!;
+    const binding = input.attachments![0];
+    fs.writeFileSync(
+      path.join(app.store.dir, binding.content.path),
+      Buffer.alloc(binding.content.bytes),
+    );
+    assert.equal(attachmentForm(app.store, full)?.input.id, input.id);
+    const forged = structuredClone(full) as any;
+    forged.content[0].text = "not the owning content";
+    assert.throws(() => attachmentForm(app.store, forged));
+    app.host.accept("text after handled binary corruption");
+    await app.host.drain();
+    assert.equal(
+      app.host.session.state,
+      "IDLE",
+      app.host.session.recovery_error ?? "",
+    );
+    const next = app.store.read<AgentMessage[]>(
+      app.store.get<Context>("Context", app.host.session.last_context_id!)
+        .raw_context,
+    );
+    assert.equal(imageLeaves(next).length, 0);
+    assert.throws(
+      () => app.host.accept("explicit resend", id(), "MASTER", [a]),
+      /ATTACHMENT_UNAVAILABLE/,
+    );
+    assert.throws(() => app.store.bytes(binding.content), /CORRUPT_OBJECT/);
+  }));
+test("capacity revalidation uses K=0 and the next isolated image batch", () =>
+  fixture(async (app, service, a) => {
+    app.host.accept("handled", id(), "MASTER", [a]);
+    await app.host.drain();
+    for (let n = 0; n < 5; n++)
+      app.host.accept(`queued ${n}`, id(), "MASTER", [a]);
+    app.store.commit([
+      revise(app.host.session, {
+        state: "CAPACITY_BLOCKED",
+        recovery_error: "synthetic prior limit",
+      }),
+    ]);
+    await app.host.compact();
+    assert.equal(
+      app.host.session.state,
+      "IDLE",
+      app.host.session.recovery_error ?? "",
+    );
+    assert.equal(
+      app.store.all<Input>("Input").filter((i) => i.state === "ACCEPTED")
+        .length,
+      5,
     );
   }));

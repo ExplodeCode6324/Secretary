@@ -12,6 +12,8 @@
 
 GET `/api/v1/attachments/{id}`、timeline 和消息内容只返回轻量元数据；显式 GET `/api/v1/attachments/{id}/content` 返回校验过的原始二进制，带长度、ETag、no-store 和 nosniff，不支持 range。运行时内容损坏返回 410 ATTACHMENT_UNAVAILABLE；重启时缺失或截断的持久引用会使 Store.open 失败。
 
+列表与消息内容中的 availability 只检查 CAS 文件存在、类型和长度，不证明摘要正确。GET `/api/v1/attachments/{id}`、二进制读取、消息准入和模型发送仍完整核验内容。
+
 ## 部署与预算
 
 默认限制如下，可通过 SECRETARY_ATTACHMENT_ 加大写字段名的环境变量降低，不能超过下表。降低配置不删除旧内容；pending 导入保留受理时的验证上限。容量满时只拒绝新导入，不禁止发送已有附件。相同内容的新导入身份仍独立计费；失败身份计数保留，CAS 可能已写入时保留字节预留。无自动清理、年龄过期或 unbound 删除。
@@ -38,6 +40,10 @@ K=0：图片在当前 handling loop、工具迭代和冻结重放中完整保留
 POST `/api/v1/inputs/{id}/withdraw` 使用新的 request_id 与 expected_revision，撤回整个附件输入（含正文）。要求宿主及维护空闲；CLAIMED 还要求被阻塞、独占同一 loop、无助手输出、无 IN_FLIGHT/RESPONSE_SAVED、无未决或已执行工具效果。否则 409 WITHDRAWAL_UNSAFE。安全撤回在一帧提交 Context/Input/Session/事件/ApiCommand；通知仅进入一个后续 loop，历史永久标记 withdrawn。
 
 撤回输入不进入新的摘要、承诺、搜索命中或 World 证据；发布旧候选前重新检查，搜索索引滞后也执行当前撤回过滤。审计原件仍保留。死进程留下的 IN_FLIGHT 不允许撤回，须恢复先前受支持部署并沿用既有恢复；不改变 #80 恢复政策。
+
+FAILED/INTERRUPTED 的 error/aborted 空诊断不属于实际助手输出：仅当所有 text/thinking 逐字节为空且无工具或未知块时，才可在其余安全条件满足后撤回。新 checkpoint 移除该 loop 的尾随空诊断，原 call/response/event 保留；不代表 provider 未执行或未计费。任何非空正文、思考、空白或工具仍拒绝。
+
+MPF 检查也会拒绝部分手机生成的 HDR gain-map JPEG。首版不转换 HDR 或 HEIC；#83/#84 需要向用户说明这一格式边界。
 
 ## 依赖与验证边界
 

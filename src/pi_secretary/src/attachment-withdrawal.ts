@@ -9,6 +9,24 @@ import {
 } from "./attachment-form.ts";
 import { ApiError } from "./api/protocol.ts";
 import { revise, now, type Stored } from "./store.ts";
+/** Transport/Agent failure diagnostics carry no generated output. Preserve them
+ * in audit records while allowing an effect-free loop to be abandoned. */
+export function emptyFailureDiagnostic(message: AgentMessage): boolean {
+  return (
+    message.role === "assistant" &&
+    ["error", "aborted"].includes(message.stopReason) &&
+    Array.isArray(message.content) &&
+    message.content.every((part) =>
+      part.type === "text"
+        ? part.text === "" &&
+          Object.keys(part).every((key) => ["type", "text"].includes(key))
+        : part.type === "thinking"
+          ? part.thinking === "" &&
+            Object.keys(part).every((key) => ["type", "thinking"].includes(key))
+          : false,
+    )
+  );
+}
 export function withdrawAttachmentInput(
   host: Host,
   inputID: string,
@@ -63,7 +81,11 @@ export function withdrawAttachmentInput(
       calls.some(
         (c) =>
           ["IN_FLIGHT", "RESPONSE_SAVED"].includes(c.state) ||
-          c.response !== null,
+          (c.response !== null &&
+            !(
+              ["FAILED", "INTERRUPTED"].includes(c.state) &&
+              emptyFailureDiagnostic(store.read<AgentMessage>(c.response))
+            )),
       )
     )
       return unsafe();
@@ -94,7 +116,8 @@ export function withdrawAttachmentInput(
         if (e.event_type.startsWith("main.tool.")) return unsafe();
         if (
           e.event_type === "main.message" &&
-          store.read<AgentMessage>(e.payload).role === "assistant"
+          store.read<AgentMessage>(e.payload).role === "assistant" &&
+          !emptyFailureDiagnostic(store.read<AgentMessage>(e.payload))
         )
           return unsafe();
       }
@@ -122,9 +145,17 @@ export function withdrawAttachmentInput(
         source.pending_tool_call_ids.length ||
         messages
           .slice(Math.max(0, index + 1))
-          .some((m) => m.role === "assistant" || m.role === "toolResult")
+          .some(
+            (m) =>
+              (m.role === "assistant" && !emptyFailureDiagnostic(m)) ||
+              m.role === "toolResult",
+          )
       )
         return unsafe();
+      // Only the abandoned loop's empty diagnostic tail may be omitted.
+      messages = messages.filter(
+        (m, at) => at <= index || !emptyFailureDiagnostic(m),
+      );
     }
     if (!found) messages.push(notice);
     const built = buildContext(

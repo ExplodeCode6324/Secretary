@@ -198,10 +198,19 @@ function sourceBytes(args: ImportArguments, limit: number): Buffer {
     fs.closeSync(fd);
   }
 }
-export function attachmentMetadata(store: Store, attachment: Attachment) {
+export function attachmentMetadata(
+  store: Store,
+  attachment: Attachment,
+  verifyContent = true,
+) {
   let availability: "available" | "unavailable" = "available";
   try {
-    store.bytes(attachment.content);
+    if (verifyContent) store.bytes(attachment.content);
+    else {
+      const stat = fs.lstatSync(path.join(store.dir, attachment.content.path));
+      if (!stat.isFile() || stat.size !== attachment.content.bytes)
+        throw Error("ATTACHMENT_UNAVAILABLE");
+    }
   } catch {
     availability = "unavailable";
   }
@@ -422,6 +431,7 @@ export function attachmentInputView(store: Store, inputID: string) {
       attachmentMetadata(
         store,
         store.get<Attachment>("Attachment", b.attachment_id),
+        false,
       ),
     ),
     withdrawn: input.state === "WITHDRAWN",

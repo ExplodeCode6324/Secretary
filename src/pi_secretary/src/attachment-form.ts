@@ -4,6 +4,71 @@ import { hash, type Store } from "./store.ts";
 import { imageLeaves } from "./vision.ts";
 import { messageIdentityHash } from "./message-identity.ts";
 import { contentText } from "@earendil-works/pi-ai";
+// Cache immutable references only; every authentication still verifies source
+// bytes. Advancing the journal extends this index without rescanning payloads.
+const acceptedIndexes = new WeakMap<
+  Store,
+  {
+    sequence: number;
+    inputs: Map<
+      string,
+      { event: import("./contracts.ts").OperationLogRecord; sequence: number }
+    >;
+    owned: Set<string>;
+  }
+>();
+function indexedSources(store: Store) {
+  let index = acceptedIndexes.get(store);
+  if (!index) {
+    index = { sequence: 0, inputs: new Map(), owned: new Set() };
+    acceptedIndexes.set(store, index);
+  }
+  for (const frame of store.projectionFrames.slice(index.sequence)) {
+    for (const event of frame.log_records)
+      if (event.event_type === "input.accepted") {
+        const input = store.read<Input>(event.payload);
+        if (!index.inputs.has(input.id))
+          index.inputs.set(input.id, { event, sequence: frame.sequence });
+      }
+    for (const event of frame.log_records)
+      if (event.event_type === "main.message")
+        index.owned.add(event.scope.session_id + ":" + event.payload.sha256);
+    for (const mutation of frame.mutations)
+      if (mutation.object_type === "Context") {
+        const context = store.read<Context>(mutation.snapshot);
+        for (const message of context.messages)
+          index.owned.add(context.session_id + ":" + message.content.sha256);
+      }
+    index.sequence = frame.sequence;
+  }
+  return index;
+}
+const acceptedSource = (store: Store, inputID: string) =>
+  indexedSources(store).inputs.get(inputID);
+function ownedMessage(store: Store, input: Input, message: AgentMessage) {
+  return indexedSources(store).owned.has(
+    input.session_id + ":" + hash(JSON.stringify(message)),
+  );
+}
+function embeddedContent(store: Store, input: Input, message: AgentMessage) {
+  const leaves = imageLeaves(message);
+  if (
+    JSON.stringify(leaves.map((i) => [i.mime, i.sha256, i.bytes])) !==
+    JSON.stringify(
+      input.attachments!.map((a) => [
+        a.content.media_type,
+        a.content.sha256,
+        a.content.bytes,
+      ]),
+    )
+  )
+    throw Error("ATTACHMENT_CONTENT_MISMATCH");
+  const text = store.bytes(input.payload).toString();
+  return [
+    ...(text ? [{ type: "text", text }] : []),
+    ...leaves.map((i) => ({ type: "image", data: i.data, mimeType: i.mime })),
+  ];
+}
 type Mode = "full" | "stub" | "withdrawn";
 type Tag = {
   version: 2;
@@ -75,9 +140,7 @@ export function attachmentMessage(
   input: Input,
   mode: Mode = "full",
 ): AgentMessage {
-  const source = store
-    .events("input.accepted")
-    .find((e) => store.read<Input>(e.payload).id === input.id);
+  const source = acceptedSource(store, input.id)?.event;
   if (!source || input.content_digest !== attachmentDigest(input))
     throw Error("ATTACHMENT_SOURCE_MISMATCH");
   const tag: Tag = {
@@ -140,16 +203,15 @@ export function attachmentForm(
       hash(JSON.stringify(message))
   )
     throw Error("ATTACHMENT_SOURCE_MISMATCH");
-  const event = store.logs.find((e) => e.event_id === tag.source_event_id);
-  const eventFrame = store.projectionFrames.find((f) =>
-    f.log_records.some((e) => e.event_id === tag.source_event_id),
-  );
+  const event = store.eventById(tag.source_event_id);
+  const eventFrame = acceptedSource(store, tag.input_id);
   if (
     !event ||
     event.event_type !== "input.accepted" ||
     event.actor !== "MASTER_UI" ||
     event.scope.session_id !== tag.session_id ||
     !eventFrame ||
+    eventFrame.event.event_id !== event.event_id ||
     eventFrame.sequence > tag.journal_sequence
   )
     throw Error("ATTACHMENT_SOURCE_MISMATCH");
@@ -194,7 +256,13 @@ export function attachmentForm(
   }
   if (
     JSON.stringify(message.content) !==
-    JSON.stringify(attachmentContent(store, original, tag.mode))
+    JSON.stringify(
+      tag.mode === "full" &&
+        input.state === "HANDLED" &&
+        ownedMessage(store, input, message)
+        ? embeddedContent(store, original, message)
+        : attachmentContent(store, original, tag.mode),
+    )
   )
     throw Error("ATTACHMENT_CONTENT_MISMATCH");
   return {
@@ -312,10 +380,14 @@ export function projectAttachmentResidency(
       // A withdrawal checkpoint belongs to the abandoned loop. One subsequent loop keeps its notice.
       return previousLoop && previousLoop !== form.input.loop_id
         ? []
-        : [attachmentMessage(store, form.input, "withdrawn")];
+        : [
+            form.mode === "withdrawn"
+              ? message
+              : attachmentMessage(store, form.input, "withdrawn"),
+          ];
     }
     return [
-      form.input.state === "HANDLED"
+      form.input.state === "HANDLED" && form.mode !== "stub"
         ? attachmentMessage(store, form.input, "stub")
         : message,
     ];
@@ -364,22 +436,7 @@ export function withdrawnSource(store: Store, message: AgentMessage): boolean {
   if (!tag || store.find<Input>("Input", tag.input_id)?.state !== "WITHDRAWN")
     return false;
   const input = store.get<Input>("Input", tag.input_id);
-  const digest = hash(JSON.stringify(message));
-  const owned =
-    store
-      .events("main.message")
-      .some(
-        (e) =>
-          e.scope.session_id === input.session_id &&
-          e.payload.sha256 === digest,
-      ) ||
-    store
-      .all<Context>("Context")
-      .some(
-        (c) =>
-          c.session_id === input.session_id &&
-          c.messages.some((m) => m.content.sha256 === digest),
-      );
+  const owned = ownedMessage(store, input, message);
   if (!owned || tag.input_content_digest !== attachmentDigest(input))
     throw Error("ATTACHMENT_SOURCE_MISMATCH");
   return true;

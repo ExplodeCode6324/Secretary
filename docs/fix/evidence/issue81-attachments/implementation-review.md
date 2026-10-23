@@ -40,3 +40,33 @@ An additional source audit found a pre-HANDLED crop mapping could restore a full
 | transport | Request logical identity and payload hashes are intentionally exact and form-sensitive; both frozen reader paths hydrate and verify the same original JSON. |
 
 No shared processes/configuration or inherited 393 untracked files were changed. No real provider, Portable, Band, TUI implementation, general CAS GC or #80 recovery repair is included.
+
+## 12. Coordinator clarification after I1 (2026-10-24)
+
+I1 returned CHANGES_REQUIRED for `1c5b9448817281c85500d91f7930a49ca2bfd94e`; the coordinator confirmed both blockers and withheld merge authorization. Claude corrected its R2 premise: HTTP 4xx produces a FAILED call with a saved empty error response and an empty Agent diagnostic, not “FAILED with no response”. The coordinator explicitly approved this refinement of R3:
+
+- Freeze the Settings source boundary whenever attachment anchors are retained; continue text and compact again after repeated settings, with search ready and not ready.
+- Within all existing safety gates, only FAILED/INTERRUPTED diagnostics with stopReason error/aborted, exactly empty text/thinking (no trim), and no tool/unknown content blocks count as non-output. Omit only that loop's verified trailing empty diagnostics from the new checkpoint; retain original response/call/journal/events. Never rewrite call state or claim no provider execution/billing. IN_FLIGHT, RESPONSE_SAVED, real whitespace/text/thinking, tools and Operation effects remain unsafe. Test installed adapter→loopback 400→withdraw→queued text, partial text/thinking/tools, repeated empty failures and atomic crash/idempotency.
+- Approve stable stubs/notices, invalidation-aware immutable-reference indexes, structural list availability with its verification level documented, 3–5 MiB noisy-image tests, capacity revalidation matching actual residency/next batch, authentication of a handled full form from its immutable owning message before stubbing, original raw text-only covered_message_hashes and original timeline row revision semantics. Caches cannot bypass authentication or hide corruption/withdrawal.
+- MPF/HDR gain-map JPEG remains unsupported; document and hand off to #83/#84, without adding format conversion. Require new exact-HEAD same-session Claude review, targeted/full checks and fresh CI. Merge still needs separate coordinator authorization.
+
+I1 first failures are preserved as `i1-history-first-failure.log` and `i1-provider-first-failure.log`; the latter reproduces both installed adapters. The original HEAD passed local verify 712/712 and CI Linux 711 pass/1 macOS-only skip, macOS 141/141, run 39995351945. Those green checks did not cover the two newly reproduced paths.
+
+## I1 disposition and I2 submission
+
+All I1 findings are accepted within the coordinator's explicit clarification above. The updated attachment suite passed **45/45** (`i1-issue81-final.log`). Two additional fixture assertions initially failed because the synthetic failure did not automatically opt into a retry on new input; the crash fixture now uses the existing explicit `Host.resume()` path. `i1-repeat-recovery-05.log` verifies both crash boundaries with repeated empty failures and unchanged call revisions/responses plus retained diagnostic event IDs. No production recovery policy was changed.
+
+| I1 item | Change / evidence |
+| --- | --- |
+| Missing Settings boundary | Include the boundary when HANDLED attachment anchors exist, even if all image source messages are already covered. PostgreSQL history test now continues text and compacts after the second application; a separate no-search 3–5 MiB noisy-image test covers the same lifecycle. |
+| Provider rejection dead end | Strict empty diagnostic classifier; only FAILED/INTERRUPTED error/aborted with exactly empty text/thinking and no extra content fields qualify. Filter only the abandoned loop's trailing diagnostics in the new checkpoint. Actual installed Completions/Responses HTTP 400 tests withdraw and run queued text. Partial/whitespace text/thinking, tools, unknown blocks, IN_FLIGHT and RESPONSE_SAVED all refuse. Original audit records remain. |
+| Stub churn | Reuse authenticated stub/notice objects; the successive-loop test asserts exact equality. |
+| Repeated scans | Per-Store journal-sequence index stores immutable accepted-event/frame references and owning-message hashes; new committed frames extend it. Use eventById. Authentication still checks the current Input/withdrawal state, boundaries, actual message digest, typed text and ordered image hashes; no cached binary-integrity verdict. |
+| List hashing | Timeline/conversation metadata uses lstat type/length checks. Explicit metadata/content, admission and dispatch retain full integrity checks. The guide distinguishes these verification levels; API test asserts timeline performs zero image-byte reads. |
+| Realistic bytes | A random RGB PNG exceeds 3 MiB and remains below 5 MiB; it traverses handling, settings, text, compaction, second settings and more text without base64 summary text or pixel resurrection. |
+| Capacity revalidation | Apply fresh-loop K=0 and the same next-batch isolation as dispatch. A handled image plus five queued image Inputs clears a stale capacity block without combining all five. |
+| Handled full-form corruption | A HANDLED full form can authenticate from its immutable owning message digest and embedded exact image hashes, then become a stub. A same-length corrupt binary permits subsequent text; forged content, explicit resend and content reads still fail. Frozen provider-request hydration retains full binary verification. |
+| Text hashes and row revision | Preserve raw text-only Settings coverage hashes; v2 attachment keys remain separate. Restore timeline row revision and expose Input revision only through input_revision. |
+| MPF/HDR | Document that MPF rejection also excludes phone HDR gain-map JPEGs, for #83/#84 handoff; no conversion or format expansion. |
+
+New frozen-HEAD full verification, CI and same-session Claude I2 remain required. Real recognition remains NOT_TESTED and merge remains unauthorized.

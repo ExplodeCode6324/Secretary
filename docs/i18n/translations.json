@@ -3473,5 +3473,20 @@
     "Image attachments reserve capacity in a separate import ledger and bind immutable CAS to Inputs; see the [attachment guide](api/v1/attachments.md) for formats, budgets, residency and withdrawal.",
     "画像添付は専用取り込み台帳で容量を予約し、不変 CAS を Input に関連付けます。形式、予算、保持、取り消しは[添付ガイド](api/v1/attachments.md)を参照。",
     "Les images réservent leur capacité dans un registre dédié et lient le CAS immuable aux Inputs ; voir le [guide des pièces jointes](api/v1/attachments.md) pour formats, budgets, résidence et retrait."
+  ],
+  "列表与消息内容中的 availability 只检查 CAS 文件存在、类型和长度，不证明摘要正确。GET `/api/v1/attachments/{id}`、二进制读取、消息准入和模型发送仍完整核验内容。": [
+    "Availability in lists and message content checks only CAS file existence, type and length; it does not certify the digest. GET `/api/v1/attachments/{id}`, binary reads, message admission and model dispatch still fully verify content.",
+    "一覧とメッセージ内容の availability は CAS ファイルの存在、種類、長さのみを確認し、ハッシュの正しさを保証しません。GET `/api/v1/attachments/{id}`、バイナリ取得、メッセージ受付、モデル送信では内容を完全に検証します。",
+    "Dans les listes et le contenu des messages, availability vérifie uniquement l’existence, le type et la taille du fichier CAS, sans certifier son empreinte. GET `/api/v1/attachments/{id}`, la lecture binaire, l’admission et l’envoi au modèle vérifient toujours tout le contenu."
+  ],
+  "FAILED/INTERRUPTED 的 error/aborted 空诊断不属于实际助手输出：仅当所有 text/thinking 逐字节为空且无工具或未知块时，才可在其余安全条件满足后撤回。新 checkpoint 移除该 loop 的尾随空诊断，原 call/response/event 保留；不代表 provider 未执行或未计费。任何非空正文、思考、空白或工具仍拒绝。": [
+    "An empty error/aborted diagnostic from FAILED/INTERRUPTED is not generated assistant output: withdrawal is allowed only when every text/thinking value is exactly empty, there are no tools or unknown blocks, and all other safety gates pass. The new checkpoint omits only that loop’s trailing empty diagnostics; original call/response/events remain. This does not imply no provider execution or billing. Any nonempty text, thinking, whitespace or tool remains unsafe.",
+    "FAILED/INTERRUPTED の空の error/aborted 診断は生成された回答ではありません。text/thinking が厳密に空で、ツールや未知のブロックがなく、他の安全条件も満たす場合のみ取り消せます。新 checkpoint から当該 loop の末尾の空診断だけを除き、元の call/response/event は保持します。provider が実行・課金していないことを意味しません。空白を含む実際の本文、思考、ツールは拒否します。",
+    "Un diagnostic error/aborted vide de FAILED/INTERRUPTED n’est pas une sortie générée : le retrait exige des valeurs text/thinking strictement vides, aucun outil ni bloc inconnu, et toutes les autres conditions de sécurité. Le nouveau checkpoint omet uniquement ces diagnostics terminaux du loop ; call/response/events restent conservés. Cela ne signifie pas que le provider n’a rien exécuté ou facturé. Tout texte, raisonnement, espace ou outil non vide reste bloquant."
+  ],
+  "MPF 检查也会拒绝部分手机生成的 HDR gain-map JPEG。首版不转换 HDR 或 HEIC；#83/#84 需要向用户说明这一格式边界。": [
+    "The MPF check also rejects HDR gain-map JPEGs produced by some phones. This version does not convert HDR or HEIC; #83/#84 must explain this format boundary to users.",
+    "MPF 検査は一部のスマートフォンが生成する HDR gain-map JPEG も拒否します。初版は HDR や HEIC を変換しません。#83/#84 でこの形式制限を利用者に案内します。",
+    "Le contrôle MPF refuse aussi les JPEG HDR gain-map produits par certains téléphones. Cette version ne convertit ni HDR ni HEIC ; #83/#84 doivent expliquer cette limite aux utilisateurs."
   ]
 }

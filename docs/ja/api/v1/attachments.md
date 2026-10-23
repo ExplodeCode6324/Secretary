@@ -16,6 +16,8 @@
 
 GET `/api/v1/attachments/{id}`、timeline、メッセージ内容は軽量メタデータのみを返します。明示的な GET `/api/v1/attachments/{id}/content` は長さ、ETag、no-store、nosniff 付きの検証済み原始バイナリを返します。range は非対応です。実行中の破損は 410 ATTACHMENT_UNAVAILABLE、再起動時の参照欠落・切り詰めは Store.open の失敗となります。
 
+一覧とメッセージ内容の availability は CAS ファイルの存在、種類、長さのみを確認し、ハッシュの正しさを保証しません。GET `/api/v1/attachments/{id}`、バイナリ取得、メッセージ受付、モデル送信では内容を完全に検証します。
+
 ## デプロイと予算
 
 下表の既定値は SECRETARY_ATTACHMENT_ と大文字フィールド名を組み合わせた環境変数で下げられますが、超える値は指定できません。既存内容は削除せず、pending は受理時の検証上限を保持します。容量不足でも既存添付の送信は可能です。同一内容の新規 ID は別計上し、失敗 ID と CAS 書き込みの可能性がある容量は保持します。自動清理、有効期限、未関連内容の削除はありません。
@@ -42,6 +44,10 @@ K=0：処理 loop、ツール反復、固定再実行では画像を完全保持
 POST `/api/v1/inputs/{id}/withdraw` は新しい request_id と expected_revision で本文を含む添付入力全体を取り消します。宿主と保守は idle である必要があります。CLAIMED では blocked な単独 loop、助手出力なし、IN_FLIGHT/RESPONSE_SAVED なし、ツール効果なしも必要です。それ以外は 409 WITHDRAWAL_UNSAFE。安全な取り消しは一つのフレームで確定し、通知は後続一 loop のみ、履歴は恒久的に withdrawn です。
 
 取り消した入力は新規要約、約束、検索結果、World 証拠から除外します。古い候補も公開前に再検査し、遅延索引にも現在の取り消し状態を適用します。監査原本は保持します。死んだプロセスの IN_FLIGHT は取り消せず、以前の対応デプロイを戻して既存復旧を使います。#80 の復旧方針は変更しません。
+
+FAILED/INTERRUPTED の空の error/aborted 診断は生成された回答ではありません。text/thinking が厳密に空で、ツールや未知のブロックがなく、他の安全条件も満たす場合のみ取り消せます。新 checkpoint から当該 loop の末尾の空診断だけを除き、元の call/response/event は保持します。provider が実行・課金していないことを意味しません。空白を含む実際の本文、思考、ツールは拒否します。
+
+MPF 検査は一部のスマートフォンが生成する HDR gain-map JPEG も拒否します。初版は HDR や HEIC を変換しません。#83/#84 でこの形式制限を利用者に案内します。
 
 ## 依存関係と検証範囲
 

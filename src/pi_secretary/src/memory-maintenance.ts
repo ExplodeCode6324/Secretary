@@ -1,4 +1,5 @@
 import { inputMessage } from "./input-projection.ts";
+import { projectAttachmentResidency } from "./attachment-form.ts";
 import { assertRequestBudget, budgetConfig, requestBudget } from "./budget.ts";
 import type {
   CompactionJob,
@@ -195,17 +196,27 @@ export function compact(this: MemoryMaintenanceContext, reset = true) {
       // Explicit maintenance may remove a capacity block, but never a recovery block.
       // Revalidate complete queued input material, not only the historical projection.
       if (this.session.state === "CAPACITY_BLOCKED") {
-        const next = this.history();
-        if (!this.session.active_loop_id)
-          next.push(
-            ...this.store
-              .all<Input>("Input")
-              .filter(
-                (i) =>
-                  i.session_id === this.sessionID && i.state === "ACCEPTED",
-              )
-              .map((i) => inputMessage(this.store, i)),
-          );
+        let next = this.history();
+        if (!this.session.active_loop_id) {
+          const previous = this.session.last_context_id
+            ? this.store.get<Context>("Context", this.session.last_context_id)
+                .loop_id
+            : null;
+          next = projectAttachmentResidency(this.store, next, previous);
+          const accepted = this.store
+            .all<Input>("Input")
+            .filter(
+              (i) => i.session_id === this.sessionID && i.state === "ACCEPTED",
+            );
+          const boundary = accepted.findIndex((i) => i.attachments?.length);
+          const batch =
+            boundary === 0
+              ? accepted.slice(0, 1)
+              : boundary > 0
+                ? accepted.slice(0, boundary)
+                : accepted;
+          next.push(...batch.map((i) => inputMessage(this.store, i)));
+        }
         try {
           assertRequestBudget(this.model, next, {
             tools: this.tools(this.session.active_loop_id ?? id()),

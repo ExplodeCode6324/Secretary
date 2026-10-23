@@ -1,18 +1,21 @@
 import fs from "node:fs";
 import sharp from "sharp";
 import path from "node:path";
+import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
 import { App } from "../../../../src/pi_secretary/src/app.ts";
 import { ApplicationService } from "../../../../src/pi_secretary/src/application-service.ts";
 import {
   fixtureModel,
   fixtureStream,
+  replyStream,
+  type StreamFn,
 } from "../../../../src/pi_secretary/src/model.ts";
 import { id, hash } from "../../../../src/pi_secretary/src/store.ts";
 import type {
   Input,
   AttachmentImport,
 } from "../../../../src/pi_secretary/src/contracts.ts";
-const [dir, phase, info] = process.argv.slice(2),
+const [dir, phase, info, diagnostic] = process.argv.slice(2),
   model = {
     ...fixtureModel,
     input: ["text", "image"] as ("text" | "image")[],
@@ -31,7 +34,19 @@ process.env.SECRETARY_VISION_BUDGET_PROFILES = JSON.stringify([
     source: "Synthetic crash fixture",
   },
 ]);
-const app = await App.open(dir, { model, stream: fixtureStream }),
+const emptyFailure: StreamFn = async (model) => {
+  const response = await replyStream([], model).result();
+  response.stopReason = "error";
+  response.errorMessage = "Synthetic rejection";
+  const stream = createAssistantMessageEventStream();
+  stream.push({ type: "error", reason: "error", error: response });
+  stream.end(response);
+  return stream;
+};
+const app = await App.open(dir, {
+    model,
+    stream: diagnostic ? emptyFailure : fixtureStream,
+  }),
   service = new ApplicationService(app),
   bytes = await sharp({
     create: { width: 12, height: 12, channels: 3, background: "red" },
@@ -52,8 +67,12 @@ await service.attachmentImports.settle();
 const input = app.host.accept("withdrawn synthetic text", id(), "MASTER", [
   app.store.get<AttachmentImport>("AttachmentImport", request).attachment_id,
 ]);
-model.input = ["text"];
+if (!diagnostic) model.input = ["text"];
 await app.host.drain();
+if (diagnostic) {
+  app.host.accept("queued after repeated empty diagnostic");
+  await app.host.resume();
+}
 if (app.host.session.state !== "RECOVERY_BLOCKED")
   throw Error("fixture did not block");
 const body = {
@@ -61,7 +80,34 @@ const body = {
     expected_revision: String(app.store.get<Input>("Input", input.id).revision),
   },
   route = `inputs/${input.id}/withdraw`;
-fs.writeFileSync(info, JSON.stringify({ body, route, inputID: input.id }));
+const diagnosticEvents = app.store
+  .events("main.message")
+  .filter((e) => app.store.read<any>(e.payload).role === "assistant")
+  .map((e) => e.event_id);
+const calls = app.store
+  .all<import("../../../../src/pi_secretary/src/contracts.ts").ModelCall>(
+    "ModelCall",
+  )
+  .map((c) => ({
+    id: c.id,
+    revision: c.revision,
+    state: c.state,
+    response: c.response,
+  }));
+if (diagnostic && diagnosticEvents.length < 2)
+  throw Error(
+    "repeated diagnostic fixture missing: " +
+      JSON.stringify({
+        state: app.host.session.state,
+        error: app.host.session.recovery_error,
+        diagnostics: diagnosticEvents.length,
+        calls: calls.length,
+      }),
+  );
+fs.writeFileSync(
+  info,
+  JSON.stringify({ body, route, inputID: input.id, diagnosticEvents, calls }),
+);
 const commit = app.store.commit.bind(app.store);
 app.store.commit = ((records, ...rest) => {
   const target = records.some(

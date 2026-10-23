@@ -465,9 +465,7 @@ export class Timeline {
       id: row.id,
       kind: row.kind,
       order: row.order,
-      revision: row.input_id
-        ? this.app.store.get<Input>("Input", row.input_id).revision
-        : row.revision,
+      revision: row.revision,
       ...(row.input_id
         ? attachmentInputView(this.app.store, row.input_id)
         : {}),

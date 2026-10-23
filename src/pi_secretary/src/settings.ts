@@ -1,6 +1,7 @@
 import {
   authenticatedIdentityHash,
   assertActiveSourceEvents,
+  attachmentTag,
 } from "./attachment-form.ts";
 import { activitiesFor } from "./activity.ts";
 import { Store, base, hash, id, now, revise, shape } from "./store.ts";
@@ -650,7 +651,11 @@ export class Settings {
                     a.context_id!,
                   ).raw_context,
                 )
-                .map((m) => authenticatedIdentityHash(this.store, m)),
+                .map((m) =>
+                  attachmentTag(m)
+                    ? authenticatedIdentityHash(this.store, m)
+                    : hash(JSON.stringify(m)),
+                ),
             ]),
           ],
           last_job_id: null,

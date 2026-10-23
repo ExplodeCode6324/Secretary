@@ -16,6 +16,8 @@ Then POST `/api/v1/messages` with a different request_id, text and ordered attac
 
 GET `/api/v1/attachments/{id}`, timeline and message content expose lightweight metadata only. Explicit GET `/api/v1/attachments/{id}/content` returns verified original binary with length, ETag, no-store and nosniff; ranges are unsupported. Runtime corruption returns 410 ATTACHMENT_UNAVAILABLE. Missing or truncated durable references fail Store.open on restart.
 
+Availability in lists and message content checks only CAS file existence, type and length; it does not certify the digest. GET `/api/v1/attachments/{id}`, binary reads, message admission and model dispatch still fully verify content.
+
 ## Deployment and budgets
 
 The defaults below can be lowered using environment variables SECRETARY_ATTACHMENT_ plus the uppercase field name, but never exceeded. Lower limits do not delete old content; pending imports retain admission-time validation ceilings. Full quota rejects new imports, not existing attachment sends. New identities for identical content are charged separately; failed identities remain counted, and byte reservations remain when CAS may exist. There is no automatic cleanup, age expiry or unbound deletion.
@@ -42,6 +44,10 @@ K=0: images remain complete throughout their handling loop, tool iterations and 
 POST `/api/v1/inputs/{id}/withdraw` uses a new request_id and expected_revision to withdraw the entire attachment input, including text. Host and maintenance must be idle; CLAIMED also requires a blocked exclusive loop, no assistant output, no IN_FLIGHT/RESPONSE_SAVED and no pending or executed tool effects. Otherwise return 409 WITHDRAWAL_UNSAFE. Safe withdrawal commits Context/Input/Session/events/ApiCommand in one frame; the notice enters only one subsequent loop, while history remains marked withdrawn.
 
 Withdrawn inputs are excluded from new summaries, commitments, search hits and World evidence. Old candidates are rechecked before publication; lagging search indexes also apply current withdrawal filtering. Audit originals remain. Stale IN_FLIGHT from a dead process cannot be withdrawn: restore the previously supported deployment and use existing recovery. #80 recovery policy is unchanged.
+
+An empty error/aborted diagnostic from FAILED/INTERRUPTED is not generated assistant output: withdrawal is allowed only when every text/thinking value is exactly empty, there are no tools or unknown blocks, and all other safety gates pass. The new checkpoint omits only that loop’s trailing empty diagnostics; original call/response/events remain. This does not imply no provider execution or billing. Any nonempty text, thinking, whitespace or tool remains unsafe.
+
+The MPF check also rejects HDR gain-map JPEGs produced by some phones. This version does not convert HDR or HEIC; #83/#84 must explain this format boundary to users.
 
 ## Dependencies and validation boundaries
 

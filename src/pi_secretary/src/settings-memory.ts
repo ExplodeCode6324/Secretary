@@ -9,6 +9,7 @@ import {
   summaryMessage,
   attachmentMessage,
   attachmentForm,
+  attachmentTag,
   assertActiveSourceEvents,
 } from "./attachment-form.ts";
 import { putEvidence } from "./evidence.ts";
@@ -153,7 +154,16 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
   });
   const chunks = plan.chunks;
   return {
-    ...(Array.from(messages.values()).some((m) => attachmentForm(store, m))
+    ...(Array.from(messages.values()).some((m) => attachmentForm(store, m)) ||
+    store
+      .all<Input>("Input")
+      .some(
+        (i) =>
+          i.session_id === session.id &&
+          i.producer === "MASTER" &&
+          i.state === "HANDLED" &&
+          i.attachments?.length,
+      )
       ? {
           attachment_boundary: {
             session_id: session.id,
@@ -170,7 +180,9 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
       ...new Set([
         ...covered,
         ...[...messages.values()].map((m) =>
-          authenticatedIdentityHash(store, m),
+          attachmentTag(m)
+            ? authenticatedIdentityHash(store, m)
+            : hash(JSON.stringify(m)),
         ),
       ]),
     ],
