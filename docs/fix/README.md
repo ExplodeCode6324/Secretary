@@ -6,7 +6,8 @@
 
 | Issue | 计划 | 状态 |
 | --- | --- | --- |
-| #81 | [附件闭环（中文）](fix_20261023_issue81_附件闭环.md) · [English](fix_20261023_issue81_附件闭环.en.md) | R3；协调已批准实施，Claude Opus 5.5 Extra 三轮计划复核 PASS；[复核记录](evidence/issue81-attachments/plan-review.md)，[实施证据](evidence/issue81-attachments/implementation-review.md)；待准确 HEAD 复核与 CI |
+| #82 | [TUI 基础与 Main（中文）](fix_20261024_issue82_TUI基础与Main.md) · [English](fix_20261024_issue82_TUI基础与Main.en.md) | R1 仅计划；待 Claude 复核与协调批准；[复核记录](evidence/issue82-tui/plan-review.md) |
+| #81 | [附件闭环（中文）](fix_20261023_issue81_附件闭环.md) · [English](fix_20261023_issue81_附件闭环.en.md) | 已合并；[PR #87 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/87#issuecomment-6371806717)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/40002665230)；真实 provider 验证留 #84 |
 | #80 | [回复终态与推理预览（中文）](fix_20261023_issue80_回复终态与推理预览.md) · [English](fix_20261023_issue80_回复终态与推理预览.en.md) | 已合并；[PR #86 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/86#issuecomment-6368012380)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/39976324062) |
 | #79 | [Tauri 退役（中文）](fix_20261023_issue79_Tauri退役.md) · [English](fix_20261023_issue79_Tauri退役.en.md) | 已合并；[PR #85 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/85#issuecomment-6364909080)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/39952748532) |
 | #63 | [主对话与统一时间线（中文）](fix_20261023_issue63_主对话与统一时间线.md) · [English](fix_20261023_issue63_主对话与统一时间线.en.md) | Master 已批准 R2 修订；实施与验证中，随后同一 Claude 会话复核及 PR/CI |
