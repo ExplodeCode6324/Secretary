@@ -22,7 +22,7 @@ SOURCES = ['README.zh-CN.md'] + [
         'api/v1/README', 'api/v1/push',
     )
 ] + sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'docs/frontend').glob('*.md')) + sorted(str(p.relative_to(ROOT)) for p in (ROOT / 'docs/data').glob('*.md')) + [
-    'src/secretary_desktop/README.md', 'test_case/README.md',
+    'test_case/README.md',
     'test_case/offline/README.md', 'test_case/online/README.md',
     'test_case/offline/issue2/README.md', 'test_case/offline/issue5/README.md',
 ]
@@ -33,8 +33,6 @@ def destination(source, language):
         return {'en': 'README.md', 'ja': 'README.ja.md', 'fr': 'README.fr.md'}[language]
     if source.startswith('docs/'):
         return f'docs/{language}/' + source[5:]
-    if source.startswith('src/secretary_desktop/'):
-        return f'docs/{language}/desktop/README.md'
     return f'docs/{language}/' + source
 
 

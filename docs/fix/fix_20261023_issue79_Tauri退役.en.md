@@ -1,6 +1,6 @@
 # Issue 79 — retire the Tauri client
 
-Version: R2, 2026-10-23. Status: PLAN_PASS_WAITING_COORDINATOR; implementation is not authorized yet.
+Version: R2, 2026-10-23. Status: IMPLEMENTATION_AUTHORIZED; the coordinator approved implementation on 2026-10-23; merge is not authorized.
 
 Repository: https://github.com/ExplodeCode6324/Secretary
 Issue: https://github.com/ExplodeCode6324/Secretary/issues/79

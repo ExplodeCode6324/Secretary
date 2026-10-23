@@ -1,6 +1,6 @@
 # Issue 79：直接退役 Tauri 客户端
 
-版本：R2，2026-10-23。状态：PLAN_PASS_WAITING_COORDINATOR；尚未批准实施。
+版本：R2，2026-10-23。状态：IMPLEMENTATION_AUTHORIZED；协调已于 2026-10-23 批准实施；未授权合并。
 
 仓库：https://github.com/ExplodeCode6324/Secretary
 Issue：https://github.com/ExplodeCode6324/Secretary/issues/79

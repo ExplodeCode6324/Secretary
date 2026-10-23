@@ -4,7 +4,8 @@
 日期：2026-10-23  
 代码基线：ExplodeCode6324/Secretary，main@12e028a049122035f86d5cbf930516157c9bb72b  
 发布范围：确定 TUI 需求、复用评估和分阶段实施 Issue。  
-执行边界：本次发布不包含 Tauri 代码删除或 TUI/Core 实现；按下列 Issue 顺序领取。  
+原发布边界：需求发布时未执行 Tauri 删除或 TUI/Core 实现；按下列 Issue 顺序领取。
+实施更新（2026-10-23，#79）：本分支已删除旧客户端和专属设施，并调整文档检查与多语言入口；新 TUI 尚未实现。实际验证与本地状态处置见 [#79 实施记录](../fix/evidence/issue79-retirement/implementation.md)。
 总路线：[#57](https://github.com/ExplodeCode6324/Secretary/issues/57)。
 
 本文件以 Master 在 2026-10-23 的七项裁定为当前规范，替代 v0.1 中对应的待定项；具体框架、键位和容量数值由实施者在此边界内确定并记录。源码结论均针对上述固定提交；没有运行应用、自动化测试或真实模型调用，因此“已有实现”不等于“新 TUI 已验收”。
@@ -412,7 +413,7 @@ Main 当前有 resume/compact，没有公开的停止生成接口；本轮不新
 
 ## 10. Tauri 冻结与代码清理方案
 
-本节是 A 阶段的明确实施要求：直接删除旧 Tauri 客户端及专属设施，依 Git 历史追溯；本次文档提交不执行代码删除。
+本节保留 A 阶段的实施要求：直接删除旧 Tauri 客户端及专属设施，依 Git 历史追溯；2026-10-23 #79 本分支已实施源码退役。
 
 ### 10.1 直接删除的主体
 
@@ -440,6 +441,8 @@ Main 当前有 resume/compact，没有公开的停止生成接口；本轮不新
 两个同名 contracts.ts 的归属必须分清。Core 内部与 API 的 TypeScript 契约为生成产物，未来变更应回到各自 schema 源，不直接手改生成文件。公共 OpenAPI 同样由 schema/operations 生成。[S05][S06][S23]
 
 ### 10.3 CI 与文档的实际耦合
+
+以下描述需求发布基线。2026-10-23 #79 已将 checker/fixture 改为 TUI 需求和 API 清单入口，并删除桌面 workflow、旧规范和专属翻译输出；Core 三项 CI 定义保留。
 
 桌面 macOS workflow 可随 Tauri 退役移除或替换为 TUI 验证；Core Linux、Core macOS 与 verify 汇总检查保留。[S19][S20]
 

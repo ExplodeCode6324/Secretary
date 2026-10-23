@@ -3273,5 +3273,55 @@
     "> **Roadmap update, 2026-10-23:** Master has decided to remove the Tauri client and build the TUI from scratch. Current implementation follows the [TUI requirements](../tui/requirements-and-backend-plan.md) and [overall roadmap #57](https://github.com/ExplodeCode6324/Secretary/issues/57). See [#79](https://github.com/ExplodeCode6324/Secretary/issues/79) for removal of the old client. The material below records the frozen former roadmap; it no longer guides new feature implementation, and remaining acceptance work for the old GUI does not block the TUI.",
     "> **2026-10-23 方針更新：** Master は Tauri を直接廃止し、TUI をゼロから実装することを決定しました。現在の実施方針は [TUI 要件](../tui/requirements-and-backend-plan.md) と [全体計画 #57](https://github.com/ExplodeCode6324/Secretary/issues/57) に基づきます。旧クライアントの削除については [#79](https://github.com/ExplodeCode6324/Secretary/issues/79) を参照してください。以下は凍結された旧方針の資料であり、新機能の実装指針としては使用しません。また、旧 GUI の受け入れ確認が未完了であることを理由に TUI の実装を止めることもありません。",
     "> **Mise à jour de la feuille de route du 2026-10-23 :** Master a décidé de retirer directement Tauri et de réaliser l’interface TUI à partir de zéro. La mise en œuvre actuelle s’appuie sur les [exigences TUI](../tui/requirements-and-backend-plan.md) et la [feuille de route globale #57](https://github.com/ExplodeCode6324/Secretary/issues/57). Pour la suppression de l’ancien client, voir [#79](https://github.com/ExplodeCode6324/Secretary/issues/79) ; les informations ci-dessous concernent l’ancienne feuille de route, désormais gelée. Elles ne guident plus la mise en œuvre de nouvelles fonctionnalités, et la recette inachevée de l’ancienne GUI ne doit pas bloquer la réalisation de l’interface TUI."
+  ],
+  "当前客户端路线为 [TUI 需求](docs/tui/requirements-and-backend-plan.md)。Tauri/Svelte 客户端已退役，新 TUI 尚未实现；现在使用 [Core 运行手册](docs/operations.md)。旧 GUI 未完成的验收保持原状态。": [
+    "The current client route follows the [TUI requirements](docs/tui/requirements-and-backend-plan.md). The Tauri/Svelte client is retired; the new TUI is not implemented yet. Use the [Core operations guide](docs/operations.md). Unfinished GUI acceptance retains its original status.",
+    "現在のクライアント方針は [TUI 要件](docs/tui/requirements-and-backend-plan.md) に従います。Tauri/Svelte クライアントは廃止され、新しい TUI は未実装です。[Core 運用ガイド](docs/operations.md)を使用してください。未完了の GUI 受け入れ検証は元の状態を維持します。",
+    "La feuille de route du client suit les [exigences TUI](docs/tui/requirements-and-backend-plan.md). Le client Tauri/Svelte est retiré ; le nouveau TUI reste à implémenter. Utilisez le [guide d’exploitation Core](docs/operations.md). Les validations GUI inachevées conservent leur statut initial."
+  ],
+  "当前客户端路线见 [TUI 需求](tui/requirements-and-backend-plan.md)；新 TUI 尚未实现。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。": [
+    "See the [TUI requirements](tui/requirements-and-backend-plan.md) for the current client route; the new TUI is not implemented yet. Use the [Core operations guide](operations.md); see the [retirement record](frontend/README.md) for the old client.",
+    "現在のクライアント方針は [TUI 要件](tui/requirements-and-backend-plan.md)を参照してください。新しい TUI は未実装です。[Core 運用ガイド](operations.md)を使用し、旧クライアントについては[廃止記録](frontend/README.md)を参照してください。",
+    "Consultez les [exigences TUI](tui/requirements-and-backend-plan.md) pour la feuille de route actuelle ; le nouveau TUI reste à implémenter. Utilisez le [guide d’exploitation Core](operations.md) ; l’ancien client est décrit dans le [registre de retrait](frontend/README.md)."
+  ],
+  "客户端方向见 [TUI 需求](tui/requirements-and-backend-plan.md)；新 TUI 尚未实现，以下命令管理独立 Core。": [
+    "See the [TUI requirements](tui/requirements-and-backend-plan.md) for the client direction. The new TUI is not implemented yet; the commands below manage the independent Core.",
+    "クライアントの方針は [TUI 要件](tui/requirements-and-backend-plan.md)を参照してください。新しい TUI は未実装で、以下のコマンドは独立した Core を管理します。",
+    "Les [exigences TUI](tui/requirements-and-backend-plan.md) définissent la direction du client. Le nouveau TUI reste à implémenter ; les commandes ci-dessous gèrent le Core indépendant."
+  ],
+  "旧客户端退役记录": [
+    "Client retirement record",
+    "旧クライアントの廃止記録",
+    "Registre de retrait du client"
+  ],
+  "2026-10-23：Tauri/Svelte/PhaseUI 客户端及专属构建、测试、CI 已直接删除。当前路线为 [TUI 需求](../tui/requirements-and-backend-plan.md)，新 TUI 尚未实现；Core 使用方式见[运行手册](../operations.md)。": [
+    "2026-10-23: the Tauri/Svelte/PhaseUI client and its dedicated build, test and CI infrastructure were removed directly. The current route follows the [TUI requirements](../tui/requirements-and-backend-plan.md); the new TUI is not implemented yet. See the [operations guide](../operations.md) for Core usage.",
+    "2026-10-23：Tauri/Svelte/PhaseUI クライアントと専用のビルド、テスト、CI を直接削除しました。現在の方針は [TUI 要件](../tui/requirements-and-backend-plan.md)に従い、新しい TUI は未実装です。Core の利用方法は[運用ガイド](../operations.md)を参照してください。",
+    "2026-10-23 : le client Tauri/Svelte/PhaseUI et ses outils dédiés de compilation, de test et de CI ont été supprimés directement. La feuille de route suit les [exigences TUI](../tui/requirements-and-backend-plan.md) ; le nouveau TUI reste à implémenter. Consultez le [guide d’exploitation](../operations.md) pour Core."
+  ],
+  "历史设计和验收只按固定提交追溯；未通过、未测试或待人工验收的旧 GUI 项目不因退役变为通过。": [
+    "Historical design and acceptance are traced through fixed commits. Failed, untested or pending manual GUI acceptance does not become passed because the client is retired.",
+    "過去の設計と受け入れ検証は固定コミットで追跡します。失敗、未テスト、手動確認待ちの GUI 項目は、廃止によって合格にはなりません。",
+    "Les conceptions et validations historiques sont conservées via des commits fixes. Le retrait ne transforme pas en réussite les validations GUI échouées, non testées ou en attente de vérification manuelle."
+  ],
+  "旧规范": [
+    "Historical specification",
+    "旧仕様",
+    "Spécification historique"
+  ],
+  "旧客户端源码": [
+    "Historical client source",
+    "旧クライアントのソース",
+    "Source historique du client"
+  ],
+  "保留的颜色参数": [
+    "Retained color parameters",
+    "保持する色パラメータ",
+    "Paramètres de couleur conservés"
+  ],
+  "设备 #6/#11～#14 保持冻结。SwiftUI 已退役，旧设计仅用于历史追溯。": [
+    "Device issues #6/#11–#14 remain frozen. SwiftUI is retired; its design is historical only.",
+    "デバイス関連の #6/#11～#14 は凍結中です。SwiftUI は廃止され、旧設計は履歴参照専用です。",
+    "Les issues relatives aux appareils #6/#11–#14 restent gelées. SwiftUI est retiré ; son ancienne conception sert uniquement de référence historique."
   ]
 }

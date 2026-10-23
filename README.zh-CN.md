@@ -32,4 +32,6 @@ npm run stop
 
 Core 已合入独立生命周期、可靠同步、Scope、授权与未知结果裁定、模型重试、记忆检索与原文退出、定时唤醒、主动推送、存储性能、模块拆分和提示词整理。现行文档由 [#27](https://github.com/ExplodeCode6324/Secretary/issues/27) 按代码整理，总路线见 [#7](https://github.com/ExplodeCode6324/Secretary/issues/7)。
 
-[现行前端规范](docs/frontend/README.md)统一说明 PhaseUI 视觉、组件、架构与验收；FE-02 最小真实业务链路已随 [PR #75](https://github.com/ExplodeCode6324/Secretary/pull/75) 合并，完整视觉系统由 [#62](https://github.com/ExplodeCode6324/Secretary/issues/62) 在 #61 文档合并及 Master 确认后实施。运行见[桌面说明](src/secretary_desktop/README.md)。当前桌面仅验收 macOS，Linux 暂缓；设备 #6/#11～#14 保持冻结。SwiftUI 已退役，旧设计仅用于历史追溯。
+当前客户端路线为 [TUI 需求](docs/tui/requirements-and-backend-plan.md)。Tauri/Svelte 客户端已退役，新 TUI 尚未实现；现在使用 [Core 运行手册](docs/operations.md)。旧 GUI 未完成的验收保持原状态。
+
+设备 #6/#11～#14 保持冻结。SwiftUI 已退役，旧设计仅用于历史追溯。

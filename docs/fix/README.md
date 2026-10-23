@@ -6,7 +6,7 @@
 
 | Issue | 计划 | 状态 |
 | --- | --- | --- |
-| #79 | [Tauri 退役（中文）](fix_20261023_issue79_Tauri退役.md) · [English](fix_20261023_issue79_Tauri退役.en.md) | R2 Claude PASS；执行备注已记录，待协调会话批准后实施 |
+| #79 | [Tauri 退役（中文）](fix_20261023_issue79_Tauri退役.md) · [English](fix_20261023_issue79_Tauri退役.en.md) | R2 Claude PASS，协调已批准；源码/状态退役完成，659 项回归通过；待 PR/CI 和准确 HEAD 复核 |
 | #63 | [主对话与统一时间线（中文）](fix_20261023_issue63_主对话与统一时间线.md) · [English](fix_20261023_issue63_主对话与统一时间线.en.md) | Master 已批准 R2 修订；实施与验证中，随后同一 Claude 会话复核及 PR/CI |
 | #62 | [PhaseUI 设计系统（中文）](fix_20261021_issue62_PhaseUI设计系统.md) · [English](fix_20261021_issue62_PhaseUI设计系统.en.md) | R2 中英文计划；Claude Opus 5.5 Extra 三轮复核 PASS，实施待 Master 批准 |
 | #61 | [PhaseUI 现行规范（中文）](fix_20261021_issue61_PhaseUI现行规范.md) · [English](fix_20261021_issue61_PhaseUI现行规范.en.md) | R1 已批准；文档整合完成，待 Master 终审 |
