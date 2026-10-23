@@ -37,7 +37,7 @@ Ordinary lists default to 30 entries, maximum 100. A cursor binds the instance, 
 
 | Content | Usage |
 | --- | --- |
-| timeline | Maximum 200, page budget 1 MiB; around locates message_id or event_id; streaming/thinking adds transient previews merged with final messages by call_id |
+| timeline | At most 200 items within a 1 MiB page; around locates by message_id or event_id; short reasoning previews are included by default; streaming/thinking control body expansion, merged with final messages by call_id |
 | messages/{id}/content | Follow next_cursor for Unicode chunks |
 | operations/{id} | display contains parameters/stdout/stderr/reason with state, bytes, content_version, truncated, next_cursor, unavailable_reason; first chunks are capped at 16/32/32/4 KiB respectively, full detail at 256 KiB |
 | operations/{id}/content | part selects a section above; cursor continues reading; each chunk ≤32 KiB, response ≤256 KiB; concatenate in order before parsing JSON; on CURSOR_EXPIRED, restart from the first chunk |
@@ -94,6 +94,20 @@ See the [operations guide](../../operations.md) for upgrades and validation, and
 
 ## FE-04 Message projection
 
-Message projections may include source kind, original event ID, direct related IDs, outcome, and preview availability, derived only from existing records. A saved preview is not durable success; expired previews report no final record.
+Message projections may include provenance, original event IDs, direct related IDs, outcomes and preview availability, derived only from existing records. A saved preview does not imply durable success; expiry only means transient display content is unavailable.
 
 Optional fields: `source_kind`, `source_event_id`, `outcome`, `preview_availability`, `request_id`, `task_id`, `execution_id`, `result_id`, `decision_request_id`, `notification_id`. See the authored `Message` schema for enum values.
+
+## Response outcomes and reasoning previews
+
+Empty abnormal replies retain a message row: length/error/aborted project to truncated/failed/interrupted with incomplete=true; normal empty stop and tool-only replies remain omitted. An empty error projects to interrupted only for a non-colliding same-session ModelCall explicitly marked INTERRUPTED/CANCELLED. If a historical empty abnormal reply reuses an occupied display_call_id, it uses its own event ID and call_id=null.
+
+A length-limited model activity is truncated live, historically and after restart, with phase `输出已截断`; ModelCall remains RESPONSE_SAVED and parent business states are unchanged.
+
+thinking_preview is an optional `{text,truncated}` display field. It joins nonempty, non-redacted thinking blocks in source order with newlines and retains the first 20 extended grapheme clusters; when content is omitted and the prefix is nonempty, one U+2026 is appended. JSON-encoded text, including the ellipsis, is at most 4 KiB without splitting clusters; an oversized first cluster yields empty text and truncated=true. It returns no signatures, invents no reasoning and changes neither model input nor identity.
+
+Default timeline, around, message content and SSE transient provide the same short preview. Full reasoning requires thinking=true; transient bodies additionally require streaming=true. Hidden reasoning produces no continuation cursor, so reasoning-only messages default to next_cursor=null. Explicit expansion paginates at Unicode scalar boundaries: each body or reasoning fragment is at most 4,999 UTF-16 units and 28,000 JSON bytes, with a 64 KiB whole-message fragment bound. Preview truncated, retained-message truncation and outcome=truncated have separate meanings.
+
+SSETransient/SSEPreview define the public transient shape; Preview.version remains a number and the event has no durable cursor. The short preview is computed before retention clipping. Redaction, including done/error snapshots, revokes retained reasoning and advances revision; old content cursors return CURSOR_EXPIRED. Retention remains at most 8 previews, 128 blocks and 32,768 UTF-16 units each. Normal redacted-only/tool-only durable replies may still omit a row, so transient expiry does not prove the absence of a durable event.
+
+thinking_preview and thinking preserve raw model text, which may contain control characters or ANSI sequences. Terminal clients must escape or sanitize it before rendering; the API does not perform terminal-safety processing for clients.

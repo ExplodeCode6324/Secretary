@@ -37,7 +37,7 @@ Les listes ordinaires renvoient 30 éléments par défaut, 100 au maximum. Le cu
 
 | Contenu | Utilisation |
 | --- | --- |
-| timeline | Maximum 200, budget de page 1 MiB ; around localise message_id ou event_id ; streaming/thinking ajoute des aperçus temporaires fusionnés avec le message final par call_id |
+| timeline | Au plus 200 éléments dans une page de 1 MiB ; around localise par message_id ou event_id ; aperçu court du raisonnement inclus par défaut ; streaming/thinking contrôlent l’expansion du corps, fusionné avec le message final par call_id |
 | messages/{id}/content | Suivre next_cursor pour les fragments Unicode |
 | operations/{id} | display contient parameters/stdout/stderr/reason avec state, bytes, content_version, truncated, next_cursor, unavailable_reason ; premiers fragments limités respectivement à 16/32/32/4 KiB, détail complet à 256 KiB |
 | operations/{id}/content | part choisit une section ci-dessus ; cursor poursuit la lecture ; fragment ≤32 KiB, réponse ≤256 KiB ; concaténer dans l’ordre avant de décoder le JSON ; sur CURSOR_EXPIRED, reprendre au début |
@@ -94,6 +94,20 @@ Voir le [guide d’exploitation](../../operations.md) pour les mises à niveau e
 
 ## FE-04 Message projection
 
-Les projections de messages peuvent inclure la source, l’ID de l’événement original, les ID directement liés, le résultat et la disponibilité de l’aperçu, issus uniquement des enregistrements existants. Un aperçu saved ne constitue pas un succès durable ; un aperçu expiré signale l’absence d’enregistrement final.
+Les projections de messages peuvent inclure provenance, ID d’événement d’origine, ID directement liés, résultat et disponibilité de l’aperçu, uniquement à partir des enregistrements existants. Un aperçu saved ne garantit pas un succès durable ; son expiration signifie seulement que le contenu d’affichage transitoire est indisponible.
 
 Optional fields: `source_kind`, `source_event_id`, `outcome`, `preview_availability`, `request_id`, `task_id`, `execution_id`, `result_id`, `decision_request_id`, `notification_id`. See the authored `Message` schema for enum values.
+
+## Résultats des réponses et aperçus du raisonnement
+
+Une réponse anormale vide conserve une ligne message : length/error/aborted donnent truncated/failed/interrupted avec incomplete=true ; les réponses normales vides stop et tool-only restent omises. Une erreur vide devient interrupted uniquement si le ModelCall de la même session, sans collision, porte explicitement INTERRUPTED/CANCELLED. Si une ancienne réponse anormale vide réutilise un display_call_id déjà occupé, elle utilise son propre ID d’événement et call_id=null.
+
+Une activité de modèle limitée par length est truncated en direct, dans l’historique et après redémarrage, avec phase `输出已截断` ; ModelCall reste RESPONSE_SAVED et les états métier parents restent inchangés.
+
+thinking_preview est un champ d’affichage facultatif `{text,truncated}`. Il joint par des sauts de ligne les blocs thinking non vides et non redacted dans leur ordre d’origine, puis conserve les 20 premiers graphèmes étendus ; si du contenu est omis et le préfixe non vide, un U+2026 est ajouté. Le text encodé en JSON, points de suspension compris, ne dépasse pas 4 KiB et ne coupe aucun graphème ; un premier graphème trop grand produit un text vide et truncated=true. Aucune signature ni aucun raisonnement inventé n’est renvoyé ; l’entrée et l’identité du modèle restent inchangées.
+
+Par défaut, timeline, around, le content des messages et SSE transient offrent le même aperçu court. Le raisonnement complet exige thinking=true ; les corps transitoires exigent aussi streaming=true. Le raisonnement masqué ne génère aucun curseur de continuation : un message contenant uniquement du raisonnement a donc next_cursor=null par défaut. L’expansion explicite respecte les limites des scalaires Unicode : chaque fragment de corps ou de raisonnement est limité à 4,999 unités UTF-16 et 28,000 octets JSON, avec 64 KiB pour le fragment de message complet. Le truncated de l’aperçu, la troncature du contenu conservé et outcome=truncated sont distincts.
+
+SSETransient/SSEPreview définissent la structure publique de transient ; Preview.version reste un number et l’événement n’a pas de cursor durable. L’aperçu court est calculé avant la limitation de conservation. La redaction, y compris dans les instantanés done/error, révoque le raisonnement conservé et avance revision ; les anciens curseurs de contenu renvoient CURSOR_EXPIRED. La conservation reste limitée à 8 aperçus de 128 blocs et 32,768 unités UTF-16 chacun. Une réponse durable normale redacted-only/tool-only peut toujours être omise ; l’expiration d’un transient ne prouve donc pas l’absence d’événement durable.
+
+thinking_preview et thinking conservent le texte brut du modèle, qui peut contenir des caractères de contrôle ou des séquences ANSI. Les clients de terminal doivent l’échapper ou le neutraliser avant affichage ; l’API n’effectue pas ce traitement à leur place.

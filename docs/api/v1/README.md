@@ -33,7 +33,7 @@ Assistant names are trimmed for display. An empty name projects as `Secretary`; 
 
 | 内容 | 使用方式 |
 | --- | --- |
-| timeline | 上限 200，页面预算 1 MiB；around 以 message_id 或 event_id 定位；streaming/thinking 加入临时预览，按 call_id 与最终消息合并 |
+| timeline | 上限 200，页面预算 1 MiB；around 以 message_id 或 event_id 定位；默认附带短推理预览；streaming/thinking 控制正文展开，按 call_id 与最终消息合并 |
 | messages/{id}/content | 沿 next_cursor 续读 Unicode 分片 |
 | operations/{id} | display 含 parameters/stdout/stderr/reason，附 state、bytes、content_version、truncated、next_cursor、unavailable_reason；首段上限依次 16/32/32/4 KiB，完整详情最多 256 KiB |
 | operations/{id}/content | part 选择上述段，cursor 续读；每段最多 32 KiB，响应最多 256 KiB，按顺序拼接后解析 JSON；CURSOR_EXPIRED 从首段重读 |
@@ -90,6 +90,20 @@ wakeups 支持列表、详情和 `{id}/cancel`，state 可筛 PENDING/FIRED/CANC
 
 ## FE-04 Message projection
 
-消息投影可附带来源、原事件 ID、直接关联 ID、结果与预览可用性；字段只来自已有记录。saved 预览不等于持久成功，过期预览显示无最终记录。
+消息投影可附带来源、原事件 ID、直接关联 ID、结果与预览可用性；字段只来自已有记录。saved 预览不等于持久成功，过期预览仅表示临时显示内容不可用。
 
 Optional fields: `source_kind`, `source_event_id`, `outcome`, `preview_availability`, `request_id`, `task_id`, `execution_id`, `result_id`, `decision_request_id`, `notification_id`. See the authored `Message` schema for enum values.
+
+## 回复终态与推理预览
+
+异常空回复保留 message 行：length/error/aborted 分别投影为 truncated/failed/interrupted，incomplete 为 true；正常空 stop 和 tool-only 仍省略。空 error 仅在非冲突的同会话 ModelCall 明确为 INTERRUPTED/CANCELLED 时显示 interrupted。历史异常空回复若复用了已被占用的 display_call_id，则使用自身事件 ID，call_id 为 null。
+
+length 的模型活动在实时、历史和重启后均为 truncated，phase 为 `输出已截断`；ModelCall 仍为 RESPONSE_SAVED，父业务状态不变。
+
+thinking_preview 是可选的 `{text,truncated}` 显示字段。它按原顺序以换行连接非空、未 redacted 的 thinking，保留前 20 个扩展字素簇；有省略且前缀非空时追加一个 U+2026。JSON 编码的 text（含省略号）最多 4 KiB，不切开字素簇；首簇过大时返回空 text 和 truncated=true。不返回签名，不补造推理，不改变模型输入或身份。
+
+默认 timeline、around、消息 content 和 SSE transient 提供相同短预览；thinking=true 才展开完整推理，临时正文另需 streaming=true。隐藏推理不产生续读游标，纯推理消息默认 next_cursor=null。显式展开按 Unicode 标量边界分页，每个正文或推理分片最多 4,999 个 UTF-16 单元、28,000 JSON 字节，总消息分片保持 64 KiB。预览的 truncated、消息保留截断和 outcome=truncated 是三个独立含义。
+
+SSETransient/SSEPreview 定义 transient 的公开形状；Preview.version 保持 number，事件没有持久 cursor。短预览在保留容量截断前计算；redaction（包括 done/error 快照）撤销已保留的推理并推进 revision，旧内容游标返回 CURSOR_EXPIRED。仍最多保留 8 个预览、每个 128 块和 32,768 UTF-16 单元；正常 redacted-only/tool-only 持久回复仍可能省略行，因此 transient 过期不证明没有持久事件。
+
+thinking_preview 和 thinking 保留原始模型文本，可能包含控制字符或 ANSI 序列。终端客户端必须在渲染前进行转义或净化；API 不会替客户端执行终端安全处理。

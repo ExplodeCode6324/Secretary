@@ -1,6 +1,9 @@
 import { setTimeout as delay } from "node:timers/promises";
 import type { Store } from "./store.ts";
 
+// Core's persisted crash-recovery marker, distinct from a provider failure.
+export const PROCESS_INTERRUPTED = "PROCESS_INTERRUPTED";
+
 // Per-Store clock injection keeps deterministic tests out of production configuration.
 export const retryRuntime = new WeakMap<
   Store,

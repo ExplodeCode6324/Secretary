@@ -1,5 +1,7 @@
 import { hash, type Store } from "./store.ts";
 import { toolPhase, type Activity, type ActivitySnapshot } from "./activity.ts";
+import { messageDisplaysFor } from "./message-display.ts";
+import { PROCESS_INTERRUPTED } from "./model-retry.ts";
 import type {
   Context,
   ModelCall,
@@ -261,33 +263,49 @@ export class ActivityHistory {
             ? "settings:"
             : "compaction:") + context.loop_id
         : null;
+    const response = c.response
+      ? this.store.read<{
+          stopReason?: string;
+          content?: {
+            type: string;
+            id: string;
+            name: string;
+            arguments: unknown;
+          }[];
+        }>(c.response)
+      : undefined;
+    const truncated =
+      c.state === "RESPONSE_SAVED" && response?.stopReason === "length";
     row.status =
       c.state === "RESPONSE_SAVED"
-        ? "succeeded"
-        : c.state === "FAILED"
+        ? truncated
+          ? "truncated"
+          : "succeeded"
+        : c.state === "FAILED" ||
+            (c.state === "INTERRUPTED" &&
+              c.failure_kind &&
+              c.failure_kind !== "CANCELLED" &&
+              !(
+                c.failure_kind === "TRANSIENT" &&
+                c.error === PROCESS_INTERRUPTED
+              ))
           ? "failed"
           : "interrupted";
     row.phase =
       c.state === "RESPONSE_SAVED"
-        ? context.purpose === "COMPACTION"
-          ? "已完成记忆处理调用"
-          : "本次思考已结束"
-        : c.state === "FAILED"
+        ? truncated
+          ? "输出已截断"
+          : context.purpose === "COMPACTION"
+            ? "已完成记忆处理调用"
+            : "本次思考已结束"
+        : row.status === "failed"
           ? "模型调用失败"
           : "模型调用结果未记录";
     row.ended_at = c.completed_at ?? c.updated_at;
     row.last_progress_at = c.updated_at;
     row.timing_known = !!c.started_at && !!c.completed_at;
     this.put(row);
-    if (c.response) {
-      const response = this.store.read<{
-        content?: {
-          type: string;
-          id: string;
-          name: string;
-          arguments: unknown;
-        }[];
-      }>(c.response);
+    if (response) {
       let index = 0;
       for (const part of response.content ?? [])
         if (part.type === "toolCall") {
@@ -448,7 +466,11 @@ export class ActivityHistory {
         }[];
       }>(e.payload);
       if (m.role === "assistant" && m.display_call_id) {
-        const association = this.calls.get(m.display_call_id);
+        const call =
+          e.event_type === "main.message"
+            ? messageDisplaysFor(this.store).forEvent(e.event_id)?.call_id
+            : m.display_call_id;
+        const association = call ? this.calls.get(call) : undefined;
         if (association)
           this.messageOrders.set(e.event_id, association.order + 100);
       }

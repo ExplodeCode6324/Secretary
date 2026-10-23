@@ -1,0 +1,47 @@
+# Issue #80 implementation evidence
+
+Date: 2026-10-23. Baseline: `0bbb110874da978805aeb00c99573ee18fc49260` (#79 / PR #85). Approved plan: [English R2](../../fix_20261023_issue80_回复终态与推理预览.en.md), reviewed at `d463c13cfec85c3bc02195c8f55c9a35b29900a0`; coordinator implementation authorization followed the plan-only record `e1d3a3762029e62c0a04ef83fd26042a51cb08e6`.
+
+## Result
+
+- Empty abnormal assistant events retain status-bearing rows. A per-Store incremental resolver prevents a reused call association from overwriting its earlier durable event, including omitted tool-only events and earlier sessions; around-by-event and related use the same identity. New assistant message_end writes consume the display association after persistence. Model identity and stored schemas are unchanged.
+- Length-limited model calls display truncated / `输出已截断` live and historically for MAIN, TASK and COMPACTION, including settings-associated compaction. Their ModelCall stays RESPONSE_SAVED and the parent settings state is preserved. Empty errors use interrupted only with a resolved, non-colliding, same-session INTERRUPTED/CANCELLED call; aborted remains interrupted without requiring a call.
+- Default GET and actual SSE expose the same optional, display-only thinking_preview. The helper reads a bounded source prefix, preserves 20 extended graphemes and a 4 KiB encoded-text budget, and excludes redacted content/signatures. It operates before preview retention clipping. Full thinking remains explicit GET opt-in; hidden reasoning creates no body cursor.
+- Redaction, including terminal done/error snapshots, revokes retained reasoning and advances revision. Cursor revision is checked before offsets. Durable replacement, expiry and restart retain stable identities without stale transient overrides. Body fragments use 28,000 JSON-byte budgets each so the preview fits within the existing whole-message 64 KiB bound.
+- Authored ThinkingPreview/SSEPreview/SSETransient schemas generate public DTOs. OpenAPI remains textually unchanged because it references the same schema/routes; internal persisted schema/DTO are unchanged. API inventory remains 82 operations (50 GET / 32 POST), all unused by the unimplemented new TUI. Current API docs and en/ja/fr versions are synchronized. The four approved PR85 documentation follow-ups are applied; historical acceptance findings are preserved.
+
+## Regressions and first failures
+
+Raw local evidence is Git-ignored under `.demo-data/issue80/`; no raw review content, credentials or runtime data are published.
+
+- Baseline projection tests: 7/7 failed for the expected missing rows/previews/redaction behavior (`projection-first.log`). Baseline outcome tests: 8/8 failed (`outcomes-first.log`); seven exposed the missing outcome/activity behavior, while the call-limit fixture stopped early at its small context budget. Increasing only the fixture context capacity allowed it to reach the real 20-call transport limit and validate the association reset (`limit-fixture-2.log`).
+- First implementation run: 14/15 passed. The remaining failure was the same call-limit fixture capacity, then corrected. Added boundary coverage includes cross-session/stale cancelled associations, settings parent preservation, current snapshots before retention limits, split emoji/combining sequences, terminal redaction, caller-owned snapshots, numeric SSE version/schema validation, and normal/unknown/legacy responses.
+- The first settings-parent fixture used invalid digest strings and an inferred numeric schema_version; the focused fixture and initial full verification rejected these. Corrected the fixture to the existing schema (literal version 1 and 64-hex digests), preserving `focused-final.log` and `verify-first.log`. No production schema change was needed.
+- Focused #80 suite, related suites and complete isolated verification results are recorded below. Existing related suites: 84 passed, zero failed, three PostgreSQL cases skipped in that focused run (`related-tests.log`); full verification supplies a dedicated PostgreSQL instance.
+
+## Display-only cancellation clarification
+
+The deterministic backoff-stop fixture retains ModelCall INTERRUPTED/TRANSIENT and an empty assistant error. Live activity already reports failed; historical activity previously reported interrupted. Historical projection now uses failed for a known non-CANCELLED failure kind, matching live display. Missing legacy failure kinds retain interrupted. No retry, cancellation, replay or recovery transition was changed.
+
+Both lifetime-first and agent-first stop fixtures retain INTERRUPTED/CANCELLED and display interrupted despite their different stored stop reasons (error versus aborted). In these isolated fixtures, reopening the session observed RECOVERY_BLOCKED; this observation is passed to coordination for its separately tracked recovery follow-up and is not fixed by #80. The separate crash-after-length-before-finish recovery candidate remains NOT_TESTED here. Normal redacted-only/tool-only durable events can still omit rows; expiry of their former transient row is not evidence that a durable event is absent.
+
+## Validation and remaining gates
+
+Codex validation completed: focused #80 suite **19/19 PASS**, zero skips (`focused-fixed.log`); full `npm run verify` **678/678 PASS**, zero failures/skips, 797.7 seconds (`verify-full.log`). The full run used Node 22.22.0, PostgreSQL 18.6 and Python 3.9.6 with a newly initialized, loopback-only task database instance and per-test temporary databases. Only the administrative test database remained afterward; the task instance stopped successfully. Existing databases and Core processes were not stopped. API generation is idempotent; staged docs checks pass (606 Markdown files, 8,233 local links; 113 sources / 339 localized pages / 675 translation units), changed TypeScript formatting and staged whitespace checks pass, and the inventory matches all 82 routes. The 393 inherited untracked files remain untouched. PR CI and same-conversation exact-HEAD Claude implementation review remain pending until the final PR comment. Claude plan review independently inspected source and links but ran no repository tests; its npm egress was unavailable. All implementation test results above are Codex-provided evidence.
+
+No real/paid model calls or TUI/GUI acceptance were performed. Portable remains frozen. Merge requires the coordinator's separate approval for the exact reviewed HEAD; this record does not authorize merging or deployment.
+
+## I1 review corrections
+
+Claude Opus 5.5 Extra reviewed exact HEAD `30c1ae7495c6dfa5325e585924dfb7622a1e87a4` in the same conversation and returned CHANGES_REQUIRED. It independently fetched that HEAD, matched the supplied production diff, inspected changed production/tests/contracts/docs, and ran dependency-free preview probes under Node 22.22.0. It did not execute the repository suite (npm access still returned 403). Prior GitHub Verify 39967075901 was green: Linux 677 passed / one expected macOS-only skip; macOS 108 passed / zero skips; aggregate verify passed.
+
+All four required findings are accepted:
+
+1. Iterate segmentation lazily, stopping after 20 clusters plus one lookahead. Discard a possibly incomplete last cluster only when iteration actually reaches the clipped window end. The regression deterministically counts iterator visits, and equivalence fixtures cover exact window edges, separators/CRLF, giant clusters and the byte limit. A local 200-call microbenchmark measured CJK 196.5 → 6.1 ms, ASCII 195.3 → 4.1 ms, emoji 105.8 → 11.8 ms; these are helper measurements, not end-to-end UI acceptance.
+2. ActivityHistory applies model-call ordering to a main.message only if the shared resolver retained its call association. A collided failure therefore keeps its later frame order, after the earlier reply and executed tool. Agent-message ordering is unchanged. The regression uses a real fixture loop with a completed tool, rather than unassociated historical events alone.
+3. Exclude Core's exact `PROCESS_INTERRUPTED` / TRANSIENT marker from the historical failed mapping. The existing persisted marker is exported as a shared constant; its value and transport/retry/recovery behavior are unchanged. This corrects I1's overbroad interpretation of the R2 backoff note: real backoff failures remain failed, while an IN_FLIGHT call reopened and replayed remains interrupted during and after retry. No provider-error parsing or new persisted field is added.
+4. Public API docs and the shared preview schema explicitly state that preview/thinking are raw model text; terminal consumers must escape or sanitize control/ANSI sequences before rendering. en/ja/fr documentation and generated DTOs are synchronized.
+
+Three new regression failures were reproduced against I1 before editing (`i1-first.log`); the semantic equivalence fixture already passed. After correction, all 23 #80 tests plus six existing activity-history tests pass (29/29, zero skips; `i1-focused.log`). Type checking and docs/localization pass with 676 translation units. Fresh full verification and exact-HEAD PR CI/re-review are pending for this correction.
+
+Optional I1 suggestions are deferred: reducing harmless preview version bumps and extending Activity.end for an atomic display phase are unnecessary for the required fixes. The specified preview may end in a newline followed by U+2026; #82 should render that prefix cleanly. The existing separately tracked recovery-policy observations remain outside #80.

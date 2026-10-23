@@ -12,7 +12,13 @@ import type {
 } from "./contracts.ts";
 
 export type ActivityStatus =
-  "running" | "waiting" | "succeeded" | "failed" | "interrupted" | "cancelled";
+  | "running"
+  | "waiting"
+  | "succeeded"
+  | "failed"
+  | "interrupted"
+  | "cancelled"
+  | "truncated";
 export type Progress = {
   current?: number;
   completed?: number;

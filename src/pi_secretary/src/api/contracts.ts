@@ -625,7 +625,24 @@ export interface Message {
     | "interrupted"
     | "unknown";
   preview_availability?: "active" | "expired";
+  thinking_preview?: ThinkingPreview;
   [k: string]: unknown;
+}
+/**
+ * Non-authoritative visible reasoning prefix: at most 20 extended grapheme clusters and 4096 JSON-encoded text bytes including an added ellipsis. No redacted blocks or signatures.
+ *
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "ThinkingPreview".
+ */
+export interface ThinkingPreview {
+  /**
+   * Raw model text; terminal consumers must escape or sanitize control characters and ANSI sequences before rendering.
+   */
+  text: string;
+  /**
+   * Visible source was omitted from this preview; independent of response outcome and retained-body truncation.
+   */
+  truncated: boolean;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -634,6 +651,9 @@ export interface Message {
 export interface Activity {
   id: string;
   kind?: string;
+  /**
+   * Display status. Includes truncated for a persisted length-limited model response; persistence and parent business states are unchanged.
+   */
   status?: string;
   phase?: string;
   [k: string]: unknown;
@@ -1334,4 +1354,35 @@ export interface PushTargetUpdateCommand {
     start: string;
     end: string;
   } | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SSEPreview".
+ */
+export interface SSEPreview {
+  id: string;
+  version: number;
+  status: "running" | "saved" | "incomplete";
+  truncated: boolean;
+  blocks: {
+    index: number;
+    type: "text";
+    text: string;
+    [k: string]: unknown;
+  }[];
+  thinking_preview?: ThinkingPreview;
+  [k: string]: unknown;
+}
+/**
+ * Data of the transient SSE event; no durable cursor and no full reasoning blocks. Activities remain an open sampled snapshot.
+ *
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SSETransient".
+ */
+export interface SSETransient {
+  previews: SSEPreview[];
+  activities: {
+    [k: string]: unknown;
+  };
+  [k: string]: unknown;
 }

@@ -69,7 +69,12 @@ test("preview arrives before durable completion; final history is linked and thi
     const visible: any = await client.query("timeline?thinking=true");
     assert(visible.items.some((m: any) => m.thinking === "检查输入信息。"));
     const hidden: any = await new CoreClient(server.endpoint).query("timeline");
-    assert(!JSON.stringify(hidden).includes("检查输入信息"));
+    assert(hidden.items.every((m: any) => m.thinking === undefined));
+    assert(
+      hidden.items.some(
+        (m: any) => m.thinking_preview?.text === "检查输入信息。",
+      ),
+    );
     assert(!JSON.stringify(hidden).includes("PRIVATE_SIGNATURE"));
   } finally {
     await server.close();
