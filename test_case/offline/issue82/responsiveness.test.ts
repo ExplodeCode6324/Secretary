@@ -148,6 +148,67 @@ os.fsync = delayed_fsync`,
       if (value.state === "ATTEMPTED") attempt.push(performance.now() - begin);
       return value;
     };
+    // Test-only phase instrumentation: business queue/capture, writer queue,
+    // and dispatched-operation time remain distinct from actual fsync/sleep.
+    const storeQueueMs: number[] = [],
+      captureMs: number[] = [];
+    let lastCaptureMs = 0;
+    const capture = (store as any).capture.bind(store);
+    (store as any).capture = (...args: any[]) => {
+      const start = performance.now();
+      const value = capture(...args);
+      lastCaptureMs = performance.now() - start;
+      captureMs.push(lastCaptureMs);
+      return value;
+    };
+    const transaction = (store as any).transaction.bind(store);
+    (store as any).transaction = (change: (...args: any[]) => any) => {
+      const queued = performance.now();
+      return transaction((...args: any[]) => {
+        storeQueueMs.push(
+          Math.max(0, performance.now() - queued - lastCaptureMs),
+        );
+        return change(...args);
+      });
+    };
+    const writerPhases: Record<
+      string,
+      { queue: number[]; execution: number[] }
+    > = {};
+    const pending: Array<{ op: string; queued: number; dispatched?: number }> =
+      [];
+    const request = (writer as any).request.bind(writer);
+    (writer as any).request = async (body: { op: string }, low: boolean) => {
+      const marker = {
+        op: body.op,
+        queued: performance.now(),
+        dispatched: undefined as number | undefined,
+      };
+      pending.push(marker);
+      try {
+        return await request(body, low);
+      } finally {
+        if (marker.dispatched !== undefined) {
+          const phases = (writerPhases[marker.op] ??= {
+            queue: [],
+            execution: [],
+          });
+          phases.queue.push(marker.dispatched - marker.queued);
+          phases.execution.push(performance.now() - marker.dispatched);
+        }
+        const index = pending.indexOf(marker);
+        if (index >= 0) pending.splice(index, 1);
+      }
+    };
+    const write = writer.child.stdin.write.bind(writer.child.stdin);
+    writer.child.stdin.write = ((chunk: any, ...args: any[]) => {
+      const body = JSON.parse(String(chunk));
+      const marker = pending.find(
+        (value) => value.op === body.op && value.dispatched === undefined,
+      );
+      if (marker) marker.dispatched = performance.now();
+      return (write as any)(chunk, ...args);
+    }) as typeof writer.child.stdin.write;
     await sync.start();
     while (sync.stale) await new Promise((resolve) => setTimeout(resolve, 5));
     let checkpointMax = 0,
@@ -235,6 +296,17 @@ os.fsync = delayed_fsync`,
         modelPublishMaxMs: Math.max(...render),
         checkpointMax,
         nativePaint: "NOT_TESTED",
+        businessQueue: distribution(storeQueueMs),
+        capture: distribution(captureMs),
+        writerPhases: Object.fromEntries(
+          Object.entries(writerPhases).map(([op, phases]) => [
+            op,
+            {
+              queue: distribution(phases.queue),
+              execution: distribution(phases.execution),
+            },
+          ]),
+        ),
         realFsync: distribution(disk.fsync),
         injectedSleep: distribution(disk.sleep),
       };

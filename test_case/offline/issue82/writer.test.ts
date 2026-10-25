@@ -1,3 +1,4 @@
+import { ClientStore } from "../../../src/pi_secretary/src/tui/state.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
@@ -294,3 +295,31 @@ test(
     await close(writer);
   },
 );
+
+test("queued ClientStore transactions precede a checkpoint after writer ACK", async () => {
+  const writer = new StateWriter(root());
+  const store = new ClientStore(writer);
+  await store.open();
+  const order: string[] = [];
+  let started!: () => void;
+  const firstWrite = new Promise<void>((resolve) => {
+    started = resolve;
+  });
+  const write = writer.child.stdin.write.bind(writer.child.stdin);
+  writer.child.stdin.write = ((chunk: any, ...args: any[]) => {
+    const op = JSON.parse(String(chunk)).op;
+    order.push(op);
+    if (order.length === 1) started();
+    return (write as any)(chunk, ...args);
+  }) as typeof writer.child.stdin.write;
+  try {
+    const first = store.save(),
+      second = store.save();
+    await firstWrite;
+    const cache = writer.checkpoint({ cursor: "test" }, {});
+    await Promise.all([first, second, cache]);
+    assert.deepEqual(order.slice(0, 3), ["commit", "commit", "checkpoint"]);
+  } finally {
+    await close(writer);
+  }
+});

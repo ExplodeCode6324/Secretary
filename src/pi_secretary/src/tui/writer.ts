@@ -71,6 +71,7 @@ export class StateWriter {
   private abortWriter!: (error: Error) => void;
   private high: Job[] = [];
   private low?: Job;
+  private lowDispatch?: ReturnType<typeof setImmediate>;
   private failed?: Error;
   private closed = false;
   private incoming = Buffer.alloc(0);
@@ -185,8 +186,17 @@ export class StateWriter {
       }
     });
   }
-  private dispatch() {
+  private dispatch(allowLow = false) {
     if (this.current || !this.healthy) return;
+    if (!this.high.length && this.low && !allowLow) {
+      // ACK consumers may have already queued business transactions on a
+      // Promise chain. Let those continuations expose their high-priority jobs.
+      this.lowDispatch ??= setImmediate(() => {
+        this.lowDispatch = undefined;
+        this.dispatch(true);
+      });
+      return;
+    }
     const job = this.high.shift() ?? this.low;
     if (!job) return;
     if (job === this.low) this.low = undefined;
