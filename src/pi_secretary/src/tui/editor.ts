@@ -52,6 +52,51 @@ export function boundaries(text: string): number[] {
   offsets.push(text.length);
   return offsets;
 }
+/** Full-text ICU context with indexed lookup; no fixed Unicode look-behind window. */
+export class GraphemeIndex {
+  private segments: Intl.Segments;
+  constructor(readonly text: string) {
+    this.segments = new Intl.Segmenter("und", {
+      granularity: "grapheme",
+    }).segment(text);
+  }
+  has(position: number): boolean {
+    return (
+      Number.isSafeInteger(position) &&
+      position >= 0 &&
+      position <= this.text.length &&
+      (position === 0 ||
+        position === this.text.length ||
+        this.segments.containing(position)?.index === position)
+    );
+  }
+  snap(position: number, forward: boolean): number {
+    if (position <= 0) return 0;
+    if (position >= this.text.length) return this.text.length;
+    const part = this.segments.containing(position)!;
+    return part.index === position || !forward
+      ? part.index
+      : part.index + part.segment.length;
+  }
+  move(position: number, count: number): number {
+    while (count < 0 && position > 0) {
+      position = this.segments.containing(position - 1)!.index;
+      count++;
+    }
+    while (count > 0 && position < this.text.length) {
+      const part = this.segments.containing(position)!;
+      position = part.index + part.segment.length;
+      count--;
+    }
+    return position;
+  }
+  window(position: number, before = 2000, after = 2000) {
+    return {
+      from: this.move(position, -before),
+      to: this.move(position, after),
+    };
+  }
+}
 export function validText(text: unknown): asserts text is string {
   if (
     typeof text !== "string" ||
@@ -85,11 +130,11 @@ export function validateDraft(value: Draft): void {
     ids.add(node.id);
   }
   if (bytes(value.nodes) > DRAFT_BYTES) throw Error("DRAFT_TOO_LARGE");
-  const cuts = boundaries(flatten(value.nodes));
+  const index = new GraphemeIndex(flatten(value.nodes));
   if (
     !value.selection ||
-    !cuts.includes(value.selection.anchor) ||
-    !cuts.includes(value.selection.head)
+    !index.has(value.selection.anchor) ||
+    !index.has(value.selection.head)
   )
     throw Error("INVALID_SELECTION");
 }
@@ -128,9 +173,50 @@ export class Editor {
   draft: Draft;
   private undoStack: Undo[] = [];
   private redoStack: Undo[] = [];
-  constructor(draft = emptyDraft()) {
-    validateDraft(draft);
+  private indexedNodes?: TextNode[];
+  private indexed?: GraphemeIndex;
+  get index(): GraphemeIndex {
+    if (this.indexedNodes !== this.draft.nodes) {
+      this.indexedNodes = this.draft.nodes;
+      this.indexed = new GraphemeIndex(flatten(this.draft.nodes));
+    }
+    return this.indexed!;
+  }
+  constructor(draft = emptyDraft(), recoverSelection = false) {
+    const selection = draft.selection;
+    validateDraft(
+      recoverSelection
+        ? { ...draft, selection: { anchor: 0, head: 0 } }
+        : draft,
+    );
     this.draft = structuredClone(draft);
+    if (recoverSelection) {
+      if (
+        !selection ||
+        [selection.anchor, selection.head].some(
+          (p) =>
+            !Number.isSafeInteger(p) || p < 0 || p > this.index.text.length,
+        )
+      )
+        throw Error("INVALID_SELECTION");
+      const forward = selection.head >= selection.anchor;
+      const repaired =
+        selection.anchor === selection.head
+          ? {
+              anchor: this.safePosition(selection.head, true),
+              head: this.safePosition(selection.head, true),
+            }
+          : {
+              anchor: this.safePosition(selection.anchor, !forward),
+              head: this.safePosition(selection.head, forward),
+            };
+      if (
+        repaired.anchor !== selection.anchor ||
+        repaired.head !== selection.head
+      )
+        this.draft.revision++;
+      this.draft.selection = repaired;
+    }
   }
   snapshot(): EditorState {
     return structuredClone({
@@ -140,7 +226,7 @@ export class Editor {
     });
   }
   static restore(value: EditorState): Editor {
-    const editor = new Editor(value.draft);
+    const editor = new Editor(value.draft, true);
     if (
       !Array.isArray(value.undo) ||
       !Array.isArray(value.redo) ||
@@ -180,8 +266,7 @@ export class Editor {
     return editor;
   }
   private range(start: number, end: number) {
-    const cuts = boundaries(flatten(this.draft.nodes));
-    if (start > end || !cuts.includes(start) || !cuts.includes(end))
+    if (start > end || !this.index.has(start) || !this.index.has(end))
       throw Error("INVALID_RANGE");
     let at = 0;
     for (const node of this.draft.nodes) {
@@ -229,26 +314,28 @@ export class Editor {
     this.draft.selection = { ...selection };
   }
   /** Joining text may create a grapheme across a provenance boundary. */
-  private safePosition(position: number, forward: boolean): number {
+  safePosition(position: number, forward: boolean): number {
+    let point = this.index.snap(position, forward),
+      offset = 0;
     const collapsed: Array<{ start: number; end: number }> = [];
-    let offset = 0;
     for (const node of this.draft.nodes) {
       if (node.kind === "paste" && !node.expanded)
         collapsed.push({ start: offset, end: offset + node.text.length });
       offset += node.text.length;
     }
-    let interval = 0,
-      previous = 0;
-    for (const cut of boundaries(flatten(this.draft.nodes))) {
-      while (interval < collapsed.length && collapsed[interval].end <= cut)
-        interval++;
-      const block = collapsed[interval];
-      if (block && block.start < cut && cut < block.end) continue;
-      if (forward && cut >= position) return cut;
-      if (!forward && cut > position) return previous;
-      previous = cut;
+    for (const block of forward ? collapsed : collapsed.reverse())
+      if (point > block.start && point < block.end)
+        point = this.index.snap(forward ? block.end : block.start, forward);
+    return point;
+  }
+  typedRange(start: number, end: number): boolean {
+    let at = 0;
+    for (const node of this.draft.nodes) {
+      const next = at + node.text.length;
+      if (node.kind === "paste" && start < next && end > at) return false;
+      at = next;
     }
-    return previous;
+    return true;
   }
   private replace(start: number, end: number, nodes: TextNode[]): TextNode[] {
     const [left, tail] = split(this.draft.nodes, start);
@@ -335,7 +422,18 @@ export class Editor {
       operation.start + flatten(old).length,
       structuredClone(next),
     );
-    this.draft.selection = { ...(redo ? operation.after : operation.before) };
+    const selection = redo ? operation.after : operation.before;
+    const forward = selection.head >= selection.anchor;
+    this.draft.selection =
+      selection.anchor === selection.head
+        ? {
+            anchor: this.safePosition(selection.head, true),
+            head: this.safePosition(selection.head, true),
+          }
+        : {
+            anchor: this.safePosition(selection.anchor, !forward),
+            head: this.safePosition(selection.head, forward),
+          };
     source.pop();
     (redo ? this.undoStack : this.redoStack).push(operation);
   }

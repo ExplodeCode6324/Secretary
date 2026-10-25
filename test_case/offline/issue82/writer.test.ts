@@ -323,3 +323,36 @@ test("queued ClientStore transactions precede a checkpoint after writer ACK", as
     await close(writer);
   }
 });
+
+test("continuous business commits cannot starve a coalesced checkpoint", async () => {
+  const helper = path.join(run, "fairness-writer.py");
+  fs.writeFileSync(
+    helper,
+    source.replace(
+      "import sys",
+      "import sys\nimport time\nreal_fsync = os.fsync\ndef delayed_fsync(fd):\n    time.sleep(.020)\n    return real_fsync(fd)\nos.fsync = delayed_fsync",
+    ),
+  );
+  const writer = new StateWriter(root(), undefined, { helperPath: helper }),
+    store = new ClientStore(writer);
+  await store.open();
+  const order: string[] = [];
+  const write = writer.child.stdin.write.bind(writer.child.stdin);
+  writer.child.stdin.write = ((chunk: any, ...args: any[]) => {
+    order.push(JSON.parse(String(chunk)).op);
+    return (write as any)(chunk, ...args);
+  }) as typeof writer.child.stdin.write;
+  try {
+    const work = Array.from({ length: 24 }, () => store.save());
+    const cp = writer.checkpoint({ cursor: "fair" }, {});
+    await Promise.all([...work, cp]);
+    const index = order.indexOf("checkpoint");
+    assert.ok(index > 0 && index < 24, JSON.stringify(order));
+    assert.equal(
+      ((await writer.loadCheckpoint()).value as { cursor: string }).cursor,
+      "fair",
+    );
+  } finally {
+    await close(writer);
+  }
+});

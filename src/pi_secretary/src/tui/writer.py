@@ -16,6 +16,27 @@ import signal
 import stat
 import sys
 
+# The user is waiting for this thread's durable ACK. This affects only this
+# helper thread, never Core, the parent process, or machine-wide scheduling.
+qos = {"platform": sys.platform, "status": "not_applicable"}
+if sys.platform == "darwin":
+    import ctypes
+    system = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+    system.pthread_self.restype = ctypes.c_void_p
+    system.pthread_get_qos_class_np.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint), ctypes.POINTER(ctypes.c_int)]
+    system.pthread_set_qos_class_self_np.argtypes = [ctypes.c_uint, ctypes.c_int]
+    current, relative = ctypes.c_uint(), ctypes.c_int()
+    thread = system.pthread_self()
+    before_result = system.pthread_get_qos_class_np(thread, ctypes.byref(current), ctypes.byref(relative))
+    qos = {"platform": "darwin", "inherited": current.value, "inherited_relative": relative.value,
+           "read_before_result": before_result, "requested": 0x19, "requested_relative": 0}
+    qos["set_result"] = system.pthread_set_qos_class_self_np(0x19, 0)  # QOS_CLASS_USER_INITIATED
+    qos["read_after_result"] = system.pthread_get_qos_class_np(thread, ctypes.byref(current), ctypes.byref(relative))
+    qos.update({"actual": current.value, "actual_relative": relative.value})
+    if before_result or qos["set_result"] or qos["read_after_result"] or current.value != 0x19 or relative.value != 0:
+        raise RuntimeError("WRITER_QOS_REQUEST_FAILED:" + json.dumps(qos))
+    qos["status"] = "applied"
+
 for sig in (signal.SIGHUP, signal.SIGINT, signal.SIGTERM, signal.SIGTSTP):
     signal.signal(sig, signal.SIG_IGN)
 os.umask(0o077)
@@ -182,7 +203,7 @@ def reply(value):
         return False
 
 
-if reply({"ready": True, "pid": os.getpid(), "manifest": manifest, "usage": usage()[0]}):
+if reply({"ready": True, "pid": os.getpid(), "manifest": manifest, "usage": usage()[0], "qos": qos}):
     while True:
         raw = sys.stdin.buffer.readline(MAX_LINE + 1)
         if not raw:

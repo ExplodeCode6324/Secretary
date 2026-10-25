@@ -351,3 +351,18 @@ test("missing Segmenter keeps an unsupported browser readable and prevents edits
   await h.settle();
   assert.equal(h.frames.filter((frame) => frame.type === "event").length, 0);
 });
+
+test("empty native paste/drop sends no transaction and leaves a selected draft unchanged", async () => {
+  const h = harness();
+  await h.settle();
+  h.editor.insert("keep", "typed");
+  h.editor.select({ anchor: 0, head: 4 });
+  h.socket().receive({ type: "ready", generation: 1, state: h.state() });
+  const before = h.editor.snapshot(),
+    count = h.frames.length;
+  h.sink.dispatch("paste", { clipboardData: { files: [], getData: () => "" } });
+  h.sink.dispatch("drop", { dataTransfer: { files: [], getData: () => "" } });
+  await h.settle();
+  assert.equal(h.frames.length, count);
+  assert.deepEqual(h.editor.snapshot(), before);
+});

@@ -264,6 +264,14 @@ os.fsync = delayed_fsync`,
         await new Promise((resolve) => setTimeout(resolve, 120));
       }
       await outbox.idle();
+      const settleDeadline = performance.now() + 5000;
+      while (
+        ((sync as any).cursor !== "6000" ||
+          (sync as any).durable?.cursor !== "6000" ||
+          Object.keys((sync as any).dirty).length) &&
+        performance.now() < settleDeadline
+      )
+        await new Promise((resolve) => setTimeout(resolve, 10));
     } finally {
       clearInterval(burst);
       sync.close();
@@ -296,6 +304,10 @@ os.fsync = delayed_fsync`,
         modelPublishMaxMs: Math.max(...render),
         checkpointMax,
         nativePaint: "NOT_TESTED",
+        writerQos: writer.qos,
+        finalCursor: (sync as any).cursor,
+        finalDurableCursor: (sync as any).durable?.cursor,
+        finalDirty: (sync as any).dirty,
         businessQueue: distribution(storeQueueMs),
         capture: distribution(captureMs),
         writerPhases: Object.fromEntries(
@@ -319,6 +331,9 @@ os.fsync = delayed_fsync`,
     console.log(JSON.stringify({ issue82Responsiveness: result }));
     assert.equal(failure, undefined);
     assert.equal(emitted, 6000);
+    assert.equal(result.finalCursor, "6000", JSON.stringify(result));
+    assert.equal(result.finalDurableCursor, "6000", JSON.stringify(result));
+    assert.deepEqual(result.finalDirty, {}, JSON.stringify(result));
     assert.ok(attempt.length >= 20, JSON.stringify(result));
     assert.ok(result.draftMaxMs <= 500, JSON.stringify(result));
     assert.ok(result.attemptMaxMs <= 500, JSON.stringify(result));

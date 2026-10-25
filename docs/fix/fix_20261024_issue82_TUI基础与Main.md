@@ -382,3 +382,13 @@ Claude R2 精确复核7330c920d2d1ad1963969a9c38e2df9df7aa3e18，确认九项R1�
 补充非阻塞意见亦采纳：G0用合成CJK/emoji验证pbcopy→pbpaste UTF-8往返；禁用内置altScreen search/next/previous/close、prompt-jump/top/bottom，仅配置约定page/half-page，Home/End回归editor、Ctrl+G不被search截走并实测有效键图。PTY hangup+queued save验证helper与ACK/未保存状态，不能当IME证据。Terminal Reset后立即输入/粘贴纳入G0，focus-in/redraw重设bracketed-paste等模式；若Reset后仍丢控制码来源，同样G0硬失败。真实G0仍NOT_TESTED。
 
 有界内存undo在崩溃后可能留下其有界正文作真实孤儿，保留三年，除非存在明确持久supersession/discard票据。fixture/live均attach-only是协调待批准的RUN-01范围取舍，C1落地时明确写入requirements状态，不称已实现startCore复用。未扩业务或Core恢复范围，待R3复核与协调批准。
+
+## 实施复核补充约定 — 2026-10-25
+
+协调会话在产品 R1 对 `99f254f` 给出 CHANGES_REQUIRED 后，批准以下 R7 范围内修正。它们不改变 Core 生命周期、持久化所有权或以上历史证据。
+
+- 字素边界使用完整文本 ICU 索引缓存与定位查询，可见窗口遍历不得截断 Unicode 上下文；RI 奇偶、任意长 combining/ZWJ 序列仍按全文处理。编辑、撤销/重做和鼠标选择都落在合法字素边界及折叠粘贴块之外。恢复仅能在正文、节点和哈希验证完成后，确定性修正旧版合法数值范围内的选择位置；不得放宽损坏正文、outbox 或 UNKNOWN 校验。
+- canonical 状态未变的 paste begin/chunk ACK 不附带重复全量 snapshot。commit 保持冻结 revision/selection、5 秒事务期限与总草稿 4 MiB 上限。前后端空 paste/drop 均无操作；补全只能替换全部 typed-origin 的 token，触及 paste-origin 即无变更并提示，覆盖混合 token 和补全循环。
+- 低优先级 checkpoint 先让出一轮调度，让已经排队的 ClientStore 事务进入 writer high 队列。合并 checkpoint 时保留最初入队时间；等待达到 250 ms 后，在下一操作边界获得一次派发，防止持续 high 导致饥饿。不打断当前操作，不改变 fsync→ACK 或 dirty obligation 先持久化的语义。测试同时验证业务优先顺序、checkpoint 进展、6000 个事务及最终 cursor/dirty 收敛。
+- 仅 Darwin 的专用 writer helper 当前线程请求 `QOS_CLASS_USER_INITIATED`（0x19、相对优先级 0），对应用户正在等待持久化结果的工作；记录继承值、API 返回值与实际回读，失败明确报前置条件错误，不能伪报应用。Linux 不调用 Darwin API；不修改 Core、父进程或全机优先级。不允许 busy-wait、减少负载/注入延迟或放宽延迟和样本断言。该调度取舍针对已测得的 timer coalescing，最终仍以准确 CI 测量为准。
+- 补充 combining/ZWJ/VS/RI/Hangul 编辑后的持久化重开、完整 Unicode 上下文边界比对、非空草稿经分块 ACK 粘贴至总量 4 MiB、1 MiB/近 4 MiB 按键耗时、补全来源和空粘贴的选择/undo 保留。每个已用 API 必须标明消费文件与函数。原生 OS/实体快捷键/Master 本人体验仍分别记录。

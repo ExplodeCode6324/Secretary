@@ -1,6 +1,6 @@
 # Issue #82 implementation evidence
 
-Status: implemented and locally validated; no product review PASS, PR CI or merge is claimed by this record. The R7 plan was approved at `bff4f6f759b3a4012134f8317451c898329d5307`; its delivery record is `c55515809810c1fae982a4618c25098a8f7e6c7a`. Coordinator release authorized implementation after that plan review. Historical plan bodies and G0 failures remain unchanged.
+Status: product review R1 requires corrections; exact final review and CI are pending. No product PASS or merge is claimed. The R7 plan was approved at `bff4f6f759b3a4012134f8317451c898329d5307`; its delivery record is `c55515809810c1fae982a4618c25098a8f7e6c7a`. Coordinator release authorized implementation after that plan review. Historical plan bodies and G0 failures remain unchanged.
 
 ## Implemented boundary
 
@@ -36,3 +36,13 @@ Initial type-check failures (unsupported target String method and two state typi
 ## Remaining gates
 
 Required Linux/macOS CI, same-Claude exact product HEAD review and coordinator's separate exact-HEAD merge decision. Native OS IME, native clipboard/shortcut behavior and final visual acceptance remain explicitly NOT_TESTED unless a genuine corresponding run is recorded. Master's environmental deferral policy does not waive functional defects or turn fixture/CDP evidence into native evidence.
+
+## Product review R1 and correction evidence
+
+Claude reviewed exact `99f254f` and returned CHANGES_REQUIRED. It used Ubuntu 24.04.5/Chromium 153 under Xvfb, exact ws 8.21.3, substituted tsx 4.23.12 and pi-tui transpiled from the pinned submodule because registry access was blocked. Its 45 non-Core tests passed; actual Core integration was unavailable. Actual browser runs reproduced D1 invalid post-edit caret causing restart refusal, D2 large-paste expiry/large-draft stalls, D3 Tab completion promoting pasted `/qu` into executable `/quit`, and D4 empty paste deleting a selection. It also requested consumer file/function locations and corrected two misleading messages. Its original report and archive are retained privately; archive SHA256 is `771a78329b5a4c5213d2688ad195e0a5076ebeb969de6f3b5b118beaf5c14ea9`.
+
+The corrections use full-context indexed ICU lookup and visible-window traversal, snapshot-free begin/chunk ACKs, strict typed-only completion, empty-paste no-op and narrowly validated legacy selection repair. A real writer reopen preserves authenticated UNKNOWN outbox bytes across combining/ZWJ/VS/RI/Hangul cases. Initial new regression run passed 5/5: paste from a 400 KiB draft to total 4 MiB took 96.47 ms over real WebSocket ACKs; model-edit/snapshot maxima at 1 MiB and near 4 MiB were 2.59/11.34 ms. These timings are not native paint/IME measurements.
+
+The priority-only macOS CI still failed: a checkpoint waited 30.55 seconds, sync stopped at 257 emitted transactions after overload, draft ACK maximum was 1010.94 ms and attempt maximum 332.68 ms. Its original log is retained. The coordinator approved bounded checkpoint fairness and helper-only Darwin user-initiated QoS, with API/readback evidence, unchanged 20 ms injection/6000 transactions/500 ms/sample requirements and no busy-wait. A separate same-machine thread probe observed 20 ms sleeps averaging 205.61 ms under background QoS, 154.23 ms under utility, and 26.14 ms under user-initiated. This supports a scheduling hypothesis; it does not itself certify hosted-runner performance. The bilingual plan records the final scheduling rule and scope.
+
+The complete post-R1 local issue82 suite passed **57/57**, including real Core fixture integration and real WebSocket large-input tests. Type/format/docs/localization checks passed. Final local fairness/QoS burst: 6000 transactions, 84 draft samples and 27 attempts; draft/attempt ACK maxima 287.85/63.50 ms; both current/durable cursor `6000`, dirty empty. Darwin QoS inherited 33, requested/read back 25, all API results zero. Checkpoint maximum wait/execution 379.98/121.64 ms; commit maximum wait/execution 110.24/197.51 ms. Original failures and diagnostic stages remain intact. This local pass awaits exact final HEAD CI and independent re-review.

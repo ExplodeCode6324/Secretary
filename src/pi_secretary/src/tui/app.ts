@@ -2,7 +2,6 @@ import { randomUUID } from "node:crypto";
 import { inspectCore } from "../core-client.ts";
 import {
   Editor,
-  boundaries,
   displayText,
   emptyDraft,
   flatten,
@@ -172,10 +171,7 @@ export class TuiApp {
       draft = editor.draft,
       text = flatten(draft.nodes),
       head = draft.selection.head;
-    const cuts = boundaries(text),
-      nearest = cuts.findIndex((n) => n === head);
-    const from = cuts[Math.max(0, nearest - 2000)] ?? 0,
-      to = cuts[Math.min(cuts.length - 1, nearest + 2000)] ?? text.length;
+    const { from, to } = editor.index.window(head);
     let offset = 0;
     let runs: Array<{
       id: string;
@@ -542,6 +538,8 @@ export class TuiApp {
       if (!this.command) this.store.edited();
     }
     if (result.action) await this.action(result.action, generation);
+    if (event.type === "begin" || event.type === "chunk")
+      return { unchanged: true as const };
   }
   private complete() {
     const editor = this.editor(),
@@ -550,6 +548,18 @@ export class TuiApp {
       head = draft.selection.head;
     const start = text.slice(0, head).search(/\S*$/),
       prefix = text.slice(start, head);
+    const tokenStart =
+      this.completion?.revision === draft.revision
+        ? this.completion.start
+        : start;
+    const tokenEnd =
+      this.completion?.revision === draft.revision ? this.completion.end : head;
+    if (!editor.typedRange(tokenStart, tokenEnd)) {
+      this.completion = undefined;
+      this.notice =
+        "Completion applies only to typed text; pasted token unchanged.";
+      return;
+    }
     if (this.completion?.revision === draft.revision) {
       const c = this.completion;
       c.index = (c.index + 1) % c.choices.length;

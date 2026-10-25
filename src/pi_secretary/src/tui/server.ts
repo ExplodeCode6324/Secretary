@@ -15,7 +15,10 @@ const exact = (value: Record<string, unknown>, keys: string[]) =>
 export type Assets = Record<string, { type: string; body: string }>;
 export type BrowserHooks = {
   snapshot: () => unknown;
-  event: (event: unknown, generation: number) => Promise<void>;
+  event: (
+    event: unknown,
+    generation: number,
+  ) => Promise<void | { unchanged: true }>;
   connected: (generation: number) => void;
   disconnected: (generation: number) => void;
   expired: () => void;
@@ -267,12 +270,12 @@ export class BrowserServer {
           .then(async () => {
             if (peer !== this.active || peer.phase !== "ready") return;
             try {
-              await this.hooks.event(payload, peer.generation);
+              const result = await this.hooks.event(payload, peer.generation);
               this.send(peer, {
                 type: "ack",
                 generation: peer.generation,
                 seq,
-                state: this.hooks.snapshot(),
+                ...(result?.unchanged ? {} : { state: this.hooks.snapshot() }),
               });
             } catch (error) {
               const code =

@@ -55,6 +55,7 @@ export function pythonReady(): void {
 }
 type Reply = { id: number; error?: string; [key: string]: unknown };
 type Job = {
+  queuedAt: number;
   request: Record<string, unknown>;
   resolve: (reply: Reply) => void;
   reject: (error: Error) => void;
@@ -65,6 +66,7 @@ export class StateWriter {
   sequence = 0;
   data: unknown = null;
   usage = 0;
+  qos: unknown;
   private serial = 0;
   private current?: Job & { id: number };
   private operationTimer?: ReturnType<typeof setTimeout>;
@@ -155,6 +157,7 @@ export class StateWriter {
             this.sequence = reply.manifest.sequence;
             this.data = reply.manifest.data;
             this.usage = reply.usage;
+            this.qos = reply.qos;
             clearTimeout(timer);
             startupResolve();
             started = true;
@@ -197,7 +200,10 @@ export class StateWriter {
       });
       return;
     }
-    const job = this.high.shift() ?? this.low;
+    // A coalesced checkpoint keeps its original age. Bound starvation under
+    // sustained business work so durable sync obligations can make progress.
+    const lowDue = this.low && performance.now() - this.low.queuedAt >= 250;
+    const job = lowDue ? this.low : (this.high.shift() ?? this.low);
     if (!job) return;
     if (job === this.low) this.low = undefined;
     this.current = { ...job, id: ++this.serial };
@@ -232,7 +238,12 @@ export class StateWriter {
     await this.ready;
     if (!this.healthy) throw this.failed ?? Error("WRITER_CLOSED");
     return new Promise((resolve, reject) => {
-      const job = { request, resolve, reject };
+      const job = {
+        request,
+        resolve,
+        reject,
+        queuedAt: low && this.low ? this.low.queuedAt : performance.now(),
+      };
       if (low) {
         this.low?.reject(Error("CHECKPOINT_COALESCED"));
         this.low = job;

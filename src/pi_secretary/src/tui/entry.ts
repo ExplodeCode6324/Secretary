@@ -21,28 +21,34 @@ async function main() {
     ]),
   );
   const app = new TuiApp(config, assets);
+  let started = false,
+    failed = false;
   app.onExit = (saved) => {
+    if (!started) process.exit(1); // The precise startup error was already reported.
     console.error(
       saved
         ? "TUI closed; durable state saved. Core remains independent."
         : "TUI closed with unconfirmed writes; reopen durable state for recovery.",
     );
-    process.exit(saved ? 0 : 1);
+    process.exit(saved && !failed ? 0 : 1);
   };
   for (const signal of ["SIGINT", "SIGHUP", "SIGTERM"] as const)
     process.once(signal, () => {
       void app.close();
     });
   process.once("uncaughtException", (error) => {
+    failed = true;
     console.error(error.message);
     void app.close();
   });
   process.once("unhandledRejection", (error) => {
+    failed = true;
     console.error(String(error));
     void app.close();
   });
   try {
     const url = await app.start();
+    started = true;
     console.log(
       "Secretary local browser command interface. Attach-only; start Core separately.",
     );
@@ -53,6 +59,7 @@ async function main() {
     if (config.open)
       await openBrowser(url).catch((error) => console.error(error.message));
   } catch (error) {
+    failed = true;
     console.error(error instanceof Error ? error.message : String(error));
     await app.close();
   }

@@ -67,7 +67,9 @@
       composing ||
       (small && event.type === "action" && event.action === "submit")
     ) {
-      status("Input locked; pending text retained.");
+      status(
+        "Input locked; new input was not accepted. Previously queued edits remain below.",
+      );
       return false;
     }
     const cost = encoder.encode(JSON.stringify(event)).length;
@@ -134,6 +136,7 @@
     }
   });
   function transaction(text, source, frozenRevision) {
+    if (source === "paste" && !text) return;
     if (encoder.encode(text).length > 4 * 1024 * 1024) {
       status("Paste exceeds 4 MiB; draft unchanged.");
       return;
@@ -229,8 +232,10 @@
         }
         pendingBytes -= inFlight.cost;
         inFlight = null;
-        state = message.state;
-        render();
+        if (message.state !== undefined) {
+          state = message.state;
+          render();
+        }
         renderPending();
         if (rejected) {
           status(message.error + " — draft preserved");

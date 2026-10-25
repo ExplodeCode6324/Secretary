@@ -1,10 +1,4 @@
-import {
-  Editor,
-  boundaries,
-  flatten,
-  validText,
-  type Selection,
-} from "./editor.ts";
+import { Editor, flatten, validText, type Selection } from "./editor.ts";
 
 export const INPUT_CHUNK = 64 * 1024;
 const exact = (value: Record<string, unknown>, keys: string[]) => {
@@ -69,6 +63,7 @@ export class InputProtocol {
       selection.head !== editor.draft.selection.head
     )
       throw Error("STALE_INPUT_RANGE");
+    if (kind === "paste" && !text) return {};
     try {
       editor.insert(text, kind);
     } catch (error) {
@@ -201,15 +196,6 @@ export class InputProtocol {
           throw Error("INVALID_MOVEMENT");
         const text = flatten(editor.draft.nodes),
           { anchor, head } = editor.draft.selection;
-        let cuts = boundaries(text),
-          at = 0;
-        for (const node of editor.draft.nodes) {
-          if (node.kind === "paste" && !node.expanded)
-            cuts = cuts.filter(
-              (cut) => cut <= at || cut >= at + node.text.length,
-            );
-          at += node.text.length;
-        }
         let next = head;
         const start = text.lastIndexOf("\n", head - 1) + 1,
           end = text.indexOf("\n", head);
@@ -233,26 +219,21 @@ export class InputProtocol {
               ? Math.min(anchor, head)
               : Math.max(anchor, head);
         else if (event.word) {
-          const words = [
-            ...new Intl.Segmenter("und", { granularity: "word" }).segment(text),
-          ]
-            .map((x) => x.index)
-            .concat(text.length);
-          next =
-            event.direction === "left"
-              ? (words.findLast((n) => n < head) ?? 0)
-              : (words.find((n) => n > head) ?? text.length);
+          const words = new Intl.Segmenter("und", {
+            granularity: "word",
+          }).segment(text);
+          if (event.direction === "left")
+            next = head > 0 ? words.containing(head - 1)!.index : 0;
+          else if (head < text.length) {
+            const word = words.containing(head)!;
+            next = word.index + word.segment.length;
+          }
         } else
-          next =
-            event.direction === "left"
-              ? (cuts.findLast((n) => n < head) ?? 0)
-              : (cuts.find((n) => n > head) ?? text.length);
-        next =
-          event.direction === "left" ||
-          event.direction === "up" ||
-          event.direction === "home"
-            ? (cuts.findLast((n) => n <= next) ?? 0)
-            : (cuts.find((n) => n >= next) ?? text.length);
+          next = editor.index.move(head, event.direction === "left" ? -1 : 1);
+        const forward = !["left", "up", "home"].includes(
+          String(event.direction),
+        );
+        next = editor.safePosition(next, forward);
         editor.select({ anchor: event.extend ? anchor : next, head: next });
         return { selection: true };
       }
