@@ -27,12 +27,28 @@ test(
     const helper = path.join(run, "delayed-writer.py");
     fs.writeFileSync(
       helper,
-      fs
-        .readFileSync(writerPath, "utf8")
-        .replace(
-          "import sys",
-          "import sys\nimport time\nreal_fsync = os.fsync\ndef delayed_fsync(fd):\n    time.sleep(0.020)\n    return real_fsync(fd)\nos.fsync = delayed_fsync",
-        ),
+      fs.readFileSync(writerPath, "utf8").replace(
+        "import sys",
+        `import sys
+import time
+import atexit
+fsync_samples = []
+sleep_samples = []
+real_fsync = os.fsync
+def delayed_fsync(fd):
+    begin = time.monotonic()
+    time.sleep(0.020)
+    slept = time.monotonic()
+    result = real_fsync(fd)
+    fsync_samples.append((time.monotonic() - slept) * 1000)
+    sleep_samples.append((slept - begin) * 1000)
+    return result
+def save_timing():
+    with open(${JSON.stringify(path.join(run, "fsync-metrics.json"))}, "w") as target:
+        json.dump({"fsync": fsync_samples, "sleep": sleep_samples}, target)
+atexit.register(save_timing)
+os.fsync = delayed_fsync`,
+      ),
       { mode: 0o600 },
     );
     const writer = new StateWriter(path.join(run, "tui-v1"), undefined, {
@@ -195,6 +211,18 @@ test(
       await store.close();
       await exit;
     }
+    const disk = JSON.parse(
+      fs.readFileSync(path.join(run, "fsync-metrics.json"), "utf8"),
+    ) as { fsync: number[]; sleep: number[] };
+    const distribution = (values: number[]) => {
+      const sorted = [...values].sort((a, b) => a - b);
+      return {
+        count: values.length,
+        meanMs: values.reduce((a, b) => a + b, 0) / values.length,
+        p95Ms: sorted[Math.floor(sorted.length * 0.95)],
+        maxMs: Math.max(...values),
+      };
+    };
     const sorted = [...render].sort((a, b) => a - b),
       result = {
         durationMs: performance.now() - begin,
@@ -207,6 +235,8 @@ test(
         modelPublishMaxMs: Math.max(...render),
         checkpointMax,
         nativePaint: "NOT_TESTED",
+        realFsync: distribution(disk.fsync),
+        injectedSleep: distribution(disk.sleep),
       };
     fs.writeFileSync(
       path.join(run, "metrics.json"),

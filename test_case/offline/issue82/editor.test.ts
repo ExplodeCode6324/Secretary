@@ -1,3 +1,4 @@
+import { InputProtocol } from "../../../src/pi_secretary/src/tui/input.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
@@ -156,4 +157,26 @@ test("joined graphemes keep legal caret positions across provenance, undo and re
   validateDraft(e.draft);
   e.undo(true);
   validateDraft(Editor.restore(e.snapshot()).draft);
+});
+
+test("pointer offsets at provenance joins snap without relaxing text transaction ranges", () => {
+  const e = new Editor();
+  e.insert("\u0301", "paste");
+  e.select({ anchor: 0, head: 0 });
+  e.insert("a", "typed");
+  const input = new InputProtocol(() => e);
+  input.apply({
+    type: "select",
+    revision: e.draft.revision,
+    anchor: 1,
+    head: 1,
+  });
+  assert.deepEqual(e.draft.selection, { anchor: 2, head: 2 });
+  validateDraft(e.draft);
+  assert.throws(() => e.edit(1, 1, "x", "typed"), /INVALID_RANGE/);
+  assert.throws(
+    () => e.select({ anchor: -1, head: -1 }, true),
+    /INVALID_RANGE/,
+  );
+  assert.throws(() => e.select({ anchor: 3, head: 3 }, true), /INVALID_RANGE/);
 });

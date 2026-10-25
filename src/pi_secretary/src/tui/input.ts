@@ -186,7 +186,7 @@ export class InputProtocol {
         exact(event, ["type", "revision", "anchor", "head"]);
         if (!integer(event.anchor) || !integer(event.head))
           throw Error("INVALID_SELECTION");
-        editor.select({ anchor: event.anchor, head: event.head });
+        editor.select({ anchor: event.anchor, head: event.head }, true);
         return { selection: true };
       }
       case "move": {

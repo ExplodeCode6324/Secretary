@@ -195,7 +195,28 @@ export class Editor {
       at += node.text.length;
     }
   }
-  select(selection: Selection): void {
+  select(selection: Selection, fromPointer = false): void {
+    if (fromPointer) {
+      const length = flatten(this.draft.nodes).length;
+      if (
+        [selection.anchor, selection.head].some(
+          (p) => !Number.isSafeInteger(p) || p < 0 || p > length,
+        )
+      )
+        throw Error("INVALID_RANGE");
+      // Rendered provenance runs can meet inside one grapheme. Pointer offsets
+      // are positions to snap; edit transaction ranges remain strictly validated.
+      if (selection.anchor === selection.head) {
+        const position = this.safePosition(selection.head, true);
+        selection = { anchor: position, head: position };
+      } else {
+        const forward = selection.head > selection.anchor;
+        selection = {
+          anchor: this.safePosition(selection.anchor, !forward),
+          head: this.safePosition(selection.head, forward),
+        };
+      }
+    }
     this.range(
       Math.min(selection.anchor, selection.head),
       Math.max(selection.anchor, selection.head),
