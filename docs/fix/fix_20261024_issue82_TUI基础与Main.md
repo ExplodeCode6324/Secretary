@@ -1,3 +1,60 @@
+# Issue #82 — R4 云端验收与 Linux 前置修订
+
+日期：2026-10-25（Asia/Hong_Kong）。当前范围：修订计划和窄范围 G0/Linux 前置准备；产品实现待委托协调裁决本修订后释放。仓库：https://github.com/ExplodeCode6324/Secretary ，Issue：https://github.com/ExplodeCode6324/Secretary/issues/82 。继续现有 checkout/分支 `codex/issue82-tui-main`，从 `37f6ae3547dfe166ff747c9719461d89d61670bf` 准备，不创建会话/worktree，不访问 provider，不恢复退役 GUI，不部署主机。
+
+## R4.1 当前授权与历史保留
+
+Master 已通过协调直接更改政策：“视觉验收由claude在其独立云端沙盒环境完成，如果claude无法完成则延后，先合并并接着往下做”；Claude 首次等待改为**五分钟**，后续仍五分钟，并补齐云端所需 Linux 前置工作。这覆盖旧的 Mac 必须解锁/真实 IME 后才能实现以及 Linux TUI 一律延期的门槛，不豁免功能缺陷、必需验证、准确 HEAD 复核/CI，也不取消协调对准确 PR HEAD 的单独合并授权。账号/模型不可用仍由 Master 决定 Hermes fallback。#84 的本人日常体验保持待本人验收，顺序 #82→#83→#84，不启动 #70–74。
+
+下方 R3 正文作为逐字保留的历史附录；其中范围、门禁、间隔和 Linux 陈述仅在本节明确覆盖的地方失效，其他业务合同继续作为实现合同。R3 在 `937f3031...` 的 PASS、G0 的 FAIL_PROTOCOL_PROVENANCE 和 Mac NOT_TESTED 均在审查记录与 [G0 交接](evidence/issue82-tui/g0-probe.md) 保留原貌，不追改历史。现有代码是隔离探针，不是产品实现。
+
+## R4.2 证据与延期矩阵
+
+| 层次 | 所需证据 | 环境不可用时的处置 |
+| --- | --- | --- |
+| 平台/runtime | 实际 OS/Node/Python/fcntl/locale/PTY、准确 SHA、命令与退出码 | 保存前置失败；云端不能执行如实记录，本机/CI 证据独立归属 |
+| 功能合同 | 命令/草稿/outbox/同步/身份/有界读取/恢复；完整必需验证及实际 CI | 功能失败必须修复或可靠限制，不能归入视觉豁免 |
+| PTY/headless 渲染 | 独立运行探针、raw bytes、尺寸网格、cells/SVG 哈希；能看图时实际审阅 | 无渲染/看图能力可 DEFERRED；生成 SVG 不等于视觉验收 |
+| 真实 Linux terminal | 准确终端版本/配置/字体/剪贴板交付/Reset；确有 IME 才测 | 能力缺失记 DEFERRED/NOT_TESTED；不能证明 macOS |
+| 真实 Mac Terminal/IME | 拼音按键、候选窗、Enter/Space、raw/动作轨迹、布局复制/Reset/窗口关闭 | 不重试解锁，记 DEFERRED/NOT_TESTED；环境原因本身不阻塞实现及获批合并 |
+| 协议来源 | 反例和明确的生产安全边界/修复 | 继续 FAIL_PROTOCOL_PROVENANCE，不能用时间/分块或同通道二次确认伪造来源 |
+| Master 日常体验 | #84 的实际本人使用 | 保持待本人验收，不阻塞其余可做工作 |
+
+云端产物必须由 Claude 独立运行生成，Codex 的 PNG/日志只是参考。分别记录字体替代/缺字、截断、光标/底栏布局及实际操作。合并后在原 issue/交接保留延期项，不改写成验收通过；完整 API 清单/消费者文档、必需验证、同会话准确 HEAD 复核和实际 CI 仍是协调合并前条件。
+
+## R4.3 当前获准的 Linux 窄范围前置
+
+- 保留 pi-tui `0.87.0` 与 Pi 子模块；仅添加固定开发依赖 `@xterm/headless@5.5.0` 供隔离证据渲染，不给产品新增浏览器/GUI/xterm 程序依赖。
+- macOS/Linux 均固定 `/usr/bin/python3`+fcntl；macOS 先做不触发安装的 CLT 检查，Linux 直接核实解释器。限时调用、明确错误、无自动安装。helper READY 前忽略终端进程组信号，只用管道，当前原子写完成/失败后处理 BrokenPipe，仅持有自己的锁；Python 显式 UTF-8并记录 locale。
+- POSIX helper/renderer 测试不再仅在 Mac 执行，macOS/Linux 外的平台仍跳过；保留 raw mode、输出过滤和模式恢复，不加 native addon 或 OSC52/OSC8 fallback。
+- 剪贴板是显式平台能力：Mac 保留有界 pbcopy，Linux 目前返回 UNSUPPORTED，不调用剪贴板子进程或更改剪贴板；不凭 DISPLAY/可执行文件存在等自动猜测后端，不能假报复制成功。
+- 有界 PTY runner 运行实际探针，生成 ANSI→cells→SVG 和哈希/尺寸/text；覆盖 80/120/40×24/40/12 及低于最小尺寸、中文/emoji/组合字符、持续输出、raw 输入和 helper 生命周期。headless 宽度/字体可与真实终端不同，标明限制；鼠标/选择/IME/剪贴板分开验收。
+- 现有 Core Linux CI 增加窄范围 environment/PTY/render 步骤，Mac 所选测试包含 G0，保留原 Core suites/services。后续仍须实际 CI 结果；Mac 跑 portable code 不等于 Linux 已运行。
+- [英文独立运行说明](evidence/issue82-tui/g0-cloud-run.en.md) 提供复现命令和失败报告规则。协调已明确允许将本准备正常 push 到现有分支供 Claude 按完整 SHA 获取，当前不建 PR、不强推。
+
+## R4.4 协议来源功能处置提案
+
+保留的 parser 是刻意暴露缺陷的 witness，不能搬入产品编辑器。同块隔离不能认证下一 raw chunk；多等一段时间、同通道二次确认、TERM 检测或粘贴预览都不能区分相同字节流。Reset 还可能在下次 redraw 前丢失 bracketed framing。
+
+**推荐分阶段边界 P1，待 reviewer/协调裁决：** 产品命令/持久状态/Core 路径置于带类型的输入来源边界之后。**未验证的原始终端只允许读/编辑字面数据，不派发动作**：文字不能授权发送、执行命令、丢弃、切换草稿、对外复制或退出；OS 信号仍可进行有界安全退出。live POST 和这些动作须来自已支持的输入生产者，其粘贴路径必须独立于分块/Reset 排除动作控制字节注入。不得添加用户自行声明的 `--trust-terminal` 绕过，也不能以一次样本证明完整安全。功能测试可用受控合成事件验证该类型边界，但不是终端认证。
+
+候选生产者是准确 Linux xterm build 加进程局部资源策略，始终排除 paste 控制字节，不依赖 bracketed mode。[xterm 官方手册](https://invisible-island.net/xterm/manpage/xterm.html) 记载 `allowPasteControls` 及排除集合；这里只是研究候选，**没有批准换终端，也没有声称 Terminal.app 如此**。采用前必须完成源码/配置分析和独立真实剪贴板/Reset 证据，保留“终端交付文本”的合同并记录生产者拒绝了什么。`TERM=xterm` 或 headless xterm.js 都不是这个生产者。本提案不授权修改 Master 机器的全局资源或安装软件。
+
+若云端无法建立这样的生产者，P1 可继续实现/复核基础功能并让原始终端动作保持锁定，**但只有协调明确接受这项交付缩减才可据此合并**；不得描述成已可用的完整 live terminal client，也不关闭 #82 的交互验收条件。P2 是另行明确复核的结构化输入传输，把 key/paste 来源分开；属于实质范围/UX 变化，须先交协调再编码。本前置没有实现 P1/P2；请 Claude 给出具体选择/修正及仍应阻止的命令/动作，不能把功能裁决混入非阻塞视觉延期。
+
+## R4.5 后续执行与当前证据
+
+1. 验证窄范围准备、push 准确提交；向同一 Claude Opus 5.5 Extra 会话提交**完整英文 R4+历史 R3 正文**、repo/issue、准确 SHA、原 G0 证据与 runbook；核实模型。首次与后续均五分钟，不提前轮询。
+2. Claude 先报告独立沙盒 OS/runtime/GUI/渲染能力，再真实执行可行检查，返回命令、退出码、产物/截图和限制；分别判定计划可实施性、协议处置与视觉环境状态。
+3. 交协调修订差异、原始复核结论和独立证据后释放产品实现。仅视觉能力缺失不能恢复旧的无限 Mac 门禁，不要求 Master 重批相同授权；账号/模型失败仍单独处理 fallback。
+4. 获批后实现范围内 C1 合同，更新全部 API 行/消费者，完整必需测试/docs/formatting、实际 CI、准确 PR HEAD 代码/功能复核，再取协调明确合并授权；原 issue/交接保留延期验收。
+
+历史 Mac G0 的7项有限检查、PTY生命周期、36字节剪贴板往返通过，但协议来源失败、真实 Mac UI/IME不可用。R4 portable 准备目前仅本机 macOS 已验证，Linux/Claude 执行以其实际结果为准。当前 npm audit 还报告原有 transitive fast-uri advisories（锁条目未改）；本次不进行无关 audit-fix 升级，另交协调处置。
+
+---
+
+## 历史 R3 计划 — 以下保留原始正文
+
 # Issue #82 — macOS TUI 基础与可靠 Main（R3）
 
 日期：2026-10-24（Asia/Hong_Kong）。范围：**仅计划**，实施待协调批准。仓库 [Secretary](https://github.com/ExplodeCode6324/Secretary)，[Issue #82](https://github.com/ExplodeCode6324/Secretary/issues/82)。基线 `f2f3c1929bfb3e2f40e67868861f41f7e94e781a`，分支 `codex/issue82-tui-main`，使用现有 secretary-core checkout。[完整英文计划](fix_20261024_issue82_TUI基础与Main.en.md)与本计划共同约束实施。浏览器 Claude **Opus 5.5 Extra** 使用本项独立会话复核；协调代 Master 审批计划，合并仍需准确 PR HEAD 的单独授权。

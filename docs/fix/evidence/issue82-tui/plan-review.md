@@ -39,3 +39,9 @@
 5. 本机docs:check/localization与git diff --check通过；无业务实现、依赖安装或Core/终端/provider测试。相对基线仅4个文档，393继承untracked保留。准确HEAD实现复核/CI/合并授权均属后续阶段。
 
 本记录提交仅追加审查结果与交付状态；中英文R3计划正文保持精确PASS提交原样。
+
+## 2026-10-25 R4 恢复准备（待复核）
+
+Master 新授权由协调传达：Claude 独立云端视觉验收，环境不可用可延期并继续实现/获批合并；首次与后续查看均五分钟；Linux 前置纳入。旧 R3/G0 记录保持原貌，现行门禁以 R4 为准。当前准备从 `37f6ae3547dfe166ff747c9719461d89d61670bf` 开始，新增平台条件、Linux 无剪贴板明确 UNSUPPORTED、跨平台有限测试与实际探针 ANSI→headless terminal SVG 工具；[独立英文运行说明](g0-cloud-run.en.md)。原有 FAIL_PROTOCOL_PROVENANCE 不作为视觉项豁免，R4 给出 P1/P2 待裁决方案；当前未实施产品输入来源门禁。
+
+本机 macOS：8项有限测试、PTY生命周期、10尺寸帧渲染、类型检查通过；SVG生成不等于Claude视觉验收，Linux/Claude结果待其独立执行。协调明确允许本准备正常push现有分支供准确SHA获取，不创建PR、不合并。真实Mac仍NOT_TESTED，未再解锁/轮询。

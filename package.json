@@ -43,6 +43,7 @@
   "devDependencies": {
     "@types/node": "22.19.19",
     "@types/pg": "8.15.6",
+    "@xterm/headless": "5.5.0",
     "json-schema-to-typescript": "15.0.4",
     "prettier": "3.9.8",
     "tsx": "4.23.15",

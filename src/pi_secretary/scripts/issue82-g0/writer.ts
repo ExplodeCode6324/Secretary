@@ -12,14 +12,22 @@ export const helperPath = fileURLToPath(
   new URL("./writer.py", import.meta.url),
 );
 export function pythonPrerequisite(): string {
-  const clt = spawnSync("/usr/bin/xcode-select", ["-p"], {
-    timeout: 1000,
-    encoding: "utf8",
-  });
-  if (clt.status !== 0 || !existsSync(`${clt.stdout.trim()}/usr/bin/python3`))
+  if (process.platform !== "darwin" && process.platform !== "linux")
+    throw new Error("G0 supports macOS/Linux POSIX only");
+  if (process.platform === "darwin") {
+    const clt = spawnSync("/usr/bin/xcode-select", ["-p"], {
+      timeout: 1000,
+      encoding: "utf8",
+    });
+    if (clt.status !== 0 || !existsSync(`${clt.stdout.trim()}/usr/bin/python3`))
+      throw new Error(
+        "CLT Python prerequisite unavailable; no install attempted",
+      );
+  } else if (!existsSync("/usr/bin/python3")) {
     throw new Error(
-      "CLT Python prerequisite unavailable; no install attempted",
+      "Linux requires /usr/bin/python3 with fcntl; no install attempted",
     );
+  }
   const python = spawnSync(
     "/usr/bin/python3",
     ["-c", "import sys,fcntl;print(sys.version)"],
@@ -49,7 +57,8 @@ export class ProbeWriter {
       stdio: ["pipe", "pipe", "pipe"],
       env: {
         PATH: "/usr/bin:/bin",
-        LANG: "en_US.UTF-8",
+        LANG: process.platform === "darwin" ? "en_US.UTF-8" : "C.UTF-8",
+        PYTHONUTF8: "1",
         PYTHONUNBUFFERED: "1",
       },
     });

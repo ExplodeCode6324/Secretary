@@ -15,6 +15,7 @@ import {
   helperPath,
   pythonPrerequisite,
 } from "../../../src/pi_secretary/scripts/issue82-g0/writer.ts";
+import { clipboardCapability } from "../../../src/pi_secretary/scripts/issue82-g0/clipboard.ts";
 import { filterRendererOutput } from "../../../src/pi_secretary/scripts/issue82-g0/terminal.ts";
 
 const evidence = resolve(".demo-data/issue82-tui/g0");
@@ -45,7 +46,7 @@ async function ready(item: ReturnType<typeof launch>) {
 
 test(
   "G0 pinned public exports, Python prerequisite and no native renderer load",
-  { skip: process.platform !== "darwin" },
+  { skip: !["darwin", "linux"].includes(process.platform) },
   async () => {
     assert.match(pythonPrerequisite(), /^3\./);
     const original = process.dlopen;
@@ -207,7 +208,7 @@ test("G0 nested markers remain text; duplicate markers do not synthesize submit"
 
 test(
   "G0 helper serial ACK, competing lock, EOF release and queued flush",
-  { timeout: 8000, skip: process.platform !== "darwin" },
+  { timeout: 8000, skip: !["darwin", "linux"].includes(process.platform) },
   async () => {
     const dir = root();
     const trace: unknown[] = [];
@@ -241,7 +242,7 @@ test(
 
 test(
   "G0 helper ignores terminal signals, completes in-flight atomic save before broken ACK pipe",
-  { timeout: 8000, skip: process.platform !== "darwin" },
+  { timeout: 8000, skip: !["darwin", "linux"].includes(process.platform) },
   async () => {
     const dir = root();
     const item = launch(dir);
@@ -268,7 +269,7 @@ test(
 
 test(
   "G0 helper SIGKILL releases flock and retains last durable snapshot",
-  { timeout: 8000, skip: process.platform !== "darwin" },
+  { timeout: 8000, skip: !["darwin", "linux"].includes(process.platform) },
   async () => {
     const dir = root();
     const item = launch(dir);
@@ -292,3 +293,8 @@ test(
     await reopen.exit;
   },
 );
+
+test("G0 Linux clipboard is explicit unsupported, never implicit native/OSC fallback", () => {
+  assert.equal(clipboardCapability("linux"), "unsupported");
+  assert.equal(clipboardCapability("darwin"), "pbcopy");
+});

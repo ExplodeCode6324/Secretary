@@ -1,3 +1,60 @@
+# Issue #82 — R4 cloud acceptance and Linux prerequisites
+
+Date: 2026-10-25 (Asia/Hong_Kong). Current scope: revised plan plus narrow G0/Linux preparation; product implementation awaits the delegated coordinator's disposition of this revision. Repository: https://github.com/ExplodeCode6324/Secretary ; issue: https://github.com/ExplodeCode6324/Secretary/issues/82 . Existing checkout/branch only: `codex/issue82-tui-main`; preparation starts from `37f6ae3547dfe166ff747c9719461d89d61670bf`. No new chat/worktree, provider access, retired GUI or host deployment.
+
+## R4.1 Controlling authorization and historical preservation
+
+Master directly changed the policy through the coordinator: Claude should perform visual acceptance in its independent cloud sandbox; if it cannot, defer those environment/visual items, implement/merge and continue rather than wait for Master to return home. The first Claude read is now **five minutes**, and later reads remain five minutes. Linux prerequisites needed for that sandbox are now in scope. This overrides the old mandatory unlocked-Mac/real-IME-before-implementation gate and blanket Linux-TUI deferral. It does not waive functional defects, required validation, exact-HEAD review/CI, or the coordinator's separate exact-HEAD merge authorization. Account/model unavailability still requires Master's Hermes-fallback decision. #84 personal daily-use acceptance remains Master's; order stays #82 → #83 → #84, excluding #70–74.
+
+The R3 text below is a verbatim historical appendix; its scope/gate/timing/Linux statements are superseded only where explicitly listed here. All unchanged business contracts remain the proposed implementation contract. R3 PASS at `937f3031...` and G0 historical `FAIL_PROTOCOL_PROVENANCE`/Mac NOT_TESTED remain recorded without retrospective editing in the review record and [G0 handoff](evidence/issue82-tui/g0-probe.md). Earlier prepared code is an isolated probe, not product implementation.
+
+## R4.2 Evidence and deferral matrix
+
+| Layer | Required evidence | Disposition when unavailable |
+| --- | --- | --- |
+| Platform/runtime | Actual OS/Node/Python/fcntl/locale/PTY inventory, fixed SHA and commands/exit codes | Concrete prerequisite failure; independent cloud inability is reported. Local/CI evidence stays separately attributed |
+| Functional contracts | Commands/drafts/outbox/sync/identity/bounds/recovery; full required checks and actual CI | Functional failures must be repaired or reliably fenced; not waived as visual |
+| PTY and headless rendering | Independent probe execution, raw bytes, resize grid, cell text/SVG hashes; reviewer actually views rendered artifacts if possible | DEFERRED if rendering/viewing tools unavailable; generated artifact alone does not prove visual inspection |
+| Real Linux terminal | Exact terminal build/config/font/clipboard delivery/Reset; IME only if actually available | DEFERRED/NOT_TESTED where sandbox lacks capability; not proof about macOS |
+| Real macOS Terminal/IME | Genuine phonetic keys, candidate UI, Enter/Space, raw/action trace, layout/copy/Reset/window close | DEFERRED/NOT_TESTED without retrying unlock; no longer blocks implementation or authorized merge by itself |
+| Protocol provenance | Witness plus an explicit safe production boundary/repair | Remains FAIL_PROTOCOL_PROVENANCE until disposition; no timing/chunk heuristic or in-band confirmation can authenticate indistinguishable bytes |
+| Master daily use | Master's #84 actual personal use | Remains pending本人; other work may continue |
+
+Cloud artifacts must come from Claude's own execution. Codex's PNG/logs are references only. Report font substitution/missing glyphs, clipping, cursor/footer geometry and what was actually exercised. Keep deferred items on the original issue/handoff after merge; do not silently close them as accepted. Exact operation inventory and consumer documentation, full required validation and same-session exact-HEAD review/actual CI still apply before coordinator merge approval.
+
+## R4.3 Narrow Linux preparation now authorized
+
+- Keep pi-tui `0.87.0` and the Pi submodule unchanged. Add only a pinned development `@xterm/headless@5.5.0` renderer for isolated evidence. No product dependency on a browser, GUI or xterm program is introduced.
+- Fixed `/usr/bin/python3` with fcntl on macOS/Linux. macOS alone performs a non-installing CLT presence check; Linux checks its interpreter directly. Bounded interpreter invocation, explicit prerequisite errors, no automatic package install. Helper ignores the documented terminal-group signals before READY, uses pipes, completes/fails its current atomic write before BrokenPipe exit and keeps its own lock only. Python text uses explicit UTF-8; locale availability is recorded.
+- Remove macOS-only skips from POSIX helper/renderer tests; retain unsupported-platform skips outside macOS/Linux. Preserve generic raw-mode, output filtering and terminal mode restoration. No native addon or OSC52/OSC8 fallback.
+- Clipboard is a reported platform capability. macOS retains bounded explicit pbcopy; Linux currently returns UNSUPPORTED without spawning clipboard commands or modifying clipboard. Linux GUI clipboard backend selection is not silently assumed from DISPLAY, executable presence or environment variables. Missing copy capability is visible and cannot report success.
+- Supply a bounded PTY runner for the actual probe and a headless ANSI→cells→SVG pipeline with hashes, grid dimensions and text. This tests 80/120/40 × 24/40/12 plus below-minimum behavior, CJK/emoji/combining text, ongoing output, raw input and helper lifecycle. Headless default width/font behavior can differ from real terminals; the artifact explicitly labels that limitation. Native mouse/selection/IME/clipboard tests remain separate.
+- Extend existing Linux Core CI with the narrow environment/PTY/render steps and include G0 tests in selected macOS checks. Existing Core suites and services are retained; an actual CI result is still required later. Local Mac execution of portable code is not reported as Linux execution.
+- The [English independent runbook](evidence/issue82-tui/g0-cloud-run.en.md) supplies exact reproducible commands and failure/reporting rules. The coordinator explicitly permits normal push of this narrow preparation to the existing branch for exact-SHA Claude retrieval; no PR yet, no force push.
+
+## R4.4 Functional provenance disposition proposed for review
+
+The preserved parser is a deliberately unsafe witness: same-chunk quarantine does not authenticate a later raw chunk. Do not promote it to the product editor. A process cannot distinguish two identical byte streams merely by buffering longer, asking for a second in-band confirmation, testing TERM, or showing a paste preview. Reset can also remove bracketed framing before the next redraw.
+
+**Recommended staged boundary (P1, coordinator/reviewer decision required):** implement and test the command/durable-state/Core path behind a typed input-source boundary. An **unverified raw terminal is read/edit-only with no action dispatch**: received text is literal data, never an authorization to send, run a command, discard, switch a draft, copy externally or quit; OS signals still allow bounded safe shutdown. Live POST and all such action handlers require a supported input producer whose paste path excludes action/control injection independently of chunking and Reset. Do not add a self-asserted `--trust-terminal` bypass or treat a one-time sample as proof. Functional tests can exercise the typed boundary with controlled synthetic events, but these are not terminal certification.
+
+A candidate supported producer is an exact Linux xterm build launched with a process-local policy excluding paste control bytes regardless of bracketed mode. The [upstream xterm manual](https://invisible-island.net/xterm/manpage/xterm.html) documents `allowPasteControls` and a configurable exclusion set. This is a research candidate, **not an approved terminal switch or a claim about Terminal.app**. It needs source/config analysis and independent actual clipboard/Reset evidence before adoption; preserve the terminal-delivered text contract and record what its producer rejects. `TERM=xterm` or headless xterm.js is not that producer. No global resource settings or installs on Master's machine are authorized by this proposal.
+
+If no such producer can be established in Claude's sandbox, P1 still allows implementation/review/merge of the functional infrastructure with raw-terminal actions locked and the missing interactive capability explicitly open, **only if the coordinator accepts that scoped delivery**. It must not be described as a complete usable live terminal client or close Issue #82's interaction exits. The alternative P2 is an explicitly reviewed structured input transport with independent key/paste provenance; that is a material scope/UX change and must be proposed to the coordinator before coding. Neither P1 nor P2 is implemented by this preparation. Ask Claude for a concrete choice/correction and the exact commands/actions that remain blocked; do not conflate this functional decision with nonblocking visual deferral.
+
+## R4.5 Next steps and present evidence
+
+1. Verify this narrow preparation, push its accurate commit, send the **complete English R4+historical R3 plan**, repository/issue URLs, exact SHA, original G0 evidence and runbook to the same browser Claude Opus 5.5 Extra conversation. Verify model. First and subsequent reads at five minutes, no early polling.
+2. Claude first reports its independent OS/runtime/GUI/rendering capability, then actually executes feasible checks and returns commands, exit codes, rendered artifacts/screenshots and limitations. Request plan readiness and provenance disposition separately from environmental/visual status.
+3. Deliver changes, raw review results and independent evidence to the coordinator for product release. A visual-only capability deficit is not a reason to restore the old indefinite Mac gate or ask Master to approve the same policy again. Account/model failure remains a separate fallback decision.
+4. After release implement the scoped C1 contracts; update all API coverage rows/consumers, run full required tests/docs/formatting plus actual CI, and obtain accurate PR-HEAD code/function review. Only then request the coordinator's exact-HEAD merge authorization; retain deferred acceptance exits in the original issue/handoff.
+
+Historical Mac G0: 7 limited checks, PTY lifecycle and 36-byte clipboard roundtrip passed, while protocol provenance failed and real Mac UI/IME was unavailable. R4 portable preparation is validated locally on macOS only; Linux and Claude execution must be reported from their actual runs. The current npm audit also reports pre-existing transitive fast-uri advisories (unchanged lock entry); this preparation does not run an unrelated audit-fix upgrade. Record it separately for coordinator disposition.
+
+---
+
+## Historical R3 plan — original text follows unchanged
+
 # Issue #82 — macOS TUI foundation and reliable Main (R3)
 
 Date: 2026-10-24 (Asia/Hong_Kong). Scope: **PLAN ONLY**, implementation awaits coordinator approval. Repository: https://github.com/ExplodeCode6324/Secretary ; issue: https://github.com/ExplodeCode6324/Secretary/issues/82 . Baseline: `f2f3c1929bfb3e2f40e67868861f41f7e94e781a`, branch `codex/issue82-tui-main` in the existing secretary-core checkout. No separate worktree. Reviewer: browser Claude **Opus 5.5 Extra**, one dedicated conversation for this issue. The coordinator acts under Master's delegated approval authority; merge requires a separate authorization for the exact PR HEAD after review and CI.

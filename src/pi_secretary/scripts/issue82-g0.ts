@@ -3,6 +3,11 @@ import { appendFileSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
+import { platform, release } from "node:os";
+import {
+  copyVisibleText,
+  clipboardCapability,
+} from "./issue82-g0/clipboard.ts";
 import { ProbeTerminal, type Trace } from "./issue82-g0/terminal.ts";
 import { safeText } from "./issue82-g0/input.ts";
 import { ProbeWriter, pythonPrerequisite } from "./issue82-g0/writer.ts";
@@ -24,7 +29,9 @@ if (args.has("--help")) {
   process.exit(0);
 }
 if (!process.stdin.isTTY || !process.stdout.isTTY)
-  throw new Error("Launch in Terminal.app; G0 requires TTY stdin/stdout");
+  throw new Error(
+    "G0 requires TTY stdin/stdout (macOS/Linux); PTY is not genuine IME evidence",
+  );
 const python = pythonPrerequisite();
 const evidence = fileURLToPath(
   new URL("../../../.demo-data/issue82-tui/g0/", import.meta.url),
@@ -75,8 +82,20 @@ writeFileSync(
       at: new Date().toISOString(),
       python,
       node: process.version,
-      os: spawnSync("/usr/bin/sw_vers", [], { encoding: "utf8", timeout: 1000 })
-        .stdout,
+      os: {
+        platform: platform(),
+        release: release(),
+        ...(process.platform === "darwin"
+          ? {
+              version: spawnSync("/usr/bin/sw_vers", [], {
+                encoding: "utf8",
+                timeout: 1000,
+              }).stdout,
+            }
+          : {}),
+      },
+      clipboard: clipboardCapability(),
+      locale: { LANG: process.env.LANG, LC_CTYPE: process.env.LC_CTYPE },
       terminal: process.env.TERM_PROGRAM,
       terminalVersion: process.env.TERM_PROGRAM_VERSION,
       term: process.env.TERM,
@@ -119,30 +138,10 @@ const terminal = new ProbeTerminal(
   !mainScreen,
 );
 const copy = async (text: string): Promise<boolean> => {
-  if (Buffer.byteLength(text) > 128 * 1024) {
-    status = "Copy exceeds 128 KiB";
-    return false;
-  }
-  const result = spawnSync("/usr/bin/pbcopy", [], {
-    input: text,
-    encoding: "utf8",
-    timeout: 2000,
-    env: {
-      PATH: "/usr/bin:/bin",
-      LANG: "en_US.UTF-8",
-      LC_CTYPE: "en_US.UTF-8",
-    },
-  });
-  trace("visible-text-copy", {
-    bytes: Buffer.byteLength(text),
-    status: result.status,
-    error: result.error?.message,
-  });
-  status =
-    result.status === 0
-      ? "Copied visible rendered text (soft wraps included)"
-      : "Clipboard copy failed";
-  return result.status === 0;
+  const result = copyVisibleText(text);
+  trace("visible-text-copy", { bytes: Buffer.byteLength(text), ...result });
+  status = result.reason;
+  return result.ok;
 };
 const tui = mainScreen
   ? new TuiMainScreen(terminal, true)
@@ -264,14 +263,15 @@ const input = {
       status = "Separate command buffer; no command execution";
     } else if (data === "\x10") literal = !literal;
     else if (data === "\x0f") {
-      if (tui instanceof TuiAltScreen)
-        void tui.copyActiveSelectionToClipboard().then((ok) => {
-          if (!ok)
-            status =
-              "No selection or copy failed; clipboard unchanged on no selection";
-          tui.requestRender();
-        });
-      else
+      if (tui instanceof TuiAltScreen) {
+        if (!tui.hasActiveSelection())
+          status = "No selection; clipboard unchanged";
+        else
+          void tui.copyActiveSelectionToClipboard().then(() => {
+            // Preserve the explicit UNSUPPORTED/error result from the callback.
+            tui.requestRender();
+          });
+      } else
         status = "Main-screen comparison: use Terminal native selection/copy";
     } else if (data === "\x1b") commandMode = false;
     else if (data === "\t") {

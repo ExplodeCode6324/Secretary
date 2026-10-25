@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PASTE_START as S, PASTE_END as E } from "./issue82-g0/input.ts";
+import { clipboardCapability } from "./issue82-g0/clipboard.ts";
 const fixtures: Record<string, string> = {
   benign: "中文 😀 e\u0301\tA\r\nB\rC\n/send literal",
   "end-controls": "abc" + E + "\x13\x07\x03",
@@ -18,6 +19,17 @@ if (!fixture || !(fixture in fixtures) || process.argv.length !== 3) {
   process.exit(fixture === "--help" ? 0 : 1);
 }
 const text = fixtures[fixture]!;
+if (clipboardCapability() === "unsupported") {
+  console.log(
+    JSON.stringify({
+      status: "UNSUPPORTED",
+      reason: "No verified clipboard backend; no clipboard subprocess invoked",
+      platform: process.platform,
+      terminalPaste: "NOT_TESTED",
+    }),
+  );
+  process.exit(2);
+}
 const env = {
   PATH: "/usr/bin:/bin",
   LANG: "en_US.UTF-8",

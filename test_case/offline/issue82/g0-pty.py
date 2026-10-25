@@ -13,7 +13,11 @@ import termios
 import time
 
 base = os.path.abspath(".demo-data/issue82-tui/g0")
-report = {"synthetic_only": True, "ime": "NOT_TESTED", "runs": []}
+report_path = os.path.abspath(sys.argv[2]) if len(sys.argv) > 2 else base + "/pty-%d.json" % time.time_ns()
+os.makedirs(os.path.dirname(report_path), exist_ok=True)
+with open(report_path, "x") as target:
+    target.write("{}")
+report = {"synthetic_only": True, "ime": "NOT_TESTED", "platform": sys.platform, "report_path": report_path, "runs": []}
 
 
 def events(directory):
@@ -36,6 +40,7 @@ for scenario in ("normal", "hangup", "parent-kill"):
     process = subprocess.Popen([sys.argv[1], "--import", "tsx", "src/pi_secretary/scripts/issue82-g0.ts", "--slow-save"], stdin=slave, stdout=slave, stderr=slave, preexec_fn=session, close_fds=True, env={**os.environ, "TERM": "xterm-256color", "TERM_PROGRAM": "G0_SYNTHETIC_PTY"})
     os.close(slave)
     captured = bytearray()
+    frames = []
     directory = None
 
     def pump(seconds):
@@ -65,10 +70,14 @@ for scenario in ("normal", "hangup", "parent-kill"):
         os.write(master, "\x1b[200~中文\t😀\r\nline\x1b[201~".encode())
         pump(0.85)
         if scenario == "normal":
-            for columns, rows in ((80, 24), (120, 40), (40, 12), (30, 10)):
+            for columns, rows in ((80, 24), (80, 40), (80, 12), (120, 24), (120, 40), (120, 12), (40, 24), (40, 40), (40, 12), (30, 10)):
                 fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", rows, columns, 0, 0))
                 os.kill(process.pid, signal.SIGWINCH)
-                pump(0.12)
+                pump(0.25)
+                name = "frame-%dx%d.ansi" % (columns, rows)
+                with open(os.path.join(directory, name), "wb") as target:
+                    target.write(captured)
+                frames.append({"columns": columns, "rows": rows, "ansi": name})
             os.write(master, b"\x13")  # Below minimum: ignored.
             pump(0.10)
             fcntl.ioctl(master, termios.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
@@ -110,7 +119,7 @@ for scenario in ("normal", "hangup", "parent-kill"):
         assert helper.returncode == 0 and b'"ready": true' in stdout, (helper.returncode, stderr)
         with open(directory + "/pty-output.bin", "wb") as target:
             target.write(captured)
-        report["runs"].append({"scenario": scenario, "exit": process.returncode, "evidence": directory, "snapshot": saved, "lock_reopened": True, "output_bytes": len(captured)})
+        report["runs"].append({"scenario": scenario, "exit": process.returncode, "evidence": directory, "snapshot": saved, "lock_reopened": True, "output_bytes": len(captured), "frames": frames})
     except Exception as error:
         report["failure"] = {"scenario": scenario, "error": str(error), "evidence": directory, "captured_tail": bytes(captured[-2000:]).decode("utf8", "replace")}
         raise
@@ -120,6 +129,6 @@ for scenario in ("normal", "hangup", "parent-kill"):
             process.wait(timeout=2)
         if master is not None:
             os.close(master)
-        with open(base + "/pty-latest.json", "w") as target:
+        with open(report_path, "w") as target:
             json.dump(report, target, indent=2, ensure_ascii=False)
 print(json.dumps(report, indent=2, ensure_ascii=False))
