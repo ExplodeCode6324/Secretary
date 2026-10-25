@@ -55,3 +55,13 @@ Master 新授权由协调传达：Claude 独立云端视觉验收，环境不可
 - 四项功能修订全部写入R5：完整动作表/本地退出、frozen producer metadata/未验证会话禁止全部POST、launcher-owned非TTY认证及精确paste control表、Mac只读编辑不是#82最终交付。R5另明确Reset后普通slash/tab来源仍需解决，并提出有界本地浏览器structured adapter的P2候选交协调裁决；没有产品代码。
 - Claude报告外部configure scripts被其沙盒策略阻止；协调确认一次无特权、固定公开源码、临时目录、Xvfb/Xlib/XTEST且禁用unsafe SendEvent的范围，只能走Claude正常授权机制，不冒充人工批准或绕过限制。若仍拒绝，真实Linux terminal标NOT_TESTED/DEFERRED并继续source/plan review。真实Mac/IME与Linux IME仍NOT_TESTED，未再尝试解锁Mac。
 - R5继续同一Claude，完整英文计划+准确push SHA，首次/后续五分钟；产品实现及准确HEAD合并仍需分别批准。
+
+## R5 独立复核结果与 R6 选定范围
+
+- 精确提交 `e645e6b06c317c4822258d391b279632f359f411`；2026-10-25 13:11:59.531 HKT发送，13:17:12.801首次读、13:22:26.064第二读，均超过五分钟。最终CHANGES_REQUIRED，R4四项全部关闭，R5六项窄文本修订。原始请求/时间/page/AX/screenshots在ignored `.demo-data/issue82-tui/r5/`。
+- Claude独立fetch、英文完整plan/runbook字节一致、R4/R3后缀不变、31relative links有效、中文新增机制抽查（非逐句）；docs-only未重跑R4代码测试。建议P2作为Mac/Linux主动作路径。
+- 独立source-model PTY只证明模拟过滤后的paste无自动动作、Reset后slash/tab来源丢失；不是实际xterm。自写headed Chromium153/Xvfb原型使用真实X11clipboard及CDP输入，paste零动作、paste /quit+明确submit为message、typed /quit为command、控制/C1数据保留。首轮key大小写0submit失败保留；次轮code匹配但源码未检查Shift，不能称完整modifier已验证。未验证完整layout、undo/reload、WS/Node持久化；CDP composition commit untrusted且未入nodes，不是真实IME。
+- 包 `claude-independent-evidence.tgz` SHA256 `45d75b8bb2e3141f4620c6320235c237c8500062c9035834f8dc25d767f42304`，17项/44,460解包字节；原始日志/原型/截图留ignored，未当产品实现复制。
+- 单次xterm build在执行前再次被automatic classifier以Code from External拒绝，原始记录已取回；没有重试、变形命令或换通道。真实Linux terminal=NOT_TESTED/DEFERRED，真实Mac/OS IME仍未测试。不再尝试该build。
+- 协调已选定R6 surface/依赖范围：本地browser承载命令式界面、plain DOM/textContent、固定ws8.21.3、NodeHTTP/plainJS；不新增browser xterm、不复活GUI、不另开发完整raw客户端。G0研究证据保留，raw安全降级不是Main交付。正式产品实施仍等R6精确计划PASS和协调后续批准。
+- R6采纳code+exact modifier/浏览器copy及保留键/IME确认/inputType矩阵/single-use bootstrap+per-tab轮换secret/明确P2选择与textContent；补ACK/断连/恢复授权及验证限制。历史R5/R4/R3原文不改，同Claude继续五分钟规则。

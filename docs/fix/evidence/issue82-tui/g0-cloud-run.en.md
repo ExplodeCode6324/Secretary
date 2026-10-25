@@ -1,4 +1,6 @@
-# Issue #82 — independent cloud G0 runbook (R5)
+# Issue #82 — independent cloud G0 runbook (R6)
+
+R6 controlling scope: the coordinator selected the structured browser input path with plain DOM text rows. Review the six input/authentication corrections and their concrete tests in the full R6 plan. No further xterm/X-library build is requested: the single bounded attempt was denied, and that native candidate is outside #82's critical path. The G0 commands below remain historical/diagnostic evidence; passing them cannot approve a raw-input producer or the not-yet-implemented product. Browser prototype results remain separately attributed and are not real OS IME acceptance.
 
 Run these commands yourself in your own isolated sandbox at the exact SHA provided in the review request. Report the actual OS, runtime and capabilities first. Codex's logs/screenshots are historical inputs, not your execution evidence. Do not use Master's Mac, existing Core data, production services or credentials. No new provider is required.
 
@@ -54,14 +56,14 @@ The Mac fixture tool can prepare benign/end-controls/nested/duplicate/large payl
 
 R5 requires the exact full resource exclusion list and launcher/channel identity proposal in the plan. Test two separate properties: (1) pasted controls cannot directly dispatch actions, and (2) paste text/tabs retain data provenance even after Reset and a subsequent genuine submit. The second property is not proved by filtering C0. If actual terminal evidence is unavailable, give a source-grounded disposition and assess the proposed structured browser adapter, with its explicit scope change, instead of claiming the raw parser is safe.
 
-The delegated coordinator permits one bounded, unprivileged private xterm/X-library build from fixed public xterm/xenocara sources already inspected, under your normal authorization mechanism, solely in your temporary sandbox. Record complete source commits/hashes before running configure. Xvfb, a self-written Xlib selection owner and XTEST delivery are in scope; unsafe SendEvent must remain off. No system paths, Master-host access, credentials, network-policy changes or extra permissions. This is delegated scope confirmation, not human approval and not permission to bypass a sandbox refusal. If execution remains blocked or your platform requires human approval, preserve the exact rejection, do not route around it, mark REAL_LINUX_TERMINAL NOT_TESTED/DEFERRED and continue feasible source/plan review.
+Historical R5 disposition: the one scoped unprivileged xterm/X-library build was refused by the normal sandbox classifier as `Code from External`. It was not executed or retried. Keep REAL_LINUX_TERMINAL NOT_TESTED/DEFERRED; do not rework the command or switch channels. R6 removes this producer from the implementation scope.
 
 ## Required review output
 
 1. Exact SHA; independently observed OS/runtime/GUI/terminal/font/clipboard/IME capabilities.
 2. Each command, exit code, first failure and what you actually inspected/executed. Separate upstream facts, Codex evidence and your evidence.
 3. Artifact names/hashes plus actual screenshots/rendered images where possible. Distinguish HEADLESS_EMULATION, REAL_LINUX_TERMINAL and REAL_MAC_IME.
-4. PASS/CHANGES_REQUIRED for R5 plan readiness, including a specific technical disposition of raw-input provenance and the concrete P2 proposal if needed. Identify which commands would be disabled on an unverified input producer; no timing heuristic, in-band confirmation or self-asserted `--trust-terminal` bypass. A read/edit-only terminal is a degraded mode, not the accepted final #82 Main deliverable.
+4. PASS/CHANGES_REQUIRED for R6 plan readiness and its selected structured browser producer. The coordinator selected the surface/dependency scope, but formal implementation release remains a separate decision after plan PASS. No timing heuristic, in-band confirmation or self-asserted `--trust-terminal` bypass. A read/edit-only raw terminal is degraded, not the final Main deliverable.
 5. Visual/IME items unavailable solely due to sandbox capability are DEFERRED/NOT_TESTED and nonblocking under Master's 2026-10-25 authorization. Functional defects still need a reliable boundary or repair. Do not maintain the superseded mandatory-unlocked-Mac gate.
 
 The next step is coordinator disposition, then product implementation with full validation, API inventory, exact PR HEAD review and actual Linux/macOS CI. This preparation is not a PR or merge approval.

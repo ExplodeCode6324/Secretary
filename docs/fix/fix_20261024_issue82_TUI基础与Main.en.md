@@ -1,3 +1,79 @@
+# Issue #82 — R6 structured input path for implementation approval
+
+Date: 2026-10-25 (Asia/Hong_Kong). **PLAN ONLY.** This revision adopts the R5 independent recommendation and six corrections. The delegated coordinator has selected P2 and the plain-DOM surface/dependency scope as the Mac/Linux action path. Formal product implementation release still requires this exact plan to pass Claude review and a subsequent coordinator decision. R5/R4/R3 below remain verbatim historical appendices; R6 overrides their conflicting input, renderer, browser-key and reconnect clauses. All unchanged Core/draft/outbox/sync/limits and exact-HEAD validation requirements remain.
+
+## R6.1 Chosen proposal and scope
+
+Use the minimal local browser-hosted TUI with three regions (header, transcript, fixed input/status footer), existing navy/light-blue/error-red palette and the existing command registry. **The structured producer alone delivers the R3 paste-as-data contract.** The new product CLI defaults to this usable browser command interface, accurately described as a local browser-hosted command interface, not native Terminal.app. Terminal.app and raw/unlocked xterm are unverified/degraded only; the existing isolated G0 stays research evidence with no Core connection. Do not build a second complete raw-terminal client. Any retained diagnostic raw-input adapter is explicitly labeled and has no POST or command dispatch; it is not the Main deliverable. Remove xterm construction, reset lockout and native-terminal attestation research from #82's implementation scope. Preserve their evidence and failures. No further attempt to execute the rejected external build.
+
+Choose plain DOM text rows and style-enum spans for the browser renderer. All Core/model/draft text is assigned through `textContent`, never `innerHTML`, interpreted ANSI, HTML/Markdown execution or URLs. No xterm browser dependency or `onData` path. Use existing width/text helpers where needed and test browser font/grid geometry independently. The only proposed new direct runtime dependency is exact `ws@8.21.3`, already in the lockfile from the official npm registry; Node built-in HTTP and plain JavaScript/CSS serve packaged assets under the restrictive CSP. The development headless renderer stays isolated evidence tooling with its recorded Unicode-width limitation. No retired GUI, framework, external CDN, provider call, browser extension or native clipboard backend.
+
+Initial browser validation targets remain Chrome/Chromium153 and Chrome155, with feature checks and unsupported-browser read-only behavior. The existing installed browser may be used; a dedicated profile is not required by this plan. Extensions and hostile same-user local processes remain outside the paste-origin threat model and are explicit residual risks; CSP is not claimed to defeat privileged extensions. An explicit `--app`/dedicated-profile launch option may create only a new TUI-owned browser profile under a separate `tui-browser-v1/` sibling of `tui-v1/` within the selected profile directory. Its profile/cache ownership is recorded separately from protected draft blobs and their quota. Never read/change the default profile, import cookies, sign in, disable browser security, or automatically delete a profile/cache not positively owned by this launcher. Browser profile cleanup is explicit, after its browser exits; it never deletes draft state.
+
+## R6.2 Exact browser key and composition contract
+
+Match action shortcuts using `KeyboardEvent.code` and the **complete modifier set**: Ctrl true; Meta, Alt and Shift false for the Ctrl bindings. CapsLock does not alter the physical-code match. Ignore auto-repeat for submit/open-command/copy/quit/resume. `key` may be used for text reporting, never action identification. Node does not receive a self-asserted trusted flag: its own authenticated-channel/schema/generation/sequence/revision/canonical-model rules remain mandatory.
+
+| Key/event | Browser-adapter behavior |
+| --- | --- |
+| Ctrl+S | Prevent browser default; one explicit submit, if non-composing and synchronized |
+| Ctrl+G/P/O | Prevent browser default; command buffer / literal toggle / explicit visible-text copy respectively |
+| Ctrl+U/D | Prevent browser default; bounded viewport scroll |
+| Enter | Newline only, never action; suppress duplicate beforeinput insertion |
+| Tab | App completion/edit only; pasted Tab stays in its paste-data node |
+| Ctrl+C / Cmd+C | Browser copy convention; **never TUI quit**. Only allow copying actual selected text; do not silently invoke another command |
+| Ctrl+V / Cmd+V; Shift+Insert where available | Let the native paste gesture produce its paste event, then handle it as data |
+| Ctrl+Z/Y and platform undo/redo | Route recognized edit gestures to app-owned undo/redo; never browser-only model mutation |
+| /quit | Explicit command submit; flush and durable ACK before adapter/writer shutdown |
+| Tab/window close, reload, browser-reserved gesture | No guaranteed final flush; apply the disconnect and saved/unsaved contract |
+
+Chrome commonly uses Ctrl+S for Save, G for Find-next, P for Print, O for Open, U for View-source and D for Bookmark; these app bindings require actual interception checks on each target. On macOS the corresponding browser shortcuts often use Meta; do not capture Meta+L/T/W/Q or other browser/application navigation gestures. Do not claim these reservations or interception behavior are identical across platforms. `preventDefault` is attempted synchronously only for the agreed app binding while the input adapter is focused. If a required binding cannot be intercepted, visibly disable that binding and provide the same action through a small fixed footer control (Submit, Commands, Literal, Copy, scroll, Resume), driven by a trusted click and the same Node event path. A missing hotkey may not silently invoke the browser action and be reported as a successful TUI action. Footer controls preserve the three-region layout, rather than adding general web navigation.
+
+Composition state starts only from a trusted composition sequence. While `isComposing`, the adapter's composition transaction, or keyCode229 is active, **all action shortcuts and Enter/Space/Tab edit shortcuts are suppressed**; do not prevent the IME's own candidate-confirmation behavior or insert a newline/completion. Composition preview is transient, not a durable typed node. Commit text once from the trusted composition sequence; recognize the corresponding final beforeinput/input as the same transaction to avoid duplicate insertion. Untrusted/synthetic composition events cannot commit data or unlock actions. If a browser sequence is unsupported, canceled or cannot be reconciled, preserve the last canonical draft, lock actions and resync visibly. Genuine OS IME evidence remains separate from CDP protocol simulation.
+
+## R6.3 Explicit input-type and provenance rules
+
+The Node canonical editor applies only allowed transformations. Text origin is not guessed from content or a submitted snapshot. Existing immutable paste IDs and app-owned undo preserve source class through insertion, deletion, undo/redo, durable save, reconnect and reload; editing a paste node cannot reclassify its retained characters as typed. A separately typed slash does not retroactively turn a paste-origin prefix into a command.
+
+| Trusted browser input | Canonical transformation |
+| --- | --- |
+| paste / insertFromPaste / insertFromPasteAsQuotation | Exactly one paste-data transaction from plain text; prevent default duplicate insertion |
+| drop / insertFromDrop | Plain-text paste-data transaction; reject files/URLs-as-actions and default navigation |
+| Linux middle-click selection paste | Paste-data transaction; intercept auxiliary insertion/default behavior. If the event lacks reliable text/source information, reject that insertion visibly and lock/resync; never treat it as typed |
+| insertText outside composition | Typed-text insertion |
+| insertReplacementText / platform dictation | Typed-text edit with an explicit validated range; absent/ambiguous range locks/resyncs rather than changing unrelated text |
+| insertCompositionText and final composition commit | Transient preview then one typed-text transaction under R6.2 |
+| insertLineBreak / insertParagraph | One typed newline outside composition, deduplicated against the handled key |
+| historyUndo / historyRedo | Prevent browser mutation; app-owned undo/redo, preserving node provenance |
+| cut / deleteByCut | Prevent untracked browser mutation; one app-owned undoable deletion of the validated range. Copy selected text through that explicit cut event's allowed clipboard path; if copy fails, preserve the selection/content |
+| Supported deletion/edit ranges | Validate against canonical revision; perform defined local edit without dropping source tags |
+| Unknown inputType, untrusted event, mismatched range or duplicate companion event | Untrusted events are ignored; unknown/mismatched transformations lock actions and resync; recognized duplicates are no-ops |
+
+Paste/drop/middle-click text remains data even if it contains `/quit`, tabs, NUL, C0/C1, marker-looking strings or newlines. Keep the existing documented CR/CRLF→LF normalization; no control stripping, command interpolation, browser HTML insertion or character-to-key synthesis. Explicit action events are separate and never created by a data-node payload. Node validates action eligibility only after all preceding input transactions have completed and the canonical revision matches. Full frozen payload tests must assert preserved text, not only action counts.
+
+## R6.4 Single-use bootstrap and disconnect authorization
+
+Use a cryptographically random **single-use** launch-fragment bootstrap with a 60-second lifetime. Consume it atomically only after valid Host/Origin and handshake checks; clear it from page history. Printing the bootstrap URL to the invoking terminal is the deliberate local handoff, not a Core-owner-token disclosure. Node owner credentials remain private to Node. The bootstrap is never reused or saved in durable drafts/logs.
+
+The authenticated page receives a separate rotating per-tab reconnect secret. Store this only in that origin's sessionStorage, never localStorage/cookies/profile configuration or diagnostic files; the server holds only its verifier in memory, bound to the sole writer, tab session, generation and reconnect deadline. This explicitly supersedes R5's memory-only/no-browser-storage statement for this one reconnect credential. On each reconnect/reload, atomically consume the old secret, invalidate the old generation, generate a new secret, and send the new generation/secret on the authenticated socket. The page stores the new secret before acknowledging the handshake. No edits/actions are accepted until handshake ACK and canonical-state synchronization finish. Old/consumed secrets cannot create a second writable generation. A failed/lost handshake before the new secret is stored falls back to a fresh CLI bootstrap, never reuses a consumed credential or guesses the outcome.
+
+On authenticated-channel disconnect, immediately prohibit beginning new/retry POSTs; retain the current reconnect verifier only for the existing 60-second window. Reconnect secrets expire when that window expires, the process exits or explicit /quit completes; clear sessionStorage on explicit quit/invalid-credential response. A browser might restore a tab/sessionStorage after exit, so validity is determined solely by the live server deadline/generation, not by browser storage lifetime. Provide a fresh bootstrap URL through the invoking CLI when requested or when recovery fails; issuing it invalidates the previous reconnect session before admitting a new one. Do not auto-open another tab, persist owner credentials in the page, or allow unauthenticated sockets to extend the deadline. Bound socket counts and handshake duration. At reconnect-window expiry finish received writes, close the writer and exit; a new launch recovers durable data and issues a new bootstrap.
+
+After fresh authentication, require full state/revision synchronization and an explicit Resume action before any pre-existing frozen outbox can POST. Preserve original bytes/IDs, producer metadata and FIFO/unknown barriers. Already-started HTTP work may finish and persist its receipt/unknown result; disconnect cannot retroactively unsend it. A reconnect, reload, GET reconciliation or completed composition never creates a submit. New submit and Resume are serialized against disconnect/generation revocation at the single dispatcher immediately before writing the durable attempt marker and beginning POST. Node never trusts a page's assertion that an entry was ACKed. “Saved” still means the exact server durable ACK was received by the page; closing a tab cannot guarantee undelivered/unsaved text survives.
+
+## R6.5 Validation and independent evidence
+
+Add each input-type row, physical code plus exact modifiers/Shift/CapsLock/non-Latin layout, repeat suppression, reserved-key interception/fallback, IME confirm keys causing no action/newline/completion, bootstrap reuse/expiry/lost handshake, sequence/generation/revision negatives, disconnect-vs-dispatch race, provenance through edit/undo/reload, and exact pasted C0/C1 payload tests. Exercise actual browser clipboard delivery and explicit action gestures in supported browser environments. The six corrections close plan ambiguities; they do not claim product tests have run. Full repository validation, API inventory, accurate product HEAD review and actual Linux/macOS CI remain later gates. Genuine OS IME/visual gaps may be DEFERRED under Master's policy.
+
+R5 independent review of `e645e6b06c317c4822258d391b279632f359f411` adopted all R4 corrections, confirmed exact English attachment/runbook and historical suffix identity, and found 31 relative links valid. Its source-model PTY experiment distinguished zero automatic actions during filtered paste from origin loss after Reset. Its own headed Chromium153/Xvfb prototype used real X11 clipboard plus CDP input; paste data caused zero actions, pasted `/quit` followed by explicit submit stayed a message, typed `/quit` became a command. The first key-case failure is preserved; the second matched physical code. Its prototype's code did not exclude Shift, so this is not evidence for the complete modifier contract; R6 requires the missing test. CDP composition was unfaithful and is not OS IME acceptance. The raw bundle SHA256 is `45d75b8bb2e3141f4620c6320235c237c8500062c9035834f8dc25d767f42304` (17 members, 44,460 bytes unpacked), retained ignored with original logs/prototype/screenshots.
+
+The single permitted xterm configure attempt was again **not executed**, denied by the sandbox automatic classifier as `Code from External`; there was no retry, command transformation or alternate channel. REAL_LINUX_TERMINAL remains NOT_TESTED/DEFERRED. The known G0 raw-parser FAIL_PROTOCOL_PROVENANCE remains historical and reproducible; P2 is its proposed product boundary, not a retrospective PASS for G0. Request same-session Claude PASS/CHANGES_REQUIRED for this exact plan, then coordinator's explicit scope/implementation decision. No product implementation, PR or merge yet.
+
+---
+
+## Historical R5 plan — original text follows unchanged
+
+
 # Issue #82 — R5 input-source contract and independent R4 evidence
 
 Date: 2026-10-25 (Asia/Hong_Kong). This revision is **plan only**. Product implementation still requires delegated coordinator approval. R4 preparation was independently reviewed at `d6d47fdbde9067ba6a312236e125f952440b6120`. R4 and the original R3 remain verbatim below as history. R5 controls the input-source proposal where they differ; Master's R4 environmental/visual deferral policy remains effective.

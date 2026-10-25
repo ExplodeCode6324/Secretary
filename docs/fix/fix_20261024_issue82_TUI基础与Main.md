@@ -1,3 +1,79 @@
+# Issue #82 — R6 提交实施批准的 structured input 路径
+
+日期：2026-10-25（Asia/Hong_Kong）。**仅计划。**本轮采纳R5独立建议及六项修订；协调已选定P2和plain-DOM surface/依赖范围作为Mac/Linux动作路径。产品正式实施仍须精确计划通过Claude及协调后续释放。下方R5/R4/R3逐字保留历史；输入、renderer、browser键位、重连冲突处以R6为准。其余Core/draft/outbox/sync/限额及准确HEAD验证要求不变。
+
+## R6.1 选择的提案与范围
+
+采用最小本地browser承载TUI，三段header/transcript/固定input-status footer，既有深蓝/浅蓝/故障红及命令registry。**仅structured producer交付R3粘贴作为数据合同。**新产品CLI默认进入可用的browser命令界面，准确称为“本地浏览器承载的命令式界面”，不是Terminal.app原生运行。Terminal.app、raw/unlocked xterm只属未验证降级；既有isolated G0无Core连接，保留研究证据，不另开发第二套完整raw terminal client。任何保留的诊断raw adapter须明显标识，不能POST或命令分发，不算Main交付。将xterm构建、Reset锁定、native terminal attestation研究移出#82实施范围，保留其证据/失败，不再尝试执行被拒external build。
+
+browser renderer选plain DOM文字行和style-enum spans；全部Core/model/draft文字使用`textContent`，绝不`innerHTML`、解释ANSI、执行HTML/Markdown或URL。无browser xterm依赖/`onData`路径；必要处复用width/text helpers，独立验证browser字体/grid几何。唯一拟新增direct runtime依赖为exact `ws@8.21.3`（现有lock/官方npm）；Node内置HTTP和plain JS/CSS在严格CSP下serve打包资源。dev headless renderer仅保留证据工具及已知Unicode宽度局限，无退休GUI/framework/CDN/provider/browser extension/native clipboard backend。
+
+初始验证目标仍Chrome/Chromium153与Chrome155，feature gate及unsupported只读。可用既有browser，不要求专用profile。extensions和同用户恶意本地进程不属paste-origin威胁模型，明确为残余风险；CSP不宣称阻挡特权扩展。可显式选择`--app`/专用profile启动，仅在所选profile目录下与`tui-v1/`并列的`tui-browser-v1/`中新建TUI-owned browser profile；profile/cache ownership单独记录，不混入保护draft blob及其配额。不读改default profile、不导cookies/登录、不关闭browser安全、不自动删除非launcher明确拥有的profile/cache。仅在browser退出后显式清理owned profile，不删除draft state。
+
+## R6.2 精确 browser 键位与 composition 合同
+
+动作键用`KeyboardEvent.code`加**完整modifier集合**：Ctrl=true，Meta/Alt/Shift=false。CapsLock不影响physical code。submit/open-command/copy/quit/resume忽略auto-repeat。`key`可报告文字，不判断动作。Node不接收页面自报trusted作为信任依据，仍独立验证authenticated channel/schema/generation/sequence/revision/canonical model。
+
+| 键/事件 | browser adapter行为 |
+| --- | --- |
+| Ctrl+S | prevent browser default，同步且非composing时明确提交一次 |
+| Ctrl+G/P/O | prevent default，分别命令buffer/literal toggle/明确visible-text copy |
+| Ctrl+U/D | prevent default，有界viewport滚动 |
+| Enter | 仅换行，无动作，去重后续beforeinput |
+| Tab | 应用补全/编辑；paste Tab留在paste-data node |
+| Ctrl+C / Cmd+C | browser复制惯例，**绝不退出TUI**；只复制真实选区，不暗中执行其他命令 |
+| Ctrl+V / Cmd+V、可用时Shift+Insert | 让native paste gesture产生paste event，再按数据处理 |
+| Ctrl+Z/Y及平台undo/redo | 识别后路由应用自有undo/redo，不允许browser单独变更model |
+| /quit | 明确命令submit，flush及durable ACK后关闭adapter/writer |
+| 关闭tab/window、reload、browser保留键 | 不保证最后flush，按disconnect/saved-unsaved合同处理 |
+
+Chrome常用Ctrl+S保存、G查找下一个、P打印、O打开、U源码、D书签；这些应用键必须在每个目标实测拦截。macOS对应browser快捷键通常用Meta；不拦Meta+L/T/W/Q等browser/app导航键，不假定跨平台保留/拦截行为相同。仅adapter焦点下对约定应用键同步preventDefault。若必要键不能拦截，明确禁用该绑定，并用固定footer小控件（Submit、Commands、Literal、Copy、scroll、Resume）提供同动作，经trusted click及同Node事件路径。缺失快捷键不能静默执行browser动作却声称TUI成功；控件留在三段布局，不扩展通用web导航。
+
+composition仅由trusted序列开始。在isComposing、adapter composition transaction或keyCode229期间，**禁止全部动作键及Enter/Space/Tab编辑快捷键**，不prevent IME自身候选确认，不插入newline/completion。preview为transient，不是durable typed node；从trusted composition序列恰好commit一次，关联final beforeinput/input去重。untrusted/synthetic composition不能commit或解除动作锁。未知、不支持、取消或无法对齐的序列保留最后canonical draft、锁动作并明显resync。真实OS IME与CDP模拟分开。
+
+## R6.3 明确 input-type 与来源规则
+
+Node canonical editor只接收允许转换，不从内容或snapshot猜来源。不可变paste ID及app-owned undo在insert/delete/undo/redo/durable save/reconnect/reload中保留来源；编辑paste node不能把保留字符改成typed。另敲slash也不能追溯改变paste-origin前缀来源。
+
+| trusted browser input | canonical转换 |
+| --- | --- |
+| paste / insertFromPaste / insertFromPasteAsQuotation | plain text恰好一个paste-data事务，prevent重复默认插入 |
+| drop / insertFromDrop | plain-text paste-data，拒files/URL-as-action/default navigation |
+| Linux middle-click selection paste | paste-data；拦auxiliary默认插入，若缺可靠text/source则明显拒绝此次插入并锁/resync，绝不当typed |
+| composition外insertText | typed-text插入 |
+| insertReplacementText / 平台dictation | 带明确validated range的typed edit；range缺失/歧义锁/resync，不改无关文字 |
+| insertCompositionText及final commit | transient preview，按R6.2恰好一个typed事务 |
+| insertLineBreak / insertParagraph | 非composition单个typed newline，与已处理key去重 |
+| historyUndo / historyRedo | prevent browser mutation，app-owned undo/redo保留来源 |
+| cut / deleteByCut | prevent无记录browser mutation；validated range单次可undo删除。经明确cut event允许的clipboard路径复制选区；复制失败保留选区/文字 |
+| 已支持delete/edit range | 对canonical revision验证，执行规定编辑且保留来源tag |
+| unknown inputType、untrusted event、错误range、重复companion event | untrusted忽略；未知/错误转换锁动作resync；识别重复为no-op |
+
+paste/drop/middle-click中的`/quit`、tab、NUL、C0/C1、marker样式及newline始终为data。保留原明确CR/CRLF→LF归一化，无control stripping、command interpolation、HTML插入、字符转key。动作事件独立，data node payload不能制造action。Node仅在前序输入事务完成且revision一致后验证action资格；冻结payload测试须验精确文字，不只数动作。
+
+## R6.4 Single-use bootstrap 与断连授权
+
+launch fragment bootstrap为密码学随机**single-use** capability，60秒寿命。Host/Origin/握手有效后原子消费，从page history清除；URL打印到调用terminal是明确本地交接，不泄露Core owner token。Core凭据仅留Node，bootstrap绝不复用或写durable draft/log。
+
+认证page取得独立可轮换per-tab reconnect secret，仅存该origin的sessionStorage，不存localStorage/cookie/profile配置/诊断文件；server只在内存保存verifier，绑定sole writer/tab session/generation/reconnect deadline。这明确覆盖R5仅内存/不存browser storage条款，仅此reconnect credential例外。每次reconnect/reload原子消费旧secret、废旧generation、生成新secret，经认证socket发送new generation/secret。page先存new secret再ACK握手；握手ACK和canonical state同步完成前禁止edit/action。旧/已消费secret不能造第二writer。若新secret存储前握手失败/响应丢失，回退CLI fresh bootstrap，不复用已消费credential、不猜结果。
+
+authenticated channel断开立即禁止开始new/retry POST；当前reconnect verifier仅保留已有60秒窗口。窗口过期/process退出/显式quit完成后secret失效；显式quit/credential-invalid response清sessionStorage。browser可能恢复tab/sessionStorage，故有效性仅由live server deadline/generation决定，不能依赖browser storage生命周期。请求或恢复失败时由调用CLI提供fresh bootstrap；签发它先撤销旧reconnect session才允许新会话。不自动开新tab，不存owner凭据，不允许未认证socket延长deadline；限制socket数量/握手时限。窗口超时完成已收到write、关writer并退出，下次launch恢复durable并签新bootstrap。
+
+新认证后先完整state/revision同步，再由明确Resume允许旧frozen outbox POST；保留bytes/ID/producer metadata/FIFO unknown barrier。已开始HTTP可完成并保存receipt/unknown，disconnect不能撤回已发请求。重连/reload/GET/composition完成不创建submit。single dispatcher在写durable attempt marker及开始POST前将new submit/Resume与disconnect/generation撤销串行化。Node不相信页面自报ACK；“已保存”仍需精确durable ACK到达page，关tab不能保证未送达/unsaved文字存活。
+
+## R6.5 验证与独立证据
+
+增补每个input-type行、physical code/exact modifiers/Shift/CapsLock/非Latin layout、repeat suppression、保留键拦截/fallback、IME确认不产生action/newline/completion、bootstrap reuse/expiry/lost handshake、seq/generation/revision负例、disconnect-dispatch竞态、编辑/undo/reload来源保持、C0/C1精确payload。受支持环境实测browser clipboard delivery及明确动作。六项修订只解决计划歧义，不声称产品测试已跑；完整repo验证、API清单、准确产品HEAD复核及实际Linux/macOS CI仍后续。真实OS IME/visual缺项可按Master授权延期。
+
+R5独立复核`e645e6b06c317c4822258d391b279632f359f411`采纳全部R4修订，确认英文附件/runbook/历史字节一致、31relative links有效。source-model PTY区分filtered paste期间零自动动作与Reset来源丢失；其自写headed Chromium153/Xvfb原型用真实X11clipboard加CDP输入，paste零动作、paste `/quit`+明确submit仍message、typed `/quit`为command。首轮key大小写失败保留，次轮改physical code；原型代码未排除Shift，故不能作为完整modifier证据，R6必须补测。CDP composition不真实，非OS IME验收。原始包SHA256 `45d75b8bb2e3141f4620c6320235c237c8500062c9035834f8dc25d767f42304`，17项/44,460解包字节，ignored保留日志/原型/截图。
+
+单次获准xterm configure再次**未执行**，被沙盒automatic classifier以`Code from External`拒绝，未重试/变形命令/换通道。REAL_LINUX_TERMINAL仍NOT_TESTED/DEFERRED。G0 raw-parser FAIL_PROTOCOL_PROVENANCE保留且可复现；P2是拟产品边界，不追溯把G0写成PASS。同Claude对精确计划给PASS/CHANGES_REQUIRED，再交协调明确scope/实施裁决。尚无产品实现、PR或合并。
+
+---
+
+## 历史 R5 计划 — 以下原文逐字保留
+
+
 # Issue #82 — R5 输入来源合同与 R4 独立证据
 
 日期：2026-10-25（Asia/Hong_Kong）。本轮**仅修订计划**，产品实现仍需受委托协调批准。R4 准备的独立复核提交为 `d6d47fdbde9067ba6a312236e125f952440b6120`。下方 R4 与原 R3 均逐字保留为历史；输入来源方案冲突处以 R5 为准，Master 的 R4 环境/视觉延期政策继续有效。
