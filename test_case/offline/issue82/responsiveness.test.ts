@@ -213,9 +213,11 @@ test(
       JSON.stringify(result, null, 2),
       { mode: 0o600 },
     );
+    // Hosted runners discard the working directory; retain numeric first-failure evidence in CI logs.
+    console.log(JSON.stringify({ issue82Responsiveness: result }));
     assert.equal(failure, undefined);
     assert.equal(emitted, 6000);
-    assert.ok(attempt.length >= 20);
+    assert.ok(attempt.length >= 20, JSON.stringify(result));
     assert.ok(result.draftMaxMs <= 500, JSON.stringify(result));
     assert.ok(result.attemptMaxMs <= 500, JSON.stringify(result));
     assert.ok(

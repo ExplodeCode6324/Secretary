@@ -207,6 +207,28 @@ export class Editor {
       this.draft.revision++;
     this.draft.selection = { ...selection };
   }
+  /** Joining text may create a grapheme across a provenance boundary. */
+  private safePosition(position: number, forward: boolean): number {
+    const collapsed: Array<{ start: number; end: number }> = [];
+    let offset = 0;
+    for (const node of this.draft.nodes) {
+      if (node.kind === "paste" && !node.expanded)
+        collapsed.push({ start: offset, end: offset + node.text.length });
+      offset += node.text.length;
+    }
+    let interval = 0,
+      previous = 0;
+    for (const cut of boundaries(flatten(this.draft.nodes))) {
+      while (interval < collapsed.length && collapsed[interval].end <= cut)
+        interval++;
+      const block = collapsed[interval];
+      if (block && block.start < cut && cut < block.end) continue;
+      if (forward && cut >= position) return cut;
+      if (!forward && cut > position) return previous;
+      previous = cut;
+    }
+    return previous;
+  }
   private replace(start: number, end: number, nodes: TextNode[]): TextNode[] {
     const [left, tail] = split(this.draft.nodes, start);
     const [removed, right] = split(tail, end - start);
@@ -248,9 +270,10 @@ export class Editor {
     const cost = bytes(removed) + bytes(inserted);
     if (cost > UNDO_BYTES && !allowNonUndoable)
       throw Error("NON_UNDOABLE_CONFIRMATION_REQUIRED");
-    const before = { ...this.draft.selection },
-      after = { anchor: start + text.length, head: start + text.length };
+    const before = { ...this.draft.selection };
     this.replace(start, end, inserted);
+    const head = this.safePosition(start + text.length, true);
+    const after = { anchor: head, head };
     this.draft.selection = after;
     this.redoStack = [];
     if (cost > UNDO_BYTES) this.undoStack = [];
@@ -302,14 +325,10 @@ export class Editor {
     if (!node) throw Error("PASTE_NOT_FOUND");
     node.expanded = expanded;
     if (!expanded) {
-      const start = flatten(
-        this.draft.nodes.slice(0, this.draft.nodes.indexOf(node)),
-      ).length;
-      const end = start + node.text.length;
       const selection = this.draft.selection;
-      if (selection.anchor > start && selection.anchor < end)
-        selection.anchor = start;
-      if (selection.head > start && selection.head < end) selection.head = end;
+      const forward = selection.head >= selection.anchor;
+      selection.anchor = this.safePosition(selection.anchor, !forward);
+      selection.head = this.safePosition(selection.head, forward);
     }
     this.draft.revision++;
   }

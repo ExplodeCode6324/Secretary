@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   Editor,
+  validateDraft,
   flatten,
   displayText,
   DRAFT_BYTES,
@@ -120,4 +121,39 @@ test("strict command grammar and literal send payload do not reinterpret paste o
   assert.throws(() => resolveID("a", ["abc", "abd"]), /AMBIGUOUS_ID/);
   assert.equal(resolveID("abc", ["abc", "abcd"]), "abc");
   assert.ok(completions("/q", "Main").includes("/quit"));
+});
+
+test("joined graphemes keep legal caret positions across provenance, undo and recovery", () => {
+  for (const suffix of ["\u0301", "\u0301\nnext"]) {
+    const e = new Editor();
+    e.insert(suffix, "paste");
+    e.select({ anchor: 0, head: 0 });
+    e.insert("a", "typed");
+    assert.equal(flatten(e.draft.nodes), "a" + suffix);
+    assert.equal(
+      e.draft.selection.head,
+      suffix.includes("\n") ? 1 + suffix.length : 2,
+    );
+    validateDraft(e.draft);
+    assert.deepEqual(
+      e.draft.nodes.map((n) => n.kind),
+      ["typed", "paste"],
+    );
+    const recovered = Editor.restore(e.snapshot());
+    recovered.undo();
+    assert.equal(flatten(recovered.draft.nodes), suffix);
+    validateDraft(recovered.draft);
+    recovered.undo(true);
+    assert.equal(flatten(recovered.draft.nodes), "a" + suffix);
+    validateDraft(recovered.draft);
+  }
+  const e = new Editor();
+  e.insert("a\n\u0301", "typed");
+  e.edit(1, 2, "", "typed");
+  assert.equal(e.draft.selection.head, 2);
+  validateDraft(e.draft);
+  e.undo();
+  validateDraft(e.draft);
+  e.undo(true);
+  validateDraft(Editor.restore(e.snapshot()).draft);
 });
