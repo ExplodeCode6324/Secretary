@@ -358,6 +358,23 @@ export class TuiApp {
       throw Error("STALE_GENERATION");
   }
   async event(value: unknown, generation: number) {
+    const editor = this.editor(),
+      revision = editor.draft.revision,
+      selection = { ...editor.draft.selection },
+      pendingRemoval = this.largeEdit;
+    const result = await this.applyEvent(value, generation);
+    if (
+      editor !== this.editor() ||
+      revision !== editor.draft.revision ||
+      selection.anchor !== editor.draft.selection.anchor ||
+      selection.head !== editor.draft.selection.head
+    ) {
+      this.input.invalidateConfirmation();
+      if (this.largeEdit === pendingRemoval) this.largeEdit = undefined;
+    }
+    return result;
+  }
+  private async applyEvent(value: unknown, generation: number) {
     this.writable(generation);
     if (!value || typeof value !== "object" || Array.isArray(value))
       throw Error("INVALID_EVENT");

@@ -16,6 +16,7 @@ class Element {
   value = "";
   hidden = false;
   disabled = false;
+  readOnly = false;
   id = "";
   children: Element[] = [];
   offsetLeft = 0;
@@ -74,6 +75,7 @@ function harness(international: unknown = Intl) {
   const editor = new Editor(),
     input = new InputProtocol(() => editor),
     actions: string[] = [],
+    copied: string[] = [],
     frames: any[] = [];
   const buttons = [
     "submit",
@@ -101,6 +103,7 @@ function harness(international: unknown = Intl) {
     saved: true,
     outbox: "ready",
     notice: "",
+    largeConfirmation: input.needsConfirmation,
     usage: 0,
     quota: 1000,
   });
@@ -171,7 +174,11 @@ function harness(international: unknown = Intl) {
     window: { getSelection: () => ({ toString: () => "" }) },
     navigator: {
       userAgent: "Chrome/155.0.0.0",
-      clipboard: { writeText: async () => {} },
+      clipboard: {
+        writeText: async (text: string) => {
+          copied.push(text);
+        },
+      },
     },
     history: { replaceState() {} },
     location: { hash: "#" + "b".repeat(43), origin: "http://127.0.0.1:12345" },
@@ -197,6 +204,7 @@ function harness(international: unknown = Intl) {
     state,
     editor,
     actions,
+    copied,
     frames,
     sink: get("sink"),
     buttons,
@@ -265,6 +273,111 @@ test("actual adapter matches physical code plus every modifier, repeat and compo
   await h.settle();
   assert.equal(flatten(h.editor.draft.nodes), "中文");
   assert.equal(h.actions.length, 2);
+});
+
+test("large paste confirmation pauses later typing and resumes it after Apply or Cancel", async () => {
+  for (const accept of [true, false]) {
+    const h = harness();
+    await h.settle();
+    const text = "p".repeat(600 * 1024);
+    h.sink.dispatch("paste", {
+      clipboardData: { files: [], getData: () => text },
+    });
+    h.sink.dispatch("beforeinput", { inputType: "insertText", data: "a" });
+    await h.settle();
+    assert.equal(flatten(h.editor.draft.nodes), "");
+    assert.equal(h.elements.get("large-yes")!.hidden, false);
+    assert.match(h.elements.get("pending")!.textContent, /a/);
+    assert.equal(h.sink.readOnly, true);
+    const beforeModalInput = h.frames.length;
+    h.sink.dispatch("beforeinput", {
+      inputType: "insertText",
+      data: "not accepted",
+    });
+    h.sink.dispatch("keydown", { code: "ArrowLeft", key: "ArrowLeft" });
+    h.sink.dispatch("keydown", { code: "KeyS", ctrlKey: true });
+    h.sink.dispatch("compositionstart");
+    h.sink.dispatch("beforeinput", {
+      inputType: "insertCompositionText",
+      data: "未接受",
+      isComposing: true,
+    });
+    h.sink.dispatch("compositionend", { data: "未接受" });
+    await h.settle();
+    assert.equal(h.frames.length, beforeModalInput);
+    assert.match(h.elements.get("status")!.textContent, /Apply or Cancel/);
+    h.socket().receive({ type: "state", generation: 1, state: h.state() });
+    h.elements.get(accept ? "large-yes" : "large-no")!.dispatch("click");
+    h.elements.get(accept ? "large-yes" : "large-no")!.dispatch("click");
+    await h.settle();
+    assert.equal(flatten(h.editor.draft.nodes), (accept ? text : "") + "a");
+    assert.equal(h.elements.get("large-yes")!.hidden, true);
+    assert.equal(h.elements.get("pending-copy")!.hidden, true);
+    assert.equal(h.sink.readOnly, false);
+    assert.equal(
+      h.frames.filter((frame) => frame.event?.type === "confirm-large").length,
+      1,
+    );
+    h.sink.dispatch("beforeinput", { inputType: "insertText", data: "z" });
+    await h.settle();
+    assert.equal(flatten(h.editor.draft.nodes), (accept ? text : "") + "az");
+  }
+});
+
+test("refusal and locked-state reasons survive unrelated state publication", async () => {
+  const h = harness();
+  await h.settle();
+  h.editor.insert("x".repeat(4 * 1024 * 1024), "paste", true);
+  h.socket().receive({ type: "state", generation: 1, state: h.state() });
+  h.sink.dispatch("beforeinput", { inputType: "insertText", data: "overflow" });
+  await h.settle();
+  assert.match(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+  for (let i = 0; i < 5; i++) {
+    h.socket().receive({
+      type: "state",
+      generation: 1,
+      state: { ...h.state(), notice: "Copied exact text.", saved: !!(i % 2) },
+    });
+    assert.match(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+  }
+  h.sink.dispatch("beforeinput", { inputType: "insertText", data: "" });
+  await h.settle();
+  h.sink.dispatch("compositionstart");
+  h.sink.dispatch("compositionend", { data: "" });
+  await h.settle();
+  assert.match(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+  h.editor.edit(0, 4 * 1024 * 1024 - 1, "", "typed", true);
+  h.socket().receive({ type: "state", generation: 1, state: h.state() });
+  assert.match(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+  h.sink.dispatch("beforeinput", { inputType: "insertText", data: "z" });
+  await h.settle();
+  assert.doesNotMatch(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+  h.socket().receive({ type: "replaced", reason: "duplicate" });
+  h.socket().receive({ type: "state", generation: 1, state: h.state() });
+  assert.match(h.elements.get("status")!.textContent, /duplicate/);
+});
+
+test("confirmation arriving during composition keeps the preview copyable without applying it", async () => {
+  const h = harness();
+  await h.settle();
+  h.sink.dispatch("compositionstart");
+  h.sink.value = "未提交预览";
+  h.socket().receive({
+    type: "state",
+    generation: 1,
+    state: { ...h.state(), largeConfirmation: true },
+  });
+  assert.match(h.elements.get("status")!.textContent, /composition preview/);
+  assert.equal(h.elements.get("pending-copy")!.hidden, false);
+  assert.equal(h.elements.get("large-yes")!.hidden, true);
+  h.elements.get("pending-copy")!.dispatch("click");
+  await h.settle();
+  assert.match(h.copied[0], /未提交预览/);
+  h.sink.dispatch("compositionend", { data: "未提交预览" });
+  await h.settle();
+  assert.match(h.elements.get("pending")!.textContent, /未提交预览/);
+  assert.equal(flatten(h.editor.draft.nodes), "");
+  assert.equal(h.frames.filter((frame) => frame.type === "event").length, 0);
 });
 test("actual adapter preserves control-bearing paste and drop; synthetic paste cannot mutate", async () => {
   const h = harness();

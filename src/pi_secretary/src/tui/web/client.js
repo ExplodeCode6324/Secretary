@@ -30,7 +30,9 @@
     inFlight = null,
     pendingBytes = 0,
     reconnectTimer,
-    clipboard = null;
+    clipboard = null,
+    refusal = "",
+    lockReason = "";
   history.replaceState(null, "", "/");
   const supported =
     /(?:Chrome|Chromium)\/(\d+)/.test(navigator.userAgent) &&
@@ -43,18 +45,38 @@
     lock("Session storage unavailable; restart TUI for a new URL.");
   }
   function status(text) {
-    $("status").textContent = text;
+    $("status").textContent =
+      lockReason ||
+      (ready && state?.largeConfirmation
+        ? "Apply or Cancel before continuing. New input is not accepted while this prompt is open; earlier queued input resumes after the decision."
+        : refusal || text);
+  }
+  function refuse(text) {
+    refusal = text;
+    status(text);
   }
   function lock(reason) {
     ready = false;
-    status(reason + " · local pending edits retained below");
+    lockReason = reason + " · local pending edits retained below";
+    status(lockReason);
     $("resync").hidden = replaced;
     controls();
     renderPending();
   }
   function controls() {
+    const modal = !!state?.largeConfirmation;
+    // An existing composition preview stays available until its end/copy;
+    // the lock path retains it rather than clearing the input sink.
+    sink.readOnly = (!ready || !supported || modal) && !composing;
     for (const button of document.querySelectorAll("[data-action]"))
-      button.disabled = !ready || !supported || small || composing;
+      button.disabled = !ready || !supported || small || composing || modal;
+    const deciding =
+      inFlight?.event.type === "confirm-large" ||
+      queue.some((job) => job.event.type === "confirm-large");
+    for (const id of ["large-yes", "large-no"]) {
+      $(id).hidden = !modal || !ready;
+      $(id).disabled = !ready || composing || deciding;
+    }
   }
   function wire(value) {
     if (ws?.readyState !== WebSocket.OPEN) throw Error("Channel disconnected");
@@ -72,12 +94,31 @@
       );
       return false;
     }
+    if (state?.largeConfirmation && event.type !== "confirm-large") {
+      status("Apply or Cancel before continuing; new input was not accepted.");
+      return false;
+    }
+    if (
+      event.type === "confirm-large" &&
+      (!state?.largeConfirmation ||
+        inFlight?.event.type === "confirm-large" ||
+        queue.some((job) => job.event.type === "confirm-large"))
+    )
+      return false;
     const cost = encoder.encode(JSON.stringify(event)).length;
-    if (pendingBytes + cost > 8 * 1024 * 1024 || queue.length >= 2048) {
+    // Keep one decision within the existing byte/slot limits even when the
+    // paused queue is full of valid earlier intentions.
+    const decision = event.type === "confirm-large";
+    if (
+      pendingBytes + cost > 8 * 1024 * 1024 - (decision ? 0 : 256) ||
+      queue.length >= 2048 - (decision ? 0 : 1)
+    ) {
       lock("Input queue full; copy pending text before reconnect");
       return false;
     }
-    queue.push({ event, preview, cost, frozenRevision });
+    const job = { event, preview, cost, frozenRevision };
+    if (event.type === "confirm-large") queue.unshift(job);
+    else queue.push(job);
     pendingBytes += cost;
     renderPending();
     pump();
@@ -85,6 +126,8 @@
   }
   function pump() {
     if (!ready || inFlight || !queue.length || composing) return;
+    if (state?.largeConfirmation && queue[0].event.type !== "confirm-large")
+      return;
     const job = queue.shift();
     if (
       job.frozenRevision !== undefined &&
@@ -104,13 +147,15 @@
       ].includes(event.type)
     )
       event.revision = state.revision;
-    inFlight = { ...job, seq: ++seq };
+    inFlight = { ...job, sentRevision: state.revision, seq: ++seq };
+    controls();
     wire({ type: "event", generation, seq, event });
   }
   function renderPending() {
     const jobs = [...(inFlight ? [inFlight] : []), ...queue];
-    const text = jobs.map((j) => j.preview).join("");
-    $("pending-copy").hidden = !jobs.length;
+    const text =
+      jobs.map((j) => j.preview).join("") + (composing ? sink.value : "");
+    $("pending-copy").hidden = !jobs.length && !composing;
     $("pending").textContent = text
       ? "UNACKNOWLEDGED: " + safe(text).slice(-2000)
       : jobs.length
@@ -122,7 +167,18 @@
     try {
       await navigator.clipboard.writeText(
         JSON.stringify(
-          [...(inFlight ? [inFlight] : []), ...queue].map((job) => ({
+          [
+            ...(inFlight ? [inFlight] : []),
+            ...queue,
+            ...(composing
+              ? [
+                  {
+                    event: { type: "composition-preview" },
+                    preview: sink.value,
+                  },
+                ]
+              : []),
+          ].map((job) => ({
             event: job.event,
             text: job.preview,
           })),
@@ -138,7 +194,7 @@
   function transaction(text, source, frozenRevision) {
     if (source === "paste" && !text) return;
     if (encoder.encode(text).length > 4 * 1024 * 1024) {
-      status("Paste exceeds 4 MiB; draft unchanged.");
+      refuse("Paste exceeds 4 MiB; draft unchanged.");
       return;
     }
     const id = crypto.randomUUID();
@@ -202,6 +258,7 @@
         wire({ type: "sync-ack", generation });
       } else if (message.type === "ready") {
         ready = supported;
+        lockReason = "";
         state = message.state;
         $("resync").hidden = true;
         render();
@@ -224,12 +281,22 @@
           return;
         }
         const rejected = message.type === "rejected";
-        if (
-          rejected &&
-          message.error === "NON_UNDOABLE_CONFIRMATION_REQUIRED"
-        ) {
-          $("large-yes").hidden = $("large-no").hidden = false;
-        }
+        const confirmation =
+          rejected && message.error === "NON_UNDOABLE_CONFIRMATION_REQUIRED";
+        if (rejected) refusal = message.error + " — draft preserved";
+        else if (
+          inFlight.event.type === "confirm-large" ||
+          (![
+            "begin",
+            "chunk",
+            "cancel",
+            "viewport-anchor",
+            "row-select",
+          ].includes(inFlight.event.type) &&
+            message.state?.revision !== undefined &&
+            message.state.revision !== inFlight.sentRevision)
+        )
+          refusal = "";
         pendingBytes -= inFlight.cost;
         inFlight = null;
         if (message.state !== undefined) {
@@ -239,7 +306,7 @@
         renderPending();
         if (rejected) {
           status(message.error + " — draft preserved");
-          if (queue.length) {
+          if (queue.length && !confirmation) {
             lock(
               "Input refused; later queued edits retained for inspection: " +
                 message.error,
@@ -305,7 +372,7 @@
       ready = false;
       controls();
       if (!replaced) {
-        status(
+        lock(
           "Disconnected. Saved state retained; Resume required after reconnect.",
         );
         $("resync").hidden = false;
@@ -326,6 +393,10 @@
   let transcriptSignature = "";
   function render() {
     if (!state) return;
+    if (state.largeConfirmation && composing && ready)
+      lock(
+        "Large edit confirmation interrupted a composition preview; copy pending data before reloading. New input was not accepted",
+      );
     $("header").textContent =
       `Secretary · ${state.view} · ${state.coreMode} · ${state.domain.slice(-12)} · ${state.stale ? "STALE / " : ""}${state.connection} · Session ${state.sessionState}\n${state.data}`;
     $("mode").textContent =
@@ -334,7 +405,6 @@
       `${state.outbox} · ${state.notice} · ${Math.ceil(state.usage / 1024)} / ${Math.floor(state.quota / 1024)} KiB`,
     );
     controls();
-    $("large-yes").hidden = $("large-no").hidden = !state.largeConfirmation;
     $("record-copy").hidden = !state.record;
     $("record-restore").hidden = !state.record?.editable;
     $("record-restore").textContent = state.record?.restoreConfirmation
@@ -554,9 +624,8 @@
   ])
     $(id).addEventListener("click", (e) => {
       if (e.isTrusted) {
-        enqueue({ type: "confirm-large", accept });
-        $("large-yes").hidden = $("large-no").hidden = true;
-        sink.focus();
+        if (enqueue({ type: "confirm-large", accept })) controls();
+        if (!state?.largeConfirmation) sink.focus();
       }
     });
   let userScroll = false,
@@ -588,6 +657,12 @@
     }, 200);
   });
   sink.addEventListener("keydown", (e) => {
+    if (state?.largeConfirmation && !composing) {
+      if ((e.ctrlKey || e.metaKey) && e.code === "KeyC") return;
+      e.preventDefault();
+      status("Apply or Cancel before continuing; new input was not accepted.");
+      return;
+    }
     if (!e.isTrusted) return;
     if (composing || e.isComposing || e.keyCode === 229) return;
     const ctrl = e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey;
@@ -682,12 +757,17 @@
     }
     if (e.ctrlKey && /^Key[A-Z]$/.test(e.code)) {
       e.preventDefault();
-      status("Unsupported control editing gesture; draft unchanged.");
+      refuse("Unsupported control editing gesture; draft unchanged.");
     }
   });
   sink.addEventListener("beforeinput", (e) => {
     if (!e.isTrusted) {
       e.preventDefault();
+      return;
+    }
+    if (state?.largeConfirmation && !composing) {
+      e.preventDefault();
+      status("Apply or Cancel before continuing; new input was not accepted.");
       return;
     }
     if (composing || e.isComposing || e.inputType === "insertCompositionText") {
@@ -732,6 +812,12 @@
   });
   sink.addEventListener("compositionstart", (e) => {
     if (!e.isTrusted || !ready) return;
+    if (state?.largeConfirmation) {
+      status(
+        "Apply or Cancel before starting composition; new input was not accepted.",
+      );
+      return;
+    }
     if (inFlight || queue.length) {
       lock(
         "Composition started before prior edits were acknowledged; canonical draft retained",
@@ -792,7 +878,7 @@
         !e.dataTransfer ||
         e.dataTransfer.files.length
       ) {
-        status("Only plain-text drop is supported");
+        refuse("Only plain-text drop is supported");
         return;
       }
       transaction(e.dataTransfer.getData("text/plain"), "paste");

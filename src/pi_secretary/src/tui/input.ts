@@ -34,17 +34,34 @@ export class InputProtocol {
     deadline: number;
   };
   private confirmation?: {
+    editor: Editor;
     revision: number;
     selection: Selection;
     text: string;
     kind: "paste" | "typed";
+    start: number;
+    end: number;
   };
   constructor(readonly editor: () => Editor) {}
   get incomplete() {
     return !!this.partial;
   }
   get needsConfirmation() {
+    const c = this.confirmation;
+    if (c && !this.confirmationMatches(c)) this.confirmation = undefined;
     return !!this.confirmation;
+  }
+  invalidateConfirmation() {
+    this.confirmation = undefined;
+  }
+  private confirmationMatches(c: NonNullable<InputProtocol["confirmation"]>) {
+    const editor = this.editor();
+    return (
+      c.editor === editor &&
+      c.revision === editor.draft.revision &&
+      c.selection.anchor === editor.draft.selection.anchor &&
+      c.selection.head === editor.draft.selection.head
+    );
   }
   reset() {
     this.partial = undefined;
@@ -55,6 +72,10 @@ export class InputProtocol {
     kind: "typed" | "paste",
     revision: number,
     selection: Selection,
+    range = {
+      start: Math.min(selection.anchor, selection.head),
+      end: Math.max(selection.anchor, selection.head),
+    },
   ): InputResult {
     const editor = this.editor();
     if (
@@ -63,30 +84,41 @@ export class InputProtocol {
       selection.head !== editor.draft.selection.head
     )
       throw Error("STALE_INPUT_RANGE");
-    if (kind === "paste" && !text) return {};
+    if (!text && (kind === "paste" || range.start === range.end)) return {};
     try {
-      editor.insert(text, kind);
+      editor.edit(range.start, range.end, text, kind);
     } catch (error) {
       if (
         error instanceof Error &&
         error.message === "NON_UNDOABLE_CONFIRMATION_REQUIRED"
       )
         this.confirmation = {
+          editor,
           text,
           kind,
           revision,
           selection: { ...selection },
+          ...range,
         };
       throw error;
     }
     return { changed: true };
   }
   apply(value: unknown): InputResult {
+    const result = this.applyEvent(value);
+    if (result.changed || result.selection) this.invalidateConfirmation();
+    return result;
+  }
+  private applyEvent(value: unknown): InputResult {
     if (!value || typeof value !== "object" || Array.isArray(value))
       throw Error("INVALID_EVENT");
     const event = value as Record<string, unknown>,
       editor = this.editor();
-    if (event.revision !== editor.draft.revision) throw Error("STALE_REVISION");
+    if (
+      event.type !== "confirm-large" &&
+      event.revision !== editor.draft.revision
+    )
+      throw Error("STALE_REVISION");
     if (this.partial && Date.now() > this.partial.deadline) {
       this.reset();
       throw Error("INPUT_TRANSACTION_EXPIRED");
@@ -165,16 +197,16 @@ export class InputProtocol {
         exact(event, ["type", "revision", "accept"]);
         const c = this.confirmation;
         this.confirmation = undefined;
-        if (typeof event.accept !== "boolean" || !c)
-          throw Error("NO_PENDING_CONFIRMATION");
+        if (typeof event.accept !== "boolean" || !integer(event.revision))
+          throw Error("INVALID_EVENT_FIELDS");
+        if (!c) throw Error("LARGE_EDIT_EXPIRED: paste or edit again");
         if (!event.accept) return {};
         if (
-          c.revision !== editor.draft.revision ||
-          c.selection.anchor !== editor.draft.selection.anchor ||
-          c.selection.head !== editor.draft.selection.head
+          event.revision !== editor.draft.revision ||
+          !this.confirmationMatches(c)
         )
-          throw Error("STALE_INPUT_RANGE");
-        editor.insert(c.text, c.kind, true);
+          throw Error("LARGE_EDIT_EXPIRED: paste or edit again");
+        editor.edit(c.start, c.end, c.text, c.kind, true);
         return { changed: true };
       }
       case "select": {
@@ -242,21 +274,18 @@ export class InputProtocol {
         if (!["backward", "forward"].includes(String(event.direction)))
           throw Error("INVALID_DELETE");
         const selection = { ...editor.draft.selection };
-        if (selection.anchor === selection.head)
-          this.apply({
-            type: "move",
-            revision: event.revision,
-            direction: event.direction === "backward" ? "left" : "right",
-            extend: true,
-            word: false,
-          });
-        try {
-          editor.insert("", "typed");
-        } catch (e) {
-          editor.select(selection);
-          throw e;
-        }
-        return { changed: true };
+        const backward = event.direction === "backward";
+        const other =
+          selection.anchor === selection.head
+            ? editor.safePosition(
+                editor.index.move(selection.head, backward ? -1 : 1),
+                !backward,
+              )
+            : selection.anchor;
+        return this.insert("", "typed", editor.draft.revision, selection, {
+          start: Math.min(other, selection.head),
+          end: Math.max(other, selection.head),
+        });
       }
       case "undo":
         exact(event, ["type", "revision", "redo"]);

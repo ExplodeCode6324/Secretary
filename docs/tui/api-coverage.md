@@ -32,7 +32,7 @@
 | POST | /api/v1/admin/authorization-rules | 未用 | 不属于 #82 Main/本地草稿范围；后续按明确授权接入 | — |
 | POST | /api/v1/admin/authorization-rules/{id}/disable | 未用 | 不属于 #82 Main/本地草稿范围；后续按明确授权接入 | — |
 | POST | /api/v1/core/stop | 未用 | 不属于 #82 Main/本地草稿范围；后续按明确授权接入 | — |
-| GET | /api/v1/core | 已用 | attach-only 身份、模式与实例核对 | `core-client.ts`: `inspectCore` → `CoreClient.core`; `tui/app.ts`: attach callback |
+| GET | /api/v1/core | 已用 | attach-only 身份、模式与实例核对 | `core-client.ts`: `inspectCore` → `CoreClient.query<Core>("core", { signal })`; `tui/app.ts`: attach callback |
 | GET | /api/v1/assistant | 未用 | 不属于 #82 Main/本地草稿范围；后续按明确授权接入 | — |
 | GET | /api/v1/session | 已用 | Main 会话状态 | `tui/sync.ts`: `MainSync.snapshot` |
 | GET | /api/v1/clients/{id} | 未用 | 不属于 #82 Main/本地草稿范围；后续按明确授权接入 | — |

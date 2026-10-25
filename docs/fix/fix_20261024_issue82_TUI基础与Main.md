@@ -405,3 +405,16 @@ Claude R2 精确复核7330c920d2d1ad1963969a9c38e2df9df7aa3e18，确认九项R1�
 每次注入以 monotonic_ns 测量，必须至少 20 ms；样本非空且与真实 fsync 一一对应。保留全部原始值和 method/platform/Python/CPU、min/mean/p95/max，CI 输出摘要。既有 6000/30 秒负载、至少 20 attempt、两项 ACK 500 ms、publication 100/250 ms、checkpoint 单槽、最终 cursor/durable 6000、dirty 为空及超时要求全部不变。新准确 HEAD 仍须通过真实 Linux/macOS CI 和同一 Claude 终审。
 
 探针 SHA256：常规等待 `cf224f474fa26a5adac8bee701cd8e53fd2c9e96b6b930d38faf9772c5a652a2`；kqueue 对照 `8bc05384e32481531b2dd09cf2f0a5e6c0d2227c0d43c6ebf56d3822fdca9ae1`。依据：[Apple timer 标志及默认毫秒单位](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/event.h)、[filt_timerarm](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_event.c)。
+
+
+### 产品复核 R2 与确认流程补充 — 2026-10-25
+
+R2 独立复核 `3c3034d`，针对 D5–D7 返回 CHANGES_REQUIRED。其真实 Chromium/X11 剪贴板验证了 R1 D1–D4：Unicode 拼接及持久重开、4,128,772 字节草稿精确复制/重开、48–72 ms 大草稿键入、仅 typed token 补全、空粘贴保留。55 项非 Core 测试通过；依赖替代和 Core 集成不可运行仍明确列为限制。原报告/压缩包保留，包 SHA256 为 `08f68c62e8136058d580f9e9af3ad28fa7ce0635754499ceb76986ec37a3924b`。
+
+协调批准修复并明确采用模态策略。D5：确认暂停 wire 队列而不锁死页面；Apply/Cancel 可以优先于此前已捕获的排队输入发送，但仍保留 sequence/generation 和容量校验（在既有上限内为决定预留一个 slot 和 256 字节），决定在途时不得重复发送。只有决定成功 ACK 后，才按原 FIFO 恢复此前队列：Apply 先修改冻结范围；Cancel 先保留原草稿，然后才处理此前意图。提示出现后输入 sink 只读，新键入、选择/移动、新 IME 及普通编辑/提交手势明确不被接受，提示要求先 Apply 或 Cancel；Copy pending data 保持可用。若提示遇到已有 composition preview，则走既有保留复制/恢复路径，不静默清空或重放。断开/接管仍不得自动重放 ACK 未知的意图。
+
+D6：确认绑定 Editor 身份、revision 和原 selection；成功编辑、选择或上下文切换使旧确认失效。仅 confirm-large 业务路径把缺失/过期决定转为可恢复的 LARGE_EDIT_EXPIRED，普通 stale revision/range 协议保护不放宽。D7：前端把拒绝和 lock 原因与普通状态分开保留；周期 publish、保存状态、begin/chunk 和 no-op ACK 不得抹掉。只有 revision 实际变化的成功用户编辑/选择 ACK，或 Apply/Cancel 的成功 ACK，才清除旧拒绝；lock 需要新连接握手成功才恢复。本地超限粘贴/不支持手势的拒绝也保留。
+
+本地新增 D8（不是 Claude R2 发现）：614400 字节折叠 paste 的 Backspace/Delete 报 NON_UNDOABLE_CONFIRMATION_REQUIRED，却没有建立确认。首个探针保留。协调批准直接计算删除范围、不临时改变 selection，并把原 selection 与目标 range 分开保存；经完整校验的 Apply 才调用 Editor.edit。确认前 draft/selection/revision/undo/durable outbox 不变，Cancel 保留它们，重复或过期决定不得二次删除。双向删除继续遵守 Unicode/grapheme 和折叠 paste 原子边界；边界空删除无确认、无伪 revision 变化。
+
+GET /core 消费路径改为 inspectCore → CoreClient.query<Core>("core", { signal })；86 项 API 和 10 项已用事实不变。保留既有 QoS 实现，不扩展 R2 的非阻断 soft-failure 建议。`4bcdac1` 的 Darwin 测试计时校准也纳入最终复核；该提交 Linux/macOS/汇总 CI 已通过，但新最终 HEAD 仍须自己的 CI 和同一 Claude 复核。旧原生 Terminal/Linux 延期不再描述当前 plain-browser 产品与真实双平台 CI；原生 OS IME/剪贴板/物理快捷键及 Master 视觉/日常验收仍 DEFERRED/NOT_TESTED。本补充不构成合并授权。
