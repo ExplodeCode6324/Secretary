@@ -1,6 +1,6 @@
 # Issue #82 implementation evidence
 
-Status: R2 verified D1–D4 but requested D5–D7; those corrections and local D8 are implemented pending final exact-HEAD review and CI. No product PASS or merge is claimed. The R7 plan was approved at `bff4f6f759b3a4012134f8317451c898329d5307`; its delivery record is `c55515809810c1fae982a4618c25098a8f7e6c7a`. Coordinator release authorized implementation after that plan review. Historical plan bodies and G0 failures remain unchanged.
+Status: R2 D5–D7 and local D8 corrections are implemented; R3 at `1287bff` is pending. That head passed macOS CI but failed the Linux draft-ACK bound. The added test-only trace is diagnostic, not a claimed fix. No product PASS or merge is claimed. The R7 plan was approved at `bff4f6f759b3a4012134f8317451c898329d5307`; its delivery record is `c55515809810c1fae982a4618c25098a8f7e6c7a`. Coordinator release authorized implementation after that plan review. Historical plan bodies and G0 failures remain unchanged.
 
 ## Implemented boundary
 
@@ -80,3 +80,12 @@ Pre-D8 local suite:62/62 passed. Focused post-D8 editor/adapter/real-WebSocket t
 The complete post-D8 local suite passed64/64, with zero failures/skips. A final queue-capacity/disconnect message audit reserved a confirmation slot within the existing bounds and preserved the disconnected lock reason; the final rerun is recorded separately. Type/format/docs/localization checks passed. Actual Chrome refusal visibility was exercised against fixture publications every200ms: NO_SELECTION remained visible across updates and cleared after a successfully acknowledged z insertion.
 
 The final post-audit rerun passed64/64 with zero skips/failures in44.60s. Final type, focused format, documentation and localization checks passed. This is local final-source evidence; exact new-HEAD CI and independent R3 remain required.
+
+
+## Linux seventh-run failure and diagnostic trace
+
+The `1287bff` Linux run had 791 tests: 789 passed, one failed, one macOS-only skip. Its sole failure was draft ACK 506.721609 ms > 500 ms (96 draft samples, 25 attempts; attempt maximum 55.932027 ms). All 6000 sync transactions reached current/durable cursor with empty dirty state. macOS passed 220/220. The first Linux log SHA256 is `11e880c81d5943fa45a06eeb86298770565223394e10b6898231d13aa8d73d51`. Aggregate maxima do not identify the slow request; checkpoint execution 397.717728 ms includes at least 107.840096 ms outside the conservative upper bound for its four measured fsync/delay pairs. No root cause or failure waiver is claimed.
+
+Coordinator-approved observation now records actual wire ids, Node request/business/draft spans, helper receive/process/flush and inclusive file-operation phases, plus every injected/real fsync interval. Clock origins are separate; nested phases cannot be summed. Numeric bounded traces are printed after measurement; overflow/gaps fail explicitly. Production behavior, injection, load, assertions and CI scheduling are unchanged. The next CI is a diagnostic run, not a rerun-to-pass.
+
+Both local trace-validation runs passed; originals remain in ignored evidence. Final coverage: 278 Node requests matched 280 helper operations with two explicitly identified pre-observation startup operations; 1208 fsync samples; zero overflow/gaps. Draft/attempt maxima were 231.813/48.106 ms with 100/25 samples and all original final-state requirements met. Node bookkeeping measured 0.439 ms total; helper bookkeeping 79.318 ms total, excluding some wrapper overhead. An isolated 10000-call no-op wrapper comparison measured about 1.034 microseconds additional time per call; this is local instrumentation evidence, not full runner overhead. No measured or estimated cost is subtracted from acceptance timing. The first 506.72 ms failure remains unexplained pending diagnostic CI and coordinator disposition.

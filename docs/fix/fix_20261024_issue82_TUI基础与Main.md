@@ -418,3 +418,14 @@ D6：确认绑定 Editor 身份、revision 和原 selection；成功编辑、选
 本地新增 D8（不是 Claude R2 发现）：614400 字节折叠 paste 的 Backspace/Delete 报 NON_UNDOABLE_CONFIRMATION_REQUIRED，却没有建立确认。首个探针保留。协调批准直接计算删除范围、不临时改变 selection，并把原 selection 与目标 range 分开保存；经完整校验的 Apply 才调用 Editor.edit。确认前 draft/selection/revision/undo/durable outbox 不变，Cancel 保留它们，重复或过期决定不得二次删除。双向删除继续遵守 Unicode/grapheme 和折叠 paste 原子边界；边界空删除无确认、无伪 revision 变化。
 
 GET /core 消费路径改为 inspectCore → CoreClient.query<Core>("core", { signal })；86 项 API 和 10 项已用事实不变。保留既有 QoS 实现，不扩展 R2 的非阻断 soft-failure 建议。`4bcdac1` 的 Darwin 测试计时校准也纳入最终复核；该提交 Linux/macOS/汇总 CI 已通过，但新最终 HEAD 仍须自己的 CI 和同一 Claude 复核。旧原生 Terminal/Linux 延期不再描述当前 plain-browser 产品与真实双平台 CI；原生 OS IME/剪贴板/物理快捷键及 Master 视觉/日常验收仍 DEFERRED/NOT_TESTED。本补充不构成合并授权。
+
+
+### Linux 延迟时序观测补充 — 2026-10-25
+
+`1287bff` 的 macOS CI 为 220/220 通过；Linux 791 项中 789 通过、1 项 macOS 专用跳过、1 项失败：压力测试草稿 ACK 最大 506.721609 ms，超过未改变的 500 ms 门槛。96 次草稿、25 次 attempt，attempt 最大 55.932027 ms，发送/当前/持久 cursor 均为 6000，dirty 为空。首份 Linux 日志已保留，SHA256 为 `11e880c81d5943fa45a06eeb86298770565223394e10b6898231d13aa8d73d51`。后续绿色运行或超限幅度较小均不能豁免本次失败。
+
+checkpoint 执行最大 397.717728 ms。其固定 4 次 fsync 即便按全局真实 fsync 与注入等待各自最大值相加再乘 4，也至多 289.877632 ms；至少 107.840096 ms 在这些测量之外。但汇总最大值无法关联同一请求，也不能区分其他文件操作、IPC 和进程调度；这只是现有证据的限制，尚非根因结论。
+
+协调仅批准测试观测改动及一次新的诊断 CI。生产 writer、调度、真实 fsync、延迟注入方式、负载、门槛、timeout 和 CI 并发保持不变。测试按请求对象身份映射真实 wire request id，关联草稿保存与业务事务，记录排队、dispatch、回复到达及 Promise 完成，包括明确标记合并/未 dispatch 的记录。生成的测试 helper 记录收到请求、开始/结束处理、回复 flush、线程 CPU、包含嵌套调用的阶段耗时，以及逐请求注入等待/真实 fsync 区间。Node 与 Python 使用独立时间基准，绝不直接相减绝对时间戳；嵌套阶段总值不能重复相加。
+
+只在有界内存中收集数值，溢出/缺口明确失败；计时负载结束后才落盘并逐条输出到 CI，避免 runner 销毁丢失证据。日志不包含 payload、内容或私有路径。校验覆盖 id 配对、单调性、草稿到 commit 关联以及每个 checkpoint 的 4 次 fsync。单独记录记账成本和隔离 wrapper 基准，绝不从 500 ms 判定值中扣除。本地最终观测验证通过：100 次草稿/25 次 attempt，ACK 最大 231.813/48.106 ms；278 个 Node 请求、280 个 helper 操作（2 个启动操作明确在 Node 观测开始之前）、1208 次 fsync，无缺口/溢出。这只验证观测有效，不代表原 Linux 失败已修复。生产改动仍须依据新证据提出具体方案并由协调裁定。
