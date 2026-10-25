@@ -92,3 +92,5 @@
 | GET | /api/v1/attachments/{id} | 未用 | 不属于 #82 Main/本地草稿范围；后续按明确授权接入 | — |
 | GET | /api/v1/attachments/{id}/content | 未用 | 不属于 #82 Main/本地草稿范围；后续按明确授权接入 | — |
 | POST | /api/v1/inputs/{id}/withdraw | 未用 | 不属于 #82 Main/本地草稿范围；后续按明确授权接入 | — |
+
+R3 D9–D11 仅调整本地编辑容量预检、浏览器焦点与状态展示；未增加或改变 Core 路由消费。清单仍为 86 项、已用 10 项。

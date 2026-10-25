@@ -8,13 +8,24 @@ import { InputProtocol } from "../../../src/pi_secretary/src/tui/input.ts";
 // Runs the actual browser adapter against an in-memory DOM/channel. isTrusted values
 // are simulated test inputs: this is event-routing evidence, never OS/browser input evidence.
 class Element {
+  constructor(
+    private focusState?: { activeElement: Element | null; body?: Element },
+  ) {}
   listeners = new Map<string, Array<(e: any) => void>>();
   style: Record<string, string> = {};
   dataset: Record<string, string> = {};
   classList = { add() {}, remove() {} };
   textContent = "";
   value = "";
-  hidden = false;
+  private concealed = false;
+  get hidden() {
+    return this.concealed;
+  }
+  set hidden(value: boolean) {
+    this.concealed = value;
+    if (value && this.focusState?.activeElement === this)
+      this.focusState.activeElement = this.focusState.body ?? null;
+  }
   disabled = false;
   readOnly = false;
   id = "";
@@ -30,6 +41,7 @@ class Element {
     this.listeners.set(name, list);
   }
   dispatch(name: string, value: Record<string, unknown> = {}) {
+    if (name === "click" && !this.disabled && !this.hidden) this.focus();
     const e = {
       isTrusted: true,
       code: "",
@@ -62,14 +74,20 @@ class Element {
   closest() {
     return undefined;
   }
-  focus() {}
+  focus() {
+    if (this.focusState) this.focusState.activeElement = this;
+  }
   scrollIntoView() {}
   scrollBy() {}
 }
 function harness(international: unknown = Intl) {
+  const focusState: { activeElement: Element | null; body?: Element } = {
+    activeElement: null,
+  };
   const elements = new Map<string, Element>();
+  const extra: Record<string, unknown> = {};
   const get = (id: string) => {
-    if (!elements.has(id)) elements.set(id, new Element());
+    if (!elements.has(id)) elements.set(id, new Element(focusState));
     return elements.get(id)!;
   };
   const editor = new Editor(),
@@ -85,7 +103,7 @@ function harness(international: unknown = Intl) {
     "cut",
     "resume",
   ].map((action) => {
-    const e = new Element();
+    const e = new Element(focusState);
     e.dataset.action = action;
     return e;
   });
@@ -106,14 +124,17 @@ function harness(international: unknown = Intl) {
     largeConfirmation: input.needsConfirmation,
     usage: 0,
     quota: 1000,
+    ...extra,
   });
-  let socket: FakeSocket;
+  let socket: FakeSocket,
+    connectionGeneration = 0;
   class FakeSocket {
     static OPEN = 1;
     readyState = 1;
     onopen?: () => void;
     onmessage?: (e: { data: string }) => void;
     onclose?: () => void;
+    readonly generation = ++connectionGeneration;
     constructor() {
       socket = this;
     }
@@ -128,26 +149,34 @@ function harness(international: unknown = Intl) {
           this.receive({
             type: "hello",
             reconnect: "r".repeat(43),
-            generation: 1,
+            generation: this.generation,
           });
         else if (frame.type === "hello-ack")
-          this.receive({ type: "sync", generation: 1, state: state() });
+          this.receive({
+            type: "sync",
+            generation: this.generation,
+            state: state(),
+          });
         else if (frame.type === "sync-ack")
-          this.receive({ type: "ready", generation: 1, state: state() });
+          this.receive({
+            type: "ready",
+            generation: this.generation,
+            state: state(),
+          });
         else if (frame.type === "event") {
           try {
             const result = input.apply(frame.event);
             if (result.action) actions.push(result.action);
             this.receive({
               type: "ack",
-              generation: 1,
+              generation: this.generation,
               seq: frame.seq,
               state: state(),
             });
           } catch (error) {
             this.receive({
               type: "rejected",
-              generation: 1,
+              generation: this.generation,
               seq: frame.seq,
               error: (error as Error).message,
               state: state(),
@@ -163,12 +192,16 @@ function harness(international: unknown = Intl) {
   }
   const document = {
     getElementById: get,
-    createElement: () => new Element(),
-    createDocumentFragment: () => new Element(),
+    createElement: () => new Element(focusState),
+    createDocumentFragment: () => new Element(focusState),
     querySelectorAll: () => buttons,
-    body: new Element(),
-    activeElement: get("sink"),
+    body: new Element(focusState),
+    get activeElement() {
+      return focusState.activeElement;
+    },
   };
+  focusState.body = document.body;
+  focusState.activeElement = document.body;
   const context = {
     document,
     window: { getSelection: () => ({ toString: () => "" }) },
@@ -201,6 +234,9 @@ function harness(international: unknown = Intl) {
   socket!.onopen?.();
   return {
     elements,
+    document,
+    extra,
+    input,
     state,
     editor,
     actions,
@@ -315,10 +351,18 @@ test("large paste confirmation pauses later typing and resumes it after Apply or
     assert.equal(h.elements.get("pending-copy")!.hidden, true);
     assert.equal(h.sink.readOnly, false);
     assert.equal(
+      h.document.activeElement,
+      h.sink,
+      "decision ACK restores keyboard focus",
+    );
+    assert.equal(
       h.frames.filter((frame) => frame.event?.type === "confirm-large").length,
       1,
     );
-    h.sink.dispatch("beforeinput", { inputType: "insertText", data: "z" });
+    h.document.activeElement!.dispatch("beforeinput", {
+      inputType: "insertText",
+      data: "z",
+    });
     await h.settle();
     assert.equal(flatten(h.editor.draft.nodes), (accept ? text : "") + "az");
   }
@@ -331,27 +375,30 @@ test("refusal and locked-state reasons survive unrelated state publication", asy
   h.socket().receive({ type: "state", generation: 1, state: h.state() });
   h.sink.dispatch("beforeinput", { inputType: "insertText", data: "overflow" });
   await h.settle();
-  assert.match(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+  assert.match(h.elements.get("refusal")!.textContent, /DRAFT_TOO_LARGE/);
   for (let i = 0; i < 5; i++) {
     h.socket().receive({
       type: "state",
       generation: 1,
       state: { ...h.state(), notice: "Copied exact text.", saved: !!(i % 2) },
     });
-    assert.match(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+    assert.match(h.elements.get("refusal")!.textContent, /DRAFT_TOO_LARGE/);
   }
   h.sink.dispatch("beforeinput", { inputType: "insertText", data: "" });
   await h.settle();
   h.sink.dispatch("compositionstart");
   h.sink.dispatch("compositionend", { data: "" });
   await h.settle();
-  assert.match(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+  assert.match(h.elements.get("refusal")!.textContent, /DRAFT_TOO_LARGE/);
   h.editor.edit(0, 4 * 1024 * 1024 - 1, "", "typed", true);
   h.socket().receive({ type: "state", generation: 1, state: h.state() });
-  assert.match(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+  assert.match(h.elements.get("refusal")!.textContent, /DRAFT_TOO_LARGE/);
   h.sink.dispatch("beforeinput", { inputType: "insertText", data: "z" });
   await h.settle();
-  assert.doesNotMatch(h.elements.get("status")!.textContent, /DRAFT_TOO_LARGE/);
+  assert.doesNotMatch(
+    h.elements.get("refusal")!.textContent,
+    /DRAFT_TOO_LARGE/,
+  );
   h.socket().receive({ type: "replaced", reason: "duplicate" });
   h.socket().receive({ type: "state", generation: 1, state: h.state() });
   assert.match(h.elements.get("status")!.textContent, /duplicate/);
@@ -478,4 +525,149 @@ test("empty native paste/drop sends no transaction and leaves a selected draft u
   await h.settle();
   assert.equal(h.frames.length, count);
   assert.deepEqual(h.editor.snapshot(), before);
+});
+
+test("refusal remains visible alongside Resume and clears only on a completed fresh handshake", async () => {
+  const h = harness();
+  h.extra.outbox = "waiting for explicit Resume";
+  await h.settle();
+  h.sink.dispatch("keydown", { code: "KeyB", ctrlKey: true });
+  assert.match(
+    h.elements.get("status")!.textContent,
+    /waiting for explicit Resume/,
+  );
+  assert.match(h.elements.get("refusal")!.textContent, /Unsupported control/);
+  for (const pendingState of ["PREPARED", "UNKNOWN"]) {
+    h.socket().receive({
+      type: "state",
+      generation: 1,
+      state: { ...h.state(), pending: [{ state: pendingState }] },
+    });
+    assert.match(
+      h.elements.get("status")!.textContent,
+      /waiting for explicit Resume/,
+    );
+    assert.match(h.elements.get("refusal")!.textContent, /Unsupported control/);
+  }
+  h.sink.dispatch("beforeinput", { inputType: "insertText", data: "" });
+  await h.settle();
+  assert.match(h.elements.get("refusal")!.textContent, /Unsupported control/);
+  h.sink.dispatch("beforeinput", {
+    inputType: "insertReplacementText",
+    data: "blocked",
+  });
+  assert.match(
+    h.elements.get("status")!.textContent,
+    /Unsupported replacement/,
+  );
+  h.elements.get("resync")!.dispatch("click");
+  assert.match(h.elements.get("refusal")!.textContent, /Unsupported control/);
+  h.socket().onopen?.();
+  await h.settle();
+  assert.equal(h.socket().generation, 2);
+  assert.equal(h.elements.get("refusal")!.hidden, true);
+  assert.equal(h.elements.get("refusal")!.textContent, "");
+  assert.match(
+    h.elements.get("status")!.textContent,
+    /waiting for explicit Resume/,
+  );
+});
+
+test("decision replies restore expired prompts but do not steal focus across recovery boundaries", async () => {
+  for (const boundary of [
+    "expired",
+    "other-control",
+    "disconnect",
+    "takeover",
+    "new-prompt",
+    "composition",
+  ] as const) {
+    const h = harness();
+    await h.settle();
+    h.sink.dispatch("paste", {
+      clipboardData: { files: [], getData: () => "p".repeat(600 * 1024) },
+    });
+    if (boundary === "other-control")
+      h.sink.dispatch("beforeinput", {
+        inputType: "insertText",
+        data: "queued",
+      });
+    await h.settle();
+    if (boundary === "expired") h.input.invalidateConfirmation();
+    if (boundary === "new-prompt") {
+      const receive = h.socket().receive.bind(h.socket());
+      h.socket().receive = (value: any) =>
+        receive(
+          value.type === "ack" && value.state
+            ? { ...value, state: { ...value.state, largeConfirmation: true } }
+            : value,
+        );
+    }
+    h.elements.get("large-yes")!.dispatch("click");
+    if (boundary === "other-control") h.elements.get("pending-copy")!.focus();
+    if (boundary === "disconnect") h.socket().close();
+    if (boundary === "takeover")
+      h.socket().receive({ type: "replaced", reason: "duplicate" });
+    if (boundary === "composition") {
+      h.socket().receive({
+        type: "state",
+        generation: 1,
+        state: { ...h.state(), largeConfirmation: false },
+      });
+      h.sink.dispatch("compositionstart");
+    }
+    await h.settle();
+    if (boundary === "expired") {
+      assert.equal(h.document.activeElement, h.sink);
+      assert.equal(h.sink.readOnly, false);
+      assert.match(
+        h.elements.get("refusal")!.textContent,
+        /LARGE_EDIT_EXPIRED/,
+      );
+      h.document.activeElement!.dispatch("beforeinput", {
+        inputType: "insertText",
+        data: "z",
+      });
+      await h.settle();
+      assert.equal(flatten(h.editor.draft.nodes), "z");
+    } else {
+      assert.notEqual(
+        h.document.activeElement,
+        h.sink,
+        boundary + " must not force input focus",
+      );
+      if (boundary !== "other-control") assert.equal(h.sink.readOnly, true);
+    }
+  }
+});
+
+test("over-capacity large paste never opens consent or replays later queued intentions", async () => {
+  const h = harness();
+  await h.settle();
+  h.editor.insert("p".repeat(4 * 1024 * 1024 - 100), "paste", true);
+  h.socket().receive({ type: "state", generation: 1, state: h.state() });
+  const before = h.editor.snapshot();
+  h.sink.dispatch("paste", {
+    clipboardData: { files: [], getData: () => "x".repeat(600 * 1024) },
+  });
+  h.sink.dispatch("beforeinput", { inputType: "insertText", data: "later" });
+  await h.settle();
+  assert.deepEqual(h.editor.snapshot(), before);
+  assert.equal(h.input.needsConfirmation, false);
+  assert.equal(h.elements.get("large-yes")!.hidden, true);
+  assert.equal(
+    h.frames.some((frame) => frame.event?.type === "confirm-large"),
+    false,
+  );
+  assert.equal(
+    h.frames.some((frame) => frame.event?.text === "later"),
+    false,
+  );
+  assert.match(h.elements.get("pending")!.textContent, /later/);
+  assert.match(
+    h.elements.get("status")!.textContent,
+    /retained for inspection.*DRAFT_TOO_LARGE/,
+  );
+  assert.match(h.elements.get("refusal")!.textContent, /DRAFT_TOO_LARGE/);
+  assert.equal(h.sink.readOnly, true);
 });

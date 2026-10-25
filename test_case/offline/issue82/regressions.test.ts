@@ -658,3 +658,101 @@ test("refused large deletion leaves durable draft, undo and UNKNOWN outbox uncha
     await app.close();
   }
 });
+
+test("capacity refusal precedes large-edit confirmation and preserves the full editor snapshot", () => {
+  const editor = new Editor();
+  editor.insert("x".repeat(DRAFT_BYTES - 100), "paste", true);
+  const input = new InputProtocol(() => editor),
+    before = editor.snapshot();
+  assert.throws(
+    () => editor.insert("中".repeat(200000), "paste"),
+    /DRAFT_TOO_LARGE/,
+  );
+  assert.deepEqual(editor.snapshot(), before);
+  assert.equal(input.needsConfirmation, false);
+});
+
+test("capacity preflight accepts fitting canonical replacements and exact UTF-8 limits", () => {
+  const editor = new Editor();
+  editor.insert("x".repeat(DRAFT_BYTES - 1), "paste", true);
+  editor.insert("\r\n", "typed");
+  assert.equal(Buffer.byteLength(flatten(editor.draft.nodes)), DRAFT_BYTES);
+  const before = editor.snapshot();
+  const replacement = "中".repeat(Math.floor(DRAFT_BYTES / 3)) + "a";
+  assert.throws(
+    () =>
+      editor.edit(0, flatten(editor.draft.nodes).length, replacement, "paste"),
+    /NON_UNDOABLE_CONFIRMATION_REQUIRED/,
+  );
+  assert.deepEqual(editor.snapshot(), before);
+  editor.edit(
+    0,
+    flatten(editor.draft.nodes).length,
+    replacement,
+    "paste",
+    true,
+  );
+  assert.equal(Buffer.byteLength(flatten(editor.draft.nodes)), DRAFT_BYTES);
+  editor.select({ anchor: 0, head: 0 });
+  const full = editor.snapshot();
+  assert.throws(() => editor.insert("é", "typed"), /DRAFT_TOO_LARGE/);
+  assert.deepEqual(editor.snapshot(), full);
+});
+
+test("over-capacity paste creates no confirmation or durable change to UNKNOWN outbox", async () => {
+  const app = await product();
+  try {
+    const binding = {
+      api_version: "1",
+      data_domain_id: "capacity-regression",
+      mode: "fixture",
+    } as const;
+    await app.store.bind(binding);
+    const entry = await app.store.enqueue(
+      "Main",
+      "original unknown body",
+      binding,
+      app.editor().draft.revision,
+    );
+    await app.store.update(entry.request_id, (item) => {
+      item.state = "UNKNOWN";
+      item.attempted = true;
+      item.uncertain = true;
+    });
+    const editor = app.editor();
+    editor.insert("x".repeat(DRAFT_BYTES - 100), "paste", true);
+    await app.store.save();
+    app.outbox.connect(1);
+    const before = editor.snapshot(),
+      state = structuredClone(app.store.state),
+      sequence = app.store.writer.sequence,
+      body = await app.store.writer.read(entry.body),
+      revision = editor.draft.revision;
+    await app.event(
+      { type: "begin", revision, id: "capacity", source: "paste" },
+      1,
+    );
+    for (let i = 0; i < 10; i++)
+      await app.event(
+        {
+          type: "chunk",
+          revision,
+          id: "capacity",
+          index: i,
+          text: "中".repeat(20000),
+        },
+        1,
+      );
+    await assert.rejects(
+      app.event({ type: "commit", revision, id: "capacity" }, 1),
+      /DRAFT_TOO_LARGE/,
+    );
+    assert.deepEqual(editor.snapshot(), before);
+    assert.deepEqual(app.store.state, state);
+    assert.equal(app.store.writer.sequence, sequence);
+    assert.equal((app as any).input.needsConfirmation, false);
+    assert.equal(await app.store.writer.read(entry.body), body);
+  } finally {
+    await app.close();
+  }
+});

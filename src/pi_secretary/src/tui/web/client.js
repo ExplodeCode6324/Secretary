@@ -49,11 +49,23 @@
       lockReason ||
       (ready && state?.largeConfirmation
         ? "Apply or Cancel before continuing. New input is not accepted while this prompt is open; earlier queued input resumes after the decision."
-        : refusal || text);
+        : text);
+    $("refusal").textContent = refusal;
+    $("refusal").hidden = !refusal;
+  }
+  function normalStatus() {
+    return state
+      ? `${state.outbox} · ${state.notice} · ${Math.ceil(state.usage / 1024)} / ${Math.floor(state.quota / 1024)} KiB`
+      : "Waiting for authentication";
+  }
+  function decisionOwnsFocus() {
+    return [document.body, sink, $("large-yes"), $("large-no")].includes(
+      document.activeElement,
+    );
   }
   function refuse(text) {
     refusal = text;
-    status(text);
+    status(normalStatus());
   }
   function lock(reason) {
     ready = false;
@@ -259,6 +271,7 @@
       } else if (message.type === "ready") {
         ready = supported;
         lockReason = "";
+        refusal = "";
         state = message.state;
         $("resync").hidden = true;
         render();
@@ -280,6 +293,8 @@
           ws.close();
           return;
         }
+        const restoreDecisionFocus =
+          inFlight.event.type === "confirm-large" && decisionOwnsFocus();
         const rejected = message.type === "rejected";
         const confirmation =
           rejected && message.error === "NON_UNDOABLE_CONFIRMATION_REQUIRED";
@@ -305,7 +320,7 @@
         }
         renderPending();
         if (rejected) {
-          status(message.error + " — draft preserved");
+          status(normalStatus());
           if (queue.length && !confirmation) {
             lock(
               "Input refused; later queued edits retained for inspection: " +
@@ -315,6 +330,16 @@
           }
         }
         pump();
+        // A decision button disappears only after its reply. Restore keyboard
+        // continuity without taking focus from another control or a lock.
+        if (
+          restoreDecisionFocus &&
+          ready &&
+          !composing &&
+          !state?.largeConfirmation &&
+          decisionOwnsFocus()
+        )
+          sink.focus();
       } else if (message.type === "state") {
         if (message.generation === generation) {
           state = message.state;
@@ -401,9 +426,7 @@
       `Secretary · ${state.view} · ${state.coreMode} · ${state.domain.slice(-12)} · ${state.stale ? "STALE / " : ""}${state.connection} · Session ${state.sessionState}\n${state.data}`;
     $("mode").textContent =
       `${state.view} · ${state.quarantine ? "QUARANTINED / " : ""}${state.mode} · target: ${state.target} · ${state.error ? "ERROR" : state.saved ? "SAVED" : "UNSAVED / SAVING"}`;
-    status(
-      `${state.outbox} · ${state.notice} · ${Math.ceil(state.usage / 1024)} / ${Math.floor(state.quota / 1024)} KiB`,
-    );
+    status(normalStatus());
     controls();
     $("record-copy").hidden = !state.record;
     $("record-restore").hidden = !state.record?.editable;
@@ -625,7 +648,6 @@
     $(id).addEventListener("click", (e) => {
       if (e.isTrusted) {
         if (enqueue({ type: "confirm-large", accept })) controls();
-        if (!state?.largeConfirmation) sink.focus();
       }
     });
   let userScroll = false,

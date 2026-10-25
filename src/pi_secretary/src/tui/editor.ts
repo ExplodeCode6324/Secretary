@@ -375,6 +375,13 @@ export class Editor {
           },
         ]
       : [];
+    // Consent cannot make an over-capacity edit valid. This preflight is
+    // byte-only and leaves the canonical model and undo state untouched.
+    if (
+      bytes(this.draft.nodes) - bytes(removed) + bytes(inserted) >
+      DRAFT_BYTES
+    )
+      throw Error("DRAFT_TOO_LARGE");
     const cost = bytes(removed) + bytes(inserted);
     if (cost > UNDO_BYTES && !allowNonUndoable)
       throw Error("NON_UNDOABLE_CONFIRMATION_REQUIRED");

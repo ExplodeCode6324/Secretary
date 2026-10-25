@@ -429,3 +429,16 @@ checkpoint 执行最大 397.717728 ms。其固定 4 次 fsync 即便按全局真
 协调仅批准测试观测改动及一次新的诊断 CI。生产 writer、调度、真实 fsync、延迟注入方式、负载、门槛、timeout 和 CI 并发保持不变。测试按请求对象身份映射真实 wire request id，关联草稿保存与业务事务，记录排队、dispatch、回复到达及 Promise 完成，包括明确标记合并/未 dispatch 的记录。生成的测试 helper 记录收到请求、开始/结束处理、回复 flush、线程 CPU、包含嵌套调用的阶段耗时，以及逐请求注入等待/真实 fsync 区间。Node 与 Python 使用独立时间基准，绝不直接相减绝对时间戳；嵌套阶段总值不能重复相加。
 
 只在有界内存中收集数值，溢出/缺口明确失败；计时负载结束后才落盘并逐条输出到 CI，避免 runner 销毁丢失证据。日志不包含 payload、内容或私有路径。校验覆盖 id 配对、单调性、草稿到 commit 关联以及每个 checkpoint 的 4 次 fsync。单独记录记账成本和隔离 wrapper 基准，绝不从 500 ms 判定值中扣除。本地最终观测验证通过：100 次草稿/25 次 attempt，ACK 最大 231.813/48.106 ms；278 个 Node 请求、280 个 helper 操作（2 个启动操作明确在 Node 观测开始之前）、1208 次 fsync，无缺口/溢出。这只验证观测有效，不代表原 Linux 失败已修复。生产改动仍须依据新证据提出具体方案并由协调裁定。
+
+
+### R3 D9–D11 最小修订计划 — 2026-10-25（协调已批准实施）
+
+R3 审查精确 `1287bff`，结论为 D9–D11 需修改，同时独立在真实产品中验证 D5–D8。交付报告 SHA256 为 `ab851480bb3c8ac38d6453fc5427d84d415e7be6ceb35deacb59f27b3d025cce`；CI 附录前原文为 `ac95aaa80de821cbf20fda61915ee9b64e167091d7e8a55e7b291142ed64a811`。审查方公布 archive SHA256 `c0ee991b81d892fdab1b65b41ff91722f6d1afe9b88d6d1fdcb53c0052f486af`，但本地下载校验尚未完成，不能标为已验证。须保留已有报告、D9 实际焦点丢失的首次失败，以及审查方独立的复制等待 driver 首次失败。
+
+1. **D9，决定后的焦点。** 识别当前 generation 中有效的 Apply/Cancel 回复；只有成功决定或可恢复 LARGE_EDIT_EXPIRED 回复确实关闭 prompt 且未进入 lock，且渲染隐藏按钮之后，客户端仍 ready、无新 prompt/composition，并且焦点仍在决定按钮、body 或 sink，才恢复 sink 焦点。不抢走 pending-copy 或其他控件焦点；断线/接管不得恢复。队列顺序与未知 ACK 恢复规则不变。让适配器夹具的 focus/activeElement 可观察，覆盖 Apply/Cancel、先前队列、按钮隐藏、其他控件焦点、断线/接管、新 prompt 与 composition。实际 Chrome 中点击决定后直接向当前页面焦点发送按键，不能使用自动聚焦 sink 的 locator；核验 activeElement、canonical 文本/帧及 reopen。这是浏览器输入证据，不冒称物理键盘或 OS 验收。
+2. **D10，容量先于同意。** Editor.edit 在 LF 规范化并验证最终替换范围后，无副作用计算最终 UTF-8 字节数：原字节减移除字节加插入字节。超 4MiB 时先拒绝，再考虑 undo 预算。替换后符合容量（含恰好 4MiB）的操作仍允许，且适用时仍需不可撤销确认。拒绝必须保持节点/文本/来源、selection、revision、undo/redo、持久及 UNKNOWN outbox 不变，不建立确认。保留 replace 内最后一道容量检查。覆盖近上限插入/替换、多字节、CRLF 规范化、恰好上限、拒绝前后快照及没有 confirm-large 帧。拒绝编辑后的后续意图不自动重放，既定保留待检查/重连规则不变。
+3. **D11，拒绝与运行状态同显。** 为持久拒绝信息增加紧凑的独立可见区域，与原运行/notice 状态并列；集中生成正常 outbox/notice/quota 文本，使本地拒绝和 rejected ACK 可以刷新正常状态，而非用拒绝替换它。后台发布、no-op ACK 和剪贴板 chunk ACK 保留拒绝。完整 fresh ready handshake 在渲染前清除旧 generation 拒绝；仅 sync 不清除。lock/modal 指令优先级不变，pending/composition 数据继续可用。验证 PREPARED/UNKNOWN 的显式 Resume 提示与 NO_SELECTION/本地拒绝同时可见；周期状态和 no-op 保留二者；接受编辑和 fresh ready 在既定边界清除拒绝。
+
+验证顺序：每项先保留失败见证；协调放行后只实施上述修正；运行聚焦回归、与 outbox 不变性相关的真实 Core fixture、实际 Chrome 焦点/状态验证、类型/格式/文档检查，以及新 HEAD Linux/macOS CI。在同一 Claude 会话审查精确新 HEAD，提交完整 R3 修复差异，加上 `1287bff`→`4186da4` 观测改动与完整诊断证据。不再对已知有缺陷的 `4186da4` 单独形式审查。不扩展 word-delete、键盘 modal 决策或 F_FULLFSYNC。
+
+`4186da4` 诊断 CI 已通过：Linux 791 项中 790 通过/1 项 macOS 专用跳过，macOS 220/220，总检查成功。完整时序显示 Linux 草稿 ACK 最大 220.614338ms，但没有复现或解释 `1287bff` 的 506.721609ms 失败；这一不确定性继续单列。未授权盲目重跑、扣除计时、放宽 500ms 或无证据改生产调度。须请审查者评估是否能指出代码缺陷/必要修复，或仅能确认剩余不确定性及证据限制。合并仍须协调另行精确 HEAD 授权。
