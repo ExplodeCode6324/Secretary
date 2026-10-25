@@ -6,7 +6,7 @@
 
 | Issue | 计划 | 状态 |
 | --- | --- | --- |
-| #82 | [TUI 基础与 Main（中文）](fix_20261024_issue82_TUI基础与Main.md) · [English](fix_20261024_issue82_TUI基础与Main.en.md) | R3 历史 PASS / G0 协议反例保留；R4 按 Master 2026-10-25 授权补 Linux/云端验收准备，待同 Claude 复核与协调释放产品实现；[复核记录](evidence/issue82-tui/plan-review.md) |
+| #82 | [TUI 基础与 Main（中文）](fix_20261024_issue82_TUI基础与Main.md) · [English](fix_20261024_issue82_TUI基础与Main.en.md) | R4 CHANGES_REQUIRED / 独立 Linux 反例确认；R5 补输入来源合同及具体 P2 提案，待同 Claude 复核与协调释放产品实现；[复核记录](evidence/issue82-tui/plan-review.md) |
 | #81 | [附件闭环（中文）](fix_20261023_issue81_附件闭环.md) · [English](fix_20261023_issue81_附件闭环.en.md) | 已合并；[PR #87 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/87#issuecomment-6371806717)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/40002665230)；真实 provider 验证留 #84 |
 | #80 | [回复终态与推理预览（中文）](fix_20261023_issue80_回复终态与推理预览.md) · [English](fix_20261023_issue80_回复终态与推理预览.en.md) | 已合并；[PR #86 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/86#issuecomment-6368012380)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/39976324062) |
 | #79 | [Tauri 退役（中文）](fix_20261023_issue79_Tauri退役.md) · [English](fix_20261023_issue79_Tauri退役.en.md) | 已合并；[PR #85 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/85#issuecomment-6364909080)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/39952748532) |

@@ -45,3 +45,13 @@
 Master 新授权由协调传达：Claude 独立云端视觉验收，环境不可用可延期并继续实现/获批合并；首次与后续查看均五分钟；Linux 前置纳入。旧 R3/G0 记录保持原貌，现行门禁以 R4 为准。当前准备从 `37f6ae3547dfe166ff747c9719461d89d61670bf` 开始，新增平台条件、Linux 无剪贴板明确 UNSUPPORTED、跨平台有限测试与实际探针 ANSI→headless terminal SVG 工具；[独立英文运行说明](g0-cloud-run.en.md)。原有 FAIL_PROTOCOL_PROVENANCE 不作为视觉项豁免，R4 给出 P1/P2 待裁决方案；当前未实施产品输入来源门禁。
 
 本机 macOS：8项有限测试、PTY生命周期、10尺寸帧渲染、类型检查通过；SVG生成不等于Claude视觉验收，Linux/Claude结果待其独立执行。协调明确允许本准备正常push现有分支供准确SHA获取，不创建PR、不合并。真实Mac仍NOT_TESTED，未再解锁/轮询。
+
+## R4 独立复核结果与 R5 处置
+
+- 精确提交 `d6d47fdbde9067ba6a312236e125f952440b6120`；2026-10-25 12:35:42 HKT 发送，12:40:59、12:46:04、12:51:15、12:56:29 读取，全部间隔至少五分钟；最终 **CHANGES_REQUIRED（计划）**。模型保持同一 Claude Opus 5.5 Extra。
+- 原始请求、四次 page/AX/screenshot、时间记录和下载包在 Git ignored `.demo-data/issue82-tui/r4/`。下载包 `claude-independent-evidence.tgz` SHA256 `41860de029d6e28bf611f417846e75e32a32369790f8da7ed35d77ddb3f41430`；安全检查后解压72项、3,862,829字节。原始首次失败与成功均保留，没有发布原始沙盒文件。
+- Claude 独立 fresh clone exact SHA / Pi gitlink，Linux Ubuntu24.04.5、Node22.22.0、Python3.13.17/fcntl；有限测试8/8、PTY正常/hangup/parent-kill/lock重开、10帧生成并经Chromium153实际查看。registry失败后使用替代tsx/marked、源码编译pi-tui/headless；不是锁文件环境证据。typecheck exit2 因缺依赖及非固定compiler，为 INVALID_ENV，未宣称通过。
+- Claude 独立真实探针PTY反例：split paste end 后 Ctrl+S，以及无bracket的文本+Ctrl+S，均计数一次提交。FAIL_PROTOCOL_PROVENANCE 被独立确认；这些是synthetic PTY，不是GUI clipboard。headless emoji Unicode6宽度导致行/滚动条几何偏差，不能代表native结果；footerPresent仅DRAFT子串搜索。
+- 四项功能修订全部写入R5：完整动作表/本地退出、frozen producer metadata/未验证会话禁止全部POST、launcher-owned非TTY认证及精确paste control表、Mac只读编辑不是#82最终交付。R5另明确Reset后普通slash/tab来源仍需解决，并提出有界本地浏览器structured adapter的P2候选交协调裁决；没有产品代码。
+- Claude报告外部configure scripts被其沙盒策略阻止；协调确认一次无特权、固定公开源码、临时目录、Xvfb/Xlib/XTEST且禁用unsafe SendEvent的范围，只能走Claude正常授权机制，不冒充人工批准或绕过限制。若仍拒绝，真实Linux terminal标NOT_TESTED/DEFERRED并继续source/plan review。真实Mac/IME与Linux IME仍NOT_TESTED，未再尝试解锁Mac。
+- R5继续同一Claude，完整英文计划+准确push SHA，首次/后续五分钟；产品实现及准确HEAD合并仍需分别批准。

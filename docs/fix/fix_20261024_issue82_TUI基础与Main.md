@@ -1,3 +1,73 @@
+# Issue #82 — R5 输入来源合同与 R4 独立证据
+
+日期：2026-10-25（Asia/Hong_Kong）。本轮**仅修订计划**，产品实现仍需受委托协调批准。R4 准备的独立复核提交为 `d6d47fdbde9067ba6a312236e125f952440b6120`。下方 R4 与原 R3 均逐字保留为历史；输入来源方案冲突处以 R5 为准，Master 的 R4 环境/视觉延期政策继续有效。
+
+## R5.1 采纳 R4 四项修订
+
+独立 reviewer 返回 CHANGES_REQUIRED，指出四项功能细节。全部采纳，并明确下列取舍。这些是拟实施合同，尚非产品行为，也未批准不安全的 G0 parser。
+
+| 输入/操作 | 未验证生产者 | 仅在功能合同成立后可用的已验证生产者 |
+| --- | --- | --- |
+| 任意视图/模式 Ctrl+S、全部 slash 命令、替换确认 | 禁用、保留缓冲，显示 INPUT_UNVERIFIED | 明确动作事件通过持久化/domain 检查后可分发 |
+| Ctrl+G、Ctrl+O、/copy、外部剪贴板写入 | 禁用 | 按命令/复制合同及真实剪贴板能力执行 |
+| 文字/IME 结果、BS/DEL、方向/Home/End、Ctrl+Z/Y、Ctrl+P、Esc | 仅本地编辑，无隐藏动作处理器 | 相同编辑合同 |
+| CR/LF、Tab，包含命令栏与确认提示 | 换行、仅编辑补全，绝不执行或确认 | 相同；仅已验证明确提交可执行 |
+| 滚动与选区 | 可用，选区不自动复制 | 可用 |
+| Ctrl+C | 只允许 flush 后本地退出；无 POST、丢弃、domain 切换或外部复制 | 相同安全退出例外 |
+| 自动保存、HTTP GET、SSE/catch-up | 经正常绑定/验证可用 | 可用 |
+| 新 POST 或 frozen POST 重试 | 禁用，包括 exact-byte 指纹重放 | 仅已验证当前会话且满足原 outbox 合同 |
+| SIGHUP/SIGTERM/关闭窗口 | 有界安全关闭及 helper 完成写入 | 相同 |
+
+raw 模式的 Ctrl+C 不产生 SIGINT，因此明确本地退出例外，避免无法退出；退出不丢弃持久草稿。未验证终端中的粘贴仍可能触发此退出，所以 UI 必须说明动作输入未经认证，不得宣称完整输入安全或受支持的 live 使用。未验证输入不得提交、重试、丢弃、切换 domain 或外部复制。C1 Unicode 字符 U+0080–U+009F 始终是文字数据，在 decoder 中绝不转成 CSI/OSC/控制命令；渲染时安全显示数据，不直接输出终端控制序列。专测 U+009B。
+
+每个 frozen entry 在既有精确正文、binding、revision 之外，记录来源 producer class 与 policy version/hash。当前会话未验证时，可读取旧 entry 并用 GET 对账，但禁止全部自动/新建/重试 POST。GET 独立结果不能满足丢失 ACK 后的指纹检查，也不能释放唯一正文。仅在已验证当前会话重新核对 binding 后，才恢复 identical-byte replay；不能改写旧来源或新建 request ID。此前已持久化验证 POST receipt 的记录可完成已经授权的 handoff/cleanup。来源元数据及准入条件不替代 Core identity/idempotency 验证。
+
+## R5.2 launcher 所有的候选生产者与精确粘贴策略
+
+不能通过 TERM、XTVERSION、环境变量、自填 trust 开关、带内 nonce、时序或一次粘贴成功选定受支持生产者。launcher 必须控制精确终端二进制和进程局部资源配置，通过非 TTY 的私有认证通道联系 child，并验证 child controlling PTY 属于其启动的终端进程。候选实现为 inherited socket 的 fresh nonce 加 launcher/process/PTY 身份核对；跨 exec descriptor 的实际行为须先验证再定案。认证失败/断开或终端/配置异常一律降为未验证。记录 binary/source identity、UTF-8 设置、policy hash 和 attestation 机制。不改 Master 主机的全局 X resources，不安装主机软件。
+
+xterm 研究候选通过进程局部 `-xrm` 使用以下精确资源：
+
+```text
+XTerm*allowPasteControls: false
+XTerm*disallowedPasteControls: NUL,SOH,STX,ETX,EOT,ENQ,ACK,BEL,BS,VT,FF,SO,SI,DLE,DC1,DC2,DC3,DC4,NAK,SYN,ETB,CAN,EM,SUB,ESC,FS,GS,RS,US,DEL,STTY
+```
+
+必须 UTF-8；排除 HT/LF/CR 之外全部 C0、DEL 和 terminal special controls，不使用宽泛 C0 关键字。生产者将禁用控制字符替换为空格，将 LF 转成 CR；UI/help/测试明确此交付合同，应用的 CR/CRLF 归一化仍明确规定。C1 Unicode 数据不能取得 escape 语义。这只是源码审阅的候选行为，尚非真实终端验证。真实剪贴板、嵌套/分片 marker、控制键、Reset 后立即粘贴、进程归属/认证通道仍是功能验证任务。
+
+**提交独立 reviewer 的剩余问题：**只过滤控制键不能在 Reset 关闭 bracketed framing 后保留 paste 来源。例如粘贴 `/quit` 不含禁用控制字符，稍后的真实 Ctrl+S 可能把它当手打命令；粘贴 Tab 可能触发编辑补全而非保留数据。R3 要求粘贴永不变成命令且 tab 保真。“将执行”提示或第二次带内确认不能修复这一合同。在具体生产者能独立于 Reset 保留来源，或协调明确批准经复核的交互合同变更之前，不得宣布 P1 完成。要求 reviewer 实测并选择具体修复：生产者保证 framing/structured events，或明确说明粘贴语义变化、保留显式授权的有限 UX 提案。不得静默削弱 R3。
+
+## R5.3 交付后果与下一裁决
+
+现有证据没有证明 Terminal.app 的等价生产者。P1 下它仍未验证：只读/编辑及安全退出，不能 live send 或命令。协调已明确拒绝以此作为 #82 Main 最终交付或推进 #83 的依据。因此仅 P1 infrastructure 不能关闭 #82 交互退出项或 #84，不得写成 Mac Main 可用；Linux 候选也不证明 Mac 支持。若候选不满足合同，向协调提出具体受支持 Mac producer 或 P2 structured input transport；不擅自实施新 GUI、transport、终端切换或实质范围变更。真实 macOS/中文 IME 观察仍可按 Master 政策延期，已知输入功能缺陷不能延期冒充解决。
+
+### 提交协调裁决的具体 P2：最小浏览器承载 TUI
+
+若原生 producer 不能满足 provenance 合同，提议一个本地浏览器页面，沿用 terminal 风格 header/transcript/固定输入footer、配色及命令registry。这是启动界面的实质变更，**尚未批准实现**，不恢复 Tauri/Svelte 或任何退休桌面代码。CoreClient、持久 writer、outbox、sync 仍在 Node 进程；页面只做 structured input/output adapter。Mac/Linux 复用同一受支持浏览器 adapter，raw Terminal.app 保留安全降级 adapter。
+
+依赖/范围：固定版本 browser xterm.js renderer，与 headless5.5.0一致；小型本地页面；检查现有仓库依赖后明确选择固定版本的有界 WebSocket transport。无外部CDN、model/browser凭据、扩展、云服务、native clipboard backend 或通用web UI。renderer只显示输出，**绝不把 xterm.onData 接到 action dispatch**。普通输入面捕获 browser paste/composition/text events，交应用自有 structured editor；paste插入不可变数据node，不能产生key/action event。应用管理undo/redo和node来源；阻止默认paste重复插入。未知input类型作为数据，无法对齐buffer时禁用动作。Browser Reset/reload重连新session并恢复持久状态，不能把paste node重标为typed。
+
+只有独立 trusted browser keydown/click handler 可发送 submit/open-command/copy/quit action message，并检查composition状态及adapter generation；paste控制字符及xterm escape bytes不进入这些handler。Ctrl+S仍明确提交、Enter换行、Tab仅编辑、Ctrl+G命令buffer。parser使用structured transport的typed/paste nodes，所以粘贴`/quit`在reload或后续真实Ctrl+S之后仍是数据。composition期间禁用动作键；自动browser composition事件只是协议测试，不能冒充真实IME。剪贴板读取只来自真实paste event；复制必须明确触发并报告能力。
+
+transport/auth候选：仅bind随机127.0.0.1端口；只serve打包静态文件，严格CSP、无外部资源。每次launch随机capability放首次URL fragment，bootstrap后从可见history移除，仅用于初次WebSocket握手；不是Core token，不写持久draft/log。upgrade前验证Host和精确same-origin Origin，拒绝缺失/异常Origin；认证成功前不处理应用消息，Core owner token仅留Node。有界schema/message size、sequence/session generation、一个可写adapter；重连认证新channel并重新对齐状态，过期/重复/缺口事件不得派发动作。这隔离paste bytes及无关web origin，不承诺抵御同用户恶意本地进程。产品代码前须获协调批准surface/依赖范围。
+
+验证：adapter paste/typed/unknown/composition单测；真实browser paste delivery及trusted动作；`/quit`、tab、全部C0/C1、嵌套marker、大量/多次粘贴、undo/reload、断连/过期/重复消息；paste零动作、非composition明确submit恰好一次；既有durability/sync/outbox全套；origin/capability/schema/replay负例和有界memory/backpressure；相同grid/footer检查。真实Mac/Linux IME/clipboard/visual能力分别记录，可延期。明确复核风险：browser composition/beforeinput差异、编辑时来源保持、本地launch/capability、新renderer/transport依赖、accessibility及terminal式布局。请Claude判断此有限P2是否可实施并给修订，或提出更简单具体producer，不能重新变成无限环境门槛。
+
+## R5.4 R4 独立证据及限制
+
+Claude 独立获取精确 `d6d47fd…`，保持 Pi `16787ad5…`，在 Ubuntu 24.04.5 x86_64（Node 22.22.0、Python 3.13.17/fcntl）运行真实探针，并用 Chromium 153 查看全部十帧。首次 npm 安装因 registry 访问失败；后续使用预装 tsx 4.23.12（锁定4.23.15）、固定 submodule 源码编译 pi-tui、marked 18.0.10（锁定18.0.11）、源码构建 headless xterm tag5.5.0。因此属于替代环境证据，不是精确锁依赖验证。`npm run check` 因缺失依赖/types 和不同 compiler 返回2，属于 INVALID_ENV，既不是代码通过，也不能据此归因代码缺陷。
+
+独立有限测试8/8、Linux无skip；PTY正常/hangup/parent-kill、writer lock重开通过；生成十个SVG并查看PNG。reviewer 独立复现 paste end 分片后 Ctrl+S 触发一次提交，以及无 bracket 文本加 Ctrl+S 触发提交。**FAIL_PROTOCOL_PROVENANCE 继续确认存在。**真实 Linux terminal/IME、真实 Mac/IME 仍 NOT_TESTED。headless 默认 Unicode6 的 emoji宽度与pi-tui不同，emoji行几何及其滚动条错位明确不具真实终端代表性；`footerPresent`只搜索“DRAFT”，不构成几何断言。真实视觉与完整 CI 另行记录。
+
+R4 原始文件和下载包保持 Git ignored。包 SHA-256：`41860de029d6e28bf611f417846e75e32a32369790f8da7ed35d77ddb3f41430`；72项普通文件/目录，解包3,862,829字节。保留首次失败和替代构建命令。reviewer 报告其沙盒策略阻止执行私有 xterm/X库构建的外部 configure scripts。协调允许一次受限、无特权、固定公开xterm/xenocara源码的Claude临时沙盒构建，Xvfb、自写Xlib selection owner及XTEST paste，保持unsafe SendEvent禁用。这只是委托范围确认，不冒充人工批准、不豁免Claude沙盒策略；仅正常授权机制允许才执行，否则保留拒绝、标REAL_LINUX_TERMINAL NOT_TESTED/DEFERRED并继续source/plan复核。不安装系统路径、不访问Master主机/凭据、不改网络策略、不加权限。更新[英文runbook](evidence/issue82-tui/g0-cloud-run.en.md)区分离线替代与精确验证。
+
+下一步：同一 Claude Opus5.5 Extra，完整英文计划与精确push SHA，首次及后续查看均五分钟；解决功能方案并获协调实施批准。本文件不授权 PR、产品实现或合并。
+
+---
+
+## 历史 R4 计划 — 以下原文逐字保留
+
+
 # Issue #82 — R4 云端验收与 Linux 前置修订
 
 日期：2026-10-25（Asia/Hong_Kong）。当前范围：修订计划和窄范围 G0/Linux 前置准备；产品实现待委托协调裁决本修订后释放。仓库：https://github.com/ExplodeCode6324/Secretary ，Issue：https://github.com/ExplodeCode6324/Secretary/issues/82 。继续现有 checkout/分支 `codex/issue82-tui-main`，从 `37f6ae3547dfe166ff747c9719461d89d61670bf` 准备，不创建会话/worktree，不访问 provider，不恢复退役 GUI，不部署主机。
