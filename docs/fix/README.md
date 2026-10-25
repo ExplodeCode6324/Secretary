@@ -6,7 +6,7 @@
 
 | Issue | 计划 | 状态 |
 | --- | --- | --- |
-| #82 | [TUI 基础与 Main（中文）](fix_20261024_issue82_TUI基础与Main.md) · [English](fix_20261024_issue82_TUI基础与Main.en.md) | R6认可选定设计，四项合同歧义已纳入R7；待同Claude计划PASS及正式实施释放；[复核记录](evidence/issue82-tui/plan-review.md) |
+| #82 | [TUI 基础与 Main（中文）](fix_20261024_issue82_TUI基础与Main.md) · [English](fix_20261024_issue82_TUI基础与Main.en.md) | R7准确计划 bff4f6f 获同Claude PASS；本地browser命令式界面方案待协调正式实施释放，非产品/CI/IME通过；[复核记录](evidence/issue82-tui/plan-review.md) |
 | #81 | [附件闭环（中文）](fix_20261023_issue81_附件闭环.md) · [English](fix_20261023_issue81_附件闭环.en.md) | 已合并；[PR #87 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/87#issuecomment-6371806717)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/40002665230)；真实 provider 验证留 #84 |
 | #80 | [回复终态与推理预览（中文）](fix_20261023_issue80_回复终态与推理预览.md) · [English](fix_20261023_issue80_回复终态与推理预览.en.md) | 已合并；[PR #86 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/86#issuecomment-6368012380)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/39976324062) |
 | #79 | [Tauri 退役（中文）](fix_20261023_issue79_Tauri退役.md) · [English](fix_20261023_issue79_Tauri退役.en.md) | 已合并；[PR #85 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/85#issuecomment-6364909080)，[main CI 通过](https://github.com/ExplodeCode6324/Secretary/actions/runs/39952748532) |

@@ -72,3 +72,12 @@ Master 新授权由协调传达：Claude 独立云端视觉验收，环境不可
 - Claude独立fetch/英文附件/runbook/历史字节一致，没有xterm重试。自写Chromium153/Xvfb原型v2补Shift排除/repeat/模拟非Latin physical code、ShiftInsert/middle-click/drop事件；保留layout-overlap首败。CapsLock实际未开启、CDP绕开browser快捷键本身，不能当native保留键拦截；真实IME/Mac/Chrome155/WS/durable/undo/reload/reconnect均未测试。
 - 原始包SHA256 `b9bd3e312c3fc14a3e4b06acc93daf7a74f757319e96340f4ada022244169190`，16项/48,378解包字节。协调发现最终文字“ShiftInsert丢U+009B”与原始日志矛盾，Codex再从driver CLIP逐码点核实source/event相等、CR归一化source/node相等，155/NUL保留，newActions0；不据此禁用路径/改测试。R7交Claude撤回或明确另一个真实失败run，保留原始报告与更正审计。
 - 协调选定R7：textarea只作caret定位input/IME sink，canonical chips/caret/selection/undo属于应用；restart-only fresh bootstrap、不读launch stdin、不加控制socket；new submit持久排FIFO尾且waiting Resume；attempt-marker ACK后HTTP前重新验证generation；删除专用browser profile功能。重复tab接管、未知Ctrl组合、初次60秒无人认证退出也明确。仅文档，无产品实现/PR/合并。
+
+## R7 准确计划 PASS 与交付
+
+- 准确计划提交 `bff4f6f759b3a4012134f8317451c898329d5307`；2026-10-25 13:41:00.117 HKT发送，13:46:14.636首次读（314.519秒），同一Claude Opus5.5 Extra最终 **PASS for the exact R7 plan**，四项R6歧义关闭，未发现combined contract剩余功能缺口。
+- 原始完整请求、计时、page/AX、准确SHA/PASS/更正截图为ignored `.demo-data/issue82-tui/r7/` 下 `r7-request.txt`、`timing.json`、`first-read-page.txt`、`first-read-ax.txt`、`pass-proof.png`；原始包/首败均保留。该记录只追加结果，不改已PASS双语计划正文。
+- Claude独立fetch确认5份docs差异、英文plan/runbook与附件一致、R6/R5/R4/R3历史逐字一致、中文新增关键机制抽查（非逐句），31relative links无缺失。本轮没有新prototype、xterm、产品代码或CI测试。
+- Claude独立重审自己R6原始文件后正式撤回U+009B丢失说法：console不可见字符被误读；CLIP/event码点精确相等，CR归一化后node相等，155在event/node中且paste零动作；没有任何失败run支持原丢失断言。不禁ShiftInsert，不改测试预期。旧报告原样保留，以本次明确更正覆盖结论。
+- 非阻塞实施注记采纳：显式用受支持Chrome启动URL，避免系统default Safari落只读；draft clipboard选择明确实现并测试copy成功+revision仍匹配后才cut；browser保留键拦截仍未实测，按计划footer fallback处理。没有新增架构分支。
+- PASS仅覆盖计划。G0 FAIL_PROTOCOL_PROVENANCE不变；独立browser prototype属于Linux Chromium153/Xvfb+协议输入，不是产品；CapsLock/native shortcut interception/真实OS IME/Mac/Chrome155/WS writer/undo/reload/reconnect未测试。真实Linux terminal仍NOT_TESTED/DEFERRED。产品实现正式释放、完整验证/API清单、准确产品HEAD复核/实际CI、准确HEAD合并授权仍分别待办。
