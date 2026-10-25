@@ -99,7 +99,7 @@ def json_bytes(value):
     return json.dumps(value, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf8")
 
 
-def atomic(name, data, seq):
+def atomic(name, data, seq, sync_directory=True):
     temp = ".pending-%d-%d-%s" % (os.getpid(), seq, name)
     fd = os.open(temp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=directory)
     with os.fdopen(fd, "wb") as target:
@@ -107,7 +107,8 @@ def atomic(name, data, seq):
         target.flush()
         os.fsync(target.fileno())
     os.rename(temp, name, src_dir_fd=directory, dst_dir_fd=directory)
-    os.fsync(directory)
+    if sync_directory:
+        os.fsync(directory)
 
 
 def names():
@@ -255,18 +256,25 @@ if reply({"ready": True, "pid": os.getpid(), "manifest": manifest, "usage": usag
                     else:
                         prepared.append((name, json_bytes(ref) + b"\n" + payload))
                 new_names = {name for name, _ in prepared}
+                checked = {}
                 for ref in active.values():
                     if "blob-" + ref["blob"] not in new_names:
                         if verified.get(ref["blob"]) != ref:
                             blob_read(ref)
-                            verified[ref["blob"]] = ref
+                            checked[ref["blob"]] = ref
                         else:
                             regular("blob-" + ref["blob"], MAX_BLOB + 2048)
                 # Reserve old+new physical copies and handoff space; no quota eviction.
                 if usage()[0] + sum(len(data) for _, data in prepared) + len(body) + MAX_MANIFEST + 65536 > quota:
                     raise RuntimeError("STAGING_QUOTA")
                 for name, payload in prepared:
-                    atomic(name, payload, seq)
+                    atomic(name, payload, seq, sync_directory=False)
+                # Every immutable blob file is durable and renamed before the
+                # shared directory barrier. Publish no manifest before it succeeds.
+                if prepared:
+                    os.fsync(directory)
+                verified.update(checked)
+                for name, _ in prepared:
                     verified[name[5:]] = supplied[name[5:]]
                 atomic("manifest.json", body, seq)
                 manifest = next_manifest

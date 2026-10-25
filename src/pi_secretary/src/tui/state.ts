@@ -6,7 +6,13 @@ import {
   type EditorState,
   type TextNode,
 } from "./editor.ts";
-import { blobOf, StateWriter, type BlobRef, type BlobWrite } from "./writer.ts";
+import {
+  blobOf,
+  StateWriter,
+  type BlobRef,
+  type BlobWrite,
+  type CommitIntent,
+} from "./writer.ts";
 import type { View } from "./commands.ts";
 
 export type Binding = {
@@ -234,6 +240,7 @@ export class ClientStore {
       blobs?: BlobWrite[];
       retire?: Record<string, "handoff" | "discard">;
     },
+    intent: CommitIntent = "maintenance",
   ): Promise<T> {
     const run = async () => {
       if (this.readOnly) throw Error("FOREIGN_DOMAIN_QUARANTINED");
@@ -255,6 +262,7 @@ export class ClientStore {
           after.has(blob.ref.blob),
         ),
         retire,
+        intent,
       );
       this.state = next;
       this.known = refs(next);
@@ -272,7 +280,7 @@ export class ClientStore {
     return task;
   }
   save(): Promise<void> {
-    return this.transaction(() => ({ result: undefined }));
+    return this.transaction(() => ({ result: undefined }), "input-ack");
   }
   edited() {
     if (this.closed || this.readOnly) return;
@@ -354,7 +362,7 @@ export class ClientStore {
           redo: [],
         };
       return { result: entry, blobs: [blob] };
-    });
+    }, "input-ack");
     if (this.editors[view].draft.revision === revision)
       this.editors[view] = new Editor({
         ...emptyDraft(),
@@ -364,13 +372,17 @@ export class ClientStore {
     this.onChange();
     return result;
   }
-  async update(requestID: string, mutate: (entry: OutboxEntry) => void) {
+  async update(
+    requestID: string,
+    mutate: (entry: OutboxEntry) => void,
+    intent: CommitIntent = "maintenance",
+  ) {
     return this.transaction((next) => {
       const entry = next.outbox.find((x) => x.request_id === requestID);
       if (!entry) throw Error("OUTBOX_NOT_FOUND");
       mutate(entry);
       return { result: structuredClone(entry) };
-    });
+    }, intent);
   }
   async handoff(requestID: string, receipt: Receipt) {
     if (

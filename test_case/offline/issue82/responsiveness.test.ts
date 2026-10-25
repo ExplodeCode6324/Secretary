@@ -239,17 +239,138 @@ os.fsync = delayed_fsync`,
         });
       },
     } as unknown as CoreClient;
-    const sync = new MainSync(store, async () => ({ client, core })),
+    // Numeric, bounded C5 observations; never change the fixture or sync policy.
+    // Kinds: 1 overload, 2 attach, 3 stream attempt, 4 actual open,
+    // 5 catchup, 6 refresh, 7 checkpoint, 8 count reset, 9 byte reset,
+    // 10 actual reconnect wait. Phases: 0 begin, 1 end.
+    const syncEvents: Array<Record<string, number>> = [];
+    let syncSerial = 0,
+      syncOverflow = 0,
+      syncCostMs = 0;
+    let lastResetAt = performance.now(),
+      activeStream = 0;
+    const observe = (kind: number, fields: Record<string, number> = {}) => {
+      const started = performance.now(),
+        id = ++syncSerial;
+      if (syncEvents.length < 20000)
+        syncEvents.push({ kind, id, at: started, ...fields });
+      else syncOverflow++;
+      syncCostMs += performance.now() - started;
+      return id;
+    };
+    const attachSync = { run: async () => ({ client, core }) };
+    const sync = new MainSync(
+        store,
+        () => attachSync.run(),
+        (event) => {
+          observe(10, {
+            phase: event.phase,
+            timerAt: event.at,
+            delayMs: event.delayMs,
+            aborted: event.aborted,
+          });
+        },
+      ),
       outbox = new Outbox(store, async () => ({ client, core }));
+    const watch = (target: any, name: string, kind: number) => {
+      const original = target[name];
+      target[name] = function (...args: any[]) {
+        const id = observe(kind, { phase: 0 });
+        if (kind === 3) activeStream = id;
+        const end = (outcome: number, error?: unknown) => {
+          const cause = String(error).includes("SYNC_OVERLOAD_CATCHUP_REQUIRED")
+            ? 1
+            : outcome && kind === 6
+              ? 3
+              : outcome
+                ? 4
+                : 0;
+          observe(kind, {
+            phase: 1,
+            start: id,
+            outcome,
+            cause,
+            aborted: (sync as any).stop.signal.aborted ? 1 : 0,
+          });
+        };
+        try {
+          const value = original.apply(this, args);
+          // Observe settlement but return the original promise/value unchanged.
+          if (value && typeof value.then === "function")
+            value.then(
+              () => end(0),
+              (error: unknown) => end(1, error),
+            );
+          else end(0);
+          return value;
+        } catch (error) {
+          end(1, error);
+          throw error;
+        }
+      };
+    };
+    watch(attachSync, "run", 2);
+    watch(sync, "readStream", 3);
+    watch(client, "stream", 4);
+    watch(sync, "catchup", 5);
+    watch(sync, "refresh", 6);
+    watch(sync, "persist", 7);
+    const apply = (sync as any).apply;
+    (sync as any).apply = function (...args: any[]) {
+      try {
+        return apply.apply(this, args);
+      } catch (error) {
+        if (String(error).includes("SYNC_OVERLOAD_CATCHUP_REQUIRED"))
+          observe(1, {
+            stream: activeStream,
+            count: this.count,
+            bytes: this.bytes,
+            resetAt: lastResetAt,
+            windowMs: performance.now() - lastResetAt,
+          });
+        throw error;
+      }
+    };
+    for (const [name, kind] of [
+      ["count", 8],
+      ["bytes", 9],
+    ] as const) {
+      const descriptor = Object.getOwnPropertyDescriptor(sync, name)!;
+      assert.ok(
+        descriptor.configurable && descriptor.writable && "value" in descriptor,
+      );
+      let value = descriptor.value;
+      Object.defineProperty(sync, name, {
+        configurable: descriptor.configurable,
+        enumerable: descriptor.enumerable,
+        get() {
+          return value;
+        },
+        set(next: number) {
+          const previous = value;
+          value = next;
+          if (next === 0) {
+            const at = performance.now();
+            observe(kind, {
+              previous,
+              count: (sync as any).count,
+              bytes: (sync as any).bytes,
+              windowMs: at - lastResetAt,
+            });
+            if (kind === 8) lastResetAt = at;
+          }
+        },
+      });
+    }
     outbox.connect(1);
     const input = new InputProtocol(() => store.editors.Main);
     const attempt: number[] = [],
       drafts: number[] = [],
       render: number[] = [];
-    const update = store.update.bind(store);
-    store.update = async (...args) => {
+    const update = store.update;
+    store.update = async function (...args) {
       const begin = performance.now();
-      const value = await update(...args);
+      const value = await update.apply(this, args);
       if (value.state === "ATTEMPTED") attempt.push(performance.now() - begin);
       return value;
     };
@@ -280,16 +401,19 @@ os.fsync = delayed_fsync`,
       transactionSerial = 0,
       activeDraft: number | undefined,
       activeTransaction: number | undefined;
-    const capture = (store as any).capture.bind(store);
-    (store as any).capture = (...args: any[]) => {
+    const capture = (store as any).capture;
+    (store as any).capture = function (...args: any[]) {
       const start = performance.now();
-      const value = capture(...args);
+      const value = capture.apply(this, args);
       lastCaptureMs = performance.now() - start;
       captureMs.push(lastCaptureMs);
       return value;
     };
-    const transaction = (store as any).transaction.bind(store);
-    (store as any).transaction = (change: (...args: any[]) => any) => {
+    const transaction = (store as any).transaction;
+    (store as any).transaction = function (
+      change: (...args: any[]) => any,
+      ...metadata: any[]
+    ) {
       const marker = {
         id: ++transactionSerial,
         draft: activeDraft,
@@ -298,16 +422,22 @@ os.fsync = delayed_fsync`,
         completed: undefined as number | undefined,
       };
       retain(trace.transactions, marker);
-      return transaction((...args: any[]) => {
-        marker.started = performance.now();
-        activeTransaction = marker.id;
-        storeQueueMs.push(
-          Math.max(0, marker.started - marker.queued - lastCaptureMs),
-        );
-        return change(...args);
-      }).finally(() => {
-        marker.completed = performance.now();
-      });
+      return transaction
+        .call(
+          this,
+          (...args: any[]) => {
+            marker.started = performance.now();
+            activeTransaction = marker.id;
+            storeQueueMs.push(
+              Math.max(0, marker.started - marker.queued - lastCaptureMs),
+            );
+            return change(...args);
+          },
+          ...metadata,
+        )
+        .finally(() => {
+          marker.completed = performance.now();
+        });
     };
     const writerPhases: Record<
       string,
@@ -315,8 +445,12 @@ os.fsync = delayed_fsync`,
     > = {};
     const byBody = new Map<object, any>(),
       byId = new Map<number, any>();
-    const request = (writer as any).request.bind(writer);
-    (writer as any).request = async (body: { op: string }, low: boolean) => {
+    const request = (writer as any).request;
+    (writer as any).request = async function (
+      body: { op: string },
+      low: boolean,
+      ...metadata: any[]
+    ) {
       const marker = {
         op: body.op,
         queued: performance.now(),
@@ -329,7 +463,7 @@ os.fsync = delayed_fsync`,
       retain(trace.requests, marker);
       byBody.set(body, marker);
       try {
-        const value = await request(body, low);
+        const value = await request.call(this, body, low, ...metadata);
         marker.outcome = "resolved";
         return value;
       } catch (error) {
@@ -482,6 +616,21 @@ os.fsync = delayed_fsync`,
         maxMs: Math.max(...values),
       };
     };
+    const syncPairGaps = syncEvents
+      .filter((x) => x.phase === 0 && x.kind !== 10)
+      .filter(
+        (begin) =>
+          syncEvents.filter((end) => end.phase === 1 && end.start === begin.id)
+            .length !== 1,
+      ).length;
+    const waitEvents = syncEvents.filter((x) => x.kind === 10);
+    const syncWaitGaps =
+      (waitEvents.length % 2) +
+      waitEvents.filter(
+        (event, index) =>
+          event.phase !== index % 2 ||
+          (index % 2 === 1 && event.delayMs !== waitEvents[index - 1].delayMs),
+      ).length;
     const sorted = [...render].sort((a, b) => a - b),
       result = {
         durationMs: performance.now() - begin,
@@ -493,6 +642,27 @@ os.fsync = delayed_fsync`,
         modelPublishP95Ms: sorted[Math.floor(sorted.length * 0.95)],
         modelPublishMaxMs: Math.max(...render),
         checkpointMax,
+        syncRegime: {
+          overloads: syncEvents.filter((x) => x.kind === 1),
+          recurrenceObserved: syncEvents.filter((x) => x.kind === 1).length > 1,
+          streamAttempts: syncEvents.filter(
+            (x) => x.kind === 3 && x.phase === 0,
+          ).length,
+          actualOpens: syncEvents.filter(
+            (x) => x.kind === 4 && x.phase === 1 && !x.outcome,
+          ).length,
+          resets: syncEvents.filter((x) => x.kind === 8).length,
+          checkpoints: syncEvents
+            .filter((x) => x.kind === 7 && x.phase === 1 && !x.outcome)
+            .map((x) => x.at),
+          reconnectWaits: syncEvents.filter((x) => x.kind === 10),
+          overflow: syncOverflow,
+          spanCoverageGaps: syncPairGaps,
+          reconnectCoverageGaps: syncWaitGaps,
+          recordingCostMs: syncCostMs,
+          interpretation:
+            "Numeric observations only. Recurrence means multiple observed overloads; ordered stream/reconnect events show context. Cause0 unknown/normal,1 directly observed overload,3 refresh failure,4 other error. Abort state is not an inferred watchdog/timer cause. Timer times exclude earlier checkpointWork wait. Costs are not subtracted.",
+        },
         nativePaint: "NOT_TESTED",
         writerQos: writer.qos,
         finalCursor: (sync as any).cursor,
@@ -531,6 +701,7 @@ os.fsync = delayed_fsync`,
       .map((value) => value.id);
     const diagnostic = {
       node: trace,
+      sync: syncEvents,
       helper: disk.trace,
       startupHelperIds,
       interpretation:
@@ -542,6 +713,8 @@ os.fsync = delayed_fsync`,
       { mode: 0o600 },
     );
     // Bounded per-record output survives runner disposal and failure; numeric only.
+    for (const record of syncEvents)
+      console.log(JSON.stringify({ issue82Sync: record }));
     for (const record of trace.requests)
       console.log(JSON.stringify({ issue82Request: record }));
     for (const record of trace.transactions)
@@ -563,6 +736,32 @@ os.fsync = delayed_fsync`,
           interpretation: diagnostic.interpretation,
         },
       }),
+    );
+    assert.equal(syncOverflow, 0);
+    const syncBegins = new Map(
+      syncEvents
+        .filter((x) => x.phase === 0 && x.kind !== 10)
+        .map((x) => [x.id, x]),
+    );
+    const syncEnds = syncEvents.filter((x) => x.phase === 1 && x.kind !== 10);
+    assert.equal(syncEnds.length, syncBegins.size, "C5 span coverage gap");
+    for (const end of syncEnds) {
+      const begin = syncBegins.get(end.start);
+      assert.ok(begin && begin.kind === end.kind && begin.at <= end.at);
+      syncBegins.delete(end.start);
+    }
+    assert.equal(syncBegins.size, 0);
+    const waits = syncEvents.filter((x) => x.kind === 10);
+    assert.equal(waits.length % 2, 0, "C5 reconnect coverage gap");
+    for (let i = 0; i < waits.length; i += 2) {
+      assert.equal(waits[i].phase, 0);
+      assert.equal(waits[i + 1].phase, 1);
+      assert.equal(waits[i].delayMs, waits[i + 1].delayMs);
+      assert.ok(waits[i].timerAt <= waits[i + 1].timerAt);
+    }
+    assert.equal(
+      syncEvents.filter((x) => x.kind === 8).length,
+      syncEvents.filter((x) => x.kind === 9).length,
     );
     assert.equal(trace.overflow, 0);
     assert.equal(disk.trace.overflow, 0);

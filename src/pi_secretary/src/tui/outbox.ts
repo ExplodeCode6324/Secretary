@@ -222,11 +222,15 @@ export class Outbox {
         )
           throw Error("CORRUPT_FROZEN_BODY");
         if (!this.permitted(generation)) return;
-        await this.store.update(entry.request_id, (current) => {
-          current.state = "ATTEMPTED";
-          current.attempted = true;
-          current.uncertain = priorUnknown;
-        });
+        await this.store.update(
+          entry.request_id,
+          (current) => {
+            current.state = "ATTEMPTED";
+            current.attempted = true;
+            current.uncertain = priorUnknown;
+          },
+          "input-ack",
+        );
         // No await between this guard and initiating HTTP. Disconnect during fsync must not POST.
         if (!this.permitted(generation)) return;
         this.status = "sending frozen request " + entry.request_id;

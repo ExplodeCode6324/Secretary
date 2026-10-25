@@ -279,3 +279,149 @@ test("first pre-admission rejection retains editable body; ambiguous prior attem
     await close(store);
   }
 });
+
+test("caller intent table classifies saves/admission only, never captured draft content", async () => {
+  const { store, writer } = await setup();
+  const seen: Array<{ op: string; intent: string }> = [];
+  const request = (writer as any).request;
+  (writer as any).request = function (...args: any[]) {
+    seen.push({ op: args[0].op, intent: args[2] ?? "maintenance" });
+    return request.apply(this, args);
+  };
+  async function check(
+    label: string,
+    action: () => Promise<unknown>,
+    intent = "maintenance",
+    op = "commit",
+  ) {
+    const start = seen.length;
+    store.editors.Main.insert("x", "typed");
+    await action();
+    assert.deepEqual(seen.slice(start), [{ op, intent }], label);
+  }
+  await check("save", () => store.save(), "input-ack");
+  await check("flush via save", () => store.flush(), "input-ack");
+  await check("view captures unsaved draft but stays maintenance", () =>
+    store.setView("Task"),
+  );
+  await check("anchor", () => store.setAnchor({ offset: 1 }));
+  // Existing binding is a no-op; exercise the actual bind transaction once.
+  store.state.binding = null;
+  await check("bind", () => store.bind(binding));
+  let entry!: Awaited<ReturnType<typeof enqueue>>;
+  await check(
+    "enqueue",
+    async () => {
+      entry = await enqueue(store);
+    },
+    "input-ack",
+  );
+  for (const state of [
+    "UNKNOWN",
+    "NEEDS_EDIT",
+    "CONFLICT",
+    "PREPARED",
+  ] as const)
+    await check("update " + state, () =>
+      store.update(entry.request_id, (e) => {
+        e.state = state;
+      }),
+    );
+  await check("handoff", () =>
+    store.handoff(entry.request_id, receipt(entry.request_id)),
+  );
+  entry = await enqueue(store);
+  await check("discard", () => store.discard(entry.request_id));
+  await check("collect", () => writer.collect(), "maintenance", "collect");
+  await check("receipts", () => writer.receipts(), "maintenance", "receipts");
+  await check(
+    "checkpoint read",
+    () => writer.loadCheckpoint(),
+    "maintenance",
+    "checkpoint-read",
+  );
+  entry = await enqueue(store);
+  await check(
+    "blob read",
+    () => writer.read(entry.body),
+    "maintenance",
+    "read",
+  );
+  await check("restore save", () => store.save(), "input-ack");
+  const start = seen.length;
+  await close(store);
+  assert.deepEqual(
+    seen.slice(start),
+    [{ op: "commit", intent: "input-ack" }],
+    "close via flush/save",
+  );
+});
+for (const outcome of ["success", "unknown", "needs-edit", "conflict"] as const)
+  test(`actual outbox caller intent: pre-POST and ${outcome}`, async () => {
+    const { store, writer } = await setup();
+    const entry = await enqueue(store);
+    const seen: Array<{ state: string | undefined; intent: string }> = [];
+    const commit = writer.commit;
+    writer.commit = function (...args: Parameters<StateWriter["commit"]>) {
+      seen.push({
+        state: (args[0] as any).outbox[0]?.state,
+        intent: args[3] ?? "maintenance",
+      });
+      return commit.apply(this, args);
+    };
+    const dispatcher = new Outbox(store, async () =>
+      attached(
+        async (route) => {
+          throw new CoreTransportError("NOT_FOUND", route, 404, true);
+        },
+        async (_body, id) => {
+          if (outcome === "unknown") throw Error("lost response");
+          if (outcome === "needs-edit")
+            throw new CoreTransportError(
+              "INVALID_INPUT",
+              "messages",
+              400,
+              true,
+            );
+          if (outcome === "conflict")
+            throw new CoreTransportError(
+              "REQUEST_CONFLICT",
+              "messages",
+              409,
+              true,
+            );
+          return receipt(id);
+        },
+      ),
+    );
+    dispatcher.connect(1);
+    dispatcher.resume(1);
+    await dispatcher.idle();
+    assert.deepEqual(seen, [
+      { state: "ATTEMPTED", intent: "input-ack" },
+      {
+        state:
+          outcome === "success"
+            ? undefined
+            : outcome === "unknown"
+              ? "UNKNOWN"
+              : outcome === "needs-edit"
+                ? "NEEDS_EDIT"
+                : "CONFLICT",
+        intent: "maintenance",
+      },
+    ]);
+    if (outcome === "unknown") {
+      dispatcher.disconnect(1);
+      dispatcher.connect(2);
+      const start = seen.length;
+      await dispatcher.retry(entry.request_id, 2);
+      await dispatcher.idle();
+      assert.equal(dispatcher.needsResume, true);
+      assert.deepEqual(seen.slice(start), [
+        { state: "UNKNOWN", intent: "maintenance" },
+      ]);
+    }
+    dispatcher.close();
+    await close(store);
+  });

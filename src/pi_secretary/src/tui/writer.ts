@@ -54,8 +54,11 @@ export function pythonReady(): void {
     throw Error("PYTHON_PREREQUISITE: requires /usr/bin/python3 and fcntl");
 }
 type Reply = { id: number; error?: string; [key: string]: unknown };
+export type CommitIntent = "maintenance" | "input-ack";
 type Job = {
   queuedAt: number;
+  intent: CommitIntent;
+  bypassUsed: boolean;
   request: Record<string, unknown>;
   resolve: (reply: Reply) => void;
   reject: (error: Error) => void;
@@ -77,6 +80,7 @@ export class StateWriter {
   private failed?: Error;
   private closed = false;
   private incoming = Buffer.alloc(0);
+  private readonly now: () => number;
   get healthy() {
     return !this.failed && !this.closed;
   }
@@ -86,8 +90,9 @@ export class StateWriter {
   constructor(
     root: string,
     quota = 256 * 1024 * 1024,
-    options: { helperPath?: string } = {},
+    options: { helperPath?: string; now?: () => number } = {},
   ) {
+    this.now = options.now ?? (() => performance.now());
     pythonReady();
     this.child = spawn(
       "/usr/bin/python3",
@@ -202,8 +207,11 @@ export class StateWriter {
     }
     // A coalesced checkpoint keeps its original age. Bound starvation under
     // sustained business work so durable sync obligations can make progress.
-    const lowDue = this.low && performance.now() - this.low.queuedAt >= 250;
-    const job = lowDue ? this.low : (this.high.shift() ?? this.low);
+    const lowDue = this.low && this.now() - this.low.queuedAt >= 250;
+    const bypass =
+      lowDue && !this.low!.bypassUsed && this.high[0]?.intent === "input-ack";
+    if (bypass) this.low!.bypassUsed = true;
+    const job = lowDue && !bypass ? this.low : (this.high.shift() ?? this.low);
     if (!job) return;
     if (job === this.low) this.low = undefined;
     this.current = { ...job, id: ++this.serial };
@@ -234,6 +242,7 @@ export class StateWriter {
   private async request(
     request: Record<string, unknown>,
     low = false,
+    intent: CommitIntent = "maintenance",
   ): Promise<Reply> {
     await this.ready;
     if (!this.healthy) throw this.failed ?? Error("WRITER_CLOSED");
@@ -242,7 +251,9 @@ export class StateWriter {
         request,
         resolve,
         reject,
-        queuedAt: low && this.low ? this.low.queuedAt : performance.now(),
+        queuedAt: low && this.low ? this.low.queuedAt : this.now(),
+        bypassUsed: low && this.low ? this.low.bypassUsed : false,
+        intent,
       };
       if (low) {
         this.low?.reject(Error("CHECKPOINT_COALESCED"));
@@ -261,8 +272,9 @@ export class StateWriter {
     data: unknown,
     blobs: BlobWrite[] = [],
     retire: Record<string, "superseded" | "discard" | "handoff"> = {},
+    intent: CommitIntent = "maintenance",
   ) {
-    await this.request({ op: "commit", data, blobs, retire });
+    await this.request({ op: "commit", data, blobs, retire }, false, intent);
   }
   async read(ref: BlobRef): Promise<string> {
     const reply = await this.request({ op: "read", ref });

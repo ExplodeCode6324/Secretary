@@ -442,3 +442,58 @@ R3 审查精确 `1287bff`，结论为 D9–D11 需修改，同时独立在真实
 验证顺序：每项先保留失败见证；协调放行后只实施上述修正；运行聚焦回归、与 outbox 不变性相关的真实 Core fixture、实际 Chrome 焦点/状态验证、类型/格式/文档检查，以及新 HEAD Linux/macOS CI。在同一 Claude 会话审查精确新 HEAD，提交完整 R3 修复差异，加上 `1287bff`→`4186da4` 观测改动与完整诊断证据。不再对已知有缺陷的 `4186da4` 单独形式审查。不扩展 word-delete、键盘 modal 决策或 F_FULLFSYNC。
 
 `4186da4` 诊断 CI 已通过：Linux 791 项中 790 通过/1 项 macOS 专用跳过，macOS 220/220，总检查成功。完整时序显示 Linux 草稿 ACK 最大 220.614338ms，但没有复现或解释 `1287bff` 的 506.721609ms 失败；这一不确定性继续单列。未授权盲目重跑、扣除计时、放宽 500ms 或无证据改生产调度。须请审查者评估是否能指出代码缺陷/必要修复，或仅能确认剩余不确定性及证据限制。合并仍须协调另行精确 HEAD 授权。
+
+### R4 D12–D13 恢复修正计划 — 2026-10-25（协调已实施放行）
+
+同一 Claude R4 复核精确 `98f9d91c0c1fd945c7fa3e09d25819cb15488048`：D9–D11 已在实际产品验证，但 D12、D13 仍需修正。正式报告 16,565 字节，SHA256 `dd66c6b06eab477ed5fc4e308d16d8aba44a2cdb844e7fe81171c9ee795b30fe`。普通下载未落盘、复制控件返回旧剪贴板内容，两次尝试均保留；通过正常 Code 视图读取完整报告，原文字节 hash 与 reviewer 完全一致。R3 归档取得仍未验证；不继续归档传输尝试，不改浏览器权限或配置。
+
+1. **D12，恢复反馈可见。** 在操作状态和拒绝提示旁增加独立、紧凑的恢复状态区域。复制待恢复数据在此显示进行中、成功或失败；成功仅指本次捕获快照，不授权删除或重放。存在待确认意图时点击 Reconnect，在此显示先复制再刷新指引。锁定原因、拒绝、待确认/组合输入内容和 Resume 状态保持可见且完整；后台发布不抹掉反馈。完整 fresh-ready 时清除旧反馈；该边界或更新的恢复操作使旧异步复制结果失效。剪贴板失败不能表现为成功，所有结果都保留待恢复数据。
+2. **D13，socket 所有权。** 每次 connect 捕获新 socket 身份；open/message/close/error 回调仅在该 socket 仍为当前所有者时生效。先切换所有权再退役旧 socket，旧连接迟到的 replaced/close/invalid-credential 不得改变当前 ready、凭据、代次、队列、状态或重连策略。异步剪贴板操作结束后再次核对所有权，才可清空共享组装状态或排入 ACK；重连定时回调也绑定来源 socket。切换所有权时清理旧剪贴板组装。当前 socket 真正被接管/撤销仍须锁定并阻止自动重连，不能简单无条件重置 replaced。不得自动重放待确认意图或授权 HTTP Resume。
+
+先保留锁定状态复制成功/失败/指引，以及 Reconnect → 旧 socket replaced/close → 新 socket 断开 → 自动重连 → 输入被接受的失败见证。增加迟到旧事件、旧剪贴板异步完成、真实当前代次接管、待恢复数据保留和 Resume 不变覆盖。实施放行后运行实际 adapter、未修改产品资源的实际 Chrome 恢复验证（明确标注测试 transport/clipboard 故障注入）、重启读取验证、相关 Issue82 测试、types/format/docs、新精确 HEAD Linux/macOS CI，再交同一 Claude 复核。原生 OS 剪贴板/物理键盘/IME 和 Master 验收仍单列。
+
+性能门槛仍独立未解决。当前 `98f9d91` Linux CI 因草稿 ACK 573.314953 ms 失败（795 通过、1 失败、1 macOS 专属跳过；macOS 226/226 通过）。相关追踪证明 fsync 调用内部墙钟慢尾与既定公平调度组合，不证明物理磁盘故障。R4 未发现顺序/耐久正确性缺陷；提出未实施的输入 ACK 优先且保留 checkpoint 硬年龄上限、blob 目录屏障等价合并两项选项，均未证明足够；另一 447 ms 草稿没有公平插队，只是等待正常发出的慢 checkpoint。本计划不授权生产调度/存储改动、门槛豁免、负载/注入/阈值改变或盲重跑 CI；性能处置须由协调另行决定。原始 `1287bff` 未逐请求追踪的失败继续保持未解释。无合并授权。
+
+#### 具体性能备选（协调选择 A+B，待独立计划复核及实施批准）
+
+协调选择A+B共同作为候选，不声称必能满足原500ms ACK门槛。A具体策略为250ms资格、age<500ms时至多让一个已ready的input-ACK队首先行；已让行或age>=500ms则下个可用操作边界强制checkpoint。原年龄与消费位跨coalescing保留；元数据仅留Node侧，不扩展持久/helper协议。补资格前、250–500ms一次让行、>=500ms强制、让行后合并、混合队首及持续压力见证。B共享屏障成功前不得发布新manifest；之前的异常/中断保持旧manifest权威，已有blob名称不可变。将完整计划、代码base98f9及R4失败追踪（含447ms无插队暴露）交同一Claude，须计划PASS或具体修正后再由协调正式放开性能实施。D12/D13实施单独已授权；不为碰绿推送中间HEAD。无合并授权。
+
+**A：有界输入优先公平调度。** 在 `writer.ts` 增加调度元数据，`state.ts` 标记草稿保存/提交入队，`outbox.ts` 标记 POST 前 attempt-marker。业务 FIFO 不变，不让业务事务彼此超车。250 ms 仍为 checkpoint 公平资格；候选策略是在年龄小于500 ms时至多让一个已就绪 input-ACK 队首 commit 先行，否则在该边界选择 checkpoint。合并请求保留原年龄和已消耗让行额度。该新增 checkpoint 年龄上限须协调选择，不改变原500 ms ACK断言；read/维护不享受例外。一轮让行约束发出机会，不约束不可抢占 syscall 耗时。高队列16、低槽1、耐久/Resume不变。确定性 witness 控制操作完成和年龄，证明已见竞争可按 commit14→commit16→checkpoint15 处理；持续输入和合并请求证明不得第二次让行且 checkpoint 持续推进。保留24-save防饥饿断言，运行原真实helper压测及崩溃/重开/attempt-marker测试。风险：分类错误、业务链中尚未进入writer的工作不可见；不能消除447 ms无插队暴露或任意fsync慢尾。
+
+**B：仅合并同一commit内新blob目录屏障。** `writer.py` 先按现状校验/预留全部blob；逐个exclusive/no-follow临时文件写入/flush/文件fsync后rename为不可变名称。安装全部新blob后仅执行一次owned directory fsync，无新blob则不执行；该屏障成功后才执行原manifest原子写入/rename/目录fsync。cleanup及其目录fsync、quota/retirement/启动恢复和磁盘表示不变，checkpoint仍四次fsync。k>=1新blob清理前屏障由2k+2变k+3，k=0仍两次；k=1不节省，k=2少一次真实屏障和一次注入20ms。顺序witness证明所有blob文件fsync早于共享目录屏障，后者早于manifest发布及ACK；已有不可变blob不重写。在各文件fsync/rename边界、共享目录屏障前后、manifest发布前后及授权cleanup期间kill测试helper；重开须得到旧或新完整manifest、可读引用blob及精确UNKNOWN body。分别注入文件/目录/manifest/cleanup fsync错误，要求失败/恢复，不能提前成功。进程崩溃/顺序测试不等于真实断电证明。风险：中断后更多pre-manifest orphan（仍保护）、部分批次错误及屏障位置；只能减少调用，不能消除慢checkpoint或保证500ms。
+
+A直接针对已见公平插队但改变策略；B减少耐久写放大，却触及敏感helper路径，不能直接消除本次checkpoint停顿。两者均未证明充分。原始验收值和首失败保留，确定性witness仅补充原压测。绝对墙钟门槛的环境适用条件另属政策决定，不在A/B中暗含豁免。
+
+#### A+B 计划第二版 — C1–C4 与协调 R1 决策的控制条款
+
+首次独立计划复核为窄范围CHANGES_REQUIRED；报告9,196字节，SHA256 `9d80fd197ad5c3b39557afc2ef9e060069331cd7859d1e2a786a7975bba57c2a`。协调接受C1–C4并采纳R1。本节覆盖前述候选的checkpoint年龄500ms条件，旧提议保留为历史。性能实施仍须同Claude修订计划PASS及协调另行放行，无产品PASS、CI豁免或合并权。
+
+**A现选策略：** 保留250ms资格。每个pending/coalesced checkpoint达到资格后，无论年龄多大，至多让一个已ready的input-ACK FIFO队首commit先行；额度消耗后，下个可用操作边界强制checkpoint。队首为read/maintenance时选择已具资格的checkpoint，不向后寻找input来跳过FIFO。原入队年龄与消费位跨coalescing保留；仅前一个checkpoint已发出之后的新checkpoint重置额度。保留setImmediate让ACK continuation暴露下一个业务请求。这只限制额外发出次数为一，不保证墙钟完成时间。原500ms草稿/attempt ACK断言完全不变。协调取消候选年龄条件，是因为前序I/O慢时它会撤销优先级，而一次让行已经限制额外调度次数。
+
+**C1，真实syscall顺序。** B见证记录每个fsync的fd类型（文件/目录）、文件身份、rename、manifest发布、cleanup与reply。每个新blob须先文件fsync再rename；全部新blob rename须早于唯一共享目录fsync，之后不得再有新blob rename；随后manifest临时文件fsync→manifest rename→manifest目录fsync→原cleanup/屏障→ACK。k=0/1精确保留现有序列。进程kill保留内核page cache和已完成rename，只证明部分状态恢复，不证明屏障位置或真实断电耐久；屏障位置由独立syscall顺序见证验证。
+
+**C2，残留与verified缓存。** 各崩溃重开场景显式保留`.pending-*`及已rename未引用blob；重开须成功，残留仍未引用、计入quota，保护内容不删除。各适用中断点核验旧/新manifest完整、所有引用字节和精确UNKNOWN body。`verified`仅共享blob目录屏障成功后更新；之前错误不得发布新manifest，之后fsync/rename/cleanup错误仍走fatal commit/reopen，不成功ACK。
+
+**C3，continuation竞争与精确边界。** 确定性见证使用注入scheduler时钟而非真实sleep；commit16从commit14的ACK continuation入队，此时high暂空且setImmediate待执行，预填队列不能替代。测试249.9/250/499.9/500及显著大于500，均覆盖额度未用/已用。age>=250且额度未用时，即使500或更大仍有一次让行；额度已用强制checkpoint。覆盖合并保留消费、发出后新checkpoint重置、连续两个input仅首个先行、read/maintenance队首后有input时不跨FIFO、持续压力且保留24-save断言。#47伴随见证先发出checkpoint再到input，证明不抢占运行中操作并保留其暴露。时钟注入仅Node测试控制，不成为helper/持久字段，也不改真实时钟压测。
+
+**C4，调用意图分类。** 未分类缺省maintenance/无让行。表驱动集成见证枚举全部ClientStore/outbox调用点：仅`save()`（含restore）、`enqueue()`入队、base outbox.ts:225的POST前attempt-marker `update()`为input-ACK。其他update（UNKNOWN/NEEDS_EDIT/CONFLICT/retry）、handoff/discard/bind/setView/setAnchor/collect/receipts/read均maintenance。必须由调用方标记，不能因事务携带draft推断；所有store事务都会捕获draft。调度元数据仅Node侧，不进入helper JSON或持久schema。
+
+B的blob屏障顺序、已有不可变名称、quota预留、保护orphans、cleanup屏障及checkpoint四次fsync均不变。保留负载、每fsync注入20ms、500ms ACK、publication/样本/槽位/收敛断言和完整trace。反事实262/427ms仍仅估算，不是实测或CI通过证明；447ms运行中checkpoint及任意fsync慢尾暴露仍在。完整新版英文计划及hash须再次交同Claude，再申请实施放行。
+
+#### A+B 计划修订 3：C5 观测范围控制条款
+
+修订2已解决C1–C4及R1，独立复核仅因新增C5返回CHANGES_REQUIRED；报告9,456字节，SHA256 `475764178b054436c45a2ea7a4ae4693a27360001f6ebc69d00cf7b9995b8f50`。协调接受C5并选择以下观测方案送审；性能实现仍须同会话Claude计划PASS及协调单独放行，不代表实现、CI、产品或合并通过。
+
+**证据与限制。** 原失败Linux CI直接记录的是checkpoint数量/节奏和既有计时，没有overload计数。自持续overload/reconnect循环属于源码及该时序的推断：refresh首次持久checkpoint重置计数前，stream事务超过256或2MiB；重连等待期间积累的数据被当前空catch-up夹具重新从stream送入。Reviewer另行报告其修改版沙盒探针baseline的overload/open/checkpoint为0/1/76，额外四次150ms sleep后为21/22/52；脚本/日志未取得、本机未复跑，不能写成原CI直接测量。其首次未生效探针及原1287bff缺乏追踪的失败分别保留。本轮不新增额外sleep复现，不推测或声称真实Core已验证。
+
+A可能将checkpoint/reset再推迟一个input commit，B不移除此第三暴露；运行中checkpoint的447ms暴露与任意fsync长尾也仍存在。每次A+B burst结果必须明确报告是否、何时观测到overload/reconnect反复发生，并列实测计数/时间；不能仅由checkpoint节奏声称直接计数证明。保持当前fixture和负载，其对真实Core的保真度属于范围外的后续独立决策。
+
+**C5具体观测入口。** 原burst测试包装MainSync的apply、catchup、refresh、persist、readStream、attach回调和fixture实际stream-open边界。测试实例通过既有count/bytes属性赋值观测准确reset，保持原值及get/set行为，区分reset时刻与checkpoint回执。只记录数值事件类别/序号、Node performance.now时间、overload count/bytes/距reset窗口、stream尝试/实际open、catchup/refresh开始结束及结果、checkpoint/reset边界。完整透传this、全部参数（含A新增metadata）、返回值和异常，不新增await/sleep或热路径打印。原operation/transaction/fsync追踪保持完整，使用同Node时钟关联，不跨Python/Node绝对时钟相减。
+
+仅为精确重连等待，允许MainSync增加默认生产调用不传的窄同步诊断回调，在现有timer注册/完成位置提供新建的只读标量/数值事件，包含实际delay参数及时间。不暴露内部状态对象，不赋予返回值控制权；观察者异常隔离、返回值忽略且不await。保持delay选择、timer注册/清除、abort监听、resolve及backoff的现有顺序与语义。实际timer注册/完成、此前checkpointWork等待、stream结束至attach间隔估算分别记录；若区分timer/abort来源会改行为，则只报告完成时abort状态，不猜测原因。这只是固定重连诊断入口，不扩成通用监控API、产品开关或Core协议字段。增加无observer及observer抛异常均不改变正常完成/取消的窄见证。
+
+数值收集器有界，报告记录成本、溢出和覆盖缺口；测量结束后随原trace统一输出。observer开销保留在ACK计时内，不扣除；检查事件配对/覆盖，观测不完整如实报告。保持原6000事务/30s、每fsync20ms、draft/attempt500ms、publication/sample/slot/convergence及24-save公平性断言和全部首次失败；不改fixture、计数/reset/backoff，不删观测或靠重跑抹掉失败。全部追踪包装须透传新增调度metadata，避免改变A行为。
+
+**采纳非阻断澄清。** 显式注入共享blob目录fsync本身失败：commit fatal、无成功ACK、不发布新manifest、verified只在屏障成功后更新。flush()/close()经save()，明确纳入input-ACK分类表。修订2的C1–C4/R1政策和B耐久顺序继续控制，未作其他变更。完整新版英文计划及hash送同一会话复核C5，随后才可申请实施放行。
+
+协调在准确修订3计划PASS后正式放行性能实现。A+B+C5与D12/D13已在本地实现，Issue82回归105/105通过，原500ms ACK及全部负载/公平性/耐久断言保留。详细证据与限制见 `docs/fix/evidence/issue82-tui/implementation.md`。新准确HEAD CI及产品复核仍待完成，无合并授权。

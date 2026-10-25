@@ -148,6 +148,12 @@ type Checkpoint = {
   cursor: string;
   dirty: Record<string, number>;
 };
+export type ReconnectWaitEvent = Readonly<{
+  phase: 0 | 1;
+  at: number;
+  delayMs: number;
+  aborted: 0 | 1;
+}>;
 export class MainSync {
   page: Timeline = {
     items: [],
@@ -195,7 +201,23 @@ export class MainSync {
   constructor(
     readonly store: ClientStore,
     readonly attach: Attach,
+    private readonly reconnectObserver?: (event: ReconnectWaitEvent) => void,
   ) {}
+  private observeReconnect(phase: 0 | 1, delayMs: number) {
+    if (!this.reconnectObserver) return;
+    try {
+      this.reconnectObserver(
+        Object.freeze({
+          phase,
+          at: performance.now(),
+          delayMs,
+          aborted: this.stop.signal.aborted ? 1 : 0,
+        }),
+      );
+    } catch {
+      // A diagnostic must never interrupt reconnect completion or cancellation.
+    }
+  }
   async start() {
     try {
       const saved = await this.store.writer.loadCheckpoint();
@@ -470,9 +492,11 @@ export class MainSync {
             clearTimeout(timer);
             this.stop.signal.removeEventListener("abort", done);
             resolve();
+            this.observeReconnect(1, delay);
           };
           const timer = setTimeout(done, delay);
           this.stop.signal.addEventListener("abort", done, { once: true });
+          this.observeReconnect(0, delay);
         });
         delay = Math.min(30000, delay * 2);
       }

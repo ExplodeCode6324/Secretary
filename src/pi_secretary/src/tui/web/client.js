@@ -32,6 +32,8 @@
     reconnectTimer,
     clipboard = null,
     refusal = "",
+    recovery = "",
+    recoveryAction = 0,
     lockReason = "";
   history.replaceState(null, "", "/");
   const supported =
@@ -46,12 +48,18 @@
   }
   function status(text) {
     $("status").textContent =
-      lockReason ||
+      (lockReason ? `${lockReason} · ${normalStatus()}` : "") ||
       (ready && state?.largeConfirmation
         ? "Apply or Cancel before continuing. New input is not accepted while this prompt is open; earlier queued input resumes after the decision."
         : text);
     $("refusal").textContent = refusal;
     $("refusal").hidden = !refusal;
+    $("recovery").textContent = recovery;
+    $("recovery").hidden = !recovery;
+  }
+  function recover(text) {
+    recovery = text;
+    status(normalStatus());
   }
   function normalStatus() {
     return state
@@ -176,6 +184,8 @@
   }
   $("pending-copy").addEventListener("click", async (e) => {
     if (!e.isTrusted) return;
+    const action = ++recoveryAction;
+    recover("Copying the pending-data snapshot captured at this click…");
     try {
       await navigator.clipboard.writeText(
         JSON.stringify(
@@ -198,9 +208,15 @@
           2,
         ),
       );
-      status("Copied unacknowledged local data; this did not resend it.");
+      if (action === recoveryAction)
+        recover(
+          "Copied the pending-data snapshot captured at this click; later changes are not included. This did not resend or save it.",
+        );
     } catch {
-      status("Pending-data clipboard write failed; data remains in this tab.");
+      if (action === recoveryAction)
+        recover(
+          "Pending-data clipboard write failed; data remains in this tab.",
+        );
     }
   });
   function transaction(text, source, frozenRevision) {
@@ -234,9 +250,18 @@
     ready = false;
     seq = 0;
     controls();
-    ws = new WebSocket(location.origin.replace("http:", "ws:") + "/channel");
-    ws.onopen = () => wire({ type: "hello", credential });
-    ws.onmessage = async (event) => {
+    const previous = ws;
+    const socket = new WebSocket(
+      location.origin.replace("http:", "ws:") + "/channel",
+    );
+    ws = socket;
+    clipboard = null;
+    previous?.close();
+    socket.onopen = () => {
+      if (ws === socket) wire({ type: "hello", credential });
+    };
+    socket.onmessage = async (event) => {
+      if (ws !== socket) return;
       let message;
       try {
         message = JSON.parse(event.data);
@@ -272,6 +297,8 @@
         ready = supported;
         lockReason = "";
         refusal = "";
+        recovery = "";
+        recoveryAction++;
         state = message.state;
         $("resync").hidden = true;
         render();
@@ -382,6 +409,7 @@
           } catch {
             success = false;
           }
+          if (ws !== socket) return;
           clipboard = null;
         }
         enqueue({
@@ -393,7 +421,8 @@
         });
       }
     };
-    ws.onclose = () => {
+    socket.onclose = () => {
+      if (ws !== socket) return;
       ready = false;
       controls();
       if (!replaced) {
@@ -402,12 +431,16 @@
         );
         $("resync").hidden = false;
         if (!inFlight && !queue.length && credential)
-          reconnectTimer = setTimeout(connect, 1000);
+          reconnectTimer = setTimeout(() => {
+            if (ws === socket) connect();
+          }, 1000);
       }
       renderPending();
     };
-    ws.onerror = () =>
-      status("Local connection unavailable; keep this tab's pending edits.");
+    socket.onerror = () => {
+      if (ws === socket)
+        status("Local connection unavailable; keep this tab's pending edits.");
+    };
   }
   function element(tag, text, className) {
     const el = document.createElement(tag);
@@ -636,10 +669,12 @@
     });
   $("resync").addEventListener("click", (e) => {
     if (e.isTrusted && !inFlight && !queue.length) connect();
-    else
-      status(
+    else {
+      recoveryAction++;
+      recover(
         "Copy pending local edits before reloading; reconnect cannot silently reapply them.",
       );
+    }
   });
   for (const [id, accept] of [
     ["large-yes", true],

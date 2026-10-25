@@ -134,6 +134,7 @@ function harness(international: unknown = Intl) {
     onopen?: () => void;
     onmessage?: (e: { data: string }) => void;
     onclose?: () => void;
+    onerror?: () => void;
     readonly generation = ++connectionGeneration;
     constructor() {
       socket = this;
@@ -241,6 +242,7 @@ function harness(international: unknown = Intl) {
     editor,
     actions,
     copied,
+    clipboardDriver: context.navigator.clipboard,
     frames,
     sink: get("sink"),
     buttons,
@@ -309,6 +311,184 @@ test("actual adapter matches physical code plus every modifier, repeat and compo
   await h.settle();
   assert.equal(flatten(h.editor.draft.nodes), "中文");
   assert.equal(h.actions.length, 2);
+});
+
+test("locked recovery shows copy outcomes and guidance alongside lock, refusal and Resume", async () => {
+  const h = harness();
+  h.extra.outbox = "waiting for explicit Resume";
+  await h.settle();
+  h.sink.dispatch("keydown", { code: "KeyB", ctrlKey: true });
+  h.sink.dispatch("beforeinput", { inputType: "insertText", data: "a" });
+  h.sink.dispatch("beforeinput", { inputType: "insertText", data: "pending" });
+  h.sink.dispatch("beforeinput", {
+    inputType: "insertReplacementText",
+    data: "blocked",
+  });
+  await h.settle();
+  h.sink.dispatch("keydown", { code: "KeyB", ctrlKey: true });
+  const pending = h.elements.get("pending")!.textContent;
+  h.elements.get("pending-copy")!.dispatch("click");
+  await h.settle();
+  assert.match(
+    h.elements.get("recovery")?.textContent ?? "",
+    /Copied.*snapshot/,
+  );
+  assert.match(
+    h.elements.get("status")!.textContent,
+    /Unsupported replacement/,
+  );
+  assert.match(
+    h.elements.get("status")!.textContent,
+    /waiting for explicit Resume/,
+  );
+  assert.match(h.elements.get("refusal")!.textContent, /Unsupported control/);
+  h.clipboardDriver.writeText = async () => {
+    throw Error("clipboard denied");
+  };
+  h.elements.get("pending-copy")!.dispatch("click");
+  await h.settle();
+  assert.match(
+    h.elements.get("recovery")!.textContent,
+    /clipboard write failed/,
+  );
+  h.socket().receive({ type: "state", generation: 1, state: h.state() });
+  assert.match(
+    h.elements.get("recovery")!.textContent,
+    /clipboard write failed/,
+  );
+  let finish!: () => void;
+  h.clipboardDriver.writeText = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+  h.elements.get("pending-copy")!.dispatch("click");
+  h.elements.get("resync")!.dispatch("click");
+  finish();
+  await h.settle();
+  assert.match(
+    h.elements.get("recovery")!.textContent,
+    /Copy pending local edits before reloading/,
+  );
+  assert.equal(h.elements.get("pending")!.textContent, pending);
+  assert.equal(
+    h.frames.some((f) => f.event?.text === "pending"),
+    false,
+  );
+});
+
+test("retired socket events cannot poison recovery after a same-page reconnect", async () => {
+  const h = harness();
+  await h.settle();
+  const old = h.socket();
+  h.sink.dispatch("beforeinput", {
+    inputType: "insertReplacementText",
+    data: "blocked",
+  });
+  h.elements.get("resync")!.dispatch("click");
+  const current = h.socket();
+  current.onopen?.();
+  await h.settle();
+  const frameCount = h.frames.length;
+  old.onopen?.();
+  old.onerror?.();
+  old.onmessage?.({ data: "{" });
+  for (const frame of [
+    { type: "hello", reconnect: "obsolete", generation: 999 },
+    { type: "invalid-credential", recovery: "obsolete credential" },
+    { type: "quit", recovery: "obsolete quit" },
+    { type: "ready", state: { ...h.state(), outbox: "obsolete" } },
+    {
+      type: "state",
+      generation: 2,
+      state: { ...h.state(), outbox: "obsolete" },
+    },
+  ])
+    old.receive(frame);
+  assert.equal(h.frames.length, frameCount);
+  assert.equal(h.sink.readOnly, false);
+  old.receive({ type: "replaced", reason: "REPLACED_BY_NEW_GENERATION" });
+  old.close();
+  current.close();
+  assert.match(h.elements.get("status")!.textContent, /Disconnected/);
+  assert.equal(h.elements.get("resync")!.hidden, false);
+  await new Promise((resolve) => setTimeout(resolve, 1100));
+  assert.notEqual(h.socket(), current);
+  h.socket().onopen?.();
+  await h.settle();
+  h.sink.dispatch("beforeinput", {
+    inputType: "insertText",
+    data: "recovered",
+  });
+  await h.settle();
+  assert.equal(flatten(h.editor.draft.nodes), "recovered");
+  h.socket().receive({ type: "replaced", reason: "real takeover" });
+  h.socket().close();
+  assert.equal(h.sink.readOnly, true);
+  assert.equal(h.elements.get("resync")!.hidden, true);
+  assert.match(h.elements.get("status")!.textContent, /real takeover/);
+});
+
+test("retired clipboard completion cannot enqueue into the new socket", async () => {
+  const h = harness();
+  await h.settle();
+  const old = h.socket();
+  let finish!: () => void;
+  h.clipboardDriver.writeText = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+  old.receive({
+    type: "clipboard",
+    id: "old-copy",
+    text: "old",
+    final: true,
+    offset: 3,
+  });
+  h.sink.dispatch("beforeinput", {
+    inputType: "insertReplacementText",
+    data: "blocked",
+  });
+  h.elements.get("resync")!.dispatch("click");
+  h.socket().onopen?.();
+  await h.settle();
+  const frames = h.frames.length;
+  finish();
+  await h.settle();
+  assert.equal(h.frames.length, frames);
+  assert.equal(h.sink.readOnly, false);
+  h.sink.dispatch("beforeinput", { inputType: "insertText", data: "new" });
+  await h.settle();
+  assert.equal(flatten(h.editor.draft.nodes), "new");
+});
+
+test("recovery snapshot feedback survives publication but not a newer action or fresh ready", async () => {
+  const h = harness();
+  await h.settle();
+  let finish!: () => void;
+  h.clipboardDriver.writeText = () =>
+    new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+  h.sink.dispatch("compositionstart");
+  h.sink.value = "snapshot";
+  h.elements.get("pending-copy")!.dispatch("click");
+  assert.match(h.elements.get("recovery")!.textContent, /Copying/);
+  h.sink.value = "later unsaved text";
+  h.socket().receive({ type: "state", generation: 1, state: h.state() });
+  finish();
+  await h.settle();
+  assert.match(
+    h.elements.get("recovery")!.textContent,
+    /later changes are not included/,
+  );
+  h.elements.get("pending-copy")!.dispatch("click");
+  h.elements.get("resync")!.dispatch("click");
+  h.socket().onopen?.();
+  await h.settle();
+  finish();
+  await h.settle();
+  assert.equal(h.elements.get("recovery")!.hidden, true);
+  assert.equal(h.elements.get("recovery")!.textContent, "");
 });
 
 test("large paste confirmation pauses later typing and resumes it after Apply or Cancel", async () => {

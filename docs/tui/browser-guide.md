@@ -37,6 +37,8 @@ Only a submission beginning with a typed slash outside literal mode is a command
 
 Refusal text is shown separately from the current outbox and notice status, so a pending Resume requirement remains visible. A completed fresh reconnect clears refusal text from the previous connection; background updates do not.
 
+When input is locked, the lock reason and current outbox/Resume status remain visible. Copy pending data reports progress, success or failure in a separate recovery line. Success applies only to the snapshot captured at that click; later edits are not included, and copying neither saves nor resends the data. A failed copy leaves it in the tab. Reconnect with pending input explains that you must copy it before reloading; it never silently replays those edits. A completed fresh connection clears obsolete recovery feedback. Events from a retired connection cannot change the current connection; a genuine takeover of the current connection still makes the old tab read-only.
+
 ## Queue, recovery and reading
 
 “SAVED” means the displayed draft revision has a durable writer ACK. Queue admission, HTTP receipt, Input state and assistant outcome have distinct labels. A whole message JSON body, including request ID and attachments array, must fit 1,048,576 UTF-8 bytes. C1 supports text only; a future nonempty attachment list is refused instead of silently dropped.
