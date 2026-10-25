@@ -35,7 +35,7 @@ XTerm*disallowedPasteControls: NUL,SOH,STX,ETX,EOT,ENQ,ACK,BEL,BS,VT,FF,SO,SI,DL
 
 必须 UTF-8；排除 HT/LF/CR 之外全部 C0、DEL 和 terminal special controls，不使用宽泛 C0 关键字。生产者将禁用控制字符替换为空格，将 LF 转成 CR；UI/help/测试明确此交付合同，应用的 CR/CRLF 归一化仍明确规定。C1 Unicode 数据不能取得 escape 语义。这只是源码审阅的候选行为，尚非真实终端验证。真实剪贴板、嵌套/分片 marker、控制键、Reset 后立即粘贴、进程归属/认证通道仍是功能验证任务。
 
-**提交独立 reviewer 的剩余问题：**只过滤控制键不能在 Reset 关闭 bracketed framing 后保留 paste 来源。例如粘贴 `/quit` 不含禁用控制字符，稍后的真实 Ctrl+S 可能把它当手打命令；粘贴 Tab 可能触发编辑补全而非保留数据。R3 要求粘贴永不变成命令且 tab 保真。“将执行”提示或第二次带内确认不能修复这一合同。在具体生产者能独立于 Reset 保留来源，或协调明确批准经复核的交互合同变更之前，不得宣布 P1 完成。要求 reviewer 实测并选择具体修复：生产者保证 framing/structured events，或明确说明粘贴语义变化、保留显式授权的有限 UX 提案。不得静默削弱 R3。
+**提交独立 reviewer 的剩余问题：**只过滤控制键不能在 Reset 关闭 bracketed framing 后保留 paste 来源。例如粘贴 `/quit` 不含禁用控制字符，稍后的真实 Ctrl+S 可能把它当手打命令；粘贴 Tab 可能触发编辑补全而非保留数据。这是来源/交互合同失败，不是无需后续真实submit即可自动执行的新实证；仅编辑补全也不等于命令执行。R3 要求粘贴永不变成命令且 tab 保真。“将执行”提示或第二次带内确认不能修复这一合同。在具体生产者能独立于 Reset 保留来源，或协调明确批准经复核的交互合同变更之前，不得宣布 P1 完成。要求 reviewer 实测并选择具体修复：生产者保证 framing/structured events，或明确说明粘贴语义变化、保留显式授权的有限 UX 提案。不得静默削弱 R3。
 
 ## R5.3 交付后果与下一裁决
 
@@ -45,13 +45,23 @@ XTerm*disallowedPasteControls: NUL,SOH,STX,ETX,EOT,ENQ,ACK,BEL,BS,VT,FF,SO,SI,DL
 
 若原生 producer 不能满足 provenance 合同，提议一个本地浏览器页面，沿用 terminal 风格 header/transcript/固定输入footer、配色及命令registry。这是启动界面的实质变更，**尚未批准实现**，不恢复 Tauri/Svelte 或任何退休桌面代码。CoreClient、持久 writer、outbox、sync 仍在 Node 进程；页面只做 structured input/output adapter。Mac/Linux 复用同一受支持浏览器 adapter，raw Terminal.app 保留安全降级 adapter。
 
-依赖/范围：固定版本 browser xterm.js renderer，与 headless5.5.0一致；小型本地页面；检查现有仓库依赖后明确选择固定版本的有界 WebSocket transport。无外部CDN、model/browser凭据、扩展、云服务、native clipboard backend 或通用web UI。renderer只显示输出，**绝不把 xterm.onData 接到 action dispatch**。普通输入面捕获 browser paste/composition/text events，交应用自有 structured editor；paste插入不可变数据node，不能产生key/action event。应用管理undo/redo和node来源；阻止默认paste重复插入。未知input类型作为数据，无法对齐buffer时禁用动作。Browser Reset/reload重连新session并恢复持久状态，不能把paste node重标为typed。
+依赖/范围：固定官方npm的 `@xterm/xterm@5.5.0`（与headless一致），将现有lock中的 `ws@8.21.3` 提升为exact direct dependency；Node内置HTTP加小型plain JavaScript页面，无bundler/framework。registry元数据和现有ws lock integrity本地保存，安装等待实施批准；确定性build复制package browser bundle/CSS，无外部CDN。无外部CDN、model/browser凭据、扩展、云服务、native clipboard backend 或通用web UI。renderer只显示输出，**绝不把 xterm.onData 接到 action dispatch**。普通输入面捕获 browser paste/composition/text events，交应用自有 structured editor；paste插入不可变数据node，不能产生key/action event。应用管理undo/redo和node来源；阻止默认paste重复插入。未知input类型作为数据，无法对齐buffer时禁用动作。Browser Reset/reload重连新session并恢复持久状态，不能把paste node重标为typed。
 
 只有独立 trusted browser keydown/click handler 可发送 submit/open-command/copy/quit action message，并检查composition状态及adapter generation；paste控制字符及xterm escape bytes不进入这些handler。Ctrl+S仍明确提交、Enter换行、Tab仅编辑、Ctrl+G命令buffer。parser使用structured transport的typed/paste nodes，所以粘贴`/quit`在reload或后续真实Ctrl+S之后仍是数据。composition期间禁用动作键；自动browser composition事件只是协议测试，不能冒充真实IME。剪贴板读取只来自真实paste event；复制必须明确触发并报告能力。
 
 transport/auth候选：仅bind随机127.0.0.1端口；只serve打包静态文件，严格CSP、无外部资源。每次launch随机capability放首次URL fragment，bootstrap后从可见history移除，仅用于初次WebSocket握手；不是Core token，不写持久draft/log。upgrade前验证Host和精确same-origin Origin，拒绝缺失/异常Origin；认证成功前不处理应用消息，Core owner token仅留Node。有界schema/message size、sequence/session generation、一个可写adapter；重连认证新channel并重新对齐状态，过期/重复/缺口事件不得派发动作。这隔离paste bytes及无关web origin，不承诺抵御同用户恶意本地进程。产品代码前须获协调批准surface/依赖范围。
 
 验证：adapter paste/typed/unknown/composition单测；真实browser paste delivery及trusted动作；`/quit`、tab、全部C0/C1、嵌套marker、大量/多次粘贴、undo/reload、断连/过期/重复消息；paste零动作、非composition明确submit恰好一次；既有durability/sync/outbox全套；origin/capability/schema/replay负例和有界memory/backpressure；相同grid/footer检查。真实Mac/Linux IME/clipboard/visual能力分别记录，可延期。明确复核风险：browser composition/beforeinput差异、编辑时来源保持、本地launch/capability、新renderer/transport依赖、accessibility及terminal式布局。请Claude判断此有限P2是否可实施并给修订，或提出更简单具体producer，不能重新变成无限环境门槛。
+
+### 提交复核的 P2 启动、传输与恢复细节
+
+- 初始browser目标：Chrome/Chromium153（reviewer已观察环境）、Chrome155（本机bundle155.0.8059.85，只读元数据，不是测试）。feature gate要求paste/composition/beforeinput/WebSocket；未支持family/major仅显示保留草稿只读，待另行验证。实测可用Chrome155及独立Chromium153输入路径；真实OS IME另行延期。不宣称Safari/Firefox支持、不回退raw xterm input；版本字符串只判断兼容性，不是producer认证。
+- 新TUI CLI显式browser-adapter选项启动，打印localhost bootstrap URL，可显式选择fixed argv的open-browser flag。不修改default browser、不启动Core、不安装browser。Node先取得唯一state writer再serve page。未认证页面不能读draft或POST；认证后先同步revision/sequence并显示最后durable state，再启用动作。
+- `isTrusted`只过滤本地browser事件，Node不信任message里自报此标记。Node独立验证exact schema、capability、same-origin upgrade、当前generation、递增expected sequence、当前revision和single writer；Node保存canonical typed/paste node model，只应用规定insertion/edit/undo转换，由它解析命令。页面发typed-text、paste-data、edit、composition-state、明确action，不发可执行command object、任意node-kind改写或POST请求。未知转换、revision mismatch、缺seq、malformed event锁动作并要求snapshot resync；旧generation及重复seq拒绝且不分发。
+- WebSocket `maxPayload`64KiB、关闭compression及optional native buffer/UTF-8 addon。paste按seq分片为有界事务（最多既有4MiB draft限制，未完成事务5秒timeout）；paste/composition事务未完成时禁动作，partial paste绝不算typed。server pending input最多8MiB，拒绝保留上个saved draft并明确报被拒编辑。render queue最多1MiB，替换完整viewport snapshot；history放Core/有界cache，不用无限browser scrollback。
+- “已保存”仅指server writer对精确revision的durable ACK已回到页面。本地显示但未ACK的编辑属于unsaved；tab关闭/crash不能保证最后事件送达，不依赖unload callback保存。显式/quit先flush已接收revision、回ACK，再关adapter/writer。意外disconnect立即撤销此generation开始任何POST的权限，包括排队new intent、retry/fingerprint replay；已发HTTP可完成并记录receipt/unknown，不另造请求。保留frozen bytes/ID/FIFO barrier。重新认证+durable state sync后可读/对账；必须新的明确Resume动作才恢复旧frozen dispatcher，reload不触发提交。
+- 无authenticated adapter时，Node保留自有lock及已收到save，提供有界60秒重连窗口，不新发POST；超时flush已收到工作并安全退出。restart从同state root恢复ACKed drafts/frozen outbox。socket heartbeat检测失活，新认证generation使旧会话失效，不能出现第二writer；flush失败明确显示/报告，不宣称成功。
+- browser clipboard仅支持真实paste event的plain text，无环境剪贴板主动读取、图片导入、自动copy。明确copy只在browser clipboard API可用且允许时执行；拒绝返回UNSUPPORTED/error，不伪报成功、不fallback native/OSC。Mac/Linux native选区及clipboard promise差异单独记录；支持时保留exact-body /copy与visible-text Ctrl+O差别。
 
 ## R5.4 R4 独立证据及限制
 
