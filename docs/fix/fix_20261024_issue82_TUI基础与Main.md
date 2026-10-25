@@ -392,3 +392,16 @@ Claude R2 精确复核7330c920d2d1ad1963969a9c38e2df9df7aa3e18，确认九项R1�
 - 低优先级 checkpoint 先让出一轮调度，让已经排队的 ClientStore 事务进入 writer high 队列。合并 checkpoint 时保留最初入队时间；等待达到 250 ms 后，在下一操作边界获得一次派发，防止持续 high 导致饥饿。不打断当前操作，不改变 fsync→ACK 或 dirty obligation 先持久化的语义。测试同时验证业务优先顺序、checkpoint 进展、6000 个事务及最终 cursor/dirty 收敛。
 - 仅 Darwin 的专用 writer helper 当前线程请求 `QOS_CLASS_USER_INITIATED`（0x19、相对优先级 0），对应用户正在等待持久化结果的工作；记录继承值、API 返回值与实际回读，失败明确报前置条件错误，不能伪报应用。Linux 不调用 Darwin API；不修改 Core、父进程或全机优先级。不允许 busy-wait、减少负载/注入延迟或放宽延迟和样本断言。该调度取舍针对已测得的 timer coalescing，最终仍以准确 CI 测量为准。
 - 补充 combining/ZWJ/VS/RI/Hangul 编辑后的持久化重开、完整 Unicode 上下文边界比对、非空草稿经分块 ACK 粘贴至总量 4 MiB、1 MiB/近 4 MiB 按键耗时、补全来源和空粘贴的选择/undo 保留。每个已用 API 必须标明消费文件与函数。原生 OS/实体快捷键/Master 本人体验仍分别记录。
+
+
+### Darwin 测试延迟校准 — 2026-10-25
+
+第五轮 macOS 失败后，协调批准仅校准测试注入。该轮 emitted/current/durable 均到 6000、dirty 为空，但仅 17 次 attempt，draft/attempt ACK 最大 1299.18/1571.81 ms。真实 fsync 平均 0.209 ms，要求的 20 ms sleep 实际平均 89.522 ms、p95 166.350 ms。QoS 请求/回读成功不保证调度时限；原失败仍记为失败。
+
+独立本机每组 60 样本对照表明，Python sleep、nanosleep、mach_wait_until 均有相似合并延迟。utility QoS 下普通 kqueue timer 平均 165.907 ms；单次 NOTE_CRITICAL timer 平均 20.110 ms、最小 20.030、最大 22.110 ms，总 CPU 3.291 ms。这支持校准注入方式，尚不证明 hosted runner 的性能，也不代表已归因全部 runner 延迟。
+
+仅 responsiveness 测试生成的 Darwin helper 使用 `select.kqueue`、`EVFILT_TIMER`、`EV_ADD | EV_ONESHOT`、`NOTE_CRITICAL`（0x20）和 `data=20` 毫秒。阻塞等待单个事件，校验 ident/filter/数量/EV_ERROR，正常关闭队列，异常明确失败。Linux 仍为 `time.sleep(.020)`。生产 writer、既有 QoS 范围、真实 fsync、父进程和全局调度不变；禁止忙等、静默回退、重试取优、跳过、扣除超额时间或放宽断言。
+
+每次注入以 monotonic_ns 测量，必须至少 20 ms；样本非空且与真实 fsync 一一对应。保留全部原始值和 method/platform/Python/CPU、min/mean/p95/max，CI 输出摘要。既有 6000/30 秒负载、至少 20 attempt、两项 ACK 500 ms、publication 100/250 ms、checkpoint 单槽、最终 cursor/durable 6000、dirty 为空及超时要求全部不变。新准确 HEAD 仍须通过真实 Linux/macOS CI 和同一 Claude 终审。
+
+探针 SHA256：常规等待 `cf224f474fa26a5adac8bee701cd8e53fd2c9e96b6b930d38faf9772c5a652a2`；kqueue 对照 `8bc05384e32481531b2dd09cf2f0a5e6c0d2227c0d43c6ebf56d3822fdca9ae1`。依据：[Apple timer 标志及默认毫秒单位](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/sys/event.h)、[filt_timerarm](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_event.c)。

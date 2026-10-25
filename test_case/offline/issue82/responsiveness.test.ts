@@ -32,20 +32,45 @@ test(
         `import sys
 import time
 import atexit
+import platform
 fsync_samples = []
 sleep_samples = []
+sleep_cpu_ns = 0
+delay_method = "time.sleep"
+delay_queue = None
+if sys.platform == "darwin":
+    import select
+    delay_queue = select.kqueue()
+    delay_method = "kqueue.EVFILT_TIMER.NOTE_CRITICAL"
 real_fsync = os.fsync
 def delayed_fsync(fd):
-    begin = time.monotonic()
-    time.sleep(0.020)
-    slept = time.monotonic()
+    global sleep_cpu_ns
+    cpu = time.process_time_ns()
+    begin = time.monotonic_ns()
+    if delay_queue is not None:
+        # Apple sys/event.h: default timer data is milliseconds; 0x20 is
+        # NOTE_CRITICAL (minimal coalescing). Only this test timer changes.
+        events = delay_queue.control([select.kevent(1, filter=select.KQ_FILTER_TIMER,
+            flags=select.KQ_EV_ADD | select.KQ_EV_ONESHOT, fflags=0x20, data=20)], 1, None)
+        if len(events) != 1 or events[0].ident != 1 or events[0].filter != select.KQ_FILTER_TIMER or events[0].flags & select.KQ_EV_ERROR:
+            raise RuntimeError("INVALID_DELAY_TIMER_EVENT:" + repr(events))
+    else:
+        time.sleep(0.020)
+    slept = time.monotonic_ns()
+    sleep_cpu_ns += time.process_time_ns() - cpu
+    if slept - begin < 20000000:
+        raise RuntimeError("INJECTED_DELAY_UNDERRUN:" + str(slept - begin))
     result = real_fsync(fd)
-    fsync_samples.append((time.monotonic() - slept) * 1000)
-    sleep_samples.append((slept - begin) * 1000)
+    fsync_samples.append((time.monotonic_ns() - slept) / 1000000)
+    sleep_samples.append((slept - begin) / 1000000)
     return result
 def save_timing():
+    if delay_queue is not None:
+        delay_queue.close()
     with open(${JSON.stringify(path.join(run, "fsync-metrics.json"))}, "w") as target:
-        json.dump({"fsync": fsync_samples, "sleep": sleep_samples}, target)
+        json.dump({"fsync": fsync_samples, "sleep": sleep_samples,
+            "method": delay_method, "platform": platform.platform(), "python": sys.version,
+            "sleepCpuMs": sleep_cpu_ns / 1000000}, target)
 atexit.register(save_timing)
 os.fsync = delayed_fsync`,
       ),
@@ -282,11 +307,19 @@ os.fsync = delayed_fsync`,
     }
     const disk = JSON.parse(
       fs.readFileSync(path.join(run, "fsync-metrics.json"), "utf8"),
-    ) as { fsync: number[]; sleep: number[] };
+    ) as {
+      fsync: number[];
+      sleep: number[];
+      method: string;
+      platform: string;
+      python: string;
+      sleepCpuMs: number;
+    };
     const distribution = (values: number[]) => {
       const sorted = [...values].sort((a, b) => a - b);
       return {
         count: values.length,
+        minMs: Math.min(...values),
         meanMs: values.reduce((a, b) => a + b, 0) / values.length,
         p95Ms: sorted[Math.floor(sorted.length * 0.95)],
         maxMs: Math.max(...values),
@@ -321,6 +354,12 @@ os.fsync = delayed_fsync`,
         ),
         realFsync: distribution(disk.fsync),
         injectedSleep: distribution(disk.sleep),
+        delayCalibration: {
+          method: disk.method,
+          platform: disk.platform,
+          python: disk.python,
+          cpuMs: disk.sleepCpuMs,
+        },
       };
     fs.writeFileSync(
       path.join(run, "metrics.json"),
@@ -329,6 +368,12 @@ os.fsync = delayed_fsync`,
     );
     // Hosted runners discard the working directory; retain numeric first-failure evidence in CI logs.
     console.log(JSON.stringify({ issue82Responsiveness: result }));
+    assert.ok(disk.sleep.length > 0, JSON.stringify(result));
+    assert.equal(disk.sleep.length, disk.fsync.length, JSON.stringify(result));
+    assert.ok(
+      disk.sleep.every((ms) => ms >= 20),
+      JSON.stringify(result),
+    );
     assert.equal(failure, undefined);
     assert.equal(emitted, 6000);
     assert.equal(result.finalCursor, "6000", JSON.stringify(result));
