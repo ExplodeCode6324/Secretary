@@ -40,6 +40,6 @@ Core runs in the background with the fixture model and `.demo-data` as its defau
 
 Core now includes an independent lifecycle, reliable sync, Scopes, authorization and resolution of unknown outcomes, model retries, memory search and removal of original inputs from context, scheduled wakeups, proactive push delivery, storage performance improvements, module separation, and reorganized prompts. The current documentation was aligned with the code in [#27](https://github.com/ExplodeCode6324/Secretary/issues/27); see [#7](https://github.com/ExplodeCode6324/Secretary/issues/7) for the overall roadmap.
 
-The current client route follows the [TUI requirements](docs/tui/requirements-and-backend-plan.md). The Tauri/Svelte client is retired; the new TUI is not implemented yet. Use the [Core operations guide](docs/en/operations.md). Unfinished GUI acceptance retains its original status.
+The current client route follows the [TUI requirements](docs/tui/requirements-and-backend-plan.md). The Tauri/Svelte client is retired; the local browser command interface is documented in [the guide](docs/tui/browser-guide.md). Use the [Core operations guide](docs/en/operations.md). Unfinished GUI acceptance retains its original status.
 
 Device issues #6/#11–#14 remain frozen. SwiftUI is retired; its design is historical only.

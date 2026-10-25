@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Secretary Main</title>
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/client.js" defer></script>
+  </head>
+  <body>
+    <header id="header">Secretary · connecting</header>
+    <main id="transcript" aria-label="Main timeline"></main>
+    <footer>
+      <div id="mode"></div>
+      <div id="draft" aria-label="Canonical draft" tabindex="-1">
+        <div id="runs"></div>
+        <textarea
+          id="sink"
+          aria-label="Draft input"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+        ></textarea>
+      </div>
+      <div id="pending" aria-live="polite"></div>
+      <button id="pending-copy" hidden>Copy pending data</button>
+      <div id="controls">
+        <button data-action="submit">Submit</button
+        ><button data-action="commands">Commands</button
+        ><button data-action="literal">Literal</button
+        ><button data-action="copy">Copy</button
+        ><button data-action="cut">Cut</button
+        ><button data-action="scroll-up">↑</button
+        ><button data-action="scroll-down">↓</button
+        ><button data-action="resume">Resume</button
+        ><button id="large-yes" hidden>Apply without undo</button
+        ><button id="large-no" hidden>Cancel large edit</button
+        ><button id="record-copy" hidden>Copy record</button
+        ><button id="record-restore" hidden>Restore rejected body</button
+        ><button id="resync" hidden>Reconnect</button>
+      </div>
+      <div id="status" role="status">Waiting for authentication</div>
+      <div id="refusal" role="status" hidden></div>
+      <div id="recovery" role="status" hidden></div>
+    </footer>
+    <div id="small" hidden>
+      Resize to at least 40 columns × 12 rows. Draft retained; submission
+      disabled.
+    </div>
+  </body>
+</html>

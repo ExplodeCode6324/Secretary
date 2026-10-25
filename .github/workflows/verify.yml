@@ -52,6 +52,11 @@ jobs:
           python3 --version
           node --input-type=module -e 'import { Client } from "pg"; const c = new Client({connectionString: process.env.SECRETARY_TEST_DATABASE_URL}); await c.connect(); console.log((await c.query("select version() as version")).rows[0].version); await c.end();'
       - run: npm run verify
+      - name: Linux isolated TUI G0 prerequisites and PTY lifecycle
+        run: |
+          node --import tsx src/pi_secretary/scripts/issue82-g0-environment.ts
+          /usr/bin/python3 test_case/offline/issue82/g0-pty.py "$(command -v node)" .demo-data/issue82-tui/g0/ci-pty.json
+          node --import tsx src/pi_secretary/scripts/issue82-g0-render.ts .demo-data/issue82-tui/g0/ci-pty.json
 
   core_macos:
     name: Core (macOS)
@@ -73,7 +78,7 @@ jobs:
       - run: npm ci
       - name: Core process recovery, push transports and message projections
         # PostgreSQL history/provenance runs in the Linux full suite above.
-        run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts test_case/offline/issue19/store-ownership.test.ts test_case/offline/issue24/transport.test.ts test_case/offline/issue80/*.test.ts test_case/offline/issue81/{api,import,input,provider,recovery,withdrawal-provider}.test.ts
+        run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts test_case/offline/issue19/store-ownership.test.ts test_case/offline/issue24/transport.test.ts test_case/offline/issue80/*.test.ts test_case/offline/issue81/{api,import,input,provider,recovery,withdrawal-provider}.test.ts test_case/offline/issue82/*.test.ts
 
   verify:
     name: verify
