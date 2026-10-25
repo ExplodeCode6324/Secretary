@@ -1,3 +1,42 @@
+# Issue #82 — R7 完整编辑器与恢复合同
+
+日期：2026-10-25（Asia/Hong_Kong）。**仅计划**，正式实施仍等精确计划Claude PASS及协调批准。协调已选定最小本地browser命令界面、plain-DOM/ws8.21.3范围。R7解决R6四项歧义和三条非阻塞注记，冲突历史条款以本轮为准；下方原文逐字保留，不追溯改测试结果。
+
+## R7.1 唯一编辑器：input sink 加 canonical draft
+
+textarea**只作input sink**，不保存draft，最多容纳当前native composition preview。Node canonical typed runs/paste nodes用textContent/style枚举渲染可见draft、collapsed paste chips、app caret和app selection。sink定位于app caret，以使IME候选窗口正确锚定；保留focus/accessibility label，不设display:none。只有一套editor model，不用textarea.value与Node双模型竞争。仅在input/composition事务结束后清sink，render不能顺便清掉active composition。
+
+collapsed paste chip作为atomic caret/selection单位：click或明确keyboard activation只切换展开显示，不改内容/发送。expanded可暴露精确字符range，编辑创建新的immutable paste-derived nodes/blobs并保留paste来源，不改原blob、不把保留文字重标typed。partial cut剩余片段仍paste-derived，undo恢复旧node引用，copy原文而非chip label。应用以精确canonical revision管理caret/selection offset及range转换；Arrow/Home/End/Backspace/Delete和受支持selection/word-edit转为明确editor operation，不从textarea native offset/targetRange猜draft选区。insertion/composition开始时冻结app selection/revision，验证后一次提交，只按规定operation rebase。autocorrect/replacement/dictation range若指向active事务外sink文字或无法映射app selection，保留draft并锁/resync。sink关闭autocomplete/autocorrect/spellcheck；typed/composition仍按R6表。未知Ctrl-letter编辑（含平台yank/transposition）在非composition期间prevent并显示unsupported，不允许隐形修改sink。native browser copy/paste/undo与应用显式绑定分别处理，composition优先于此抑制。
+
+draft copy/cut使用app selection及明确app clipboard操作，不假设sink有native选区。复制精确canonical选中文字，必要时展开所选paste node；cut仅在明确clipboard write成功且revision/range仍有效后修改canonical model。失败或stale selection保留draft，复制成功不授权删除新revision；cut是单次可undo编辑。browser API拒绝显示UNSUPPORTED/error，无native/OSC fallback。transcript native选区复制仍native，不改draft；Ctrl+C/Cmd+C不退出。paste block经copy/edit/undo/reload保留data来源，不把拷贝的label误当paste ID。browser event text到canonical/frozen只做既定CR归一化；source-to-browser clipboard转换单独测量，不宣称应用保证该外部链路无损。
+
+## R7.2 仅 restart 取得 fresh bootstrap
+
+无有效per-tab reconnect secret时选**restart only**。R7删除R6未定义的“通过调用CLI请求fresh URL”机制。launch进程不读取terminal stdin、key bytes或readline；不加`--new-url`、第二writer或control socket。普通reconnect/reload在60秒窗口内用轮换secret。bootstrap消费/丢失或握手丢失新secret时，必须等当前TUI窗口结束退出，再fresh CLI launch；page/terminal明确说明，不复用旧token。已有writer占用时第二次launch明确报already-running/恢复指引并退出，不另抢writer、不撤销active browser session。可显式OS关闭已确认的TUI进程，按bounded flush再重启；不停止Core或无关进程。
+
+初次launch无人认证时，bootstrap60秒过期；完成owned初始化flush、释放writer并退出，显示expired/no-client。不自动重发、不允许未认证流量延长deadline。消费后握手失败同样采用无active-client有界期限，不无限持锁。有效重连按R6原子消费/轮换secret并撤销旧generation；握手ACK/state sync/必要Resume之前无动作。
+
+明确duplicate-tab行为：若browser复制sessionStorage且duplicate用当前secret认证，最多一个新generation胜出；旧tab立即只读/replaced、后续event拒绝，显著保留/报告未ACK本地编辑为unsaved，不暗中合并或抹除。新tab只接canonical/durable snapshot并须Resume旧outbox。丢失/重复/旧secret不能造第二writer。实测browser复制行为，不凭假设。
+
+## R7.3 Resume barrier 与 profile 所有权
+
+已有frozen entries等Resume时，新明确submit经验证后**持久排队尾**，显示“queued — waiting for Resume”。new submit不等于Resume，不能越过前项或UNKNOWN/FIFO barrier。该队列准入按原合同仅在helper ACK后清精确来源draft revision，不是HTTP receipt。single dispatcher仅在明确Resume解除session barrier且binding/reconcile/identity条件满足后开始处理；无旧resume barrier时，新明确submit按当前generation正常分发。disconnect在下一个POST前撤权，已开始HTTP按R6处理。异步durable attempt-marker ACK之后、真正开始HTTP之前再次检查generation/authorization；若fsync期间断连则不POST，保守保留已durable attempted/unknown记录供后续对账/明确Resume，不能错误清除或回滚。
+
+协调已从#82彻底删除可选`--app`/专用browser profile功能，覆盖R6提案；**不创建、读取、修改或清理任何browser profile目录**。主入口只打印localhost URL，可用fixed argv打开已安装browser。无cookie导入/登录、browser安装、安全变更或profile所有权/清理子系统。client filesystem仍限core-endpoint.json读取及自身tui-v1状态，沿用helper writer。extensions/同用户进程仍为已披露残余风险，不靠新增profile功能声称闭合。
+
+## R7.4 复核证据与实施测试
+
+R6复核`60d166f8cc77f990ae7b7861523cf08265996297`认可设计及全部六项R5修订，确认附件/runbook/历史一致，最终CHANGES_REQUIRED四歧义现已处理。其自写Chromium153/Xvfb原型用协议key输入：Ctrl+Shift+S零动作，Ctrl+S一次，repeat忽略，physical-S配模拟非Latin key值一次。Chromium自有X11clipboard/selection实测Shift+Insert、中键、文字drag/drop；保留layout-overlap首败。**待reviewer确认的证据更正：**R6最终文字称U+009B丢失，但同包`logs/p2-v2-xvfb.json`的Shift+Insert step在paste event及node均有码点155。Codex已将driver CLIP与全部event码点及归一化node比较：source/event精确一致，source经CR归一化后与node一致，newActions=0。JSON SHA256 `f19b5cadd492c8e1284d41114fd8804b0a6c62d9b4a4da8cf63c1a97aa6dbc6a`；driver SHA256 `ca5b80ba4fbd924a9034062db778e0f44ec4c923f4828477984a48fa81ee05e7`。不得把未成立的丢失当已知限制或禁用Shift+Insert；请Claude撤回该说法，或指定其他失败run/hash及精确输入输出码点。保留原报告及更正。CapsLock、browser保留键拦截、真实OS IME、Mac/Chrome155、WS/Node writer、undo/reload/reconnect未测。产品须测实际adapter，并区分各外部交付路径局限与event到frozen payload保真。
+
+ignored原始包SHA256 `b9bd3e312c3fc14a3e4b06acc93daf7a74f757319e96340f4ada022244169190`，16项/48,378解包字节，含首败及reviewer自写原型。没有再次尝试external xterm构建；历史G0 FAIL_PROTOCOL_PROVENANCE及native/IME延期不变。
+
+增补产品测试：sink composition/caret定位/range映射；collapsed nodes cut/copy/undo；clipboard拒绝及cut途中编辑；首次no-client过期；bootstrap消费/secret丢失后restart；duplicate-tab撤销及旧unsaved；new-submit-tail等Resume；无browser-profile读写/cleanup。补充而不替代既有durability/input/transport/identity/CI测试。本计划不再留下核心架构选择；同Claude给PASS或具体功能修订后交协调正式释放，本文不批准产品代码/PR/合并。
+
+---
+
+## 历史 R6 计划 — 以下原文逐字保留
+
+
 # Issue #82 — R6 提交实施批准的 structured input 路径
 
 日期：2026-10-25（Asia/Hong_Kong）。**仅计划。**本轮采纳R5独立建议及六项修订；协调已选定P2和plain-DOM surface/依赖范围作为Mac/Linux动作路径。产品正式实施仍须精确计划通过Claude及协调后续释放。下方R5/R4/R3逐字保留历史；输入、renderer、browser键位、重连冲突处以R6为准。其余Core/draft/outbox/sync/限额及准确HEAD验证要求不变。

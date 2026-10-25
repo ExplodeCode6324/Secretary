@@ -1,4 +1,6 @@
-# Issue #82 — independent cloud G0 runbook (R6)
+# Issue #82 — independent cloud G0 runbook (R7)
+
+R7 fixes the editor input sink/canonical selection model, restart-only fresh bootstrap, FIFO waiting-for-Resume, and removes browser-profile creation. It also requires generation revalidation after durable attempt-marker ACK before HTTP. Read the full R7 controlling section. The R6 prototype's final prose about U+009B conflicts with its raw Shift+Insert log: source/event codepoints and normalized node preserve U+009B. Verify and correct this discrepancy; do not change test expectations or disable a path based on unsupported prose.
 
 R6 controlling scope: the coordinator selected the structured browser input path with plain DOM text rows. Review the six input/authentication corrections and their concrete tests in the full R6 plan. No further xterm/X-library build is requested: the single bounded attempt was denied, and that native candidate is outside #82's critical path. The G0 commands below remain historical/diagnostic evidence; passing them cannot approve a raw-input producer or the not-yet-implemented product. Browser prototype results remain separately attributed and are not real OS IME acceptance.
 
@@ -63,7 +65,7 @@ Historical R5 disposition: the one scoped unprivileged xterm/X-library build was
 1. Exact SHA; independently observed OS/runtime/GUI/terminal/font/clipboard/IME capabilities.
 2. Each command, exit code, first failure and what you actually inspected/executed. Separate upstream facts, Codex evidence and your evidence.
 3. Artifact names/hashes plus actual screenshots/rendered images where possible. Distinguish HEADLESS_EMULATION, REAL_LINUX_TERMINAL and REAL_MAC_IME.
-4. PASS/CHANGES_REQUIRED for R6 plan readiness and its selected structured browser producer. The coordinator selected the surface/dependency scope, but formal implementation release remains a separate decision after plan PASS. No timing heuristic, in-band confirmation or self-asserted `--trust-terminal` bypass. A read/edit-only raw terminal is degraded, not the final Main deliverable.
+4. PASS/CHANGES_REQUIRED for R7 plan readiness and its selected structured browser producer. The coordinator selected the surface/dependency scope, but formal implementation release remains a separate decision after plan PASS. No timing heuristic, in-band confirmation or self-asserted `--trust-terminal` bypass. A read/edit-only raw terminal is degraded, not the final Main deliverable.
 5. Visual/IME items unavailable solely due to sandbox capability are DEFERRED/NOT_TESTED and nonblocking under Master's 2026-10-25 authorization. Functional defects still need a reliable boundary or repair. Do not maintain the superseded mandatory-unlocked-Mac gate.
 
 The next step is coordinator disposition, then product implementation with full validation, API inventory, exact PR HEAD review and actual Linux/macOS CI. This preparation is not a PR or merge approval.

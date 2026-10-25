@@ -65,3 +65,10 @@ Master 新授权由协调传达：Claude 独立云端视觉验收，环境不可
 - 单次xterm build在执行前再次被automatic classifier以Code from External拒绝，原始记录已取回；没有重试、变形命令或换通道。真实Linux terminal=NOT_TESTED/DEFERRED，真实Mac/OS IME仍未测试。不再尝试该build。
 - 协调已选定R6 surface/依赖范围：本地browser承载命令式界面、plain DOM/textContent、固定ws8.21.3、NodeHTTP/plainJS；不新增browser xterm、不复活GUI、不另开发完整raw客户端。G0研究证据保留，raw安全降级不是Main交付。正式产品实施仍等R6精确计划PASS和协调后续批准。
 - R6采纳code+exact modifier/浏览器copy及保留键/IME确认/inputType矩阵/single-use bootstrap+per-tab轮换secret/明确P2选择与textContent；补ACK/断连/恢复授权及验证限制。历史R5/R4/R3原文不改，同Claude继续五分钟规则。
+
+## R6 独立复核结果与 R7 合同收敛
+
+- 精确 `60d166f8cc77f990ae7b7861523cf08265996297`；2026-10-25 13:29:15.625 HKT发送，13:34:27.505首次读（311.880秒），最终CHANGES_REQUIRED四项小文本歧义；认可选定设计及R5全部六修订，不要求新的环境证据。原始数据ignored `.demo-data/issue82-tui/r6/`。
+- Claude独立fetch/英文附件/runbook/历史字节一致，没有xterm重试。自写Chromium153/Xvfb原型v2补Shift排除/repeat/模拟非Latin physical code、ShiftInsert/middle-click/drop事件；保留layout-overlap首败。CapsLock实际未开启、CDP绕开browser快捷键本身，不能当native保留键拦截；真实IME/Mac/Chrome155/WS/durable/undo/reload/reconnect均未测试。
+- 原始包SHA256 `b9bd3e312c3fc14a3e4b06acc93daf7a74f757319e96340f4ada022244169190`，16项/48,378解包字节。协调发现最终文字“ShiftInsert丢U+009B”与原始日志矛盾，Codex再从driver CLIP逐码点核实source/event相等、CR归一化source/node相等，155/NUL保留，newActions0；不据此禁用路径/改测试。R7交Claude撤回或明确另一个真实失败run，保留原始报告与更正审计。
+- 协调选定R7：textarea只作caret定位input/IME sink，canonical chips/caret/selection/undo属于应用；restart-only fresh bootstrap、不读launch stdin、不加控制socket；new submit持久排FIFO尾且waiting Resume；attempt-marker ACK后HTTP前重新验证generation；删除专用browser profile功能。重复tab接管、未知Ctrl组合、初次60秒无人认证退出也明确。仅文档，无产品实现/PR/合并。
