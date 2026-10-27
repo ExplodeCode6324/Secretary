@@ -158,3 +158,43 @@ test("scroll anchor writes coalesce, close flushes the last stable position, and
     }
   }
 });
+test("closing a local panel restores a saved timeline anchor or follows the bottom", async () => {
+  for (const anchored of [false, true]) {
+    const h = await harness();
+    try {
+      const rows = Array.from(
+        { length: 40 },
+        (_, i) =>
+          ({
+            kind: "message",
+            id: `message:${i}`,
+            role: "assistant",
+            text: `body ${i}`,
+            clipped: false,
+            outcome: null,
+            input_state: null,
+          }) as any,
+      );
+      h.patch({
+        rows,
+        panel: Array.from({ length: 60 }, (_, i) => `panel ${i}`).join("\n"),
+      });
+      h.draw();
+      h.internal.scroll(-1);
+      h.draw();
+      if (anchored)
+        h.app.store.state.anchor = { message_id: "message:5", offset: 0 };
+      h.patch({ rows, panel: "" });
+      const after = h.draw();
+      assert.ok(h.internal.top > 0);
+      assert.match(after.join("\n"), /Local view closed/);
+      if (anchored) assert.equal(h.internal.reading?.id, "message:5");
+      else {
+        assert.equal(h.internal.reading, undefined);
+        assert.equal(h.app.sync.following, true);
+      }
+    } finally {
+      await h.close();
+    }
+  }
+});

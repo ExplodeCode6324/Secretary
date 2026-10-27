@@ -502,3 +502,49 @@ test("authority captured behind a visible Cancel cannot execute after the decisi
     await h.close();
   }
 });
+test("exit reports a retained large paste that opens an unapplied decision during the drain", async () => {
+  const h = await harness();
+  let finish!: (saved: boolean) => void;
+  const exited = new Promise<boolean>((r) => {
+    finish = r;
+  });
+  h.app.onExit = finish;
+  const large = "p".repeat(600 * 1024);
+  h.paste(large);
+  h.key("\x03");
+  assert.equal(await exited, true);
+  assert.equal(h.value(), "");
+  assert.equal(h.input.exitRefusedBytes, Buffer.byteLength(large));
+});
+test("exit explicitly reports an already visible unapplied decision even without queued bytes", async () => {
+  const h = await harness();
+  let finish!: (saved: boolean) => void;
+  const exited = new Promise<boolean>((r) => {
+    finish = r;
+  });
+  h.app.onExit = finish;
+  h.paste("p".repeat(600 * 1024));
+  await h.settle();
+  h.key("\x03");
+  assert.equal(await exited, true);
+  assert.equal(h.value(), "");
+  assert.equal(h.input.exitUnconfirmedDecision, true);
+});
+test("startup read-only reconciliation failure is a notice without dispatching a send", async () => {
+  const h = await harness();
+  try {
+    h.app.outbox.observe = async () => {
+      throw Error("CORE_OFFLINE");
+    };
+    h.input.connect();
+    await h.settle();
+    assert.match(
+      h.app.notice,
+      /Read-only outbox status unavailable.*CORE_OFFLINE/,
+    );
+    assert.equal(h.input.refusal, "");
+    assert.equal(h.app.store.state.outbox.length, 0);
+  } finally {
+    await h.close();
+  }
+});

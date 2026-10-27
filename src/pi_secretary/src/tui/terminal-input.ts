@@ -38,6 +38,7 @@ export class TerminalInput {
   quarantined = false;
   exiting = false;
   exitRefusedBytes = 0;
+  exitUnconfirmedDecision = false;
   onExitRequest: () => void = () => {};
   private exitTimer?: ReturnType<typeof setTimeout>;
   private closed = false;
@@ -67,7 +68,8 @@ export class TerminalInput {
   connect() {
     this.app.outbox.connect(this.generation + 1);
     void this.app.outbox.observe().catch((error) => {
-      this.refusal = String(error);
+      if (this.closed || this.exiting) return;
+      this.app.notice = `Read-only outbox status unavailable: ${String(error)}`;
       this.repaint();
     });
   }
@@ -177,6 +179,7 @@ export class TerminalInput {
     this.exiting = true;
     this.rotateLease(); // no queued or late-ACK admission can initiate a new POST
     this.bar = false;
+    this.exitUnconfirmedDecision = !!this.decision();
     const editing = new Set([
       "\r",
       "\n",
@@ -260,6 +263,10 @@ export class TerminalInput {
           if (/^(INPUT_TRANSACTION_TOO_LARGE|DRAFT_TOO_LARGE)/.test(reason))
             this.fail(reason);
           else this.refusal = reason;
+        }
+        if (this.exiting && this.decision()) {
+          this.exitUnconfirmedDecision = true;
+          this.exitRefusedBytes += job.bytes;
         }
         if (!this.decision() && this.paintedDecision) {
           this.epoch++;

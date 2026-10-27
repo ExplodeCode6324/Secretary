@@ -65,3 +65,13 @@ Evidence additions:
 - `decision-regressions-second.log`: 13/13; `decision-stream-third.log`: 20/20; `terminal-delta-focused.log`: 45/45 at intermediate delta; `input-decision-final.log`: 17/17 after adding post-paint authority coverage. Final exact-HEAD verification remains recorded separately.
 - `product-pty-delta.json`: 14 product PTY paths PASS after keyboard-exit changes; `product-render-delta.log`: actual ANSI cell/cursor assertions PASS. Both remain synthetic, not native Terminal/IME.
 - No reviewer/native gate was waived. Current candidate must receive another exact-HEAD review and CI before handoff; native runbook and Master C2/C3 acknowledgement remain NOT_TESTED.
+
+## Implementation review R2 disposition
+
+Claude independently verified `532fec10c6e3ec6fecc16ccc7f0860845bf9bf42` / tree `478fad79fdf0889c4d5361496e069dd5a6965034`, reviewed the delta and reran its three R1 probes plus exit/hostile-framing probes. Verdict: **PASS_PENDING_CI_AND_NATIVE**; no new blocking defect. It did not run the repository suite or PTY matrix. Both Linux/macOS and aggregate CI subsequently passed in run `40566574955`, including product PTY on both platforms.
+
+One non-blocking exit-accounting defect is corrected before handoff: a retained large paste can create a decision during the exit drain after it has been dequeued. The client safely leaves it unapplied, but previously reported no refused bytes. The adapter now counts that job and explicitly flags pre-existing unconfirmed decisions for stderr reporting. `exit-accounting-first.log` preserves the failing-first regression; the succeeding focused checks and final exact-HEAD review/CI are recorded separately.
+
+Both other non-blocking suggestions are also addressed with failing-first tests: a vanished local panel/expansion restores the last persisted timeline anchor, or follows the bottom when none exists; an unavailable startup read-only reconciliation is a notice and is ignored after shutdown. No new persistence or send permission is introduced.
+
+`full-implementation-delta.log` completed on exact parent `532fec10`: 862/862, zero failure/skip, with types/docs passing. Final focused tests (`final-review-focused.log`) pass 50/50. The four new assertions first failed in `exit-accounting-first.log`. The final commit receives its own required complete Linux/macOS CI (including product PTY), types/docs checks and same-session delta review; parent results are not substituted for that CI. Native acceptance remains NOT_TESTED.

@@ -138,6 +138,18 @@ export class TerminalView implements Presentation {
       clearTimeout(this.anchorTimer);
       this.pendingAnchor = undefined;
     }
+    if (
+      this.reading?.local &&
+      !this.lines.some((line) => line.id === this.reading!.id)
+    ) {
+      const anchor = s.anchor;
+      const id = anchor?.message_id ?? anchor?.event_id;
+      this.reading = id && anchor ? { id, offset: anchor.offset } : undefined;
+      if (!this.reading) this.app.sync.following = true;
+      this.anchorNotice = this.reading
+        ? "Local view closed; restored saved reading position."
+        : "Local view closed; following latest output.";
+    }
     if (this.reading) {
       const resolved =
         s.rows.find(

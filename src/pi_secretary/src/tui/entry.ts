@@ -35,7 +35,7 @@ async function main() {
   let started = false,
     failed = false;
   app.onExit = (saved) => {
-    if (view.input.exitRefusedBytes)
+    if (view.input.exitRefusedBytes || view.input.exitUnconfirmedDecision)
       console.error(
         `${view.input.exitRefusedBytes} queued input bytes were refused during exit; unconfirmed decisions were not applied.`,
       );
