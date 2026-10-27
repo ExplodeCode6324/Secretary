@@ -2,6 +2,28 @@
 
 Date: 2026-10-28 (Asia/Hong_Kong). Scope: **fix**, plan review pending. Master explicitly requires a terminal TUI and supersedes the browser product choice in the historical R7 plan. No implementation or acceptance is claimed by this document. Merge needs separate authorization.
 
+## R3 controlling amendments (supersede R2 and R1 conflicts)
+
+R2 returned CHANGES_REQUIRED (narrow); all original architectural findings were closed. Adopt its seven concrete amendments without expanding the rollback scope:
+
+A. Input-session validity remains distinct from permission to send. `rotateLease()` synchronously calls `outbox.disconnect(g)` then `outbox.connect(g+1)`, without resetting InputProtocol or clearing clipboard/confirmation state. Undersize and recoverable input quarantine use rotation; shutdown/terminal loss use revocation alone. The adapter blocks authority-bearing actions while undersized/quarantined, but allows safe inspection, scrolling, Escape and exit. Pending outbox entries still require explicit Resume after recovery. Preserve pending large-edit decisions across resizing.
+
+B. Ctrl+T is the candidate primary action-bar entry; F2 is only an accelerator. Add Set mark / Clear mark to the action bar. Ctrl+Space is optional because macOS may own it for input-source switching. Bracketed paste while the bar is focused returns to the editor and inserts paste data, never navigates the bar. Native delivery of all required routes remains a merge gate.
+
+C. Preserve existing browser confirmation semantics: benign editing already queued before the confirmation's first paint may resume after the decision; input arriving after that paint is refused with a visible notice. Never replay an authority-bearing action across a decision (Submit, Resume, Cut, Import, Restore or Apply), regardless of capture time. Port the existing queued-input browser regression. Bound queued benign input; no deferred Ctrl+S may submit after Apply.
+
+D. Restore with one fixed sequence covering bracketed paste off, mouse/focus off, modifyOtherKeys off, autowrap on, synchronized output ended, alternate screen off, cursor shown and SGR reset (the existing G0 RESTORE constant). Restore saved raw mode at shutdown start. Latch the custom Terminal write method off afterwards so late ticks cannot repaint. Assert restoration output tails for every exit path.
+
+E. A missing paste terminator cannot wedge the client forever. Overflow discards until end, but an idle timeout of 10 seconds or a total discard bound of 8 MiB abandons the incomplete paste, reports the byte count and rotates the lease. Discarded/incomplete text is never committed. Subsequent bytes become keys; this is a liveness rule and remains part of the C3 provenance-loss residual, not authentication. Explicit recovery is required before new authority-bearing actions.
+
+F. Replace the proposed StringDecoder with one `TextDecoder("utf-8", {fatal: true})` using streaming decode. Invalid or incomplete UTF-8 resets the decoder, quarantines input and preserves the canonical draft. Pass only decoded ordinary-key strings to any key decoder. Keep fragmented valid UTF-8 coverage.
+
+G. Commit a Master-operated native runbook with exact commands, numbered steps, synthetic G0 clipboard payloads, expected observations and a recording template. Fixture Core records exact request IDs, counts and body bytes; visible paste chips show provenance. C2/C3 raw delivery classification uses only the historical G0 probe's synthetic trace; the product adds no raw input logging. Undelivered mandatory bindings require code changes and delta review, not waiver. C2 verbatim delivery selects trusted-text-only Cmd+V; C3 is documented and acknowledged. Candidate confirmation submitting, or raw/alternate-screen leakage, blocks merge. Merge-blocking native checks include all decision routes, C2/C3 measurement and Master acknowledgement, IME confirmation never submitting, and window-close/Ctrl+C/SIGTERM restoration. Visual polish, colour nuance and emoji-width cosmetics are deferrable only by Master. Help labels bindings as candidates until measured; PR retains NOT_TESTED until evidence is supplied. Respect the Terminal tool denial without alternate automation.
+
+Also test background launch/job-control for lock and raw-mode residue; document manual move-aside recovery of an interrupted pristine first commit (never auto-delete files); accept `color` consistently in config-file and CLI parsing; prominently state Ctrl+C closes the client.
+
+Review provenance: R1 and R2 were source/plan reviews, not independent native or full-suite acceptance. Remote R2 commit is `a2c1c26d58ebd8fe10448a2d78850f733ee2041d`; it has exactly the same tree `8196d42b9308c8ed65f2d682286c37ebe21e0d58` as the initially supplied local `7a5c060`. The unavailable local SHA is preserved on a local backup branch; the active branch tracks the published commit.
+
 ## R2 controlling decisions (supersede conflicting R1 wording below)
 
 R1 reviewer verdict: CHANGES_REQUIRED. The following concrete decisions address all five blocking findings and the smaller required changes. The existing direction and preserved modules remain unchanged. This section is the controlling implementation contract, not a claim that native acceptance has occurred.
@@ -125,5 +147,5 @@ Shutdown revokes send authority immediately, stops sync, waits within the existi
 
 ## Review record
 
-- R1: not submitted yet. No Claude page was open at inspection; Master said they will open it. Browser review remains the selected workflow; no Hermes fallback authorized.
+- R1: CHANGES_REQUIRED; incorporated in R2. R2: CHANGES_REQUIRED (narrow); incorporated in R3. Browser Claude Opus 5.5 Extra remains the reviewer; no Hermes fallback authorized.
 - Baseline focused tests: 76/76 passed, zero failures/skips; editor, outbox, sync, writer, writer-barriers, regressions, responsiveness, performance-policy and G0. First log: `.demo-data/issue82-terminal-rollback/baseline-first.log`. G0's expected-failure witness passing means the limitation was reproduced, not resolved. This is baseline model/durability evidence, not terminal implementation or acceptance.
