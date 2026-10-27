@@ -49,3 +49,19 @@ Browser Origin/token/socket/DOM/composition simulation tests retire with that cl
 ## Delivery gates
 
 Run complete post-change verification, Linux/macOS CI and same-session exact-HEAD review. Native runbook results and Master acknowledgement remain mandatory before merge. Master decides merge separately. Existing historical evidence and unrelated local data are retained.
+
+## Implementation review R1 disposition
+
+Claude independently fetched `571856b8c8b858ba6ca6d39284f862808c3d1be6`, verified its tree and legacy fixture source hashes, and ran isolated source probes (mock controller/layout stub; no npm install/full suite/native run). Verdict: CHANGES_REQUIRED. Its three blockers were resolved with failing-first tests: action-bar authority replay across a decision, consecutive pastes coalesced into one read being discarded, and unscrollable local panel/expansion/pending regions.
+
+Further local probes reproduced delayed Cut invalidating a large decision, clipboard import completing outside the ordered controller queue, prequeued replacement confirmation and post-paint authority crossing Cancel. Fixes use the existing controller, an inexpensive decision getter and an epoch at both decision opening and resolution; action-bar and direct-key authority share the same guard. Clipboard completions join the queue and validate the current editor/selection/lease/decision. Escape clears controller-owned removal/restore decisions.
+
+Other review observations addressed: stable session-local ids for non-timeline regions; 200 ms trailing real-anchor write debounce plus exit flush; adapter-level 4 MiB/500 ms responsiveness coverage without full snapshots; read-only outbox observation restored at session connect; product PTY matrix added to macOS CI. Ctrl+C/Ctrl+backslash and action-bar Quit restore synchronously, revoke send permission, then permit at most one second of queued benign editing before the existing durable flush. Queued authority/clipboard actions and unconfirmed decisions are refused, with stderr byte accounting; repeated exit keys/signals retain immediate close. This narrowly amends R3 A: the brief keyboard-exit drain retains an input-only local lease with `needsResume=true`, never permission to POST; final close revokes it. External signals/terminal loss still revoke immediately.
+
+Evidence additions:
+
+- `full-implementation-first.log`: exact `571856b8` full verify 850/850, no fail/skip; types/docs passed. GitHub run `40563630979` Core Linux, Core macOS and aggregate verify all succeeded for that SHA. These passes did not cover the newly reproduced defects.
+- `decision-race-first.log`, `decision-regressions-first.log` (4 failures), `postpaint-authority-first.log`, `consecutive-paste-first.log`, `terminal-view-first.log` (2 failures), `exit-queue-first.log`: retained first defect evidence.
+- `decision-regressions-second.log`: 13/13; `decision-stream-third.log`: 20/20; `terminal-delta-focused.log`: 45/45 at intermediate delta; `input-decision-final.log`: 17/17 after adding post-paint authority coverage. Final exact-HEAD verification remains recorded separately.
+- `product-pty-delta.json`: 14 product PTY paths PASS after keyboard-exit changes; `product-render-delta.log`: actual ANSI cell/cursor assertions PASS. Both remain synthetic, not native Terminal/IME.
+- No reviewer/native gate was waived. Current candidate must receive another exact-HEAD review and CI before handoff; native runbook and Master C2/C3 acknowledgement remain NOT_TESTED.

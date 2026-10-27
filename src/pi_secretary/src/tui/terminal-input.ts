@@ -26,6 +26,7 @@ type Job = {
   frame: Exclude<TerminalFrame, { kind: "fault" }>;
   epoch: number;
   bytes: number;
+  complete?: () => Promise<void>;
 };
 const authorityKeys = new Set(["\x13", "\x12", "\x18", "\x16"]);
 export class TerminalInput {
@@ -35,6 +36,10 @@ export class TerminalInput {
   mark = false;
   small = false;
   quarantined = false;
+  exiting = false;
+  exitRefusedBytes = 0;
+  onExitRequest: () => void = () => {};
+  private exitTimer?: ReturnType<typeof setTimeout>;
   private closed = false;
   private queue: Job[] = [];
   private bytes = 0;
@@ -42,7 +47,14 @@ export class TerminalInput {
   private scheduled?: ReturnType<typeof setImmediate>;
   private modalPainted = false;
   private epoch = 0;
-  private clipboardJob?: { id: string; text: string; generation: number };
+  private paintedDecision = "";
+  private clipboardJob?: {
+    id: string;
+    text: string;
+    generation: number;
+    epoch: number;
+    cut: boolean;
+  };
   onScroll: (direction: number) => void = () => {};
   constructor(
     readonly app: TuiApp,
@@ -54,6 +66,10 @@ export class TerminalInput {
   }
   connect() {
     this.app.outbox.connect(this.generation + 1);
+    void this.app.outbox.observe().catch((error) => {
+      this.refusal = String(error);
+      this.repaint();
+    });
   }
   rotateLease() {
     const g = this.generation;
@@ -69,31 +85,59 @@ export class TerminalInput {
     this.small = small;
     this.repaint();
   }
-  painted() {
-    const pending = this.app.snapshot().largeConfirmation;
-    if (pending && !this.modalPainted) {
-      this.epoch++;
-      this.modalPainted = true;
-    }
-    if (!pending) this.modalPainted = false;
+  private decision() {
+    return this.app.decisionState.key;
   }
-  fail(reason: string) {
+  painted() {
+    const pending = this.decision();
+    if (pending !== this.paintedDecision) this.epoch++;
+    this.paintedDecision = pending;
+    this.modalPainted = !!this.app.decisionState.large;
+  }
+  /** Clipboard completions share the controller queue; guards run at execution time.
+   * ACKs may precede deferred edits so a modal cannot strand a completed OS write. */
+  private completion(complete: () => Promise<void>, bytes = 0, ack = false) {
+    if (this.closed || this.exiting) return;
+    if (this.bytes + bytes > 8 * 1024 * 1024) {
+      this.fail(
+        "INPUT_QUEUE_BOUND: clipboard completion refused; Resume required",
+      );
+      return;
+    }
+    const job: Job = {
+      frame: { kind: "key", text: "" },
+      epoch: this.epoch,
+      bytes,
+      complete,
+    };
+    if (ack) this.queue.unshift(job);
+    else this.queue.push(job);
+    this.bytes += bytes;
+    this.schedule();
+  }
+  fail(reason: string, preservePastes = false) {
     if (this.closed) return;
-    this.refusal = `${reason}${this.bytes ? `; ${this.bytes} queued bytes refused` : ""}`;
-    this.queue = [];
-    this.bytes = 0;
+    const retained = preservePastes
+      ? this.queue.filter((job) => !job.complete && job.frame.kind === "paste")
+      : [];
+    const retainedBytes = retained.reduce((sum, job) => sum + job.bytes, 0);
+    const refusedBytes = this.bytes - retainedBytes;
+    this.refusal = `${reason}${refusedBytes ? `; ${refusedBytes} queued bytes refused` : ""}`;
+    this.queue = retained;
+    this.bytes = retainedBytes;
     this.quarantined = true;
     this.rotateLease();
     this.repaint();
   }
   receive(frame: TerminalFrame) {
     if (this.closed) return;
-    if (frame.kind === "fault") {
-      this.fail(frame.reason);
+    if (frame.kind === "key" && ["\x03", "\x1c"].includes(frame.text)) {
+      this.requestExit();
       return;
     }
-    if (frame.kind === "key" && ["\x03", "\x1c"].includes(frame.text)) {
-      void this.app.close();
+    if (this.exiting) return;
+    if (frame.kind === "fault") {
+      this.fail(frame.reason, frame.preserveCompletedPastes);
       return;
     }
     const control =
@@ -125,6 +169,46 @@ export class TerminalInput {
     this.bytes += bytes;
     this.schedule();
   }
+  private requestExit() {
+    if (this.exiting) {
+      void this.app.close();
+      return;
+    }
+    this.exiting = true;
+    this.rotateLease(); // no queued or late-ACK admission can initiate a new POST
+    this.bar = false;
+    const editing = new Set([
+      "\r",
+      "\n",
+      "\x7f",
+      "\x08",
+      "\x1b[3~",
+      "\x1b[A",
+      "\x1b[B",
+      "\x1b[C",
+      "\x1b[D",
+      "\x02",
+      "\x06",
+      "\x01",
+      "\x05",
+    ]);
+    const retained = this.decision()
+      ? []
+      : this.queue.filter(
+          (job) =>
+            !job.complete &&
+            (job.frame.kind !== "key" || editing.has(job.frame.text)),
+        );
+    const retainedBytes = retained.reduce((sum, job) => sum + job.bytes, 0);
+    this.exitRefusedBytes += this.bytes - retainedBytes;
+    this.queue = retained;
+    this.bytes = retainedBytes;
+    this.onExitRequest(); // terminal restoration is synchronous, before draining or disk waits
+    this.exitTimer = setTimeout(() => {
+      void this.app.close();
+    }, 1000);
+    this.schedule();
+  }
   private schedule() {
     if (!this.running && !this.scheduled && !this.closed)
       this.scheduled = setImmediate(() => {
@@ -136,13 +220,19 @@ export class TerminalInput {
     this.running = true;
     try {
       while (this.queue.length && !this.closed) {
+        if (this.exiting && this.decision()) {
+          this.exitRefusedBytes += this.bytes;
+          this.queue = [];
+          this.bytes = 0;
+          break;
+        }
         const job = this.queue[0];
-        const pending = this.app.snapshot().largeConfirmation;
-        if (pending && !this.modalPainted) {
+        const pending = this.app.decisionState.large;
+        if (this.decision() && this.decision() !== this.paintedDecision) {
           this.repaint();
           break;
         }
-        if (pending && job.epoch !== this.epoch) {
+        if (pending && job.epoch !== this.epoch && !job.complete) {
           if (job.frame.kind === "key" && authorityKeys.has(job.frame.text)) {
             this.queue.shift();
             this.bytes -= job.bytes;
@@ -163,23 +253,29 @@ export class TerminalInput {
           continue;
         }
         try {
-          await this.dispatch(job.frame);
+          if (job.complete) await job.complete();
+          else await this.dispatch(job.frame, job.epoch);
         } catch (error) {
           const reason = error instanceof Error ? error.message : String(error);
           if (/^(INPUT_TRANSACTION_TOO_LARGE|DRAFT_TOO_LARGE)/.test(reason))
             this.fail(reason);
           else this.refusal = reason;
         }
+        if (!this.decision() && this.paintedDecision) {
+          this.epoch++;
+          this.paintedDecision = "";
+        }
         this.repaint();
       }
     } finally {
       this.running = false;
+      if (this.exiting && !this.queue.length) void this.app.close();
     }
   }
   /** A completed paint can expose a decision, but cannot authorize it. */
   afterPaint() {
     this.painted();
-    if (!this.app.snapshot().largeConfirmation) this.schedule();
+    this.schedule();
   }
   async idle() {
     while (this.running || this.scheduled)
@@ -242,9 +338,22 @@ export class TerminalInput {
       return false;
     }
   }
-  private async action(name: string) {
+  private async action(name: string, capturedEpoch = this.epoch) {
+    if (
+      capturedEpoch !== this.epoch &&
+      [
+        "Submit",
+        "Resume",
+        "Cut",
+        "Import clipboard text",
+        "Restore record",
+        "Apply large edit",
+        "Cancel large edit",
+      ].includes(name)
+    )
+      throw Error("Authority action refused across a decision.");
     if (name === "Quit") {
-      await this.app.close();
+      this.requestExit();
       return;
     }
     if (name === "Resume") {
@@ -298,26 +407,30 @@ export class TerminalInput {
       const editor = this.app.editor(),
         revision = editor.draft.revision,
         selection = { ...editor.draft.selection },
-        generation = this.generation;
+        generation = this.generation,
+        epoch = this.epoch;
       this.app.notice = "Reading clipboard text…";
       void this.clipboard
         .read()
-        .then(async (text) => {
-          this.requireAuthority();
-          if (
-            this.closed ||
-            generation !== this.generation ||
-            editor !== this.app.editor() ||
-            revision !== editor.draft.revision ||
-            selection.anchor !== editor.draft.selection.anchor ||
-            selection.head !== editor.draft.selection.head ||
-            this.app.snapshot().largeConfirmation
-          )
-            throw Error("STALE_CLIPBOARD_IMPORT");
-          await this.insert(text, true);
-          this.app.notice =
-            "Imported clipboard text as data; nothing submitted.";
-        })
+        .then((text) =>
+          this.completion(async () => {
+            this.requireAuthority();
+            if (
+              this.closed ||
+              generation !== this.generation ||
+              editor !== this.app.editor() ||
+              revision !== editor.draft.revision ||
+              selection.anchor !== editor.draft.selection.anchor ||
+              selection.head !== editor.draft.selection.head ||
+              epoch !== this.epoch ||
+              this.decision()
+            )
+              throw Error("STALE_CLIPBOARD_IMPORT");
+            await this.insert(text, true);
+            this.app.notice =
+              "Imported clipboard text as data; nothing submitted.";
+          }, Buffer.byteLength(text)),
+        )
         .catch((error) => {
           this.refusal = String(error);
         })
@@ -346,7 +459,10 @@ export class TerminalInput {
     }
     await this.event({ type: "action", action: name.toLowerCase() });
   }
-  private async dispatch(frame: Exclude<TerminalFrame, { kind: "fault" }>) {
+  private async dispatch(
+    frame: Exclude<TerminalFrame, { kind: "fault" }>,
+    capturedEpoch: number,
+  ) {
     if (frame.kind !== "key") {
       this.bar = false;
       await this.insert(frame.text, frame.kind === "paste");
@@ -376,7 +492,7 @@ export class TerminalInput {
       else if (key === "\r" || key === "\n") {
         const name = ACTIONS[this.selectedAction];
         if (
-          this.app.snapshot().largeConfirmation &&
+          this.app.decisionState.large &&
           ![
             "Apply large edit",
             "Cancel large edit",
@@ -387,7 +503,7 @@ export class TerminalInput {
         )
           throw Error("Choose Apply or Cancel first");
         this.bar = false;
-        await this.action(name);
+        await this.action(name, capturedEpoch);
       } else
         throw Error(
           "Action bar: Tab/arrows choose, Enter activates, Escape returns",
@@ -407,7 +523,7 @@ export class TerminalInput {
       "\0": "Set mark / Clear mark",
     };
     if (actions[key]) {
-      await this.action(actions[key]);
+      await this.action(actions[key], capturedEpoch);
       return;
     }
     if (key === "\x1a")
@@ -473,7 +589,13 @@ export class TerminalInput {
     if (value.type !== "clipboard") return;
     const generation = this.generation;
     if (this.clipboardJob?.id !== value.id)
-      this.clipboardJob = { id: String(value.id), text: "", generation };
+      this.clipboardJob = {
+        id: String(value.id),
+        text: "",
+        generation,
+        epoch: this.epoch,
+        cut: value.cut === true,
+      };
     const job = this.clipboardJob!;
     if (job.generation !== generation) {
       this.refusal = "STALE_CLIPBOARD: draft unchanged";
@@ -486,6 +608,8 @@ export class TerminalInput {
       return;
     }
     const acknowledge = async (success: boolean) => {
+      const staleCut =
+        success && job.cut && (job.epoch !== this.epoch || !!this.decision());
       try {
         await this.app.event(
           {
@@ -493,29 +617,33 @@ export class TerminalInput {
             id: value.id,
             offset: value.offset,
             done: !!value.final,
-            success,
+            success: success && !staleCut,
           },
           generation,
         );
       } catch (error) {
         this.refusal = String(error);
       }
+      if (staleCut)
+        this.refusal = "STALE_CUT: copied text; draft retained across decision";
       this.repaint();
     };
     // Never block input/ACK processing on the OS clipboard; controller validates stale cuts.
     if (value.final)
       void this.clipboard.write(job.text).then(
-        () => acknowledge(true),
-        () => acknowledge(false),
+        () => this.completion(() => acknowledge(true), 0, true),
+        () => this.completion(() => acknowledge(false), 0, true),
       );
     else
       queueMicrotask(() => {
-        void acknowledge(true);
+        this.completion(() => acknowledge(true), 0, true);
       });
   }
   close() {
     this.closed = true;
     clearImmediate(this.scheduled);
+    clearTimeout(this.exitTimer);
+    this.exitRefusedBytes += this.bytes;
     this.queue = [];
     this.bytes = 0;
     this.app.outbox.disconnect(this.generation);

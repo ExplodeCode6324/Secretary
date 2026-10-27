@@ -82,8 +82,10 @@ jobs:
         # PostgreSQL history/provenance runs in the Linux full suite above.
         run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts test_case/offline/issue19/store-ownership.test.ts test_case/offline/issue24/transport.test.ts test_case/offline/issue80/*.test.ts test_case/offline/issue81/{api,import,input,provider,recovery,withdrawal-provider}.test.ts test_case/offline/issue82/*.test.ts
 
-    # Synthetic PTY evidence is separate from native Terminal/IME acceptance.
-    # The full product PTY matrix runs on Linux above.
+      - name: Product terminal PTY on macOS (synthetic, not native IME)
+        run: |
+          /usr/bin/python3 test_case/offline/issue82/terminal-pty.py "$(command -v node)" .demo-data/issue82-terminal-rollback/ci-macos-pty.json
+          node --import tsx src/pi_secretary/scripts/issue82-terminal-render.ts .demo-data/issue82-terminal-rollback/ci-macos-pty.json
 
   verify:
     name: verify

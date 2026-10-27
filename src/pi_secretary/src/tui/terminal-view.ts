@@ -23,7 +23,9 @@ export class TerminalView implements Presentation {
   private tui?: TuiAltScreen;
   private stopped = false;
   private top = 0;
-  private reading?: { id: string; offset: number };
+  private reading?: { id: string; offset: number; local?: boolean };
+  private anchorTimer?: ReturnType<typeof setTimeout>;
+  private pendingAnchor?: { id: string; offset: number };
   private lines: TranscriptLine[] = [];
   private bodyRows = 1;
   private anchorNotice = "";
@@ -39,6 +41,10 @@ export class TerminalView implements Presentation {
       },
       () => this.input.resize(this.terminal.columns, this.terminal.rows),
     );
+    this.input.onExitRequest = () => {
+      this.terminal.stop();
+      this.tui?.stop({ preserveScreen: true });
+    };
   }
   start() {
     if (this.stopped) throw Error("CLIENT_CLOSED_DURING_STARTUP");
@@ -82,7 +88,7 @@ export class TerminalView implements Presentation {
     this.publish();
   }
   publish() {
-    if (!this.stopped) this.tui?.requestRender();
+    if (!this.stopped && !this.input.exiting) this.tui?.requestRender();
   }
   notify(value: Record<string, unknown>) {
     this.input.notify(value);
@@ -97,13 +103,26 @@ export class TerminalView implements Presentation {
     );
     const line = this.lines[this.top];
     if (line?.id) {
-      this.reading = { id: line.id, offset: line.offset };
-      void this.app.sync.anchor(line.id, line.offset).catch((error) => {
-        this.input.refusal = String(error);
-        this.publish();
-      });
+      this.reading = { id: line.id, offset: line.offset, local: line.local };
+      this.app.sync.pauseFollowing();
+      clearTimeout(this.anchorTimer);
+      this.pendingAnchor = line.local
+        ? undefined
+        : { id: line.id, offset: line.offset };
+      if (this.pendingAnchor)
+        this.anchorTimer = setTimeout(() => this.flushAnchor(), 200);
     }
     this.publish();
+  }
+  private flushAnchor() {
+    clearTimeout(this.anchorTimer);
+    const anchor = this.pendingAnchor;
+    this.pendingAnchor = undefined;
+    if (!anchor || this.app.sync.following) return;
+    void this.app.sync.anchor(anchor.id, anchor.offset).catch((error) => {
+      this.input.refusal = String(error);
+      this.publish();
+    });
   }
   private render(width: number) {
     const s = this.app.snapshot(),
@@ -114,7 +133,11 @@ export class TerminalView implements Presentation {
     ) => this.palette.line(safeText(text), width, tone);
     this.lines = transcript(s, width);
     this.bodyRows = Math.max(1, height - 10);
-    if (s.following && !s.anchor) this.reading = undefined;
+    if (s.following && !s.anchor) {
+      this.reading = undefined;
+      clearTimeout(this.anchorTimer);
+      this.pendingAnchor = undefined;
+    }
     if (this.reading) {
       const resolved =
         s.rows.find(
@@ -190,5 +213,6 @@ export class TerminalView implements Presentation {
     this.input.close();
     this.terminal.stop(); // synchronous restoration BEFORE disk/network flush
     this.tui?.stop({ preserveScreen: true }); // cancels timers; terminal write latch is already closed
+    this.flushAnchor();
   }
 }

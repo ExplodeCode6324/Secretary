@@ -677,6 +677,11 @@ export class MainSync {
     }
     this.onChange();
   }
+  /** Stop following immediately, including when the terminal reads a local panel. */
+  pauseFollowing() {
+    this.following = false;
+    this.viewEpoch++;
+  }
   async anchor(id: string, offset: number) {
     const item = this.page.items.find((row) => row.id === id);
     if (

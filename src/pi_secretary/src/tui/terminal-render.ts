@@ -122,21 +122,26 @@ export class Palette {
     );
   }
 }
-export type TranscriptLine = { id?: string; offset: number; text: string };
+export type TranscriptLine = {
+  id?: string;
+  local?: boolean;
+  offset: number;
+  text: string;
+};
 export function transcript(
   snapshot: Snapshot,
   width: number,
 ): TranscriptLine[] {
   const lines: TranscriptLine[] = [];
   const offsets = new Map<string, number>();
-  const add = (text: string, id?: string) => {
+  const add = (text: string, id?: string, local = false) => {
     const safe = safeText(text);
     const wrapped = safe
       .split("\n")
       .flatMap((line) => wrapTextWithAnsi(line, Math.max(1, width)));
     const base = id ? (offsets.get(id) ?? 0) : 0;
     wrapped.forEach((text, offset) =>
-      lines.push({ id, offset: base + offset, text }),
+      lines.push({ id, local, offset: base + offset, text }),
     );
     if (id) offsets.set(id, base + wrapped.length);
   };
@@ -161,12 +166,18 @@ export function transcript(
       row.id,
     );
   for (const pending of snapshot.pending)
-    add(`PENDING ${pending.sequence} ${pending.id} ${pending.state}`);
+    add(
+      `PENDING ${pending.sequence} ${pending.id} ${pending.state}`,
+      `local:pending:${pending.id}`,
+      true,
+    );
   if (snapshot.expansion)
     add(
       `Expanded ${snapshot.expansion.id}\n${snapshot.expansion.text}\n${snapshot.expansion.thinking}${snapshot.expansion.more ? "\n[more available]" : ""}`,
+      `local:expansion:${snapshot.expansion.id}`,
+      true,
     );
-  if (snapshot.panel) add(snapshot.panel);
+  if (snapshot.panel) add(snapshot.panel, "local:panel", true);
   if (!lines.length)
     add("No messages loaded. Core is independent; drafts remain local.");
   return lines;

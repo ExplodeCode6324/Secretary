@@ -3,7 +3,7 @@ export const PASTE_START = "\x1b[200~";
 export const PASTE_END = "\x1b[201~";
 export type TerminalFrame =
   | { kind: "text" | "paste" | "key"; text: string }
-  | { kind: "fault"; reason: string };
+  | { kind: "fault"; reason: string; preserveCompletedPastes?: boolean };
 export class TerminalStream {
   private decoder = new TextDecoder("utf-8", { fatal: true });
   private buffer = "";
@@ -25,9 +25,13 @@ export class TerminalStream {
     }
     this.push(text);
   }
-  private fault(reason: string) {
+  private fault(reason: string, preserveCompletedPastes = false) {
     this.reset();
-    this.emit({ kind: "fault", reason });
+    this.emit({
+      kind: "fault",
+      reason,
+      ...(preserveCompletedPastes ? { preserveCompletedPastes: true } : {}),
+    });
   }
   reset() {
     clearTimeout(this.timer);
@@ -91,9 +95,14 @@ export class TerminalStream {
         }
         this.emit({ kind: "paste", text: paste.chunks.join("") });
         // Defence in depth for a same-read hostile delimiter, never authentication.
-        if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/.test(remainder)) {
+        if (
+          !remainder.startsWith(PASTE_START) &&
+          !(remainder && PASTE_START.startsWith(remainder)) &&
+          /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]/.test(remainder)
+        ) {
           this.fault(
             "PASTE_TRAILING_CONTROLS: trailing input refused; Resume required",
+            true,
           );
           return;
         }

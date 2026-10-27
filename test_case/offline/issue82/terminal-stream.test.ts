@@ -86,3 +86,16 @@ test("normal key sequences and huge typed bursts preserve exact UTF-8 with bound
   assert.ok(chunks.every((x) => Buffer.byteLength(x) <= 65536));
   stream.reset();
 });
+test("consecutive paste frames and fragmented next start retain independent data boundaries", () => {
+  for (const split of [0, 1, 3, S.length]) {
+    const events: TerminalFrame[] = [],
+      stream = new TerminalStream((e) => events.push(e));
+    feed(stream, S + "first" + E + S.slice(0, split));
+    feed(stream, S.slice(split) + "第二" + E);
+    assert.deepEqual(events, [
+      { kind: "paste", text: "first" },
+      { kind: "paste", text: "第二" },
+    ]);
+    stream.reset();
+  }
+});

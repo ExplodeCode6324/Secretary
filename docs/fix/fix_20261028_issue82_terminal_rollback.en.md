@@ -18,6 +18,8 @@ Claude R3 returned **PASS** on published `493ec825`. R1/R2/R3 text below is reta
 
 Implementation observation: a real synthetic background-process-group test exposed a read-before-ready hang after alternate-screen entry. The candidate now checks the foreground TTY group with a fixed, bounded Python ioctl preflight before acquiring state or entering modes. This is a startup guard, not a new client platform or a waiver of lifecycle tests.
 
+Implementation review R1 corrections and the bounded keyboard-exit drain amendment are recorded in the [implementation evidence](evidence/issue82-terminal-rollback/implementation.md#implementation-review-r1-disposition). All three implementation blockers and the additional clipboard/decision races are covered by failing-first regressions; exact-HEAD review and native gates remain outstanding.
+
 ## R3 controlling amendments (supersede R2 and R1 conflicts)
 
 R2 returned CHANGES_REQUIRED (narrow); all original architectural findings were closed. Adopt its seven concrete amendments without expanding the rollback scope:

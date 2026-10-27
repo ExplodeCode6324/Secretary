@@ -339,6 +339,25 @@ export class TuiApp {
     )
       throw Error("STALE_GENERATION");
   }
+  /** Cheap controller state for the input adapter; never flattens the draft. */
+  get decisionState() {
+    const large = !!this.largeEdit || this.input.needsConfirmation;
+    const revision = this.editor().draft.revision;
+    return {
+      large,
+      key: large
+        ? "large"
+        : this.replacement
+          ? `replacement:${revision}`
+          : this.restoreCandidate &&
+              this.restoreCandidate.id === this.recordID &&
+              this.restoreCandidate.view === this.store.state.view &&
+              this.restoreCandidate.revision ===
+                this.store.editors[this.restoreCandidate.view].draft.revision
+            ? `restore:${this.restoreCandidate.id}:${revision}`
+            : "",
+    };
+  }
   async event(value: unknown, generation: number) {
     const editor = this.editor(),
       revision = editor.draft.revision,
@@ -472,7 +491,8 @@ export class TuiApp {
       this.clipboard = undefined;
       if (job.cut) {
         if (this.store.readOnly) throw Error("FOREIGN_DOMAIN_QUARANTINED");
-        if (job.editor !== this.editor()) throw Error("STALE_CUT");
+        if (job.editor !== this.editor() || this.decisionState.key)
+          throw Error("STALE_CUT");
         try {
           job.editor.cutAfterCopy(job.revision, job.selection, true);
         } catch (error) {
@@ -504,6 +524,8 @@ export class TuiApp {
         throw Error("STALE_REVISION");
       this.command = undefined;
       this.replacement = undefined;
+      this.largeEdit = undefined;
+      this.restoreCandidate = undefined;
       this.panel = "";
       this.input.reset();
       return;
@@ -626,6 +648,7 @@ export class TuiApp {
     job.offset = end;
     this.presentation.notify?.({
       type: "clipboard",
+      cut: job.cut,
       id: job.id,
       text: job.text.slice(start, end),
       offset: end,
