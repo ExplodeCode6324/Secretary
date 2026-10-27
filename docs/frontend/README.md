@@ -1,6 +1,6 @@
 # 旧客户端退役记录
 
-2026-10-23：Tauri/Svelte/PhaseUI 客户端及专属构建、测试、CI 已直接删除。当前路线为 [TUI 需求](../tui/requirements-and-backend-plan.md)，本地浏览器命令界面见[运行指南](../tui/browser-guide.md)；Core 使用方式见[运行手册](../operations.md)。
+2026-10-23：Tauri/Svelte/PhaseUI 客户端及专属构建、测试、CI 已直接删除。当前路线为 [TUI 需求](../tui/requirements-and-backend-plan.md)，终端 TUI见[运行指南](../tui/terminal-guide.md)；Core 使用方式见[运行手册](../operations.md)。
 
 历史设计和验收只按固定提交追溯；未通过、未测试或待人工验收的旧 GUI 项目不因退役变为通过。
 

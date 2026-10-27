@@ -113,7 +113,7 @@ test("product commands preserve Task drafts and require explicit replacement; fo
     {
       data: dir,
       mode: "fixture",
-      open: false,
+      color: "none",
       quota: 256 * 1024 * 1024,
       maxOutbox: 1000,
       aliases: { cotv: "cotvisible" },
@@ -171,6 +171,42 @@ test("product commands preserve Task drafts and require explicit replacement; fo
     await event({ type: "confirm-large", accept: true });
     assert.equal(product.store.editors.Task.draft.nodes.length, 0);
     await product.store.flush();
+    const rejected = await product.store.enqueue(
+      "Main",
+      "retained rejected body",
+      product.store.state.binding!,
+      product.store.editors.Main.draft.revision,
+    );
+    await product.store.update(rejected.request_id, (entry) => {
+      entry.state = "NEEDS_EDIT";
+      entry.attempted = true;
+    });
+    await command("/outbox " + rejected.request_id);
+    const restore = () =>
+      product.event(
+        { type: "record-action", id: rejected.request_id, action: "restore" },
+        1,
+      );
+    await restore();
+    assert.equal(product.snapshot().record?.restoreConfirmation, true);
+    assert.equal(product.store.editors.Task.draft.nodes.length, 0);
+    await restore();
+    assert.equal(
+      product.store.editors.Task.draft.nodes[0].text,
+      "retained rejected body",
+    );
+    assert.equal(product.store.editors.Task.draft.nodes[0].kind, "paste");
+    assert.equal(
+      product.store.state.outbox.find(
+        (e) => e.request_id === rejected.request_id,
+      )?.state,
+      "NEEDS_EDIT",
+    );
+    // Keep the later foreign-domain admission assertion scoped to its own entry.
+    await product.store.discard(rejected.request_id);
+    await command(
+      "/pasteblock " + product.store.editors.Task.draft.nodes[0].id + " remove",
+    );
     const foreignDir = fs.mkdtempSync(path.join(evidence, "foreign-core-"));
     const foreignApp = await App.open(foreignDir, {
       model: fixtureModel,

@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
-import { spawn } from "node:child_process";
+import type { ColorMode } from "./terminal-render.ts";
 import { aliasesOf } from "./commands.ts";
 export type Config = {
   data: string;
   mode: "fixture" | "live";
-  open: boolean;
+  color?: ColorMode;
   quota: number;
   maxOutbox: number;
   aliases: Record<string, string>;
@@ -29,21 +29,18 @@ export function privateDirectory(directory: string) {
 }
 export function parseConfig(argv: string[]): Config {
   const args = new Map<string, string>();
-  let open = false;
   for (let i = 0; i < argv.length; i++) {
     const key = argv[i];
-    if (key === "--open" && !open) {
-      open = true;
-      continue;
-    }
+    if (key === "--open")
+      throw Error("OBSOLETE_OPEN: tui runs in this terminal; remove --open");
     if (
-      !["--data", "--mode", "--config"].includes(key) ||
+      !["--data", "--mode", "--config", "--color"].includes(key) ||
       args.has(key) ||
       !argv[i + 1] ||
       argv[i + 1].startsWith("--")
     )
       throw Error(
-        "USAGE: tui --data /absolute/private/profile --mode fixture|live [--open], or --config /absolute/private/config.json",
+        "USAGE: tui --data /absolute/private/profile --mode fixture|live [--color auto|truecolor|256|none], or --config /absolute/private/config.json",
       );
     args.set(key, argv[++i]);
   }
@@ -81,7 +78,10 @@ export function parseConfig(argv: string[]): Config {
       typeof settings !== "object" ||
       Array.isArray(settings) ||
       Object.keys(settings).some(
-        (k) => !["data", "mode", "quota", "maxOutbox", "aliases"].includes(k),
+        (k) =>
+          !["data", "mode", "quota", "maxOutbox", "aliases", "color"].includes(
+            k,
+          ),
       )
     )
       throw Error("INVALID_CONFIG");
@@ -90,7 +90,12 @@ export function parseConfig(argv: string[]): Config {
       (file === settings.data || file.startsWith(settings.data + path.sep))
     )
       throw Error("CONFIG_MUST_BE_OUTSIDE_CORE_DATA");
-  } else settings = { data: args.get("--data"), mode: args.get("--mode") };
+  } else
+    settings = {
+      data: args.get("--data"),
+      mode: args.get("--mode"),
+      color: args.get("--color"),
+    };
   if (
     typeof settings.data !== "string" ||
     !["fixture", "live"].includes(String(settings.mode))
@@ -115,39 +120,15 @@ export function parseConfig(argv: string[]): Config {
       Array.isArray(settings.aliases))
   )
     throw Error("INVALID_ALIAS");
+  const color = settings.color ?? "auto";
+  if (!["auto", "truecolor", "256", "none"].includes(String(color)))
+    throw Error("INVALID_COLOR");
   return {
     data: settings.data,
     mode: settings.mode as Config["mode"],
-    open,
+    color: color as ColorMode,
     quota: Number(quota),
     maxOutbox: Number(maxOutbox),
     aliases: aliasesOf(settings.aliases as Record<string, string> | undefined),
   };
-}
-/** Fixed installed-browser argv; no shell, profile flag, installation or default-browser fallback. */
-export async function openBrowser(url: string): Promise<void> {
-  const candidates =
-    process.platform === "darwin"
-      ? [
-          "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-          "/Applications/Chromium.app/Contents/MacOS/Chromium",
-        ]
-      : [
-          "/usr/bin/google-chrome",
-          "/usr/bin/chromium",
-          "/usr/bin/chromium-browser",
-        ];
-  const executable = candidates.find((candidate) => fs.existsSync(candidate));
-  if (!executable)
-    throw Error(
-      "NO_INSTALLED_SUPPORTED_BROWSER: open the printed URL in Chrome/Chromium; no installation attempted",
-    );
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(executable, [url], { stdio: "ignore", detached: true });
-    child.once("error", reject);
-    child.once("spawn", () => {
-      child.unref();
-      resolve();
-    });
-  });
 }

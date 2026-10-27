@@ -1,6 +1,6 @@
 # 运行手册
 
-客户端方向见 [TUI 需求](tui/requirements-and-backend-plan.md)；本地浏览器命令界面见[运行指南](tui/browser-guide.md)，以下命令管理独立 Core。
+客户端方向见 [TUI 需求](tui/requirements-and-backend-plan.md)；终端 TUI见[运行指南](tui/terminal-guide.md)，以下命令管理独立 Core。
 
 从仓库根目录执行命令。需要 Node.js ≥22.19、npm、Python 3 和固定 Pi 子模块；World 与历史检索使用 PostgreSQL。
 

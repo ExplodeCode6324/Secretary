@@ -4,7 +4,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { once } from "node:events";
 import { performance } from "node:perf_hooks";
-import { WebSocket } from "ws";
 import {
   Editor,
   GraphemeIndex,
@@ -31,7 +30,7 @@ async function product() {
     {
       data: dir,
       mode: "fixture",
-      open: false,
+      color: "none",
       quota: 256 * 1024 * 1024,
       maxOutbox: 1000,
       aliases: {},
@@ -216,11 +215,10 @@ test("accepted edits and caret moves expire large confirmation without invalidat
   }
 });
 test(
-  "non-empty draft accepts paste up to 4MiB through real chunk ACKs within 5s; large keystrokes stay bounded",
+  "non-empty draft accepts paste up to 4MiB through retained chunk acknowledgements within 5s; large keystrokes stay bounded",
   { timeout: 30000 },
   async () => {
     const app = await product();
-    let ws: WebSocket | undefined;
     try {
       app.store.editors.Main.insert("a".repeat(400 * 1024), "typed", true);
       let snapshots = 0;
@@ -229,40 +227,21 @@ test(
         snapshots++;
         return snapshot();
       };
-      const url = await app.browser.listen();
-      ws = new WebSocket(
-        app.browser.origin.replace("http:", "ws:") + "/channel",
-        { origin: app.browser.origin },
-      );
-      const messages: any[] = [],
-        waiting: Array<(value: any) => void> = [];
-      ws.on("message", (raw) => {
-        const value = JSON.parse(String(raw)),
-          resolve = waiting.shift();
-        if (resolve) resolve(value);
-        else messages.push(value);
-      });
-      const read = () =>
-        messages.length
-          ? Promise.resolve(messages.shift())
-          : new Promise<any>((resolve) => waiting.push(resolve));
-      await once(ws, "open");
-      ws.send(JSON.stringify({ type: "hello", credential: url.split("#")[1] }));
-      const hello = await read(),
-        generation = hello.generation;
-      ws.send(JSON.stringify({ type: "hello-ack", generation }));
-      assert.equal((await read()).type, "sync");
-      ws.send(JSON.stringify({ type: "sync-ack", generation }));
-      assert.equal((await read()).type, "ready");
-      let seq = 0;
-      const event = async (event: unknown) => {
-        const target = ++seq;
-        ws!.send(
-          JSON.stringify({ type: "event", generation, seq: target, event }),
-        );
-        while (true) {
-          const value = await read();
-          if (value.seq === target) return value;
+      app.outbox.connect(1);
+      const event = async (value: unknown) => {
+        try {
+          const result = await app.event(value, 1);
+          return {
+            type: "ack",
+            state: result?.unchanged ? undefined : app.snapshot(),
+            error: undefined,
+          };
+        } catch (error) {
+          return {
+            type: "rejected",
+            error: (error as Error).message,
+            state: app.snapshot(),
+          };
         }
       };
       const revision = app.store.editors.Main.draft.revision,
@@ -335,57 +314,32 @@ test(
         JSON.stringify({ issue82LargeDraft: { transferMs, metrics } }),
       );
     } finally {
-      ws?.close();
       await app.close();
     }
   },
 );
 
 test(
-  "expired and repeated large-edit decisions are recoverable over the real authenticated channel",
+  "expired and repeated large-edit decisions are recoverable over the local presentation event port",
   { timeout: 20000 },
   async () => {
     const app = await product();
-    let ws: WebSocket | undefined;
     try {
-      const url = await app.browser.listen();
-      ws = new WebSocket(
-        app.browser.origin.replace("http:", "ws:") + "/channel",
-        { origin: app.browser.origin },
-      );
-      const messages: any[] = [],
-        waiting: Array<(value: any) => void> = [];
-      ws.on("message", (raw) => {
-        const value = JSON.parse(String(raw)),
-          resolve = waiting.shift();
-        if (resolve) resolve(value);
-        else messages.push(value);
-      });
-      const read = () =>
-        messages.length
-          ? Promise.resolve(messages.shift())
-          : new Promise<any>((resolve) => waiting.push(resolve));
-      await once(ws, "open");
-      ws.send(JSON.stringify({ type: "hello", credential: url.split("#")[1] }));
-      const { generation } = await read();
-      ws.send(JSON.stringify({ type: "hello-ack", generation }));
-      assert.equal((await read()).type, "sync");
-      ws.send(JSON.stringify({ type: "sync-ack", generation }));
-      assert.equal((await read()).type, "ready");
-      let seq = 0;
-      const event = async (event: any) => {
-        const target = ++seq;
-        ws!.send(
-          JSON.stringify({ type: "event", generation, seq: target, event }),
-        );
-        for (;;) {
-          const reply = await read();
-          assert.notEqual(
-            reply.type,
-            "replaced",
-            "business refusal must not revoke the session",
-          );
-          if (reply.seq === target) return reply;
+      app.outbox.connect(1);
+      const event = async (value: unknown) => {
+        try {
+          const result = await app.event(value, 1);
+          return {
+            type: "ack",
+            state: result?.unchanged ? undefined : app.snapshot(),
+            error: undefined,
+          };
+        } catch (error) {
+          return {
+            type: "rejected",
+            error: (error as Error).message,
+            state: app.snapshot(),
+          };
         }
       };
       for (const change of ["insert", "select", "cancel", "apply"]) {
@@ -437,7 +391,7 @@ test(
             accept: change === "apply",
           });
         assert.equal(accepted.type, "ack");
-        assert.equal(accepted.state.largeConfirmation, false);
+        assert.equal(accepted.state!.largeConfirmation, false);
         const before = editor.snapshot();
         for (const accept of [true, false]) {
           const stale = await event({
@@ -446,7 +400,7 @@ test(
             accept,
           });
           assert.equal(stale.type, "rejected");
-          assert.match(stale.error, /^LARGE_EDIT_EXPIRED/);
+          assert.match(stale.error!, /^LARGE_EDIT_EXPIRED/);
           assert.deepEqual(editor.snapshot(), before);
         }
         assert.equal(
@@ -471,7 +425,6 @@ test(
         );
       }
     } finally {
-      ws?.close();
       await app.close();
     }
   },

@@ -1,67 +1,76 @@
-import fs from "node:fs";
-import { parseConfig, openBrowser } from "./config.ts";
+import { spawnSync } from "node:child_process";
+import { parseConfig } from "./config.ts";
 import { TuiApp } from "./app.ts";
+import { TerminalView } from "./terminal-view.ts";
 
 async function main() {
   const config = parseConfig(process.argv.slice(2));
-  const assets = Object.fromEntries(
+  if (!process.stdin.isTTY || !process.stdout.isTTY)
+    throw Error(
+      "TTY_REQUIRED: npm run tui enters the current terminal; stdin/stdout must be a TTY",
+    );
+  if (!["darwin", "linux"].includes(process.platform))
+    throw Error("UNSUPPORTED_TERMINAL_PLATFORM");
+  // Detect a background process group before any writer, raw mode or alternate screen.
+  // tcgetpgrp is an ioctl, not a terminal read; the fixed Python check loads no addon.
+  const foreground = spawnSync(
+    "/usr/bin/python3",
     [
-      ["/", "index.html", "text/html; charset=utf-8"],
-      ["/client.js", "client.js", "text/javascript; charset=utf-8"],
-      ["/style.css", "style.css", "text/css; charset=utf-8"],
-    ].map(([route, file, type]) => [
-      route,
-      {
-        type,
-        body: fs.readFileSync(
-          new URL("./web/" + file, import.meta.url),
-          "utf8",
-        ),
-      },
-    ]),
+      "-c",
+      "import os,sys; sys.exit(0 if os.tcgetpgrp(0) == os.getpgrp() else 2)",
+    ],
+    {
+      stdio: ["inherit", "ignore", "pipe"],
+      timeout: 1000,
+      env: { PATH: "/usr/bin:/bin", PYTHONUTF8: "1" },
+    },
   );
-  const app = new TuiApp(config, assets);
+  if (foreground.status !== 0)
+    throw Error(
+      "FOREGROUND_TTY_REQUIRED: launch tui in the foreground (without &)",
+    );
+  const app = new TuiApp(config);
+  const view = new TerminalView(app);
+  app.presentation = view;
   let started = false,
     failed = false;
   app.onExit = (saved) => {
-    if (!started) process.exit(1); // The precise startup error was already reported.
     console.error(
-      saved
-        ? "TUI closed; durable state saved. Core remains independent."
-        : "TUI closed with unconfirmed writes; reopen durable state for recovery.",
+      started
+        ? saved
+          ? "TUI closed; durable state saved. Core remains independent."
+          : "TUI closed with unconfirmed writes; reopen durable state for recovery."
+        : "TUI startup did not complete; retained state was not replaced.",
     );
-    process.exit(saved && !failed ? 0 : 1);
+    process.exit(saved && started && !failed ? 0 : 1);
   };
-  for (const signal of ["SIGINT", "SIGHUP", "SIGTERM"] as const)
-    process.once(signal, () => {
-      void app.close();
-    });
-  process.once("uncaughtException", (error) => {
-    failed = true;
-    console.error(error.message);
+  const close = () => {
     void app.close();
-  });
-  process.once("unhandledRejection", (error) => {
+  };
+  for (const signal of [
+    "SIGINT",
+    "SIGHUP",
+    "SIGTERM",
+    "SIGQUIT",
+    "SIGTSTP",
+    "SIGCONT",
+    "SIGTTOU",
+  ] as const)
+    process.on(signal, close);
+  const failure = (error: unknown) => {
     failed = true;
-    console.error(String(error));
-    void app.close();
-  });
-  try {
-    const url = await app.start();
-    started = true;
-    console.log(
-      "Secretary local browser command interface. Attach-only; start Core separately.",
-    );
-    console.log(
-      "Open in installed Chrome/Chromium. Single-use URL expires after 60 seconds:",
-    );
-    console.log(url);
-    if (config.open)
-      await openBrowser(url).catch((error) => console.error(error.message));
-  } catch (error) {
-    failed = true;
+    view.close(); // restore first, including when startup failed part way through
     console.error(error instanceof Error ? error.message : String(error));
-    await app.close();
+    close();
+  };
+  process.on("uncaughtException", failure);
+  process.on("unhandledRejection", failure);
+  try {
+    await app.start();
+    view.start();
+    started = true;
+  } catch (error) {
+    failure(error);
   }
 }
 void main().catch((error) => {

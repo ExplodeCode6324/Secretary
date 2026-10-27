@@ -1,6 +1,6 @@
 # TUI 的 Core API 使用清单
 
-状态：#82 本地浏览器命令界面已接入以下操作；实现、测试、CI、Claude 复核和人工验收分别记录于[实施证据](../fix/evidence/issue82-tui/implementation.md)。产品使用见[运行指南](browser-guide.md)。
+状态：#82 终端有限回滚保留以下 10 个 Core API 消费者，未新增或修改 Core 端点；原生验收 NOT_TESTED。产品使用见[终端指南](terminal-guide.md)，历史浏览器证据保留于[原实施记录](../fix/evidence/issue82-tui/implementation.md)。
 
 以 [operations.json](../api/v1/operations.json) 的 86 项为准（52 GET、34 POST）；新客户端已用 10 项（9 GET、1 POST），未用 76 项。未用 API 不要求补齐菜单，不自动构成结项阻塞。测试单独调用不计为客户端消费。本次未新增 Core API。
 

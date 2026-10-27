@@ -8,7 +8,8 @@
 
 实施更新（2026-10-23，#79（PR #85））：已删除旧客户端和专属设施，并调整文档检查与多语言入口；新 TUI 尚未实现。实际验证与本地状态处置见 [#79 实施记录](../fix/evidence/issue79-retirement/implementation.md)。
 
-实施更新（2026-10-25，#82）：按 R7 选择本地浏览器命令界面，原始终端 G0 不作为产品输入路径。功能、验证和未完成验收见[实施记录](../fix/evidence/issue82-tui/implementation.md)；运行见[指南](browser-guide.md)。下文原需求及历史状态保留，由 R7 和 Master 后续裁定处理冲突。
+实施纠偏（2026-10-28，#82 有限回滚）：Master 明确要求真实终端 TUI；浏览器入口、服务器和网页输入层退出正式路径，当前终端候选见[运行指南](terminal-guide.md)。保留 #79 退役、#80/#81 Core 能力及 #82 编辑/持久化/发送/同步主体；旧浏览器草稿和发送记录须原样兼容，尤其 UNKNOWN 不得清空。历史 R7 浏览器选择不能覆盖本次裁定；原生验收仍 NOT_TESTED，见[验收步骤](terminal-acceptance.md)和[修复计划](../fix/fix_20261028_issue82_terminal_rollback.md)。下文“旧客户端数据弃置”仅指 Tauri，不能用于 #82 记录。
+
 
 总路线：[#57](https://github.com/ExplodeCode6324/Secretary/issues/57)。
 

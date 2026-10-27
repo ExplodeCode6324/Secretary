@@ -1,6 +1,22 @@
 # Issue #82 — limited rollback to a terminal client
 
-Date: 2026-10-28 (Asia/Hong_Kong). Scope: **fix**, plan review pending. Master explicitly requires a terminal TUI and supersedes the browser product choice in the historical R7 plan. No implementation or acceptance is claimed by this document. Merge needs separate authorization.
+Date: 2026-10-28 (Asia/Hong_Kong). Scope: **fix**, plan PASS at `493ec825`; terminal implementation candidate in progress. Master explicitly requires a terminal TUI and supersedes the browser product choice in the historical R7 plan. Native acceptance is not claimed by this document. Merge needs separate authorization.
+
+## Implementation contract index
+
+Claude R3 returned **PASS** on published `493ec825`. R1/R2/R3 text below is retained for review provenance; use this index with explicit R3 > R2 > R1 precedence:
+
+| Concern | Controlling sections | Product/evidence location |
+| --- | --- | --- |
+| Preserve Core/editor/outbox/sync and visual layout | Verified baseline; R2 §6 | Existing model modules, terminal guide |
+| C1–C4 and legacy producer compatibility | R2 §1/5, R3 F/G | terminal-stream, state, compatibility fixtures |
+| Ordered decisions, local lease and minimum size | R3 A/B/C/E | terminal-input, retained app.event/outbox guards |
+| Sanitation, cursor/cells and terminal-only launch | R2 §2/3, R3 D | terminal-io/render/view, entry/config |
+| Restoration and failures | R2 §4, R3 D/G | actual product PTY and EPIPE tests |
+| Native merge gate | R3 G | [operator runbook](../tui/terminal-acceptance.md) |
+| Final candidate evidence and first failures | Implementation record | [evidence](evidence/issue82-terminal-rollback/implementation.md) |
+
+Implementation observation: a real synthetic background-process-group test exposed a read-before-ready hang after alternate-screen entry. The candidate now checks the foreground TTY group with a fixed, bounded Python ioctl preflight before acquiring state or entering modes. This is a startup guard, not a new client platform or a waiver of lifecycle tests.
 
 ## R3 controlling amendments (supersede R2 and R1 conflicts)
 

@@ -34,6 +34,6 @@ npm run stop
 
 Core には、独立したライフサイクル、信頼性のある同期、Scope、認可と不明な結果の判定、モデルの再試行、メモリ検索と原文入力のコンテキストからの除外、時刻指定のウェイクアップ、能動的なプッシュ配信、ストレージ性能の改善、モジュール分割、プロンプト整理が統合されています。現行ドキュメントは [#27](https://github.com/ExplodeCode6324/Secretary/issues/27) でコードに合わせて整理しました。全体のロードマップは [#7](https://github.com/ExplodeCode6324/Secretary/issues/7) を参照してください。
 
-現在のクライアント方針は [TUI 要件](docs/tui/requirements-and-backend-plan.md) に従います。Tauri/Svelte クライアントは廃止され、ローカルブラウザーのコマンド UI は[ガイド](docs/tui/browser-guide.md)を参照してください。[Core 運用ガイド](docs/ja/operations.md)を使用してください。未完了の GUI 受け入れ検証は元の状態を維持します。
+現在のクライアント方針は [TUI 要件](docs/tui/requirements-and-backend-plan.md) に従います。Tauri/Svelte クライアントは廃止され、ターミナル TUI は[ガイド](docs/tui/terminal-guide.md)を参照してください。[Core 運用ガイド](docs/ja/operations.md)を使用してください。未完了の GUI 受け入れ検証は元の状態を維持します。
 
 デバイス関連の #6/#11～#14 は凍結中です。SwiftUI は廃止され、旧設計は履歴参照専用です。

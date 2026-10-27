@@ -64,7 +64,7 @@ const rejected = new Map([
   ["UNSUPPORTED_MEDIA_TYPE", 415],
 ]);
 
-/** One dispatcher; no browser connection/generation can inherit POST authority. */
+/** One dispatcher; a revoked local session lease cannot inherit POST authority. */
 export class Outbox {
   generation = 0;
   active = false;

@@ -191,6 +191,8 @@ if "manifest.json" in names():
         blob_read(ref)
         verified[ref["blob"]] = ref
     cleanup(manifest)
+elif set(names()) - {"writer.lock"}:
+    raise RuntimeError("MISSING_CLIENT_MANIFEST")
 usage()  # Reject unexpected links/files rather than following them.
 
 

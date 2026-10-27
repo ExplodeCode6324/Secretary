@@ -1,4 +1,6 @@
-# Local browser command interface
+# Historical browser interface (retired)
+
+This document describes the retired Issue #82 browser product at [e090a9c](https://github.com/ExplodeCode6324/Secretary/tree/e090a9c79f69fc68cb4b81caa392e1b82675cf34/src/pi_secretary/src/tui/web). Its commands and guarantees are historical, not the current launch contract. Use the [terminal guide](terminal-guide.md); native acceptance remains [NOT_TESTED](terminal-acceptance.md).
 
 Issue #82 implements Main and local Task drafts in a loopback browser interface. It uses the existing Core API. The historical raw-terminal G0 remains an isolated failed provenance witness; it is not this product's input adapter. Product review, CI and manual acceptance are separate gates recorded in the [implementation evidence](../fix/evidence/issue82-tui/implementation.md).
 

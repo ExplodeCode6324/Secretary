@@ -1,6 +1,8 @@
 # Issue #82：有限回滚为终端 TUI
 
-日期：2026-10-28（Asia/Hong_Kong）。范围：**fix**；计划待复核。Master 本次明确要求终端 TUI，取代历史 R7 的浏览器产品选择。本文件不代表实现或验收完成；合并须另行授权。完整英文复核稿见[英文计划](fix_20261028_issue82_terminal_rollback.en.md)。
+日期：2026-10-28（Asia/Hong_Kong）。范围：**fix**；计划已在 `493ec825` 获 Claude R3 PASS，终端候选实现中。Master 本次明确要求终端 TUI，取代历史 R7 的浏览器产品选择。本文件不代表实现或验收完成；合并须另行授权。完整英文复核稿见[英文计划](fix_20261028_issue82_terminal_rollback.en.md)。
+
+实施合同索引：英文稿顶部按输入、兼容、发送许可、绘制、生命周期和原生验收列出控制章节（R3 > R2 > R1）；结果见[实施证据](evidence/issue82-terminal-rollback/implementation.md)。新增后台进程组 PTY 测试暴露切屏后的读取阻塞，现于获取状态/进入终端模式前执行固定、有界的 Python 前台 ioctl 检查，后台启动明确拒绝；不放宽验收。
 
 ## R3 裁定（覆盖 R2/R1 冲突表述）
 

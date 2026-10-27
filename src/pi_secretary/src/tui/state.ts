@@ -30,6 +30,19 @@ export const hash = (text: string) =>
   createHash("sha256").update(text).digest("hex");
 export type EntryState =
   "PREPARED" | "ATTEMPTED" | "UNKNOWN" | "NEEDS_EDIT" | "CONFLICT";
+export type Producer =
+  | { class: "browser-structured"; policy: "issue82-r7" }
+  | { class: "terminal-bracketed-paste"; policy: "issue82-terminal-r1" };
+export function supportedProducer(value: unknown): value is Producer {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const p = value as Producer;
+  return (
+    Object.keys(p).sort().join() === "class,policy" &&
+    ((p.class === "browser-structured" && p.policy === "issue82-r7") ||
+      (p.class === "terminal-bracketed-paste" &&
+        p.policy === "issue82-terminal-r1"))
+  );
+}
 export type OutboxEntry = {
   request_id: string;
   sequence: number;
@@ -41,7 +54,7 @@ export type OutboxEntry = {
   state: EntryState;
   attempted: boolean;
   uncertain: boolean;
-  producer: { class: "browser-structured"; policy: "issue82-r7" };
+  producer: Producer;
   origin: View;
   revision: number;
   created_at: string;
@@ -103,12 +116,14 @@ export class ClientStore {
   private maximum?: ReturnType<typeof setTimeout>;
   private savePending = false;
   private closed = false;
+  private opened = false;
   onChange: () => void = () => {};
   constructor(
     readonly writer: StateWriter,
     readonly maxOutbox = 1000,
   ) {}
   async open() {
+    if (this.opened || this.closed) throw Error("STATE_ALREADY_OPEN_OR_CLOSED");
     await this.writer.ready;
     const data = this.writer.data as ClientState | null;
     if (!data) {
@@ -122,7 +137,8 @@ export class ClientStore {
         view: "Main",
         anchor: null,
       };
-      await this.save();
+      await this.transaction(() => ({ result: undefined }), "input-ack", true);
+      this.opened = true;
       return;
     }
     if (
@@ -179,8 +195,7 @@ export class ClientStore {
         entry.route !== "messages" ||
         typeof entry.attempted !== "boolean" ||
         typeof entry.uncertain !== "boolean" ||
-        entry.producer?.class !== "browser-structured" ||
-        entry.producer.policy !== "issue82-r7"
+        !supportedProducer(entry.producer)
       )
         throw Error("CORRUPT_OUTBOX");
       ids.add(entry.request_id);
@@ -188,6 +203,7 @@ export class ClientStore {
     }
     if (data.next_sequence <= last) throw Error("CORRUPT_SEQUENCE");
     this.state = data;
+    this.opened = true;
   }
   private capture(): {
     editors: Record<View, StoredEditor>;
@@ -241,8 +257,12 @@ export class ClientStore {
       retire?: Record<string, "handoff" | "discard">;
     },
     intent: CommitIntent = "maintenance",
+    initialize = false,
   ): Promise<T> {
+    if (!this.opened && !initialize)
+      return Promise.reject(Error("STATE_NOT_OPEN"));
     const run = async () => {
+      if (!this.opened && !initialize) throw Error("STATE_NOT_OPEN");
       if (this.readOnly) throw Error("FOREIGN_DOMAIN_QUARANTINED");
       if (this.closed || !this.writer.healthy) throw Error("STATE_UNAVAILABLE");
       const captured = this.capture(),
@@ -283,6 +303,7 @@ export class ClientStore {
     return this.transaction(() => ({ result: undefined }), "input-ack");
   }
   edited() {
+    if (!this.opened) throw Error("STATE_NOT_OPEN");
     if (this.closed || this.readOnly) return;
     this.onChange();
     clearTimeout(this.debounce);
@@ -311,6 +332,7 @@ export class ClientStore {
     this.maximum ??= setTimeout(save, 1000);
   }
   async bind(binding: Binding) {
+    if (!this.opened) throw Error("STATE_NOT_OPEN");
     if (this.state.binding && !sameBinding(this.state.binding, binding))
       throw Error("FOREIGN_DOMAIN_QUARANTINED");
     if (!this.state.binding)
@@ -325,6 +347,7 @@ export class ClientStore {
     binding: Binding,
     revision: number,
   ): Promise<OutboxEntry> {
+    if (!this.opened) throw Error("STATE_NOT_OPEN");
     if (!sameBinding(this.state.binding, binding))
       throw Error("BINDING_MISMATCH");
     if (!text.trim()) throw Error("EMPTY_INPUT");
@@ -348,7 +371,10 @@ export class ClientStore {
         state: "PREPARED",
         attempted: false,
         uncertain: false,
-        producer: { class: "browser-structured", policy: "issue82-r7" },
+        producer: {
+          class: "terminal-bracketed-paste",
+          policy: "issue82-terminal-r1",
+        },
         origin: view,
         revision,
         created_at,
@@ -448,7 +474,7 @@ export class ClientStore {
     await this.chain;
   }
   async close() {
-    await this.flush();
+    if (this.opened) await this.flush();
     this.closed = true;
     return this.writer.close();
   }

@@ -20,7 +20,11 @@ import { StateWriter } from "./writer.ts";
 import { Outbox, bindingOf } from "./outbox.ts";
 import { InputProtocol, type Action } from "./input.ts";
 import { MainSync } from "./sync.ts";
-import { BrowserServer, type Assets } from "./server.ts";
+export interface Presentation {
+  publish(): void;
+  notify(value: Record<string, unknown>): void;
+  close(): void;
+}
 import type { Config } from "./config.ts";
 import path from "node:path";
 
@@ -33,7 +37,7 @@ export class TuiApp {
   readonly outbox: Outbox;
   readonly input: InputProtocol;
   readonly sync: MainSync;
-  readonly browser: BrowserServer;
+  presentation: Partial<Presentation>;
   command?: Editor;
   notice =
     "CR/CRLF normalize to LF. Enter inserts a newline; Submit is explicit.";
@@ -82,7 +86,7 @@ export class TuiApp {
   onExit: (saved: boolean) => void = () => {};
   constructor(
     readonly config: Config,
-    assets: Assets,
+    presentation: Partial<Presentation> = {},
   ) {
     this.store = new ClientStore(
       new StateWriter(path.join(config.data, "tui-v1"), config.quota),
@@ -121,29 +125,7 @@ export class TuiApp {
     this.outbox = new Outbox(this.store, attach);
     this.sync = new MainSync(this.store, attach);
     this.input = new InputProtocol(() => this.editor());
-    this.browser = new BrowserServer(assets, {
-      snapshot: () => this.snapshot(),
-      event: (event, generation) => this.event(event, generation),
-      connected: (generation) => {
-        this.input.reset();
-        this.outbox.connect(generation);
-        void this.outbox.observe().catch((error) => {
-          this.notice = String(error);
-          this.publish();
-        });
-      },
-      disconnected: (generation) => {
-        this.outbox.disconnect(generation);
-        this.input.reset();
-        this.clipboard = undefined;
-      },
-      expired: () => {
-        this.notice =
-          "No authenticated client; URL expired. Relaunch for a fresh URL.";
-        console.error(this.notice);
-        void this.close();
-      },
-    });
+    this.presentation = presentation;
     this.store.onChange = this.sync.onChange = () => this.publish();
     this.outbox.onChange = () => {
       if (this.outbox.status.startsWith("received by Core"))
@@ -156,14 +138,14 @@ export class TuiApp {
   }
   async start() {
     await this.store.open();
+    if (this.closing) throw Error("CLIENT_CLOSED_DURING_STARTUP");
     await this.sync.start();
-    return this.browser.listen();
   }
   private publish() {
     if (this.publishTimer || this.closing) return;
     this.publishTimer = setTimeout(() => {
       this.publishTimer = undefined;
-      this.browser.publish();
+      this.presentation.publish?.();
     }, 16);
   }
   snapshot() {
@@ -264,7 +246,7 @@ export class TuiApp {
             ),
           },
     );
-    // The browser receives a bounded viewport. Full content remains in Node's bounded cache.
+    // The presentation receives a bounded viewport. Full content remains in Node's bounded cache.
     let remaining = 128 * 1024;
     const rows = visible
       .map((row) => {
@@ -448,7 +430,7 @@ export class TuiApp {
           revision: editor.draft.revision,
         };
         this.notice =
-          "Restore replaces this view's draft as one non-undoable edit. Click Confirm restore to apply; original rejected outbox body stays retained.";
+          "Restore replaces this view's draft as one non-undoable edit. Choose Confirm restore to apply; original rejected outbox body stays retained.";
         return;
       }
       const replacement = new Editor({
@@ -642,7 +624,7 @@ export class TuiApp {
     if (end < job.text.length && /[\uD800-\uDBFF]/.test(job.text[end - 1]))
       end--;
     job.offset = end;
-    this.browser.notify({
+    this.presentation.notify?.({
       type: "clipboard",
       id: job.id,
       text: job.text.slice(start, end),
@@ -670,11 +652,11 @@ export class TuiApp {
     if (action === "resume") {
       this.outbox.resume(generation);
       this.notice =
-        "Resume authorized for this tab; Core receipts and business outcomes remain separate.";
+        "Resume authorized for this terminal session; Core receipts and business outcomes remain separate.";
       return;
     }
     if (action.startsWith("scroll-")) {
-      this.browser.notify({ type: action });
+      this.presentation.notify?.({ type: action });
       return;
     }
     if (action === "submit") {
@@ -755,7 +737,7 @@ export class TuiApp {
         )
           .map((c) => `/${c.name} ${c.help} [${c.scope}]`)
           .join("\n") +
-        "\nEnter=newline; Ctrl+S=Submit; Ctrl+G=Commands; Ctrl+P=Literal; Ctrl+O=Copy selection; Ctrl+U/D=scroll. Footer buttons are the supported fallback. Copy/cut require clipboard success. Native Ctrl/Cmd+C never quits. Paste controls stay data. CR/CRLF normalize to LF.";
+        "\nEnter=newline; Ctrl+S=Submit; Ctrl+G=Commands; Ctrl+P=Literal; Ctrl+O=Copy selection; Ctrl+U/D=scroll. Candidate keys: Ctrl+T opens actions; Ctrl+C closes the client. Copy/cut require clipboard success. Bracketed paste is data, not authenticated origin; Cmd+V supports trusted text only. CR/CRLF normalize to LF.";
     else if (name === "quit") {
       await this.close();
       return;
@@ -925,6 +907,7 @@ export class TuiApp {
   async close() {
     if (this.closing) return;
     this.closing = true;
+    this.presentation.close?.();
     this.lifetime.abort();
     clearTimeout(this.publishTimer);
     this.outbox.close();
@@ -944,7 +927,6 @@ export class TuiApp {
       ]);
     } finally {
       clearTimeout(deadline);
-      await this.browser.close();
       this.store.writer.child.stdin.end();
       this.onExit(saved);
     }

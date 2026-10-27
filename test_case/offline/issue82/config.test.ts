@@ -46,3 +46,28 @@ test("launcher requires explicit private profile and mode; no environment defaul
   });
   assert.throws(() => parseConfig(["--config", inside]), /OUTSIDE_CORE_DATA/);
 });
+test("terminal config rejects browser launch and supports colour consistently in CLI and config file", () => {
+  const parent = fs.mkdtempSync(path.join(evidence, "terminal-config-")),
+    data = path.join(parent, "private");
+  fs.mkdirSync(data, { mode: 0o700 });
+  assert.throws(
+    () => parseConfig(["--data", data, "--mode", "fixture", "--open"]),
+    /OBSOLETE_OPEN/,
+  );
+  for (const color of ["auto", "truecolor", "256", "none"]) {
+    assert.equal(
+      parseConfig(["--data", data, "--mode", "fixture", "--color", color])
+        .color,
+      color,
+    );
+    const file = path.join(parent, "config.json");
+    fs.writeFileSync(file, JSON.stringify({ data, mode: "fixture", color }), {
+      mode: 0o600,
+    });
+    assert.equal(parseConfig(["--config", file]).color, color);
+  }
+  assert.throws(
+    () => parseConfig(["--data", data, "--mode", "fixture", "--color", "bad"]),
+    /INVALID_COLOR/,
+  );
+});
