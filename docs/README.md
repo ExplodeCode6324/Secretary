@@ -1,6 +1,6 @@
 # 文档
 
-当前客户端路线见 [TUI 需求](tui/requirements-and-backend-plan.md)；本地浏览器命令界面见[运行指南](tui/browser-guide.md)。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
+当前客户端路线见 [TUI 需求](tui/requirements-and-backend-plan.md)；新 TUI 尚未实现。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
 
 从运行手册开始使用 Core；架构与数据流解释模块如何协作，不变量提供实现和测试证据。
 
