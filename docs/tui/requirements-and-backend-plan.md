@@ -1,5 +1,7 @@
 # Secretary TUI 需求书与现有后端改造评估
 
+> **2026-10-30 重建说明：**本文件保留 2026-10-23 的需求及 #79–#81 后端改造历史。当前 TUI 重建的已确定界面、命令、范围和验收以 [临时实施参考](implementation-reference.md) 为准；其中的待定项仍需裁定。#82、#83、#84 将在 Master 确认批次后全面重写正文，请勿继续按下文旧前端要求启动实现。历史源码结论仍只适用于各自记录的提交。
+
 版本：v1.0（2026-10-23 Master 裁定版）  
 日期：2026-10-23  
 代码基线：ExplodeCode6324/Secretary，main@12e028a049122035f86d5cbf930516157c9bb72b  
@@ -10,7 +12,7 @@
 
 总路线：[#57](https://github.com/ExplodeCode6324/Secretary/issues/57)。
 
-本文件以 Master 在 2026-10-23 的七项裁定为当前规范，替代 v0.1 中对应的待定项；具体框架、键位和容量数值由实施者在此边界内确定并记录。源码结论均针对上述固定提交；没有运行应用、自动化测试或真实模型调用，因此“已有实现”不等于“新 TUI 已验收”。
+本文件记录 Master 在 2026-10-23 的七项裁定及当时方案，当时替代了 v0.1 中对应的待定项；当前重建约束以顶部链接的临时实施参考为准。源码结论均针对上述固定提交；没有运行应用、自动化测试或真实模型调用，因此“已有实现”不等于“新 TUI 已验收”。
 
 ## 1. 结论与迁移方向
 
@@ -632,4 +634,5 @@ API 未使用清单是可见性要求，不意味着必须补完整菜单。A/B 
 [I63]: https://github.com/ExplodeCode6324/Secretary/issues/63#issuecomment-6357543007
 [I70]: https://github.com/ExplodeCode6324/Secretary/issues/70
 [I74]: https://github.com/ExplodeCode6324/Secretary/issues/74
+
 

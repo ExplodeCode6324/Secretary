@@ -1,12 +1,13 @@
 # 文档
 
-当前客户端路线见 [TUI 需求](tui/requirements-and-backend-plan.md)；新 TUI 尚未实现。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
+当前客户端重建依据见 [TUI 临时实施参考](tui/implementation-reference.md)（v1.4）；新 TUI 尚未实现。已确定需求与待定项在文中分开记录，分批方案须经 Master 确认后再全面重写 #82、#83、#84。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
 
 从运行手册开始使用 Core；架构与数据流解释模块如何协作，不变量提供实现和测试证据。
 
 | 文档 | 内容 |
 | --- | --- |
-| [TUI 需求与分阶段实施](tui/requirements-and-backend-plan.md) | Master 裁定、接口复用、清理范围与 Issue 顺序 |
+| [TUI 临时实施参考](tui/implementation-reference.md) | 最新已定需求、待定边界、操作验收及待确认分批建议；完成后吸收进正式文档再清理 |
+| [旧 TUI 需求与后端改造依据](tui/requirements-and-backend-plan.md) | 2026-10-23 需求及 #79–#81 改造历史；当前重建以临时参考中的已定条款为准 |
 | [TUI API 使用清单](tui/api-coverage.md) | 每项 Issue 完成后记录已用及仍未使用的 Core API |
 | [运行手册](operations.md) | 安装、启停、模型与数据库配置、备份、排障和验证 |
 | [架构](architecture.md) | 模块职责、进程、并发和存储 |
@@ -21,4 +22,5 @@
 [src/pi_secretary](../src/pi_secretary/src/app.ts) 保存 Core 实现，[src/pi_resource](../src/pi_resource/README.md) 为固定 Pi 子模块。[内部字段](data/README.md)和[数据库参考](database.md)由 schema/SQL 生成，API 的 [schema](api/v1/schema.json)、[操作表](api/v1/operations.json)和 [OpenAPI](api/v1/openapi.json)单独维护公开合同。[离线测试](../test_case/offline/README.md)、[在线测试](../test_case/online/README.md)及[报告](../test_case/reports/README.md)分别组织验证。
 
 [修复计划](fix/README.md)记录当前工作；[历史计划](fix/archive/index.md)、[API 验证](api/v1/verification.md)、[同步验收](api/v1/issue9-verification.md)保留对应版本结论。[原始设计](old/README.md)、[BrainStorm](BrainStorm_Baseline_v3.md)和[已废弃 SwiftUI 设计](old/native-client-design-v0.3.md)用于追溯。产品路线见[项目 README](../README.md#开发路线)。
+
 
