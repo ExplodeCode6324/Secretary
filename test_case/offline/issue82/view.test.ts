@@ -1,10 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { Text } from "@earendil-works/pi-tui";
+import { Text, visibleWidth } from "@earendil-works/pi-tui";
 import {
   DocumentView,
   AnchoredScroll,
   safeText,
+  messageComponent,
 } from "../../../src/pi_secretary/src/tui/view.ts";
 import { RemoteViews } from "../../../src/pi_secretary/src/tui/remote.ts";
 import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
@@ -98,4 +99,17 @@ test("initial window stays bounded; bursts larger than 50 catch up without dropp
     Array.from({ length: 190 }, (_, i) => String(i + 50)),
   );
   views.stop();
+});
+
+test("long Chinese previews and labels wrap in narrow terminals", () => {
+  const m = message(1);
+  m.thinking_preview = { text: "中文思考预览".repeat(60), truncated: false };
+  m.outcome = "interrupted";
+  const view = messageComponent(m);
+  for (const width of [2, 8, 40, 100])
+    for (const line of view.render(width))
+      assert(
+        visibleWidth(line) <= width,
+        `width ${width}: ${visibleWidth(line)}`,
+      );
 });

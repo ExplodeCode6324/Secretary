@@ -85,8 +85,10 @@ Master confirmed the final native preflight: all checks normal, with the questio
 
 ## Automation checkpoint
 
-Nineteen dedicated cases cover routing/paste/completion and final key bindings, simulated-terminal slow status latency, real HTTP lost receipt and timeout, slow persistence/new draft races, conflict, same-ID retry, acceptance-bound restore, continuity guards, writer exclusion, atomic snapshots, corruption preservation, expiry, reading anchors, burst catch-up, minimal actual waiting-execution projection, and attach/send/navigation/exit against a real fixture Core. These do not claim every matrix branch above, native full-product acceptance or live-provider coverage.
+Twenty dedicated cases cover routing/paste/completion and final key bindings, simulated-terminal slow status latency, real HTTP lost receipt and timeout, slow persistence/new draft races, conflict, same-ID retry, acceptance-bound restore, continuity guards, writer exclusion, atomic snapshots, corruption preservation, expiry, reading anchors, burst catch-up, minimal actual waiting-execution projection, and attach/send/navigation/exit against a real fixture Core. These do not claim every matrix branch above, native full-product acceptance or live-provider coverage.
 
 First integration attempt timed out because the reusable HTTP fixture did not publish a discovery endpoint file; the test setup now writes its own private endpoint file, as the actual Core launcher does. The initial burst test had an incorrect fake URL pathname (leading slash mismatch); correcting the fake made the 140-arrival test pass. No production route was changed to accommodate either fixture.
 
 While a request is UNKNOWN, this one-slot client blocks different Main messages. It never automatically replays. Explicit identical-payload submission retries the original ID; verified later-instance non-delivery releases the slot and preserves the original raw input. A same-instance negative read or elapsed timeout alone never releases it. The client never restarts Core to force resolution.
+
+Full local verification completed: 745 tests passed, zero failures/skips, using an isolated temporary PostgreSQL instance (now stopped). The final added integration/HTTP/keyboard and narrow-preview cases are separately rerun; final CI must cover the published HEAD.

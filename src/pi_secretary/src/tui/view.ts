@@ -55,13 +55,17 @@ export function messageComponent(m: Message): Component {
   return {
     invalidate: () => md.invalidate(),
     render: (width) => [
-      paint(title),
-      ...(preview ? [gray(safeText(String(preview)))] : []),
+      ...new Text(paint(safeText(title)), 0, 0).render(width),
+      ...(preview
+        ? new Text(gray(safeText(String(preview))), 0, 0).render(width)
+        : []),
       ...md.render(width),
       ...(m.outcome && m.outcome !== "completed"
-        ? [gray(`状态 ${m.outcome}`)]
+        ? new Text(gray(`状态 ${m.outcome}`), 0, 0).render(width)
         : []),
-      ...(m.next_cursor ? [gray("正文片段读取中…")] : []),
+      ...(m.next_cursor
+        ? new Text(gray("正文片段读取中…"), 0, 0).render(width)
+        : []),
       ...(role === "user" ? [blue("─".repeat(Math.max(1, width)))] : []),
       "",
     ],
