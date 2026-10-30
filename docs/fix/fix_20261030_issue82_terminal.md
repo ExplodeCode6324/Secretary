@@ -1,11 +1,11 @@
 # Issue #82 — 终端 Main/Task 基础实施计划
 
-日期：2026-10-30（香港）。R2。状态：REVISED_FOR_CLAUDE_REVIEW；实施须经 Master 批准。
+日期：2026-10-30（香港）。R3。状态：CLAUDE_PLAN_PASS / WAITING_MASTER_APPROVAL；实施须经 Master 批准。
 
 ## 1. 依据与边界
 
-仓库：https://github.com/ExplodeCode6324/Secretary  
-Issue：https://github.com/ExplodeCode6324/Secretary/issues/82  
+仓库：https://github.com/ExplodeCode6324/Secretary
+Issue：https://github.com/ExplodeCode6324/Secretary/issues/82
 依据：重新编写的 #82 与 `docs/tui/implementation-reference.md` v1.7，重点 C01–C04、C12–C16。从领取时最新 main `ceb50543423e4cfabbbf532fed8432030fb8b061` 开始；它比回滚提交 `f01076e6f5efad437d64b2a2890ae1af43ce97d7` 仅增加文档，源码、包文件和测试未变，回滚树与 #81 完成树一致。不恢复已撤回的两版 #82。计划分支 `codex/issue82-terminal-plan`。
 
 交付真实 macOS 终端的 Main 和非空 Task 双入口、主会话收发、两份普通草稿与失败恢复。精确锁定 `@earendil-works/pi-tui@0.87.0`（上游 `16787ad5b2dc748047f314ca1bfe7708f30f54f3`），复用 TuiAltScreen、容器/ScrollView、Editor、Markdown、键位与补全；Node >=22.19.0，不重新选框架。
@@ -16,7 +16,7 @@ Issue：https://github.com/ExplodeCode6324/Secretary/issues/82
 
 - `core-client.ts` 已有 query/command、同步游标/changes/stream 和安全本机 attach。TUI 只 attach，Core 缺席或不可用时明确提示，不调用 start/stop、不创建第二主会话、不在前端直接导入 Host/Store。
 - `application-service.ts` 的 tasks 列表只有计划状态、目标、scope_id、active_execution_ids，缺实际执行状态。详情已有最新执行和排队请求。补最小增量只读列表投影：活跃执行 ID/真实状态、最新执行 ID/状态或 null、排队请求数；同步 schema 源、生成 DTO/OpenAPI 与合同测试。复用已有索引/Store，不改调度器和生命周期。在 TaskSummary 本身增量加字段，供 #83 继续扩展；保留 state 表达计划；无活跃执行明确显示无，排队不等于运行，最近 FAILED 不能冒充当前执行。Scope 名称读既有 scopes，null 显示逻辑 Shared；读取失败显示不可取得，不编造状态。
-- 提交完全由应用拥有：Editor 设置 disableSubmit=true，不用 onSubmit 路由。终端适配层跟踪 bracketed paste 边界（含拆包与尾随输入），粘贴/换行/编辑交给 Editor；只有非粘贴且补全菜单未打开时提交。处理 Enter 前记录 isShowingAutocomplete()，菜单打开时此次 Enter 只补全，即使处理后菜单已关闭也不得提交。明确提交时读取原始 getExpandedText()，不调用私有 submitValue。局部错误、Task 普通提交保持原 Editor 实例/文本/光标/undo；只有导航或可靠本地交接消费文本时才清空。disableSubmit 会越过 Pi 的反斜杠+Enter 降级，应用须通过公开编辑/输入 API 补上并先测。
+- 提交完全由应用拥有：Editor 设置 disableSubmit=true，不用 onSubmit 路由。复用 ProcessTerminal/StdinBuffer 对拆分粘贴的组装，每个完整包装的paste事件只交给Editor、不提交，不另写粘贴解析器；测试真实StdinBuffer拆包路径。换行/编辑交给Editor，只有独立提交键且菜单未打开时提交。处理 Enter 前记录 isShowingAutocomplete()，菜单打开时此次 Enter 只补全，即使处理后菜单已关闭也不得提交。明确提交时读取原始 getExpandedText()，不调用私有 submitValue。局部错误、Task 普通提交保持原 Editor 实例/文本/光标/undo；只有导航或可靠本地交接消费文本时才清空。disableSubmit 会越过 Pi 的反斜杠+Enter 降级，应用须通过公开编辑/输入 API 补上并先测。
 - 自定义 AutocompleteProvider，不使用 CombinedAutocompleteProvider。仅原始第0行第0字符为 / 且光标位于命令名 token 时提供当前范围已实现命令；前导空格、正文参数、其他行和路径不建议、不做文件补全。补全可追加分隔空格，无参数命令允许末尾 ASCII 空格/Tab，但拒绝额外行或非空白参数；正文命令只去掉第一个 ASCII 分隔空格，余下原样保留。只折叠命令名大小写。补全键处理后显式捕获展开草稿，因为 disableSubmit 的斜杠确认路径可能不触发 onChange。覆盖 Enter/Tab 补全、菜单关闭后的下一次 Enter、前导/尾随空格、无文件建议、粘贴边界、失败时光标/undo 不变。
 - 拟新增 `src/pi_secretary/src/tui/`、薄入口 `tui-cli.ts` 和 npm 启动项；测试 `test_case/offline/issue82/`。模块仅页面状态、渲染/编辑器适配、命令注册、Core 同步和小型本地草稿存储，不另建服务层。
 
@@ -44,21 +44,25 @@ Task 每API页50条，从现有最早创建/first-sequence 顺序首屏开始，
 
 ## 5. 最小草稿与待确认提交保护
 
-Core 数据目录按 core-cli 的 SECRETARY_DATA 或相对启动目录的 .demo-data 解析，CORE_MODE_MISMATCH 与 Core 不存在分开提示。TUI 状态置于 Core 根目录之外的 ~/Library/Application Support/Secretary/tui/v1/<data_domain_id>/<mode>/，v1 表示 API 版本，限制权限；用版本化原子 JSON 快照保存两份完整展开草稿、至多一个未解决 Main 提交；不建通用队列/服务/Core 草稿库。待提交记录保留域/API/mode、created_at、request_id 和完整固定序列化请求。使用小型内核 flock 持有进程拒绝多写，复用仓库 Python/flock 模式但不导入 JournalOwner 及其 journal/worker 协议。父管道关闭释放锁，helper 死亡立刻停止写和发；测试互斥、父/helper 退出。不删重建已锁 inode、不做 stale PID 删除，仅是锁而非持久化服务。不导入旧 Tauri/旧 TUI 状态。
+Core attach成功前禁用输入、明确显示连接/mode错误，不能在未知域下让正文看似已保存。Core 数据目录按 core-cli 的 SECRETARY_DATA 或相对启动目录的 .demo-data 解析，CORE_MODE_MISMATCH 与 Core 不存在分开提示。TUI 状态置于 Core 根目录之外的 ~/Library/Application Support/Secretary/tui/v1/<data_domain_id>/<mode>/，v1 表示 API 版本，限制权限；用版本化原子 JSON 快照保存两份完整展开草稿、至多一个未解决 Main 提交；不建通用队列/服务/Core 草稿库。待提交记录保留域/API/mode、created_at、request_id、原Core instance_id、每次最后尝试的实例/时间、原始编辑输入及完整固定序列化请求。使用小型内核 flock 持有进程拒绝多写，复用仓库 Python/flock 模式但不导入 JournalOwner 及其 journal/worker 协议。父管道关闭释放锁，helper 死亡立刻停止写和发；测试互斥、父/helper 退出。不删重建已锁 inode、不做 stale PID 删除，仅是锁而非持久化服务。不导入旧 Tauri/旧 TUI 状态。
 
 草稿拟 300ms debounce，加切页/提交/正常退出前 flush；临时文件+原子替换。明确突然崩溃/断电可能丢最后一次保存后的编辑，正常退出重开与发送失败不得丢稿；不逐键 fsync。网络前的提交记录和清理前的接收事实采用持久 checkpoint（文件 sync、rename、支持的目录 sync）。磁盘错误保留内存/原文，提交快照失败则不发网络，退出保存失败不能静默退出。损坏/未知版本文件保留并阻断，不重置为空。
 
 提交验证原始展开正文、schema text最大1,048,576及完整JSON总UTF-8字节不超过1,048,576（含外壳/转义，api-v1.ts:183）。原序列化请求/ID可靠落盘后才POST，随后可清空普通草稿供继续编辑。单个未解决提交与两份普通草稿分开，双Enter不得启动新事务。区分本地待确认、Core可靠接收和下游业务状态。Receipt.acceptance=ACCEPTED 表示交接，即使 state 后来是FAILED/UNKNOWN也不撤销接收，但绝不能显示业务成功。交接事实落盘后只清对应副本，不碰新草稿。
 
-超时/断线/重开保留原ID/正文，不自动重发；以本地只读恢复条目展示原文/ID，明确不属于权威 Main 历史。恢复时 Main 为空可恢复原载荷到编辑器，存在新稿则分开保留。只有本次明确提交解析出的正文与待确认原载荷完全一致，且可见提示说明将重试此ID，才作为重试。不同正文保留并局部拒绝，不能暗发旧请求；可用已有选择/复制把原文放回编辑器，不新增隐藏命令模式。重新验证同域/API/mode 后，直接幂等 POST 原序列化正文/ID，不依赖 CoreClient 丢失HTTP状态后的所谓权威404。GET requests/{id} 只读对账，明确接收回执可直接完成交接；错误本身不授权删除/换ID。需要时加窄范围CoreClient原字节重发方法，保留本机/鉴权检查。409 REQUEST_CONFLICT 保留记录、显示冲突、绝不换ID。
+超时/断线/重开保留原ID、正文及原始编辑输入（例如 /rawmessage /T，而非只存 /T）。启动、重连、被阻塞提交之前，验证域/API/mode 后自动只读GET对账；先对账，再恢复编辑器，绝不自动POST。已接收则完成交接；可证明未送达才经共用拒绝恢复路径释放槽。证明限定为：同域、比全部持久尝试更新的Core实例返回NOT_FOUND，旧连接已abort，且从未对新实例POST；Core单Store所有者和实例替换排除旧请求在途。同实例的NOT_FOUND、经过某时长、fetch失败/abort均不证明未送达，保留UNKNOWN并解释。15秒requestTimeout加任意余量不是可靠取消屏障；不由TUI强制重启Core。用户可明确重试原请求；若不愿再发则不重放，并如实说明已在途请求无法安全宣称取消。之后同域Core重启或权威接收/拒绝可以解决。这是交Master审阅的保守限制，不承诺未证明的取消。
 
-明确接收前校验拒绝与已接收后的业务失败分开：无新稿时恢复可编辑原文；有新稿绝不覆盖/合并。把被拒文本保存为唯一命名的自有恢复JSON文件，局部恢复条目显示路径和可复制原文，保存成功才释放已解决的待提交槽；恢复条目仍引用时受保护，解除引用后按三年孤立规则保留。新普通草稿之后可发送；恢复材料不是第三份普通可编辑草稿或通用队列。修正后的明确提交使用新ID；冲突不是校验拒绝，不释放槽。验证拒绝竞态及新稿不触发旧请求重试。
+对账后，Main为空且命运未知/已证明未送达时才恢复原始RAW输入，并持久绑定 {request_id, raw_input, draft_generation}；有新稿则保持不变、显示恢复信息。恢复条目放在允许的底部提示行，含截断预览/ID/路径，不加面板、不入历史；全文可由编辑器恢复或自有恢复文件取得。之后发现已接收，以同一原子快照完成交接并清除未改动的绑定副本，再更新UI；已编辑则解除未修改绑定、保留新稿。重启/崩溃后也不能留下已接收的原绑定副本作为新消息。被阻塞的Enter触发对账后，如果绑定副本刚被确认并清掉，不得顺势创建新请求；剩余新稿须下一次明确提交。
+
+只有解析正文与待确认原载荷相同、可见提示标识原ID时，普通Main明确提交才重试。不同正文保留，仅命运未解决时阻塞，不暗发旧请求。已证明未送达/明确拒绝后原始输入可正常编辑或放弃；未改原稿可复用ID，改后是新明确请求。每次发送重新验域/API/mode。既有CoreClient.command()重发持久正文即可，Core按canonical {owner,path,body}取指纹，等价JSON序列化不改变身份，不新增专用传输方法，绝不从已编辑草稿重建旧请求。409冲突保留证据、不换ID、不当成未送达；鉴权/5xx/传输错误保持未解决、重新attach/对账，不删稿。
+
+只有对应尝试真实返回准确错误码 INVALID_REQUEST（schema）、INVALID_INPUT、INVALID_JSON、REQUEST_TOO_LARGE才算明确接收前拒绝；排除401/403、409、503 CORE_STOPPING/BUSY、500与传输错误。按固定API准确错误映射判断，必要时小型typed API error保留HTTP状态，不宽泛匹配INVALID子串。明确接收前校验拒绝与已接收后的业务失败分开：无新稿时恢复可编辑原文；有新稿绝不覆盖/合并。把被拒文本保存为唯一命名的自有恢复JSON文件，局部恢复条目显示路径和可复制原文，保存成功才释放已解决的待提交槽；恢复条目仍引用时受保护，解除引用后按三年孤立规则保留。新普通草稿之后可发送；恢复材料不是第三份普通可编辑草稿或通用队列。修正后的明确提交使用新ID；冲突不是校验拒绝，不释放槽。验证拒绝竞态及新稿不触发旧请求重试。
 
 只清理本客户端自建的已交接/过期副本，不碰 Core 历史、用户文件、Task 目录。其他孤立/临时材料按 created_at 三个日历年（闰日周年落非闰年 2 月 28 日），活跃草稿/未知请求不因年龄删除。#82 不新增配额，工作状态在结构上限定为两份普通草稿与一个未解决提交；恢复/孤立材料按留存规则，不宣称三年留存下总磁盘量有界。真实磁盘错误保护已有材料并阻断不安全转移。普通多行粘贴仍须保全文、不自动发送；定制折叠块归 #91、图片归 #94，不宣称未实现的来源识别已验收。
 
 ## 6. 批准后的实施顺序
 
-1. 登记 macOS/Terminal 版本、字体、尺寸、locale、Node/精确包版本、上游参考。先做薄编辑器/布局预检，在原生终端验证真实中文候选确认、换行/发送、resize、输出时编辑。协议阻塞时记录实际失败交 Master，不用浏览器或合成 IME 替代。
+1. 登记 macOS/Terminal 版本、字体、尺寸、locale、Node/精确包版本、上游参考，优先复用固定版本test/key-tester.ts。先做薄编辑器/布局预检，在原生终端验证真实中文候选确认、换行/发送、resize、输出时编辑。协议阻塞时记录实际失败交 Master，不用浏览器或合成 IME 替代。
 2. 命令/编辑器适配、双页面与草稿状态；原始空白、作用域、组件清空测试。
 3. 最小 Task 投影及 schema/DTO 测试，接真实 Core，显示非空 Task 与近期 Main，接同步/锚点及统一渲染。
 4. 本地快照、单一待确认恢复、正常退出，验证 POST/回执前后故障与重开；不整体搬回旧实现。
@@ -76,4 +80,20 @@ Core 数据目录按 core-cli 的 SECRETARY_DATA 或相对启动目录的 .demo-
 
 ## 8. R1 复核处置与明确提案
 
-采纳 B1–B4：应用接管提交与自定义补全；去配额、写准正文总字节限制；补拒绝/冲突/重试；缓存淘汰留 #91。采纳其非阻断建议：mode/data/state 路径、内核锁、真实 Task 顺序/排队标签/增量 schema、不二次截预览、键优先级、resize 锚点/自己发送不跟随、精确虚拟测试依赖和既有API台账。Claude 读过固定源码/需求，未执行测试或安装依赖；issue 读取是摘要且首次陈旧，R2 另提供现行正文原文辅助核对。空 /send 拒绝仍作为本次交 Master 批准的明确解释，不伪称此前已批准。原生验收门槛保持不变。
+采纳 B1–B4：应用接管提交与自定义补全；去配额、写准正文总字节限制；补拒绝/冲突/重试；缓存淘汰留 #91。采纳其非阻断建议：mode/data/state 路径、内核锁、真实 Task 顺序/排队标签/增量 schema、不二次截预览、键优先级、resize 锚点/自己发送不跟随、精确虚拟测试依赖和既有API台账。Claude 读过固定源码/需求，未执行测试或安装依赖；issue 读取是摘要且首次陈旧，R2 另提供现行正文原文辅助核对。未知斜杠输入局部报错（含/usr/bin/x等路径样式，通过/rawmessage发送）与空 /send 拒绝仍作为本次交 Master 批准的明确解释，不伪称此前已批准。原生验收门槛保持不变。
+
+## 9. R2 处置与 R3 专项验证
+
+采纳先对账再恢复、原始RAW输入、绑定请求的恢复副本、原子交接/清稿、自动只读对账；按源码简化粘贴和canonical正文重发，补键位测试辅助、未连接输入、底部恢复提示与明确交互提案。不采纳“15秒加余量即可证明未送达”：该计时不是保证未来不会提交的屏障；R3只采用更新同域实例+NOT_FOUND释放，原实例的幂等重试仍需明确提交。请reviewer评估这一更窄而真实的保证，不批准计时猜测。
+
+新增测试：/rawmessage /T、/send /x 原样恢复；恢复前后确认接收；回执到UI更新间重启；绑定Enter不顺势换新ID；新稿保护；新实例NOT_FOUND释放；同实例15秒前后NOT_FOUND仍保留；延迟POST提交/GET竞态；400/413与401/409/5xx区分；StdinBuffer拆包粘贴。本轮无业务实现或运行变更。
+
+## 10. R3 PASS 与已纳入的实施细化
+
+2026-10-30 09:08香港时间读取 Claude Opus 5.5 Extra 的 R3 PASS。它用沙盒Node 22.23.4小实验观察到请求体晚于requestTimeout仍能提交，撤回计时证明。这是reviewer提供的超时语义证据，不是Secretary测试或原生macOS验收。
+
+包括重试在内，每次POST前必须先可靠记录实际endpoint的instance身份，checkpoint失败则不发。测试向新实例重试中崩溃：该实例已记为尝试过，不能再用于“从未向此实例POST”的证明。保留在尝试时或之后观察到的最新sync cursor，用既有changes/position在新实例核验后才能凭NOT_FOUND释放。缺游标、RESYNC_REQUIRED、sequence/digest不匹配或已知数据复制/恢复均保持UNKNOWN。这只是连续性加固，不能证明所有共享相同前缀的外部复制/恢复均会被发现；此类人工恢复超出自动正常重启对账范围，不能暗自当作新的空Store。
+
+attach未成功时Ctrl+C仍可退出，有限频率继续重试，验证成功后启用编辑器。运行说明直说UNKNOWN限制；TUI不重启Core，人工重启可能打断后台工作。专项补每次尝试checkpoint和连续性案例。准确拒绝白名单只有INVALID_REQUEST、INVALID_INPUT、INVALID_JSON、REQUEST_TOO_LARGE；超大请求中途传输中断仍为UNKNOWN。
+
+Master审批对象是完整R3，含未知斜杠/空send解释和单个未解决提交的限制。PASS只表示可交Master决策，不是实施授权、CI通过或产品完成。

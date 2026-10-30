@@ -38,7 +38,7 @@ Task fixtures and virtual-terminal assertions are useful automation, but cannot 
 | Rendering | Shared final/history renderer, Markdown sample, control sequences, tiny/large resize, editor cursor preserved, message/Task anchor refresh | NOT_TESTED |
 | Task query | Running/waiting/no active/latest failed/Shared/queue count, additive schema compatibility, no state mutation | NOT_TESTED |
 | Sync | Cursor reset, reconnect, stale generation, Core same-domain restart vs changed domain, delayed response | NOT_TESTED |
-| Persistence | Atomic save, crash before/after POST/receipt checkpoint, timeout accepted by Core, actual NOT_FOUND, newer draft, disk failure, corrupt file, multiple writer, three-calendar-year expiry protection | NOT_TESTED |
+| Persistence | Atomic save, original raw input/bound-copy restore, accepted-before/after-restore and no Enter fallthrough, crash before/after POST/receipt checkpoint, timeout accepted by Core, same-instance NOT_FOUND vs later-instance proof, newer draft, disk failure, corrupt file, multiple writer, three-calendar-year expiry protection | NOT_TESTED |
 | Repository | check, docs:check, targeted tests, verify with correct isolated PostgreSQL DSN | NOT_TESTED |
 | CI / review | Linux Core, macOS including #82 targeted tests, exact-head Claude implementation review | NOT_TESTED |
 
