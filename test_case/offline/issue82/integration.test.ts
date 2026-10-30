@@ -57,9 +57,6 @@ test("integrated terminal attaches existing Core, sends multiline once, navigate
     const status = await f.client.query<RequestStatus>(`requests/${posted}`);
     assert.equal(status.receipt.acceptance, "ACCEPTED");
     terminal.sendInput("/T");
-    await until(() => app.editors.Main.isShowingAutocomplete());
-    terminal.sendInput("\x1b[13;2u");
-    assert.equal(app.page, "Main");
     terminal.sendInput("\x1b[13;2u");
     assert.equal(app.page, "Task");
     const original = posted;

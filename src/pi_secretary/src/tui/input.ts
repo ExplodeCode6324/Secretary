@@ -52,12 +52,16 @@ function payload(text: string): Action {
     ? { kind: "send", text }
     : { kind: "error", message: "正文不能为空" };
 }
+function isCompleteLocalCommand(raw: string) {
+  return /^\/(?:m|t|back|help)[ \t]*$/i.test(raw);
+}
 export function commandCompletion(page: () => Page): AutocompleteProvider {
   return {
     triggerCharacters: ["/"],
     async getSuggestions(lines, line, col) {
       if (
         line !== 0 ||
+        isCompleteLocalCommand(lines.join("\n")) ||
         !/^\/[a-z]*$/i.test(lines[0].slice(0, col)) ||
         /\s/.test(lines[0])
       )
@@ -114,8 +118,10 @@ export class DraftEditor extends Editor {
     if (data.startsWith("\x1b[200~")) super.handleInput(data);
     else if (matchesKey(data, "shift+enter")) {
       // An open menu consumes the gesture as completion, never as a send.
-      if (this.isShowingAutocomplete()) super.handleInput("\r");
+      if (this.isShowingAutocomplete() && !isCompleteLocalCommand(before))
+        super.handleInput("\r");
       else {
+        if (this.isShowingAutocomplete()) super.handleInput("\x1b");
         this.onExplicitSubmit?.(before);
         return;
       }
@@ -129,6 +135,8 @@ export class DraftEditor extends Editor {
       this.insertTextAtCursor("\n");
     else super.handleInput(data);
     const after = this.getExpandedText();
+    if (isCompleteLocalCommand(after) && this.isShowingAutocomplete())
+      super.handleInput("\x1b");
     if (after !== before) this.onEdited?.(after);
   }
 }

@@ -57,14 +57,14 @@ test("actual Pi Editor: completion Enter cannot submit, errors preserve cursor a
     editor = new DraftEditor(tui, () => "Main");
   const sent: string[] = [];
   editor.onExplicitSubmit = (s) => sent.push(s);
-  editor.handleInput("/T");
+  editor.handleInput("/b");
   await new Promise((r) => setTimeout(r, 350));
   assert.equal(editor.isShowingAutocomplete(), true);
   editor.handleInput("\r");
   assert.deepEqual(sent, []);
-  assert.equal(editor.getExpandedText(), "/T ");
+  assert.equal(editor.getExpandedText(), "/back ");
   editor.handleInput("\x1b[13;2u");
-  assert.deepEqual(sent, ["/T "]);
+  assert.deepEqual(sent, ["/back "]);
   editor.setText("  /T");
   const cursor = editor.getCursor();
   editor.handleInput("\x1b[13;2u");
@@ -115,14 +115,14 @@ test("Shift+Enter with an open completion menu only completes; Enter never sends
     editor = new DraftEditor(tui, () => "Main");
   const sent: string[] = [];
   editor.onExplicitSubmit = (raw) => sent.push(raw);
-  editor.handleInput("/T");
+  editor.handleInput("/b");
   await new Promise((r) => setTimeout(r, 350));
   assert(editor.isShowingAutocomplete());
   editor.handleInput("\x1b[13;2u");
-  assert.equal(editor.getExpandedText(), "/T ");
+  assert.equal(editor.getExpandedText(), "/back ");
   assert.deepEqual(sent, []);
   editor.handleInput("\r");
-  assert.equal(editor.getExpandedText(), "/T \n");
+  assert.equal(editor.getExpandedText(), "/back \n");
   assert.deepEqual(sent, []);
 });
 
@@ -140,4 +140,32 @@ test("Shift+Enter supports xterm modified keys while plain Enter and Cmd+Enter n
   assert.deepEqual(sent, ["first\nsecond"]);
   editor.handleInput("\x1b[13;9u");
   assert.equal(sent.length, 1);
+});
+
+test("complete local commands submit once without a trailing space; an older slash menu cannot intercept", async () => {
+  for (const raw of ["/T", "/m", "/help", "/back"]) {
+    const editor = new DraftEditor(
+      new TuiAltScreen(new VirtualTerminal()),
+      () => "Main",
+    );
+    const sent: string[] = [];
+    editor.onExplicitSubmit = (s) => sent.push(s);
+    editor.handleInput(raw);
+    await new Promise((r) => setTimeout(r, 350));
+    assert.equal(editor.isShowingAutocomplete(), false);
+    editor.handleInput("\x1b[13;2u");
+    assert.deepEqual(sent, [raw]);
+  }
+  const editor = new DraftEditor(
+    new TuiAltScreen(new VirtualTerminal()),
+    () => "Main",
+  );
+  const sent: string[] = [];
+  editor.onExplicitSubmit = (s) => sent.push(s);
+  editor.handleInput("/");
+  await new Promise((r) => setTimeout(r, 350));
+  assert(editor.isShowingAutocomplete());
+  editor.handleInput("T");
+  editor.handleInput("\x1b[13;2u");
+  assert.deepEqual(sent, ["/T"]);
 });

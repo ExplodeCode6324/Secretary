@@ -2,6 +2,8 @@
 
 ## Master 后续键位调整（2026-10-30）
 
+Master 随后要求优化完整命令：`/T`、`/M`、`/back`、`/help` 不再弹出自动补全，也不需要尾随空格，一次 Shift+Enter 执行。未完成的命令仍先补全；即使旧补全响应尚未更新，也不得截获已完成命令。
+
 Master 在 macOS Terminal 实测 Cmd+Enter 无反馈，随后明确选择 Enter 换行、Shift+Enter 发送或执行命令。此决定覆盖以下旧 Enter 提交方案及中间的 Cmd+Enter 试验方案。补全菜单打开时 Enter/Shift+Enter 仅补全。无需反斜杠降级，反斜杠保留为正文。Shift+Enter 此前已在原生终端被识别为换行；新的发送行为仍须原生确认。
 
 

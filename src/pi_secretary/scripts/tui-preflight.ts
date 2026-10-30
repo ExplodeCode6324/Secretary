@@ -11,7 +11,7 @@ configureKeys();
 const terminal = new ProcessTerminal(),
   tui = new TuiAltScreen(terminal);
 const output = new Text(
-  "原生输入预检（不连接 Core，不发送业务消息）\n请用系统中文输入法输入并确认候选，Enter 换行；Shift+Enter 提交只记次数。\n/T 后 Tab 或 Enter 仅补全，再 Shift+Enter 才计提交。Ctrl+C 退出。",
+  "原生输入预检（不连接 Core，不发送业务消息）\n请用系统中文输入法输入并确认候选，Enter 换行；Shift+Enter 提交只记次数。\n/T 完整命令一次 Shift+Enter 提交；/b 后 Tab 或 Enter 仅补全，再 Shift+Enter 才提交。Ctrl+C 退出。",
   1,
   1,
 );
