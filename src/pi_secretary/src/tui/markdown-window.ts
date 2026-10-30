@@ -321,9 +321,12 @@ function unresolvedMath(text: string, opaque: [number, number][]) {
       closing = opening === "$$" ? "$$" : "\\]";
     if (opaque.some(([a, b]) => a <= start && start < b)) continue;
     const from = match.index! + match[0].length;
-    const end = text.indexOf(closing, from);
-    if (end < 0) return start;
-    starts.lastIndex = end + closing.length;
+    const closer =
+      opening === "$$" ? /\$\$[ \t]*(?:\n|$)/g : /\\\][ \t]*(?:\n|$)/g;
+    closer.lastIndex = from;
+    const found = closer.exec(text);
+    if (!found) return start;
+    starts.lastIndex = found.index + closing.length;
   }
 }
 
@@ -385,7 +388,13 @@ export class WindowStream {
       nextStart: c.start + c.text.length,
     };
     this.onWindow(w);
-    if (w.start <= this.target && this.target < w.nextStart) this.selected = w;
+    // MAX_SAFE_INTEGER is the explicit end-of-region request used when entering
+    // an evicted body from below. Keep only the latest window while walking EOF.
+    if (
+      w.start <= this.target &&
+      (this.target === Number.MAX_SAFE_INTEGER || this.target < w.nextStart)
+    )
+      this.selected = w;
     this.previous = c.start;
     this.current = undefined;
   }

@@ -62,7 +62,15 @@ export interface MappedComponent extends Component {
  */
 export class SourceMarkdown {
   private md: Markdown;
-  private blocks: { start: number; md: Markdown }[];
+  private blocks: { start: number; source: string }[];
+  private definitions: string;
+  private mapped?: {
+    width: number;
+    value: {
+      lines: string[];
+      rows: { block_start_utf16: number; row_in_block: number }[];
+    };
+  };
   constructor(
     readonly source: string,
     readonly paint = white,
@@ -82,15 +90,7 @@ export class SourceMarkdown {
     const tokens = markdownParser.lexer(normalized.text);
     const definitions = new Definitions();
     definitions.add(tokens.links);
-    const refs = context?.definitions || definitions.text;
-    const make = (text: string) =>
-      new Markdown(
-        safeText((refs ? refs + "\n" : "") + text),
-        0,
-        0,
-        markdownTheme,
-        { color: paint },
-      );
+    this.definitions = context?.definitions || definitions.text;
     this.md = new Markdown(
       safeText(
         (context?.definitions ? context.definitions + "\n" : "") +
@@ -112,13 +112,10 @@ export class SourceMarkdown {
       if (token.type !== "space")
         this.blocks.push({
           start: start + normalized.sourceOffset(at),
-          md: make(
+          source:
             (at === 0 ? prefix : "") +
-              token.raw +
-              (offset === normalized.text.length
-                ? (context?.suffix ?? "")
-                : ""),
-          ),
+            token.raw +
+            (offset === normalized.text.length ? (context?.suffix ?? "") : ""),
         });
     }
     // Context windows inside an exceptional block have a window-relative anchor.
@@ -127,9 +124,10 @@ export class SourceMarkdown {
   }
   invalidate() {
     this.md.invalidate();
-    for (const block of this.blocks) block.md.invalidate();
+    this.mapped = undefined;
   }
   render(width: number) {
+    if (this.mapped?.width === width) return this.mapped.value;
     const lines = [...this.md.render(width)];
     if (
       this.context?.definitions &&
@@ -158,7 +156,16 @@ export class SourceMarkdown {
     ];
     let cursor = 0;
     for (const block of this.blocks) {
-      const rendered = block.md
+      // Definitions are shared, not copied into a retained Markdown per source block.
+      // The probe is short-lived; cache only the final mapping for the active width.
+      const refs = block.source.includes("[") ? this.definitions : "";
+      const rendered = new Markdown(
+        safeText((refs ? refs + "\n" : "") + block.source),
+        0,
+        0,
+        markdownTheme,
+        { color: this.paint },
+      )
         .render(width)
         .map((line) => stripTerminalSequences(line).trimEnd());
       while (rendered.length && !rendered.at(-1)) rendered.pop();
@@ -186,7 +193,9 @@ export class SourceMarkdown {
         row_in_block: index - boundaries[boundary].row,
       };
     });
-    return { lines, rows };
+    const value = { lines, rows };
+    this.mapped = { width, value };
+    return value;
   }
 }
 export function messageComponent(

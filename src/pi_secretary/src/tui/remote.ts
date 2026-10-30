@@ -53,6 +53,12 @@ export class RemoteViews {
   private readWaiters: (() => void)[] = [];
   private bodiesEpoch?: string;
   private failedBodies = new Map<string, string>();
+  // If visible bodies alone exceed 4 MiB, leave a rehydratable placeholder.
+  // Retry on a new anchor/mode/generation or explicit navigation, not every layout.
+  private budgetDeferred = new Map<string, string>();
+  private budgetKey() {
+    return `${this.history.anchor ?? ""}:${this.history.thinking}:${this.history.generation}`;
+  }
   onChange = () => {};
   onDisconnect = (error: unknown) => {};
   constructor(readonly client: CoreClient) {
@@ -156,9 +162,14 @@ export class RemoteViews {
   private prune() {
     for (const id of this.failedBodies.keys())
       if (!this.history.items.has(id)) this.failedBodies.delete(id);
+    for (const id of this.budgetDeferred.keys())
+      if (!this.history.items.has(id)) this.budgetDeferred.delete(id);
     for (const id of this.bodies.keys())
-      if (!this.history.items.has(id) || this.history.evictedBodies.has(id))
+      if (!this.history.items.has(id) || this.history.evictedBodies.has(id)) {
+        if (this.history.items.has(id) && this.wanted.has(id))
+          this.budgetDeferred.set(id, this.budgetKey());
         this.bodies.delete(id);
+      }
     const resident = (id: string, item: Message) => {
       const body = this.bodies.get(id);
       return (
@@ -172,9 +183,21 @@ export class RemoteViews {
     let bytes = 0;
     for (const [id, item] of this.history.items)
       if (item.kind === "message") bytes += resident(id, item);
-    for (const [id, item] of this.history.items) {
+    const ids = [...this.history.items.keys()],
+      anchorIndex = ids.indexOf(this.history.anchor ?? "");
+    const victims = ids
+      .filter((id) => id !== this.history.anchor)
+      .sort(
+        (a, b) =>
+          Number(this.wanted.has(a)) - Number(this.wanted.has(b)) ||
+          Math.abs(ids.indexOf(b) - anchorIndex) -
+            Math.abs(ids.indexOf(a) - anchorIndex),
+      );
+    for (const id of victims) {
       if (bytes <= HISTORY_BYTES) break;
-      if (id === this.history.anchor || item.kind !== "message") continue;
+      const item = this.history.items.get(id)!;
+      if (item.kind !== "message") continue;
+      if (this.wanted.has(id)) this.budgetDeferred.set(id, this.budgetKey());
       bytes -= resident(id, item);
       this.bodies.delete(id);
       this.history.items.set(id, { ...item, text: "", thinking: undefined });
@@ -183,6 +206,7 @@ export class RemoteViews {
   }
   focus(ids: string[]) {
     this.wanted = new Set(ids.filter((id) => this.history.items.has(id)));
+    this.history.preferredBodies = this.wanted;
     if (this.bodyJob || this.stopped) return;
     this.bodyJob = (async () => {
       const attempted = new Set<string>();
@@ -194,6 +218,7 @@ export class RemoteViews {
           return (
             item?.kind === "message" &&
             !attempted.has(key) &&
+            this.budgetDeferred.get(id) !== this.budgetKey() &&
             this.failedBodies.get(id) !== key &&
             (this.history.evictedBodies.has(id) ||
               !!item.next_cursor ||
@@ -216,6 +241,7 @@ export class RemoteViews {
   async loadBody(id: string, region?: Region, direction?: Direction) {
     const original = this.history.items.get(id);
     if (original?.kind !== "message") return;
+    this.budgetDeferred.delete(id);
     const cached = this.bodies.get(id),
       mode = this.history.thinking,
       gen = this.generation,
@@ -225,8 +251,10 @@ export class RemoteViews {
           body: cached.body.start,
           thinking: cached.thinking.start,
         }
-      : undefined;
-    if (targets && region && direction)
+      : direction === "before"
+        ? { body: Number.MAX_SAFE_INTEGER, thinking: Number.MAX_SAFE_INTEGER }
+        : undefined;
+    if (targets && cached?.windowed && region && direction)
       targets[region] =
         direction === "before"
           ? cached![region].previousStart

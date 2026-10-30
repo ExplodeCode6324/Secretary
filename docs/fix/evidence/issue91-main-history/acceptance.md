@@ -45,3 +45,10 @@ Date: 2026-10-30 (Asia/Hong_Kong). Implementation checkpoint. Detailed measured 
 Task CoT inheritance is #83; full AC05 cannot pass in this issue. #92 processing-mode command blocking, #94 images and other later-batch rows are not accepted here. Fixtures, real Core fixture routing, real provider traffic, native input and reviewer source inspection are separate evidence types.
 
 R2 Claude plan PASS is recorded separately in plan-review.md. No overall product PASS. Apple Terminal automation was denied by the tool; L1/L2/L3 used actual ProcessTerminal in a POSIX PTY and are not physical clipboard/GUI evidence. L4 is labelled script-driven live integration. Master/human system IME acceptance remains separate.
+
+
+### R5/R6 handoff amendments
+
+R5 was CHANGES_REQUIRED at `4d7ad6f`; see the [correction record](implementation-review.md#r5-findings-and-r6-corrections). The revised focused suite passes 69/69. The 4 MiB ceiling remains hard; visible-only pressure leaves stable, explicitly rehydratable placeholders rather than a reload loop. Final exact-head CI/Claude disposition belongs to PR #96.
+
+Master still needs to explicitly acknowledge two non-blocking limitations at acceptance: exceptional formatting can continue after the oversized non-code block through the remaining region; accepting a send clears Main undo/kill history including newer in-flight draft undo steps, without removing that draft's text. These are not recorded as approved or product-accepted.

@@ -29,6 +29,7 @@ export class HistoryWindow {
   error = "";
   errorSide: Direction = "before";
   anchor?: string;
+  preferredBodies = new Set<string>();
   unavailable = false;
   hasBefore = false;
   hasAfter = false;
@@ -341,8 +342,10 @@ export class HistoryWindow {
       .filter((id) => id !== this.anchor)
       .sort(
         (a, b) =>
+          Number(this.preferredBodies.has(a)) -
+            Number(this.preferredBodies.has(b)) ||
           Math.abs(ids.indexOf(b) - anchorIndex) -
-          Math.abs(ids.indexOf(a) - anchorIndex),
+            Math.abs(ids.indexOf(a) - anchorIndex),
       );
     for (const id of victims) {
       if (bytes <= HISTORY_BYTES) break;

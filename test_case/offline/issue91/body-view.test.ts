@@ -168,3 +168,30 @@ test("CoT insertion preserves the exact body block and row at the same width; re
   render(false, "4", 20);
   assert.equal(doc.anchor?.block_start_utf16, anchor.block_start_utf16);
 });
+
+test("entering an evicted large body from below selects its final source window", async () => {
+  const { RemoteViews } =
+    await import("../../../src/pi_secretary/src/tui/remote.ts");
+  const f = source("paragraph\n\n".repeat(100000) + "final marker\n"),
+    remote = new RemoteViews({
+      ...f.client,
+      endpoint: { instance_id: "test" },
+    } as CoreClient);
+  try {
+    remote.history.items.set(f.first.id, {
+      ...f.first,
+      text: "",
+      next_cursor: null,
+    });
+    remote.history.evictedBodies.add(f.first.id);
+    remote.history.setAnchor(f.first.id);
+    await remote.loadBody(f.first.id, "body", "before");
+    const body = remote.bodies.get(f.first.id)!;
+    assert(body?.windowed);
+    assert(body.body.start > 0);
+    assert.equal(body.body.after, false);
+    assert(body.body.text.endsWith("final marker\n"));
+  } finally {
+    remote.stop();
+  }
+});

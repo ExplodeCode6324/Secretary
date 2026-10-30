@@ -34,6 +34,9 @@ const corpus = [
   "a ~~strike~~ ~not~ \\(x=1\\) $a+b$ and **bold**\n\n\tcode\n\nend\n",
   "```js\nconst a = `👨‍👩‍👧‍👦`;\n```\n\nend\n",
   "<div>\nhtml\n</div>\n\nend\n",
+  "$$\nhello\n\nworld $$x$$ y\n\nnext para\n\na = b\n",
+  "\\[\nhello\n\nworld \\] trailing\n\nnext para\n\na = b\n",
+  "$$\nhello\n\nworld $$x$$ y\n\nnext para\n\na = b\n$$\n",
 ];
 function boundaries(source: string) {
   const normal = normalizedSource(source),
