@@ -249,41 +249,53 @@ test("another explicit send resumes follow after deliberate keyboard reading", a
   }
 });
 
-test("Pi drag release copies displayed selection and background growth cannot shift selected rows", async () => {
-  const copied: string[] = [];
-  const { f, ui, terminal, cleanup } = await setup(40, async (text) => {
-    copied.push(text);
-    return true;
+for (const releaseOutside of [false, true]) {
+  test(`Pi drag release ${releaseOutside ? "outside document" : "inside document"} preserves copy and permits new output and follow`, async () => {
+    const copied: string[] = [];
+    const { f, ui, terminal, cleanup } = await setup(40, async (text) => {
+      copied.push(text);
+      return true;
+    });
+    try {
+      await pause();
+      const screen = await terminal.flushAndGetViewport();
+      // Select away from Pi's edge auto-scroll zones; auto-scroll cancellation has
+      // separate scroll-origin coverage and would intentionally enlarge this range.
+      const y = screen.findIndex(
+        (line, row) =>
+          row >= 5 &&
+          row < ui.scrolls.Main.viewportHeight - 5 &&
+          line.includes("Reading row."),
+      );
+      assert.ok(y >= 0 && y < ui.scrolls.Main.viewportHeight);
+      const x = screen[y].indexOf("Reading row.");
+      terminal.sendInput(`\x1b[<0;${x + 1};${y + 1}M`);
+      terminal.sendInput(`\x1b[<32;${x + 8};${y + 1}M`);
+      await pause();
+      assert.equal(ui.tui.hasActiveSelection(), true);
+      const before = ui.documents.Main.render(80);
+      await grow(f, ui);
+      assert.deepEqual(ui.documents.Main.render(80), before);
+      terminal.sendInput(
+        `\x1b[<0;${x + 8};${releaseOutside ? terminal.rows : y + 1}m`,
+      );
+      await until(() => copied.length === 1, 2000);
+      // Pi trims trailing whitespace on every selected display row (0.87 API).
+      if (releaseOutside) assert.ok(copied[0].startsWith("Reading row."));
+      else assert.equal(copied[0], "Reading");
+      assert.equal(ui.documents.Main.selectionDragging, false);
+      assert.equal(ui.scrolls.Main.following, false);
+      await pause();
+      assert.ok(ui.documents.Main.render(80).join("\n").includes("new reply"));
+      await send(ui, terminal, "send after copy");
+      await grow(f, ui);
+      assert.equal(ui.scrolls.Main.following, true);
+      assert.equal(ui.scrolls.Main.atEnd, true);
+    } finally {
+      await cleanup();
+    }
   });
-  try {
-    await pause();
-    const screen = await terminal.flushAndGetViewport();
-    // Select away from Pi's edge auto-scroll zones; auto-scroll cancellation has
-    // separate scroll-origin coverage and would intentionally enlarge this range.
-    const y = screen.findIndex(
-      (line, row) =>
-        row >= 5 &&
-        row < ui.scrolls.Main.viewportHeight - 5 &&
-        line.includes("Reading row."),
-    );
-    assert.ok(y >= 0 && y < ui.scrolls.Main.viewportHeight);
-    const x = screen[y].indexOf("Reading row.");
-    terminal.sendInput(`\x1b[<0;${x + 1};${y + 1}M`);
-    terminal.sendInput(`\x1b[<32;${x + 8};${y + 1}M`);
-    await pause();
-    assert.equal(ui.tui.hasActiveSelection(), true);
-    const before = ui.documents.Main.render(80);
-    await grow(f, ui);
-    assert.deepEqual(ui.documents.Main.render(80), before);
-    terminal.sendInput(`\x1b[<0;${x + 8};${y + 1}m`);
-    await until(() => copied.length === 1, 2000);
-    // Pi trims trailing whitespace on every selected display row (0.87 API).
-    assert.equal(copied[0], "Reading");
-    assert.equal(ui.scrolls.Main.following, false);
-  } finally {
-    await cleanup();
-  }
-});
+}
 
 test("Task navigation during durable save wins over the delayed explicit POST", async () => {
   const { f, ui, terminal, cleanup } = await setup();

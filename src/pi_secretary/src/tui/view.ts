@@ -440,8 +440,11 @@ export class DocumentView implements Component {
   scroll?: ScrollView;
   initialEnd = false;
   selectionActive = () => false;
+  selectionDragging = false;
   onPointerRead = () => {};
   handleMouse(event: TuiMouseEvent) {
+    if (event.type === "press") this.selectionDragging = true;
+    if (event.type === "release") this.selectionDragging = false;
     if (event.type === "press" || event.type === "wheel") this.onPointerRead();
     return undefined;
   }
@@ -458,7 +461,12 @@ export class DocumentView implements Component {
   }
   render(width: number) {
     // Keep Pi's document-row selection stable while background body reads settle.
-    if (this.selectionActive() && width === this.width) return this.lines;
+    if (
+      this.selectionDragging &&
+      this.selectionActive() &&
+      width === this.width
+    )
+      return this.lines;
     const sig = this.entries.map((e) => `${e.id}:${e.version}`).join("|");
     if (width === this.width && sig === this.signature) return this.lines;
     const anchor = this.anchor,
@@ -513,6 +521,7 @@ export class DocumentView implements Component {
 }
 export class AnchoredScroll extends ScrollView {
   private maxTop = 0;
+  private selected = false;
   following = false;
   onReading = () => {};
   get atEnd() {
@@ -542,7 +551,9 @@ export class AnchoredScroll extends ScrollView {
     super.scrollToEnd();
   }
   override updateLayout(height: number, viewport: number, render: () => void) {
-    if (this.document.selectionActive()) this.onReading();
+    const selected = this.document.selectionActive();
+    if (selected && !this.selected) this.onReading();
+    this.selected = selected;
     this.maxTop = Math.max(0, height - viewport);
     super.updateLayout(height, viewport, render);
     if (this.following || this.document.initialEnd) {

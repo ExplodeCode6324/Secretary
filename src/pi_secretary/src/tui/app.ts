@@ -74,7 +74,13 @@ export class TerminalApp {
   ) {
     configureKeys();
     this.tui = new TuiAltScreen(terminal, undefined, undefined, {
-      copySelection: clipboard,
+      copySelection: (text) => {
+        // Pi has captured the copied text. Release even when the pointer ended
+        // outside the document; its lingering highlight must not freeze output.
+        this.documents.Main.selectionDragging = false;
+        this.tui.requestRender();
+        return clipboard(text);
+      },
     });
     this.editors = {
       Main: new DraftEditor(this.tui, () => "Main"),
@@ -117,6 +123,7 @@ export class TerminalApp {
       };
     }
     this.tui.addInputListener((data) => {
+      this.documents.Main.selectionDragging = false;
       if (matchesKey(data, "ctrl+c")) {
         void this.close();
         return { consume: true };
