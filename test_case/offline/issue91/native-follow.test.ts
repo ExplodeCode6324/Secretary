@@ -6,6 +6,7 @@ import { Fixture, until } from "../issue9/helpers.ts";
 import { TerminalApp } from "../../../src/pi_secretary/src/tui/app.ts";
 import { VirtualTerminal } from "../../../src/pi_resource/packages/tui/test/virtual-terminal.ts";
 import type { Input } from "../../../src/pi_secretary/src/contracts.ts";
+import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 
 const pause = () => new Promise((resolve) => setTimeout(resolve, 80));
 function seed(f: Fixture, count: number, label: string) {
@@ -148,6 +149,8 @@ for (const action of [
 test("reopen restores rich draft and both restored and subsequent sends reach Core exactly once", async () => {
   const { f, ui, terminal, state, cleanup } = await setup();
   let reopened: TerminalApp | undefined;
+  const syncCursor = CoreClient.prototype.syncCursor;
+  let release = () => {};
   try {
     const a = "第一块\n  保留缩进\n",
       b = "abcdefghijklmnopqrstuvwxyz12345";
@@ -158,6 +161,13 @@ test("reopen restores rich draft and both restored and subsequent sends reach Co
     const expected = "A" + a + "B" + b;
     assert.equal(ui.editors.Main.getExpandedText(), expected);
     await ui.close();
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    CoreClient.prototype.syncCursor = async function () {
+      await gate;
+      return syncCursor.call(this);
+    };
     const next = new VirtualTerminal(80, 24);
     reopened = new TerminalApp(f.dir, next, state);
     reopened.start();
@@ -166,6 +176,9 @@ test("reopen restores rich draft and both restored and subsequent sends reach Co
       5000,
     );
     assert.equal(reopened.editors.Main.getExpandedText(), expected);
+    // Input must already contain the disk snapshot even while initial reads wait.
+    release();
+    CoreClient.prototype.syncCursor = syncCursor;
     next.sendInput("\x1b[13;2u");
     await until(
       () =>
@@ -183,6 +196,8 @@ test("reopen restores rich draft and both restored and subsequent sends reach Co
       [expected, "new synthetic message"],
     );
   } finally {
+    release();
+    CoreClient.prototype.syncCursor = syncCursor;
     await reopened?.close();
     await cleanup();
   }

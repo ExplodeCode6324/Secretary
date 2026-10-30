@@ -421,6 +421,9 @@ export class TerminalApp {
         this.draw();
         this.retry = setTimeout(() => void this.attach(), 1000);
       };
+      // Restore disk snapshots synchronously before input can overwrite them.
+      // Initial sync/history reads may be slow; they are not a draft-ready gate.
+      this.draw();
       this.editors.Main.enabled = this.editors.Task.enabled = true;
       this.uiHint = "";
       // Independent reads: status latency must not hold initial editing or rendering.
