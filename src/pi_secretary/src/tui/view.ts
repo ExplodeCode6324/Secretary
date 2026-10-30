@@ -9,6 +9,7 @@ import {
 import type { Message, TaskSummary, TimelineItem } from "../api/contracts.ts";
 import { markdownParser } from "./markdown-lexer.ts";
 import { Definitions, normalizedSource } from "./markdown-window.ts";
+import { renderBlocks } from "./markdown-block-render.ts";
 import { color } from "./input.ts";
 import type { MessageBody, RegionWindow } from "./body.ts";
 
@@ -82,12 +83,22 @@ export class SourceMarkdown {
       | "suffix"
       | "code"
       | "contextBoundary"
+      | "futureMath"
+      | "lastMathStart"
+      | "blocks"
       | "trimCodeStart"
       | "trimCodeEnd"
     >,
   ) {
-    const normalized = normalizedSource(source);
-    const tokens = markdownParser.lexer(normalized.text);
+    if (context?.blocks && !context.code && !context.contextBoundary) {
+      this.definitions = context.definitions;
+      this.blocks = [];
+      this.md = new Markdown("", 0, 0, markdownTheme, { color: paint });
+      return;
+    }
+    const normalized = normalizedSource(source),
+      lexical = normalized.text;
+    const tokens = markdownParser.lexer(lexical);
     const definitions = new Definitions();
     definitions.add(tokens.links);
     this.definitions = context?.definitions || definitions.text;
@@ -106,15 +117,16 @@ export class SourceMarkdown {
     let offset = 0;
     this.blocks = [];
     for (const token of tokens) {
-      const at = normalized.text.indexOf(token.raw, offset);
+      const at = lexical.indexOf(token.raw, offset);
       if (at < 0) continue;
-      offset = at + token.raw.length;
+      if (at >= normalized.text.length) break;
+      offset = Math.min(at + token.raw.length, normalized.text.length);
       if (token.type !== "space")
         this.blocks.push({
           start: start + normalized.sourceOffset(at),
           source:
             (at === 0 ? prefix : "") +
-            token.raw +
+            token.raw.slice(0, normalized.text.length - at) +
             (offset === normalized.text.length ? (context?.suffix ?? "") : ""),
         });
     }
@@ -128,6 +140,21 @@ export class SourceMarkdown {
   }
   render(width: number) {
     if (this.mapped?.width === width) return this.mapped.value;
+    if (
+      this.context?.blocks &&
+      !this.context.code &&
+      !this.context.contextBoundary
+    ) {
+      const value = renderBlocks(
+        this.context.blocks,
+        this.context.lastMathStart ?? -1,
+        this.definitions,
+        this.md,
+        width,
+      );
+      this.mapped = { width, value };
+      return value;
+    }
     const lines = [...this.md.render(width)];
     if (
       this.context?.definitions &&

@@ -21,6 +21,11 @@ import {
 } from "../../../src/pi_secretary/src/tui/body.ts";
 import type { Message } from "../../../src/pi_secretary/src/api/contracts.ts";
 const emptyMathCases = [
+  "$x$\n\\[\n===\n",
+  "para text\n$$ $$\nx^2\n===\n",
+  "$$\nx^2\n$$\n---\n",
+  "safe\n\n$x$\n\\[\n===\n",
+
   "$$\n$$\n\npara one\n\npara two\n\na = b\n",
   "$$   \n$$\n\npara one\n\na = b\n",
   "\\[\n\\]\n\npara one\n\na = b\n",
@@ -267,4 +272,24 @@ test("exceptional body rendering visibly labels the formatting boundary", async 
       .map(stripTerminalSequences)
       .some((x) => x.includes("格式上下文边界")),
   );
+});
+
+test("EOF math lookahead includes code-fence markers and survives bounded rereads", async () => {
+  const text =
+    "first line\nsecond line\n|---|---|\n\n" +
+    "padding paragraph ".repeat(8).concat("\n\n").repeat(8500) +
+    "```text\n$$\n```\n";
+  const f = fake(text);
+  const first = await readMessageBody(f.client, f.first, false);
+  assert(first.windowed);
+  assert.equal(first.index!.body.lastMathStart, text.lastIndexOf("$$"));
+  assert(first.body.futureMath);
+  const next = await readMessageBody(f.client, f.first, false, {
+    previous: first,
+    targets: { body: first.body.nextStart },
+    windowed: true,
+  });
+  assert.equal(next.index!.body.lastMathStart, first.index!.body.lastMathStart);
+  assert(next.body.futureMath);
+  assert(bodyBytes(next) <= 4 * 1024 * 1024);
 });

@@ -1,10 +1,13 @@
 import { extractAnsiCode } from "@earendil-works/pi-tui/dist/utils.js";
+import type { Token } from "marked";
 import { markdownParser } from "./markdown-lexer.ts";
 
 export const WINDOW_BYTES = 1024 * 1024;
 export const WINDOW_TARGET = 8 * 4999;
 export const DEFINITION_BYTES = 256 * 1024;
+export type SourceBlock = { start: number; token: Token };
 export type SourcePiece = {
+  blocks?: SourceBlock[];
   text: string;
   start: number;
   prefix?: string;
@@ -78,6 +81,8 @@ export class Definitions {
  * used as evidence that the previous list/table/paragraph has ended. */
 export class BlockStream {
   private buffer = "";
+  private lineStart = true;
+  lastMathStart = -1;
   private offset: number;
   private threshold: number;
   private continuation?: {
@@ -124,8 +129,20 @@ export class BlockStream {
   }
   private send(length: number, context: Partial<SourcePiece> = {}) {
     if (!length) return;
+    const text = this.buffer.slice(0, length),
+      normalized = normalizedSource(text);
+    // Pi's start hook scans all remaining source, including fenced-code text.
+    // Observe finalized source only, retaining one global offset, not another body.
+    for (const match of normalized.text.matchAll(
+      /(^|\n) {0,3}(?:\$\$|\\\[)/g,
+    )) {
+      if (!match[1] && match.index === 0 && !this.lineStart) continue;
+      this.lastMathStart =
+        this.offset + normalized.sourceOffset(match.index + (match[1] ? 1 : 0));
+    }
+    this.lineStart = text.endsWith("\n");
     this.emit({
-      text: this.buffer.slice(0, length),
+      text,
       start: this.offset,
       ...context,
     });
@@ -151,23 +168,41 @@ export class BlockStream {
         safe = 0;
       const boundaries: number[] = [];
       const opaque: [number, number][] = [];
+      const parsed: { start: number; end: number; token: Token }[] = [];
+      const origin = this.offset;
       for (let index = 0; index < tokens.length; index++) {
         const token = tokens[index];
         const begin = normalized.text.indexOf(token.raw, at);
         if (begin < 0) break;
         at = begin + token.raw.length;
+        parsed.push({
+          start: normalized.sourceOffset(begin),
+          end: normalized.sourceOffset(at),
+          token,
+        });
         if (["code", "blockquote", "list", "html"].includes(token.type))
           opaque.push([begin, at]);
-        if (index < last || final) {
+        // A later block-extension start can merge immediately adjacent paragraph
+        // tokens in Pi/marked. Keep them in one source piece regardless of lookahead.
+        if (
+          (index < last || final) &&
+          !(
+            token.type === "paragraph" &&
+            tokens[index + 1]?.type === "paragraph"
+          )
+        ) {
           safe = normalized.sourceOffset(at);
           boundaries.push(safe);
         }
       }
       // Pi recognizes some unclosed $$ blocks only after a later math operator.
       // Do not finalize earlier apparent paragraphs across that unresolved opener.
-      const pending = unresolvedMath(normalized.text, opaque);
-      if (!final && pending !== undefined) {
-        const pin = normalized.sourceOffset(pending);
+      const pins = [
+        unresolvedMath(normalized.text, opaque),
+        unterminatedMathRun(normalized.text, opaque),
+      ].filter((value): value is number => value !== undefined);
+      if (!final && pins.length) {
+        const pin = normalized.sourceOffset(Math.min(...pins));
         while (boundaries.length && boundaries.at(-1)! > pin) boundaries.pop();
         safe = boundaries.at(-1) ?? 0;
       }
@@ -183,7 +218,11 @@ export class BlockStream {
       for (const boundary of [...new Set(boundaries)]) {
         const length = boundary - consumed;
         if (Buffer.byteLength(this.buffer.slice(0, length)) > this.limit) break;
-        this.send(length);
+        this.send(length, {
+          blocks: parsed
+            .filter((b) => b.start >= consumed && b.end <= boundary)
+            .map((b) => ({ start: origin + b.start, token: b.token })),
+        });
         consumed = boundary;
       }
       if (consumed) {
@@ -312,6 +351,27 @@ export class BlockStream {
   }
 }
 
+// Setext recognition precedes Pi's paragraph-only extension start hook. A later
+// underline can absorb a math opener and all earlier lines in its nonblank run.
+function unterminatedMathRun(text: string, opaque: [number, number][]) {
+  let lastBlankStart = -1,
+    runStart = 0;
+  // Lookahead permits overlapping blank lines; this is linear even for a long run.
+  for (const blank of text.matchAll(/\n[ \t]*(?=\n)/g)) {
+    lastBlankStart = blank.index;
+    runStart = blank.index + blank[0].length + 1;
+  }
+  const starts = /(^|\n) {0,3}(\$\$|\\\[)/g;
+  let match: RegExpExecArray | null;
+  while ((match = starts.exec(text))) {
+    const start = match.index + (match[1] ? 1 : 0);
+    if (opaque.some(([a, b]) => a <= start && start < b)) continue;
+    const lineEnd = text.indexOf("\n", start);
+    if (lineEnd >= 0 && lastBlankStart >= lineEnd) continue;
+    return runStart;
+  }
+}
+
 function unresolvedMath(text: string, opaque: [number, number][]) {
   const starts = /(^|\n) {0,3}(\$\$|\\\[)/g;
   let match: RegExpExecArray | null;
@@ -418,8 +478,13 @@ export class WindowStream {
           this.parser.limit)
     )
       this.publish();
-    if (this.current) this.current.text += piece.text;
-    else this.current = { ...piece };
+    if (this.current) {
+      this.current.text += piece.text;
+      this.current.blocks = [
+        ...(this.current.blocks ?? []),
+        ...(piece.blocks ?? []),
+      ];
+    } else this.current = { ...piece };
     if (
       Buffer.byteLength(this.current.text) >= this.parser.batch ||
       piece.code ||

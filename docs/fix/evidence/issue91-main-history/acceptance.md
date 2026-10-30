@@ -52,3 +52,9 @@ R2 Claude plan PASS is recorded separately in plan-review.md. No overall product
 R5 was CHANGES_REQUIRED at `4d7ad6f`; see the [correction record](implementation-review.md#r5-findings-and-r6-corrections). The revised focused suite passes 69/69. The 4 MiB ceiling remains hard; visible-only pressure leaves stable, explicitly rehydratable placeholders rather than a reload loop. Final exact-head CI/Claude disposition belongs to PR #96.
 
 Master still needs to explicitly acknowledge two non-blocking limitations at acceptance: exceptional formatting can continue after the oversized non-code block through the remaining region; accepting a send clears Main undo/kill history including newer in-flight draft undo steps, without removing that draft's text. These are not recorded as approved or product-accepted.
+
+
+
+### R7/R8 strict-format correction
+
+R7 was CHANGES_REQUIRED on `2c32bfb` despite passing CI and 71 focused tests. R8 keeps §13 strict ordinary-path parity using preserved parsed blocks plus region-wide math position and complete reference context. The extra-blank-row exception proposal was withdrawn without assuming approval. See bilingual plan §14 and the implementation-review record for exact coverage and limitations; final CI/Claude status belongs to PR #96. No product acceptance or merge permission is inferred.

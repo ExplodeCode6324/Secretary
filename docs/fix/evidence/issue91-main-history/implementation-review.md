@@ -101,3 +101,17 @@ Claude independently checked `9ebaed7dbfec47924ee662e4fc711efc4d27be6e`, passed 
 No additional product behavior or performance optimization was added in R7. Upward entry into a whole evicted message still lands at its top; reference-heavy first rendering remains synchronous (~3.2 s in the stress probe, repeated at a new width). These are disclosed non-blocking limits, not claims of seamless end positioning or responsive stress rendering. Final exact-head checks and review disposition are recorded on PR #96; Master acceptance and merge authorization remain separate.
 
 R7 local validation: typecheck and docs/link/localization checks PASS; final focused #82/#91 suite **71/71 PASS**, zero skips, 42.9 s (`implementation/r7-focused-final.log`). R6's Linux/macOS/aggregate CI also passed on its own SHA (run 41067583328); it is not substituted for R7-head CI.
+
+
+
+### R7 findings and R8 strict-parity corrections
+
+R7 was **CHANGES_REQUIRED** on `2c32bfb3dd36e0bdd681481994f76d824953cf30`, despite independently passing typecheck and 71/71 focused tests. Exact-head CI run 41069915503 passed Linux, macOS and aggregate. The raw reviewer response is retained privately at `.demo-data/issue91/review/r7-response-read3.md`.
+
+R8 pins the full unfinished nonblank math run to prevent premature setext splits. It retains the block tokens already parsed with lookahead, records a single last-math-start offset in the region index, restores affected adjacent-paragraph merging, resolves inline references with the completed region definitions, and invokes pinned Pi's checked block-rendering seam. This also fixes a separately discovered indented-paragraph normalization difference. Synthetic lookahead was rejected after a failing regression and is not in the delivered path. The proposed formatting exception was withdrawn; there is no new acceptance request or assumed approval for it.
+
+New tests compare 2,500 fixed-seed documents at every source split and compare paginated rendering to whole Pi output; explicit tests cover interior blank rows, indented code, forward references, tables, nested blocks, math, and widths 1/8/24/80. Window-edge blank spacing is excluded only in the random display comparison; the original global-forward-math case compares interior rows exactly. The hard 4 MiB budget counts source/context, not derived rendering trees or total V8 heap. Tokens are never retained in checkpoints or the full-history index.
+
+Final exact-head CI and Claude disposition are recorded on PR #96 after the code freeze. Earlier real-provider/PTY evidence remains scoped to its actual tested revisions; these parser corrections are offline-tested. Existing Master acknowledgment items (exceptional non-code formatting and clearing undo/kill history on accepted send), whole-message Up-entry top placement, and physical terminal NOT_TESTED status remain unchanged.
+
+R8 final local validation: typecheck and docs/link/localization PASS; focused #82/#91 **79/79 PASS**, zero skips, 56.9 s (`implementation/r8-focused-final.log`). The seeded suite checks 2,500 documents; the full verification matrix runs on the pushed SHA in CI.

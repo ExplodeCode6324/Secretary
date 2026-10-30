@@ -21,6 +21,7 @@ type Checkpoint = Frame & {
 };
 export type RegionIndex = {
   length: number;
+  lastMathStart: number;
   definitions: string;
   overflow: boolean;
   checkpoints: Checkpoint[];
@@ -37,6 +38,9 @@ export type RegionWindow = {
   definitions: string;
   contextBoundary: boolean;
   code: boolean;
+  futureMath?: boolean;
+  lastMathStart?: number;
+  blocks?: MarkdownWindow["blocks"];
   trimCodeStart?: boolean;
   trimCodeEnd?: boolean;
 };
@@ -64,7 +68,13 @@ function region(text = ""): RegionWindow {
   };
 }
 function index(): RegionIndex {
-  return { length: 0, definitions: "", overflow: false, checkpoints: [] };
+  return {
+    length: 0,
+    lastMathStart: -1,
+    definitions: "",
+    overflow: false,
+    checkpoints: [],
+  };
 }
 function resultWindow(
   selected: MarkdownWindow | undefined,
@@ -79,6 +89,8 @@ function resultWindow(
     before: selected.start > 0,
     after: selected.nextStart < info.length,
     definitions: info.definitions,
+    futureMath: info.lastMathStart >= selected.nextStart,
+    lastMathStart: info.lastMathStart,
     contextBoundary: !!selected.boundary || info.overflow,
     code: !!selected.code,
   };
@@ -293,6 +305,7 @@ export async function readMessageBody(
   for (const name of ["body", "thinking"] as const) {
     readers[name].finish();
     indexes[name].definitions = readers[name].parser.definitions.text;
+    indexes[name].lastMathStart = readers[name].parser.lastMathStart;
     indexes[name].overflow = readers[name].parser.definitions.overflow;
   }
   if (!valid()) throw Error("BODY_SUPERSEDED");

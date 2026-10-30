@@ -178,3 +178,12 @@ Approved replacement: page on complete top-level blocks using the pinned Pi-iden
 Native Apple Terminal automation was denied by the computer-control tool; POSIX PTY/ProcessTerminal coverage is recorded separately, with physical clipboard/shortcut/IME acceptance still NOT_TESTED.
 
 Master explicitly approved the §13 amendment on 2026-10-30; implementation and validation may proceed.
+
+
+## 14. Strict parity corrections after R7
+
+R7 (`2c32bfb`) identified setext lookahead absorbing earlier nonblank lines around a math opener, and Pi/marked's region-wide math-start hook changing the merging of earlier adjacent paragraphs. Independent raw-block re-lexing can also lose Pi's normalization of indented code merged into a paragraph.
+
+The approved §13 remains in force. The proposed extra-blank-row exception was withdrawn; Master's unanswered question is not approval. Keep parsed complete-block tokens, pin the unfinished nonblank math run, and record only the last math-start source offset during the existing EOF indexing pass. Use that offset to restore forward paragraph merging. Rebuild inline tokens with the complete region's reference definitions, then render the preserved block tokens through the checked private `renderToken` seam in pinned Pi 0.87.0. No synthetic math/source marker or extra network request is used.
+
+Derived parse trees belong only to resident windows; indexes/checkpoints retain no tokens. The hard 4 MiB quota remains a logical source/reference-context budget, not a V8 total-heap promise. Fixed-seed every-split and rendered-row comparisons, indentation/blank-row counterexamples, forward references and narrow widths cover the ordinary path. The existing exceptional-block §13 limitation is unchanged. Final test counts, exact head and review disposition belong to PR #96 and the implementation review record. Master product acceptance and merge authorization remain separate.
