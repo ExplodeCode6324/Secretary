@@ -176,7 +176,7 @@ export class BlockStream {
         if (begin < 0) break;
         at = begin + token.raw.length;
         parsed.push({
-          start: normalized.sourceOffset(begin),
+          start: begin === 0 ? 0 : normalized.sourceOffset(begin),
           end: normalized.sourceOffset(at),
           token,
         });

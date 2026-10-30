@@ -75,8 +75,9 @@ export function renderBlocks(
     throw Error("PI_MARKDOWN_RENDER_TOKEN_SEAM_CHANGED");
   const lines: string[] = [],
     rows: { block_start_utf16: number; row_in_block: number }[] = [];
+  let row = 0;
   for (let index = 0; index < tokens.length; index++) {
-    let row = 0;
+    if (merged[index].start !== merged[index - 1]?.start) row = 0;
     for (const raw of renderer.renderToken(
       tokens[index],
       Math.max(1, width),

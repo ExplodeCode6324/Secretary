@@ -14,6 +14,8 @@ import {
   SourceMarkdown,
   markdownTheme,
   messageComponent,
+  DocumentView,
+  AnchoredScroll,
 } from "../../../src/pi_secretary/src/tui/view.ts";
 import {
   readMessageBody,
@@ -322,4 +324,74 @@ test("end-target reading displays every sentinel after duplicate definition raws
   );
   assert(bodyBytes(result) <= 4 * 1024 * 1024);
   assert(!JSON.stringify(result.index).includes('"token"'));
+  const doc = new DocumentView(),
+    scroll = new AnchoredScroll(doc);
+  const render = (version: string) => {
+    doc.entries = [
+      {
+        id: result.message.id,
+        version,
+        revision: result.message.revision,
+        component: messageComponent(result.message, false, result),
+      },
+    ];
+    const lines = doc.render(80);
+    scroll.updateLayout(lines.length, 8, () => {});
+    return lines;
+  };
+  const initial = render("1");
+  scroll.scrollTo(Math.floor(initial.length / 2));
+  const top = scroll.scrollTop,
+    anchor = { ...doc.anchor! };
+  assert.equal(anchor.region, "body");
+  assert(anchor.row_in_block > 0);
+  const after = render("2");
+  assert.equal(scroll.scrollTop, top);
+  assert.equal(after[top], initial[top]);
+  assert.equal(doc.anchor?.row_in_block, anchor.row_in_block);
+  assert.equal(doc.anchor?.block_start_utf16, anchor.block_start_utf16);
+});
+
+test("leading ANSI controls do not force fallback or lose following-block indentation context", () => {
+  const source = "\x1b[31mred\x1b[0m\n indented\n---\na = b\n";
+  for (let split = 1; split < source.length; split++) {
+    const windows: import("../../../src/pi_secretary/src/tui/markdown-window.ts").MarkdownWindow[] =
+      [];
+    const stream = new WindowStream(
+      0,
+      (w) => windows.push(w),
+      0,
+      0,
+      1024 * 1024,
+      1,
+    );
+    stream.feed(source.slice(0, split));
+    stream.feed(source.slice(split));
+    stream.finish();
+    assert(windows.every((w) => w.blocks !== undefined));
+    assert.equal(windows[0].blocks?.[0].start, 0);
+    for (const width of [8, 40]) {
+      const actual = windows.flatMap((w) =>
+        clean(
+          new SourceMarkdown(w.text, color, w.start, "", {
+            definitions: "",
+            suffix: "",
+            code: false,
+            contextBoundary: false,
+            blocks: w.blocks,
+            lastMathStart: stream.parser.lastMathStart,
+            futureMath: stream.parser.lastMathStart >= w.nextStart,
+          }).render(width).lines,
+        ),
+      );
+      assert.deepEqual(
+        actual,
+        clean(
+          new Markdown(normalizedSource(source).text, 0, 0, markdownTheme, {
+            color,
+          }).render(width),
+        ),
+      );
+    }
+  }
 });

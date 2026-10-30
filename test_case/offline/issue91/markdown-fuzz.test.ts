@@ -349,5 +349,13 @@ test("whole-window token fallback preserves future-math interior blank rows", ()
     ).render(width);
     assert.deepEqual(actual.lines, expected.slice(0, actual.lines.length));
     assert(actual.rows.every((row) => row.block_start_utf16 === 0));
+    assert.equal(
+      new Set(
+        actual.rows.map(
+          (row) => `${row.block_start_utf16}:${row.row_in_block}`,
+        ),
+      ).size,
+      actual.rows.length,
+    );
   }
 });
