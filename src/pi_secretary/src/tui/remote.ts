@@ -1,22 +1,42 @@
 import type { CoreClient } from "../core-client.ts";
 import type {
   Message,
-  Timeline,
   TaskPage,
   ScopePage,
   TimelineItem,
   SyncTransaction,
+  SSETransient,
 } from "../api/contracts.ts";
+import { HistoryWindow, HISTORY_BYTES, type Direction } from "./history.ts";
+import {
+  readMessageBody,
+  messagePath,
+  type MessageBody,
+  type Region,
+} from "./body.ts";
 
 type Query = "timeline" | "tasks" | "scopes";
 export class RemoteViews {
-  messages = new Map<string, TimelineItem>();
-  notices = new Map<string, string>();
-  private confirmed = new Set<string>();
+  readonly history: HistoryWindow;
+  readonly bodies = new Map<string, MessageBody>();
   tasks: TaskPage = { items: [], next_cursor: null, version: "0" };
   scopes = new Map<string, string>();
-  error = "";
-  timelineReady = false;
+  private otherError = "";
+  get error() {
+    return this.history.error || this.otherError;
+  }
+  get messages() {
+    const visible = new Map<string, TimelineItem>();
+    for (const [id, item] of this.history.items)
+      visible.set(id, this.bodies.get(id)?.message ?? item);
+    return visible;
+  }
+  get notices() {
+    return this.history.notices;
+  }
+  get timelineReady() {
+    return this.history.ready;
+  }
   generation = 0;
   taskCursor?: string;
   private stopped = false;
@@ -25,28 +45,52 @@ export class RemoteViews {
   private taskReadOK = false;
   private refreshing?: Promise<void>;
   private timer?: ReturnType<typeof setTimeout>;
-  private fragments = new Set<string>();
+  private previewIds = new Set<string>();
+  private wanted = new Set<string>();
+  private bodyJob?: Promise<void>;
+  private reads = 0;
+  private readWaiters: (() => void)[] = [];
+  private bodiesEpoch?: string;
+  private failedBodies = new Map<string, string>();
   onChange = () => {};
   onDisconnect = (error: unknown) => {};
-  constructor(readonly client: CoreClient) {}
-  inherit(previous: RemoteViews) {
-    this.messages = new Map(previous.messages);
-    this.notices = new Map(previous.notices);
-    if (
-      previous.client.endpoint.instance_id !== this.client.endpoint.instance_id
-    )
-      for (const item of this.messages.values())
-        if (
-          item.kind === "message"
-            ? item.persistence === "transient"
-            : item.activity.source === "live"
-        )
-          this.notices.set(item.id, "重启前的临时内容，尚未在当前 Core 确认");
+  constructor(readonly client: CoreClient) {
+    this.history = new HistoryWindow({
+      endpoint: client.endpoint,
+      query: this.query.bind(this),
+    });
+    this.history.onChange = () => {
+      const epoch = `${this.client.endpoint.instance_id}:${this.history.generation}`;
+      if (this.bodiesEpoch && this.bodiesEpoch !== epoch) this.bodies.clear();
+      this.bodiesEpoch = epoch;
+      this.prune();
+      this.onChange();
+      this.focus([...this.wanted]);
+    };
   }
-  private durable(item: TimelineItem) {
-    return item.kind === "message"
-      ? item.persistence === "durable"
-      : item.activity.source === "durable";
+  private async query<T>(path: string): Promise<T> {
+    if (this.reads >= 2)
+      await new Promise<void>((resolve) => this.readWaiters.push(resolve));
+    else this.reads++;
+    try {
+      if (this.stopped) throw Error("VIEW_STOPPED");
+      return await this.client.query<T>(path);
+    } finally {
+      const next = this.readWaiters.shift();
+      if (next) next();
+      else this.reads--;
+    }
+  }
+  inherit(previous: RemoteViews) {
+    this.history.inherit(previous.history);
+    // Old bodies are display-only until the new generation has been located.
+    for (const [id, value] of previous.bodies) this.bodies.set(id, value);
+    this.bodiesEpoch = previous.bodiesEpoch;
+  }
+  clearError() {
+    this.history.clearError();
+    this.otherError = "";
+    this.failedBodies.clear();
   }
   async start() {
     const cursor = await this.client.syncCursor();
@@ -75,29 +119,14 @@ export class RemoteViews {
       void this.refresh([]);
     }, 100);
   }
-  private remember(item: TimelineItem) {
-    if (item.kind !== "message" && item.activity.kind !== "tool") return;
-    // Preserve assembled fragments and object identity at the same revision.
-    this.notices.delete(item.id);
-    if (
-      this.confirmed.has(item.id) &&
-      this.messages.get(item.id)?.revision === item.revision
-    )
-      return;
-    this.confirmed.add(item.id);
-    this.messages.set(item.id, item);
-  }
   private async read(queries: Set<Query>) {
     const gen = this.generation;
-    const anchor = [...this.messages.values()]
-      .filter((item) => this.durable(item) && !this.notices.has(item.id))
-      .at(-1)?.id;
+    const previews = [...this.previewIds];
+    this.previewIds.clear();
     const results = await Promise.allSettled([
-      queries.has("timeline")
-        ? this.client.query<Timeline>("timeline?limit=50&streaming=true")
-        : undefined,
+      queries.has("timeline") ? this.history.refresh(previews) : undefined,
       queries.has("tasks")
-        ? this.client.query<TaskPage>(
+        ? this.query<TaskPage>(
             "tasks?limit=50" +
               (this.taskCursor
                 ? "&cursor=" + encodeURIComponent(this.taskCursor)
@@ -105,92 +134,191 @@ export class RemoteViews {
           )
         : undefined,
       queries.has("scopes")
-        ? this.client.query<ScopePage>("scopes?limit=100")
+        ? this.query<ScopePage>("scopes?limit=100")
         : undefined,
     ]);
     if (this.stopped || gen !== this.generation) return;
-    this.error = "";
-    if (results[0].status === "fulfilled" && results[0].value) {
-      let catchupFailed = false;
-      // Catch up from the prior tail so >50 arrivals between refreshes are retained.
-      if (anchor)
-        try {
-          let page = await this.client.query<Timeline>(
-            `timeline/around?message_id=${encodeURIComponent(anchor)}&limit=50&streaming=true`,
-          );
-          let reached = false;
-          while (!this.stopped && gen === this.generation) {
-            for (const item of page.items) {
-              if (item.id === anchor) reached = true;
-              if (reached) this.remember(item);
-            }
-            if (!page.after) break;
-            page = await this.client.query<Timeline>(
-              `timeline?direction=after&limit=50&streaming=true&cursor=${encodeURIComponent(page.after)}`,
-            );
-          }
-        } catch (e) {
-          if (String(e) === "Error: TIMELINE_ITEM_NOT_FOUND") {
-            this.notices.set(
-              anchor,
-              "原定位内容在当前 Core 中不存在；保留本地显示，与最新窗口之间可能有间隔",
-            );
-          } else {
-            catchupFailed = true;
-            this.error = "新消息补读失败，保留已有内容：" + String(e);
-          }
-        }
-      if (this.stopped || gen !== this.generation) return;
-      this.timelineReady = true;
-      for (const item of results[0].value.items) {
-        if (catchupFailed && !this.messages.has(item.id)) continue;
-        this.remember(item);
-      }
-      for (const m of this.messages.values())
-        if (m.kind === "message" && m.next_cursor) void this.complete(m, gen);
-    } else if (results[0].status === "rejected")
-      this.error = "历史加载失败；保留已显示内容：" + String(results[0].reason);
     if (queries.has("tasks")) {
       this.taskReadOK = results[1].status === "fulfilled";
       if (results[1].status === "fulfilled" && results[1].value)
         this.tasks = results[1].value;
       else if (results[1].status === "rejected")
-        this.error += " Task 读取失败：" + String(results[1].reason);
+        this.otherError = "Task 读取失败：" + String(results[1].reason);
     }
     if (results[2].status === "fulfilled" && results[2].value)
-      for (const scope of results[2].value.items)
-        this.scopes.set(scope.id, scope.name);
+      this.scopes = new Map(
+        results[2].value.items.map((scope) => [scope.id, scope.name]),
+      );
+    this.prune();
     this.onChange();
   }
-  private async complete(first: Message, gen: number) {
-    const key = first.id + ":" + first.revision;
-    if (this.fragments.has(key)) return;
-    this.fragments.add(key);
-    try {
-      let text = first.text,
-        next = first.next_cursor;
-      while (next && !this.stopped) {
-        const part = await this.client.query<Message>(
-          `messages/${encodeURIComponent(first.id)}/content?streaming=true&cursor=${encodeURIComponent(next)}`,
+  private prune() {
+    for (const id of this.failedBodies.keys())
+      if (!this.history.items.has(id)) this.failedBodies.delete(id);
+    for (const id of this.bodies.keys())
+      if (!this.history.items.has(id) || this.history.evictedBodies.has(id))
+        this.bodies.delete(id);
+    let bytes = 0;
+    for (const [id, item] of this.history.items)
+      if (item.kind === "message") {
+        bytes +=
+          Buffer.byteLength(item.text) + Buffer.byteLength(item.thinking ?? "");
+        const body = this.bodies.get(id);
+        if (body && body.message !== item)
+          bytes +=
+            Buffer.byteLength(body.message.text) +
+            Buffer.byteLength(body.message.thinking ?? "");
+      }
+    for (const [id, item] of this.history.items) {
+      if (bytes <= HISTORY_BYTES) break;
+      if (id === this.history.anchor || item.kind !== "message") continue;
+      const body = this.bodies.get(id);
+      bytes -=
+        Buffer.byteLength(item.text) + Buffer.byteLength(item.thinking ?? "");
+      if (body && body.message !== item)
+        bytes -=
+          Buffer.byteLength(body.message.text) +
+          Buffer.byteLength(body.message.thinking ?? "");
+      this.bodies.delete(id);
+      this.history.items.set(id, { ...item, text: "", thinking: undefined });
+      this.history.evictedBodies.add(id);
+    }
+  }
+  focus(ids: string[]) {
+    this.wanted = new Set(ids.filter((id) => this.history.items.has(id)));
+    if (this.bodyJob || this.stopped) return;
+    this.bodyJob = (async () => {
+      const attempted = new Set<string>();
+      while (!this.stopped) {
+        const id = [...this.wanted].find((id) => {
+          const item = this.history.items.get(id),
+            cached = this.bodies.get(id);
+          const key = `${id}:${item?.revision}:${this.history.thinking}:${this.history.generation}`;
+          return (
+            item?.kind === "message" &&
+            !attempted.has(key) &&
+            this.failedBodies.get(id) !== key &&
+            (this.history.evictedBodies.has(id) ||
+              !!item.next_cursor ||
+              (cached &&
+                (cached.message.revision !== item.revision ||
+                  cached.mode !== this.history.thinking)))
+          );
+        });
+        if (!id) break;
+        const first = this.history.items.get(id) as Message;
+        attempted.add(
+          `${id}:${first.revision}:${this.history.thinking}:${this.history.generation}`,
         );
+        await this.loadBody(id);
+      }
+    })().finally(() => {
+      this.bodyJob = undefined;
+    });
+  }
+  async loadBody(id: string, region?: Region, direction?: Direction) {
+    const original = this.history.items.get(id);
+    if (original?.kind !== "message") return;
+    const cached = this.bodies.get(id),
+      mode = this.history.thinking,
+      gen = this.generation,
+      timelineGen = this.history.generation;
+    const targets = cached?.windowed
+      ? {
+          body: cached.body.firstFragment,
+          thinking: cached.thinking.firstFragment,
+        }
+      : undefined;
+    if (targets && region && direction)
+      targets[region] =
+        direction === "before"
+          ? Math.max(0, targets[region] - 8)
+          : cached![region].nextFragment;
+    const valid = () =>
+      !this.stopped &&
+      this.generation === gen &&
+      this.history.generation === timelineGen &&
+      this.history.thinking === mode &&
+      this.history.items.has(id);
+    let first = original;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (attempt || region || this.history.evictedBodies.has(id)) {
+          const beforeRevision = this.history.items.get(id)?.revision;
+          first = await this.query<Message>(
+            `messages/${messagePath(id)}/content?streaming=true&thinking=${mode}`,
+          );
+          if (!valid()) return;
+          const afterRevision = this.history.items.get(id)?.revision;
+          if (
+            afterRevision !== beforeRevision &&
+            afterRevision !== first.revision
+          )
+            return;
+          this.history.items.set(id, first);
+        }
+        const version = first.revision;
+        const body = await readMessageBody(
+          { query: this.query.bind(this) },
+          first,
+          mode,
+          {
+            targets,
+            windowed: !!targets,
+            valid: () =>
+              valid() && this.history.items.get(id)?.revision === version,
+          },
+        );
+        if (!valid()) return;
+        if (region && !body[region].text && cached?.[region].text) {
+          this.notices.set(id, "该位置已超出当前正文；保留最近可读片段");
+          return;
+        }
+        this.bodies.set(id, body);
+        this.history.items.set(id, body.message);
+        this.history.evictedBodies.delete(id);
+        this.failedBodies.delete(id);
+        if (this.notices.get(id)?.startsWith("正文读取失败"))
+          this.notices.delete(id);
+        this.prune();
+        this.onChange();
+        return;
+      } catch (e) {
+        if (!valid()) return;
+        const code = e instanceof Error ? e.message : String(e);
         if (
-          gen !== this.generation ||
-          this.messages.get(first.id)?.revision !== first.revision
+          code === "BODY_SUPERSEDED" ||
+          (first.preview_status === "running" && code === "CURSOR_EXPIRED")
         )
           return;
-        text += part.text;
-        next = part.next_cursor;
-        this.messages.set(first.id, { ...first, text, next_cursor: next });
+        if (
+          attempt === 0 &&
+          [
+            "CURSOR_EXPIRED",
+            "TIMELINE_RESET_REQUIRED",
+            "INVALID_FRAGMENT_OFFSET",
+          ].includes(code)
+        )
+          continue;
+        this.failedBodies.set(
+          id,
+          `${id}:${this.history.items.get(id)?.revision}:${mode}:${timelineGen}`,
+        );
+        this.notices.set(id, "正文读取失败；按 ↑/↓ 重试：" + code);
         this.onChange();
+        return;
       }
-    } catch (e) {
-      if (!this.stopped) {
-        this.error = "正文读取失败，保留已加载片段：" + String(e);
-        this.onChange();
-      }
-    } finally {
-      this.fragments.delete(key);
     }
+  }
+  async historyPage(direction: Direction) {
+    await this.history.page(direction);
+  }
+  async toggleThinking() {
+    await this.bodyJob;
+    await this.history.setThinking(!this.history.thinking);
+    this.prune();
+    this.onChange();
+    this.focus([...this.wanted]);
   }
   async page(cursor?: string) {
     const previous = this.taskCursor;
@@ -222,9 +350,19 @@ export class RemoteViews {
             if (frame.startsWith("event:")) {
               if (frame.includes("event: reset"))
                 throw Error("RESYNC_REQUIRED");
-              if (frame.startsWith("event: transient"))
+              if (frame.startsWith("event: transient")) {
+                const data = frame
+                  .split("\n")
+                  .filter((line) => line.startsWith("data: "))
+                  .map((line) => line.slice(6))
+                  .join("\n");
+                const transient = data
+                  ? (JSON.parse(data) as SSETransient)
+                  : undefined;
+                for (const preview of transient?.previews ?? [])
+                  this.previewIds.add("message:" + preview.id);
                 this.schedule(["timeline"]);
-              else if (frame.startsWith("event: change")) {
+              } else if (frame.startsWith("event: change")) {
                 const data = frame
                   .split("\n")
                   .filter((l) => l.startsWith("data: "))
@@ -259,6 +397,8 @@ export class RemoteViews {
   stop() {
     this.stopped = true;
     this.generation++;
+    this.history.stop();
+    this.wanted.clear();
     clearTimeout(this.timer);
     this.abort?.abort();
   }

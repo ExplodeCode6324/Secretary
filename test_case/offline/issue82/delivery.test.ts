@@ -1,3 +1,4 @@
+import { plainSnapshot } from "../../../src/pi_secretary/src/tui/draft.ts";
 import test from "node:test";
 import http from "node:http";
 import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
@@ -156,10 +157,10 @@ test("dedicated latency: 2-second reconciliation does not block actual terminal 
       assert(terminal.getViewport().join("\n").includes("x"));
       times.push(performance.now() - begin);
     }
-    app.editors.Main.setText("/T");
+    app.editors.Main.restore(plainSnapshot("/T", "typed"));
     d.edit("Main", "/T");
     const start = performance.now();
-    app.editors.Main.onExplicitSubmit?.("/T");
+    app.editors.Main.onExplicitSubmit?.("/T", plainSnapshot("/T", "typed"));
     await sleep(20);
     await terminal.flush();
     const navigation = performance.now() - start;
@@ -621,7 +622,7 @@ test("Task arrow boundaries page through the actual app and retain the editor dr
   app.editors.Main.enabled = app.editors.Task.enabled = true;
   app.tui.start();
   app.draw();
-  app.editors.Main.onExplicitSubmit?.("/T");
+  app.editors.Main.onExplicitSubmit?.("/T", plainSnapshot("/T", "typed"));
   try {
     d.edit("Task", "task draft");
     app.draw();

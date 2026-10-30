@@ -4,8 +4,19 @@ import { randomUUID } from "node:crypto";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { Page } from "./input.ts";
+import {
+  plainSnapshot,
+  validateSnapshot,
+  expandSnapshot,
+  type DraftSnapshot,
+} from "./draft.ts";
 
-export type Draft = { raw: string; generation: number; binding?: string };
+export type Draft = {
+  raw: string;
+  generation: number;
+  binding?: string;
+  snapshot?: DraftSnapshot;
+};
 export type Pending = {
   id: string;
   raw: string;
@@ -14,9 +25,10 @@ export type Pending = {
   attempts: string[];
   cursor?: string;
   status: "UNKNOWN" | "CONFLICT" | "ACCEPTED";
+  snapshot?: DraftSnapshot;
 };
 export type LocalState = {
-  version: 1;
+  version: 1 | 2;
   domain: string;
   mode: string;
   drafts: Record<Page, Draft>;
@@ -24,7 +36,7 @@ export type LocalState = {
   recovery?: { file: string; id: string };
 };
 export const freshState = (domain: string, mode: string): LocalState => ({
-  version: 1,
+  version: 2,
   domain,
   mode,
   drafts: {
@@ -93,9 +105,10 @@ export class LocalFiles implements StatePersistence {
           st.mode & 0o077
         )
           throw Error("UNSAFE_TUI_STATE");
-        const s = JSON.parse(await fs.readFile(filename, "utf8")) as LocalState;
+        const original = await fs.readFile(filename, "utf8");
+        const s = JSON.parse(original) as LocalState;
         if (
-          s.version !== 1 ||
+          ![1, 2].includes(s.version) ||
           s.domain !== domain ||
           s.mode !== mode ||
           !s.drafts ||
@@ -113,6 +126,28 @@ export class LocalFiles implements StatePersistence {
             !Array.isArray(s.pending.attempts))
         )
           throw Error("INVALID_PENDING_STATE");
+        const legacy = s.version === 1;
+        for (const d of Object.values(s.drafts)) {
+          if (!d.snapshot) d.snapshot = plainSnapshot(d.raw);
+          validateSnapshot(d.snapshot);
+          if (!d.snapshot.damaged && expandSnapshot(d.snapshot) !== d.raw)
+            throw Error("DRAFT_RAW_SNAPSHOT_MISMATCH");
+        }
+        if (s.pending) {
+          if (!s.pending.snapshot)
+            s.pending.snapshot = plainSnapshot(s.pending.raw);
+          validateSnapshot(s.pending.snapshot);
+          if (
+            !s.pending.snapshot.damaged &&
+            expandSnapshot(s.pending.snapshot) !== s.pending.raw
+          )
+            throw Error("PENDING_RAW_SNAPSHOT_MISMATCH");
+        }
+        if (legacy) {
+          await this.atomic(`v1-before-upgrade-${randomUUID()}.json`, original);
+          s.version = 2;
+          await this.save(s);
+        }
         return s;
       } catch (e) {
         if ((e as NodeJS.ErrnoException).code === "ENOENT")
@@ -125,10 +160,45 @@ export class LocalFiles implements StatePersistence {
     }
   }
   save(state: LocalState) {
-    const bytes = JSON.stringify(state);
+    // Strings are immutable. Detach mutable metadata now, then encode bounded
+    // chunks between async writes instead of blocking input on a 64 MiB stringify.
+    const copySnapshot = (s: DraftSnapshot): DraftSnapshot => ({
+      ...s,
+      cursor: { ...s.cursor },
+      ranges: s.ranges.map((r) => ({ ...r })),
+      blocks: Object.fromEntries(
+        Object.entries(s.blocks).map(([id, block]) => [id, { ...block }]),
+      ),
+    });
+    const snapshot: LocalState = {
+      ...state,
+      version: 2,
+      drafts: Object.fromEntries(
+        Object.entries(state.drafts).map(([page, draft]) => [
+          page,
+          {
+            ...draft,
+            snapshot: copySnapshot(draft.snapshot ?? plainSnapshot(draft.raw)),
+          },
+        ]),
+      ) as Record<Page, Draft>,
+      ...(state.pending
+        ? {
+            pending: {
+              ...state.pending,
+              body: { ...state.pending.body },
+              attempts: [...state.pending.attempts],
+              snapshot: copySnapshot(
+                state.pending.snapshot ?? plainSnapshot(state.pending.raw),
+              ),
+            },
+          }
+        : {}),
+      ...(state.recovery ? { recovery: { ...state.recovery } } : {}),
+    };
     const job = this.tail
       .catch(() => {})
-      .then(() => this.atomic("state.json", bytes));
+      .then(() => this.atomic("state.json", snapshot));
     this.tail = job;
     return job;
   }
@@ -141,17 +211,19 @@ export class LocalFiles implements StatePersistence {
         raw: p.raw,
         body: p.body,
         id: p.id,
+        snapshot: p.snapshot ?? plainSnapshot(p.raw),
       }),
     );
     return file;
   }
-  private async atomic(name: string, bytes: string) {
+  private async atomic(name: string, bytes: string | LocalState) {
     if (!this.owned) throw Error("TUI_STATE_LOCK_LOST");
     const tmp = path.join(this.directory, `.tmp-${randomUUID()}`),
       target = path.join(this.directory, name);
     const h = await fs.open(tmp, "wx", 0o600);
     try {
-      await h.writeFile(bytes);
+      if (typeof bytes === "string") await h.writeFile(bytes);
+      else for (const chunk of jsonChunks(bytes)) await h.writeFile(chunk);
       await h.sync();
     } finally {
       await h.close();
@@ -193,7 +265,7 @@ export class LocalFiles implements StatePersistence {
         if (
           temporary &&
           !(
-            (r.version === 1 && r.drafts) ||
+            ([1, 2].includes(r.version) && r.drafts) ||
             (typeof r.raw === "string" && r.body)
           )
         )
@@ -217,6 +289,54 @@ export class LocalFiles implements StatePersistence {
       });
     }
   }
+}
+/** JSON string chunks may split a surrogate pair: escaped halves round-trip exactly. */
+function* jsonChunks(value: unknown): Generator<string> {
+  if (typeof value === "string") {
+    yield '"';
+    for (let offset = 0; offset < value.length; offset += 65536)
+      yield JSON.stringify(value.slice(offset, offset + 65536)).slice(1, -1);
+    yield '"';
+  } else if (Array.isArray(value)) {
+    yield "[";
+    for (let index = 0; index < value.length; index++) {
+      if (index) yield ",";
+      yield* jsonChunks(value[index] ?? null);
+    }
+    yield "]";
+  } else if (value && typeof value === "object") {
+    yield "{";
+    let first = true;
+    for (const [key, member] of Object.entries(value))
+      if (member !== undefined) {
+        if (!first) yield ",";
+        first = false;
+        yield JSON.stringify(key) + ":";
+        yield* jsonChunks(member);
+      }
+    yield "}";
+  } else yield JSON.stringify(value) ?? "null";
+}
+/** Export current content, never use a stale upgrade backup as a rollback shortcut. */
+export function exportLegacyState(state: LocalState): LocalState {
+  for (const draft of Object.values(state.drafts))
+    if (draft.snapshot) {
+      validateSnapshot(draft.snapshot);
+      if (expandSnapshot(draft.snapshot) !== draft.raw)
+        throw Error("DRAFT_RAW_SNAPSHOT_MISMATCH");
+    }
+  const { snapshot: _pendingSnapshot, ...pending } = state.pending ?? {};
+  return {
+    ...state,
+    version: 1,
+    drafts: Object.fromEntries(
+      Object.entries(state.drafts).map(([page, { snapshot: _, ...draft }]) => [
+        page,
+        draft,
+      ]),
+    ) as Record<Page, Draft>,
+    ...(state.pending ? { pending: pending as Pending } : {}),
+  };
 }
 export function expired(created: string, now: Date) {
   const date = new Date(created);

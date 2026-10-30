@@ -1,6 +1,6 @@
 # Issue #91 plan review
 
-2026-10-30 (Asia/Hong_Kong). Status: CLAUDE_PLAN_PASS / WAITING_MASTER_APPROVAL. Single-line paste behavior requires explicit Master choice.
+2026-10-30 (Asia/Hong_Kong). Current status: IMPLEMENTING / R4 FEASIBILITY_CHANGES_REQUIRED / §13 PENDING_MASTER_APPROVAL. R1–R2 planning statements below are historical; Master subsequently selected B and approved implementation.
 
 - Master requested secretary-pr-fix, bilingual plan, browser Claude Opus 5.5 Extra, then explicit approval before implementation; real model integration verification is mandatory after implementation.
 - Issue #91 assigned to authenticated repository owner ExplodeCode6324; Codex claim recorded in issue comment 6519980142.
@@ -34,3 +34,12 @@ R2 reports two additional Linux headless Pi probes: undo/kill hooks are reachabl
 The proposed all-paste token design changes single-line UI behavior, so general plan approval must not silently imply that choice. If Master chooses editable single-line pastes, amend the provenance design and return that change to this same reviewer before implementation. Multiline Hermes behavior is fixed. The registered final-newline line-count convention and singular `1 line` wording are in §11.
 
 Implementation/native/live/CI rows remain NOT_TESTED. No implementation PR or code/dependency/workflow changes exist. Raw R1/R2 requests, visible-DOM replies, AX captures, timing and screenshots are in `.demo-data/issue91/review/`; final PASS screenshot is `r2-pass.png`.
+
+
+### R3 — B amendment
+
+Master approved implementation and confirmed inline single-line <=30 grapheme clusters; longer or multiline pastes fold. Same Claude Opus 5.5 Extra session, submitted 2026-10-30 10:59:05 UTC; first read after 11:09:05 UTC. Verdict CHANGES_REQUIRED, with explicit implementation clearance after five prescribed corrections and no further plan round unless disputed. Codex adopted all corrections in bilingual §12: TAB blocks, complete unknown migration and bound pending retry, typed-slash-only completion, unknown fallback attribution, and occurrence-based atomicity. Reviewer ran one reported Linux headless probe; no repository/Core/native/live verification. Raw response and screenshot retained under ignored `.demo-data/issue91/review/r3-*`. Final implementation review remains required.
+
+### R4 — oversized Markdown feasibility
+
+Same Opus 5.5 Extra session, submitted 2026-10-30T11:45:01.137Z; first read after ten minutes. CHANGES_REQUIRED: reviewer-reported pinned Pi probes reproduced format failures at arbitrary fragment cuts. Codex accepts the blocker and wrote the concrete complete-block/exceptional-format-boundary proposal in bilingual §13 for Master approval. Independent fixes and tests continued; the replacement renderer has not been implemented. Mouse/restore cursor concerns were addressed. See [implementation checkpoint](implementation-review.md) for independent real-Core/provider/PTY evidence and limitations. Raw request, visible-DOM response, timing and screenshot: ignored `review/r4-*`. No final exact-HEAD implementation review or merge approval.

@@ -72,15 +72,16 @@ test("initial window stays bounded; bursts larger than 50 catch up without dropp
     if (p === "tasks" || p === "scopes")
       value = { items: [], next_cursor: null, version: "1" };
     else {
+      const limit = Number(u.searchParams.get("limit") ?? 50);
       const start =
         p === "timeline/around"
-          ? Math.max(0, Number(u.searchParams.get("message_id")) - 25)
+          ? Number(u.searchParams.get("message_id"))
           : u.searchParams.has("cursor")
             ? Number(u.searchParams.get("cursor"))
             : messages.length - 50;
       value = {
-        items: messages.slice(start, start + 50),
-        after: start + 50 < messages.length ? String(start + 50) : null,
+        items: messages.slice(start, start + limit),
+        after: start + limit < messages.length ? String(start + limit) : null,
         before: null,
         version: "1",
         generation: "1",
@@ -161,6 +162,7 @@ test("transient updates skip Task/Scope reads and preserve assembled fragments; 
   const views = new RemoteViews(client);
   try {
     await views.start();
+    views.focus(["1"]); // #91 loads complete bodies when their rows enter the viewport.
     await until(() => views.messages.get("1")?.next_cursor === null);
     const assembled = views.messages.get("1");
     const initial = reads.length;
@@ -190,7 +192,7 @@ test("transient updates skip Task/Scope reads and preserve assembled fragments; 
   }
 });
 
-test("reconnect skips transient anchors; missing durable anchors resnapshot without hiding new replies", async () => {
+test("reconnect uses durable fallback and requires deliberate navigation after every locator disappears", async () => {
   const makeClient = (instance_id: string) =>
     new CoreClient({
       api_version: "1",
@@ -201,8 +203,8 @@ test("reconnect skips transient anchors; missing durable anchors resnapshot with
       data_domain_id: "d",
     });
   const previous = new RemoteViews(makeClient("old"));
-  previous.messages.set("0", message(0));
-  previous.messages.set("1", { ...message(1), persistence: "transient" });
+  previous.history.items.set("0", message(0));
+  previous.history.items.set("1", { ...message(1), persistence: "transient" });
   const client = makeClient("new"),
     views = new RemoteViews(client);
   views.inherit(previous);
@@ -228,12 +230,13 @@ test("reconnect skips transient anchors; missing durable anchors resnapshot with
   };
   await views.refresh();
   assert.deepEqual(locators, ["0"]);
-  assert.deepEqual([...views.messages.keys()], ["0", "1", "2"]);
-  assert.match(views.notices.get("0")!, /不存在/);
-  assert.match(views.notices.get("1")!, /临时内容/);
+  assert.deepEqual([...views.messages.keys()], ["0"]);
+  assert.match(views.notices.get("0")!, /不可用/);
+  assert.equal(views.history.unavailable, true);
   window = [message(2), message(3)];
   await views.refresh();
-  await views.refresh();
+  assert(!views.messages.has("3")); // Passive SSE must not move the reading position.
+  await views.historyPage("after");
   assert(views.messages.has("3"));
   assert(!locators.includes("1"));
   assert.equal(views.error, "");
