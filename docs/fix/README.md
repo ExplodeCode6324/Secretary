@@ -1,6 +1,6 @@
 # 修复计划
 
-> **2026-10-23：** 客户端路线已切换至 [TUI](../tui/requirements-and-backend-plan.md)（[#57](https://github.com/ExplodeCode6324/Secretary/issues/57)）。旧 #62—#67 的 GUI 工作冻结；#63 的共享 Core 终态缺口由 [#80](https://github.com/ExplodeCode6324/Secretary/issues/80) 承接。下表保留原计划的历史状态，领取新工作按 TUI 分段 Issue，不沿旧 Tauri 页面路线继续实施。
+> **2026-10-30：** 当前客户端重建依据为 [TUI 临时实施参考 v1.7](../tui/implementation-reference.md) 及其第 11 节的六个功能批次和 #84 终验。#82/#83/#84 已全文重写，另建四个分批 issue；领取工作以新正文为准。旧 #62—#67 GUI 工作保持冻结；#79—#81 属已完成业务基线。下表保留历史计划及当时状态，不沿旧 Tauri 页面或回滚前 #82 的方案继续实施。
 
 当前计划记录范围、方案、复核意见与验证结果；已结束计划及其证据保存在[归档](archive/index.md)，按原版本追溯。
 
@@ -18,4 +18,5 @@
 | #10 | [删除废弃 SwiftUI 客户端](fix_20261019_issue10_删除废弃SwiftUI客户端.md) | 计划复核通过，实施与验证中 |
 
 Core 计划统一放在本目录，文件名为 `fix_YYYYMMDD_issueN_说明.md`。当前行为以[现行手册](../README.md)为准。
+
 

@@ -1,12 +1,12 @@
 # 文档
 
-当前客户端重建依据见 [TUI 临时实施参考](tui/implementation-reference.md)（v1.6）；新 TUI 尚未实现。已固定 pi-tui 0.87.0 基线与最新失败处置、排序计数、命令和草稿取舍；已定需求、评审核实与剩余边界分开记录，原分批及 issue 写入计划保持待确认，须经 Master 确认后再全面重写 #82、#83、#84。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
+当前客户端重建依据见 [TUI 临时实施参考](tui/implementation-reference.md)（v1.7）；新 TUI 尚未实现。Master 已确认需求及分批方案，#82/#83/#84 已全文重写，并新增四个功能批次；准确编号和依赖见临时参考第 11 节。暂停计划不默认展示，旧失败不能继续时明确反馈，新工作经 Main 显式提出。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
 
 从运行手册开始使用 Core；架构与数据流解释模块如何协作，不变量提供实现和测试证据。
 
 | 文档 | 内容 |
 | --- | --- |
-| [TUI 临时实施参考](tui/implementation-reference.md) | 最新已定需求、待定边界、操作验收及待确认分批建议；完成后吸收进正式文档再清理 |
+| [TUI 临时实施参考](tui/implementation-reference.md) | 已确认需求、34 项操作验收、七个实施/终验 issue 与依赖；完成后吸收进正式文档再清理 |
 | [旧 TUI 需求与后端改造依据](tui/requirements-and-backend-plan.md) | 2026-10-23 需求及 #79–#81 改造历史；当前重建以临时参考中的已定条款为准 |
 | [TUI API 使用清单](tui/api-coverage.md) | 每项 Issue 完成后记录已用及仍未使用的 Core API |
 | [运行手册](operations.md) | 安装、启停、模型与数据库配置、备份、排障和验证 |
