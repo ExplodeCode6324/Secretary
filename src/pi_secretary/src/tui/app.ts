@@ -130,9 +130,17 @@ export class TerminalApp {
             this.draw();
             return { consume: true };
           }
-          // Reading mode never sends or edits a hidden draft.
-          if (!matchesKey(data, "pageUp") && !matchesKey(data, "pageDown"))
+          // Resume editing at the preserved cursor; never swallow typing/paste.
+          this.viewing = false;
+          this.tui.setFocus(editor);
+          this.draw();
+          if (
+            matchesKey(data, "enter") ||
+            matchesKey(data, "shift+enter") ||
+            data === "\n"
+          )
             return { consume: true };
+          // Other input is dispatched once to the newly focused editor by TUI.
         } else if (
           matchesKey(data, "up") &&
           !editor.isShowingAutocomplete() &&
@@ -142,25 +150,6 @@ export class TerminalApp {
           this.tui.setFocus(scroll);
           scroll.scrollBy(-1);
           this.draw();
-          return { consume: true };
-        }
-      }
-      if (this.page === "Task" && !this.pageLoading && this.remote) {
-        const scroll = this.scrolls.Task;
-        if (
-          matchesKey(data, "pageDown") &&
-          scroll.atEnd &&
-          this.remote.tasks.next_cursor
-        ) {
-          void this.taskPage(1);
-          return { consume: true };
-        }
-        if (
-          matchesKey(data, "pageUp") &&
-          scroll.scrollTop === 0 &&
-          this.pageIndex > 0
-        ) {
-          void this.taskPage(-1);
           return { consume: true };
         }
       }
@@ -395,8 +384,11 @@ export class TerminalApp {
     }
     const pending = this.delivery?.state.pending;
     const recovery = this.delivery?.state.recovery;
+    const preview = Array.from(
+      safeText(pending?.raw ?? "").replace(/\s+/g, " "),
+    );
     const persistentHint = pending
-      ? `送达 ${pending.status} · ${pending.id.slice(0, 8)} · 原文：${Array.from(safeText(pending.raw).replace(/\s+/g, " ")).slice(0, 48).join("")}${Array.from(pending.raw).length > 48 ? "…" : ""}`
+      ? `送达 ${pending.status} · ${pending.id.slice(0, 8)} · 原文：${preview.slice(0, 48).join("")}${preview.length > 48 ? "…" : ""}`
       : recovery
         ? `恢复原文：${this.files ? path.join(this.files.directory, recovery.file) : recovery.file} · /help`
         : "";
@@ -408,7 +400,7 @@ export class TerminalApp {
       "/help · Enter 换行 · Shift+Enter 提交 · 第一行 ↑ 查看 · Ctrl+C 退出";
     this.footer.setText(
       safeText(
-        `${this.page} · ${this.viewing ? "查看：↑/↓ 滚动 · ↓ 到底部或 Esc 返回输入" : this.page === "Main" ? "发送到 Main" : "普通草稿，不发送"} ${this.tui.terminal.rows < 8 ? "（窗口过小，请增高）" : ""}\n${hint}`,
+        `${this.page} · ${this.viewing ? "查看：↑/↓ 滚动 · 输入/粘贴或 Esc 返回" : this.page === "Main" ? "发送到 Main" : "普通草稿，不发送"} ${this.tui.terminal.rows < 8 ? "（窗口过小，请增高）" : ""}\n${hint}`,
       ),
     );
     this.tui.requestRender();

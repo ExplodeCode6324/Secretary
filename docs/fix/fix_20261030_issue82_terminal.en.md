@@ -114,3 +114,7 @@ Accept Claude's reproduced real-Core role/tool-activity mapping and UNKNOWN raw-
 After a same-domain Core restart, catch up only from durable records. A missing locator merges the latest window while retaining/annotating prior content in place; it must not permanently block new replies. A restore deferred by newer text does not consume the one restoration. Master reported native controlled-failure recovery, fast typing during streaming and Markdown/history normal, but the original base ANSI palette looked purple. Fixed xterm-256 light blue 117 and light pink 218 replace it, pending native confirmation.
 
 Master explicitly requested direct arrows, without Fn: Up on the editor's first visual row enters viewing; Up/Down scroll, Down at the bottom returns to input, and Escape returns immediately. Multiline/wrapped continuation rows still move the editor cursor, completion menus take priority, and viewing cannot submit a hidden draft. Task boundaries continue pagination. This supersedes PageUp/PageDown as the primary entry mechanism; those keys remain optional.
+
+### R6 viewing-input correction
+
+Typing or pasting while viewing must return to the editor and retain the content at its preserved cursor. Enter/Shift+Enter only return to editing and never submit; a subsequent explicit submission is required. Escape/bottom-Down remain available. PageUp/PageDown scroll only; Task pagination uses viewing-mode arrow boundaries. This supersedes the previous no-edit-in-viewing wording.

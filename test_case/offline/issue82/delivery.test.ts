@@ -525,8 +525,6 @@ test("Up at the first visual input row enters reading; arrows return at bottom a
     const top = app.scrolls.Main.scrollTop;
     terminal.sendInput("\x1b[A");
     assert.equal(app.scrolls.Main.scrollTop, top - 1);
-    terminal.sendInput("\x1b[13;2u");
-    assert.equal(submits, 0);
     terminal.sendInput("\x1b[B");
     terminal.sendInput("\x1b[B");
     assert.equal(app.viewing, false);
@@ -549,6 +547,100 @@ test("Up at the first visual input row enters reading; arrows return at bottom a
     for (let i = 0; i < 100 && !app.viewing; i++) terminal.sendInput("\x1b[A");
     assert.equal(app.viewing, true);
     assert.equal(s.drafts.Main.raw, "word ".repeat(70));
+  } finally {
+    await app.close();
+  }
+});
+
+test("viewing typing and bracketed paste return to preserved cursor; Enter gestures only return, never submit", async () => {
+  const d = new Delivery(freshState("domain", "fixture"), new MemoryFiles());
+  const terminal = new VirtualTerminal(100, 25),
+    app = new TerminalApp("unused", terminal);
+  app.delivery = d;
+  app.editors.Main.enabled = true;
+  app.tui.start();
+  let submits = 0;
+  app.editors.Main.onExplicitSubmit = () => submits++;
+  try {
+    d.edit("Main", "AB");
+    app.draw();
+    terminal.sendInput("\x1b[D");
+    terminal.sendInput("\x1b[A");
+    assert(app.viewing);
+    terminal.sendInput("你好");
+    assert.equal(app.viewing, false);
+    assert.equal(app.editors.Main.getExpandedText(), "A你好B");
+    terminal.sendInput("\x1b[A");
+    assert(app.viewing);
+    terminal.sendInput("\x1b[200~粘贴\n/T\x1b[201~");
+    assert.equal(app.viewing, false);
+    assert.equal(app.editors.Main.getExpandedText(), "A你好粘贴\n/TB");
+    for (const enter of ["\r", "\x1b[13;2u"]) {
+      d.edit("Main", "unchanged");
+      app.draw();
+      terminal.sendInput("\x1b[A");
+      assert(app.viewing);
+      terminal.sendInput(enter);
+      assert.equal(app.viewing, false);
+      assert.equal(app.editors.Main.getExpandedText(), "unchanged");
+      assert.equal(submits, 0);
+    }
+  } finally {
+    await app.close();
+  }
+});
+
+test("Task arrow boundaries page through the actual app and retain the editor draft", async () => {
+  const { RemoteViews } =
+    await import("../../../src/pi_secretary/src/tui/remote.ts");
+  const { until } = await import("../issue9/helpers.ts");
+  const client = new CoreClient({
+    api_version: "1",
+    url: "http://127.0.0.1:1",
+    token: "unused",
+    pid: 1,
+    instance_id: "i",
+    data_domain_id: "d",
+  });
+  const routes: string[] = [];
+  client.query = async <T>(route: string) => {
+    routes.push(route);
+    return {
+      items: [],
+      version: "1",
+      next_cursor: route.includes("cursor=") ? null : "cursor-p2",
+    } as T;
+  };
+  const remote = new RemoteViews(client);
+  await remote.refresh(["tasks"]);
+  const d = new Delivery(freshState("domain", "fixture"), new MemoryFiles());
+  const terminal = new VirtualTerminal(100, 25),
+    app = new TerminalApp("unused", terminal);
+  app.delivery = d;
+  app.remote = remote;
+  app.editors.Main.enabled = app.editors.Task.enabled = true;
+  app.tui.start();
+  app.draw();
+  app.editors.Main.onExplicitSubmit?.("/T");
+  try {
+    d.edit("Task", "task draft");
+    app.draw();
+    await sleep(30);
+    await terminal.flush();
+    terminal.sendInput("\x1b[A");
+    assert(app.viewing);
+    terminal.sendInput("\x1b[B");
+    await until(() =>
+      app.documents.Task.render(100).join("").includes("第 2 页"),
+    );
+    assert.equal(remote.taskCursor, "cursor-p2");
+    terminal.sendInput("\x1b[A");
+    await until(() =>
+      app.documents.Task.render(100).join("").includes("第 1 页"),
+    );
+    assert.equal(remote.taskCursor, undefined);
+    assert.equal(app.editors.Task.getExpandedText(), "task draft");
+    assert(routes.some((r) => r.includes("cursor=cursor-p2")));
   } finally {
     await app.close();
   }

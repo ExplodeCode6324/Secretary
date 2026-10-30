@@ -133,7 +133,7 @@ export class RemoteViews {
           if (String(e) === "Error: TIMELINE_ITEM_NOT_FOUND") {
             this.notices.set(
               anchor,
-              "原定位内容在当前 Core 中不存在；保留本地显示",
+              "原定位内容在当前 Core 中不存在；保留本地显示，与最新窗口之间可能有间隔",
             );
           } else {
             catchupFailed = true;
