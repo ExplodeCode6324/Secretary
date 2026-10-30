@@ -1058,6 +1058,41 @@
             "string",
             "null"
           ]
+        },
+        "active_executions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "state"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "latest_execution_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "latest_execution_state": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "pending_request_count": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -1065,7 +1100,11 @@
         "revision",
         "state",
         "goal",
-        "active_execution_ids"
+        "active_execution_ids",
+        "active_executions",
+        "latest_execution_id",
+        "latest_execution_state",
+        "pending_request_count"
       ],
       "additionalProperties": true
     },

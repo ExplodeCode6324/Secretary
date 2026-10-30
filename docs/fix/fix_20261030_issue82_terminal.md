@@ -1,6 +1,11 @@
 # Issue #82 — 终端 Main/Task 基础实施计划
 
-日期：2026-10-30（香港）。R3。状态：CLAUDE_PLAN_PASS / WAITING_MASTER_APPROVAL；实施须经 Master 批准。
+## Master 后续键位调整（2026-10-30）
+
+Master 在 macOS Terminal 实测 Cmd+Enter 无反馈，随后明确选择 Enter 换行、Shift+Enter 发送或执行命令。此决定覆盖以下旧 Enter 提交方案及中间的 Cmd+Enter 试验方案。补全菜单打开时 Enter/Shift+Enter 仅补全。无需反斜杠降级，反斜杠保留为正文。Shift+Enter 此前已在原生终端被识别为换行；新的发送行为仍须原生确认。
+
+
+日期：2026-10-30（香港）。R3。状态：MASTER_APPROVED / IMPLEMENTING；实施须经 Master 批准。
 
 ## 1. 依据与边界
 

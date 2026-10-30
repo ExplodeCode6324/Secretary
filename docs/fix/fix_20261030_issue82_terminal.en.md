@@ -1,6 +1,11 @@
 # Issue #82 — terminal Main/Task foundation: implementation plan
 
-Date: 2026-10-30 (Asia/Hong_Kong). Revision R3. Status: CLAUDE_PLAN_PASS / WAITING_MASTER_APPROVAL; implementation requires Master's approval.
+## Master keyboard amendment (2026-10-30)
+
+Master tested Cmd+Enter in macOS Terminal and reported no response, then selected Enter for newline and Shift+Enter for explicit message/command submission. This supersedes both the older Enter-to-submit plan and the experimental Cmd+Enter binding. An open completion menu consumes Enter/Shift+Enter without submission. Preserve literal backslashes; no special backslash fallback is needed. Shift+Enter was previously recognized as newline on the native terminal; its new submission behavior still needs native confirmation.
+
+
+Date: 2026-10-30 (Asia/Hong_Kong). Revision R3. Status: MASTER_APPROVED / IMPLEMENTING; implementation requires Master's approval.
 
 ## 1. Authority, baseline and boundary
 

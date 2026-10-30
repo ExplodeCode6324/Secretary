@@ -1,6 +1,6 @@
-# Issue #82 rebuild — acceptance record template
+# Issue #82 rebuild — acceptance record
 
-2026-10-30. Planning only. Every product row is **NOT_TESTED**. Prior #82 results do not apply. Fill exact tested SHA and environment before execution; retain first failures and subsequent fixes. Code merge and product acceptance are separate decisions.
+2026-10-30. Implementation and verification in progress. Standalone native input preflight passed with Master; full product rows remain unaccepted. Prior #82 browser results do not apply. Code merge and product acceptance are separate decisions.
 
 ## Environment (to register before implementation preflight)
 
@@ -8,13 +8,13 @@
 | --- | --- |
 | Business baseline | f01076e6f5efad437d64b2a2890ae1af43ce97d7 (#81 rollback) |
 | Planning base | ceb50543423e4cfabbbf532fed8432030fb8b061 |
-| Tested implementation SHA | NOT_TESTED |
-| macOS / terminal / version | NOT_TESTED |
-| Node / installed pi-tui | NOT_TESTED; required Node >=22.19.0, pi-tui exactly 0.87.0 |
+| Tested implementation SHA | Working tree; exact committed SHA will accompany implementation review |
+| macOS / terminal / version | macOS 15.8.2 (24H225), Terminal 2.14 |
+| Node / installed pi-tui | Node 22.22.0, pi-tui exactly 0.87.0 |
 | Font / rows × columns / locale / actual input method | NOT_TESTED |
-| Send / newline / exit / scroll / completion bindings | NOT_TESTED |
+| Send / newline / exit / scroll / completion bindings | Shift+Enter / Enter / Ctrl+C; completion guard passed native preflight |
 | Core mode / isolated data domain / task IDs | NOT_TESTED; no tokens or credentials in this record |
-| Human performing actual IME confirmation | NOT_TESTED |
+| Human performing actual IME confirmation | Master (standalone preflight only) |
 
 ## Product operations
 
@@ -45,3 +45,48 @@ Task fixtures and virtual-terminal assertions are useful automation, but cannot 
 ## Requirement mapping
 
 AC01 top-level navigation only; AC02 base layout only; AC03 default display only; AC04 Markdown; AC25/26 ordinary input/drafts; AC30 navigation/reading. Record delivered branches of AC24/28/31 individually. Full CoT, pending region, internal Task details and later batches remain unaccepted here.
+
+
+## Native preflight and keyboard amendment — 2026-10-30
+
+Master manually ran the standalone macOS Terminal preflight: Ctrl+J did not insert a newline; Shift+Enter and the other requested checks were reported normal (IME candidate confirmation, refresh while editing, command completion, resize, exit). The initial Ctrl+J handler ordering was corrected and its regression test passed.
+
+Intermediate experiment: Master requested Enter for newline and Cmd+Enter for submission. Simulated Pi key-code tests passed, but Master’s native check subsequently found Cmd+Enter ineffective. The later Shift+Enter decision below supersedes this experiment. Protocol-level support did not establish Terminal support.
+
+First dedicated simulated-terminal delay run: status GET injected with 2,000 ms delay, input-visible samples 22.0–24.1 ms, navigation 23.4 ms, status settlement 2,002.2 ms. No POST or new request ID was created. This is automated virtual-terminal evidence, not native hardware latency acceptance. Additional delivery tests cover slow persistence, late acceptance, newer drafts, same-ID retry, conflict, and negative status-read continuity guards. Full implementation and final review remain in progress.
+
+Master subsequently tested Cmd+Enter: no feedback, while other checks were normal. Native Cmd+Enter is therefore **FAILED**, not accepted. Master selected **Enter newline / Shift+Enter submit**. Code, prompts and regression tests now use that decision. Native Shift+Enter-to-submit is **NOT_TESTED** (its earlier newline recognition passed); the preflight remains ready for confirmation.
+
+## Implemented client operation ledger
+
+| Operation | Purpose / write boundary |
+| --- | --- |
+| GET core | Attach to existing owner Core; validate API/domain/mode/instance |
+| GET sync/cursor, GET sync/stream | Read-only invalidation stream and per-attempt continuity marker |
+| GET timeline (limit 50, streaming), timeline/around, timeline after cursor | Initial recent window, refresh and catch-up of arrivals since the resident tail; no user history pagination |
+| GET messages/{id}/content | Assemble fragmented displayed body with revision/generation guards |
+| GET tasks (limit 50, cursor), scopes (limit 100) | Basic task pages, actual execution state/count, available Scope names; full scope navigation remains #83 |
+| GET requests/{request_id} | Bounded read-only reconciliation; never auto-resend |
+| GET sync/changes | Continuity check only for an unattempted later instance's negative request read |
+| POST messages | Only an explicit Main submission with durably captured immutable request ID/body |
+
+The TUI never starts/stops Core or sends Task drafts. UI navigation, completion, rendering and persistence create no Core business writes.
+
+## Local launch
+
+Start Core separately using the project's normal workflow and data directory. From the repository, run `SECRETARY_DATA=/absolute/path/to/core-data npm run tui`. With the default Core directory `.demo-data`, `npm run tui` suffices. The TUI attaches only. Local client state is under `~/Library/Application Support/Secretary/tui/v1/<domain>/<mode>/`, separate from Core.
+
+Enter inserts a newline; Shift+Enter explicitly submits messages or commands. When completion is open, either key only completes; a subsequent Shift+Enter submits. Task ordinary submission retains its draft. Ctrl+C saves and exits the client; it does not stop Core. Small windows retain the bottom editor. Main and Task keep independent drafts and reading positions.
+
+Current implementation verification is in progress. Full native Main/Task usage, live-provider behavior and exact-HEAD Claude review are not yet accepted. Earlier browser UI evidence is not acceptance for this rebuilt terminal client.
+
+Master confirmed the final native preflight: all checks normal, with the question whether retaining editor text after submit was intentional. It is intentional in this standalone preflight (count-only, no Core). Thus native **Enter newline / Shift+Enter explicit submit / first-press completion isolation PASS**, reported by Master. This does not replace full product acceptance. The integrated client clears only the durably captured submitted draft and preserves later edits.
+
+
+## Automation checkpoint
+
+Nineteen dedicated cases cover routing/paste/completion and final key bindings, simulated-terminal slow status latency, real HTTP lost receipt and timeout, slow persistence/new draft races, conflict, same-ID retry, acceptance-bound restore, continuity guards, writer exclusion, atomic snapshots, corruption preservation, expiry, reading anchors, burst catch-up, minimal actual waiting-execution projection, and attach/send/navigation/exit against a real fixture Core. These do not claim every matrix branch above, native full-product acceptance or live-provider coverage.
+
+First integration attempt timed out because the reusable HTTP fixture did not publish a discovery endpoint file; the test setup now writes its own private endpoint file, as the actual Core launcher does. The initial burst test had an incorrect fake URL pathname (leading slash mismatch); correcting the fake made the 140-arrival test pass. No production route was changed to accommodate either fixture.
+
+While a request is UNKNOWN, this one-slot client blocks different Main messages. It never automatically replays. Explicit identical-payload submission retries the original ID; verified later-instance non-delivery releases the slot and preserves the original raw input. A same-instance negative read or elapsed timeout alone never releases it. The client never restarts Core to force resolution.

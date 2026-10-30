@@ -951,6 +951,8 @@ export class ApplicationService {
         ...page,
         items: page.items.map((id) => {
           const p = this.task(id as string);
+          const latestID = (this.executionIDs.get(p.id) ?? []).at(-1);
+          const latest = latestID ? this.execution(latestID) : null;
           return {
             id: p.id,
             scope_id: p.scope_id ?? null,
@@ -958,6 +960,13 @@ export class ApplicationService {
             state: p.state,
             goal: store.read<TaskProposal>(p.proposal_ref).goal,
             active_execution_ids: p.active_execution_ids,
+            active_executions: p.active_execution_ids.map((executionID) => {
+              const execution = this.execution(executionID);
+              return { id: execution.id, state: execution.state };
+            }),
+            latest_execution_id: latest?.id ?? null,
+            latest_execution_state: latest?.state ?? null,
+            pending_request_count: p.pending_requests?.length ?? 0,
           };
         }),
       };
