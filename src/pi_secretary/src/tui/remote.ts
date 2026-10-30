@@ -290,7 +290,7 @@ export class RemoteViews {
           {
             targets,
             previous: attempt ? undefined : cached,
-            windowed: !!targets,
+            windowed: !!cached?.windowed,
             valid: () =>
               valid() && this.history.items.get(id)?.revision === version,
           },

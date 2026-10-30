@@ -325,7 +325,10 @@ function unresolvedMath(text: string, opaque: [number, number][]) {
       opening === "$$" ? /\$\$[ \t]*(?:\n|$)/g : /\\\][ \t]*(?:\n|$)/g;
     closer.lastIndex = from;
     const found = closer.exec(text);
-    if (!found) return start;
+    const contentStart = from + /^[ \t]*\n?/.exec(text.slice(from))![0].length;
+    // Pi rejects an empty completed block, then may recognize the whole tail
+    // as pending math once a later operator arrives. Do not finalize across it.
+    if (!found || found.index <= contentStart) return start;
     starts.lastIndex = found.index + closing.length;
   }
 }
@@ -392,7 +395,9 @@ export class WindowStream {
     // an evicted body from below. Keep only the latest window while walking EOF.
     if (
       w.start <= this.target &&
-      (this.target === Number.MAX_SAFE_INTEGER || this.target < w.nextStart)
+      (this.target === Number.MAX_SAFE_INTEGER
+        ? !this.selected || /\S/.test(w.text)
+        : this.target < w.nextStart)
     )
       this.selected = w;
     this.previous = c.start;

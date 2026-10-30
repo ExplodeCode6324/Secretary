@@ -195,3 +195,42 @@ test("entering an evicted large body from below selects its final source window"
     remote.stop();
   }
 });
+
+for (const count of [5, 30]) {
+  test(`Up-entry preserves whole assembly or selects a nonblank tail (${count * 40000} bytes)`, async () => {
+    const { RemoteViews } =
+      await import("../../../src/pi_secretary/src/tui/remote.ts");
+    const text =
+      ("p".repeat(39998) + "\n\n").repeat(count - 1) +
+      "END " +
+      "p".repeat(39994) +
+      "\n\n";
+    const f = source(text),
+      remote = new RemoteViews({
+        ...f.client,
+        endpoint: { instance_id: "test" },
+      } as CoreClient);
+    try {
+      remote.history.items.set(f.first.id, {
+        ...f.first,
+        text: "",
+        next_cursor: null,
+      });
+      remote.history.evictedBodies.add(f.first.id);
+      remote.history.setAnchor(f.first.id);
+      await remote.loadBody(f.first.id, "body", "before");
+      const body = remote.bodies.get(f.first.id)!;
+      assert(body);
+      assert.equal(body.windowed, count === 30);
+      if (count === 5) assert.equal(body.message.text, text);
+      else {
+        assert(body.body.text.trimStart().startsWith("END "));
+        assert(body.body.before);
+        // Trailing source whitespace remains reachable; it is not the entry view.
+        assert(body.body.after);
+      }
+    } finally {
+      remote.stop();
+    }
+  });
+}

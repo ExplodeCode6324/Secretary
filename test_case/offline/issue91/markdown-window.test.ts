@@ -20,6 +20,11 @@ import {
   bodyBytes,
 } from "../../../src/pi_secretary/src/tui/body.ts";
 import type { Message } from "../../../src/pi_secretary/src/api/contracts.ts";
+const emptyMathCases = [
+  "$$\n$$\n\npara one\n\npara two\n\na = b\n",
+  "$$   \n$$\n\npara one\n\na = b\n",
+  "\\[\n\\]\n\npara one\n\na = b\n",
+];
 const corpus = [
   "```text\n$$\nliteral math marker\n```\n\nend\n",
   "before\n\n\x1b[31mcolored\x1b[0m **bold**\n\nend\n",
@@ -56,7 +61,7 @@ const clean = (rows: string[]) =>
     .map((s) => s.trimEnd())
     .filter(Boolean);
 test("every split point preserves complete Pi block boundaries, graphemes and exact source", () => {
-  for (const source of corpus)
+  for (const source of [...corpus, ...emptyMathCases])
     for (let split = 1; split < source.length; split++) {
       const pieces: SourcePiece[] = [],
         parser = new BlockStream((p) => pieces.push(p), 0, 1024 * 1024, 1);
