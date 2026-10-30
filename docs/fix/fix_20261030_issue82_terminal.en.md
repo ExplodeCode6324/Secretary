@@ -108,3 +108,9 @@ Master approval covers the full R3 plan, including the explicit unknown-slash/em
 ### R4 implementation-review amendment
 
 Accept Claude's reproduced real-Core role/tool-activity mapping and UNKNOWN raw-input restoration defects. Add query-specific invalidation, same-revision fragment preservation, exit/reconnect guards and failed-page consistency. Recovery retains identity and restores at most once per request after a read-only check; never auto-replays. See linked acceptance evidence. Apple Terminal samples live Shift state at processing time, so final native checks include fast typing during streaming. SSH/tmux are unaccepted and must not be assumed to transmit Shift+Enter.
+
+### R5 correction and Master's arrow-navigation decision
+
+After a same-domain Core restart, catch up only from durable records. A missing locator merges the latest window while retaining/annotating prior content in place; it must not permanently block new replies. A restore deferred by newer text does not consume the one restoration. Master reported native controlled-failure recovery, fast typing during streaming and Markdown/history normal, but the original base ANSI palette looked purple. Fixed xterm-256 light blue 117 and light pink 218 replace it, pending native confirmation.
+
+Master explicitly requested direct arrows, without Fn: Up on the editor's first visual row enters viewing; Up/Down scroll, Down at the bottom returns to input, and Escape returns immediately. Multiline/wrapped continuation rows still move the editor cursor, completion menus take priority, and viewing cannot submit a hidden draft. Task boundaries continue pagination. This supersedes PageUp/PageDown as the primary entry mechanism; those keys remain optional.

@@ -68,7 +68,13 @@ export class Delivery {
     if (this.statusJob)
       return this.statusJob.then(() => {
         // A reconnect can change clients while the coalesced read is in flight.
-        if (restore && this.restoreRequested && !this.busy && !this.closed)
+        if (
+          restore &&
+          this.restoreRequested &&
+          !this.state.drafts.Main.raw &&
+          !this.busy &&
+          !this.closed
+        )
           return this.reconcile(true);
       });
     const client = this.client,
@@ -131,17 +137,16 @@ export class Delivery {
         !this.closed &&
         p.status === "UNKNOWN"
       ) {
-        this.restoreRequested = undefined;
-        if (this.restoredId !== p.id) {
+        if (this.restoredId === p.id) this.restoreRequested = undefined;
+        else if (!this.state.drafts.Main.raw) {
+          this.restoreRequested = undefined;
           this.restoredId = p.id;
-          if (!this.state.drafts.Main.raw) {
-            this.state.drafts.Main = {
-              raw: p.raw,
-              generation: this.state.drafts.Main.generation + 1,
-              binding: p.id,
-            };
-            await this.flush();
-          }
+          this.state.drafts.Main = {
+            raw: p.raw,
+            generation: this.state.drafts.Main.generation + 1,
+            binding: p.id,
+          };
+          await this.flush();
         }
       }
       this.event("reconcile-end", p.id);

@@ -1,5 +1,6 @@
 import {
   Editor,
+  CURSOR_MARKER,
   getKeybindings,
   matchesKey,
   type TUI,
@@ -103,6 +104,15 @@ export const editorTheme = {
 };
 export class DraftEditor extends Editor {
   enabled = true;
+  private hiddenRows = 0;
+  protected override renderTopBorder(width: number, hidden: number) {
+    this.hiddenRows = hidden;
+    return super.renderTopBorder(width, hidden);
+  }
+  onFirstVisualRow(width: number) {
+    const rows = this.render(width);
+    return this.hiddenRows === 0 && !!rows[1]?.includes(CURSOR_MARKER);
+  }
   onExplicitSubmit?: (raw: string) => void;
   onEdited?: (raw: string) => void;
   onOperation?: () => void;

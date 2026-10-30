@@ -29,6 +29,7 @@ export class TerminalApp {
   readonly scrolls: Record<Page, AnchoredScroll>;
   readonly footer = new Text("连接 Core… Ctrl+C 退出", 0, 0);
   page: Page = "Main";
+  viewing = false;
   delivery?: Delivery;
   remote?: RemoteViews;
   private files?: LocalFiles;
@@ -45,6 +46,7 @@ export class TerminalApp {
   private initialTimeline = true;
   private messageCache = new Map<string, ViewEntry>();
   private messageRefs = new Map<string, unknown>();
+  private messageNotices = new Map<string, string | undefined>();
   private contentVersion = 0;
   private remoteDirty = true;
   constructor(
@@ -93,6 +95,56 @@ export class TerminalApp {
         void this.close();
         return { consume: true };
       }
+      const editor = this.editors[this.page],
+        scroll = this.scrolls[this.page];
+      if (!this.stopping && editor.enabled) {
+        if (this.viewing) {
+          if (matchesKey(data, "escape")) {
+            this.viewing = false;
+            this.tui.setFocus(editor);
+            this.draw();
+            return { consume: true };
+          }
+          if (matchesKey(data, "up") || matchesKey(data, "down")) {
+            const up = matchesKey(data, "up");
+            if (this.pageLoading) return { consume: true };
+            if (
+              this.page === "Task" &&
+              this.remote &&
+              (up
+                ? scroll.scrollTop === 0 && this.pageIndex > 0
+                : scroll.atEnd && !!this.remote.tasks.next_cursor)
+            ) {
+              void this.taskPage(up ? -1 : 1);
+            } else {
+              scroll.scrollBy(up ? -1 : 1);
+              if (
+                !up &&
+                scroll.atEnd &&
+                !(this.page === "Task" && this.remote?.tasks.next_cursor)
+              ) {
+                this.viewing = false;
+                this.tui.setFocus(editor);
+              }
+            }
+            this.draw();
+            return { consume: true };
+          }
+          // Reading mode never sends or edits a hidden draft.
+          if (!matchesKey(data, "pageUp") && !matchesKey(data, "pageDown"))
+            return { consume: true };
+        } else if (
+          matchesKey(data, "up") &&
+          !editor.isShowingAutocomplete() &&
+          editor.onFirstVisualRow(this.tui.terminal.columns)
+        ) {
+          this.viewing = true;
+          this.tui.setFocus(scroll);
+          scroll.scrollBy(-1);
+          this.draw();
+          return { consume: true };
+        }
+      }
       if (this.page === "Task" && !this.pageLoading && this.remote) {
         const scroll = this.scrolls.Task;
         if (
@@ -138,7 +190,9 @@ export class TerminalApp {
         { component: this.footer, basis: 2, minSize: 1, maxSize: 2 },
       ]),
     );
-    this.tui.setFocus(this.editors[this.page]);
+    this.tui.setFocus(
+      this.viewing ? this.scrolls[this.page] : this.editors[this.page],
+    );
   }
   private clearHint() {
     this.uiHint = "";
@@ -187,7 +241,8 @@ export class TerminalApp {
         this.taskPages[nextIndex] = cursor;
         this.pageIndex = nextIndex;
         this.remoteDirty = true;
-        this.scrolls.Task.scrollToStart();
+        if (delta < 0) this.scrolls.Task.scrollToEnd();
+        else this.scrolls.Task.scrollToStart();
       }
     } finally {
       this.pageLoading = false;
@@ -223,7 +278,7 @@ export class TerminalApp {
       const previous = this.remote;
       previous?.stop();
       this.remote = new RemoteViews(client);
-      if (previous) this.remote.messages = new Map(previous.messages);
+      if (previous) this.remote.inherit(previous);
       this.remote.onChange = () => {
         this.remoteDirty = true;
         this.draw();
@@ -282,14 +337,20 @@ export class TerminalApp {
       if (this.remote) {
         for (const m of this.remote.messages.values()) {
           let entry = this.messageCache.get(m.id);
-          if (!entry || this.messageRefs.get(m.id) !== m) {
+          const notice = this.remote.notices.get(m.id);
+          if (
+            !entry ||
+            this.messageRefs.get(m.id) !== m ||
+            this.messageNotices.get(m.id) !== notice
+          ) {
             entry = {
               id: m.id,
               version: String(++this.contentVersion),
-              component: timelineComponent(m),
+              component: timelineComponent(m, notice),
             };
             this.messageCache.set(m.id, entry);
             this.messageRefs.set(m.id, m);
+            this.messageNotices.set(m.id, notice);
           }
           entries.push(entry);
         }
@@ -306,7 +367,7 @@ export class TerminalApp {
           id: "task-title",
           version: String(this.pageIndex),
           component: new Text(
-            `Task · 基础列表，创建顺序 · 第 ${this.pageIndex + 1} 页\n边界 PageUp/PageDown 翻页；完整筛选/排序在 #83\n`,
+            `Task · 基础列表，创建顺序 · 第 ${this.pageIndex + 1} 页\n查看时 ↑/↓ 到边界翻页；Esc 返回输入；完整筛选/排序在 #83\n`,
             0,
             0,
           ),
@@ -324,7 +385,7 @@ export class TerminalApp {
           version: String(this.remote?.tasks.next_cursor),
           component: new Text(
             this.remote?.tasks.next_cursor
-              ? "下页：滚动至底部后 PageDown"
+              ? "下页：查看模式滚动至底部后 ↓"
               : "本页结束",
             0,
             0,
@@ -335,7 +396,7 @@ export class TerminalApp {
     const pending = this.delivery?.state.pending;
     const recovery = this.delivery?.state.recovery;
     const persistentHint = pending
-      ? `送达 ${pending.status} · ${pending.id.slice(0, 8)} · 原文已保留`
+      ? `送达 ${pending.status} · ${pending.id.slice(0, 8)} · 原文：${Array.from(safeText(pending.raw).replace(/\s+/g, " ")).slice(0, 48).join("")}${Array.from(pending.raw).length > 48 ? "…" : ""}`
       : recovery
         ? `恢复原文：${this.files ? path.join(this.files.directory, recovery.file) : recovery.file} · /help`
         : "";
@@ -344,10 +405,10 @@ export class TerminalApp {
       this.delivery?.hint ||
       this.remote?.error ||
       persistentHint ||
-      "/help · Enter 换行 · Shift+Enter 提交 · Tab 补全 · Ctrl+C 退出";
+      "/help · Enter 换行 · Shift+Enter 提交 · 第一行 ↑ 查看 · Ctrl+C 退出";
     this.footer.setText(
       safeText(
-        `${this.page} · ${this.page === "Main" ? "发送到 Main" : "普通草稿，不发送"} ${this.tui.terminal.rows < 8 ? "（窗口过小，请增高）" : ""}\n${hint}`,
+        `${this.page} · ${this.viewing ? "查看：↑/↓ 滚动 · ↓ 到底部或 Esc 返回输入" : this.page === "Main" ? "发送到 Main" : "普通草稿，不发送"} ${this.tui.terminal.rows < 8 ? "（窗口过小，请增高）" : ""}\n${hint}`,
       ),
     );
     this.tui.requestRender();

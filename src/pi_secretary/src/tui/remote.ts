@@ -11,6 +11,8 @@ import type {
 type Query = "timeline" | "tasks" | "scopes";
 export class RemoteViews {
   messages = new Map<string, TimelineItem>();
+  notices = new Map<string, string>();
+  private confirmed = new Set<string>();
   tasks: TaskPage = { items: [], next_cursor: null, version: "0" };
   scopes = new Map<string, string>();
   error = "";
@@ -27,6 +29,25 @@ export class RemoteViews {
   onChange = () => {};
   onDisconnect = (error: unknown) => {};
   constructor(readonly client: CoreClient) {}
+  inherit(previous: RemoteViews) {
+    this.messages = new Map(previous.messages);
+    this.notices = new Map(previous.notices);
+    if (
+      previous.client.endpoint.instance_id !== this.client.endpoint.instance_id
+    )
+      for (const item of this.messages.values())
+        if (
+          item.kind === "message"
+            ? item.persistence === "transient"
+            : item.activity.source === "live"
+        )
+          this.notices.set(item.id, "重启前的临时内容，尚未在当前 Core 确认");
+  }
+  private durable(item: TimelineItem) {
+    return item.kind === "message"
+      ? item.persistence === "durable"
+      : item.activity.source === "durable";
+  }
   async start() {
     const cursor = await this.client.syncCursor();
     await this.refresh();
@@ -57,12 +78,20 @@ export class RemoteViews {
   private remember(item: TimelineItem) {
     if (item.kind !== "message" && item.activity.kind !== "tool") return;
     // Preserve assembled fragments and object identity at the same revision.
-    if (this.messages.get(item.id)?.revision === item.revision) return;
+    this.notices.delete(item.id);
+    if (
+      this.confirmed.has(item.id) &&
+      this.messages.get(item.id)?.revision === item.revision
+    )
+      return;
+    this.confirmed.add(item.id);
     this.messages.set(item.id, item);
   }
   private async read(queries: Set<Query>) {
     const gen = this.generation;
-    const anchor = [...this.messages.keys()].at(-1);
+    const anchor = [...this.messages.values()]
+      .filter((item) => this.durable(item) && !this.notices.has(item.id))
+      .at(-1)?.id;
     const results = await Promise.allSettled([
       queries.has("timeline")
         ? this.client.query<Timeline>("timeline?limit=50&streaming=true")
@@ -101,8 +130,15 @@ export class RemoteViews {
             );
           }
         } catch (e) {
-          catchupFailed = true;
-          this.error = "新消息补读失败，保留已有内容：" + String(e);
+          if (String(e) === "Error: TIMELINE_ITEM_NOT_FOUND") {
+            this.notices.set(
+              anchor,
+              "原定位内容在当前 Core 中不存在；保留本地显示",
+            );
+          } else {
+            catchupFailed = true;
+            this.error = "新消息补读失败，保留已有内容：" + String(e);
+          }
         }
       if (this.stopped || gen !== this.generation) return;
       this.timelineReady = true;

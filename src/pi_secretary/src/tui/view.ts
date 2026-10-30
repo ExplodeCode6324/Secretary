@@ -17,8 +17,8 @@ export function safeText(text: string) {
 }
 const white = color("37"),
   gray = color("90"),
-  blue = color("94"),
-  pink = color("95");
+  blue = color("38;5;117"),
+  pink = color("38;5;218");
 export const markdownTheme: MarkdownTheme = {
   heading: color("1;37"),
   link: white,
@@ -75,7 +75,20 @@ export function messageComponent(m: Message): Component {
     ],
   };
 }
-export function timelineComponent(item: TimelineItem): Component {
+export function timelineComponent(
+  item: TimelineItem,
+  notice?: string,
+): Component {
+  if (notice) {
+    const content = timelineComponent(item);
+    return {
+      invalidate: () => content.invalidate(),
+      render: (width) => [
+        ...new Text(gray(safeText(notice)), 0, 0).render(width),
+        ...content.render(width),
+      ],
+    };
+  }
   if (item.kind === "message") return messageComponent(item);
   return new Text(
     pink(

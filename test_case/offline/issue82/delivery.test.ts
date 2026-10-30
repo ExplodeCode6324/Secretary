@@ -463,3 +463,93 @@ test("cursor movement preserves errors; an ordinary edit clears the transient hi
   assert.doesNotMatch(app.footer.render(160).join(""), /未知/);
   await app.close();
 });
+
+test("newer draft defers rather than consumes the one restore; clearing it allows read-only recovery", async () => {
+  const f = fake(),
+    s = freshState("domain", "fixture"),
+    d = new Delivery(s, new MemoryFiles());
+  await d.connect(f.client);
+  f.set({ postDelay: 40, postError: "INTERNAL_ERROR" });
+  d.edit("Main", "A");
+  const sending = d.submit("A", "A");
+  await sleep(10);
+  d.edit("Main", "B");
+  await sending;
+  await d.reconcile();
+  assert.equal(s.drafts.Main.raw, "B");
+  d.edit("Main", "");
+  await d.reconcile();
+  assert.equal(s.drafts.Main.raw, "A");
+  assert.equal(s.drafts.Main.binding, s.pending?.id);
+  assert.equal(f.posts.length, 1);
+  d.edit("Main", "");
+  await d.reconcile(true);
+  assert.equal(s.drafts.Main.raw, "");
+  await d.close();
+});
+
+test("Up at the first visual input row enters reading; arrows return at bottom and Escape preserves cursor/draft", async () => {
+  const { Text } = await import("@earendil-works/pi-tui");
+  const s = freshState("domain", "fixture"),
+    d = new Delivery(s, new MemoryFiles());
+  const terminal = new VirtualTerminal(40, 18),
+    app = new TerminalApp("unused", terminal);
+  app.delivery = d;
+  app.editors.Main.enabled = true;
+  app.tui.start();
+  app.draw();
+  app.documents.Main.entries = [
+    {
+      id: "history",
+      version: "1",
+      component: new Text("history row\n".repeat(100), 0, 0),
+    },
+  ];
+  let submits = 0;
+  d.onEvent = (e) => {
+    if (e.type === "submit") submits++;
+  };
+  try {
+    d.edit("Main", "first\nsecond");
+    app.draw();
+    await sleep(30);
+    await terminal.flush();
+    app.scrolls.Main.scrollToEnd();
+    terminal.sendInput("\x1b[A");
+    assert.equal(app.viewing, false);
+    assert.equal(app.editors.Main.getCursor().line, 0);
+    const cursor = app.editors.Main.getCursor(),
+      raw = app.editors.Main.getExpandedText();
+    terminal.sendInput("\x1b[A");
+    assert.equal(app.viewing, true);
+    const top = app.scrolls.Main.scrollTop;
+    terminal.sendInput("\x1b[A");
+    assert.equal(app.scrolls.Main.scrollTop, top - 1);
+    terminal.sendInput("\x1b[13;2u");
+    assert.equal(submits, 0);
+    terminal.sendInput("\x1b[B");
+    terminal.sendInput("\x1b[B");
+    assert.equal(app.viewing, false);
+    assert.deepEqual(app.editors.Main.getCursor(), cursor);
+    assert.equal(app.editors.Main.getExpandedText(), raw);
+    terminal.sendInput("\x1b[A");
+    terminal.sendInput("\x1b");
+    assert.equal(app.viewing, false);
+    assert.deepEqual(app.editors.Main.getCursor(), cursor);
+    d.edit("Main", "word ".repeat(70));
+    app.draw();
+    await sleep(30);
+    await terminal.flush();
+    terminal.sendInput("\x1b[A");
+    assert.equal(
+      app.viewing,
+      false,
+      "wrapped continuation rows stay inside the editor",
+    );
+    for (let i = 0; i < 100 && !app.viewing; i++) terminal.sendInput("\x1b[A");
+    assert.equal(app.viewing, true);
+    assert.equal(s.drafts.Main.raw, "word ".repeat(70));
+  } finally {
+    await app.close();
+  }
+});

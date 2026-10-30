@@ -102,11 +102,11 @@ test("real Core timeline renders Master blue, assistant white, system neutral an
     assert(master && assistant && tool, JSON.stringify(items));
     const rendered = (i: typeof master) =>
       timelineComponent(i).render(100).join("\n");
-    assert.match(rendered(master), /\x1b\[94m/);
+    assert.match(rendered(master), /\x1b\[38;5;117m/);
     assert.match(rendered(master), /Master/);
     assert.match(rendered(master), /─{10}/);
     assert.match(rendered(assistant), /\x1b\[37m/);
-    assert.match(rendered(tool), /\x1b\[95m/);
+    assert.match(rendered(tool), /\x1b\[38;5;218m/);
     const system = { ...master, role: "system" };
     assert.match(rendered(system), /系统/);
     assert.doesNotMatch(rendered(system), /工具/);
@@ -119,6 +119,85 @@ test("real Core timeline renders Master blue, assistant white, system neutral an
     }
   } finally {
     views.stop();
+    await f.close();
+    await fs.rm(f.dir, { recursive: true, force: true });
+  }
+});
+
+test("actual Core restart drops an in-memory preview but TUI keeps its place and receives later replies", async () => {
+  const f = new Fixture();
+  await f.open();
+  const { randomUUID } = await import("node:crypto");
+  const { replyStream } =
+    await import("../../../src/pi_secretary/src/model.ts");
+  const publish = () =>
+    fs.writeFile(
+      path.join(f.dir, "core-endpoint.json"),
+      JSON.stringify(f.server.endpoint),
+      { mode: 0o600 },
+    );
+  await publish();
+  await f.client.command("messages", {
+    request_id: randomUUID(),
+    text: "before restart",
+  });
+  await f.app.host.drain();
+  const call = randomUUID(),
+    previewId = "message:" + call;
+  f.app.host.previews.update({
+    type: "start",
+    id: call,
+    loop: "main",
+    session: f.app.host.sessionID,
+  });
+  const partial = await replyStream([
+    { type: "text", text: "ephemeral streaming content" },
+  ]).result();
+  f.app.host.previews.update({
+    type: "event",
+    id: call,
+    event: {
+      type: "text_end",
+      contentIndex: 0,
+      content: "ephemeral streaming content",
+      partial,
+    },
+  });
+  const terminal = new VirtualTerminal(100, 30),
+    app = new TerminalApp(f.dir, terminal, path.join(f.dir, "tui-state"));
+  try {
+    app.start();
+    await until(() => !!app.remote?.messages.has(previewId), 5000);
+    terminal.sendInput("retained draft");
+    const old = f.server.endpoint.instance_id;
+    await f.restart();
+    await publish();
+    await until(
+      () =>
+        app.remote?.client.endpoint.instance_id !== old &&
+        !!app.remote?.timelineReady,
+      8000,
+    );
+    assert(app.remote!.notices.has(previewId));
+    assert(app.remote!.messages.has(previewId));
+    await f.client.command("messages", {
+      request_id: randomUUID(),
+      text: "after restart",
+    });
+    await f.app.host.drain();
+    await until(
+      () =>
+        [...app.remote!.messages.values()].some(
+          (m) =>
+            m.kind === "message" &&
+            m.role === "assistant" &&
+            m.text.includes("after restart"),
+        ),
+      5000,
+    );
+    assert.equal(app.editors.Main.getExpandedText(), "retained draft");
+  } finally {
+    await app.close();
     await f.close();
     await fs.rm(f.dir, { recursive: true, force: true });
   }

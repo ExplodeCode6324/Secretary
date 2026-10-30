@@ -47,6 +47,7 @@ test("reading anchor survives new arrivals and reflow without following the tail
 const message = (i: number): Message => ({
   id: String(i),
   kind: "message",
+  persistence: "durable",
   revision: "1",
   role: "assistant",
   text: `message ${i}`,
@@ -187,4 +188,55 @@ test("transient updates skip Task/Scope reads and preserve assembled fragments; 
   } finally {
     views.stop();
   }
+});
+
+test("reconnect skips transient anchors; missing durable anchors resnapshot without hiding new replies", async () => {
+  const makeClient = (instance_id: string) =>
+    new CoreClient({
+      api_version: "1",
+      url: "http://127.0.0.1:1",
+      token: "unused",
+      pid: 1,
+      instance_id,
+      data_domain_id: "d",
+    });
+  const previous = new RemoteViews(makeClient("old"));
+  previous.messages.set("0", message(0));
+  previous.messages.set("1", { ...message(1), persistence: "transient" });
+  const client = makeClient("new"),
+    views = new RemoteViews(client);
+  views.inherit(previous);
+  let window = [message(2)];
+  const locators: string[] = [];
+  client.query = async <T>(route: string) => {
+    if (route.startsWith("tasks?") || route.startsWith("scopes?"))
+      return { items: [], next_cursor: null, version: "1" } as T;
+    if (route.startsWith("timeline/around")) {
+      const anchor = new URL(route, "http://test").searchParams.get(
+        "message_id",
+      )!;
+      locators.push(anchor);
+      if (anchor === "0") throw Error("TIMELINE_ITEM_NOT_FOUND");
+    }
+    return {
+      items: window,
+      after: null,
+      before: null,
+      version: "1",
+      generation: "new",
+    } as T;
+  };
+  await views.refresh();
+  assert.deepEqual(locators, ["0"]);
+  assert.deepEqual([...views.messages.keys()], ["0", "1", "2"]);
+  assert.match(views.notices.get("0")!, /不存在/);
+  assert.match(views.notices.get("1")!, /临时内容/);
+  window = [message(2), message(3)];
+  await views.refresh();
+  await views.refresh();
+  assert(views.messages.has("3"));
+  assert(!locators.includes("1"));
+  assert.equal(views.error, "");
+  views.stop();
+  previous.stop();
 });
