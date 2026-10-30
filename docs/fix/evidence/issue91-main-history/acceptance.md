@@ -1,0 +1,47 @@
+# Issue #91 acceptance registration
+
+Date: 2026-10-30 (Asia/Hong_Kong). Planning only. All implementation and acceptance results are **NOT_TESTED**.
+
+| Parameter | Planned value / registration |
+| --- | --- |
+| Base | 9324283c58f65cc5d783d0f3a33f79ca14575689 |
+| Tested implementation SHA | NOT_TESTED |
+| Pi | @earendil-works/pi-tui 0.87.0; upstream 16787ad5b2dc748047f314ca1bfe7708f30f54f3 |
+| Node/macOS/Terminal/font/input method | Register before implementation; #82 historical evidence is not a new measurement |
+| Minimum / larger native size | Proposed 80 columns × 24 rows / 120 × 40; NOT_TESTED |
+| Keys | Enter newline; Shift+Enter explicit submit; completion first; Ctrl+C client exit; Up from first visual input row to viewing; Up/Down scroll; Escape editor; actual paste key NOT_TESTED |
+| N / B / H | 50 initial items / 50 per request / 200 resident metadata items, activities included |
+| Text residency | 4 MiB UTF-8 body/CoT; whole-message assembly only up to 1 MiB within shared budget, otherwise at most 8 nearby fragments; not total browse limits |
+| Anchor | ID + region + source block UTF-16 offset + row in block + measured width + instance/generation/revision |
+| Error dismissal | Next deliberate edit, valid command or navigation; passive redraw does not clear |
+| Live run budget | ≤12 physical provider HTTP attempts including retries, ≤15 min, ≤90 s/request, ≤4096 output tokens/response |
+| Paste behavior approval | PENDING_MASTER_CHOICE: A all-paste tokens (reviewed) / B inline editable single-line spans (amend and re-review before implementation) |
+| Display line count | Logical LF-split lines including trailing empty line: a\nb\n = 3; singular “1 line” |
+| Large draft diagnostics | Isolated 1 MiB / 16 MiB synthetic Main/Task drafts; input-to-visible, serialization/save durations; not new quotas and no oversized POST |
+| Raw evidence | .demo-data/issue91/ (Git ignored); no credentials in committed records |
+
+| Gate | Status | Evidence required |
+| --- | --- | --- |
+| AC07 initial/page/evict/re-read/long body | NOT_TESTED | Ordered IDs/content anchors; retained counters/heap observations before/after >H and reverse |
+| AC05 Main / AC03 CoT | NOT_TESTED | Present/absent, summary, new/backfilled, both spellings, native gray rendering |
+| AC06 anchor/mode cursor/no writes | NOT_TESTED | Source-block/row anchors and authoritative quiet-session boundary comparison |
+| AC08 all three no-follow cases | NOT_TESTED | Native middle/away/latest, edited draft/cursor retained |
+| AC09 failed read and cursor recovery | NOT_TESTED | Original failure, local error clear, same-position resumed traversal |
+| AC27 native multi-paste | NOT_TESTED | Actual clipboard paste, block summaries, exact normalized Core/provider payload |
+| Pi raw/trim/paste lifecycle | NOT_TESTED | Provenance, split paste, undo, leading space, rawmessage, reopen, same-ID failure recovery |
+| Rich editor feasibility | NOT_TESTED | Word scan owns whitespace; both delete directions around tokens; undo pop alignment; kill accumulate/prepend; duplicate yank; token-adjacent <, >, paste and IME-committed text |
+| Running multi-fragment CJK | NOT_TESTED | Fixture + real Core only unless actual live bytes prove coverage; no stale-cursor error on normal delta supersession |
+| Preview discovery and order | NOT_TESTED | SSE previews[].id; brand-new preview NOT_FOUND means not-yet-visible; new tail rows via direction=after, known refresh via around limit=1 |
+| AC24/31 delivered branches | NOT_TESTED | Command scope/completion/help; no UI-triggered history/model writes |
+| Automated targeted and full verification | NOT_TESTED | First failure and final results, isolated correct PostgreSQL account |
+| L1 real model paste send and independent answer check | NOT_TESTED | Provider/model provenance, actual traffic, Core input and deterministic oracle |
+| L2 real stream and no-follow | NOT_TESTED | Native operations against real provider |
+| L3 real response historical/body/CoT reads | NOT_TESTED | Real message ID, content and availability; positive live-CoT separately labelled |
+| L4 real send lost receipt, same-ID replay | NOT_TESTED | Script drives actual TerminalApp/Core/provider; transport status failures through retry precheck; two same-ID POSTs reach Core, one Input, no replay-induced provider attempt; late acceptance alone does not pass this row |
+| CI on implementation HEAD | NOT_TESTED | Linux, macOS and aggregate required checks |
+| Claude implementation review on HEAD | NOT_TESTED | Same session, exact SHA, evidence limitations |
+| Master product acceptance / merge authorization | NOT_GRANTED | Separate decisions |
+
+Task CoT inheritance is #83; full AC05 cannot pass in this issue. #92 processing-mode command blocking, #94 images and other later-batch rows are not accepted here. Fixtures, real Core fixture routing, real provider traffic, native input and reviewer source inspection are separate evidence types.
+
+R2 Claude plan PASS is recorded separately in plan-review.md. No row above is a product PASS. L1/L2 are planned native Apple Terminal computer-use operations; L3 reads those real replies; L4 is labelled script-driven live integration. Master/human system IME acceptance remains separate.
