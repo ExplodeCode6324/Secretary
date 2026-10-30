@@ -324,10 +324,18 @@ export class TerminalApp {
         },
       ];
     }
+    const pending = this.delivery?.state.pending;
+    const recovery = this.delivery?.state.recovery;
+    const persistentHint = pending
+      ? `送达 ${pending.status} · ${pending.id.slice(0, 8)} · 原文已保留`
+      : recovery
+        ? `恢复原文：${recovery.file}`
+        : "";
     const hint =
       this.uiHint ||
       this.delivery?.hint ||
       this.remote?.error ||
+      persistentHint ||
       "/help · Enter 换行 · Shift+Enter 提交 · Tab 补全 · Ctrl+C 退出";
     this.footer.setText(
       safeText(
