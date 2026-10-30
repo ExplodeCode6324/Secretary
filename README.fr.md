@@ -34,6 +34,6 @@ Par défaut, Core s’exécute en arrière-plan avec le modèle fixture et le r�
 
 Core intègre désormais un cycle de vie indépendant, une synchronisation fiable, les Scopes, l’autorisation et la détermination des résultats inconnus, les nouvelles tentatives des modèles, la recherche en mémoire et le retrait des entrées originales du contexte, les réveils programmés, l’envoi push proactif, des améliorations de stockage, la séparation des modules et la réorganisation des prompts. La documentation actuelle a été alignée sur le code dans [#27](https://github.com/ExplodeCode6324/Secretary/issues/27) ; la feuille de route globale figure dans [#7](https://github.com/ExplodeCode6324/Secretary/issues/7).
 
-La feuille de route du client suit les [exigences TUI](docs/tui/requirements-and-backend-plan.md). Le client Tauri/Svelte est retiré ; le nouveau TUI reste à implémenter. Utilisez le [guide d’exploitation Core](docs/fr/operations.md). Les validations GUI inachevées conservent leur statut initial.
+Cette branche implémente Main/Task natif, l’historique Main, le CoT et le collage de texte. Voir les [exigences TUI](docs/tui/requirements-and-backend-plan.md) et [exécution et vérification du terminal](docs/tui/run-and-test.md). Tauri/Svelte est retiré. La validation produit et les lots suivants sont suivis séparément.
 
 Les issues relatives aux appareils #6/#11–#14 restent gelées. SwiftUI est retiré ; son ancienne conception sert uniquement de référence historique.

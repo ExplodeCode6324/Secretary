@@ -6,13 +6,13 @@
   ],
   "scope": "Current guides and generated references; historical designs, fix records, dated acceptance evidence, and the upstream submodule remain in their original languages.",
   "source_sha256": {
-    "README.zh-CN.md": "d0fcaa94663d3ca9ea75eb24846571fb0c8a08ff6c26cb9284df056fba990ec7",
-    "docs/README.md": "6d7ce69a9161be30657b21b18a2e2e49563d6cb41486bfccc80e277df13b44b9",
+    "README.zh-CN.md": "82c5f902d6a408fd617a9d94e723c33883b86455585be803a5522261be5c71d8",
+    "docs/README.md": "f150098d182a0d209f8fd8a48df7637eeb1dd83adfbac7858e78bd22ac97fb1e",
     "docs/architecture.md": "8dd1fe061e165e2c7cc688aadd348ad0dbdbafd9553c022c7d4a998f13a6177b",
     "docs/data-flow.md": "560e536e13d24ef9f3eb7090d966ec45ba3b8bdfa8977194e7238b73a9905b75",
     "docs/invariants.md": "de8495528b957674e2158f4c7f4daf7cda11a8ff727d7181abeead79aaf4bb81",
     "docs/memory-and-prompts.md": "2718bd6a1efdd10ad3b9d2a5c46ca79b457dee0b240cd3ccead2b64ffee93c7d",
-    "docs/operations.md": "9a961b7e142c7a1a006a8d116ff2a5d820a61c7e11b3c45ab1f56e777b24f3b3",
+    "docs/operations.md": "54d12296caaf069694fe45a19a7b247b00e1b94038bba1bca925fb884ce0750e",
     "docs/data-model.md": "d055b24ae5e4d9b4cc73024ad4764a14d436fe64b12e73b35c8d30e54c314dff",
     "docs/state-machines.md": "58241b4b18edd40f38576059cd56261a52f35c6b3df94dbc944085b623b153f6",
     "docs/database.md": "00531f18a71aae89f2cf7701c9fa17f0131bdc248156d2cff6097eb719c31bb3",
@@ -124,7 +124,7 @@
     "test_case/offline/issue2/README.md": "ca30d99aa6262c09c0bc0952ce53b9b3adbb844565884c452fe63c91f8a4bdc6",
     "test_case/offline/issue5/README.md": "3baf27bf3d3e621631ea183b92f6830ea77de42e976ad5d1a4da76e9bcf86a0f"
   },
-  "catalog_sha256": "75ed5e936c9cba299c1d75e8124eba1543df3fb967896621c558421c82397c39",
+  "catalog_sha256": "ce6528248c858ce72d5e543741e1abf4e525ff3d844e77bd0666e8655d5b74c8",
   "outputs": [
     "README.fr.md",
     "README.ja.md",

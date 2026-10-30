@@ -1,17 +1,17 @@
 # Issue #91 acceptance registration
 
-Date: 2026-10-30 (Asia/Hong_Kong). Implementation checkpoint. Detailed measured results and limitations: [implementation review](implementation-review.md). Oversized-Markdown feasibility is **NOT_ACCEPTED**, and §13 awaits Master approval; this is not a product acceptance report.
+Date: 2026-10-30 (Asia/Hong_Kong). Implementation checkpoint. Detailed measured results and limitations: [implementation review](implementation-review.md). Master approved §13 and its replacement passes the registered source/render properties. Final HEAD/CI/Claude results are recorded on the implementation PR; this is not Master product acceptance.
 
 | Parameter | Planned value / registration |
 | --- | --- |
 | Base | 9324283c58f65cc5d783d0f3a33f79ca14575689 |
-| Tested implementation SHA | Working tree based on `7720389c`; no final implementation HEAD/CI review yet |
+| Tested implementation SHA | Final implementation SHA and check results recorded on PR; base and historical runs distinguished below |
 | Pi | @earendil-works/pi-tui 0.87.0; upstream 16787ad5b2dc748047f314ca1bfe7708f30f54f3 |
 | Node/macOS/Terminal/font/input method | Node v22.22.0 / ICU78.2; POSIX PTY80x24; physical Terminal/font/IME NOT_TESTED |
 | Minimum / larger native size | Proposed 80 columns × 24 rows / 120 × 40; NOT_TESTED |
 | Keys | Enter newline; Shift+Enter explicit submit; completion first; Ctrl+C client exit; Up from first visual input row to viewing; Up/Down scroll; Escape editor; actual paste key NOT_TESTED |
 | N / B / H | 50 initial items / 50 per request / 200 resident metadata items, activities included |
-| Text residency | 4 MiB UTF-8 body/CoT; whole-message assembly only up to 1 MiB within shared budget, otherwise at most 8 nearby fragments; not total browse limits |
+| Text residency | 4 MiB UTF-8 body/CoT; whole-message assembly only up to 1 MiB within shared budget, otherwise complete-block windows targeting 8 fragments, <=1 MiB source per region, bounded contexts; not total browse limits |
 | Anchor | ID + region + source block UTF-16 offset + row in block + measured width + instance/generation/revision |
 | Error dismissal | Next deliberate edit, valid command or navigation; passive redraw does not clear |
 | Live run budget | ≤12 physical provider HTTP attempts including retries, ≤15 min, ≤90 s/request, ≤4096 output tokens/response |
@@ -22,20 +22,20 @@ Date: 2026-10-30 (Asia/Hong_Kong). Implementation checkpoint. Detailed measured 
 
 | Gate | Status | Evidence required |
 | --- | --- | --- |
-| AC07 initial/page/evict/re-read/long body | PARTIAL_TESTS_PASS; oversized Markdown BLOCKED_R4 | Ordered IDs/content anchors; retained counters/heap observations before/after >H and reverse |
-| AC05 Main / AC03 CoT | NOT_TESTED | Present/absent, summary, new/backfilled, both spellings, native gray rendering |
-| AC06 anchor/mode cursor/no writes | NOT_TESTED | Source-block/row anchors and authoritative quiet-session boundary comparison |
-| AC08 all three no-follow cases | NOT_TESTED | Native middle/away/latest, edited draft/cursor retained |
-| AC09 failed read and cursor recovery | NOT_TESTED | Original failure, local error clear, same-position resumed traversal |
+| AC07 initial/page/evict/re-read/long body | AUTOMATED_PASS; §13 parity/real-Core measurements PASS; native pending | Ordered IDs/content anchors; retained counters/heap observations before/after >H and reverse |
+| AC05 Main / AC03 CoT | AUTOMATED + PTY/SCRIPTED_LIVE_PASS; physical native pending | Present/absent, summary, new/backfilled, both spellings, native gray rendering |
+| AC06 anchor/mode cursor/no writes | AUTOMATED + PTY/SCRIPTED_LIVE_PASS | Source-block/row anchors and authoritative quiet-session boundary comparison |
+| AC08 all three no-follow cases | PTY middle + SCRIPTED_LIVE bottom/Task-return PASS | Native middle/away/latest, edited draft/cursor retained |
+| AC09 failed read and cursor recovery | AUTOMATED_REAL_CORE_PASS; native pending | Original failure, local error clear, same-position resumed traversal |
 | AC27 native multi-paste | NOT_TESTED | Actual clipboard paste, block summaries, exact normalized Core/provider payload |
-| Pi raw/trim/paste lifecycle | NOT_TESTED | Provenance, split paste, undo, leading space, rawmessage, reopen, same-ID failure recovery |
+| Pi raw/trim/paste lifecycle | AUTOMATED_PASS + L4 real-provider replay PASS | Provenance, split paste, undo, leading space, rawmessage, reopen, same-ID failure recovery |
 | Rich editor feasibility | FOCUSED_TESTS_PASS; native NOT_TESTED | Word scan owns whitespace; both delete directions around tokens; undo pop alignment; kill accumulate/prepend; duplicate yank; token-adjacent <, >, paste and IME-committed text |
 | Running multi-fragment CJK | REAL_CORE_FIXTURE_PASS; live oversized NOT_TESTED | Fixture + real Core only unless actual live bytes prove coverage; no stale-cursor error on normal delta supersession |
-| Preview discovery and order | NOT_TESTED | SSE previews[].id; brand-new preview NOT_FOUND means not-yet-visible; new tail rows via direction=after, known refresh via around limit=1 |
-| AC24/31 delivered branches | NOT_TESTED | Command scope/completion/help; no UI-triggered history/model writes |
-| Automated targeted and full verification | Full783 PASS before last corrections; focused58 + restart1 PASS after | First failure and final results, isolated correct PostgreSQL account |
+| Preview discovery and order | AUTOMATED_REAL_CORE_PASS | SSE previews[].id; brand-new preview NOT_FOUND means not-yet-visible; new tail rows via direction=after, known refresh via around limit=1 |
+| AC24/31 delivered branches | AUTOMATED_PASS; quiet scripted-live cursor unchanged | Command scope/completion/help; no UI-triggered history/model writes |
+| Automated targeted and full verification | Full792 PASS; final type/docs and focused checks recorded on PR; historical full783 and focused63 kept separately | First failure and final results, isolated correct PostgreSQL account |
 | L1 real model paste send and independent answer check | PASS_PTY; physical clipboard NOT_TESTED | Provider/model provenance, actual traffic, Core input and deterministic oracle |
-| L2 real stream and no-follow | PARTIAL_PTY; Task-away/return NOT_ACCEPTED | Native operations against real provider |
+| L2 real stream and no-follow | PASS_PTY middle + PASS_SCRIPTED_LIVE bottom/Task-return; physical GUI pending | Native operations against real provider |
 | L3 real response historical/body/CoT reads | PASS_PTY incl positive provider-exposed CoT | Real message ID, content and availability; positive live-CoT separately labelled |
 | L4 real send lost receipt, same-ID replay | PASS_SCRIPTED_LIVE: two POSTs / one Input / attempts5→5 | Script drives actual TerminalApp/Core/provider; transport status failures through retry precheck; two same-ID POSTs reach Core, one Input, no replay-induced provider attempt; late acceptance alone does not pass this row |
 | CI on implementation HEAD | NOT_TESTED | Linux, macOS and aggregate required checks |

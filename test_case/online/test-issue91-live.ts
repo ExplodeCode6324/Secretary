@@ -161,6 +161,7 @@ if (mode === "--serve" || mode === "--resume") {
             if (first) {
               entry.first_event_at = new Date().toISOString();
               first = false;
+              void ledger();
             }
             out.push(event); // Actual streaming, never buffer the answer before exposing it.
           }

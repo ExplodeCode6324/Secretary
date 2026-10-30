@@ -32,6 +32,6 @@ npm run stop
 
 Core 已合入独立生命周期、可靠同步、Scope、授权与未知结果裁定、模型重试、记忆检索与原文退出、定时唤醒、主动推送、存储性能、模块拆分和提示词整理。现行文档由 [#27](https://github.com/ExplodeCode6324/Secretary/issues/27) 按代码整理，总路线见 [#7](https://github.com/ExplodeCode6324/Secretary/issues/7)。
 
-当前客户端路线为 [TUI 需求](docs/tui/requirements-and-backend-plan.md)。Tauri/Svelte 客户端已退役，新 TUI 尚未实现；现在使用 [Core 运行手册](docs/operations.md)。旧 GUI 未完成的验收保持原状态。
+当前客户端路线为 [TUI 需求](docs/tui/requirements-and-backend-plan.md)。本分支已实现原生 Main/Task 入口及 Main 历史、CoT 和文本粘贴，见[终端运行与验证](docs/tui/run-and-test.md)。Tauri/Svelte 已退役；产品验收与后续批次分别登记。
 
 设备 #6/#11～#14 保持冻结。SwiftUI 已退役，旧设计仅用于历史追溯。

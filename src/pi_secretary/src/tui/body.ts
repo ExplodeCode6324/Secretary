@@ -1,21 +1,44 @@
+import { setImmediate } from "node:timers/promises";
 import type { CoreClient } from "../core-client.ts";
 import type { Message } from "../api/contracts.ts";
+import { WindowStream, type MarkdownWindow } from "./markdown-window.ts";
 
 export const ASSEMBLY_BYTES = 1024 * 1024;
-export const WINDOW_FRAGMENTS = 8;
-// Core v1 treats route identifiers literally; ':' is legal in a path segment.
-// Encoding the message: prefix changes the signed body-cursor scope.
+export const WINDOW_FRAGMENTS = 8; // target, not a cut boundary; §13 permits complete blocks up to 1 MiB.
 export const messagePath = (id: string) =>
   encodeURIComponent(id).replaceAll("%3A", ":");
 export type Region = "body" | "thinking";
+type Frame = {
+  cursor: string | null;
+  frame: number;
+  body: number;
+  thinking: number;
+};
+type Checkpoint = Frame & {
+  start: number;
+  previousStart: number;
+  context?: Pick<MarkdownWindow, "prefix" | "code" | "boundary" | "indent">;
+};
+export type RegionIndex = {
+  length: number;
+  definitions: string;
+  overflow: boolean;
+  checkpoints: Checkpoint[];
+};
 export type RegionWindow = {
   text: string;
   start: number;
-  firstFragment: number;
-  nextFragment: number;
+  previousStart: number;
+  nextStart: number;
   before: boolean;
   after: boolean;
   prefix: string;
+  suffix: string;
+  definitions: string;
+  contextBoundary: boolean;
+  code: boolean;
+  trimCodeStart?: boolean;
+  trimCodeEnd?: boolean;
 };
 export type MessageBody = {
   mode: boolean;
@@ -23,95 +46,57 @@ export type MessageBody = {
   body: RegionWindow;
   thinking: RegionWindow;
   windowed: boolean;
+  index?: Record<Region, RegionIndex>;
 };
-
-/** Bounded context while walking discarded prefix fragments, including split fence lines. */
-export class MarkdownPrefix {
-  private line = "";
-  private oversizedLine = false;
-  private fence?: { marker: string; count: number; opening: string };
-  private list: { indentation: number; opening: string }[] = [];
-  private references = new Map<string, string>();
-  private referenceBytes = 0;
-  feed(text: string) {
-    for (const character of text) {
-      if (character === "\n") {
-        this.acceptLine(this.line, this.oversizedLine);
-        this.line = "";
-        this.oversizedLine = false;
-      } else if (this.line.length < 4096) this.line += character;
-      else this.oversizedLine = true;
-    }
-  }
-  private acceptLine(line: string, oversized: boolean) {
-    const fence = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
-    if (this.fence) {
-      if (
-        fence &&
-        fence[1][0] === this.fence.marker &&
-        fence[1].length >= this.fence.count &&
-        !fence[2].trim()
-      )
-        this.fence = undefined;
-      return;
-    }
-    if (fence) {
-      this.fence = {
-        marker: fence[1][0],
-        count: fence[1].length,
-        opening: line,
-      };
-      return;
-    }
-    if (!oversized) {
-      const reference = /^ {0,3}\[([^\]]+)\]:\s+\S/.exec(line);
-      if (reference && !this.references.has(reference[1])) {
-        const bytes = Buffer.byteLength(line);
-        if (this.referenceBytes + bytes > 65536)
-          throw Error("MARKDOWN_CONTEXT_EXCEEDS_BUDGET");
-        this.references.set(reference[1], line);
-        this.referenceBytes += bytes;
-      }
-    }
-    const list = /^(\s*)(?:[-+*]|\d+[.)])\s+/.exec(line);
-    if (list) {
-      const indentation = list[1].length;
-      this.list = this.list.filter((entry) => entry.indentation < indentation);
-      this.list.push({ indentation, opening: list[0] });
-    } else if (line.trim() && !/^\s+/.test(line)) this.list = [];
-  }
-  prefix() {
-    const definitions = [...this.references.values()].join("\n");
-    // An unfinished prefix line is deliberately not replayed as user text.
-    const context =
-      this.fence?.opening ?? this.list.map((entry) => entry.opening).join("\n");
-    return (
-      (definitions ? definitions + "\n\n" : "") +
-      (context ? context + "\n" : "")
-    );
-  }
-}
-
-function region(): RegionWindow {
+function region(text = ""): RegionWindow {
   return {
-    text: "",
+    text,
     start: 0,
-    firstFragment: 0,
-    nextFragment: 0,
+    previousStart: 0,
+    nextStart: text.length,
     before: false,
     after: false,
     prefix: "",
+    suffix: "",
+    definitions: "",
+    contextBoundary: false,
+    code: false,
   };
 }
-type Collector = {
-  window: RegionWindow;
-  count: number;
-  offset: number;
-  prefix: MarkdownPrefix;
-  done: boolean;
-};
+function index(): RegionIndex {
+  return { length: 0, definitions: "", overflow: false, checkpoints: [] };
+}
+function resultWindow(
+  selected: MarkdownWindow | undefined,
+  info: RegionIndex,
+): RegionWindow {
+  if (!selected) return region();
+  return {
+    ...region(),
+    ...selected,
+    prefix: selected.prefix ?? "",
+    suffix: selected.suffix ?? "",
+    before: selected.start > 0,
+    after: selected.nextStart < info.length,
+    definitions: info.definitions,
+    contextBoundary: !!selected.boundary || info.overflow,
+    code: !!selected.code,
+  };
+}
+function point(points: Checkpoint[], value: Checkpoint) {
+  // A pathological fence info line must not multiply the retained context budget.
+  if (Buffer.byteLength(value.context?.prefix ?? "") > 4096) return;
+  const old = points.findIndex((p) => p.start === value.start);
+  if (old >= 0) points.splice(old, 1);
+  points.push(value);
+  while (points.length > 32)
+    points.splice(
+      points.findIndex((p) => p.start !== 0),
+      1,
+    );
+}
 
-/** Reads a coherent revision, never publishes half of a stale cursor chain. */
+/** Cursor chains are coherent for a revision. No partial chain becomes visible. */
 export async function readMessageBody(
   client: Pick<CoreClient, "query">,
   first: Message,
@@ -120,100 +105,243 @@ export async function readMessageBody(
     targets?: Partial<Record<Region, number>>;
     windowed?: boolean;
     valid?: () => boolean;
+    previous?: MessageBody;
   } = {},
 ): Promise<MessageBody> {
-  const collectors: Record<Region, Collector> = {
-    body: {
-      window: region(),
-      count: 0,
-      offset: 0,
-      prefix: new MarkdownPrefix(),
-      done: false,
-    },
-    thinking: {
-      window: region(),
-      count: 0,
-      offset: 0,
-      prefix: new MarkdownPrefix(),
-      done: !thinking,
-    },
+  const valid = options.valid ?? (() => true);
+  const query = async (cursor: string) => {
+    if (!valid()) throw Error("BODY_SUPERSEDED");
+    const part = await client.query<Message>(
+      `messages/${messagePath(first.id)}/content?streaming=true&thinking=${thinking}&cursor=${encodeURIComponent(cursor)}`,
+    );
+    if (!valid()) throw Error("BODY_SUPERSEDED");
+    if (part.id !== first.id || part.revision !== first.revision)
+      throw Error("CURSOR_EXPIRED");
+    if (part.next_cursor === cursor) throw Error("BODY_CURSOR_DID_NOT_ADVANCE");
+    return part;
   };
+  const previous = options.previous;
+  if (
+    previous?.index &&
+    previous.mode === thinking &&
+    previous.message.revision === first.revision
+  ) {
+    const windows = { body: previous.body, thinking: previous.thinking };
+    const indexes = {
+      body: {
+        ...previous.index.body,
+        checkpoints: [...previous.index.body.checkpoints],
+      },
+      thinking: {
+        ...previous.index.thinking,
+        checkpoints: [...previous.index.thinking.checkpoints],
+      },
+    };
+    for (const name of ["body", "thinking"] as const) {
+      if (name === "thinking" && !thinking) continue;
+      const target = options.targets?.[name] ?? windows[name].start;
+      if (target === windows[name].start) continue;
+      const info = indexes[name];
+      const origin = [...info.checkpoints]
+        .sort((a, b) => b.start - a.start)
+        .find((p) => p.start <= target) ?? {
+        cursor: null,
+        frame: 0,
+        body: 0,
+        thinking: 0,
+        start: 0,
+        previousStart: 0,
+      };
+      let frame: Frame = origin,
+        part = origin.cursor ? await query(origin.cursor) : first;
+      const frames: Frame[] = [];
+      const reader = new WindowStream(
+        target,
+        (window) => {
+          const checkpoint = [...frames]
+            .reverse()
+            .find((f) => f[name] <= window.start);
+          if (checkpoint)
+            point(info.checkpoints, {
+              ...checkpoint,
+              start: window.start,
+              previousStart: window.previousStart,
+              context: {
+                prefix: window.prefix,
+                code: window.code,
+                boundary: window.boundary,
+                indent: window.indent,
+              },
+            });
+        },
+        origin.start,
+        origin.previousStart,
+        undefined,
+        undefined,
+        origin.context,
+      );
+      while (true) {
+        if (!valid()) throw Error("BODY_SUPERSEDED");
+        frames.push(frame);
+        if (frames.length > 256) frames.shift();
+        const text = name === "body" ? part.text : (part.thinking ?? "");
+        reader.feed(text.slice(Math.max(0, origin.start - frame[name])));
+        if (reader.selected) break;
+        if (!part.next_cursor) {
+          reader.finish();
+          break;
+        }
+        frame = {
+          cursor: part.next_cursor,
+          frame: frame.frame + 1,
+          body: frame.body + part.text.length,
+          thinking: frame.thinking + (part.thinking?.length ?? 0),
+        };
+        part = await query(part.next_cursor);
+      }
+      windows[name] = resultWindow(reader.selected, info);
+    }
+    return assemble(
+      first,
+      thinking,
+      windows.body,
+      windows.thinking,
+      true,
+      indexes,
+    );
+  }
+  const indexes = { body: index(), thinking: index() };
+  const frames: Frame[] = [];
+  let readers: Record<Region, WindowStream> | undefined;
+  const makeReader = (name: Region) =>
+    new WindowStream(options.targets?.[name] ?? 0, (window) => {
+      const checkpoint = [...frames]
+        .reverse()
+        .find((f) => f[name] <= window.start);
+      if (checkpoint)
+        point(indexes[name].checkpoints, {
+          ...checkpoint,
+          start: window.start,
+          previousStart: window.previousStart,
+          context: {
+            prefix: window.prefix,
+            code: window.code,
+            boundary: window.boundary,
+            indent: window.indent,
+          },
+        });
+    });
   let completeText = "",
     completeThinking = "",
     bytes = 0;
-  let windowed = options.windowed ?? false;
-  let part = first;
-  const valid = options.valid ?? (() => true);
+  let part = first,
+    frame: Frame = { cursor: null, frame: 0, body: 0, thinking: 0 };
   while (true) {
     if (!valid()) throw Error("BODY_SUPERSEDED");
     if (part.id !== first.id || part.revision !== first.revision)
       throw Error("CURSOR_EXPIRED");
-    const nextBytes =
-      Buffer.byteLength(part.text) + Buffer.byteLength(part.thinking ?? "");
-    if (!windowed && bytes + nextBytes <= ASSEMBLY_BYTES) {
+    frames.push(frame);
+    if (frames.length > 256) frames.shift();
+    const thought = thinking ? (part.thinking ?? "") : "";
+    const nextBytes = Buffer.byteLength(part.text) + Buffer.byteLength(thought);
+    if (!readers && bytes + nextBytes <= ASSEMBLY_BYTES && !options.windowed) {
       completeText += part.text;
-      completeThinking += part.thinking ?? "";
+      completeThinking += thought;
       bytes += nextBytes;
     } else {
-      windowed = true;
-      completeText = completeThinking = "";
-    }
-    for (const name of ["body", "thinking"] as const) {
-      const c = collectors[name],
-        value = name === "body" ? part.text : (part.thinking ?? "");
-      const target = options.targets?.[name] ?? 0;
-      if (!value) {
-        c.done = true;
-        continue;
-      }
-      c.done = false;
-      if (c.count < target) c.prefix.feed(value);
-      else if (c.count < target + WINDOW_FRAGMENTS) {
-        if (c.count === target) {
-          c.window.start = c.offset;
-          c.window.firstFragment = target;
-          c.window.prefix = c.prefix.prefix();
-          c.window.before = target > 0;
+      if (!readers) {
+        readers = {
+          body: makeReader("body"),
+          thinking: makeReader("thinking"),
+        };
+        for (
+          let at = 0;
+          at < Math.max(completeText.length, completeThinking.length);
+          at += 4999
+        ) {
+          readers.body.feed(completeText.slice(at, at + 4999));
+          readers.thinking.feed(completeThinking.slice(at, at + 4999));
+          if (at % (4999 * 8) === 0) {
+            await setImmediate();
+            if (!valid()) throw Error("BODY_SUPERSEDED");
+          }
         }
-        c.window.text += value;
-        c.window.nextFragment = c.count + 1;
-      } else c.window.after = true;
-      c.offset += value.length;
-      c.count++;
+        completeText = completeThinking = "";
+      }
+      readers.body.feed(part.text);
+      readers.thinking.feed(thought);
     }
+    indexes.body.length += part.text.length;
+    indexes.thinking.length += thought.length;
     if (!part.next_cursor) break;
-    if (!windowed && bytes === ASSEMBLY_BYTES) {
-      windowed = true;
-      completeText = completeThinking = "";
-    }
-    if (
-      windowed &&
-      Object.values(collectors).every((c) => c.done || c.window.after)
-    )
-      break;
-    const cursor = part.next_cursor;
-    part = await client.query<Message>(
-      `messages/${messagePath(first.id)}/content?streaming=true&thinking=${thinking}&cursor=${encodeURIComponent(cursor)}`,
+    frame = {
+      cursor: part.next_cursor,
+      frame: frame.frame + 1,
+      body: frame.body + part.text.length,
+      thinking: frame.thinking + thought.length,
+    };
+    part = await query(part.next_cursor);
+  }
+  if (!readers)
+    return assemble(
+      first,
+      thinking,
+      region(completeText),
+      region(completeThinking),
+      false,
     );
-    if (part.next_cursor === cursor) throw Error("BODY_CURSOR_DID_NOT_ADVANCE");
+  for (const name of ["body", "thinking"] as const) {
+    readers[name].finish();
+    indexes[name].definitions = readers[name].parser.definitions.text;
+    indexes[name].overflow = readers[name].parser.definitions.overflow;
   }
   if (!valid()) throw Error("BODY_SUPERSEDED");
-  if (!windowed) {
-    collectors.body.window = { ...region(), text: completeText };
-    collectors.thinking.window = { ...region(), text: completeThinking };
-  }
-  const body = collectors.body.window,
-    thought = collectors.thinking.window;
+  return assemble(
+    first,
+    thinking,
+    resultWindow(readers.body.selected, indexes.body),
+    resultWindow(readers.thinking.selected, indexes.thinking),
+    true,
+    indexes,
+  );
+}
+function assemble(
+  first: Message,
+  mode: boolean,
+  body: RegionWindow,
+  thinking: RegionWindow,
+  windowed: boolean,
+  index?: Record<Region, RegionIndex>,
+): MessageBody {
   return {
-    mode: thinking,
+    mode,
     message: {
       ...first,
       text: body.text,
-      ...(thinking ? { thinking: thought.text } : {}),
+      ...(mode ? { thinking: thinking.text } : {}),
       next_cursor: null,
     },
     body,
-    thinking: thought,
+    thinking,
     windowed,
+    ...(index ? { index } : {}),
   };
+}
+/** Count source and retained definition contexts; metadata/checkpoints have fixed caps. */
+export function bodyBytes(body: MessageBody) {
+  return (["body", "thinking"] as const).reduce((sum, name) => {
+    const window = body[name];
+    const checkpoints = body.index?.[name].checkpoints ?? [];
+    return (
+      sum +
+      Buffer.byteLength(window.text) +
+      Buffer.byteLength(window.prefix) +
+      Buffer.byteLength(window.suffix) +
+      Buffer.byteLength(window.definitions) +
+      checkpoints.reduce(
+        (n, p) => n + Buffer.byteLength(p.context?.prefix ?? ""),
+        0,
+      )
+    );
+  }, 0);
 }

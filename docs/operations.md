@@ -1,6 +1,6 @@
 # 运行手册
 
-客户端方向见 [TUI 需求](tui/requirements-and-backend-plan.md)；新 TUI 尚未实现，以下命令管理独立 Core。
+原生客户端的启动、键位和验证见[终端运行与验证](tui/run-and-test.md)。以下命令管理独立 Core；退出 TUI 不会停止 Core。
 
 从仓库根目录执行命令。需要 Node.js ≥22.19、npm、Python 3 和固定 Pi 子模块；World 与历史检索使用 PostgreSQL。
 

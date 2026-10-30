@@ -1,6 +1,6 @@
 # Issue #91 plan review
 
-2026-10-30 (Asia/Hong_Kong). Current status: IMPLEMENTING / R4 FEASIBILITY_CHANGES_REQUIRED / §13 PENDING_MASTER_APPROVAL. R1–R2 planning statements below are historical; Master subsequently selected B and approved implementation.
+2026-10-30 (Asia/Hong_Kong). Current status: IMPLEMENTED / §13 MASTER_APPROVED / FINAL_HEAD_REVIEW_PENDING. R1–R2 planning statements below are historical; Master subsequently selected B and approved implementation.
 
 - Master requested secretary-pr-fix, bilingual plan, browser Claude Opus 5.5 Extra, then explicit approval before implementation; real model integration verification is mandatory after implementation.
 - Issue #91 assigned to authenticated repository owner ExplodeCode6324; Codex claim recorded in issue comment 6519980142.
@@ -43,3 +43,5 @@ Master approved implementation and confirmed inline single-line <=30 grapheme cl
 ### R4 — oversized Markdown feasibility
 
 Same Opus 5.5 Extra session, submitted 2026-10-30T11:45:01.137Z; first read after ten minutes. CHANGES_REQUIRED: reviewer-reported pinned Pi probes reproduced format failures at arbitrary fragment cuts. Codex accepts the blocker and wrote the concrete complete-block/exceptional-format-boundary proposal in bilingual §13 for Master approval. Independent fixes and tests continued; the replacement renderer has not been implemented. Mouse/restore cursor concerns were addressed. See [implementation checkpoint](implementation-review.md) for independent real-Core/provider/PTY evidence and limitations. Raw request, visible-DOM response, timing and screenshot: ignored `review/r4-*`. No final exact-HEAD implementation review or merge approval.
+
+Master subsequently approved §13 explicitly. The replacement uses the pinned Pi lexer, complete-block windows, bounded definition/checkpoint contexts and visible exceptional formatting notices. R4 findings are addressed by implementation and parity tests; final exact-HEAD review remains a separate gate.

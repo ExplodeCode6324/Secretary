@@ -1,6 +1,5 @@
 import {
   Markdown,
-  Marked,
   ScrollView,
   stripTerminalSequences,
   Text,
@@ -8,6 +7,8 @@ import {
   type MarkdownTheme,
 } from "@earendil-works/pi-tui";
 import type { Message, TaskSummary, TimelineItem } from "../api/contracts.ts";
+import { markdownParser } from "./markdown-lexer.ts";
+import { Definitions, normalizedSource } from "./markdown-window.ts";
 import { color } from "./input.ts";
 import type { MessageBody, RegionWindow } from "./body.ts";
 
@@ -67,46 +68,88 @@ export class SourceMarkdown {
     readonly paint = white,
     readonly start = 0,
     readonly prefix = "",
+    readonly context?: Pick<
+      RegionWindow,
+      | "definitions"
+      | "suffix"
+      | "code"
+      | "contextBoundary"
+      | "trimCodeStart"
+      | "trimCodeEnd"
+    >,
   ) {
-    this.md = new Markdown(safeText(prefix + source), 0, 0, markdownTheme, {
-      color: paint,
-    });
-    const tokens = new Marked().lexer(source);
-    const definitions = Object.entries(tokens.links)
-      .map(
-        ([id, value]) =>
-          `[${id}]: ${value.href}${value.title ? ` "${value.title.replaceAll('"', '\\"')}"` : ""}`,
-      )
-      .join("\n");
+    const normalized = normalizedSource(source);
+    const tokens = markdownParser.lexer(normalized.text);
+    const definitions = new Definitions();
+    definitions.add(tokens.links);
+    const refs = context?.definitions || definitions.text;
+    const make = (text: string) =>
+      new Markdown(
+        safeText((refs ? refs + "\n" : "") + text),
+        0,
+        0,
+        markdownTheme,
+        { color: paint },
+      );
+    this.md = new Markdown(
+      safeText(
+        (context?.definitions ? context.definitions + "\n" : "") +
+          prefix +
+          source +
+          (context?.suffix ?? ""),
+      ),
+      0,
+      0,
+      markdownTheme,
+      { color: paint },
+    );
     let offset = 0;
     this.blocks = [];
     for (const token of tokens) {
-      const at = source.indexOf(token.raw, offset);
+      const at = normalized.text.indexOf(token.raw, offset);
       if (at < 0) continue;
       offset = at + token.raw.length;
       if (token.type !== "space")
         this.blocks.push({
-          start: start + at,
-          md: new Markdown(
-            safeText(
-              (at === 0 ? prefix : "") +
-                token.raw +
-                (definitions ? "\n\n" + definitions : ""),
-            ),
-            0,
-            0,
-            markdownTheme,
-            { color: paint },
+          start: start + normalized.sourceOffset(at),
+          md: make(
+            (at === 0 ? prefix : "") +
+              token.raw +
+              (offset === normalized.text.length
+                ? (context?.suffix ?? "")
+                : ""),
           ),
         });
     }
+    // Context windows inside an exceptional block have a window-relative anchor.
+    // Ordinary blocks retain their actual source starts through Pi's own lexer.
+    if (context?.contextBoundary || context?.code) this.blocks = [];
   }
   invalidate() {
     this.md.invalidate();
     for (const block of this.blocks) block.md.invalidate();
   }
   render(width: number) {
-    const lines = this.md.render(width);
+    const lines = [...this.md.render(width)];
+    if (
+      this.context?.definitions &&
+      lines.length &&
+      !stripTerminalSequences(lines[0]).trim()
+    )
+      lines.shift();
+    if (this.context?.code && (this.prefix || this.context.trimCodeStart)) {
+      while (lines.length && !stripTerminalSequences(lines[0]).trim())
+        lines.shift();
+      lines.shift(); // synthetic opening fence border; source content is untouched
+    }
+    if (
+      this.context?.code &&
+      (this.context.suffix || this.context.trimCodeEnd)
+    ) {
+      while (lines.length && !stripTerminalSequences(lines.at(-1)!).trim())
+        lines.pop();
+      lines.pop(); // synthetic closing fence border
+    }
     const normalized = lines.map((line) =>
       stripTerminalSequences(line).trimEnd(),
     );
@@ -172,12 +215,14 @@ export function messageComponent(
     paint,
     body?.body.start,
     body?.body.prefix,
+    body?.body,
   );
   const thought = new SourceMarkdown(
     m.thinking ?? "",
     gray,
     body?.thinking.start,
     body?.thinking.prefix,
+    body?.thinking,
   );
   const component: MappedComponent = {
     invalidate: () => {
@@ -221,6 +266,8 @@ export function messageComponent(
         name: "body" | "thinking",
         window?: RegionWindow,
       ) => {
+        if (window?.contextBoundary)
+          text(gray("格式上下文边界：本段独立渲染；原文可继续翻阅"));
         if (window?.before)
           text(gray("↑ 前一段"), name, window.start, "before");
         const content = value.render(width);
@@ -283,13 +330,11 @@ export function timelineComponent(
       const prefix = new Text(gray(safeText(notice)), 0, 0).render(width);
       const result = (content as MappedComponent).renderMapped?.(width) ?? {
         lines: content.render(width),
-        rows: content
-          .render(width)
-          .map((_, i) => ({
-            region: "activity" as const,
-            block_start_utf16: 0,
-            row_in_block: i,
-          })),
+        rows: content.render(width).map((_, i) => ({
+          region: "activity" as const,
+          block_start_utf16: 0,
+          row_in_block: i,
+        })),
       };
       return {
         lines: [...prefix, ...result.lines],

@@ -10,6 +10,7 @@ import type {
 import { HistoryWindow, HISTORY_BYTES, type Direction } from "./history.ts";
 import {
   readMessageBody,
+  bodyBytes,
   messagePath,
   type MessageBody,
   type Region,
@@ -158,27 +159,23 @@ export class RemoteViews {
     for (const id of this.bodies.keys())
       if (!this.history.items.has(id) || this.history.evictedBodies.has(id))
         this.bodies.delete(id);
+    const resident = (id: string, item: Message) => {
+      const body = this.bodies.get(id);
+      return (
+        (body ? bodyBytes(body) : 0) +
+        (body?.message === item
+          ? 0
+          : Buffer.byteLength(item.text) +
+            Buffer.byteLength(item.thinking ?? ""))
+      );
+    };
     let bytes = 0;
     for (const [id, item] of this.history.items)
-      if (item.kind === "message") {
-        bytes +=
-          Buffer.byteLength(item.text) + Buffer.byteLength(item.thinking ?? "");
-        const body = this.bodies.get(id);
-        if (body && body.message !== item)
-          bytes +=
-            Buffer.byteLength(body.message.text) +
-            Buffer.byteLength(body.message.thinking ?? "");
-      }
+      if (item.kind === "message") bytes += resident(id, item);
     for (const [id, item] of this.history.items) {
       if (bytes <= HISTORY_BYTES) break;
       if (id === this.history.anchor || item.kind !== "message") continue;
-      const body = this.bodies.get(id);
-      bytes -=
-        Buffer.byteLength(item.text) + Buffer.byteLength(item.thinking ?? "");
-      if (body && body.message !== item)
-        bytes -=
-          Buffer.byteLength(body.message.text) +
-          Buffer.byteLength(body.message.thinking ?? "");
+      bytes -= resident(id, item);
       this.bodies.delete(id);
       this.history.items.set(id, { ...item, text: "", thinking: undefined });
       this.history.evictedBodies.add(id);
@@ -225,15 +222,15 @@ export class RemoteViews {
       timelineGen = this.history.generation;
     const targets = cached?.windowed
       ? {
-          body: cached.body.firstFragment,
-          thinking: cached.thinking.firstFragment,
+          body: cached.body.start,
+          thinking: cached.thinking.start,
         }
       : undefined;
     if (targets && region && direction)
       targets[region] =
         direction === "before"
-          ? Math.max(0, targets[region] - 8)
-          : cached![region].nextFragment;
+          ? cached![region].previousStart
+          : cached![region].nextStart;
     const valid = () =>
       !this.stopped &&
       this.generation === gen &&
@@ -264,6 +261,7 @@ export class RemoteViews {
           mode,
           {
             targets,
+            previous: attempt ? undefined : cached,
             windowed: !!targets,
             valid: () =>
               valid() && this.history.items.get(id)?.revision === version,

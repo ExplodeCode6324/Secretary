@@ -4,7 +4,6 @@ import { Markdown, stripTerminalSequences } from "@earendil-works/pi-tui";
 import {
   readMessageBody,
   ASSEMBLY_BYTES,
-  MarkdownPrefix,
 } from "../../../src/pi_secretary/src/tui/body.ts";
 import {
   SourceMarkdown,
@@ -62,11 +61,12 @@ test("whole-body assembly counts combined UTF-8 bytes and oversized messages ret
   const first = await readMessageBody(huge.client, huge.first, false);
   assert.equal(first.windowed, true);
   assert(first.body.after);
-  assert(first.body.text.length <= 4999 * 8);
+  assert(Buffer.byteLength(first.body.text) <= ASSEMBLY_BYTES);
   assert(Buffer.byteLength(first.message.text) < ASSEMBLY_BYTES);
   const next = await readMessageBody(huge.client, huge.first, false, {
     windowed: true,
-    targets: { body: first.body.nextFragment },
+    targets: { body: first.body.nextStart },
+    previous: first,
   });
   assert(next.body.before);
   assert(next.body.start > first.body.start);
@@ -81,6 +81,7 @@ test("whole-body assembly counts combined UTF-8 bytes and oversized messages ret
   const previous = await readMessageBody(huge.client, huge.first, false, {
     windowed: true,
     targets: { body: 0 },
+    previous: next,
   });
   assert.equal(previous.body.text, first.body.text);
 });
@@ -166,14 +167,4 @@ test("CoT insertion preserves the exact body block and row at the same width; re
   assert.equal(doc.anchor?.row_in_block, anchor.row_in_block);
   render(false, "4", 20);
   assert.equal(doc.anchor?.block_start_utf16, anchor.block_start_utf16);
-});
-
-test("Markdown prefix processing handles fences split across fragment boundaries", () => {
-  const p = new MarkdownPrefix();
-  p.feed("``");
-  p.feed("`js\nlet a = 1\n");
-  assert.equal(p.prefix(), "```js\n");
-  p.feed("``");
-  p.feed("`\nnormal\n");
-  assert.equal(p.prefix(), "");
 });
