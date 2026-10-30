@@ -77,7 +77,7 @@ export class TerminalApp {
       copySelection: (text) => {
         // Pi has captured the copied text. Release even when the pointer ended
         // outside the document; its lingering highlight must not freeze output.
-        this.documents.Main.selectionDragging = false;
+        this.scrolls.Main.endSelection();
         this.tui.requestRender();
         return clipboard(text);
       },
@@ -123,7 +123,7 @@ export class TerminalApp {
       };
     }
     this.tui.addInputListener((data) => {
-      this.documents.Main.selectionDragging = false;
+      this.scrolls.Main.endSelection();
       if (matchesKey(data, "ctrl+c")) {
         void this.close();
         return { consume: true };

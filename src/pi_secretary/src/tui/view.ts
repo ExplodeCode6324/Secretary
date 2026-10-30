@@ -524,6 +524,12 @@ export class AnchoredScroll extends ScrollView {
   private selected = false;
   following = false;
   onReading = () => {};
+  endSelection() {
+    this.document.selectionDragging = false;
+    // A rapid drag/release may finish before any layout observes its selection.
+    // Remember that edge now so the next send is not mistaken for new reading.
+    this.selected = this.document.selectionActive();
+  }
   get atEnd() {
     return this.scrollTop >= this.maxTop;
   }
