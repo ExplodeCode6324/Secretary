@@ -347,6 +347,7 @@ export class TerminalApp {
   async close() {
     if (this.stopping || this.stopped) return;
     this.stopping = true;
+    this.editors.Main.enabled = this.editors.Task.enabled = false;
     try {
       await this.delivery?.close();
       this.stopped = true;
@@ -356,6 +357,7 @@ export class TerminalApp {
       await this.files?.close();
       this.tui.stop();
     } catch (e) {
+      this.editors.Main.enabled = this.editors.Task.enabled = !!this.delivery;
       this.uiHint = "保存失败，暂不退出：" + String(e);
       this.draw();
     } finally {

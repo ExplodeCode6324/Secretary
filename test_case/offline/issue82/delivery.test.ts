@@ -376,3 +376,25 @@ test("real HTTP: lost POST receipt, bounded slow status and later acceptance nev
     await new Promise<void>((r) => server.close(() => r()));
   }
 });
+
+test("graceful exit freezes input during its durable checkpoint; failure re-enables editing", async () => {
+  const files = new MemoryFiles();
+  files.delay = 30;
+  const s = freshState("domain", "fixture"),
+    d = new Delivery(s, files);
+  const app = new TerminalApp("unused", new VirtualTerminal());
+  app.delivery = d;
+  app.editors.Main.enabled = true;
+  d.edit("Main", "saved");
+  app.draw();
+  files.fail = true;
+  await app.close();
+  assert.equal(app.editors.Main.enabled, true);
+  files.fail = false;
+  const closing = app.close();
+  app.editors.Main.handleInput("late");
+  await closing;
+  assert.equal(s.drafts.Main.raw, "saved");
+  assert.equal(app.editors.Main.getExpandedText(), "saved");
+  assert.equal(files.saved.at(-1)?.drafts.Main.raw, "saved");
+});
