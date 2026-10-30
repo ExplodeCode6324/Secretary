@@ -166,10 +166,11 @@ export class LocalFiles implements StatePersistence {
     }
   }
   async collect(state: LocalState, now = new Date()) {
-    // Only named recovery records, never state.json, lock inode or unknown files.
+    // Only owned recovery/temp names; preserve current references and unknown data.
     for (const file of await fs.readdir(this.directory)) {
+      const temporary = /^\.tmp-[a-f0-9-]+$/.test(file);
       if (
-        !/^recovery-[a-f0-9-]+\.json$/.test(file) ||
+        (!temporary && !/^recovery-[a-f0-9-]+\.json$/.test(file)) ||
         file === state.recovery?.file
       )
         continue;
@@ -178,8 +179,27 @@ export class LocalFiles implements StatePersistence {
       if (!st.isFile() || st.isSymbolicLink()) continue;
       try {
         const r = JSON.parse(await fs.readFile(full, "utf8"));
-        if (state.pending?.id === r.id) continue;
-        if (expired(r.created_at, now)) await fs.unlink(full);
+        if (
+          state.pending &&
+          (state.pending.id === r.id || state.pending.id === r.pending?.id)
+        )
+          continue;
+        if (
+          temporary &&
+          state.recovery &&
+          (state.recovery.id === r.id || state.recovery.id === r.recovery?.id)
+        )
+          continue;
+        if (
+          temporary &&
+          !(
+            (r.version === 1 && r.drafts) ||
+            (typeof r.raw === "string" && r.body)
+          )
+        )
+          continue;
+        if (expired(temporary ? st.mtime.toISOString() : r.created_at, now))
+          await fs.unlink(full);
       } catch {
         /* Unknown/corrupt material is preserved, not declared expired. */
       }

@@ -6,7 +6,7 @@ import {
   type Component,
   type MarkdownTheme,
 } from "@earendil-works/pi-tui";
-import type { Message, TaskSummary } from "../api/contracts.ts";
+import type { Message, TaskSummary, TimelineItem } from "../api/contracts.ts";
 import { color } from "./input.ts";
 
 export function safeText(text: string) {
@@ -38,17 +38,19 @@ export const markdownTheme: MarkdownTheme = {
 export function messageComponent(m: Message): Component {
   const role = m.role,
     paint =
-      role === "user"
+      role === "master" || role === "user"
         ? blue
         : role === "toolResult" || role === "tool"
           ? pink
           : white;
   const title =
-    role === "user"
+    role === "master" || role === "user"
       ? "── Master ──"
       : role === "assistant"
         ? "Secretary"
-        : `工具 ${role}`;
+        : role === "system"
+          ? "系统"
+          : `工具 ${role}`;
   const preview = m.thinking_preview?.text;
   const text = safeText(m.text);
   const md = new Markdown(text, 0, 0, markdownTheme, { color: paint });
@@ -66,10 +68,24 @@ export function messageComponent(m: Message): Component {
       ...(m.next_cursor
         ? new Text(gray("正文片段读取中…"), 0, 0).render(width)
         : []),
-      ...(role === "user" ? [blue("─".repeat(Math.max(1, width)))] : []),
+      ...(role === "master" || role === "user"
+        ? [blue("─".repeat(Math.max(1, width)))]
+        : []),
       "",
     ],
   };
+}
+export function timelineComponent(item: TimelineItem): Component {
+  if (item.kind === "message") return messageComponent(item);
+  return new Text(
+    pink(
+      safeText(
+        `工具 · ${item.activity.phase ?? "调用"} · ${item.activity.status ?? ""}`,
+      ).replace(/\s+/g, " "),
+    ),
+    0,
+    0,
+  );
 }
 export type ViewEntry = { id: string; version: string; component: Component };
 /** Anchor measured in displayed text characters within a stable object, not global row. */

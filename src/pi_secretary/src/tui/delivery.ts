@@ -16,6 +16,8 @@ export class Delivery {
   busy = false;
   failedSave = false;
   private statusJob?: Promise<void>;
+  private restoreRequested?: string;
+  private restoredId?: string;
   private saveTimer?: ReturnType<typeof setTimeout>;
   private closed = false;
   private settlement: Promise<void> = Promise.resolve();
@@ -61,7 +63,14 @@ export class Delivery {
     this.client = client;
   }
   async reconcile(restore = false): Promise<void> {
-    if (this.statusJob) return this.statusJob;
+    if (restore && this.state.pending)
+      this.restoreRequested = this.state.pending.id;
+    if (this.statusJob)
+      return this.statusJob.then(() => {
+        // A reconnect can change clients while the coalesced read is in flight.
+        if (restore && this.restoreRequested && !this.busy && !this.closed)
+          return this.reconcile(true);
+      });
     const client = this.client,
       p = this.state.pending;
     if (!client || !p || this.closed) return;
@@ -71,12 +80,12 @@ export class Delivery {
       return;
     }
     if (p.status === "ACCEPTED") return this.accept(p);
-    this.statusJob = this.check(client, p, restore).finally(() => {
+    this.statusJob = this.check(client, p).finally(() => {
       this.statusJob = undefined;
     });
     return this.statusJob;
   }
-  private async check(client: DeliveryClient, p: Pending, restore: boolean) {
+  private async check(client: DeliveryClient, p: Pending) {
     this.event("reconcile-start", p.id);
     try {
       const receipt = await client.query<RequestStatus>(`requests/${p.id}`, {
@@ -113,15 +122,28 @@ export class Delivery {
           p.status === "CONFLICT"
             ? "请求身份冲突；保留原记录，不自动换 ID"
             : "送达未确认；原文明确提交可同 ID 重试，其他消息暂缓";
-      if (restore && this.state.pending === p && !this.state.drafts.Main.raw) {
-        this.state.drafts.Main = {
-          raw: p.raw,
-          generation: this.state.drafts.Main.generation + 1,
-          binding: p.id,
-        };
-        await this.flush();
-      }
     } finally {
+      if (
+        this.restoreRequested === p.id &&
+        !this.busy &&
+        this.client === client &&
+        this.state.pending === p &&
+        !this.closed &&
+        p.status === "UNKNOWN"
+      ) {
+        this.restoreRequested = undefined;
+        if (this.restoredId !== p.id) {
+          this.restoredId = p.id;
+          if (!this.state.drafts.Main.raw) {
+            this.state.drafts.Main = {
+              raw: p.raw,
+              generation: this.state.drafts.Main.generation + 1,
+              binding: p.id,
+            };
+            await this.flush();
+          }
+        }
+      }
       this.event("reconcile-end", p.id);
       this.onChange();
     }
@@ -181,7 +203,11 @@ export class Delivery {
       await this.flush();
       this.event("durable", p.id);
       const d = this.state.drafts.Main;
-      if (d.raw === raw && d.generation === submittedGeneration) {
+      if (
+        d.raw === raw &&
+        d.generation === submittedGeneration &&
+        d.binding !== p.id
+      ) {
         this.state.drafts.Main = { raw: "", generation: d.generation + 1 };
         await this.flush();
       }
@@ -233,6 +259,11 @@ export class Delivery {
       this.hint = "发送未完成，原文保留：" + String(e);
     } finally {
       this.busy = false;
+      if (this.state.pending?.status === "UNKNOWN")
+        void this.reconcile(true).catch((e) => {
+          this.hint = "原文恢复保存失败：" + String(e);
+          this.onChange();
+        });
       this.event("submit-end");
       this.onChange();
     }
@@ -247,6 +278,7 @@ export class Delivery {
   private async acceptCheckpoint(p: Pending) {
     if (this.state.pending !== p) return;
     p.status = "ACCEPTED";
+    delete this.state.recovery;
     const d = this.state.drafts.Main;
     if (d.binding === p.id && d.raw === p.raw)
       this.state.drafts.Main = { raw: "", generation: d.generation + 1 };

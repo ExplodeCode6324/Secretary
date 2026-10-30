@@ -104,3 +104,7 @@ Every POST attempt, including retries, must first durably record the actual endp
 Before attach succeeds, Ctrl+C still exits; bounded attach retries continue and enable the editor when verified attach succeeds. The guide must state the UNKNOWN limitation plainly; TUI never restarts Core, and manually restarting Core may interrupt background work. Add these attempt-checkpoint and continuity cases to the existing recovery tests. The exact rejection allowlist is INVALID_REQUEST, INVALID_INPUT, INVALID_JSON and REQUEST_TOO_LARGE only; an interrupted oversized-body transport stays UNKNOWN.
 
 Master approval covers the full R3 plan, including the explicit unknown-slash/empty-send interpretations and one-unresolved-submit limitation. PASS is readiness for that decision, not implementation authorization, CI success or product completion.
+
+### R4 implementation-review amendment
+
+Accept Claude's reproduced real-Core role/tool-activity mapping and UNKNOWN raw-input restoration defects. Add query-specific invalidation, same-revision fragment preservation, exit/reconnect guards and failed-page consistency. Recovery retains identity and restores at most once per request after a read-only check; never auto-replays. See linked acceptance evidence. Apple Terminal samples live Shift state at processing time, so final native checks include fast typing during streaming. SSH/tmux are unaccepted and must not be assumed to transmit Shift+Enter.

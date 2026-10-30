@@ -65,7 +65,14 @@ test("calendar expiry clamps leap day and collection preserves all current refer
     state.recovery = { file: protectedFile, id: old.id };
     await files.save(state);
     await fs.writeFile(path.join(root, "foreign.txt"), "preserve");
+    const tmp = path.join(root, ".tmp-00000000-0000-0000-0000-000000000000");
+    await fs.writeFile(
+      tmp,
+      JSON.stringify({ version: 1, drafts: state.drafts }),
+    );
+    await fs.utimes(tmp, new Date("2020-01-01"), new Date("2020-01-01"));
     await files.collect(state, new Date("2026-10-30"));
+    await assert.rejects(fs.stat(tmp), /ENOENT/);
     await assert.rejects(fs.stat(path.join(root, removable)), /ENOENT/);
     assert((await fs.stat(path.join(root, protectedFile))).isFile());
     assert((await fs.stat(path.join(root, "foreign.txt"))).isFile());

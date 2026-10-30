@@ -104,3 +104,7 @@ Core attach成功前禁用输入、明确显示连接/mode错误，不能在未�
 attach未成功时Ctrl+C仍可退出，有限频率继续重试，验证成功后启用编辑器。运行说明直说UNKNOWN限制；TUI不重启Core，人工重启可能打断后台工作。专项补每次尝试checkpoint和连续性案例。准确拒绝白名单只有INVALID_REQUEST、INVALID_INPUT、INVALID_JSON、REQUEST_TOO_LARGE；超大请求中途传输中断仍为UNKNOWN。
 
 Master审批对象是完整R3，含未知斜杠/空send解释和单个未解决提交的限制。PASS只表示可交Master决策，不是实施授权、CI通过或产品完成。
+
+### R4 实现复核修订
+
+接受 Claude 实测发现的真实 Core 角色/工具活动映射和 UNKNOWN 原文恢复问题；补充按查询分流刷新、同修订片段保留、退出重连保护及失败翻页一致性。恢复保持同 ID、只读对账后每请求最多一次，不自动重发。详见关联验收记录。Apple Terminal 使用处理时的实时 Shift 状态，最终原生复测增加流式回复期间快速输入；SSH/tmux 未验收，不保证传递 Shift+Enter。

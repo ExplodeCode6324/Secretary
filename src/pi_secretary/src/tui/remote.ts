@@ -4,10 +4,13 @@ import type {
   Timeline,
   TaskPage,
   ScopePage,
+  TimelineItem,
+  SyncTransaction,
 } from "../api/contracts.ts";
 
+type Query = "timeline" | "tasks" | "scopes";
 export class RemoteViews {
-  messages = new Map<string, Message>();
+  messages = new Map<string, TimelineItem>();
   tasks: TaskPage = { items: [], next_cursor: null, version: "0" };
   scopes = new Map<string, string>();
   error = "";
@@ -16,7 +19,8 @@ export class RemoteViews {
   taskCursor?: string;
   private stopped = false;
   private abort?: AbortController;
-  private dirty = false;
+  private requested = new Set<Query>();
+  private taskReadOK = false;
   private refreshing?: Promise<void>;
   private timer?: ReturnType<typeof setTimeout>;
   private fragments = new Set<string>();
@@ -28,43 +32,56 @@ export class RemoteViews {
     await this.refresh();
     if (!this.stopped) void this.listen(cursor.cursor);
   }
-  refresh() {
-    if (this.refreshing) {
-      this.dirty = true;
-      return this.refreshing;
-    }
-    this.refreshing = this.read().finally(() => {
-      this.refreshing = undefined;
-      if (this.dirty && !this.stopped) {
-        this.dirty = false;
-        this.schedule();
+  refresh(queries: Query[] = ["timeline", "tasks", "scopes"]) {
+    for (const q of queries) this.requested.add(q);
+    if (this.refreshing) return this.refreshing;
+    this.refreshing = (async () => {
+      while (this.requested.size && !this.stopped) {
+        const batch = new Set(this.requested);
+        this.requested.clear();
+        await this.read(batch);
       }
+    })().finally(() => {
+      this.refreshing = undefined;
     });
     return this.refreshing;
   }
-  private schedule() {
-    if (this.timer || this.stopped) return;
+  private schedule(queries: Query[]) {
+    for (const q of queries) this.requested.add(q);
+    if (this.timer || this.stopped || !this.requested.size) return;
     this.timer = setTimeout(() => {
       this.timer = undefined;
-      void this.refresh();
+      void this.refresh([]);
     }, 100);
   }
-  private async read() {
+  private remember(item: TimelineItem) {
+    if (item.kind !== "message" && item.activity.kind !== "tool") return;
+    // Preserve assembled fragments and object identity at the same revision.
+    if (this.messages.get(item.id)?.revision === item.revision) return;
+    this.messages.set(item.id, item);
+  }
+  private async read(queries: Set<Query>) {
     const gen = this.generation;
     const anchor = [...this.messages.keys()].at(-1);
     const results = await Promise.allSettled([
-      this.client.query<Timeline>("timeline?limit=50&streaming=true"),
-      this.client.query<TaskPage>(
-        "tasks?limit=50" +
-          (this.taskCursor
-            ? "&cursor=" + encodeURIComponent(this.taskCursor)
-            : ""),
-      ),
-      this.client.query<ScopePage>("scopes?limit=100"),
+      queries.has("timeline")
+        ? this.client.query<Timeline>("timeline?limit=50&streaming=true")
+        : undefined,
+      queries.has("tasks")
+        ? this.client.query<TaskPage>(
+            "tasks?limit=50" +
+              (this.taskCursor
+                ? "&cursor=" + encodeURIComponent(this.taskCursor)
+                : ""),
+          )
+        : undefined,
+      queries.has("scopes")
+        ? this.client.query<ScopePage>("scopes?limit=100")
+        : undefined,
     ]);
     if (this.stopped || gen !== this.generation) return;
     this.error = "";
-    if (results[0].status === "fulfilled") {
+    if (results[0].status === "fulfilled" && results[0].value) {
       let catchupFailed = false;
       // Catch up from the prior tail so >50 arrivals between refreshes are retained.
       if (anchor)
@@ -76,8 +93,7 @@ export class RemoteViews {
           while (!this.stopped && gen === this.generation) {
             for (const item of page.items) {
               if (item.id === anchor) reached = true;
-              if (reached && item.kind === "message")
-                this.messages.set(item.id, item as Message);
+              if (reached) this.remember(item);
             }
             if (!page.after) break;
             page = await this.client.query<Timeline>(
@@ -91,24 +107,21 @@ export class RemoteViews {
       if (this.stopped || gen !== this.generation) return;
       this.timelineReady = true;
       for (const item of results[0].value.items) {
-        if (
-          item.kind !== "message" ||
-          (catchupFailed && !this.messages.has(item.id))
-        )
-          continue;
-        const m = item as Message;
-        const prior = this.messages.get(m.id);
-        if (prior?.revision === m.revision && !prior.next_cursor) continue;
-        this.messages.set(m.id, m);
-        if (m.next_cursor) void this.complete(m, gen);
+        if (catchupFailed && !this.messages.has(item.id)) continue;
+        this.remember(item);
       }
       for (const m of this.messages.values())
-        if (m.next_cursor) void this.complete(m, gen);
-    } else
+        if (m.kind === "message" && m.next_cursor) void this.complete(m, gen);
+    } else if (results[0].status === "rejected")
       this.error = "历史加载失败；保留已显示内容：" + String(results[0].reason);
-    if (results[1].status === "fulfilled") this.tasks = results[1].value;
-    else this.error += " Task 读取失败：" + String(results[1].reason);
-    if (results[2].status === "fulfilled")
+    if (queries.has("tasks")) {
+      this.taskReadOK = results[1].status === "fulfilled";
+      if (results[1].status === "fulfilled" && results[1].value)
+        this.tasks = results[1].value;
+      else if (results[1].status === "rejected")
+        this.error += " Task 读取失败：" + String(results[1].reason);
+    }
+    if (results[2].status === "fulfilled" && results[2].value)
       for (const scope of results[2].value.items)
         this.scopes.set(scope.id, scope.name);
     this.onChange();
@@ -144,10 +157,13 @@ export class RemoteViews {
     }
   }
   async page(cursor?: string) {
-    this.taskCursor = cursor;
-    this.generation++;
+    const previous = this.taskCursor;
     await this.refreshing;
-    if (!this.stopped) await this.refresh();
+    if (this.stopped) return false;
+    this.taskCursor = cursor;
+    await this.refresh(["tasks"]);
+    if (!this.taskReadOK) this.taskCursor = previous;
+    return this.taskReadOK;
   }
   private async listen(cursor: string) {
     this.abort = new AbortController();
@@ -170,7 +186,29 @@ export class RemoteViews {
             if (frame.startsWith("event:")) {
               if (frame.includes("event: reset"))
                 throw Error("RESYNC_REQUIRED");
-              this.schedule();
+              if (frame.startsWith("event: transient"))
+                this.schedule(["timeline"]);
+              else if (frame.startsWith("event: change")) {
+                const data = frame
+                  .split("\n")
+                  .filter((l) => l.startsWith("data: "))
+                  .map((l) => l.slice(6))
+                  .join("\n");
+                const tx = JSON.parse(data) as SyncTransaction;
+                const affected = new Set<Query>();
+                for (const change of tx.changes) {
+                  const query =
+                    change.kind === "invalidate"
+                      ? change.query
+                      : change.resource_type;
+                  const root = query?.split("/")[0];
+                  if (root === "timeline" || root === "activities")
+                    affected.add("timeline");
+                  if (root === "tasks") affected.add("tasks");
+                  if (root === "scopes") affected.add("scopes");
+                }
+                this.schedule([...affected]);
+              }
             }
           }
         }

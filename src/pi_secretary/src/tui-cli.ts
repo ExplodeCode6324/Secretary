@@ -8,4 +8,5 @@ const app = new TerminalApp(
 );
 process.on("SIGINT", () => void app.close());
 process.on("SIGTERM", () => void app.close());
+process.on("SIGHUP", () => void app.close());
 app.start();

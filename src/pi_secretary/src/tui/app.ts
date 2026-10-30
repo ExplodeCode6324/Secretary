@@ -16,7 +16,7 @@ import { RemoteViews } from "./remote.ts";
 import {
   DocumentView,
   AnchoredScroll,
-  messageComponent,
+  timelineComponent,
   taskEntry,
   safeText,
   type ViewEntry,
@@ -50,6 +50,14 @@ export class TerminalApp {
   constructor(
     readonly coreDirectory: string,
     terminal: Terminal = new ProcessTerminal(),
+    readonly stateRoot = path.join(
+      os.homedir(),
+      "Library",
+      "Application Support",
+      "Secretary",
+      "tui",
+      "v1",
+    ),
   ) {
     configureKeys();
     this.tui = new TuiAltScreen(terminal);
@@ -65,6 +73,7 @@ export class TerminalApp {
       const editor = this.editors[page];
       editor.enabled = false;
       editor.onEdited = (raw) => {
+        this.clearHint();
         this.delivery?.edit(page, raw);
         if (this.delivery)
           this.renderedDraft[page] =
@@ -72,11 +81,12 @@ export class TerminalApp {
         this.draw();
       };
       editor.onOperation = () => {
-        this.uiHint = "";
-        if (this.delivery && !this.delivery.failedSave) this.delivery.hint = "";
         this.draw();
       };
-      editor.onExplicitSubmit = (raw) => this.submit(raw);
+      editor.onExplicitSubmit = (raw) => {
+        this.clearHint();
+        this.submit(raw);
+      };
     }
     this.tui.addInputListener((data) => {
       if (matchesKey(data, "ctrl+c")) {
@@ -130,6 +140,10 @@ export class TerminalApp {
     );
     this.tui.setFocus(this.editors[this.page]);
   }
+  private clearHint() {
+    this.uiHint = "";
+    if (this.delivery && !this.delivery.failedSave) this.delivery.hint = "";
+  }
   private submit(raw: string) {
     if (!this.delivery) return;
     const action = parseInput(raw, this.page);
@@ -166,44 +180,38 @@ export class TerminalApp {
     if (!this.remote) return;
     this.pageLoading = true;
     try {
-      if (delta > 0) {
-        this.taskPages[this.pageIndex + 1] = this.remote.tasks.next_cursor!;
-        this.pageIndex++;
-      } else this.pageIndex--;
-      await this.remote.page(this.taskPages[this.pageIndex]);
-      this.scrolls.Task.scrollToStart();
+      const nextIndex = this.pageIndex + delta;
+      const cursor =
+        delta > 0 ? this.remote.tasks.next_cursor! : this.taskPages[nextIndex];
+      if (await this.remote.page(cursor)) {
+        this.taskPages[nextIndex] = cursor;
+        this.pageIndex = nextIndex;
+        this.remoteDirty = true;
+        this.scrolls.Task.scrollToStart();
+      }
     } finally {
       this.pageLoading = false;
       this.draw();
     }
   }
   private async attach() {
-    if (this.attaching || this.stopped) return;
+    if (this.attaching || this.stopped || this.stopping) return;
     this.attaching = true;
     try {
       const client = await attachCore(this.coreDirectory);
       if (!client) throw Error("Core 未运行/暂不可用；请单独启动 Core");
       const core = await client.core();
-      if (this.stopped) return;
+      if (this.stopped || this.stopping) return;
       if (
         !/^[a-zA-Z0-9_-]+$/.test(core.data_domain_id) ||
         !/^[a-zA-Z0-9_-]+$/.test(core.mode)
       )
         throw Error("INVALID_CORE_IDENTITY");
       if (!this.delivery) {
-        const dir = path.join(
-          os.homedir(),
-          "Library",
-          "Application Support",
-          "Secretary",
-          "tui",
-          "v1",
-          core.data_domain_id,
-          core.mode,
-        );
+        const dir = path.join(this.stateRoot, core.data_domain_id, core.mode);
         this.files = new LocalFiles(dir);
         const state = await this.files.open(core.data_domain_id, core.mode);
-        if (this.stopped) {
+        if (this.stopped || this.stopping) {
           await this.files.close();
           return;
         }
@@ -211,7 +219,7 @@ export class TerminalApp {
         this.delivery.onChange = () => this.draw();
       }
       await this.delivery.connect(client);
-      if (this.stopped) return;
+      if (this.stopped || this.stopping) return;
       const previous = this.remote;
       previous?.stop();
       this.remote = new RemoteViews(client);
@@ -278,7 +286,7 @@ export class TerminalApp {
             entry = {
               id: m.id,
               version: String(++this.contentVersion),
-              component: messageComponent(m),
+              component: timelineComponent(m),
             };
             this.messageCache.set(m.id, entry);
             this.messageRefs.set(m.id, m);
@@ -329,7 +337,7 @@ export class TerminalApp {
     const persistentHint = pending
       ? `送达 ${pending.status} · ${pending.id.slice(0, 8)} · 原文已保留`
       : recovery
-        ? `恢复原文：${recovery.file}`
+        ? `恢复原文：${this.files ? path.join(this.files.directory, recovery.file) : recovery.file} · /help`
         : "";
     const hint =
       this.uiHint ||

@@ -398,3 +398,68 @@ test("graceful exit freezes input during its durable checkpoint; failure re-enab
   assert.equal(app.editors.Main.getExpandedText(), "saved");
   assert.equal(files.saved.at(-1)?.drafts.Main.raw, "saved");
 });
+
+test("same-instance unknown restores raw once; coalesced reads retain restore intent and late acceptance clears without POST", async () => {
+  const f = fake(),
+    s = freshState("domain", "fixture"),
+    d = new Delivery(s, new MemoryFiles());
+  await d.connect(f.client);
+  f.set({ postError: "INTERNAL_ERROR", queryDelay: 40 });
+  d.edit("Main", "/rawmessage /T");
+  await d.submit("/rawmessage /T", "/T");
+  await d.reconcile();
+  assert.equal(s.drafts.Main.raw, "/rawmessage /T");
+  assert.equal(s.drafts.Main.binding, s.pending?.id);
+  // Explicit retry keeps its bound draft visible even if it also fails.
+  await d.submit(s.drafts.Main.raw, "/T");
+  await d.reconcile();
+  assert.equal(s.drafts.Main.raw, "/rawmessage /T");
+  assert.equal(f.posts.length, 2);
+  const id = s.pending!.id;
+  f.accepted.set(id, receipt(id));
+  await d.reconcile();
+  assert.equal(s.drafts.Main.raw, "");
+  assert.equal(s.pending, undefined);
+  assert.equal(f.posts.length, 2);
+  s.pending = pending();
+  const reading = d.reconcile(false);
+  const restoring = d.reconcile(true);
+  await Promise.all([reading, restoring]);
+  assert.equal(s.drafts.Main.binding, "original");
+  d.edit("Main", "");
+  await d.reconcile(true);
+  assert.equal(s.drafts.Main.raw, "", "a deliberate clear is not undone");
+  await d.close();
+});
+
+test("reconnect restore intent survives an old-client read already in flight", async () => {
+  const old = fake(),
+    next = fake(),
+    s = freshState("domain", "fixture"),
+    d = new Delivery(s, new MemoryFiles());
+  s.pending = pending();
+  old.set({ queryDelay: 40 });
+  await d.connect(old.client);
+  const reading = d.reconcile();
+  await d.connect(next.client);
+  await Promise.all([reading, d.reconcile(true)]);
+  assert.equal(s.drafts.Main.binding, "original");
+  assert.equal(next.posts.length, 0);
+  await d.close();
+});
+
+test("cursor movement preserves errors; an ordinary edit clears the transient hint", async () => {
+  const d = new Delivery(freshState("domain", "fixture"), new MemoryFiles());
+  const app = new TerminalApp("unused", new VirtualTerminal());
+  app.delivery = d;
+  app.editors.Main.enabled = true;
+  d.edit("Main", "/unknown");
+  app.draw();
+  app.editors.Main.handleInput("\x1b[13;2u");
+  assert.match(app.footer.render(160).join(""), /未知/);
+  app.editors.Main.handleInput("\x1b[D");
+  assert.match(app.footer.render(160).join(""), /未知/);
+  app.editors.Main.handleInput("x");
+  assert.doesNotMatch(app.footer.render(160).join(""), /未知/);
+  await app.close();
+});

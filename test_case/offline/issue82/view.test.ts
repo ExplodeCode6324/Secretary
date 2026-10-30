@@ -113,3 +113,78 @@ test("long Chinese previews and labels wrap in narrow terminals", () => {
         `width ${width}: ${visibleWidth(line)}`,
       );
 });
+
+test("transient updates skip Task/Scope reads and preserve assembled fragments; failed Task page retains its cursor", async () => {
+  const client = new CoreClient({
+    api_version: "1",
+    url: "http://127.0.0.1:1",
+    token: "unused",
+    pid: 1,
+    instance_id: "i",
+    data_domain_id: "d",
+  });
+  const { until } = await import("../issue9/helpers.ts");
+  const reads: string[] = [];
+  let controller!: ReadableStreamDefaultController<Uint8Array<ArrayBuffer>>;
+  client.syncCursor = async () => ({
+    cursor: "c",
+    sequence: "1",
+    instance_id: "i",
+  });
+  client.stream = async (_cursor, signal) =>
+    new ReadableStream<Uint8Array<ArrayBuffer>>({
+      start(c) {
+        controller = c;
+        signal?.addEventListener("abort", () => c.close(), { once: true });
+      },
+    });
+  const first = { ...message(1), text: "first ", next_cursor: "fragment" };
+  client.query = async <T>(route: string) => {
+    reads.push(route);
+    if (route.startsWith("tasks?")) {
+      if (route.includes("cursor=")) throw Error("PAGE_UNAVAILABLE");
+      return { items: [], next_cursor: "next", version: "1" } as T;
+    }
+    if (route.startsWith("scopes?"))
+      return { items: [], next_cursor: null, version: "1" } as T;
+    if (route.startsWith("messages/"))
+      return { ...first, text: "second", next_cursor: null } as T;
+    return {
+      items: [first],
+      after: null,
+      before: null,
+      version: "1",
+      generation: "1",
+    } as T;
+  };
+  const views = new RemoteViews(client);
+  try {
+    await views.start();
+    await until(() => views.messages.get("1")?.next_cursor === null);
+    const assembled = views.messages.get("1");
+    const initial = reads.length;
+    controller.enqueue(
+      new TextEncoder().encode("event: transient\ndata: {}\n\n"),
+    );
+    await until(() => reads.length > initial);
+    await views.refresh([]);
+    assert.equal(views.messages.get("1"), assembled);
+    assert.equal(views.messages.get("1")?.text, "first second");
+    assert.equal(reads.filter((r) => r.startsWith("messages/")).length, 1);
+    assert.equal(reads.filter((r) => r.startsWith("tasks?")).length, 1);
+    assert.equal(reads.filter((r) => r.startsWith("scopes?")).length, 1);
+    controller.enqueue(
+      new TextEncoder().encode(
+        'event: change\ndata: {"changes":[{"kind":"invalidate","query":"tasks/one","resource_type":"tasks"}]}\n\n',
+      ),
+    );
+    await until(() => reads.filter((r) => r.startsWith("tasks?")).length === 2);
+    assert.equal(reads.filter((r) => r.startsWith("scopes?")).length, 1);
+    const old = views.tasks;
+    assert.equal(await views.page("next"), false);
+    assert.equal(views.tasks, old);
+    assert.equal(views.taskCursor, undefined);
+  } finally {
+    views.stop();
+  }
+});
