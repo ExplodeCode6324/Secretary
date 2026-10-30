@@ -7,7 +7,7 @@
   "scope": "Current guides and generated references; historical designs, fix records, dated acceptance evidence, and the upstream submodule remain in their original languages.",
   "source_sha256": {
     "README.zh-CN.md": "d0fcaa94663d3ca9ea75eb24846571fb0c8a08ff6c26cb9284df056fba990ec7",
-    "docs/README.md": "44702d698b826770ad18cdc329db83e6478ae784d21967cf519e1c231c1e413e",
+    "docs/README.md": "6d7ce69a9161be30657b21b18a2e2e49563d6cb41486bfccc80e277df13b44b9",
     "docs/architecture.md": "8dd1fe061e165e2c7cc688aadd348ad0dbdbafd9553c022c7d4a998f13a6177b",
     "docs/data-flow.md": "560e536e13d24ef9f3eb7090d966ec45ba3b8bdfa8977194e7238b73a9905b75",
     "docs/invariants.md": "de8495528b957674e2158f4c7f4daf7cda11a8ff727d7181abeead79aaf4bb81",
@@ -124,7 +124,7 @@
     "test_case/offline/issue2/README.md": "ca30d99aa6262c09c0bc0952ce53b9b3adbb844565884c452fe63c91f8a4bdc6",
     "test_case/offline/issue5/README.md": "3baf27bf3d3e621631ea183b92f6830ea77de42e976ad5d1a4da76e9bcf86a0f"
   },
-  "catalog_sha256": "2ee2ad4f5452389556cc5982560761512b2d0be5bc9ef6b0f6cfb0a51d827f1a",
+  "catalog_sha256": "75ed5e936c9cba299c1d75e8124eba1543df3fb967896621c558421c82397c39",
   "outputs": [
     "README.fr.md",
     "README.ja.md",

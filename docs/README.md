@@ -22,5 +22,3 @@
 [src/pi_secretary](../src/pi_secretary/src/app.ts) 保存 Core 实现，[src/pi_resource](../src/pi_resource/README.md) 为固定 Pi 子模块。[内部字段](data/README.md)和[数据库参考](database.md)由 schema/SQL 生成，API 的 [schema](api/v1/schema.json)、[操作表](api/v1/operations.json)和 [OpenAPI](api/v1/openapi.json)单独维护公开合同。[离线测试](../test_case/offline/README.md)、[在线测试](../test_case/online/README.md)及[报告](../test_case/reports/README.md)分别组织验证。
 
 [修复计划](fix/README.md)记录当前工作；[历史计划](fix/archive/index.md)、[API 验证](api/v1/verification.md)、[同步验收](api/v1/issue9-verification.md)保留对应版本结论。[原始设计](old/README.md)、[BrainStorm](BrainStorm_Baseline_v3.md)和[已废弃 SwiftUI 设计](old/native-client-design-v0.3.md)用于追溯。产品路线见[项目 README](../README.md#开发路线)。
-
-
