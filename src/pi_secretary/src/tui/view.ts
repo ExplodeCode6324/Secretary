@@ -5,6 +5,7 @@ import {
   Text,
   type Component,
   type MarkdownTheme,
+  type TuiMouseEvent,
 } from "@earendil-works/pi-tui";
 import type { Message, TaskSummary, TimelineItem } from "../api/contracts.ts";
 import { markdownParser } from "./markdown-lexer.ts";
@@ -438,6 +439,12 @@ export class DocumentView implements Component {
   navigationDelta = 0;
   scroll?: ScrollView;
   initialEnd = false;
+  selectionActive = () => false;
+  onPointerRead = () => {};
+  handleMouse(event: TuiMouseEvent) {
+    if (event.type === "press" || event.type === "wheel") this.onPointerRead();
+    return undefined;
+  }
   onViewport = (_rows: ReadingAnchor[]) => {};
   get anchor() {
     return this.rows[this.scroll?.scrollTop ?? 0];
@@ -450,6 +457,8 @@ export class DocumentView implements Component {
     this.signature = "";
   }
   render(width: number) {
+    // Keep Pi's document-row selection stable while background body reads settle.
+    if (this.selectionActive() && width === this.width) return this.lines;
     const sig = this.entries.map((e) => `${e.id}:${e.version}`).join("|");
     if (width === this.width && sig === this.signature) return this.lines;
     const anchor = this.anchor,
@@ -504,6 +513,8 @@ export class DocumentView implements Component {
 }
 export class AnchoredScroll extends ScrollView {
   private maxTop = 0;
+  following = false;
+  onReading = () => {};
   get atEnd() {
     return this.scrollTop >= this.maxTop;
   }
@@ -511,19 +522,41 @@ export class AnchoredScroll extends ScrollView {
     super(document, { primary: true, follow: "none", scrollbar: "auto" });
     document.scroll = this;
   }
+  override scrollBy(lines: number) {
+    this.onReading();
+    return super.scrollBy(lines);
+  }
+  override scrollTo(
+    top: number,
+    options?: Parameters<ScrollView["scrollTo"]>[1],
+  ) {
+    this.onReading();
+    super.scrollTo(top, options);
+  }
+  override scrollToStart() {
+    this.onReading();
+    super.scrollToStart();
+  }
+  override scrollToEnd() {
+    this.onReading();
+    super.scrollToEnd();
+  }
   override updateLayout(height: number, viewport: number, render: () => void) {
+    if (this.document.selectionActive()) this.onReading();
     this.maxTop = Math.max(0, height - viewport);
     super.updateLayout(height, viewport, render);
-    if (this.document.initialEnd) {
+    if (this.following || this.document.initialEnd) {
       this.document.initialEnd = false;
-      this.scrollToEnd();
+      this.document.desiredTop = undefined;
+      this.document.navigationDelta = 0;
+      super.scrollToEnd();
     } else if (this.document.desiredTop !== undefined) {
       const target = this.document.desiredTop;
       this.document.desiredTop = undefined;
-      this.scrollTo(target);
+      super.scrollTo(target);
     }
     if (this.document.navigationDelta) {
-      this.scrollBy(this.document.navigationDelta);
+      super.scrollBy(this.document.navigationDelta);
       this.document.navigationDelta = 0;
     }
     const visible: ReadingAnchor[] = [];

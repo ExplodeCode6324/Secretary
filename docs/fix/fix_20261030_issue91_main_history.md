@@ -1,6 +1,6 @@
 # Issue #91 — Main 长历史、CoT 与多段粘贴实施计划
 
-日期：2026-10-30（香港时间）。版本 R2，已纳入最终交接修订。状态：MASTER_APPROVED / IMPLEMENTING；尚未获准实施，单行粘贴方案待 Master 明确选择。
+日期：2026-10-30（香港时间）。版本 R2，已纳入最终交接修订。状态：已获 Master 实施批准；B方案和30字阈值已确定。原生验收后的跟随/复制修订见[跟进计划](fix_20261031_issue91_native_acceptance.md)。
 
 [English plan](fix_20261030_issue91_main_history.en.md) · [复核记录](evidence/issue91-main-history/plan-review.md) · [验收登记](evidence/issue91-main-history/acceptance.md)
 
@@ -10,7 +10,7 @@
 
 Master 要求先编写中英文计划，经浏览器 **Claude Opus 5.5 Extra** 复核，再交 Master 明确批准后实施。实施完成后必须**真实接入模型验证，并将证据交回复核**。Claude 对话、fixture provider、CI 通过均不能替代真实模型链路验证。实施复核复用同一 Claude 会话；合并仍须另行授权。
 
-本批交付：越过驻留缓存后仍能连续浏览可取得的 Main 历史；稳定消息与正文位置；新消息不强制跟随；由 Main 控制的统一 CoT 状态；Hermes 风格多段文本粘贴及完整草稿恢复。沿用 Node/TypeScript、精确 `@earendil-works/pi-tui@0.87.0`（上游 `16787ad5b2dc748047f314ca1bfe7708f30f54f3`）和 #82 的终端、输入、交接、CoreClient、状态生命周期。
+本批交付：越过驻留缓存后仍能连续浏览可取得的 Main 历史；稳定消息与正文位置；明确 Main POST 后跟随最新回复，主动阅读/选择/切Task后停止，被动消息不启动跟随；由 Main 控制的统一 CoT 状态；Hermes 风格多段文本粘贴及完整草稿恢复。沿用 Node/TypeScript、精确 `@earendil-works/pi-tui@0.87.0`（上游 `16787ad5b2dc748047f314ca1bfe7708f30f54f3`）和 #82 的终端、输入、交接、CoreClient、状态生命周期。
 
 Task 历史和继承界面在 #83，事项处理在 #92，失败业务处置在 #93，图片/产物/open 在 #94。本批提供可复用 CoT 状态，不认领 Task 验收。不新建历史库、UI 操作流水、永久游标、逐键 fsync 框架、全文搜索、清理工程或新前端，不自动重发。保留无关未跟踪证据和用户数据。
 
@@ -42,7 +42,7 @@ Task 历史和继承界面在 #83，事项处理在 #92，失败业务处置在 
 
 锚点为 `{item_id, region: body|thinking|header|activity, block_start_utf16, row_in_block, measured_width, instance_id, timeline_generation, revision}`，附视口提示。它是源块及块内正文位置，不是绝对屏幕行号。用固定 Pi 导出的 `Marked`（锁定 marked 18.0.11）获取顶层块的 `raw` 范围，再用 Pi Markdown 渲染有界块并关联组件行；不假称 Pi 原生提供 source map。保留全文块间距和引用定义，验证标题、编号/松散列表、引用、代码围栏、基线支持的链接/表格、重复文字和未完成流式语法；不新增 math/HTML/Mermaid 承诺。超长块保留源块起点、续接上下文和当前窗口源范围，以不保留完整旧正文的前缀行走重建。
 
-标题/摘要/正文分区，宽度不变时 CoT 插入后准确恢复正文块及块内行；前插、淘汰重读、Main/Task 返回同理。resize 在同一源块内重排并夹取最近仍存在的行，不宣称任意 Markdown 变换都能精确恢复源字符；验证不会跳至另一消息或最新位置。底部收到新消息也不能重复首次定位。
+标题/摘要/正文分区，宽度不变时 CoT 插入后准确恢复正文块及块内行；前插、淘汰重读、Main/Task 返回同理。resize 在同一源块内重排并夹取最近仍存在的行，不宣称任意 Markdown 变换都能精确恢复源字符；验证不会跳至另一消息或最新位置。未开启明确发送跟随时，底部收到被动新消息也不能重复首次定位。明确POST后的跟随优先于锚点恢复，详见原生验收跟进计划。
 
 推理区域收起后保留逻辑锚点，暂显示摘要；用户未主动导航时，展开后恢复原块/行。revision 是进程内时间线计数器，只在同 `(instance_id, timeline generation)` 内可比，不是内容散列。依据新读区域的实际内容/长度判断缩短，仅锚点确实被删时提示；跨实例/generation 丢弃版本比较并重新验证。不同版本片段不拼成同一正文。重启后临时内容缺失须明确显示，不伪造持久 CoT。
 
@@ -50,7 +50,7 @@ cursor 绑定 instance、timeline generation、查询模式，正文另绑定 re
 
 错误映射：`CURSOR_EXPIRED`、`TIMELINE_RESET_REQUIRED` 失效后重定位；`TIMELINE_ITEM_NOT_FOUND` 走有界邻居回退；正常不透明 cursor 路径不应出现的 `INVALID_FRAGMENT_OFFSET` 从起点重验一次，仍失败则局部协议错误；网络/读取错误保留内容、待下一次用户重试。已结束消息每次失败操作最多自动重定位一次。只有成功页无后继才确认为历史边界。
 
-运行中的 preview 单独处理：`preview_status:"running"` 每次 delta 都可能改变 revision，已有总计 32,768 UTF-16 单元上限。合并失效通知后用 around limit=1 只读受影响条目，不每 100 ms 读取 50 条展开历史。从零开始生成有界一致快照，后续片段必须仍匹配 generation/revision；运行中 cursor 过期属于正常替代，丢弃未完成新拼接、保留上次一致显示，等下次合并通知重读，不显示伪错误、阻塞重试或自动滚动。部分可读 preview 显示继续读取提示。结束后按普通需求分页读取完整持久正文并恢复逻辑锚点。覆盖超过一片的中文流式正文/展开推理、preview 过期及转持久场景。
+运行中的 preview 单独处理：`preview_status:"running"` 每次 delta 都可能改变 revision，已有总计 32,768 UTF-16 单元上限。合并失效通知后用 around limit=1 只读受影响条目，不每 100 ms 读取 50 条展开历史。从零开始生成有界一致快照，后续片段必须仍匹配 generation/revision；运行中 cursor 过期属于正常替代，丢弃未完成新拼接、保留上次一致显示，等下次合并通知重读，不显示伪错误或阻塞重试；被动刷新不启动跟随，已开启的明确发送跟随继续保留。部分可读 preview 显示继续读取提示。结束后按普通需求分页读取完整持久正文并恢复逻辑锚点。覆盖超过一片的中文流式正文/展开推理、preview 过期及转持久场景。
 
 **删除 R1 的 content-offset API 扩展。** 现有 cursor 链可用恒定驻留前缀内存到达可读取位置，也能重建 Markdown 上下文。R2 不计划新增字段/端点或生成合同变更。若实际测量发现无法满足要求，记录复现并重新提议最小只读变更，不悄悄新增 API 或缩减历史/Markdown 行为。
 
@@ -100,7 +100,7 @@ restore 与接收交接边界清理 Pi undo/kill，只释放该提交 generation
 | AC07 | 超 N、多 B、超 H 的 Core 历史双向遍历；重读淘汰消息和超过片段预算的长正文；无缺漏/重复/截断，缓存有界，切页恢复锚点。播种 fixture 标明来源，不改生产历史。 |
 | AC05 Main / AC03 推理 | 大小写及两个命令；有/无 CoT、摘要回退、灰色分行；已显示/新到/补读一致。Task 继承归 #83，仍未执行。 |
 | AC06 | 两页后记录 ID/区域/源块/块内行；展开收起后各跨页，正文位置保持，推理收起规则有效，无旧模式游标重放和写入。 |
-| AC08 | 停历史中段、离开至 Task、手动到最新后三种场景接收回复，均不强制滚动或覆盖草稿/光标。 |
+| AC08（原生验收后修订） | 明确Main POST（含同ID重试）跳最新并跟随；主动上下翻阅、PageUp/PageDown、滚轮/滚动条、选择或切Task取消。被动消息在历史中段、Task及手动到达底部时仍不强制滚动；草稿和光标保留。 |
 | AC09 | 已读页且有稿时注入一次读取失败，编辑清错再恢复；一次受控 Core 重启/过期响应后原位重读，无需重开客户端，不伪报末尾。模式/正文版本另有合同与单元覆盖。 |
 | AC27 | 实际 macOS 剪贴板/终端：手写 A→中文/代码段（含 /T）→手写 B→另一段（含 /send）→编辑→发送；Core 正文及模型请求精确匹配规范化全文/顺序，各段 Hermes 摘要正确。 |
 | 输入/恢复 | 前导空格 /T、rawmessage 后正常命令、纯粘贴 /T、字面 marker、分包 paste、delete/undo、超 1 MiB 拒绝；两段失败/丢回执同 ID 恢复且仅一次 Core 输入；新稿竞态；退出重开 Main/Task 完整恢复。 |

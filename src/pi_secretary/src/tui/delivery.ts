@@ -270,9 +270,10 @@ export class Delivery {
             "INVALID_JSON",
             "REQUEST_TOO_LARGE",
           ].includes(code)
-        )
+        ) {
+          this.event("rejected", p.id);
           await this.release(p, "Core 拒绝输入；原文已保留");
-        else {
+        } else {
           p.status = code === "REQUEST_CONFLICT" ? "CONFLICT" : "UNKNOWN";
           this.hint = `${code}；原请求保留，稍后对账`;
           await this.flush();

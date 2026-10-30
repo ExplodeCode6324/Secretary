@@ -42,6 +42,8 @@ export class HistoryWindow {
   private eventLocators = new Map<string, string>();
   private previewIds = new Set<string>();
   private refreshPending = false;
+  private latestIntent = 0;
+  private latestRequested?: number;
   onChange = () => {};
   constructor(readonly client: Pick<CoreClient, "query" | "endpoint">) {}
 
@@ -102,9 +104,19 @@ export class HistoryWindow {
     return this.drain();
   }
   page(direction: Direction) {
+    this.cancelLatest();
     this.clearError();
     this.directions.add(direction); // one coalesced successor per direction
     return this.drain();
+  }
+  jumpToLatest() {
+    this.latestRequested = ++this.latestIntent;
+    this.directions.clear();
+    return this.drain();
+  }
+  cancelLatest() {
+    this.latestIntent++;
+    this.latestRequested = undefined;
   }
   private drain(): Promise<void> {
     if (this.job) return this.job;
@@ -113,11 +125,17 @@ export class HistoryWindow {
       while (
         !this.closed &&
         epoch === this.epoch &&
-        (this.refreshPending || this.directions.size)
+        (this.refreshPending ||
+          this.directions.size ||
+          this.latestRequested !== undefined)
       ) {
         const direction = this.directions.values().next().value;
+        const latest = this.latestRequested;
         try {
-          if (!this.ready) {
+          if (latest !== undefined) {
+            this.latestRequested = undefined;
+            await this.latest(() => latest === this.latestIntent);
+          } else if (!this.ready) {
             this.refreshPending = false;
             if (this.resume) await this.relocate();
             else await this.latest();
@@ -132,6 +150,7 @@ export class HistoryWindow {
           }
         } catch (e) {
           if (this.closed || epoch !== this.epoch) break;
+          if (latest !== undefined && latest !== this.latestIntent) continue;
           if (
             resetCode(e) ||
             (e instanceof Error && e.message === "TIMELINE_ITEM_NOT_FOUND")
@@ -175,14 +194,16 @@ export class HistoryWindow {
     this.unavailable = false;
     this.trim("after");
   }
-  private async latest() {
+  private async latest(wanted = () => true) {
     const epoch = this.epoch;
+    if (!wanted()) return;
     let page = await this.query(`timeline?limit=${HISTORY_PAGE}`);
     let scanned = 0;
     while (
       !page.items.some(visibleItem) &&
       page.before &&
-      this.current(epoch)
+      this.current(epoch) &&
+      wanted()
     ) {
       const cursor = page.before;
       page = await this.query(
@@ -193,7 +214,7 @@ export class HistoryWindow {
       if (++scanned % 4 === 0)
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
     }
-    if (!this.current(epoch)) return;
+    if (!this.current(epoch) || !wanted()) return;
     this.replace(page);
     this.anchor = [...this.items.keys()].at(-1);
   }
@@ -449,6 +470,7 @@ export class HistoryWindow {
     await this.refresh();
   }
   stop() {
+    this.cancelLatest();
     this.closed = true;
     this.epoch++;
   }

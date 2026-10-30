@@ -27,6 +27,7 @@ import {
   type ViewEntry,
 } from "./view.ts";
 import { visibleItem } from "./history.ts";
+import { copySelection } from "./clipboard.ts";
 
 export class TerminalApp {
   readonly tui: TuiAltScreen;
@@ -56,6 +57,8 @@ export class TerminalApp {
   private messageModes = new Map<string, boolean>();
   private contentVersion = 0;
   private remoteDirty = true;
+  private navigationEpoch = 0;
+  private followCandidate?: number;
   constructor(
     readonly coreDirectory: string,
     terminal: Terminal = new ProcessTerminal(),
@@ -67,9 +70,12 @@ export class TerminalApp {
       "tui",
       "v1",
     ),
+    clipboard: (text: string) => Promise<boolean | string> = copySelection,
   ) {
     configureKeys();
-    this.tui = new TuiAltScreen(terminal);
+    this.tui = new TuiAltScreen(terminal, undefined, undefined, {
+      copySelection: clipboard,
+    });
     this.editors = {
       Main: new DraftEditor(this.tui, () => "Main"),
       Task: new DraftEditor(this.tui, () => "Task"),
@@ -78,10 +84,16 @@ export class TerminalApp {
       Main: new AnchoredScroll(this.documents.Main),
       Task: new AnchoredScroll(this.documents.Task),
     };
+    this.scrolls.Main.onReading = () => this.stopFollowing();
+    this.documents.Main.onPointerRead = () => this.stopFollowing();
+    this.documents.Main.selectionActive = () =>
+      this.page === "Main" && this.tui.hasActiveSelection();
     this.documents.Main.onViewport = (rows) => {
       this.remote?.history.setAnchor(
-        rows.find((row) => this.remote?.history.items.has(row.item_id))
-          ?.item_id,
+        this.scrolls.Main.following
+          ? [...(this.remote?.history.items.keys() ?? [])].at(-1)
+          : rows.find((row) => this.remote?.history.items.has(row.item_id))
+              ?.item_id,
       );
       this.remote?.focus([...new Set(rows.map((row) => row.item_id))]);
     };
@@ -265,11 +277,7 @@ export class TerminalApp {
         pending.snapshot ?? plainSnapshot(pending.raw),
       )
     ) {
-      void this.delivery.submit(
-        pending.raw,
-        pending.body.text,
-        pending.snapshot,
-      );
+      this.submitMessage(pending.raw, pending.body.text, pending.snapshot);
       return;
     }
     const action = parseDraft(snapshot, this.page);
@@ -284,7 +292,7 @@ export class TerminalApp {
       return;
     }
     if (action.kind === "send") {
-      void this.delivery.submit(raw, action.text, snapshot);
+      this.submitMessage(raw, action.text, snapshot);
       return;
     }
     // Local commands consume only their own editor text, never issue business messages.
@@ -294,6 +302,7 @@ export class TerminalApp {
     this.renderedDraft[page] = this.delivery.state.drafts[page].generation;
     void this.delivery.flush().catch(() => this.draw());
     if (action.kind === "navigate" && action.page !== this.page) {
+      this.stopFollowing();
       this.page = action.page;
       this.layout();
     }
@@ -306,6 +315,27 @@ export class TerminalApp {
     if (action.kind === "help")
       this.uiHint =
         "/M /T /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · 查看时 ↑/↓ 连续读取历史";
+    this.draw();
+  }
+  private submitMessage(raw: string, text: string, snapshot?: DraftSnapshot) {
+    // A Task switch while the durable save is pending must win over a late POST.
+    if (!this.delivery?.busy) this.followCandidate = this.navigationEpoch;
+    void this.delivery?.submit(raw, text, snapshot);
+  }
+  private stopFollowing() {
+    this.navigationEpoch++;
+    this.followCandidate = undefined;
+    this.scrolls.Main.following = false;
+    this.remote?.setFollowing(false);
+    this.remote?.history.cancelLatest();
+  }
+  private startFollowing() {
+    if (this.followCandidate !== this.navigationEpoch || this.page !== "Main")
+      return;
+    this.followCandidate = undefined;
+    this.scrolls.Main.following = true;
+    this.remote?.setFollowing(true);
+    void this.remote?.history.jumpToLatest();
     this.draw();
   }
   private async mainPage(
@@ -368,6 +398,8 @@ export class TerminalApp {
         this.delivery = new Delivery(state, this.files);
         this.delivery.onChange = () => this.draw();
         this.delivery.onEvent = (event) => {
+          if (event.type === "post-start") this.startFollowing();
+          if (event.type === "rejected") this.stopFollowing();
           if (event.type === "accepted")
             this.editors.Main.bridge.clearHistory();
         };
@@ -378,6 +410,7 @@ export class TerminalApp {
       previous?.stop();
       this.remote = new RemoteViews(client);
       if (previous) this.remote.inherit(previous);
+      this.remote.setFollowing(this.scrolls.Main.following);
       this.remote.onChange = () => {
         this.remoteDirty = true;
         this.draw();

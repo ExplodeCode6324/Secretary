@@ -200,3 +200,44 @@ test("CoT mode creates fresh signed queries around the reader", async () => {
     "Never publish only a short anchor and clamp the viewport to its title",
   );
 });
+
+test("explicit latest jump escapes an older resident window; cancelled delayed latest cannot overwrite reading", async () => {
+  const f = fixture();
+  await f.history.refresh();
+  for (let i = 0; i < 5; i++) {
+    f.history.setAnchor(f.history.items.keys().next().value);
+    await f.history.page("before");
+  }
+  assert.equal(f.history.hasAfter, true);
+  await f.history.jumpToLatest();
+  assert.equal([...f.history.items.keys()].at(-1), "message:599");
+  assert.equal(f.history.hasAfter, false);
+  await f.history.page("before");
+  const original = f.history.client.query.bind(f.history.client);
+  let release!: () => void;
+  let entered!: () => void;
+  const waiting = new Promise<void>((r) => {
+    entered = r;
+  });
+  const gate = new Promise<void>((r) => {
+    release = r;
+  });
+  f.history.client.query = async <T>(route: string) => {
+    const result = await original<T>(route);
+    if (route.startsWith("timeline?limit=")) {
+      entered();
+      await gate;
+    }
+    return result;
+  };
+  const jump = f.history.jumpToLatest();
+  await waiting;
+  f.history.cancelLatest();
+  const ids = [...f.history.items.keys()];
+  release();
+  await jump;
+  assert.deepEqual([...f.history.items.keys()], ids);
+  assert.equal(f.history.hasBefore, true);
+  await f.history.page("before");
+  assert.ok(f.history.items.has("message:450"));
+});

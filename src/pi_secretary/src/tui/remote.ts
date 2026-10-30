@@ -56,8 +56,21 @@ export class RemoteViews {
   // If visible bodies alone exceed 4 MiB, leave a rehydratable placeholder.
   // Retry on a new anchor/mode/generation or explicit navigation, not every layout.
   private budgetDeferred = new Map<string, string>();
+  private following = false;
+  private followEpoch = 0;
+  setFollowing(value: boolean) {
+    if (value === this.following) return;
+    this.following = value;
+    this.followEpoch++;
+    this.focus([...this.wanted]);
+  }
+  private tailMessage() {
+    return [...this.history.items.values()]
+      .filter((item) => item.kind === "message")
+      .at(-1)?.id;
+  }
   private budgetKey() {
-    return `${this.history.anchor ?? ""}:${this.history.thinking}:${this.history.generation}`;
+    return `${this.history.anchor ?? ""}:${this.history.thinking}:${this.history.generation}:${this.followEpoch}`;
   }
   onChange = () => {};
   onDisconnect = (error: unknown) => {};
@@ -205,16 +218,19 @@ export class RemoteViews {
     }
   }
   focus(ids: string[]) {
+    const tail = this.following ? this.tailMessage() : undefined;
+    if (tail) ids = [...ids, tail];
     this.wanted = new Set(ids.filter((id) => this.history.items.has(id)));
     this.history.preferredBodies = this.wanted;
     if (this.bodyJob || this.stopped) return;
+    const followEpoch = this.followEpoch;
     this.bodyJob = (async () => {
       const attempted = new Set<string>();
       while (!this.stopped) {
         const id = [...this.wanted].find((id) => {
           const item = this.history.items.get(id),
             cached = this.bodies.get(id);
-          const key = `${id}:${item?.revision}:${this.history.thinking}:${this.history.generation}`;
+          const key = `${id}:${item?.revision}:${this.history.thinking}:${this.history.generation}:${this.followEpoch}`;
           return (
             item?.kind === "message" &&
             !attempted.has(key) &&
@@ -222,6 +238,10 @@ export class RemoteViews {
             this.failedBodies.get(id) !== key &&
             (this.history.evictedBodies.has(id) ||
               !!item.next_cursor ||
+              (this.following &&
+                id === this.tailMessage() &&
+                cached?.windowed &&
+                (cached.body.after || cached.thinking.after)) ||
               (cached &&
                 (cached.message.revision !== item.revision ||
                   cached.mode !== this.history.thinking)))
@@ -230,12 +250,14 @@ export class RemoteViews {
         if (!id) break;
         const first = this.history.items.get(id) as Message;
         attempted.add(
-          `${id}:${first.revision}:${this.history.thinking}:${this.history.generation}`,
+          `${id}:${first.revision}:${this.history.thinking}:${this.history.generation}:${this.followEpoch}`,
         );
         await this.loadBody(id);
       }
     })().finally(() => {
       this.bodyJob = undefined;
+      if (followEpoch !== this.followEpoch && !this.stopped)
+        this.focus([...this.wanted]);
     });
   }
   async loadBody(id: string, region?: Region, direction?: Direction) {
@@ -245,15 +267,22 @@ export class RemoteViews {
     const cached = this.bodies.get(id),
       mode = this.history.thinking,
       gen = this.generation,
+      followEpoch = this.followEpoch,
       timelineGen = this.history.generation;
-    const targets = cached?.windowed
-      ? {
-          body: cached.body.start,
-          thinking: cached.thinking.start,
-        }
-      : direction === "before"
+    const targets =
+      this.following && id === this.tailMessage()
         ? { body: Number.MAX_SAFE_INTEGER, thinking: Number.MAX_SAFE_INTEGER }
-        : undefined;
+        : cached?.windowed
+          ? {
+              body: cached.body.start,
+              thinking: cached.thinking.start,
+            }
+          : direction === "before"
+            ? {
+                body: Number.MAX_SAFE_INTEGER,
+                thinking: Number.MAX_SAFE_INTEGER,
+              }
+            : undefined;
     if (targets && cached?.windowed && region && direction)
       targets[region] =
         direction === "before"
@@ -261,6 +290,7 @@ export class RemoteViews {
           : cached![region].nextStart;
     const valid = () =>
       !this.stopped &&
+      followEpoch === this.followEpoch &&
       this.generation === gen &&
       this.history.generation === timelineGen &&
       this.history.thinking === mode &&
@@ -328,7 +358,7 @@ export class RemoteViews {
           continue;
         this.failedBodies.set(
           id,
-          `${id}:${this.history.items.get(id)?.revision}:${mode}:${timelineGen}`,
+          `${id}:${this.history.items.get(id)?.revision}:${mode}:${timelineGen}:${this.followEpoch}`,
         );
         this.notices.set(id, "正文读取失败；按 ↑/↓ 重试：" + code);
         this.onChange();

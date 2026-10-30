@@ -101,8 +101,21 @@ if (mode === "--serve" || mode === "--resume") {
     if (
       attempts.length >= limits.attempts ||
       Date.now() - started > limits.total_ms
-    )
+    ) {
+      const call = calls.find((entry) => entry.number === scope.getStore());
+      if (call)
+        call.budget_rejection = {
+          code: "ISSUE91_LIVE_BUDGET_EXHAUSTED",
+          reason:
+            attempts.length >= limits.attempts
+              ? "attempt_limit"
+              : "elapsed_limit",
+          at: new Date().toISOString(),
+          attempts: attempts.length,
+        };
+      await ledger();
       throw Error("ISSUE91_LIVE_BUDGET_EXHAUSTED");
+    }
     const number = attempts.length + 1;
     const attempt: Record<string, unknown> = {
       number,
