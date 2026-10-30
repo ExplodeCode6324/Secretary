@@ -497,6 +497,13 @@ export interface TaskSummary {
   goal: string;
   active_execution_ids: string[];
   scope_id?: string | null;
+  active_executions: {
+    id: string;
+    state: string;
+  }[];
+  latest_execution_id: string | null;
+  latest_execution_state: string | null;
+  pending_request_count: number;
   [k: string]: unknown;
 }
 /**

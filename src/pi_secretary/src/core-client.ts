@@ -14,8 +14,8 @@ import type {
 } from "./api/contracts.ts";
 export class CoreClient {
   constructor(readonly endpoint: CoreEndpoint) {}
-  async query<T = unknown>(route: string): Promise<T> {
-    return this.request<T>("GET", route);
+  async query<T = unknown>(route: string, options?: { timeoutMs?: number }): Promise<T> {
+    return this.request<T>("GET", route, undefined, options?.timeoutMs);
   }
   async command(
     route: string,
@@ -83,6 +83,7 @@ export class CoreClient {
     method: string,
     route: string,
     body?: unknown,
+    timeoutMs = 10000,
   ): Promise<T> {
     if (!/^[a-z][a-z0-9/?=&%_.:-]*$/i.test(route)) throw Error("INVALID_ROUTE");
     const r = await fetch(this.endpoint.url + "/api/v1/" + route, {
@@ -93,7 +94,7 @@ export class CoreClient {
         "X-Secretary-API-Version": "1",
       },
       body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(timeoutMs),
     });
     const result = (await r.json()) as { data: T; error?: { code: string } };
     if (!r.ok) throw Error(result.error?.code ?? "CORE_REQUEST_FAILED");

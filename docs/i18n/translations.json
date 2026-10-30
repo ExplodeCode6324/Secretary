@@ -3488,5 +3488,20 @@
     "The MPF check also rejects HDR gain-map JPEGs produced by some phones. This version does not convert HDR or HEIC; #83/#84 must explain this format boundary to users.",
     "MPF 検査は一部のスマートフォンが生成する HDR gain-map JPEG も拒否します。初版は HDR や HEIC を変換しません。#83/#84 でこの形式制限を利用者に案内します。",
     "Le contrôle MPF refuse aussi les JPEG HDR gain-map produits par certains téléphones. Cette version ne convertit ni HDR ni HEIC ; #83/#84 doivent expliquer cette limite aux utilisateurs."
+  ],
+  "当前客户端重建依据见 [TUI 临时实施参考](tui/implementation-reference.md)（v1.7）；新 TUI 尚未实现。Master 已确认需求及分批方案，#82/#83/#84 已全文重写，并新增四个功能批次；准确编号和依赖见临时参考第 11 节。暂停计划不默认展示，旧失败不能继续时明确反馈，新工作经 Main 显式提出。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。": [
+    "The current client rebuild follows the [temporary TUI implementation reference](tui/implementation-reference.md) (v1.7); the new TUI is not implemented yet. Master has confirmed the requirements and batches. Issues #82/#83/#84 have been fully rewritten, and four feature batches added; exact issue numbers and dependencies are in section 11 of the reference. Paused plans are not shown by default; old failures that cannot be continued report that limitation explicitly, and new work is explicitly requested through Main. Use the [Core operations guide](operations.md); see the [retirement record](frontend/README.md) for the old client.",
+    "現在のクライアント再構築は [TUI 暫定実装参考](tui/implementation-reference.md)（v1.7）に従います。新しい TUI はまだ未実装です。Master は要件と段階分けを確認済みで、#82/#83/#84 は全文改訂され、機能の四段階が追加されました。正確な番号と依存関係は参考文書の第11節を参照してください。一時停止中の計画は既定で表示せず、過去の失敗を継続できない場合は明示し、新しい作業は Main から明確に依頼します。現在は [Core 運用ガイド](operations.md) を使用し、旧クライアントは [廃止記録](frontend/README.md) を参照してください。",
+    "La reconstruction actuelle du client suit la [référence temporaire de mise en œuvre TUI](tui/implementation-reference.md) (v1.7) ; le nouveau TUI reste à implémenter. Master a confirmé les exigences et les lots. Les issues #82/#83/#84 ont été entièrement réécrites et quatre lots fonctionnels ajoutés ; les numéros exacts et les dépendances figurent à la section 11 de la référence. Les plans en pause ne sont pas affichés par défaut ; les anciens échecs impossibles à reprendre sont signalés explicitement, et tout nouveau travail est demandé explicitement via Main. Utilisez le [guide opérationnel Core](operations.md) ; consultez le [registre de retrait](frontend/README.md) pour l’ancien client."
+  ],
+  "| [TUI 临时实施参考](tui/implementation-reference.md) | 已确认需求、34 项操作验收、七个实施/终验 issue 与依赖；完成后吸收进正式文档再清理 |": [
+    "| [Temporary TUI implementation reference](tui/implementation-reference.md) | Confirmed requirements, 34 operational acceptance checks, seven implementation/final-acceptance issues and dependencies; incorporate into formal documentation before removing |",
+    "| [TUI 暫定実装参考](tui/implementation-reference.md) | 確認済み要件、34項目の操作受入確認、実装・最終受入の7件の issue と依存関係。完了後は正式文書に取り込んでから削除 |",
+    "| [Référence temporaire de mise en œuvre TUI](tui/implementation-reference.md) | Exigences confirmées, 34 vérifications opérationnelles, sept issues de mise en œuvre et de réception finale avec leurs dépendances ; intégrer à la documentation officielle avant suppression |"
+  ],
+  "| [旧 TUI 需求与后端改造依据](tui/requirements-and-backend-plan.md) | 2026-10-23 需求及 #79–#81 改造历史；当前重建以临时参考中的已定条款为准 |": [
+    "| [Previous TUI requirements and backend changes](tui/requirements-and-backend-plan.md) | Requirements from 2026-10-23 and change history for #79–#81; the current rebuild follows the settled provisions in the temporary reference |",
+    "| [旧 TUI 要件とバックエンド変更の根拠](tui/requirements-and-backend-plan.md) | 2026-10-23 の要件および #79–#81 の変更履歴。現在の再構築は暫定参考の確定条項に従う |",
+    "| [Anciennes exigences TUI et modifications du backend](tui/requirements-and-backend-plan.md) | Exigences du 2026-10-23 et historique des modifications #79–#81 ; la reconstruction actuelle suit les dispositions arrêtées dans la référence temporaire |"
   ]
 }
