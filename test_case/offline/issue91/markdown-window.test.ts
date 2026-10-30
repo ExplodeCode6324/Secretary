@@ -293,3 +293,33 @@ test("EOF math lookahead includes code-fence markers and survives bounded reread
   assert(next.body.futureMath);
   assert(bodyBytes(next) <= 4 * 1024 * 1024);
 });
+
+test("end-target reading displays every sentinel after duplicate definition raws", async () => {
+  const source =
+    "padding paragraph ".repeat(8).concat("\n\n").repeat(8500) +
+    "[r]: /u\n[r]: /u\n> quoted line\n\nSECOND-SENTINEL\n\nVISIBLE-SENTINEL\n";
+  const f = fake(source);
+  const result = await readMessageBody(f.client, f.first, false, {
+    targets: { body: Number.MAX_SAFE_INTEGER },
+  });
+  assert(result.windowed);
+  assert(result.body.text.includes("SECOND-SENTINEL"));
+  assert(result.body.text.includes("VISIBLE-SENTINEL"));
+  assert.equal(result.body.blocks, undefined);
+  const rows = new SourceMarkdown(
+    result.body.text,
+    color,
+    result.body.start,
+    result.body.prefix,
+    result.body,
+  ).render(80);
+  const visible = rows.lines.map(stripTerminalSequences).join("\n");
+  assert(visible.includes("SECOND-SENTINEL"));
+  assert(visible.includes("VISIBLE-SENTINEL"));
+  assert.equal(
+    source.slice(result.body.start, result.body.nextStart),
+    result.body.text,
+  );
+  assert(bodyBytes(result) <= 4 * 1024 * 1024);
+  assert(!JSON.stringify(result.index).includes('"token"'));
+});

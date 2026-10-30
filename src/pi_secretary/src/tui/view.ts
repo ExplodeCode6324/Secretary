@@ -8,7 +8,11 @@ import {
 } from "@earendil-works/pi-tui";
 import type { Message, TaskSummary, TimelineItem } from "../api/contracts.ts";
 import { markdownParser } from "./markdown-lexer.ts";
-import { Definitions, normalizedSource } from "./markdown-window.ts";
+import {
+  Definitions,
+  normalizedSource,
+  type SourceBlock,
+} from "./markdown-window.ts";
 import { renderBlocks } from "./markdown-block-render.ts";
 import { color } from "./input.ts";
 import type { MessageBody, RegionWindow } from "./body.ts";
@@ -65,6 +69,7 @@ export class SourceMarkdown {
   private md: Markdown;
   private blocks: { start: number; source: string }[];
   private definitions: string;
+  private fallbackBlocks?: SourceBlock[];
   private mapped?: {
     width: number;
     value: {
@@ -99,6 +104,19 @@ export class SourceMarkdown {
     const normalized = normalizedSource(source),
       lexical = normalized.text;
     const tokens = markdownParser.lexer(lexical);
+    // When raw spans do not tile, parse the complete resident window. Preserve
+    // Pi's tokens and global future-math merging, with a conservative window anchor.
+    if (
+      context?.lastMathStart !== undefined &&
+      !context.code &&
+      !context.contextBoundary
+    ) {
+      this.definitions = context.definitions;
+      this.blocks = [];
+      this.fallbackBlocks = tokens.map((token) => ({ start, token }));
+      this.md = new Markdown("", 0, 0, markdownTheme, { color: paint });
+      return;
+    }
     const definitions = new Definitions();
     definitions.add(tokens.links);
     this.definitions = context?.definitions || definitions.text;
@@ -140,18 +158,33 @@ export class SourceMarkdown {
   }
   render(width: number) {
     if (this.mapped?.width === width) return this.mapped.value;
+    if (this.fallbackBlocks) {
+      const value = normalizedSource(this.source).text.trim()
+        ? renderBlocks(
+            this.fallbackBlocks,
+            this.context?.futureMath ? Number.MAX_SAFE_INTEGER : -1,
+            this.definitions,
+            this.md,
+            width,
+          )
+        : { lines: [], rows: [] };
+      this.mapped = { width, value };
+      return value;
+    }
     if (
       this.context?.blocks &&
       !this.context.code &&
       !this.context.contextBoundary
     ) {
-      const value = renderBlocks(
-        this.context.blocks,
-        this.context.lastMathStart ?? -1,
-        this.definitions,
-        this.md,
-        width,
-      );
+      const value = normalizedSource(this.source).text.trim()
+        ? renderBlocks(
+            this.context.blocks,
+            this.context.lastMathStart ?? -1,
+            this.definitions,
+            this.md,
+            width,
+          )
+        : { lines: [], rows: [] };
       this.mapped = { width, value };
       return value;
     }

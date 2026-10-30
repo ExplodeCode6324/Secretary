@@ -58,3 +58,5 @@ Master still needs to explicitly acknowledge two non-blocking limitations at acc
 ### R7/R8 strict-format correction
 
 R7 was CHANGES_REQUIRED on `2c32bfb` despite passing CI and 71 focused tests. R8 keeps §13 strict ordinary-path parity using preserved parsed blocks plus region-wide math position and complete reference context. The extra-blank-row exception proposal was withdrawn without assuming approval. See bilingual plan §14 and the implementation-review record for exact coverage and limitations; final CI/Claude status belongs to PR #96. No product acceptance or merge permission is inferred.
+
+R9 adds a no-missing-text gate for non-verbatim Pi token.raw, including duplicate definitions and `$$$$`. Fallback windows retain Pi rendering/global math context but use a window-start anchor. Early unlocatable raw may enter the existing explicitly labelled exceptional-format path; this case is now included in the exceptional-format limitation awaiting Master acknowledgment. It is not silently counted as strict ordinary formatting parity. Exact-head final CI/review remains recorded on PR #96.

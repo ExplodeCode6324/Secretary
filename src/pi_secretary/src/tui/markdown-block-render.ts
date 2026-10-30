@@ -20,8 +20,9 @@ export function renderBlocks(
   md: Markdown,
   width: number,
 ) {
+  const links = markdownParser.lexer(definitions).links;
   const lexer = new Lexer(markdownParser.defaults);
-  lexer.tokens.links = markdownParser.lexer(definitions).links;
+  lexer.tokens.links = links;
   const inline = (text: string) => lexer.inlineTokens(text);
   const refresh = (original: Token): Token => {
     const token = { ...original };

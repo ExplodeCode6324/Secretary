@@ -14,6 +14,10 @@ import {
 } from "../../../src/pi_secretary/src/tui/view.ts";
 
 const plain = [
+  "[r]: /u\n",
+  "[r]: /u\n[r]: /u\n",
+  "[r]\n",
+  "$$$$\n",
   "first line\n",
   "second line\n",
   "|---|---|\n",
@@ -46,12 +50,14 @@ function random(seed: number) {
 }
 function spans(source: string) {
   let at = 0;
-  return markdownParser.lexer(source).map((token) => {
+  const result = [];
+  for (const token of markdownParser.lexer(source)) {
     const start = source.indexOf(token.raw, at);
-    assert(start >= 0);
+    if (start < 0) return undefined;
     at = start + token.raw.length;
-    return { start, end: at, token };
-  });
+    result.push({ start, end: at, token });
+  }
+  return result;
 }
 for (const [seed, withMath] of [
   [21, false],
@@ -70,7 +76,7 @@ for (const [seed, withMath] of [
         () => vocabulary[Math.floor(next() * vocabulary.length)],
       ).join("");
       const blocks = spans(source),
-        ends = new Set([source.length, ...blocks.map((b) => b.end)]);
+        ends = new Set([source.length, ...(blocks ?? []).map((b) => b.end)]);
       for (let split = 1; split < source.length; split++) {
         const pieces: SourcePiece[] = [],
           p = new BlockStream((value) => pieces.push(value), 0, 1024 * 1024, 1);
@@ -82,7 +88,7 @@ for (const [seed, withMath] of [
         for (const piece of pieces) {
           const end = piece.start + piece.text.length;
           assert(
-            ends.has(end),
+            !blocks || ends.has(end),
             JSON.stringify({
               seed,
               document,
@@ -117,7 +123,7 @@ for (const [seed, withMath] of [
         actual = windows.flatMap((window) =>
           visible(
             new SourceMarkdown(window.text, undefined, window.start, "", {
-              definitions: "",
+              definitions: stream.parser.definitions.text,
               suffix: "",
               code: false,
               contextBoundary: false,
@@ -261,5 +267,87 @@ test("parsed windows retain forward references and nested/table/code semantics a
       );
       assert.deepEqual(actual, expected, JSON.stringify({ source, width }));
     }
+  }
+});
+
+test("unlocatable token raws never suppress window content at any split", () => {
+  const corpus = [
+    "$$$$\n\nVISIBLE-SENTINEL\n",
+    "[r]: /u\n[r]: /u\n> quoted line\n\nSECOND-SENTINEL\n\nVISIBLE-SENTINEL\n",
+    "safe paragraph\n\n[r]: /u\n[r]: /u\n> quote\n\nVISIBLE-SENTINEL\n",
+  ];
+  let fallback = 0;
+  for (const source of corpus)
+    for (let split = 1; split < source.length; split++) {
+      const windows: MarkdownWindow[] = [];
+      const stream = new WindowStream(
+        0,
+        (w) => windows.push(w),
+        0,
+        0,
+        1024 * 1024,
+        1,
+      );
+      stream.feed(source.slice(0, split));
+      stream.feed(source.slice(split));
+      stream.finish();
+      assert.equal(windows.map((w) => w.text).join(""), source);
+      fallback += windows.filter((w) => w.blocks === undefined).length;
+      for (const width of [8, 40]) {
+        const clean = (rows: string[]) =>
+          rows
+            .map(stripTerminalSequences)
+            .map((s) => s.trimEnd())
+            .filter(Boolean);
+        const actual = windows.flatMap((w) =>
+          clean(
+            new SourceMarkdown(w.text, undefined, w.start, "", {
+              definitions: stream.parser.definitions.text,
+              suffix: "",
+              code: false,
+              contextBoundary: false,
+              blocks: w.blocks,
+              lastMathStart: stream.parser.lastMathStart,
+              futureMath: stream.parser.lastMathStart >= w.nextStart,
+            }).render(width).lines,
+          ),
+        );
+        const expected = clean(
+          new Markdown(source, 0, 0, markdownTheme, {
+            color: (v) => "\x1b[37m" + v + "\x1b[0m",
+          }).render(width),
+        );
+        assert.deepEqual(
+          actual,
+          expected,
+          JSON.stringify({ source, split, width }),
+        );
+        assert(actual.join("").includes("VISIBLE-SENTINEL"));
+      }
+    }
+  assert(fallback > 0);
+});
+
+test("whole-window token fallback preserves future-math interior blank rows", () => {
+  const source =
+    "[r]: /u\n[r]: /u\nfirst line\nsecond line\n|---|---|\n\nlater para\n";
+  for (const width of [8, 40]) {
+    const actual = new SourceMarkdown(source, undefined, 0, "", {
+      definitions: "[r]: /u\n",
+      suffix: "",
+      code: false,
+      contextBoundary: false,
+      lastMathStart: source.length + 1,
+      futureMath: true,
+    }).render(width);
+    const expected = new Markdown(
+      source + "\n$$ $$\nx\n",
+      0,
+      0,
+      markdownTheme,
+      { color: (v) => "\x1b[37m" + v + "\x1b[0m" },
+    ).render(width);
+    assert.deepEqual(actual.lines, expected.slice(0, actual.lines.length));
+    assert(actual.rows.every((row) => row.block_start_utf16 === 0));
   }
 });

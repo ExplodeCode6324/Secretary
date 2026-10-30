@@ -214,14 +214,32 @@ export class BlockStream {
             normalizedSource(this.buffer.slice(0, committed)).text,
           ).links,
         );
-      let consumed = 0;
+      let consumed = 0,
+        parsedAt = 0;
       for (const boundary of [...new Set(boundaries)]) {
         const length = boundary - consumed;
         if (Buffer.byteLength(this.buffer.slice(0, length)) > this.limit) break;
+        const blocks: SourceBlock[] = [];
+        let covered = consumed;
+        let tiled = true;
+        // A token.raw can contain inserted newlines or omit duplicate definitions.
+        // An incomplete token list must never become the rendering authority.
+        while (parsedAt < parsed.length && parsed[parsedAt].end <= boundary) {
+          const block = parsed[parsedAt++];
+          if (block.start < consumed) {
+            tiled = false;
+            continue;
+          }
+          tiled &&=
+            block.start === covered &&
+            normalizedSource(
+              this.buffer.slice(block.start - consumed, block.end - consumed),
+            ).text === block.token.raw;
+          covered = block.end;
+          blocks.push({ start: origin + block.start, token: block.token });
+        }
         this.send(length, {
-          blocks: parsed
-            .filter((b) => b.start >= consumed && b.end <= boundary)
-            .map((b) => ({ start: origin + b.start, token: b.token })),
+          blocks: tiled && covered === boundary ? blocks : undefined,
         });
         consumed = boundary;
       }
@@ -480,10 +498,9 @@ export class WindowStream {
       this.publish();
     if (this.current) {
       this.current.text += piece.text;
-      this.current.blocks = [
-        ...(this.current.blocks ?? []),
-        ...(piece.blocks ?? []),
-      ];
+      if (this.current.blocks && piece.blocks) {
+        for (const block of piece.blocks) this.current.blocks.push(block);
+      } else this.current.blocks = undefined;
     } else this.current = { ...piece };
     if (
       Buffer.byteLength(this.current.text) >= this.parser.batch ||
