@@ -1,6 +1,6 @@
 # 文档
 
-当前客户端重建依据见 [TUI 临时实施参考](tui/implementation-reference.md)（v1.5）；新 TUI 尚未实现。已确定需求与待定项在文中分开记录，原分批及 issue 写入计划保持待确认，须经 Master 确认后再全面重写 #82、#83、#84。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
+当前客户端重建依据见 [TUI 临时实施参考](tui/implementation-reference.md)（v1.6）；新 TUI 尚未实现。已固定 pi-tui 0.87.0 基线与最新失败处置、排序计数、命令和草稿取舍；已定需求、评审核实与剩余边界分开记录，原分批及 issue 写入计划保持待确认，须经 Master 确认后再全面重写 #82、#83、#84。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
 
 从运行手册开始使用 Core；架构与数据流解释模块如何协作，不变量提供实现和测试证据。
 
