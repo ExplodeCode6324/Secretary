@@ -21,6 +21,7 @@ import { TerminalApp } from "../../src/pi_secretary/src/tui/app.ts";
 import { VirtualTerminal } from "../../src/pi_resource/packages/tui/test/virtual-terminal.ts";
 import { until } from "../offline/issue9/helpers.ts";
 import type { Input } from "../../src/pi_secretary/src/contracts.ts";
+import { configureLiveOutputBudget } from "./issue91-budget.ts";
 
 const [mode, target] = process.argv.slice(2);
 if (
@@ -52,6 +53,7 @@ const limits = {
 };
 
 if (mode === "--serve" || mode === "--resume") {
+  configureLiveOutputBudget(limits.output_tokens);
   if (mode === "--serve")
     await fs.access(path.join(coreDir, "core-endpoint.json")).then(
       () => {
