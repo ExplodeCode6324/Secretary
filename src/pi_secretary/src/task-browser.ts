@@ -736,16 +736,24 @@ export class TaskBrowser {
       }
     });
     // Messages carry only small initial fragments; cap the complete response as well.
-    while (
-      items.length > 1 &&
-      Buffer.byteLength(JSON.stringify(items)) > PAGE_BYTES
-    )
-      items.pop();
+    const itemBytes = (item: (typeof items)[number]) =>
+      Buffer.byteLength(JSON.stringify(item)) + 1;
+    let bytes = 2 + items.reduce((sum, item) => sum + itemBytes(item), 0);
+    while (items.length > 1 && bytes > PAGE_BYTES) {
+      const removed =
+        q.get("direction") === "before" ? items.shift()! : items.pop()!;
+      bytes -= itemBytes(removed);
+    }
+    const first = items[0]?.id;
+    const firstIndex = identities.findIndex((i) => i.id === first);
     const last = items.at(-1)?.id;
     const lastIndex = identities.findIndex((i) => i.id === last);
     return {
       items,
-      before: page.before,
+      before:
+        first && firstIndex > 0
+          ? this.cursors.encode(scope, { id: first })
+          : null,
       after:
         last && lastIndex < identities.length - 1
           ? this.cursors.encode(scope, { id: last })

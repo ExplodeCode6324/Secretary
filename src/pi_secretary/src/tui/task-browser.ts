@@ -370,6 +370,15 @@ export class TaskBrowserWindow {
     if (this.stopped || epoch !== this.epoch) return;
     const old = this.groups.get(eid),
       map = new Map<string, Message>();
+    // Around-boundary pages must overlap the loaded window. Keep existing data
+    // and its paging marker on a discontinuous response rather than hiding a gap.
+    if (
+      !replace &&
+      around &&
+      old?.items.length &&
+      !page.items.some((m) => m.id === around)
+    )
+      throw new Error("TASK_MESSAGE_WINDOW_GAP");
     const items = replace
       ? page.items
       : direction === "before"

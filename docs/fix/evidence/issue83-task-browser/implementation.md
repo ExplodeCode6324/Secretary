@@ -23,6 +23,12 @@ Claude reviewed exact head `421b559fd5ed3b5af3bf00efa5aae4d0ef4c7712` in the ori
 
 Optional N1/N2/N5/N7 (hidden-page refresh reduction, historical-row projection cost, effective latest-round goal presentation, and index memory reduction) remain improvement opportunities; they are not claimed as implemented. The revised #82/#83/#91 regression suite passed 128/128 with zero skips. The first added Unicode test initially attempted to revise an immutable TaskResult; its failure is preserved, and the fixture now seeds a fresh consistent result/execution pair without changing the production immutability constraint. Final-head CI and the follow-up Claude verdict are recorded in the PR comment.
 
+## R4 message-window review disposition
+
+Claude closed all four R3 blockers at `e4b31240af30dbc8283777ec1ec90be4053d542e`, then identified an older missed defect: message projection trimmed the newest end of an over-budget page even during backward paging. The supplied 120-message expanded-CoT regression first reproduced the lost anchor on that exact head; its red log is retained. That head independently completed local PostgreSQL verify (855/855, zero skips) and all three CI jobs; neither result overrides the new finding.
+
+The correction trims the far end for the requested direction, recomputes the before cursor from the first retained event, and preserves the existing after rule. Serialized row sizes are counted once per pass rather than repeatedly serializing the whole window. The regression traverses all original event IDs without gaps through around-anchor requests, cursor requests and the actual TaskBrowserWindow, under the complete HTTP response byte cap. It also injects a discontinuous response: the client now keeps its original window and readable boundary marker and reports TASK_MESSAGE_WINDOW_GAP instead of silently merging it. The direct red/green check passed after the fix. Final-head complete verification, CI and the follow-up same-session Claude verdict belong in the PR comment.
+
 ## Validation and first failures
 
 The focused #82/#83/#91 suite passed 120 tests before the final cache/navigation cases were added. The final added projection and window cases passed separately. Full PostgreSQL `npm run verify` and exact-head Linux/macOS CI are recorded in the PR final-head comment, so recording a verdict does not create another unreviewed commit.
