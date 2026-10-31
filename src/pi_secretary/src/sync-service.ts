@@ -89,7 +89,7 @@ export const mutationMappings = {
     "memory/summary",
     "memory/commitments",
   ),
-  Scope: mapping("scopes", "scopes"),
+  Scope: mapping("scopes", "scopes", "tasks", "task-browser"),
 } satisfies Record<Mutation["object_type"], Mapping>;
 
 export const SYNC_PAGE_BYTES = 256 * 1024;
@@ -228,7 +228,22 @@ export class SyncService {
         changes.clear();
       }
     }
+    if (
+      frame.mutations.some((m) =>
+        [
+          "TaskPlan",
+          "Execution",
+          "TaskResult",
+          "AuthorizationRequest",
+          "DecisionRequest",
+          "Operation",
+          "Scope",
+        ].includes(m.object_type),
+      )
+    )
+      invalidate("task-browser");
     for (const event of frame.log_records) {
+      if (event.event_type === "agent.message") invalidate("task-browser");
       if (event.event_type.startsWith("world.change_")) invalidate("world");
       if (
         event.scope.session_id &&

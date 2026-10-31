@@ -11,3 +11,13 @@ export const scopeOf = (e: Execution): Scope => ({
 });
 export const terminal = (e: Execution) =>
   ["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"].includes(e.state);
+
+/** Creation-ordered executions: a newer same-task execution supersedes failure. */
+export function actionableFailure(e: Execution, executions: Execution[]) {
+  return (
+    e.state === "FAILED" &&
+    !executions
+      .slice(executions.indexOf(e) + 1)
+      .some((n) => n.task_id === e.task_id)
+  );
+}

@@ -142,6 +142,21 @@ export type ID = string;
  * via the `definition` "Time".
  */
 export type Time = string;
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskBrowserRow".
+ */
+export type TaskBrowserRow =
+  | {
+      id: string;
+      kind: "group";
+      group: TaskBrowserGroup;
+    }
+  | {
+      id: string;
+      kind: "task";
+      task: TaskBrowserTask;
+    };
 
 export interface ApiV1Definitions {}
 /**
@@ -663,6 +678,7 @@ export interface Message {
    */
   attachments?: AttachmentMetadata[];
   withdrawn?: boolean;
+  tool_name?: string;
   [k: string]: unknown;
 }
 /**
@@ -1449,4 +1465,154 @@ export interface AttachmentImportCommand {
   expected_sha256: string;
   expected_bytes: string;
   name: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskBrowserExecution".
+ */
+export interface TaskBrowserExecution {
+  id: string;
+  state: string;
+  kind: string;
+  retention_state: string;
+  created_at: string | null;
+  created_sequence: string;
+  started_at: string | null;
+  ended_at: string | null;
+  invoked_at: string | null;
+  ordering_source: string;
+  history_availability: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskBrowserTask".
+ */
+export interface TaskBrowserTask {
+  id: string;
+  scope_id: string | null;
+  scope_name: string;
+  revision: string;
+  goal: string;
+  goal_truncated: boolean;
+  state: string;
+  executor: string;
+  trigger: string;
+  next_due_at: string | null;
+  deadline: string | null;
+  schedule_status: string;
+  current_reasons: string[];
+  active_executions: TaskBrowserExecution[];
+  latest_execution: TaskBrowserExecution | null;
+  pending_request_count: number;
+  pending_occurrence_count: number;
+  pending_due_at: string | null;
+  attention_ids: string[];
+  unknown_operation_ids: string[];
+  latest_result: string | null;
+  initialization_error: string | null;
+  current: boolean;
+  latest_result_observed_at: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskBrowserGroup".
+ */
+export interface TaskBrowserGroup {
+  id: string;
+  scope_id: string | null;
+  name: string;
+  count: number;
+  created_at: string | null;
+  created_sequence: string | null;
+  active_at: string | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskBrowserCounts".
+ */
+export interface TaskBrowserCounts {
+  scopes: number;
+  archived_scopes: number;
+  shared_tasks: number;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskBrowserPage".
+ */
+export interface TaskBrowserPage {
+  items: TaskBrowserRow[];
+  counts: TaskBrowserCounts;
+  generation: string;
+  version: string;
+  before: string | null;
+  after: string | null;
+  as_of: string;
+  valid_until: string | null;
+  target: string | null;
+  historical: TaskBrowserTask | null;
+  suggestions: string[];
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskBrowserDetail".
+ */
+export interface TaskBrowserDetail {
+  id: string;
+  kind: "message";
+  revision: Revision;
+  role: string;
+  at?: string;
+  text: string;
+  thinking?: string;
+  call_id: string | null;
+  incomplete: boolean;
+  next_cursor: string | null;
+  persistence?: "transient" | "durable";
+  preview_status?: "running" | "saved" | "incomplete";
+  truncated?: boolean;
+  source_event_id?: string;
+  request_id?: string;
+  task_id?: string;
+  execution_id?: string;
+  result_id?: string;
+  decision_request_id?: string;
+  notification_id?: string;
+  source_kind?:
+    | "master_input"
+    | "assistant_response"
+    | "task_feedback"
+    | "notification"
+    | "system_input";
+  outcome?:
+    | "completed"
+    | "continued"
+    | "truncated"
+    | "failed"
+    | "interrupted"
+    | "unknown";
+  preview_availability?: "active" | "expired";
+  thinking_preview?: ThinkingPreview;
+  input_id?: string;
+  input_revision?: string;
+  input_state?: "ACCEPTED" | "CLAIMED" | "HANDLED" | "WITHDRAWN";
+  /**
+   * @maxItems 4
+   */
+  attachments?: AttachmentMetadata[];
+  withdrawn?: boolean;
+  task: TaskBrowserTask;
+  executions: TaskBrowserExecution[];
+  [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskBrowserMessages".
+ */
+export interface TaskBrowserMessages {
+  items: Message[];
+  generation: string;
+  version: string;
+  before: string | null;
+  after: string | null;
+  availability: string;
 }

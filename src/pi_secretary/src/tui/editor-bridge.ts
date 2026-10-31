@@ -268,8 +268,8 @@ export class EditorBridge {
       this.insertion = undefined;
     }
   }
-  claimCompletion(oldLength: number, newLength: number) {
-    this.document.splice(0, oldLength, newLength);
+  claimCompletion(oldLength: number, newLength: number, start = 0) {
+    this.document.splice(start, oldLength, newLength);
     this.claimed = true;
   }
   restore(

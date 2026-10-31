@@ -1,3 +1,4 @@
+import { actionableFailure } from "./execution-utils.ts";
 import { randomUUID } from "node:crypto";
 import type { Store } from "./store.ts";
 import type { App } from "./app.ts";
@@ -414,13 +415,7 @@ export class Activities {
     for (const e of executions) {
       if (["SUCCEEDED", "CANCELLED", "EXPIRED"].includes(e.state)) continue;
       // A failed execution is actionable until a newer execution supersedes it.
-      if (
-        e.state === "FAILED" &&
-        executions
-          .slice(executions.indexOf(e) + 1)
-          .some((n) => n.task_id === e.task_id)
-      )
-        continue;
+      if (e.state === "FAILED" && !actionableFailure(e, executions)) continue;
       const running = ["RUNNING", "DISPATCHING", "CANCEL_REQUESTED"].includes(
         e.state,
       );

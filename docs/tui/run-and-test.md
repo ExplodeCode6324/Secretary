@@ -23,8 +23,8 @@ npx tsx src/pi_secretary/scripts/tui-export-v1.ts /absolute/path/to/state-direct
 
 - Enter 换行，Shift+Enter 明确提交；补全先于提交。输入首行按 ↑ 进入阅读，↑/↓ 跨边界补读；Esc 或输入返回编辑。
 - Main 首次显示近期 50 项，按每页最多 50 项补读，驻留元数据最多 200 项；这些是缓存限制，不是历史总量限制。明确提交 Main 消息后跳到最新并持续跟随回复（含同ID重试）；主动上翻/下翻阅读、PageUp/PageDown、滚轮/滚动条、选择文字或切Task会停止。手动回到底部或返回Main不重新开启跟随；被动消息也不会开启。resize、重连、CoT切换保留已开启的跟随，明确输入拒绝会停止。
-- `/M`、`/T` 在空草稿导航。Task 普通文本只保留 Task 草稿，不发送。Main 的 `/cotvisible`、`/cotv` 不区分命令名大小写，只改变显示，不调用模型；Task 调用会局部报错。
-- 单行、无 TAB、最多 30 个字素的粘贴直接显示；更长、多行或含 TAB 的粘贴显示 `<pasted N lines ...txt>`。摘要保留对应原文，发送时按出现顺序展开一次；粘贴里的 `/T` 等不会作为命令执行。
+- `/m`、`/t` 在空草稿导航，默认提示与补全使用小写，命令名仍不区分大小写。Task 普通文本只保留 Task 草稿，不发送。Main 的 `/cotvisible`、`/cotv` 不区分命令名大小写，只改变显示，不调用模型；Task 调用会局部报错。
+- 单行、无 TAB、最多 30 个字素的粘贴直接显示；更长、多行或含 TAB 的粘贴显示 `<pasted N lines ...txt>`。摘要保留对应原文，发送时按出现顺序展开一次；粘贴里的 `/t` 等不会作为命令执行。
 - 同一次发送结果未知时保留草稿和原 request_id；明确重试不会另建业务身份。超出既有 Main 序列化请求上限时保留草稿，不截断或发送临时路径。
 - 正文/CoT 的驻留文字与上下文共用 4 MiB 预算。合计 ≤1 MiB 的消息整篇渲染；更大消息按完整 Markdown 块分页，目标约八个 Core 片段、每区最多 1 MiB 原文。超大代码块按行分页；单个非代码块或引用上下文超过预算时明确显示“格式上下文边界”，原文仍可连续读完，此例外不保证整篇格式一致。为避免误判松散列表或未闭合公式的结束位置，超大非代码块触发后，该区后续窗口也保守地使用此提示和局部格式；这不是只影响一个块。 若 Pi 改写 token 原文（如早期重复引用定义或 `$$$$`）而无法定位安全块边界，也可能进入该提示路径。较小窗口会完整重新解析，使用保守的窗口起点锚点，确保正文可见。
 - 预算优先保留可见正文，先淘汰离锚点最远的屏幕外正文；若可见正文自身超过 4 MiB，保留锚点并将部分内容显示为可补读占位，移动锚点或明确导航后重新读取，不在每次排版时反复重载。
@@ -45,3 +45,12 @@ npx tsx --test --test-concurrency=1 test_case/offline/issue82/*.test.ts test_cas
 手动启用的 `test_case/online/test-issue91-live.ts` 读取本地私有测试凭据并真实调用模型，不随 `npm test` 运行。单次服务周期限制为 12 次物理 HTTP 尝试、15 分钟、每请求 90 秒、每响应最多 4096 tokens；`--resume` 继续原账本和预算。输出只写隔离目录，禁止提交凭据、请求头及原始 provider 数据。
 
 `issue91-navigation.ts <isolated-directory>` 用 Pi VirtualTerminal 驱动实际 Core/provider，覆盖不跟随、Task 往返、粘贴展开和 CoT 的只读性；它不是物理剪贴板/IME 验收。`issue91-body-benchmark.ts <output-json>` 用真实 Core 和合成消息测量 2/4 MiB 正文读取，不调用 provider。人工验收、测试替身、真实 Core、真实 provider 和 Claude 源码复核的结论不得混写。
+
+
+## #83 Task 浏览
+
+`/t` 进入按 Scope 分组的当前集合；页首 Scope 数不包含逻辑 Shared，已归档 Scope 只显示数量。`/search_task <完整或唯一前缀ID>` 在根列表定位，历史任务显示在独立临时区。`/taskdetail <完整ID>` 打开详情；`/back` 恢复根列表阅读位置。详情连续显示最近三轮实际 Agent 对话，每轮内部按事件顺序排列，没有第四轮入口。
+
+仍只有 Main、Task 两份草稿。Task 普通文本不会发送；Tab/Enter 补全只编辑文本，Shift+Enter 才执行命令。只有 Main 的 `/cotvisible` 或 `/cotv` 能修改共同 CoT 显示状态。查看模式 ↑/↓ 到正文或消息窗口边界继续读取，Esc 返回编辑。归档、最近三轮替换和断线恢复通过任务/消息 ID 重新定位，并显示位置变化提示。
+
+离线回归：`npx tsx --test --test-concurrency=1 test_case/offline/issue83/*.test.ts`。付费真实模型验收需现有私有凭证，并显式运行 `npx tsx test_case/online/test-issue83-live.ts .demo-data/issue83/live-<独立名称>`；目录必须全新，固定请求/工具/时间/输出预算，在 Core 冻结预算之前配置，保留首次失败。此脚本不由 npm test 执行，不代表原生 IME 或 Master 人工验收。
