@@ -51,7 +51,7 @@ test("integrated terminal attaches existing Core, sends multiline once, navigate
     assert.equal(app.editors.Main.getExpandedText(), "");
     const status = await f.client.query<RequestStatus>(`requests/${posted}`);
     assert.equal(status.receipt.acceptance, "ACCEPTED");
-    terminal.sendInput("/T");
+    terminal.sendInput("/t");
     terminal.sendInput("\x1b[13;2u");
     assert.equal(app.page, "Task");
     const original = posted;

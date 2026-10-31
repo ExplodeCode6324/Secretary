@@ -1,5 +1,7 @@
 # Issue #83 — Scope overview, task lookup and three Agent executions
 
+Master accepted the revised layout and authorized merge on 2026-11-01, with one final refinement: default navigation hints/completions use `/t` and `/m`, while parsing remains case-insensitive. Update the command registry, help/preflight text and operation guide; verify both cases through existing input/navigation checks, review the exact final head in the same session, then merge and check main CI. No additional implementation or merge approval is pending.
+
 ## Master follow-up - 2026-11-01
 
 Master reported mechanical acceptance PASS and directly requested a clearer Task layout with pastel attention colors, followed by an interactive live-model instance in an isolated data directory. This authorizes the presentation refinement without reopening R2 approval. Group each card into goal, plan/execution, attention, and time/result; retain textual state labels, complete Task IDs and labelled timestamps. Use pink for attention, blue for active execution, amber for waiting/queues and mint for success. Bound and explicitly label previews; keep full content in detail and sanitize data before adding trusted ANSI. Preserve the existing read contracts, paging, anchors, two drafts and scheduling behavior.

@@ -18,8 +18,8 @@ import {
 
 export type Page = "Main" | "Task";
 export const commandRegistry = [
-  { name: "M", pages: ["Main", "Task"] },
-  { name: "T", pages: ["Main", "Task"] },
+  { name: "m", pages: ["Main", "Task"] },
+  { name: "t", pages: ["Main", "Task"] },
   { name: "back", pages: ["Main", "Task"] },
   { name: "help", pages: ["Main", "Task"] },
   { name: "send", pages: ["Main"] },

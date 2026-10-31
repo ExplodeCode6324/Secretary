@@ -15,10 +15,12 @@ test("raw-first-character routing, literal payloads and Task isolation", () => {
     kind: "send",
     text: "body\n/T",
   });
-  assert.deepEqual(parseInput("/t ", "Main"), {
-    kind: "navigate",
-    page: "Task",
-  });
+  for (const page of ["Main", "Task"] as const)
+    for (const command of ["m", "M", "t", "T"])
+      assert.deepEqual(parseInput("/" + command + " ", page), {
+        kind: "navigate",
+        page: command.toLowerCase() === "m" ? "Main" : "Task",
+      });
   assert.deepEqual(parseInput("/rawmessage /T", "Main"), {
     kind: "send",
     text: "/T",
@@ -47,7 +49,7 @@ test("custom completion never offers paths, leading-space commands or wrong scop
   const list = await p.getSuggestions(["/"], 0, 1, opts);
   assert.deepEqual(
     list?.items.map((x) => x.value),
-    ["/M", "/T", "/back", "/help", "/search_task", "/taskdetail"],
+    ["/m", "/t", "/back", "/help", "/search_task", "/taskdetail"],
   );
 });
 test("actual Pi Editor: completion Enter cannot submit, errors preserve cursor and undo, raw whitespace preserved", async () => {

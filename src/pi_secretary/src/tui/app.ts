@@ -375,7 +375,7 @@ export class TerminalApp {
     }
     if (action.kind === "help")
       this.uiHint =
-        "/M /T /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> · ↑/↓ 连续读取";
+        "/m /t /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> · ↑/↓ 连续读取";
     this.draw();
   }
   private submitMessage(raw: string, text: string, snapshot?: DraftSnapshot) {
