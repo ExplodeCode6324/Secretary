@@ -118,13 +118,14 @@ export async function readMessageBody(
     windowed?: boolean;
     valid?: () => boolean;
     previous?: MessageBody;
+    contentPath?: string;
   } = {},
 ): Promise<MessageBody> {
   const valid = options.valid ?? (() => true);
   const query = async (cursor: string) => {
     if (!valid()) throw Error("BODY_SUPERSEDED");
     const part = await client.query<Message>(
-      `messages/${messagePath(first.id)}/content?streaming=true&thinking=${thinking}&cursor=${encodeURIComponent(cursor)}`,
+      `${options.contentPath ?? `messages/${messagePath(first.id)}/content?streaming=true`}${options.contentPath?.includes("?") || !options.contentPath ? "&" : "?"}thinking=${thinking}&cursor=${encodeURIComponent(cursor)}`,
     );
     if (!valid()) throw Error("BODY_SUPERSEDED");
     if (part.id !== first.id || part.revision !== first.revision)

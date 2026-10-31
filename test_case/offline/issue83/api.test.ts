@@ -1,0 +1,176 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { fixture, until } from "../issue9/helpers.ts";
+import { id, base, revise } from "../../../src/pi_secretary/src/store.ts";
+import type {
+  TaskPlan,
+  Execution,
+} from "../../../src/pi_secretary/src/contracts.ts";
+import type {
+  TaskBrowserPage,
+  TaskBrowserMessages,
+  TaskBrowserDetail,
+  Message,
+} from "../../../src/pi_secretary/src/api/contracts.ts";
+import { TaskBrowserWindow } from "../../../src/pi_secretary/src/tui/task-browser.ts";
+
+test("prefix uniqueness scans authorized history; archives and cursors cannot bypass ownership", () =>
+  fixture(async (f) => {
+    const one = f.app.scheduler.scopes.save({ name: "visible", kind: "NONE" }),
+      two = f.app.scheduler.scopes.save({ name: "archive", kind: "NONE" });
+    const p = f.app.scheduler.propose("original", id(), f.app.host.sessionID, {
+      scopeID: one.id,
+      at: "2099-01-01T00:00:00.000Z",
+    });
+    const a = { ...p, ...base("abcdef00-0000-4000-8000-000000000001") },
+      b = {
+        ...p,
+        ...base("abcdef00-0000-4000-8000-000000000002"),
+        scope_id: two.id,
+      };
+    f.app.store.commit([a, b]);
+    await assert.rejects(
+      f.client.query("task-browser/locate?match=prefix&task_id=abcdef00"),
+      /AMBIGUOUS_TASK_ID/,
+    );
+    f.app.scheduler.scopes.archive(two.id, two.revision);
+    const located = await f.client.query<TaskBrowserPage>(
+      "task-browser/locate?match=prefix&task_id=abcdef00",
+    );
+    assert.equal(located.target, a.id);
+    assert.equal(located.counts.scopes, 1);
+    assert.equal(located.counts.archived_scopes, 1);
+    const page = await f.client.query<TaskBrowserPage>("task-browser?limit=1");
+    assert(page.after);
+    f.app.store.commit([revise(a, { state: "PAUSED" })]);
+    await assert.rejects(
+      f.client.query("task-browser?cursor=" + encodeURIComponent(page.after)),
+      /CURSOR_EXPIRED/,
+    );
+    await assert.rejects(
+      f.client.query("task-browser/" + b.id),
+      /TASK_NOT_BROWSABLE/,
+    );
+    const suggestions = await f.client.query<TaskBrowserPage>(
+      "task-browser/locate?match=prefix&task_id=abcdef00&suggest=true&limit=1",
+    );
+    assert.deepEqual(suggestions.suggestions, [a.id]);
+    for (const query of [
+      "limit=101",
+      "thinking=maybe",
+      "limit=1&limit=2",
+      "cursor=forged",
+      "direction=wrong",
+    ])
+      await assert.rejects(f.client.query("task-browser?" + query));
+    const denied = await fetch(f.server.endpoint.url + "/api/v1/task-browser", {
+      headers: { Authorization: "Bearer invalid" },
+    });
+    assert.equal(denied.status, 401);
+  }));
+test("checkpoint churn preserves list cursors; time expiry refreshes without journal mutation", () =>
+  fixture(async (f) => {
+    const p = f.app.scheduler.propose("waiting", id(), f.app.host.sessionID, {
+      preconditions: [
+        {
+          condition_id: id(),
+          kind: "RESOURCE_PRESENT",
+          target: "missing",
+          required_revision: null,
+        },
+      ],
+    });
+    f.app.scheduler.tick();
+    await f.app.scheduler.idle();
+    const page = await f.client.query<TaskBrowserPage>("task-browser?limit=1");
+    const e = f.app.store.all<Execution>("Execution")[0];
+    f.app.store.commit([revise(e, {})]);
+    const again = await f.client.query<TaskBrowserPage>("task-browser?limit=1");
+    assert.equal(again.generation, page.generation);
+    assert(
+      (
+        await f.client.query<TaskBrowserPage>(
+          "task-browser?cursor=" + encodeURIComponent(page.after!),
+        )
+      ).items.some((i) => i.id === p.id),
+    );
+    const due = Date.now() + 80,
+      expiry = Date.now() + 500;
+    const timed = f.app.scheduler.propose(
+      "expires without sync",
+      id(),
+      f.app.host.sessionID,
+      {
+        at: new Date(due).toISOString(),
+        deadline: new Date(expiry).toISOString(),
+      },
+    );
+    const b = new TaskBrowserWindow(f.client, () => false);
+    try {
+      await b.refresh();
+      assert(b.root!.items.some((i) => i.id === timed.id));
+      const sequence = f.app.store.sequence;
+      await until(() => !b.root!.items.some((i) => i.id === timed.id), 2000);
+      assert.equal(f.app.store.sequence, sequence);
+    } finally {
+      b.stop();
+    }
+  }));
+test("content is grapheme-safe, mode-bound, complete and rejects a foreign task execution", () =>
+  fixture(async (f) => {
+    const p = f.app.scheduler.propose("messages", id(), f.app.host.sessionID);
+    f.app.scheduler.tick();
+    await f.app.scheduler.idle();
+    const e = f.app.store.all<Execution>("Execution")[0];
+    const text = "x".repeat(4095) + "e\u0301" + "😀".repeat(3000),
+      thought = "思考".repeat(3000);
+    const event = f.app.store.event(
+      "agent.message",
+      {
+        role: "assistant",
+        stopReason: "stop",
+        content: [
+          { type: "text", text },
+          { type: "thinking", thinking: thought },
+        ],
+      },
+      { session_id: null, task_id: p.id, execution_id: e.id },
+      "EXECUTOR",
+    );
+    f.app.store.commit([], [event]);
+    const path = `task-browser/${p.id}/executions/${e.id}/messages/${event.event_id}/content`;
+    let m = await f.client.query<Message>(path + "?thinking=true");
+    assert(!m.text.endsWith("e"));
+    assert(m.next_cursor);
+    await assert.rejects(
+      f.client.query(
+        path + "?thinking=false&cursor=" + encodeURIComponent(m.next_cursor),
+      ),
+      /CURSOR_EXPIRED/,
+    );
+    let full = m.text,
+      fullThought = m.thinking ?? "";
+    while (m.next_cursor) {
+      m = await f.client.query<Message>(
+        path + "?thinking=true&cursor=" + encodeURIComponent(m.next_cursor),
+      );
+      full += m.text;
+      fullThought += m.thinking ?? "";
+    }
+    assert.equal(full, text);
+    assert.equal(fullThought, thought);
+    assert.equal(m.outcome, "completed");
+    const other = f.app.scheduler.propose("other", id(), f.app.host.sessionID, {
+      at: "2099-01-01T00:00:00.000Z",
+    });
+    await assert.rejects(
+      f.client.query(path.replace(p.id, other.id)),
+      /EXECUTION_OUTSIDE_RECENT_THREE/,
+    );
+    const sequence = f.app.store.sequence;
+    await f.client.query<TaskBrowserDetail>("task-browser/" + p.id);
+    await f.client.query<TaskBrowserMessages>(
+      `task-browser/${p.id}/executions/${e.id}/messages`,
+    );
+    assert.equal(f.app.store.sequence, sequence);
+  }));

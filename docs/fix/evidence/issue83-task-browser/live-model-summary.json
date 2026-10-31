@@ -1,0 +1,272 @@
+{
+  "evidence": "LIVE_MODEL",
+  "provider": "opencode-go",
+  "model": "deepseek-v4.1-flash",
+  "reasoning": "low",
+  "limits": {
+    "main_calls": 48,
+    "task_calls": 64,
+    "tools": 150,
+    "total_ms": 1200000,
+    "request_ms": 90000,
+    "output_tokens": 8192
+  },
+  "started_at": "2026-10-31T09:32:01.269Z",
+  "finished_at": "2026-10-31T09:39:29.578Z",
+  "status": "PASS",
+  "counts": {
+    "main": 29,
+    "task": 24
+  },
+  "tool_calls": 80,
+  "cases": [
+    {
+      "name": "L1 Main creates task and three real continuations",
+      "at": "2026-10-31T09:32:01.468Z",
+      "calls_before": {
+        "main": 0,
+        "task": 0
+      },
+      "evidence": {
+        "task": "9dffed54-37e2-4f17-966a-1cc69750e76b",
+        "executions": [
+          "b68646a4-0f33-4433-a109-af57279aca1d",
+          "8cf25a5b-588e-477d-81ba-2e7a304f8d20",
+          "bc1a9438-4b3e-43a0-8e4a-062eb89143c1",
+          "ce202071-538e-4fce-9d7a-e99638497deb"
+        ],
+        "latest_three": [
+          "ce202071-538e-4fce-9d7a-e99638497deb",
+          "bc1a9438-4b3e-43a0-8e4a-062eb89143c1",
+          "8cf25a5b-588e-477d-81ba-2e7a304f8d20"
+        ],
+        "newest_message_count": 66,
+        "message_ids": [
+          "aef14f5b-4710-45ce-9cee-0e2d1a27bdf8",
+          "8cc331ad-3ea6-47dd-b9b5-a906629f8e7e",
+          "ff34a7ae-ae0a-4ff1-bf69-3767addbfd01",
+          "e3527cff-e9f0-4616-a838-dccd6bb87c0e",
+          "8f1624d6-e119-4046-b917-214a508d314b",
+          "bc97e21c-145a-4f22-b700-9eae7acfeb99",
+          "b49e35f1-a2f8-4492-8914-4e0bcb4782c2",
+          "c84a7a9a-181a-4cff-9aef-6ec18ec93ca2",
+          "20dc552a-34b5-49ec-832b-829322225377",
+          "e6103b64-b00f-41bc-b65c-afaed8be9ee4",
+          "4881610f-4b2b-408f-a520-185316927c70",
+          "b5290ef4-7bcd-42bc-bfa4-019a3ffef31a",
+          "14022296-4ce7-4047-bdc3-9a72b7e4453a",
+          "62690af2-98b1-48e7-a9e4-e5b3a00974b2",
+          "68829635-d613-46e9-b14f-2d53df4597a2",
+          "2f219578-d24b-4f75-9e6b-8f2a091621be",
+          "71b41904-fc07-4ff0-894f-61536f478b8c",
+          "25942a64-ae5c-40a0-a93a-85bfbf082ece",
+          "0d71afbc-331b-4d01-a42b-cb8cdef560b7",
+          "3bb44358-757c-4921-89fc-994ac3b98b40",
+          "cfadd8dd-fa6c-4bbf-b9db-0f1ccd31d976",
+          "51cfbcf9-c702-4c4a-8933-bf3e8fe83b81",
+          "5d2d2fbf-38d8-46d6-acec-7dc9405903f0",
+          "a2387921-f8cc-4ea3-80d8-33d4a23bdee9",
+          "9b2a277a-5856-427d-8c04-5d2563cef13a",
+          "7f729781-7c30-4c05-965e-01c4204871de",
+          "62c9115e-7747-4d8f-99d2-81c961c4b3b9",
+          "fc47c68c-91e0-474c-83c0-9914f257fe2c",
+          "f08a0a1e-c4b0-4799-9142-933d2bb130a2",
+          "14be2a29-fa3d-400a-a6d3-6ed37d3992d4",
+          "64e54d6a-3bc6-4235-b16a-9de90dbe44a2",
+          "4fb79d83-8a63-4640-a9e7-3b43a9947705",
+          "f1de6f4f-d4e0-46c8-9536-de8ca70ec470",
+          "87779764-a692-4d55-bfbc-a0c5a5fc73d0",
+          "d2854912-b1e4-4674-bb6d-fd6946e90101",
+          "8ebde7a3-fad8-4516-a979-1d1677cdde22",
+          "3e8c07b2-a7c4-42e8-a5a0-f98841437c49",
+          "ad0eb9fc-5b7f-4781-bd7b-058ad1f8bf5b",
+          "32e81ebc-b7b1-4e91-898c-3edaac12b418",
+          "8e81b45a-ef8b-4686-ac0c-f6413dcc83ef",
+          "9bf31832-282c-4b93-a034-cddfb3cf3441",
+          "eadb68a0-00cc-4fba-975c-15a17c3bfdcd",
+          "f51269df-3857-4cc8-a7a4-3c17aa00cdaf",
+          "f07a1a08-762e-47dd-9008-d3681a71afb4",
+          "82d47926-a34f-4183-a966-78767243329c",
+          "b5647b34-da0c-42a6-bb07-b59efaf35a3e",
+          "63430f01-8fe2-4599-85b9-68529b198058",
+          "761b6ac2-d702-4822-9939-2ad5c12d4bef",
+          "b6b1ae80-1010-47de-ab24-5cedc42668bd",
+          "3dcfb8a1-f0b5-4509-b97c-7354ddc42190",
+          "cde4fad0-782c-4a76-b832-272580ee8631",
+          "f5646d61-c4cd-4d5b-873d-18afb5c57891",
+          "80df8ca3-7157-45c5-8913-cf0340570f85",
+          "5cf758a4-594a-48a1-809c-d1be1caa9f00",
+          "a2fc933d-97bf-4b3f-9427-20ed4db8ac01",
+          "507a651d-9622-4000-a19a-7868a6697f2e",
+          "45f69563-4650-4de3-b581-6aa82fae690f",
+          "0022a8d4-984a-479d-8268-9a5bdca035f6",
+          "fae05e72-62ab-461c-8fc6-5aef8003ec76",
+          "ba5773fd-eb9f-4bd5-9875-03664ef56315",
+          "e43c865f-6a1c-48e5-8824-5bf90e317e1d",
+          "2a9ee9b9-d33c-4abe-a9b0-3fe1ef59467a",
+          "19ca1c79-79ec-42e1-aefd-5d957f35beed",
+          "d1a49544-9ea5-4bcd-8cd5-9fded0f5aa6e",
+          "c1dcca11-c281-4b47-9b68-d6c968bf5d4f",
+          "fbe99aea-75fa-4fed-bdbd-cf6fcc2620f8"
+        ],
+        "long_message": "aef14f5b-4710-45ce-9cee-0e2d1a27bdf8",
+        "long_chars": 12256,
+        "positive_thinking_events": [
+          "8cc331ad-3ea6-47dd-b9b5-a906629f8e7e",
+          "e3527cff-e9f0-4616-a838-dccd6bb87c0e",
+          "68829635-d613-46e9-b14f-2d53df4597a2",
+          "c1dcca11-c281-4b47-9b68-d6c968bf5d4f"
+        ],
+        "absent_thinking_message": "aef14f5b-4710-45ce-9cee-0e2d1a27bdf8"
+      },
+      "status": "PASS"
+    },
+    {
+      "name": "L2 separate Shared cwd and same filename",
+      "at": "2026-10-31T09:36:43.459Z",
+      "calls_before": {
+        "main": 21,
+        "task": 17
+      },
+      "evidence": [
+        {
+          "task": "9dffed54-37e2-4f17-966a-1cc69750e76b",
+          "relative_cwd": "workspaces/9dffed54-37e2-4f17-966a-1cc69750e76b/work",
+          "sha256": "f53b17b269e486c7eb75f8fc9bb4d52f55bc35866b177f7f2c7238a80c91f309",
+          "bytes": 7452
+        },
+        {
+          "task": "49174848-cef5-43b7-be46-a0ebf8b6d633",
+          "relative_cwd": "workspaces/49174848-cef5-43b7-be46-a0ebf8b6d633/work",
+          "sha256": "a524864a917494a3a5d638eda0ebf13c385bb3606c04caae94c202eddd67cec7",
+          "bytes": 25
+        }
+      ],
+      "status": "PASS"
+    },
+    {
+      "name": "L4 real-data Task browsing is read-only and survives restart",
+      "at": "2026-10-31T09:37:51.596Z",
+      "calls_before": {
+        "main": 25,
+        "task": 20
+      },
+      "evidence": {
+        "before_sequence": 864,
+        "after_restart_sequence": 865,
+        "calls": {
+          "main": 25,
+          "task": 20
+        },
+        "execution_retention": [
+          [
+            "b68646a4-0f33-4433-a109-af57279aca1d",
+            "HOT"
+          ],
+          [
+            "8cf25a5b-588e-477d-81ba-2e7a304f8d20",
+            "HOT"
+          ],
+          [
+            "bc1a9438-4b3e-43a0-8e4a-062eb89143c1",
+            "HOT"
+          ],
+          [
+            "ce202071-538e-4fce-9d7a-e99638497deb",
+            "HOT"
+          ],
+          [
+            "9639edf7-0930-45af-9dc6-84d731241ee6",
+            "HOT"
+          ]
+        ],
+        "viewports": [
+          "80x24 virtual rendering",
+          "120x40 virtual rendering"
+        ],
+        "native": "NOT_TESTED"
+      },
+      "status": "PASS"
+    },
+    {
+      "name": "A1r real missed-AT recovery pauses a task with no work",
+      "at": "2026-10-31T09:37:52.282Z",
+      "calls_before": {
+        "main": 25,
+        "task": 20
+      },
+      "evidence": {
+        "task": "b4708f5c-79b3-4cd0-bb85-c3353ca69580",
+        "state": "PAUSED",
+        "recovery_model_calls": {
+          "main": 27,
+          "task": 20
+        },
+        "classification": "scheduler recovery background, not UI-caused"
+      },
+      "status": "PASS"
+    },
+    {
+      "name": "L3 real active interval queues and rejects same-task continuation",
+      "at": "2026-10-31T09:38:06.041Z",
+      "calls_before": {
+        "main": 27,
+        "task": 20
+      },
+      "evidence": {
+        "task": "df094e58-4100-4174-ad94-f4e670fd9918",
+        "execution": "6f973f0d-f90a-4f95-a449-daa2a0ce56d7",
+        "state": "RUNNING",
+        "pending_occurrences": 1,
+        "task_calls": 21,
+        "continuation": "TASK_BUSY",
+        "deadline": "2026-10-31T09:39:06.042Z",
+        "after_model_state": "FAILED",
+        "stop_policy": "isolated Core closed without ticking queued occurrences"
+      },
+      "status": "PASS"
+    }
+  ],
+  "transport": {
+    "attempts": 53,
+    "statuses": [
+      200
+    ],
+    "output_ceiling": [
+      4096,
+      8192
+    ]
+  },
+  "final_source_recorded_data_check": {
+    "evidence": "REAL_RECORDED_DATA_HTTP_AND_VIRTUAL_TERMINAL",
+    "generated_message": "8cc331ad-3ea6-47dd-b9b5-a906629f8e7e",
+    "generated_body_chars": 7599,
+    "recorded_messages": 66,
+    "native_ime": "NOT_TESTED: native Terminal.app control rejected by computer-use tool",
+    "root_counts": {
+      "scopes": 0,
+      "archived_scopes": 0,
+      "shared_tasks": 1
+    },
+    "status": "PASS"
+  },
+  "quiescent_read_only": {
+    "started_at": "2026-10-31T09:46:28.543Z",
+    "observed_at": "2026-10-31T09:49:16.848Z",
+    "sequence_before": 994,
+    "sequence_now": 994,
+    "forbidden_model_calls": 0,
+    "mode": "real-provider recorded data; scheduler pump disabled; model calls prohibited"
+  },
+  "first_failure": {
+    "run": "live-r1",
+    "stage": "fourth execution",
+    "provider_outcome": "length",
+    "configured_output_tokens": 4096,
+    "task_state": "FAILED",
+    "report_sha256": "d8b9418779202712ce82f68ef44e578de6aee86b64c88897b766945cc95fc005",
+    "disposition": "Preserved; fresh R2 domain registers normal and maximum output budgets as 8192 before durable capture; no production guard bypass."
+  },
+  "busy_completion_boundary": "L3 passed RUNNING + queued occurrence + TASK_BUSY capture. The Agent later submitted FAILED because its real file write finished after the finite deadline. This is not evidence of a successful periodic series. Scheduler ticks stopped after capture; no queued execution dispatched.",
+  "raw_report_sha256": "10aee8247a1109559e9e3d14be6dafc12bcbc79a99edac2c9c47754b4caec864"
+}

@@ -45,3 +45,12 @@ npx tsx --test --test-concurrency=1 test_case/offline/issue82/*.test.ts test_cas
 手动启用的 `test_case/online/test-issue91-live.ts` 读取本地私有测试凭据并真实调用模型，不随 `npm test` 运行。单次服务周期限制为 12 次物理 HTTP 尝试、15 分钟、每请求 90 秒、每响应最多 4096 tokens；`--resume` 继续原账本和预算。输出只写隔离目录，禁止提交凭据、请求头及原始 provider 数据。
 
 `issue91-navigation.ts <isolated-directory>` 用 Pi VirtualTerminal 驱动实际 Core/provider，覆盖不跟随、Task 往返、粘贴展开和 CoT 的只读性；它不是物理剪贴板/IME 验收。`issue91-body-benchmark.ts <output-json>` 用真实 Core 和合成消息测量 2/4 MiB 正文读取，不调用 provider。人工验收、测试替身、真实 Core、真实 provider 和 Claude 源码复核的结论不得混写。
+
+
+## #83 Task 浏览
+
+`/T` 进入按 Scope 分组的当前集合；页首 Scope 数不包含逻辑 Shared，已归档 Scope 只显示数量。`/search_task <完整或唯一前缀ID>` 在根列表定位，历史任务显示在独立临时区。`/taskdetail <完整ID>` 打开详情；`/back` 恢复根列表阅读位置。详情连续显示最近三轮实际 Agent 对话，每轮内部按事件顺序排列，没有第四轮入口。
+
+仍只有 Main、Task 两份草稿。Task 普通文本不会发送；Tab/Enter 补全只编辑文本，Shift+Enter 才执行命令。只有 Main 的 `/cotvisible` 或 `/cotv` 能修改共同 CoT 显示状态。查看模式 ↑/↓ 到正文或消息窗口边界继续读取，Esc 返回编辑。归档、最近三轮替换和断线恢复通过任务/消息 ID 重新定位，并显示位置变化提示。
+
+离线回归：`npx tsx --test --test-concurrency=1 test_case/offline/issue83/*.test.ts`。付费真实模型验收需现有私有凭证，并显式运行 `npx tsx test_case/online/test-issue83-live.ts .demo-data/issue83/live-<独立名称>`；目录必须全新，固定请求/工具/时间/输出预算，在 Core 冻结预算之前配置，保留首次失败。此脚本不由 npm test 执行，不代表原生 IME 或 Master 人工验收。

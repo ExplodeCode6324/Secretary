@@ -143,12 +143,22 @@ test("transient updates skip Task/Scope reads and preserve assembled fragments; 
   const first = { ...message(1), text: "first ", next_cursor: "fragment" };
   client.query = async <T>(route: string) => {
     reads.push(route);
-    if (route.startsWith("tasks?")) {
+    if (route.startsWith("task-browser?")) {
       if (route.includes("cursor=")) throw Error("PAGE_UNAVAILABLE");
-      return { items: [], next_cursor: "next", version: "1" } as T;
+      return {
+        items: [],
+        before: null,
+        after: "next",
+        generation: "1",
+        version: "1",
+        counts: { scopes: 0, shared_tasks: 0, archived_scopes: 0 },
+        as_of: new Date().toISOString(),
+        valid_until: null,
+        historical: null,
+        target: null,
+        suggestions: [],
+      } as T;
     }
-    if (route.startsWith("scopes?"))
-      return { items: [], next_cursor: null, version: "1" } as T;
     if (route.startsWith("messages/"))
       return { ...first, text: "second", next_cursor: null } as T;
     return {
@@ -174,19 +184,22 @@ test("transient updates skip Task/Scope reads and preserve assembled fragments; 
     assert.equal(views.messages.get("1"), assembled);
     assert.equal(views.messages.get("1")?.text, "first second");
     assert.equal(reads.filter((r) => r.startsWith("messages/")).length, 1);
-    assert.equal(reads.filter((r) => r.startsWith("tasks?")).length, 1);
-    assert.equal(reads.filter((r) => r.startsWith("scopes?")).length, 1);
+    assert.equal(reads.filter((r) => r.startsWith("task-browser?")).length, 1);
+    assert.equal(reads.filter((r) => r.startsWith("scopes?")).length, 0);
     controller.enqueue(
       new TextEncoder().encode(
         'event: change\ndata: {"changes":[{"kind":"invalidate","query":"tasks/one","resource_type":"tasks"}]}\n\n',
       ),
     );
-    await until(() => reads.filter((r) => r.startsWith("tasks?")).length === 2);
-    assert.equal(reads.filter((r) => r.startsWith("scopes?")).length, 1);
-    const old = views.tasks;
-    assert.equal(await views.page("next"), false);
-    assert.equal(views.tasks, old);
-    assert.equal(views.taskCursor, undefined);
+    await until(
+      () => reads.filter((r) => r.startsWith("task-browser?")).length === 2,
+    );
+    assert.equal(reads.filter((r) => r.startsWith("scopes?")).length, 0);
+    const old = views.taskBrowser.root;
+    await views.taskBrowser.page("after");
+    assert.equal(views.taskBrowser.root, old);
+    assert.equal(views.taskBrowser.root?.after, "next");
+    assert.match(views.taskBrowser.error, /PAGE_UNAVAILABLE/);
   } finally {
     views.stop();
   }

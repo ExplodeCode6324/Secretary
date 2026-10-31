@@ -1,6 +1,6 @@
 # Issue #83 — Scope 总览、任务定位与 Agent 最近三轮
 
-日期：2026-10-31（Asia/Hong_Kong）。R2（已纳入最终非阻断提醒）。状态：CLAUDE_PLAN_PASS / AWAITING_MASTER_APPROVAL；尚未授权实施。
+日期：2026-10-31（Asia/Hong_Kong）。R2（已纳入最终非阻断提醒）。状态：MASTER_APPROVED / IMPLEMENTING；Master 已于 2026-10-31 批准实施。
 
 [English plan](fix_20261031_issue83_task_browser.en.md) · [复核记录](evidence/issue83-task-browser/plan-review.md) · [验收记录](evidence/issue83-task-browser/acceptance.md)
 
@@ -161,3 +161,6 @@ Master 批准后：
 ## 10. 最终计划复核
 
 Claude Opus 5.5 Extra R2 结论为 **PASS**，B1–B4 全部关闭，中英文实质一致。结论只表示可交 Master 批准计划，不授权实施或合并。Reviewer 阅读了源码及完整计划，没有运行代码/测试。非阻断 N1–N5 已纳入上文：残留授权、计划 deadline 的 valid_until/查询时判定、与留存可得性无关的失败成员资格、missed-AT Main 调用预算、周期队列成本控制；Reviewer 明确无需 R3。产品、真实模型与原生验收仍为 NOT_TESTED；下一步等待 Master 批准。
+
+
+2026-10-31: Master explicitly approved R2 implementation, real-model validation, the same Claude implementation review, PR and CI. No merge is authorized. / Master 已批准按 R2 实施、真实模型验证、同一 Claude 会话复核及 PR/CI，未授权合并。

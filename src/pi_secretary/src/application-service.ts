@@ -1,3 +1,8 @@
+import {
+  TaskBrowser,
+  applicableAuthorization,
+  applicableDecision,
+} from "./task-browser.ts";
 import { visionProfile } from "./vision.ts";
 import { withdrawAttachmentInput } from "./attachment-withdrawal.ts";
 import {
@@ -86,6 +91,7 @@ export class ApplicationService {
   readonly identity: CoreIdentity;
   readonly changes: SyncService;
   readonly notifications: Notifications;
+  readonly taskBrowser: TaskBrowser;
   private readonly operationDisplay: OperationDisplay;
   readonly principal: OwnerPrincipal;
   readonly cursors = new Cursors(randomUUID());
@@ -114,6 +120,7 @@ export class ApplicationService {
     } = {},
   ) {
     const store = app.store;
+    this.taskBrowser = new TaskBrowser(app, this.cursors);
     this.attachmentImports = new AttachmentImports(
       store,
       options.attachmentPhase,
@@ -667,6 +674,8 @@ export class ApplicationService {
     this.authorize(principal);
     if (path.startsWith("sync/")) return this.changes.query(path, q);
     this.sync();
+    if (path === "task-browser" || path.startsWith("task-browser/"))
+      return this.taskBrowser.query(path, q);
     const { store, host, settings, scheduler } = this.app,
       sid = host.sessionID;
     const allowed = new Set([
@@ -1100,18 +1109,11 @@ export class ApplicationService {
       const asOf = now();
       const approvals = store
         .all<AuthorizationRequest>("AuthorizationRequest")
-        .filter(
-          (a) =>
-            ["PENDING", "APPROVED"].includes(a.state) &&
-            (!a.expires_at || a.expires_at > asOf),
-        );
+        .filter((a) => applicableAuthorization(a, asOf));
       const decisions = store
         .all<DecisionRequest>("DecisionRequest")
-        .filter(
-          (d) =>
-            d.state === "OPEN" &&
-            (!d.deadline || d.deadline > asOf) &&
-            this.execution(d.execution_id).state === "WAIT_DECISION",
+        .filter((d) =>
+          applicableDecision(d, () => this.execution(d.execution_id), asOf),
         );
       const deadlines = [
         ...approvals.map((a) => a.expires_at),

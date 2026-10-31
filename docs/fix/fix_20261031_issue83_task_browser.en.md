@@ -1,6 +1,6 @@
 # Issue #83 — Scope overview, task lookup and three Agent executions
 
-Date: 2026-10-31 (Asia/Hong_Kong). Revision R2 (final non-blocking notes incorporated). Status: CLAUDE_PLAN_PASS / AWAITING_MASTER_APPROVAL; implementation is not authorized.
+Date: 2026-10-31 (Asia/Hong_Kong). Revision R2 (final non-blocking notes incorporated). Status: MASTER_APPROVED / IMPLEMENTING; Master approved implementation on 2026-10-31.
 
 [中文计划](fix_20261031_issue83_task_browser.md) · [Review](evidence/issue83-task-browser/plan-review.md) · [Acceptance](evidence/issue83-task-browser/acceptance.md)
 
@@ -161,3 +161,6 @@ Planned implementation is additive read APIs and client behavior, with no durabl
 ## 10. Final plan review
 
 Claude Opus 5.5 Extra R2 returned **PASS**, with B1–B4 closed and material EN/ZH consistency confirmed. The review explicitly says the plan is ready for Master's approval, not implementation/merge permission. Reviewer read source and the complete plan; it ran no code/tests. Its N1–N5 non-blocking notes are incorporated above: leftover authorizations, deadline-driven valid_until/query-time predicates, retention-independent failure membership, missed-AT Main-turn budgeting and queued-interval cost containment. Reviewer explicitly required no R3 for these notes. Product, real-model and native acceptance remain NOT_TESTED. Master approval is the next gate.
+
+
+2026-10-31: Master explicitly approved R2 implementation, real-model validation, the same Claude implementation review, PR and CI. No merge is authorized. / Master 已批准按 R2 实施、真实模型验证、同一 Claude 会话复核及 PR/CI，未授权合并。
