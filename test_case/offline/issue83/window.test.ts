@@ -273,3 +273,114 @@ test("late detail and body reads cannot resurrect replaced or archived targets",
       b.stop();
     }
   }));
+
+test("search highlight is independent of viewport refresh and duplicate continued headers", () =>
+  fixture(async (f) => {
+    for (let i = 0; i < 4; i++)
+      f.app.scheduler.propose("search row " + i, id(), f.app.host.sessionID, {
+        at: "2099-01-01T00:00:00.000Z",
+      });
+    const b = new TaskBrowserWindow(f.client, () => false);
+    try {
+      await b.refresh();
+      const tasks = b.root!.items.filter((r) => r.kind === "task"),
+        first = tasks[0].id,
+        hit = tasks[2].id;
+      b.viewport([anchor(first)]);
+      await b.refresh();
+      assert(b.entries().every((e) => !e.version?.includes("▶ 已定位")));
+      await b.search(hit);
+      await b.page("before");
+      const headers = b
+        .entries()
+        .filter(
+          (e) => e.id === "shared:null" || e.id === "continued:shared:null",
+        );
+      assert.equal(headers.length, 1);
+      b.viewport([anchor(first)]);
+      await b.refresh();
+      assert(
+        b
+          .entries()
+          .find((e) => e.id === hit)!
+          .version!.includes("▶ 已定位"),
+      );
+      assert(
+        !b
+          .entries()
+          .find((e) => e.id === first)!
+          .version!.includes("▶ 已定位"),
+      );
+      const restored = new TaskBrowserWindow(f.client, () => false);
+      try {
+        restored.inherit(b);
+        await restored.refresh();
+        assert(
+          restored
+            .entries()
+            .find((e) => e.id === hit)!
+            .version!.includes("▶ 已定位"),
+        );
+      } finally {
+        restored.stop();
+      }
+    } finally {
+      b.stop();
+    }
+  }));
+
+test("task rows label creation/start, end and actual result observation timestamps", () =>
+  fixture(async (f) => {
+    const waiting = f.app.scheduler.propose(
+      "awaiting resource",
+      id(),
+      f.app.host.sessionID,
+      {
+        preconditions: [
+          {
+            condition_id: id(),
+            kind: "RESOURCE_PRESENT",
+            target: "missing",
+            required_revision: null,
+          },
+        ],
+      },
+    );
+    const finished = f.app.scheduler.propose(
+      "finished",
+      id(),
+      f.app.host.sessionID,
+    );
+    f.app.scheduler.tick();
+    await f.app.scheduler.idle();
+    const b = new TaskBrowserWindow(f.client, () => false);
+    try {
+      await b.refresh();
+      const task = b.root!.items.find(
+        (r) => r.kind === "task" && r.id === waiting.id,
+      )!;
+      assert(task.kind === "task");
+      const active = task.task.active_executions[0];
+      assert(active.invoked_at);
+      const row = b.entries().find((e) => e.id === waiting.id)!.version!;
+      assert(row.includes(active.invoked_at));
+      assert(row.includes("创建（尚未开始）"));
+      await b.open(finished.id);
+      const latest = b.detail!.task.latest_execution!;
+      assert(latest.started_at);
+      assert(latest.ended_at);
+      const resultRow = b.entries().find((e) => e.id === finished.id)!.version!;
+      assert(resultRow.includes(latest.started_at));
+      assert(resultRow.includes("结束: " + latest.ended_at));
+      const e = f.app.store.get<Execution>("Execution", latest.id);
+      assert(e.result_id);
+      const result = f.app.store.get<any>("TaskResult", e.result_id);
+      assert(resultRow.includes("结果观测: " + result.observed_at));
+      assert.equal(
+        b.detail!.task.latest_result_observed_at,
+        result.observed_at,
+      );
+    } finally {
+      b.stop();
+    }
+  }));

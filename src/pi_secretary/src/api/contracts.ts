@@ -1511,6 +1511,7 @@ export interface TaskBrowserTask {
   latest_result: string | null;
   initialization_error: string | null;
   current: boolean;
+  latest_result_observed_at: string | null;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema

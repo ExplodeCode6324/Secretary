@@ -20,7 +20,7 @@ import type {
   TaskBrowserMessages,
 } from "./api/contracts.ts";
 import { ApiError, Cursors, fingerprint, limitOf } from "./api/protocol.ts";
-import { terminal } from "./execution-utils.ts";
+import { terminal, actionableFailure } from "./execution-utils.ts";
 import {
   visibleThinking,
   thinkingPreview,
@@ -45,8 +45,13 @@ const fragment = (value: string, offset = 0, length = 4096) => {
     const next = piece.index + piece.segment.length;
     if (next > length) {
       if (end) break;
-      if (next === sample.length && offset + next < value.length)
-        throw new ApiError("GRAPHEME_EXCEEDS_FRAGMENT_BOUND", 413);
+      if (next === sample.length && offset + next < value.length) {
+        // A pathological cluster must not make unrelated rows unreadable. Keep
+        // bounded, lossless UTF-16 fragments even when a grapheme exceeds the window.
+        end = length;
+        if (/[\uD800-\uDBFF]/.test(sample[end - 1])) end--;
+        break;
+      }
       end = next;
       break;
     }
@@ -69,16 +74,6 @@ export function effectiveSchedule(p: TaskPlan, asOf: string) {
       (validTime(p.deadline) &&
         Date.parse(p.deadline) >
           Math.max(Date.parse(asOf), Date.parse(p.next_due_at))))
-  );
-}
-export function actionableFailure(e: Execution, executions: Execution[]) {
-  return (
-    e.state === "FAILED" &&
-    !executions.some(
-      (n) =>
-        n.task_id === e.task_id &&
-        executions.indexOf(n) > executions.indexOf(e),
-    )
   );
 }
 export function applicableAuthorization(a: AuthorizationRequest, asOf: string) {
@@ -330,6 +325,7 @@ export class TaskBrowser {
       latest_result: result
         ? preview(`${result.outcome}: ${result.summary}`)
         : null,
+      latest_result_observed_at: result?.observed_at ?? null,
       initialization_error: preview(p.initialization_error),
       current: reasons.length > 0,
     };
@@ -432,6 +428,7 @@ export class TaskBrowser {
     q: URLSearchParams,
     scope: string,
     around?: string,
+    byteBudget = PAGE_BYTES,
   ) {
     const limit = q.has("limit") ? limitOf(q) : 50;
     let start = 0,
@@ -457,18 +454,21 @@ export class TaskBrowser {
     } else end = Math.min(end, limit);
     let items = rows.slice(start, end),
       bytes = 2;
+    const backwards =
+      q.get("direction") === "before" && (!!around || q.has("cursor"));
     const bounded: T[] = [];
-    for (const row of items) {
-      const size = Buffer.byteLength(JSON.stringify(row));
-      if (bytes + size > PAGE_BYTES) {
+    for (const row of backwards ? items.toReversed() : items) {
+      const size = Buffer.byteLength(JSON.stringify(row)) + 1;
+      if (bytes + size > byteBudget) {
         if (!bounded.length) throw new ApiError("BROWSER_ROW_TOO_LARGE", 413);
         break;
       }
       bounded.push(row);
       bytes += size;
     }
-    items = bounded;
-    end = start + items.length;
+    items = backwards ? bounded.reverse() : bounded;
+    if (backwards) start = end - items.length;
+    else end = start + items.length;
     return {
       items,
       before:
@@ -551,6 +551,8 @@ export class TaskBrowser {
         q,
         "task-browser:" + list.generation,
         historical ? undefined : (target ?? undefined),
+        PAGE_BYTES -
+          (historical ? Buffer.byteLength(JSON.stringify(historical)) : 0),
       );
       if (page.items[0]?.kind === "task") {
         const groupID = page.items[0].task.scope_id

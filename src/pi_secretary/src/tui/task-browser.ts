@@ -54,6 +54,7 @@ export class TaskBrowserWindow {
   notice = "";
   private epoch = 0;
   private rootTask?: string;
+  private searchTarget?: string;
   private entrySerial = 0;
   private pageDirection: Direction = "after";
   private entryCache = new Map<
@@ -92,6 +93,7 @@ export class TaskBrowserWindow {
     this.selected = old.selected;
     this.rootAnchor = old.rootAnchor;
     this.rootTask = old.rootTask;
+    this.searchTarget = old.searchTarget;
     this.detailAnchor = old.detailAnchor;
     // Restore by stable IDs after restart; no old cursors or body bytes cross instances.
   }
@@ -214,6 +216,7 @@ export class TaskBrowserWindow {
       if (this.stopped || epoch !== this.epoch) return;
       this.root = page;
       this.rootTask = page.target ?? undefined;
+      this.searchTarget = page.target ?? undefined;
       this.restoreAnchor = this.anchor(page.target!);
       this.rootAnchor = this.restoreAnchor;
       this.arm();
@@ -637,14 +640,23 @@ export class TaskBrowserWindow {
               this.taskEntry(root.historical),
             ]
           : []),
-        ...(root?.items ?? []).map((row) =>
-          row.kind === "group"
-            ? textEntry(
-                row.id,
-                `\n${row.group.name} · ${row.group.count} 个当前 Task${row.id.startsWith("continued:") ? "（续）" : ""}\n`,
-              )
-            : this.taskEntry(row.task),
-        ),
+        ...(root?.items ?? [])
+          .filter(
+            (row) =>
+              row.kind !== "group" ||
+              !row.id.startsWith("continued:") ||
+              !root?.items.some(
+                (other) => other.kind === "group" && other.id === row.group.id,
+              ),
+          )
+          .map((row) =>
+            row.kind === "group"
+              ? textEntry(
+                  row.id,
+                  `\n${row.group.name} · ${row.group.count} 个当前 Task${row.id.startsWith("continued:") ? "（续）" : ""}\n`,
+                )
+              : this.taskEntry(row.task),
+          ),
         textEntry("task-end", root?.after ? "↓ 继续当前集合" : "当前集合结束"),
       ];
     const detail = this.detail;
@@ -665,7 +677,7 @@ export class TaskBrowserWindow {
       entries.push(
         textEntry(
           "execution:" + e.id,
-          `\nExecution ${e.id}\n${e.state} · ${e.kind} · ${e.retention_state} · 调用 ${e.invoked_at ?? "未知"} (${e.ordering_source})\n`,
+          `\nExecution ${e.id}\n${e.state} · ${e.kind} · ${e.retention_state} · 调用 ${e.invoked_at ?? "未知"} (${e.ordering_source}) · 结束 ${e.ended_at ?? "尚未"}\n`,
         ),
       );
       const g = this.groups.get(e.id);
@@ -696,12 +708,18 @@ export class TaskBrowserWindow {
     return textEntry(
       t.id,
       [
-        `${!this.selected && this.root?.target === t.id ? "▶ 已定位 · " : ""}${t.goal}${t.goal_truncated ? " …（预览；完整内容见详情）" : ""}`,
+        `${!this.selected && this.searchTarget === t.id ? "▶ 已定位 · " : ""}${t.goal}${t.goal_truncated ? " …（预览；完整内容见详情）" : ""}`,
         `${t.id} · ${t.state} · ${t.executor} · ${t.trigger}`,
         `Scope: ${t.scope_name} · ${t.current ? "当前" : "历史"} · ${t.current_reasons.join(", ") || "无当前工作"}`,
-        `执行: ${t.active_executions.map((e) => e.state + " " + e.id).join(", ") || "无非终态执行"} · 排队请求 ${t.pending_request_count} / 触发 ${t.pending_occurrence_count}`,
+        `执行: ${t.active_executions.map((e) => `${e.state} ${e.id} · ${e.ordering_source === "started_at" ? "开始" : e.ordering_source === "created_at" ? "创建（尚未开始）" : "调用时间"} ${e.invoked_at ?? "未知"}`).join("\n") || "无非终态执行"} · 排队请求 ${t.pending_request_count} / 触发 ${t.pending_occurrence_count}`,
         `计划下次: ${t.next_due_at ?? "无"} · ${t.schedule_status} · 排队到期: ${t.pending_due_at ?? "无"}`,
         `最新执行: ${t.latest_execution?.state ?? "尚无"} · ${t.latest_execution?.id ?? ""}`,
+        ...(t.latest_execution
+          ? [
+              `调用排序: ${t.latest_execution.invoked_at ?? "未知"} (${t.latest_execution.ordering_source}) · 结束: ${t.latest_execution.ended_at ?? "尚未"}`,
+            ]
+          : []),
+        `结果观测: ${t.latest_result_observed_at ?? "尚无"}`,
         `结果: ${t.latest_result ?? "尚无"}${t.initialization_error ? "\n初始化错误: " + t.initialization_error : ""}`,
         "",
       ].join("\n"),

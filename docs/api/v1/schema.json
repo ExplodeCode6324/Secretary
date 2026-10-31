@@ -5073,6 +5073,12 @@
         },
         "current": {
           "type": "boolean"
+        },
+        "latest_result_observed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -5098,7 +5104,8 @@
         "unknown_operation_ids",
         "latest_result",
         "initialization_error",
-        "current"
+        "current",
+        "latest_result_observed_at"
       ],
       "additionalProperties": false
     },

@@ -5,6 +5,7 @@ import { id, base, revise } from "../../../src/pi_secretary/src/store.ts";
 import type {
   TaskPlan,
   Execution,
+  TaskResult,
 } from "../../../src/pi_secretary/src/contracts.ts";
 import type {
   TaskBrowserPage,
@@ -173,4 +174,169 @@ test("content is grapheme-safe, mode-bound, complete and rejects a foreign task 
       `task-browser/${p.id}/executions/${e.id}/messages`,
     );
     assert.equal(f.app.store.sequence, sequence);
+  }));
+
+test("oversized graphemes cannot poison list, history lookup or message bodies", () =>
+  fixture(async (f) => {
+    // SEEDED pathological external/model text; ordinary graphemes remain intact.
+    const huge = "👩‍".repeat(5000) + "👩e" + "\u0301".repeat(12000);
+    const historical = f.app.scheduler.propose(
+      huge,
+      id(),
+      f.app.host.sessionID,
+      { at: "2099-01-01T00:00:00.000Z" },
+    );
+    f.app.store.commit([
+      revise(historical, { state: "PAUSED", initialization_error: huge }),
+    ]);
+    const p = f.app.scheduler.propose(
+      "normal execution",
+      id(),
+      f.app.host.sessionID,
+    );
+    f.app.scheduler.tick();
+    await f.app.scheduler.idle();
+    const e = f.app.store
+      .all<Execution>("Execution")
+      .find((e) => e.task_id === p.id)!;
+    const events = [
+      {
+        role: "assistant",
+        content: [
+          { type: "text", text: huge },
+          { type: "thinking", thinking: huge },
+        ],
+      },
+      {
+        role: "toolResult",
+        toolName: "oversized-result",
+        toolCallId: "large",
+        content: [{ type: "text", text: huge }],
+      },
+    ].map((message) =>
+      f.app.store.event(
+        "agent.message",
+        message,
+        { session_id: null, task_id: p.id, execution_id: e.id },
+        "EXECUTOR",
+      ),
+    );
+    f.app.store.commit([], events);
+    if (e.result_id) {
+      const original = f.app.store.get<TaskResult>("TaskResult", e.result_id);
+      const executionID = id(),
+        observedAt = new Date().toISOString();
+      const result: TaskResult = {
+        ...original,
+        ...base(),
+        execution_id: executionID,
+        outcome: "FAILED",
+        summary: huge,
+        observed_at: observedAt,
+      };
+      // TaskResult is immutable: seed a new consistent result/execution pair.
+      f.app.store.commit([
+        result,
+        {
+          ...e,
+          ...base(executionID),
+          state: "FAILED",
+          started_at: observedAt,
+          ended_at: observedAt,
+          result_id: result.id,
+        },
+      ]);
+    }
+    const sequence = f.app.store.sequence;
+    await f.client.query<TaskBrowserPage>("task-browser");
+    const located = await f.client.query<TaskBrowserPage>(
+      `task-browser/locate?task_id=${historical.id}`,
+    );
+    assert.equal(located.historical?.id, historical.id);
+    assert(located.historical!.goal_truncated);
+    const suggested = await f.client.query<TaskBrowserPage>(
+      `task-browser/locate?match=prefix&task_id=${historical.id.slice(0, 8)}&suggest=true`,
+    );
+    assert(suggested.suggestions.includes(historical.id));
+    const messages = await f.client.query<TaskBrowserMessages>(
+      `task-browser/${p.id}/executions/${e.id}/messages`,
+    );
+    assert(
+      events.every((event) =>
+        messages.items.some((m) => m.id === event.event_id),
+      ),
+    );
+    for (const event of events) {
+      const path = `task-browser/${p.id}/executions/${e.id}/messages/${event.event_id}/content?thinking=true`;
+      let m = await f.client.query<Message>(path),
+        text = "",
+        thinking = "",
+        pages = 0;
+      for (;;) {
+        assert(m.text.length <= 8192);
+        assert(!/[\uD800-\uDBFF]$/.test(m.text));
+        text += m.text;
+        thinking += m.thinking ?? "";
+        assert(++pages < 30);
+        if (!m.next_cursor) break;
+        m = await f.client.query<Message>(
+          path + "&cursor=" + encodeURIComponent(m.next_cursor),
+        );
+      }
+      assert.equal(text, huge);
+      if (event === events[0]) assert.equal(thinking, huge);
+    }
+    assert.equal(f.app.store.sequence, sequence);
+  }));
+
+test("byte-bounded pages traverse both ways without holes and reserve historical locate payload", () =>
+  fixture(async (f) => {
+    const goal = "界".repeat(5000),
+      ids = new Set<string>();
+    for (let i = 0; i < 70; i++)
+      ids.add(
+        f.app.scheduler.propose(goal + String(i), id(), f.app.host.sessionID, {
+          at: "2099-01-01T00:00:00.000Z",
+        }).id,
+      );
+    const historical = f.app.scheduler.propose(
+      goal,
+      id(),
+      f.app.host.sessionID,
+      { at: "2099-01-01T00:00:00.000Z" },
+    );
+    f.app.store.commit([
+      revise(historical, { state: "PAUSED", initialization_error: goal }),
+    ]);
+    const located = await f.client.query<TaskBrowserPage>(
+      `task-browser/locate?task_id=${historical.id}`,
+    );
+    assert.equal(located.historical?.id, historical.id);
+    assert(Buffer.byteLength(JSON.stringify(located)) < 256 * 1024 - 2048);
+    let page = await f.client.query<TaskBrowserPage>("task-browser?limit=100"),
+      forward = new Set<string>(),
+      backward = new Set<string>();
+    const add = (to: Set<string>, p: TaskBrowserPage) => {
+      assert(Buffer.byteLength(JSON.stringify(p)) < 256 * 1024 - 2048);
+      for (const row of p.items) if (row.kind === "task") to.add(row.id);
+    };
+    for (let i = 0; ; i++) {
+      add(forward, page);
+      assert(i < 20);
+      if (!page.after) break;
+      page = await f.client.query<TaskBrowserPage>(
+        "task-browser?limit=100&cursor=" + encodeURIComponent(page.after),
+      );
+    }
+    for (let i = 0; ; i++) {
+      add(backward, page);
+      assert(i < 20);
+      if (!page.before) break;
+      page = await f.client.query<TaskBrowserPage>(
+        "task-browser?limit=100&direction=before&cursor=" +
+          encodeURIComponent(page.before),
+      );
+    }
+    assert.deepEqual(forward, ids);
+    assert.deepEqual(backward, ids);
   }));

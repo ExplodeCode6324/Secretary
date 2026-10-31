@@ -268,5 +268,6 @@
     "disposition": "Preserved; fresh R2 domain registers normal and maximum output budgets as 8192 before durable capture; no production guard bypass."
   },
   "busy_completion_boundary": "L3 passed RUNNING + queued occurrence + TASK_BUSY capture. The Agent later submitted FAILED because its real file write finished after the finite deadline. This is not evidence of a successful periodic series. Scheduler ticks stopped after capture; no queued execution dispatched.",
-  "raw_report_sha256": "10aee8247a1109559e9e3d14be6dafc12bcbc79a99edac2c9c47754b4caec864"
+  "raw_report_sha256": "10aee8247a1109559e9e3d14be6dafc12bcbc79a99edac2c9c47754b4caec864",
+  "busy_probe_evidence_class": "Real Agent RUNNING and queued occurrence; TASK_BUSY asserted through a direct in-process scheduler.propose Core call, not a Main model tool call or HTTP request."
 }

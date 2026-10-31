@@ -10,6 +10,19 @@ Master approved R2 on 2026-10-31. The implementation adds the five planned read 
 - The Task root and details share the existing Task draft. `/search_task`, `/taskdetail`, `/back`, `/M` and `/T` use stable IDs and source anchors. ID completion replaces only the token and rejects stale results. The single Main CoT mode applies to Task. Both pages share two concurrent reads; Task caps 200 message metadata / 4 MiB body and CoT separately from Main.
 - Newest-three changes and archive responses remove stale bytes; navigation epochs prevent late reads resurrecting them. Bounded reverse paging retains the newly requested side. Rendering reuses #91 Markdown/source windows and caches components without copying full body text into version keys.
 
+## R3 implementation review disposition
+
+Claude reviewed exact head `421b559fd5ed3b5af3bf00efa5aae4d0ef4c7712` in the original Opus 5.5 Extra conversation and returned CHANGES_REQUIRED. It fetched/read the exact source and PR status but did not execute repository code. That head subsequently passed all three CI jobs and local PostgreSQL verify (850/850, zero skips); these do not erase the review findings.
+
+- B1: an oversized Unicode grapheme no longer throws from a preview or content fragment. Ordinary graphemes stay intact; an exceptional cluster larger than the bounded lookahead uses lossless, surrogate-safe fragments. Regression checks restore oversized emoji-ZWJ and combining sequences in full, including reasoning and tool results, while list/lookup remain readable.
+- B2: explicit search identity is separate from viewport restoration identity. No background refresh invents a search marker; scroll/refresh and reconnect retain the actual hit. Duplicate continued headers are hidden when their ordinary header remains in the loaded window (optional N3).
+- B3: the shared failure predicate moved to execution-utils and restored linear per-call traversal. A deterministic 10,000-execution access-count regression rejects quadratic rescanning.
+- B4: rows now label active creation/start, latest invocation provenance, execution end and the actual TaskResult observed_at. The new read DTO field is generated from the authoritative schema.
+- Optional N4: locate reserves serialized historical-row bytes before bounding the current page. Reverse pages retain the nearest rows when the byte limit cuts a window; a 70-task large-preview test traverses every ID in both directions and checks locate payload size.
+- Optional N6: L3's RUNNING and queue observations used a real Agent; the TASK_BUSY probe was a direct in-process Core scheduler.propose call, not a Main tool or HTTP request. The sanitized summary states this explicitly.
+
+Optional N1/N2/N5/N7 (hidden-page refresh reduction, historical-row projection cost, effective latest-round goal presentation, and index memory reduction) remain improvement opportunities; they are not claimed as implemented. The revised #82/#83/#91 regression suite passed 128/128 with zero skips. The first added Unicode test initially attempted to revise an immutable TaskResult; its failure is preserved, and the fixture now seeds a fresh consistent result/execution pair without changing the production immutability constraint. Final-head CI and the follow-up Claude verdict are recorded in the PR comment.
+
 ## Validation and first failures
 
 The focused #82/#83/#91 suite passed 120 tests before the final cache/navigation cases were added. The final added projection and window cases passed separately. Full PostgreSQL `npm run verify` and exact-head Linux/macOS CI are recorded in the PR final-head comment, so recording a verdict does not create another unreviewed commit.

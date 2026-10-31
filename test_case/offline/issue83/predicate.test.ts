@@ -6,8 +6,8 @@ import {
   effectiveSchedule,
   applicableAuthorization,
   applicableDecision,
-  actionableFailure,
 } from "../../../src/pi_secretary/src/task-browser.ts";
+import { actionableFailure } from "../../../src/pi_secretary/src/execution-utils.ts";
 import type {
   TaskPlan,
   Execution,
@@ -163,3 +163,28 @@ test("SEEDED projection: paused/CLOSED retain own work; cross-task followup alon
     );
     for (const [id, current] of ids) assert.equal(shown.has(id), current, id);
   }));
+
+test("latest failure lookup stays linear for a long-lived same-task history", () => {
+  const n = 10000,
+    rows = Array.from(
+      { length: n },
+      (_, i) =>
+        ({
+          id: String(i),
+          task_id: "periodic",
+          state: i === n - 1 ? "FAILED" : "SUCCEEDED",
+        }) as Execution,
+    );
+  let reads = 0;
+  const observed = new Proxy(rows, {
+    get(target, key, receiver) {
+      if (typeof key === "string" && /^\d+$/.test(key)) {
+        reads++;
+        assert(reads <= n * 4, "quadratic execution rescanning");
+      }
+      return Reflect.get(target, key, receiver);
+    },
+  });
+  assert(actionableFailure(rows[n - 1], observed));
+  assert(reads <= n * 4);
+});
