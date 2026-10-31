@@ -196,23 +196,31 @@ test("recent-three conversation window pages, rehydrates, shares CoT and removes
   }));
 test("terminal detail/back/M/T preserves root anchor and one Task rich draft at 80 and 120 columns", () =>
   fixture(async (f) => {
-    const p = f.app.scheduler.propose(
-      "Task browser terminal integration ".repeat(60),
-      id(),
-      f.app.host.sessionID,
-      { at: "2099-01-01T00:00:00.000Z" },
-    );
+    const plans = [
+      f.app.scheduler.propose(
+        "Task browser terminal integration ".repeat(60),
+        id(),
+        f.app.host.sessionID,
+        { at: "2099-01-01T00:00:00.000Z" },
+      ),
+    ];
     // Root goal previews are now bounded. Keep a genuinely scrollable list so
     // this test still exercises viewport-anchor restoration rather than clamping.
     for (let i = 0; i < 12; i++)
-      f.app.scheduler.propose(
-        `Following scheduled task ${i}`,
-        id(),
-        f.app.host.sessionID,
-        {
-          at: "2099-01-02T00:00:00.000Z",
-        },
+      plans.push(
+        f.app.scheduler.propose(
+          `Following scheduled task ${i}`,
+          id(),
+          f.app.host.sessionID,
+          {
+            at: "2099-01-02T00:00:00.000Z",
+          },
+        ),
       );
+    // Unexecuted tasks sort by ID, not due time. Locate starts its page at the
+    // target, so choose an interior ID with enough following cards to avoid the
+    // valid bottom clamp making the target visible below the viewport's top.
+    const p = plans.sort((a, b) => a.id.localeCompare(b.id))[1]!;
     await fs.writeFile(
       path.join(f.dir, "core-endpoint.json"),
       JSON.stringify(f.server.endpoint),
