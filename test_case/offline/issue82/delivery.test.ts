@@ -606,14 +606,37 @@ test("Task arrow boundaries page through the actual app and retain the editor dr
   const routes: string[] = [];
   client.query = async <T>(route: string) => {
     routes.push(route);
+    const second = route.includes("cursor=cursor-p2");
     return {
-      items: [],
+      items: [
+        {
+          id: second ? "group2" : "group1",
+          kind: "group",
+          group: {
+            id: second ? "group2" : "group1",
+            name: second ? "SECOND" : "FIRST",
+            count: 0,
+            scope_id: null,
+            created_at: null,
+            created_sequence: null,
+            active_at: null,
+          },
+        },
+      ],
+      counts: { scopes: 0, archived_scopes: 0, shared_tasks: 0 },
+      before: second ? "cursor-p1" : null,
+      after: second ? null : "cursor-p2",
       version: "1",
-      next_cursor: route.includes("cursor=") ? null : "cursor-p2",
+      generation: "1",
+      as_of: new Date().toISOString(),
+      valid_until: null,
+      historical: null,
+      target: null,
+      suggestions: [],
     } as T;
   };
   const remote = new RemoteViews(client);
-  await remote.refresh(["tasks"]);
+  await remote.refresh(["task-browser"]);
   const d = new Delivery(freshState("domain", "fixture"), new MemoryFiles());
   const terminal = new VirtualTerminal(100, 25),
     app = new TerminalApp("unused", terminal);
@@ -632,14 +655,11 @@ test("Task arrow boundaries page through the actual app and retain the editor dr
     assert(app.viewing);
     terminal.sendInput("\x1b[B");
     await until(() =>
-      app.documents.Task.render(100).join("").includes("第 2 页"),
+      app.documents.Task.render(100).join("").includes("SECOND"),
     );
-    assert.equal(remote.taskCursor, "cursor-p2");
-    terminal.sendInput("\x1b[A");
-    await until(() =>
-      app.documents.Task.render(100).join("").includes("第 1 页"),
-    );
-    assert.equal(remote.taskCursor, undefined);
+    assert.equal(remote.taskBrowser.root?.after, null);
+    // Appending preserves the existing row window and editor, rather than page numbers.
+    assert(app.documents.Task.render(100).join("").includes("FIRST"));
     assert.equal(app.editors.Task.getExpandedText(), "task draft");
     assert(routes.some((r) => r.includes("cursor=cursor-p2")));
   } finally {

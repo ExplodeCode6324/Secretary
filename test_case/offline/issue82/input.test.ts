@@ -47,7 +47,7 @@ test("custom completion never offers paths, leading-space commands or wrong scop
   const list = await p.getSuggestions(["/"], 0, 1, opts);
   assert.deepEqual(
     list?.items.map((x) => x.value),
-    ["/M", "/T", "/back", "/help"],
+    ["/M", "/T", "/back", "/help", "/search_task", "/taskdetail"],
   );
 });
 test("actual Pi Editor: completion Enter cannot submit, errors preserve cursor and undo, raw whitespace preserved", async () => {

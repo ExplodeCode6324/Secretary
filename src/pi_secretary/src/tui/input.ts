@@ -17,25 +17,33 @@ import {
 } from "./draft.ts";
 
 export type Page = "Main" | "Task";
-export const commands = [
-  "M",
-  "T",
-  "back",
-  "help",
-  "send",
-  "rawmessage",
-  "cotvisible",
-  "cotv",
+export const commandRegistry = [
+  { name: "M", pages: ["Main", "Task"] },
+  { name: "T", pages: ["Main", "Task"] },
+  { name: "back", pages: ["Main", "Task"] },
+  { name: "help", pages: ["Main", "Task"] },
+  { name: "send", pages: ["Main"] },
+  { name: "rawmessage", pages: ["Main"] },
+  { name: "cotvisible", pages: ["Main"] },
+  { name: "cotv", pages: ["Main"] },
+  { name: "search_task", pages: ["Task"] },
+  { name: "taskdetail", pages: ["Task"] },
 ] as const;
+export const commands = commandRegistry.map((c) => c.name);
 export type Action =
   | { kind: "navigate"; page: Page }
-  | { kind: "help" | "noop" | "draft" | "cot" }
+  | { kind: "help" | "back" | "noop" | "draft" | "cot" }
+  | { kind: "search_task" | "taskdetail"; id: string }
   | { kind: "send"; text: string }
   | { kind: "error"; message: string };
-export function parseInput(raw: string, page: Page): Action {
+export function parseInput(
+  raw: string,
+  page: Page,
+  taskDetail = false,
+): Action {
   if (!raw.startsWith("/"))
     return page === "Task" ? { kind: "draft" } : payload(raw);
-  const match = /^\/([A-Za-z]+)([\s\S]*)$/.exec(raw);
+  const match = /^\/([A-Za-z_]+)([\s\S]*)$/.exec(raw);
   if (!match)
     return {
       kind: "error",
@@ -45,6 +53,23 @@ export function parseInput(raw: string, page: Page): Action {
     command = name.toLowerCase();
   if (!commands.some((name) => name.toLowerCase() === command))
     return { kind: "error", message: "未知或尚未实现的命令；/help 查看范围" };
+  if (command === "search_task" || command === "taskdetail") {
+    if (page !== "Task" || (command === "search_task" && taskDetail))
+      return {
+        kind: "error",
+        message:
+          command === "search_task"
+            ? "/search_task 仅在 Task 列表根视图可用"
+            : "/taskdetail 仅在 Task 可用",
+      };
+    const token = /^ ([0-9A-Za-z-]+)[ \t]*$/.exec(rest);
+    return token && token[0] === rest
+      ? { kind: command, id: token[1] }
+      : {
+          kind: "error",
+          message: "需要一个 ID；命令后一个 ASCII 空格，不接受额外参数或换行",
+        };
+  }
   if (command === "send" || command === "rawmessage") {
     if (page !== "Main")
       return { kind: "error", message: "此命令仅在 Main 可用；Task 草稿保留" };
@@ -52,7 +77,7 @@ export function parseInput(raw: string, page: Page): Action {
       ? payload(rest.slice(1))
       : { kind: "error", message: "需要正文：/" + command + " <正文>" };
   }
-  if (!/^[ \t]*$/.test(rest))
+  if (/[^ \t]/.test(rest))
     return { kind: "error", message: "此命令不接受参数或额外行" };
   if (command === "cotvisible" || command === "cotv")
     return page === "Main"
@@ -60,14 +85,18 @@ export function parseInput(raw: string, page: Page): Action {
       : { kind: "error", message: "CoT 显示命令仅在 Main 可用；Task 草稿保留" };
   if (command === "m" || command === "t")
     return { kind: "navigate", page: command === "m" ? "Main" : "Task" };
-  return { kind: command === "help" ? "help" : "noop" };
+  return { kind: command === "help" ? "help" : "back" };
 }
 function payload(text: string): Action {
   return text.trim()
     ? { kind: "send", text }
     : { kind: "error", message: "正文不能为空" };
 }
-export function parseDraft(snapshot: DraftSnapshot, page: Page): Action {
+export function parseDraft(
+  snapshot: DraftSnapshot,
+  page: Page,
+  taskDetail = false,
+): Action {
   try {
     if (snapshot.text.startsWith("/")) {
       const source = originAt(snapshot, 0);
@@ -82,7 +111,7 @@ export function parseDraft(snapshot: DraftSnapshot, page: Page): Action {
           ? { kind: "draft" }
           : payload(expandSnapshot(snapshot));
     }
-    const action = parseInput(snapshot.text, page);
+    const action = parseInput(snapshot.text, page, taskDetail);
     if (action.kind !== "send") return action;
     return payload(
       expandSnapshot(snapshot, snapshot.text.length - action.text.length),
@@ -95,41 +124,95 @@ export function parseDraft(snapshot: DraftSnapshot, page: Page): Action {
   }
 }
 function isCompleteLocalCommand(raw: string) {
-  return /^\/(?:m|t|back|help|cotvisible|cotv)[ \t]*$/i.test(raw);
+  return (
+    !/[\r\n]/.test(raw) &&
+    (/^\/(?:m|t|back|help|cotvisible|cotv)[ \t]*$/i.test(raw) ||
+      /^\/(?:search_task|taskdetail) [0-9A-Za-z-]+[ \t]*$/i.test(raw))
+  );
 }
 export function commandCompletion(
   page: () => Page,
   typedSlash = () => true,
-  applied?: (before: number, after: number) => void,
+  applied?: (before: number, after: number, start?: number) => void,
+  suggestIDs: (prefix: string) => Promise<string[]> = async () => [],
+  current: (text: string) => boolean = () => true,
+  taskDetail: () => boolean = () => false,
 ): AutocompleteProvider {
+  let generation = 0;
+  let argumentContext: string | undefined;
   return {
     triggerCharacters: ["/"],
     async getSuggestions(lines, line, col) {
+      const gen = ++generation,
+        text = lines.join("\n"),
+        head = lines[0].slice(0, col);
+      argumentContext = undefined;
+      if (!typedSlash() || line !== 0 || lines.length !== 1) return null;
+      const argument = /^\/(search_task|taskdetail) ([0-9A-Za-z-]*)$/i.exec(
+        head,
+      );
       if (
-        !typedSlash() ||
-        line !== 0 ||
-        isCompleteLocalCommand(lines.join("\n")) ||
-        !/^\/[a-z]*$/i.test(lines[0].slice(0, col)) ||
-        /\s/.test(lines[0])
+        argument &&
+        page() === "Task" &&
+        !(argument[1].toLowerCase() === "search_task" && taskDetail())
+      ) {
+        if (!/^\/(search_task|taskdetail) [0-9A-Za-z-]*[ \t]*$/i.test(text))
+          return null;
+        const ids = await suggestIDs(argument[2]);
+        if (gen !== generation || !current(text) || !typedSlash()) return null;
+        argumentContext = text;
+        return ids.length
+          ? {
+              prefix: argument[2],
+              items: ids.map((id) => ({ value: id, label: id })),
+            }
+          : null;
+      }
+      if (
+        isCompleteLocalCommand(text) ||
+        !/^\/[a-z_]*$/i.test(head) ||
+        /\s/.test(text)
       )
         return null;
-      const prefix = lines[0].slice(0, col);
-      const names = commands.filter(
-        (n) =>
-          (page() === "Main" ||
-            !["send", "rawmessage", "cotvisible", "cotv"].includes(n)) &&
-          ("/" + n).toLowerCase().startsWith(prefix.toLowerCase()),
+      const names = commandRegistry.filter(
+        (c) =>
+          (c.pages as readonly string[]).includes(page()) &&
+          !(c.name === "search_task" && taskDetail()) &&
+          ("/" + c.name).toLowerCase().startsWith(head.toLowerCase()),
       );
       return names.length
         ? {
-            prefix,
-            items: names.map((n) => ({ value: "/" + n, label: "/" + n })),
+            prefix: head,
+            items: names.map((c) => ({
+              value: "/" + c.name,
+              label: "/" + c.name,
+            })),
           }
         : null;
     },
     applyCompletion(lines, line, col, item: AutocompleteItem) {
+      if (!typedSlash()) return { lines, cursorLine: line, cursorCol: col };
+      if (!item.value.startsWith("/")) {
+        const match =
+          /^(\/(?:search_task|taskdetail) )([0-9A-Za-z-]*)([ \t]*)$/i.exec(
+            lines[0],
+          );
+        if (
+          !match ||
+          lines.join("\n") !== argumentContext ||
+          !current(argumentContext) ||
+          !/^[0-9A-Za-z-]+$/.test(item.value)
+        )
+          return { lines, cursorLine: line, cursorCol: col };
+        applied?.(match[2].length, item.value.length, match[1].length);
+        return {
+          lines: [match[1] + item.value + match[3]],
+          cursorLine: 0,
+          cursorCol: match[1].length + item.value.length,
+        };
+      }
       const value = item.value + " ";
-      applied?.(lines[0].length, value.length);
+      applied?.(lines[0].length, value.length, 0);
       return {
         lines: [value, ...lines.slice(1)],
         cursorLine: 0,
@@ -165,7 +248,12 @@ export class DraftEditor extends Editor {
   onExplicitSubmit?: (raw: string, snapshot?: DraftSnapshot) => void;
   onEdited?: (raw: string, snapshot: DraftSnapshot, changed: boolean) => void;
   onOperation?: () => void;
-  constructor(tui: TUI, page: () => Page) {
+  constructor(
+    tui: TUI,
+    page: () => Page,
+    suggestIDs?: (prefix: string) => Promise<string[]>,
+    taskDetail?: () => boolean,
+  ) {
     super(tui, editorTheme, { autocompleteMaxVisible: 6 });
     this.bridge = new EditorBridge(this);
     this.disableSubmit = true;
@@ -173,7 +261,10 @@ export class DraftEditor extends Editor {
       commandCompletion(
         page,
         () => originAt(this.bridge.document, 0) === "typed",
-        (a, b) => this.bridge.claimCompletion(a, b),
+        (a, b, start) => this.bridge.claimCompletion(a, b, start),
+        suggestIDs,
+        (text) => this.getText() === text,
+        taskDetail,
       ),
     );
   }

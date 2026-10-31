@@ -1,8 +1,7 @@
+import { TaskBrowserWindow } from "./task-browser.ts";
 import type { CoreClient } from "../core-client.ts";
 import type {
   Message,
-  TaskPage,
-  ScopePage,
   TimelineItem,
   SyncTransaction,
   SSETransient,
@@ -16,15 +15,13 @@ import {
   type Region,
 } from "./body.ts";
 
-type Query = "timeline" | "tasks" | "scopes";
+type Query = "timeline" | "task-browser";
 export class RemoteViews {
   readonly history: HistoryWindow;
+  readonly taskBrowser: TaskBrowserWindow;
   readonly bodies = new Map<string, MessageBody>();
-  tasks: TaskPage = { items: [], next_cursor: null, version: "0" };
-  scopes = new Map<string, string>();
-  private otherError = "";
   get error() {
-    return this.history.error || this.otherError;
+    return this.history.error;
   }
   get messages() {
     const visible = new Map<string, TimelineItem>();
@@ -39,11 +36,9 @@ export class RemoteViews {
     return this.history.ready;
   }
   generation = 0;
-  taskCursor?: string;
   private stopped = false;
   private abort?: AbortController;
   private requested = new Set<Query>();
-  private taskReadOK = false;
   private refreshing?: Promise<void>;
   private timer?: ReturnType<typeof setTimeout>;
   private previewIds = new Set<string>();
@@ -79,6 +74,11 @@ export class RemoteViews {
       endpoint: client.endpoint,
       query: this.query.bind(this),
     });
+    this.taskBrowser = new TaskBrowserWindow(
+      { query: this.query.bind(this) },
+      () => this.history.thinking,
+    );
+    this.taskBrowser.onChange = () => this.onChange();
     this.history.onChange = () => {
       const epoch = `${this.client.endpoint.instance_id}:${this.history.generation}`;
       if (this.bodiesEpoch && this.bodiesEpoch !== epoch) this.bodies.clear();
@@ -103,13 +103,14 @@ export class RemoteViews {
   }
   inherit(previous: RemoteViews) {
     this.history.inherit(previous.history);
+    this.taskBrowser.inherit(previous.taskBrowser);
     // Old bodies are display-only until the new generation has been located.
     for (const [id, value] of previous.bodies) this.bodies.set(id, value);
     this.bodiesEpoch = previous.bodiesEpoch;
   }
   clearError() {
     this.history.clearError();
-    this.otherError = "";
+    this.taskBrowser.clearError();
     this.failedBodies.clear();
   }
   async start() {
@@ -117,7 +118,7 @@ export class RemoteViews {
     await this.refresh();
     if (!this.stopped) void this.listen(cursor.cursor);
   }
-  refresh(queries: Query[] = ["timeline", "tasks", "scopes"]) {
+  refresh(queries: Query[] = ["timeline", "task-browser"]) {
     for (const q of queries) this.requested.add(q);
     if (this.refreshing) return this.refreshing;
     this.refreshing = (async () => {
@@ -145,30 +146,13 @@ export class RemoteViews {
     this.previewIds.clear();
     const results = await Promise.allSettled([
       queries.has("timeline") ? this.history.refresh(previews) : undefined,
-      queries.has("tasks")
-        ? this.query<TaskPage>(
-            "tasks?limit=50" +
-              (this.taskCursor
-                ? "&cursor=" + encodeURIComponent(this.taskCursor)
-                : ""),
-          )
-        : undefined,
-      queries.has("scopes")
-        ? this.query<ScopePage>("scopes?limit=100")
-        : undefined,
+      queries.has("task-browser") ? this.taskBrowser.refresh() : undefined,
     ]);
     if (this.stopped || gen !== this.generation) return;
-    if (queries.has("tasks")) {
-      this.taskReadOK = results[1].status === "fulfilled";
-      if (results[1].status === "fulfilled" && results[1].value)
-        this.tasks = results[1].value;
-      else if (results[1].status === "rejected")
-        this.otherError = "Task 读取失败：" + String(results[1].reason);
-    }
-    if (results[2].status === "fulfilled" && results[2].value)
-      this.scopes = new Map(
-        results[2].value.items.map((scope) => [scope.id, scope.name]),
-      );
+    if (results[0].status === "rejected")
+      this.history.error = String(results[0].reason);
+    if (results[1].status === "rejected")
+      this.taskBrowser.error = String(results[1].reason);
     this.prune();
     this.onChange();
   }
@@ -372,18 +356,10 @@ export class RemoteViews {
   async toggleThinking() {
     await this.bodyJob;
     await this.history.setThinking(!this.history.thinking);
+    await this.taskBrowser.setThinking();
     this.prune();
     this.onChange();
     this.focus([...this.wanted]);
-  }
-  async page(cursor?: string) {
-    const previous = this.taskCursor;
-    await this.refreshing;
-    if (this.stopped) return false;
-    this.taskCursor = cursor;
-    await this.refresh(["tasks"]);
-    if (!this.taskReadOK) this.taskCursor = previous;
-    return this.taskReadOK;
   }
   private async listen(cursor: string) {
     this.abort = new AbortController();
@@ -434,8 +410,16 @@ export class RemoteViews {
                   const root = query?.split("/")[0];
                   if (root === "timeline" || root === "activities")
                     affected.add("timeline");
-                  if (root === "tasks") affected.add("tasks");
-                  if (root === "scopes") affected.add("scopes");
+                  if (
+                    [
+                      "tasks",
+                      "scopes",
+                      "task-browser",
+                      "attention",
+                      "executions",
+                    ].includes(root ?? "")
+                  )
+                    affected.add("task-browser");
                 }
                 this.schedule([...affected]);
               }
@@ -454,6 +438,7 @@ export class RemoteViews {
     this.stopped = true;
     this.generation++;
     this.history.stop();
+    this.taskBrowser.stop();
     this.wanted.clear();
     clearTimeout(this.timer);
     this.abort?.abort();

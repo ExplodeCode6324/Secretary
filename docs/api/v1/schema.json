@@ -1608,6 +1608,9 @@
         },
         "withdrawn": {
           "type": "boolean"
+        },
+        "tool_name": {
+          "type": "string"
         }
       },
       "required": [
@@ -4895,6 +4898,617 @@
         "allowed",
         "reason"
       ]
+    },
+    "TaskBrowserExecution": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "retention_state": {
+          "type": "string"
+        },
+        "created_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_sequence": {
+          "type": "string"
+        },
+        "started_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ended_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "invoked_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ordering_source": {
+          "type": "string"
+        },
+        "history_availability": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "kind",
+        "retention_state",
+        "created_at",
+        "created_sequence",
+        "started_at",
+        "ended_at",
+        "invoked_at",
+        "ordering_source",
+        "history_availability"
+      ],
+      "additionalProperties": false
+    },
+    "TaskBrowserTask": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "scope_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scope_name": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "goal": {
+          "type": "string"
+        },
+        "goal_truncated": {
+          "type": "boolean"
+        },
+        "state": {
+          "type": "string"
+        },
+        "executor": {
+          "type": "string"
+        },
+        "trigger": {
+          "type": "string"
+        },
+        "next_due_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "deadline": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schedule_status": {
+          "type": "string"
+        },
+        "current_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "active_executions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskBrowserExecution"
+          }
+        },
+        "latest_execution": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskBrowserExecution"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pending_request_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending_occurrence_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pending_due_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attention_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "unknown_operation_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "latest_result": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "initialization_error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current": {
+          "type": "boolean"
+        },
+        "latest_result_observed_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "scope_id",
+        "scope_name",
+        "revision",
+        "goal",
+        "goal_truncated",
+        "state",
+        "executor",
+        "trigger",
+        "next_due_at",
+        "deadline",
+        "schedule_status",
+        "current_reasons",
+        "active_executions",
+        "latest_execution",
+        "pending_request_count",
+        "pending_occurrence_count",
+        "pending_due_at",
+        "attention_ids",
+        "unknown_operation_ids",
+        "latest_result",
+        "initialization_error",
+        "current",
+        "latest_result_observed_at"
+      ],
+      "additionalProperties": false
+    },
+    "TaskBrowserGroup": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "scope_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "created_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "created_sequence": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "active_at": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "scope_id",
+        "name",
+        "count",
+        "created_at",
+        "created_sequence",
+        "active_at"
+      ],
+      "additionalProperties": false
+    },
+    "TaskBrowserRow": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "group"
+            },
+            "group": {
+              "$ref": "#/$defs/TaskBrowserGroup"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "group"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "task"
+            },
+            "task": {
+              "$ref": "#/$defs/TaskBrowserTask"
+            }
+          },
+          "required": [
+            "id",
+            "kind",
+            "task"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "TaskBrowserCounts": {
+      "type": "object",
+      "properties": {
+        "scopes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "archived_scopes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "shared_tasks": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "scopes",
+        "archived_scopes",
+        "shared_tasks"
+      ],
+      "additionalProperties": false
+    },
+    "TaskBrowserPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskBrowserRow"
+          }
+        },
+        "counts": {
+          "$ref": "#/$defs/TaskBrowserCounts"
+        },
+        "generation": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "before": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "as_of": {
+          "type": "string"
+        },
+        "valid_until": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "historical": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskBrowserTask"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "suggestions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "items",
+        "counts",
+        "generation",
+        "version",
+        "before",
+        "after",
+        "as_of",
+        "valid_until",
+        "target",
+        "historical",
+        "suggestions"
+      ],
+      "additionalProperties": false
+    },
+    "TaskBrowserDetail": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "message"
+        },
+        "revision": {
+          "$ref": "#/$defs/Revision"
+        },
+        "role": {
+          "type": "string"
+        },
+        "at": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "thinking": {
+          "type": "string"
+        },
+        "call_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "incomplete": {
+          "type": "boolean"
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "persistence": {
+          "type": "string",
+          "enum": [
+            "transient",
+            "durable"
+          ]
+        },
+        "preview_status": {
+          "type": "string",
+          "enum": [
+            "running",
+            "saved",
+            "incomplete"
+          ]
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "source_event_id": {
+          "type": "string"
+        },
+        "request_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "execution_id": {
+          "type": "string"
+        },
+        "result_id": {
+          "type": "string"
+        },
+        "decision_request_id": {
+          "type": "string"
+        },
+        "notification_id": {
+          "type": "string"
+        },
+        "source_kind": {
+          "type": "string",
+          "enum": [
+            "master_input",
+            "assistant_response",
+            "task_feedback",
+            "notification",
+            "system_input"
+          ]
+        },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "completed",
+            "continued",
+            "truncated",
+            "failed",
+            "interrupted",
+            "unknown"
+          ]
+        },
+        "preview_availability": {
+          "type": "string",
+          "enum": [
+            "active",
+            "expired"
+          ]
+        },
+        "thinking_preview": {
+          "$ref": "#/$defs/ThinkingPreview"
+        },
+        "input_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "input_revision": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "input_state": {
+          "enum": [
+            "ACCEPTED",
+            "CLAIMED",
+            "HANDLED",
+            "WITHDRAWN"
+          ]
+        },
+        "attachments": {
+          "type": "array",
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/AttachmentMetadata"
+          }
+        },
+        "withdrawn": {
+          "type": "boolean"
+        },
+        "task": {
+          "$ref": "#/$defs/TaskBrowserTask"
+        },
+        "executions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskBrowserExecution"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "revision",
+        "role",
+        "text",
+        "call_id",
+        "incomplete",
+        "next_cursor",
+        "task",
+        "executions"
+      ],
+      "additionalProperties": true
+    },
+    "TaskBrowserMessages": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Message"
+          }
+        },
+        "generation": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "before": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "availability": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "items",
+        "generation",
+        "version",
+        "before",
+        "after",
+        "availability"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [

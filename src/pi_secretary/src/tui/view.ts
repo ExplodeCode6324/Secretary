@@ -264,6 +264,8 @@ export function messageComponent(
   expanded = false,
   body?: MessageBody,
   evicted = false,
+  assistantLabel = "Secretary",
+  bodyNotice?: string,
 ): MappedComponent {
   const role = m.role,
     paint =
@@ -274,12 +276,14 @@ export function messageComponent(
           : white;
   const title =
     role === "master" || role === "user"
-      ? "── Master ──"
+      ? assistantLabel === "Agent"
+        ? "── 任务输入 ──"
+        : "── Master ──"
       : role === "assistant"
-        ? "Secretary"
+        ? assistantLabel
         : role === "system"
           ? "系统"
-          : `工具 ${role}`;
+          : `工具 ${m.tool_name ?? role}${m.call_id ? " · " + m.call_id : ""}`;
   const md = new SourceMarkdown(
     m.text,
     paint,
@@ -360,7 +364,8 @@ export function messageComponent(
         (m.truncated || m.preview_availability === "expired")
       )
         text(gray("当前没有可显示的思考正文（预览已截断或过期）"), "thinking");
-      if (evicted) text(gray("正文未驻留；移至此消息后按 ↑/↓ 读取"), "body");
+      if (evicted)
+        text(gray(bodyNotice ?? "正文未驻留；移至此消息后按 ↑/↓ 读取"), "body");
       else region(md, "body", body?.body);
       if (m.outcome && m.outcome !== "completed")
         text(gray(`状态 ${m.outcome}`));
@@ -436,6 +441,11 @@ export class DocumentView implements Component {
   private width = 0;
   private signature = "";
   desiredTop?: number;
+  private restoredAnchor?: ReadingAnchor;
+  restoreAnchor(anchor: ReadingAnchor) {
+    this.restoredAnchor = anchor;
+    this.signature = "";
+  }
   navigationDelta = 0;
   scroll?: ScrollView;
   initialEnd = false;
@@ -469,7 +479,7 @@ export class DocumentView implements Component {
       return this.lines;
     const sig = this.entries.map((e) => `${e.id}:${e.version}`).join("|");
     if (width === this.width && sig === this.signature) return this.lines;
-    const anchor = this.anchor,
+    const anchor = this.restoredAnchor ?? this.anchor,
       lines: string[] = [],
       rows: ReadingAnchor[] = [];
     for (const e of this.entries) {
@@ -510,7 +520,10 @@ export class DocumentView implements Component {
           Math.abs(a.row.row_in_block - anchor.row_in_block) -
             Math.abs(b.row.row_in_block - anchor.row_in_block),
       )[0];
-      if (closest) this.desiredTop = closest.index;
+      if (closest) {
+        this.desiredTop = closest.index;
+        this.restoredAnchor = undefined;
+      }
     }
     this.rows = rows;
     this.lines = lines;

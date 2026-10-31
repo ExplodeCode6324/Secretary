@@ -22,7 +22,6 @@ import {
   DocumentView,
   AnchoredScroll,
   timelineComponent,
-  taskEntry,
   safeText,
   type ViewEntry,
 } from "./view.ts";
@@ -45,8 +44,6 @@ export class TerminalApp {
   private attaching = false;
   private retry?: ReturnType<typeof setTimeout>;
   private statusTimer?: ReturnType<typeof setInterval>;
-  private taskPages: (string | undefined)[] = [undefined];
-  private pageIndex = 0;
   private pageLoading = false;
   private uiHint = "";
   private renderedDraft = { Main: -1, Task: -1 };
@@ -77,14 +74,20 @@ export class TerminalApp {
       copySelection: (text) => {
         // Pi has captured the copied text. Release even when the pointer ended
         // outside the document; its lingering highlight must not freeze output.
-        this.scrolls.Main.endSelection();
+        this.scrolls[this.page].endSelection();
         this.tui.requestRender();
         return clipboard(text);
       },
     });
     this.editors = {
       Main: new DraftEditor(this.tui, () => "Main"),
-      Task: new DraftEditor(this.tui, () => "Task"),
+      Task: new DraftEditor(
+        this.tui,
+        () => "Task",
+        (prefix) =>
+          this.remote?.taskBrowser.suggest(prefix) ?? Promise.resolve([]),
+        () => !!this.remote?.taskBrowser.selected,
+      ),
     };
     this.scrolls = {
       Main: new AnchoredScroll(this.documents.Main),
@@ -103,6 +106,11 @@ export class TerminalApp {
       );
       this.remote?.focus([...new Set(rows.map((row) => row.item_id))]);
     };
+    this.documents.Task.selectionActive = () =>
+      this.page === "Task" && this.tui.hasActiveSelection();
+    this.documents.Task.onViewport = (rows) => {
+      if (this.page === "Task") this.remote?.taskBrowser.viewport(rows);
+    };
     for (const page of ["Main", "Task"] as const) {
       const editor = this.editors[page];
       editor.enabled = false;
@@ -115,6 +123,7 @@ export class TerminalApp {
         this.draw();
       };
       editor.onOperation = () => {
+        if (this.page === "Task") this.remote?.taskBrowser.clearError();
         this.draw();
       };
       editor.onExplicitSubmit = (raw, snapshot) => {
@@ -123,7 +132,7 @@ export class TerminalApp {
       };
     }
     this.tui.addInputListener((data) => {
-      this.scrolls.Main.endSelection();
+      this.scrolls[this.page].endSelection();
       if (matchesKey(data, "ctrl+c")) {
         void this.close();
         return { consume: true };
@@ -182,25 +191,60 @@ export class TerminalApp {
                 return { consume: true };
               }
             }
-            if (
-              this.page === "Task" &&
-              this.remote &&
-              (up
-                ? scroll.scrollTop === 0 && this.pageIndex > 0
-                : scroll.atEnd && !!this.remote.tasks.next_cursor)
-            ) {
-              void this.taskPage(up ? -1 : 1);
-            } else {
-              scroll.scrollBy(up ? -1 : 1);
+            if (this.page === "Task" && this.remote) {
+              const task = this.remote.taskBrowser,
+                anchor = this.documents.Task.anchor;
+              const rows = Array.from(
+                { length: scroll.viewportHeight },
+                (_, i) => this.documents.Task.rowAt(scroll.scrollTop + i),
+              );
+              const edge =
+                anchor?.item_id.startsWith("page:") &&
+                anchor.item_id.endsWith(up ? ":before" : ":after")
+                  ? anchor
+                  : !up && scroll.atEnd
+                    ? rows.find(
+                        (r) =>
+                          r?.item_id.startsWith("page:") &&
+                          r.item_id.endsWith(":after"),
+                      )
+                    : undefined;
+              const bodyEdge =
+                anchor?.boundary === (up ? "before" : "after")
+                  ? anchor
+                  : !up && scroll.atEnd
+                    ? rows.find((r) => r?.boundary === "after")
+                    : undefined;
               if (
-                !up &&
-                scroll.atEnd &&
-                !(this.page === "Task" && this.remote?.tasks.next_cursor) &&
-                !(this.page === "Main" && this.remote?.history.hasAfter)
+                edge ||
+                bodyEdge ||
+                (anchor && task.notices.has(anchor.item_id))
               ) {
-                this.viewing = false;
-                this.tui.setFocus(editor);
+                const row = edge ?? bodyEdge ?? anchor!;
+                void this.taskPage(
+                  up ? "before" : "after",
+                  row.item_id,
+                  row.region === "thinking" ? "thinking" : "body",
+                );
+                return { consume: true };
               }
+              if (
+                (up && scroll.scrollTop === 0 && task.hasBefore) ||
+                (!up && scroll.atEnd && task.hasAfter)
+              ) {
+                void this.taskPage(up ? "before" : "after");
+                return { consume: true };
+              }
+            }
+            scroll.scrollBy(up ? -1 : 1);
+            if (
+              !up &&
+              scroll.atEnd &&
+              !(this.page === "Main" && this.remote?.history.hasAfter) &&
+              !(this.page === "Task" && this.remote?.taskBrowser.hasAfter)
+            ) {
+              this.viewing = false;
+              this.tui.setFocus(editor);
             }
             this.draw();
             return { consume: true };
@@ -287,7 +331,11 @@ export class TerminalApp {
       this.submitMessage(pending.raw, pending.body.text, pending.snapshot);
       return;
     }
-    const action = parseDraft(snapshot, this.page);
+    const action = parseDraft(
+      snapshot,
+      this.page,
+      !!this.remote?.taskBrowser.selected,
+    );
     if (action.kind === "error") {
       this.uiHint = action.message;
       this.draw();
@@ -313,6 +361,12 @@ export class TerminalApp {
       this.page = action.page;
       this.layout();
     }
+    if (action.kind === "back" && this.page === "Task")
+      this.remote?.taskBrowser.back();
+    if (action.kind === "search_task")
+      void this.remote?.taskBrowser.search(action.id);
+    if (action.kind === "taskdetail")
+      void this.remote?.taskBrowser.open(action.id);
     if (action.kind === "cot") {
       void this.remote?.toggleThinking().catch((e) => {
         this.uiHint = "CoT 显示切换失败：" + String(e);
@@ -321,7 +375,7 @@ export class TerminalApp {
     }
     if (action.kind === "help")
       this.uiHint =
-        "/M /T /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · 查看时 ↑/↓ 连续读取历史";
+        "/M /T /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> · ↑/↓ 连续读取";
     this.draw();
   }
   private submitMessage(raw: string, text: string, snapshot?: DraftSnapshot) {
@@ -362,20 +416,20 @@ export class TerminalApp {
       this.draw();
     }
   }
-  private async taskPage(delta: number) {
-    if (!this.remote) return;
+  private async taskPage(
+    direction: "before" | "after",
+    marker?: string,
+    region?: "body" | "thinking",
+  ) {
+    if (!this.remote || this.pageLoading) return;
     this.pageLoading = true;
     try {
-      const nextIndex = this.pageIndex + delta;
-      const cursor =
-        delta > 0 ? this.remote.tasks.next_cursor! : this.taskPages[nextIndex];
-      if (await this.remote.page(cursor)) {
-        this.taskPages[nextIndex] = cursor;
-        this.pageIndex = nextIndex;
-        this.remoteDirty = true;
-        if (delta < 0) this.scrolls.Task.scrollToEnd();
-        else this.scrolls.Task.scrollToStart();
-      }
+      const browser = this.remote.taskBrowser;
+      if (marker && browser.message(marker))
+        await browser.loadBody(marker, region, direction);
+      else await browser.page(direction, marker);
+      this.documents.Task.navigationDelta = direction === "before" ? -1 : 1;
+      this.remoteDirty = true;
     } finally {
       this.pageLoading = false;
       this.draw();
@@ -536,36 +590,12 @@ export class TerminalApp {
           component: new Text(safeText(this.remote.error), 0, 0),
         });
       this.documents.Main.entries = entries;
-      this.documents.Task.entries = [
-        {
-          id: "task-title",
-          version: String(this.pageIndex),
-          component: new Text(
-            `Task · 基础列表，创建顺序 · 第 ${this.pageIndex + 1} 页\n查看时 ↑/↓ 到边界翻页；Esc 返回输入；完整筛选/排序在 #83\n`,
-            0,
-            0,
-          ),
-        },
-        ...(this.remote?.tasks.items ?? []).map((t) =>
-          taskEntry(
-            t,
-            t.scope_id
-              ? (this.remote?.scopes.get(t.scope_id) ?? t.scope_id)
-              : "Shared",
-          ),
-        ),
-        {
-          id: "task-end",
-          version: String(this.remote?.tasks.next_cursor),
-          component: new Text(
-            this.remote?.tasks.next_cursor
-              ? "下页：查看模式滚动至底部后 ↓"
-              : "本页结束",
-            0,
-            0,
-          ),
-        },
-      ];
+      this.documents.Task.entries = this.remote?.taskBrowser.entries() ?? [];
+      const taskRestore = this.remote?.taskBrowser.restoreAnchor;
+      if (taskRestore) {
+        this.documents.Task.restoreAnchor(taskRestore);
+        this.remote!.taskBrowser.restoreAnchor = undefined;
+      }
     }
     const pending = this.delivery?.state.pending;
     const recovery = this.delivery?.state.recovery;
@@ -580,7 +610,9 @@ export class TerminalApp {
     const hint =
       this.uiHint ||
       this.delivery?.hint ||
-      this.remote?.error ||
+      (this.page === "Task"
+        ? this.remote?.taskBrowser.error || this.remote?.taskBrowser.notice
+        : this.remote?.error) ||
       persistentHint ||
       "/help · Enter 换行 · Shift+Enter 提交 · 第一行 ↑ 查看 · Ctrl+C 退出";
     this.footer.setText(

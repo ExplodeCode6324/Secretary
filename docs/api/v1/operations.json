@@ -1281,5 +1281,221 @@
     "request": "RevisionCommand",
     "response": "Receipt",
     "status": 202
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/task-browser",
+    "response": "TaskBrowserPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "direction",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/task-browser/locate",
+    "response": "TaskBrowserPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "task_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "match",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "suggest",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean"
+        }
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/task-browser/{task_id}",
+    "response": "TaskBrowserDetail",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "thinking",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/task-browser/{task_id}/executions/{execution_id}/messages",
+    "response": "TaskBrowserMessages",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "execution_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer"
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "direction",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "message_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "thinking",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/task-browser/{task_id}/executions/{execution_id}/messages/{message_id}/content",
+    "response": "Message",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "task_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "execution_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "message_id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "cursor",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "thinking",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "boolean"
+        }
+      }
+    ]
   }
 ]

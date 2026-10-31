@@ -5936,6 +5936,452 @@
           }
         }
       }
+    },
+    "/api/v1/task-browser": {
+      "get": {
+        "operationId": "get__api_v1_task_browser",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/TaskBrowserPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task-browser/locate": {
+      "get": {
+        "operationId": "get__api_v1_task_browser_locate",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "match",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "suggest",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/TaskBrowserPage"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task-browser/{task_id}": {
+      "get": {
+        "operationId": "get__api_v1_task_browser__task_id_",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "thinking",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/TaskBrowserDetail"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task-browser/{task_id}/executions/{execution_id}/messages": {
+      "get": {
+        "operationId": "get__api_v1_task_browser__task_id__executions__execution_id__messages",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "thinking",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/TaskBrowserMessages"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/task-browser/{task_id}/executions/{execution_id}/messages/{message_id}/content": {
+      "get": {
+        "operationId": "get__api_v1_task_browser__task_id__executions__execution_id__messages__message_id__content",
+        "security": [
+          {
+            "localOwner": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "execution_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "message_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "thinking",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Accepted command receipt or read model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "api_version",
+                    "data"
+                  ],
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "data": {
+                      "$ref": "./schema.json#/$defs/Message"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Stable error code; see README",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "api_version": {
+                      "const": "1"
+                    },
+                    "error": {
+                      "$ref": "./schema.json#/$defs/Error"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
