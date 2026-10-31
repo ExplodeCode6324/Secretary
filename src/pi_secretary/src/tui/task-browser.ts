@@ -21,6 +21,20 @@ import {
 } from "./view.ts";
 import { HISTORY_BYTES, HISTORY_ITEMS, type Direction } from "./history.ts";
 
+import {
+  taskCardText,
+  taskTitleText,
+  taskGroupText,
+  taskExecutionText,
+} from "./task-presentation.ts";
+
+// Only presentation helpers produce these trusted, already-sanitized SGR strings.
+const styledEntry = (id: string, text: string): ViewEntry => ({
+  id,
+  version: text,
+  component: new Text(text, 0, 0),
+});
+
 const key = (m: Message) =>
   m.execution_id ? `${m.execution_id}:${m.id}` : m.id;
 const textEntry = (id: string, text: string): ViewEntry => ({
@@ -639,9 +653,13 @@ export class TaskBrowserWindow {
     const root = this.root;
     if (!this.selected)
       return [
-        textEntry(
+        styledEntry(
           "task-title",
-          `Task · Scope ${root?.counts.scopes ?? 0} · 已归档 Scope ${root?.counts.archived_scopes ?? 0}\n/search_task <ID> 定位 · /taskdetail <完整ID> 查看\n`,
+          taskTitleText(
+            "Task · 当前任务",
+            `Scope ${root?.counts.scopes ?? 0} · Shared ${root?.counts.shared_tasks ?? 0} · 已归档 Scope ${root?.counts.archived_scopes ?? 0}`,
+            "/search_task <ID> 定位 · /taskdetail <完整ID> 查看",
+          ),
         ),
         ...(root?.historical
           ? [
@@ -660,9 +678,13 @@ export class TaskBrowserWindow {
           )
           .map((row) =>
             row.kind === "group"
-              ? textEntry(
+              ? styledEntry(
                   row.id,
-                  `\n${row.group.name} · ${row.group.count} 个当前 Task${row.id.startsWith("continued:") ? "（续）" : ""}\n`,
+                  taskGroupText(
+                    row.group.name,
+                    row.group.count,
+                    row.id.startsWith("continued:"),
+                  ),
                 )
               : this.taskEntry(row.task),
           ),
@@ -671,9 +693,13 @@ export class TaskBrowserWindow {
     const detail = this.detail;
     if (!detail) return [textEntry("task-loading", "正在读取任务…")];
     const entries = [
-      textEntry(
+      styledEntry(
         "task-detail-title",
-        `Task 详情 · ${detail.task.scope_name}\n${detail.task.id} · /back 返回列表\n`,
+        taskTitleText(
+          "Task · 详情",
+          detail.task.scope_name,
+          "/back 返回列表 · 正文与最近执行记录见下方",
+        ),
       ),
       this.taskEntry(detail.task),
       this.messageEntry(detail),
@@ -682,11 +708,11 @@ export class TaskBrowserWindow {
       entries.push(
         textEntry("no-execution", "尚未产生 Execution；无 Agent 对话"),
       );
-    for (const e of detail.executions) {
+    for (const [index, e] of detail.executions.entries()) {
       entries.push(
-        textEntry(
+        styledEntry(
           "execution:" + e.id,
-          `\nExecution ${e.id}\n${e.state} · ${e.kind} · ${e.retention_state} · 调用 ${e.invoked_at ?? "未知"} (${e.ordering_source}) · 结束 ${e.ended_at ?? "尚未"}\n`,
+          taskExecutionText(e, index, detail.executions.length),
         ),
       );
       const g = this.groups.get(e.id);
@@ -714,24 +740,13 @@ export class TaskBrowserWindow {
     return entries;
   }
   private taskEntry(t: TaskBrowserTask) {
-    return textEntry(
+    return styledEntry(
       t.id,
-      [
-        `${!this.selected && this.searchTarget === t.id ? "▶ 已定位 · " : ""}${t.goal}${t.goal_truncated ? " …（预览；完整内容见详情）" : ""}`,
-        `${t.id} · ${t.state} · ${t.executor} · ${t.trigger}`,
-        `Scope: ${t.scope_name} · ${t.current ? "当前" : "历史"} · ${t.current_reasons.join(", ") || "无当前工作"}`,
-        `执行: ${t.active_executions.map((e) => `${e.state} ${e.id} · ${e.ordering_source === "started_at" ? "开始" : e.ordering_source === "created_at" ? "创建（尚未开始）" : "调用时间"} ${e.invoked_at ?? "未知"}`).join("\n") || "无非终态执行"} · 排队请求 ${t.pending_request_count} / 触发 ${t.pending_occurrence_count}`,
-        `计划下次: ${t.next_due_at ?? "无"} · ${t.schedule_status} · 排队到期: ${t.pending_due_at ?? "无"}`,
-        `最新执行: ${t.latest_execution?.state ?? "尚无"} · ${t.latest_execution?.id ?? ""}`,
-        ...(t.latest_execution
-          ? [
-              `调用排序: ${t.latest_execution.invoked_at ?? "未知"} (${t.latest_execution.ordering_source}) · 结束: ${t.latest_execution.ended_at ?? "尚未"}`,
-            ]
-          : []),
-        `结果观测: ${t.latest_result_observed_at ?? "尚无"}`,
-        `结果: ${t.latest_result ?? "尚无"}${t.initialization_error ? "\n初始化错误: " + t.initialization_error : ""}`,
-        "",
-      ].join("\n"),
+      taskCardText(
+        t,
+        !this.selected && this.searchTarget === t.id,
+        !!this.selected,
+      ),
     );
   }
   private messageEntry(m: Message): ViewEntry {

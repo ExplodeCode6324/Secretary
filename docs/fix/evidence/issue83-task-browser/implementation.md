@@ -1,6 +1,14 @@
 # Issue #83 implementation and evidence
 
-Master approved R2 on 2026-10-31. The implementation adds the five planned read endpoints and a terminal Task browser. No merge, issue closure or native/manual acceptance is authorized by this record.
+Master approved R2 on 2026-10-31. The implementation adds the five planned read endpoints and a terminal Task browser. No merge or issue closure is authorized by this record. Master reported mechanical acceptance PASS on 2026-11-01 and requested the presentation follow-up below.
+
+## Master presentation follow-up - 2026-11-01
+
+Task cards now separate bold goal, plan/execution, attention, and time/result. Pink highlights actionable failures, authorization/decision items and unknown operations; blue shows active execution, amber waiting/queues and mint success. Text labels remain authoritative. IDs and timestamps are retained; detail lists attention/unknown-operation IDs. Bounded goal/result previews explicitly point to full detail. Only sanitized data receives trusted ANSI styling. Recent-three headers distinguish retention from message availability.
+
+The #82/#83/#91 regression suite passed 131/131 with zero skips before the final detail-ID addition; its targeted follow-up and final full verify/CI are recorded in the PR. New checks cover terminal escape injection, plan/execution distinction, 80/120-column rendering, bounded previews and historical failure labels. Initial new-test type/argument mistakes are retained privately. A prior anchor fixture relied on an unbounded goal to force scrolling; it now creates twelve later scheduled tasks, preserving every anchor/draft assertion. A provisional full verify was stopped for the final tree freeze.
+
+A fresh independent live domain uses the production backend and enabled pump, with opencode-go/deepseek-v4.1-flash for both roles and 8192-token output budgets. Actual provider responses, handled Main input, Main-created Task and successful Agent result are captured in [interactive model summary](interactive-model-summary.json). The initial probe misread the request envelope; the real conversation had already succeeded. It resumed without resending that input. No Store-seeded history is used for this instance. It remains running for Master; the new layout's native visual acceptance is pending. Final exact-head review and CI belong in the PR record.
 
 ## Implemented boundary
 

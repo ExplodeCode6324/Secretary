@@ -1,5 +1,11 @@
 # Issue #83 — Scope overview, task lookup and three Agent executions
 
+## Master follow-up - 2026-11-01
+
+Master reported mechanical acceptance PASS and directly requested a clearer Task layout with pastel attention colors, followed by an interactive live-model instance in an isolated data directory. This authorizes the presentation refinement without reopening R2 approval. Group each card into goal, plan/execution, attention, and time/result; retain textual state labels, complete Task IDs and labelled timestamps. Use pink for attention, blue for active execution, amber for waiting/queues and mint for success. Bound and explicitly label previews; keep full content in detail and sanitize data before adding trusted ANSI. Preserve the existing read contracts, paging, anchors, two drafts and scheduling behavior.
+
+Verify real Main conversation, Main-created independent Agent Task, actual execution and persisted result in a fresh domain with the production pump enabled. Keep the instance running for Master. Review the exact new head in the same Claude Opus 5.5 Extra session and complete CI; the new visual acceptance and merge decision remain Master's.
+
 Date: 2026-10-31 (Asia/Hong_Kong). Revision R2 (final non-blocking notes incorporated). Status: MASTER_APPROVED / IMPLEMENTING; Master approved implementation on 2026-10-31.
 
 [中文计划](fix_20261031_issue83_task_browser.md) · [Review](evidence/issue83-task-browser/plan-review.md) · [Acceptance](evidence/issue83-task-browser/acceptance.md)

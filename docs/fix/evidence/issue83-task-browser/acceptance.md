@@ -23,13 +23,13 @@ Plan base: `c394866c772833ad1de6fac342afe5700665c95f`; implementation SHA: see P
 | L4 real-data read-only / reconnect | PASS / LIVE RECORDED DATA | Same records, no redispatch or retention writes |
 | Focused tests / full verify / exact-head CI | FOCUSED PASS; final full verify / CI in PR record | Implementation commit and first failures preserved |
 | Claude exact-head implementation review | PENDING / SAME SESSION | Same session, exact SHA, actual evidence scope |
-| Master native/manual acceptance | NOT_TESTED / TOOL BLOCKED | Native checks and Master observations, separate from PTY/fixtures |
+| Master acceptance | MECHANICAL PASS REPORTED; NEW LAYOUT PENDING | Master reported mechanical acceptance on 2026-11-01; individual IME/clipboard subchecks were not separately attributed |
 | Merge authorization / post-merge CI / closure | NOT_AUTHORIZED / NOT_TESTED | Separate explicit decisions and results |
 | AC33 artifact listing / registered-only delivery / open | OUT_OF_SCOPE_94 | Do not mark entire AC33 passed |
 
 Before execution register OS/Terminal/Node/pi-tui versions, font/IME, sizes 80×24 and 120×40, actual input/exit keys, tested SHA, isolated domain identity and sanitized provider/model. Each row must link its own real object IDs, operations, observed result and private/public evidence locations. Source review, mocked transport, seeded fixtures, PTY and native input remain distinct evidence classes. Preserve first failure before any retry. No secrets, credential-bearing endpoints or unrelated personal data in published evidence.
 
 
-R2 review reminders: a valid PENDING/APPROVED authorization on an ended execution still counts under current attention semantics; FAILED membership does not depend on retention/object readability. Include plan deadline expiry without a sync event. Budget missed-AT recovery's real Main turn and mark its writes as background. Use finite interval/deadline/call limits and stop isolated Core to contain queued live work. All these implementation checks remain NOT_TESTED.
+R2 review reminders: a valid PENDING/APPROVED authorization on an ended execution still counts under current attention semantics; FAILED membership does not depend on retention/object readability. Include plan deadline expiry without a sync event. Budget missed-AT recovery's real Main turn and mark its writes as background. Use finite interval/deadline/call limits and stop isolated Core to contain queued live work. Implementation outcomes are recorded in the linked evidence and PR record.
 
-Implementation detail, evidence classes, first failures and native reproduction: [implementation record](implementation.md) and [sanitized model summary](live-model-summary.json). All native/manual observations remain explicitly pending.
+Implementation detail, evidence classes, first failures and native reproduction: [implementation record](implementation.md) and [sanitized model summary](live-model-summary.json). Master reported mechanical acceptance PASS on 2026-11-01. The subsequent structured/pastel layout awaits Master testing in the new interactive live instance; see [interactive model summary](interactive-model-summary.json).

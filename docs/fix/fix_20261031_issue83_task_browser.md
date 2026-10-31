@@ -1,5 +1,11 @@
 # Issue #83 — Scope 总览、任务定位与 Agent 最近三轮
 
+## Master 追加要求 — 2026-11-01
+
+Master 已确认机械检查验收通过，并直接要求 Task 信息结构化、使用浅色突出注意事项，再启动隔离数据目录的真实模型交互实例。本次展示调整已获直接授权，无需重新等待 R2 计划批准。卡片按目标、计划与执行、注意事项、时间与结果分层；保留文字状态、完整 Task ID 和明确标注的时间。浅粉色表示需注意，浅蓝色表示执行中，浅黄色表示等待或排队，浅绿色表示成功。预览须限长并明确标记，详情保留全文；先清理数据中的终端控制字符，再加入受信 ANSI 样式。现有读取合同、分页、锚点、两个草稿及调度行为保持一致。
+
+在全新数据域启用生产 pump，验收真实 Main 对话、Main 创建独立 Agent Task、实际执行及持久化结果；实例保留运行，供 Master 测试。新提交仍交同一 Claude Opus 5.5 Extra 会话复核并完成 CI；新界面验收及是否合并由 Master 决定。
+
 日期：2026-10-31（Asia/Hong_Kong）。R2（已纳入最终非阻断提醒）。状态：MASTER_APPROVED / IMPLEMENTING；Master 已于 2026-10-31 批准实施。
 
 [English plan](fix_20261031_issue83_task_browser.en.md) · [复核记录](evidence/issue83-task-browser/plan-review.md) · [验收记录](evidence/issue83-task-browser/acceptance.md)

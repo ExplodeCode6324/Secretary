@@ -169,6 +169,17 @@ test("terminal detail/back/M/T preserves root anchor and one Task rich draft at 
       f.app.host.sessionID,
       { at: "2099-01-01T00:00:00.000Z" },
     );
+    // Root goal previews are now bounded. Keep a genuinely scrollable list so
+    // this test still exercises viewport-anchor restoration rather than clamping.
+    for (let i = 0; i < 12; i++)
+      f.app.scheduler.propose(
+        `Following scheduled task ${i}`,
+        id(),
+        f.app.host.sessionID,
+        {
+          at: "2099-01-02T00:00:00.000Z",
+        },
+      );
     await fs.writeFile(
       path.join(f.dir, "core-endpoint.json"),
       JSON.stringify(f.server.endpoint),

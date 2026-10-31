@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "evidence": "REAL_INTERACTIVE_MODEL",
+  "mode": "live",
+  "task_id": "e02c7909-5702-48a0-97c5-a77cd9cf19be",
+  "execution_id": "be1bb016-02f4-48e2-afa6-df727721a9b8",
+  "provider": "opencode-go",
+  "main_model": "deepseek-v4.1-flash",
+  "task_model": "deepseek-v4.1-flash",
+  "pump": "production_default_enabled",
+  "finished_at": "2026-10-31T19:30:21.079Z",
+  "data_isolation": "fresh directory and independent domain; no copied records",
+  "model_calls": {
+    "task": 1,
+    "main_scope_including_maintenance": 10
+  },
+  "provider_response_models": [
+    [
+      "opencode-go",
+      "deepseek-v4.1-flash"
+    ]
+  ],
+  "transport_stop_reasons": {
+    "stop": 8,
+    "toolUse": 3
+  },
+  "task_outcome": "SUCCEEDED",
+  "independent_result_check": "17 * 19 == 323; durable result includes LIVE-83-TASK-OK",
+  "master_mechanical_acceptance": "reported PASS on 2026-11-01",
+  "new_layout_native_acceptance": "PENDING_MASTER",
+  "first_probe_issue": "Incorrect top-level request.state polling; resumed from actual HANDLED input and existing assistant response without resending. First evidence retained privately.",
+  "core_retained_running_for_master": true
+}
