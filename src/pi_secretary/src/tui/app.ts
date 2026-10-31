@@ -9,7 +9,12 @@ import {
   type Terminal,
 } from "@earendil-works/pi-tui";
 import { attachCore } from "../core-client.ts";
-import { DraftEditor, parseInput, configureKeys, type Page } from "./input.ts";
+import { DraftEditor, parseDraft, configureKeys, type Page } from "./input.ts";
+import {
+  plainSnapshot,
+  equalSnapshotContent,
+  type DraftSnapshot,
+} from "./draft.ts";
 import { LocalFiles } from "./state.ts";
 import { Delivery } from "./delivery.ts";
 import { RemoteViews } from "./remote.ts";
@@ -21,6 +26,8 @@ import {
   safeText,
   type ViewEntry,
 } from "./view.ts";
+import { visibleItem } from "./history.ts";
+import { copySelection } from "./clipboard.ts";
 
 export class TerminalApp {
   readonly tui: TuiAltScreen;
@@ -47,8 +54,11 @@ export class TerminalApp {
   private messageCache = new Map<string, ViewEntry>();
   private messageRefs = new Map<string, unknown>();
   private messageNotices = new Map<string, string | undefined>();
+  private messageModes = new Map<string, boolean>();
   private contentVersion = 0;
   private remoteDirty = true;
+  private navigationEpoch = 0;
+  private followCandidate?: number;
   constructor(
     readonly coreDirectory: string,
     terminal: Terminal = new ProcessTerminal(),
@@ -60,9 +70,18 @@ export class TerminalApp {
       "tui",
       "v1",
     ),
+    clipboard: (text: string) => Promise<boolean | string> = copySelection,
   ) {
     configureKeys();
-    this.tui = new TuiAltScreen(terminal);
+    this.tui = new TuiAltScreen(terminal, undefined, undefined, {
+      copySelection: (text) => {
+        // Pi has captured the copied text. Release even when the pointer ended
+        // outside the document; its lingering highlight must not freeze output.
+        this.scrolls.Main.endSelection();
+        this.tui.requestRender();
+        return clipboard(text);
+      },
+    });
     this.editors = {
       Main: new DraftEditor(this.tui, () => "Main"),
       Task: new DraftEditor(this.tui, () => "Task"),
@@ -71,12 +90,25 @@ export class TerminalApp {
       Main: new AnchoredScroll(this.documents.Main),
       Task: new AnchoredScroll(this.documents.Task),
     };
+    this.scrolls.Main.onReading = () => this.stopFollowing();
+    this.documents.Main.onPointerRead = () => this.stopFollowing();
+    this.documents.Main.selectionActive = () =>
+      this.page === "Main" && this.tui.hasActiveSelection();
+    this.documents.Main.onViewport = (rows) => {
+      this.remote?.history.setAnchor(
+        this.scrolls.Main.following
+          ? [...(this.remote?.history.items.keys() ?? [])].at(-1)
+          : rows.find((row) => this.remote?.history.items.has(row.item_id))
+              ?.item_id,
+      );
+      this.remote?.focus([...new Set(rows.map((row) => row.item_id))]);
+    };
     for (const page of ["Main", "Task"] as const) {
       const editor = this.editors[page];
       editor.enabled = false;
-      editor.onEdited = (raw) => {
-        this.clearHint();
-        this.delivery?.edit(page, raw);
+      editor.onEdited = (raw, snapshot, changed) => {
+        if (changed) this.clearHint();
+        this.delivery?.edit(page, raw, snapshot);
         if (this.delivery)
           this.renderedDraft[page] =
             this.delivery.state.drafts[page].generation;
@@ -85,12 +117,13 @@ export class TerminalApp {
       editor.onOperation = () => {
         this.draw();
       };
-      editor.onExplicitSubmit = (raw) => {
+      editor.onExplicitSubmit = (raw, snapshot) => {
         this.clearHint();
-        this.submit(raw);
+        this.submit(raw, snapshot ?? editor.snapshot());
       };
     }
     this.tui.addInputListener((data) => {
+      this.scrolls.Main.endSelection();
       if (matchesKey(data, "ctrl+c")) {
         void this.close();
         return { consume: true };
@@ -108,6 +141,47 @@ export class TerminalApp {
           if (matchesKey(data, "up") || matchesKey(data, "down")) {
             const up = matchesKey(data, "up");
             if (this.pageLoading) return { consume: true };
+            this.clearHint();
+            if (this.page === "Main" && this.remote) {
+              const anchor = this.documents.Main.anchor;
+              const edge =
+                !up && scroll.atEnd
+                  ? Array.from({ length: scroll.viewportHeight }, (_, index) =>
+                      this.documents.Main.rowAt(scroll.scrollTop + index),
+                    ).find((row) => row?.boundary === "after")
+                  : undefined;
+              if (edge) {
+                void this.mainPage(
+                  "after",
+                  edge.item_id,
+                  edge.region === "thinking" ? "thinking" : "body",
+                );
+                return { consume: true };
+              }
+              if (
+                anchor &&
+                (this.remote.history.evictedBodies.has(anchor.item_id) ||
+                  anchor.boundary === (up ? "before" : "after") ||
+                  this.remote.notices
+                    .get(anchor.item_id)
+                    ?.startsWith("正文读取失败"))
+              ) {
+                void this.mainPage(
+                  up ? "before" : "after",
+                  anchor.item_id,
+                  anchor.region === "thinking" ? "thinking" : "body",
+                );
+                return { consume: true };
+              }
+              if (
+                (up && scroll.scrollTop === 0) ||
+                (!up && scroll.atEnd && this.remote.history.hasAfter) ||
+                this.remote.history.unavailable
+              ) {
+                void this.mainPage(up ? "before" : "after");
+                return { consume: true };
+              }
+            }
             if (
               this.page === "Task" &&
               this.remote &&
@@ -121,7 +195,8 @@ export class TerminalApp {
               if (
                 !up &&
                 scroll.atEnd &&
-                !(this.page === "Task" && this.remote?.tasks.next_cursor)
+                !(this.page === "Task" && this.remote?.tasks.next_cursor) &&
+                !(this.page === "Main" && this.remote?.history.hasAfter)
               ) {
                 this.viewing = false;
                 this.tui.setFocus(editor);
@@ -149,6 +224,13 @@ export class TerminalApp {
           this.viewing = true;
           this.tui.setFocus(scroll);
           scroll.scrollBy(-1);
+          this.clearHint();
+          if (
+            this.page === "Main" &&
+            scroll.scrollTop === 0 &&
+            this.remote?.history.hasBefore
+          )
+            void this.mainPage("before");
           this.draw();
           return { consume: true };
         }
@@ -185,11 +267,27 @@ export class TerminalApp {
   }
   private clearHint() {
     this.uiHint = "";
+    this.remote?.clearError();
     if (this.delivery && !this.delivery.failedSave) this.delivery.hint = "";
   }
-  private submit(raw: string) {
+  private submit(raw: string, snapshot: DraftSnapshot) {
     if (!this.delivery) return;
-    const action = parseInput(raw, this.page);
+    const pending = this.delivery.state.pending,
+      draft = this.delivery.state.drafts.Main;
+    if (
+      this.page === "Main" &&
+      pending &&
+      draft.binding === pending.id &&
+      raw === pending.raw &&
+      equalSnapshotContent(
+        snapshot,
+        pending.snapshot ?? plainSnapshot(pending.raw),
+      )
+    ) {
+      this.submitMessage(pending.raw, pending.body.text, pending.snapshot);
+      return;
+    }
+    const action = parseDraft(snapshot, this.page);
     if (action.kind === "error") {
       this.uiHint = action.message;
       this.draw();
@@ -201,7 +299,7 @@ export class TerminalApp {
       return;
     }
     if (action.kind === "send") {
-      void this.delivery.submit(raw, action.text);
+      this.submitMessage(raw, action.text, snapshot);
       return;
     }
     // Local commands consume only their own editor text, never issue business messages.
@@ -211,13 +309,58 @@ export class TerminalApp {
     this.renderedDraft[page] = this.delivery.state.drafts[page].generation;
     void this.delivery.flush().catch(() => this.draw());
     if (action.kind === "navigate" && action.page !== this.page) {
+      this.stopFollowing();
       this.page = action.page;
       this.layout();
     }
+    if (action.kind === "cot") {
+      void this.remote?.toggleThinking().catch((e) => {
+        this.uiHint = "CoT 显示切换失败：" + String(e);
+        this.draw();
+      });
+    }
     if (action.kind === "help")
       this.uiHint =
-        "/M /T /back /help · Main: /send <正文> /rawmessage <正文> · 后续: CoT/历史(#91)、详情(#83)、事项(#92)、失败(#93)、图片/产物(#94)";
+        "/M /T /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · 查看时 ↑/↓ 连续读取历史";
     this.draw();
+  }
+  private submitMessage(raw: string, text: string, snapshot?: DraftSnapshot) {
+    // A Task switch while the durable save is pending must win over a late POST.
+    if (!this.delivery?.busy) this.followCandidate = this.navigationEpoch;
+    void this.delivery?.submit(raw, text, snapshot);
+  }
+  private stopFollowing() {
+    this.navigationEpoch++;
+    this.followCandidate = undefined;
+    this.scrolls.Main.following = false;
+    this.remote?.setFollowing(false);
+    this.remote?.history.cancelLatest();
+  }
+  private startFollowing() {
+    if (this.followCandidate !== this.navigationEpoch || this.page !== "Main")
+      return;
+    this.followCandidate = undefined;
+    this.scrolls.Main.following = true;
+    this.remote?.setFollowing(true);
+    void this.remote?.history.jumpToLatest();
+    this.draw();
+  }
+  private async mainPage(
+    direction: "before" | "after",
+    id?: string,
+    region?: "body" | "thinking",
+  ) {
+    if (!this.remote || this.pageLoading) return;
+    this.pageLoading = true;
+    try {
+      if (id) await this.remote.loadBody(id, region, direction);
+      else await this.remote.historyPage(direction);
+      this.documents.Main.navigationDelta = direction === "before" ? -1 : 1;
+      this.remoteDirty = true;
+    } finally {
+      this.pageLoading = false;
+      this.draw();
+    }
   }
   private async taskPage(delta: number) {
     if (!this.remote) return;
@@ -261,6 +404,12 @@ export class TerminalApp {
         }
         this.delivery = new Delivery(state, this.files);
         this.delivery.onChange = () => this.draw();
+        this.delivery.onEvent = (event) => {
+          if (event.type === "post-start") this.startFollowing();
+          if (event.type === "rejected") this.stopFollowing();
+          if (event.type === "accepted")
+            this.editors.Main.bridge.clearHistory();
+        };
       }
       await this.delivery.connect(client);
       if (this.stopped || this.stopping) return;
@@ -268,6 +417,7 @@ export class TerminalApp {
       previous?.stop();
       this.remote = new RemoteViews(client);
       if (previous) this.remote.inherit(previous);
+      this.remote.setFollowing(this.scrolls.Main.following);
       this.remote.onChange = () => {
         this.remoteDirty = true;
         this.draw();
@@ -278,6 +428,9 @@ export class TerminalApp {
         this.draw();
         this.retry = setTimeout(() => void this.attach(), 1000);
       };
+      // Restore disk snapshots synchronously before input can overwrite them.
+      // Initial sync/history reads may be slow; they are not a draft-ready gate.
+      this.draw();
       this.editors.Main.enabled = this.editors.Task.enabled = true;
       this.uiHint = "";
       // Independent reads: status latency must not hold initial editing or rendering.
@@ -301,7 +454,14 @@ export class TerminalApp {
       for (const page of ["Main", "Task"] as const) {
         const d = this.delivery.state.drafts[page];
         if (this.renderedDraft[page] !== d.generation) {
-          this.editors[page].setText(d.raw);
+          this.editors[page].restore(
+            d.snapshot ?? plainSnapshot(d.raw),
+            !(
+              page === "Main" &&
+              !d.raw &&
+              this.delivery.state.pending?.status === "UNKNOWN"
+            ),
+          );
           this.renderedDraft[page] = d.generation;
         }
       }
@@ -317,34 +477,59 @@ export class TerminalApp {
           id: "main-title",
           version: "1",
           component: new Text(
-            "Main · 近期消息（完整历史将在 #91 接入）\n",
+            "Main · ↑/↓ 连续读取历史 · /cotv 切换思考显示\n",
             0,
             0,
           ),
         },
       ];
       if (this.remote) {
+        for (const id of this.messageCache.keys())
+          if (!this.remote.history.items.has(id)) {
+            this.messageCache.delete(id);
+            this.messageRefs.delete(id);
+            this.messageNotices.delete(id);
+            this.messageModes.delete(id);
+          }
+        if (this.remote.error && this.remote.history.errorSide === "before")
+          entries.push({
+            id: "load-error-before",
+            version: this.remote.error,
+            component: new Text(safeText(this.remote.error), 0, 0),
+          });
         for (const m of this.remote.messages.values()) {
+          if (!visibleItem(m)) continue;
           let entry = this.messageCache.get(m.id);
           const notice = this.remote.notices.get(m.id);
           if (
             !entry ||
             this.messageRefs.get(m.id) !== m ||
+            this.messageModes.get(m.id) !== this.remote.history.thinking ||
             this.messageNotices.get(m.id) !== notice
           ) {
             entry = {
               id: m.id,
               version: String(++this.contentVersion),
-              component: timelineComponent(m, notice),
+              component: timelineComponent(
+                m,
+                notice,
+                this.remote.history.thinking,
+                this.remote.bodies.get(m.id),
+                this.remote.history.evictedBodies.has(m.id),
+              ),
+              revision: m.revision,
+              instance_id: this.remote.client.endpoint.instance_id,
+              timeline_generation: this.remote.history.generation,
             };
             this.messageCache.set(m.id, entry);
             this.messageRefs.set(m.id, m);
             this.messageNotices.set(m.id, notice);
+            this.messageModes.set(m.id, this.remote.history.thinking);
           }
           entries.push(entry);
         }
       }
-      if (this.remote?.error)
+      if (this.remote?.error && this.remote.history.errorSide === "after")
         entries.push({
           id: "load-error",
           version: this.remote.error,

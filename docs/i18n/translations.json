@@ -3503,5 +3503,20 @@
     "| [Previous TUI requirements and backend changes](tui/requirements-and-backend-plan.md) | Requirements from 2026-10-23 and change history for #79–#81; the current rebuild follows the settled provisions in the temporary reference |",
     "| [旧 TUI 要件とバックエンド変更の根拠](tui/requirements-and-backend-plan.md) | 2026-10-23 の要件および #79–#81 の変更履歴。現在の再構築は暫定参考の確定条項に従う |",
     "| [Anciennes exigences TUI et modifications du backend](tui/requirements-and-backend-plan.md) | Exigences du 2026-10-23 et historique des modifications #79–#81 ; la reconstruction actuelle suit les dispositions arrêtées dans la référence temporaire |"
+  ],
+  "当前客户端路线为 [TUI 需求](docs/tui/requirements-and-backend-plan.md)。本分支已实现原生 Main/Task 入口及 Main 历史、CoT 和文本粘贴，见[终端运行与验证](docs/tui/run-and-test.md)。Tauri/Svelte 已退役；产品验收与后续批次分别登记。": [
+    "The client follows the [TUI requirements](docs/tui/requirements-and-backend-plan.md). This branch implements native Main/Task entry points, Main history, CoT and text paste; see [terminal operation and verification](docs/tui/run-and-test.md). Tauri/Svelte is retired. Product acceptance and later batches are tracked separately.",
+    "このブランチはネイティブ Main/Task、Main 履歴、CoT、テキスト貼り付けを実装しています。[TUI 要件](docs/tui/requirements-and-backend-plan.md)と[端末の実行と検証](docs/tui/run-and-test.md)を参照してください。Tauri/Svelte は廃止済みです。製品検証と後続機能は別途管理します。",
+    "Cette branche implémente Main/Task natif, l’historique Main, le CoT et le collage de texte. Voir les [exigences TUI](docs/tui/requirements-and-backend-plan.md) et [exécution et vérification du terminal](docs/tui/run-and-test.md). Tauri/Svelte est retiré. La validation produit et les lots suivants sont suivis séparément."
+  ],
+  "原生客户端见[终端运行与验证](tui/run-and-test.md)，范围与后续依赖见 [TUI 临时实施参考](tui/implementation-reference.md)。本分支实现 #82 基础能力及 #91 Main 历史、CoT、文本粘贴；产品验收独立记录。Core 运维见[运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。": [
+    "See [terminal operation and verification](tui/run-and-test.md) for the native client and the [TUI implementation reference](tui/implementation-reference.md) for scope and dependencies. This branch implements #82 foundations and #91 Main history, CoT and text paste; product acceptance is tracked separately. See the [operations guide](operations.md) for Core and the [retirement record](frontend/README.md) for the old client.",
+    "このブランチは #82 基盤と #91 Main 履歴、CoT、テキスト貼り付けを実装しています。[端末の実行と検証](tui/run-and-test.md)、[TUI 実装リファレンス](tui/implementation-reference.md)、Core の[運用ガイド](operations.md)、旧クライアントの[廃止記録](frontend/README.md)を参照してください。製品検証は別途管理します。",
+    "Cette branche implémente les bases #82 et l’historique Main, le CoT et le collage #91. Voir [exécution et vérification du terminal](tui/run-and-test.md), la [référence TUI](tui/implementation-reference.md), le [guide Core](operations.md) et le [registre de retrait](frontend/README.md). La validation produit reste séparée."
+  ],
+  "原生客户端的启动、键位和验证见[终端运行与验证](tui/run-and-test.md)。以下命令管理独立 Core；退出 TUI 不会停止 Core。": [
+    "See [terminal operation and verification](tui/run-and-test.md) for client startup, keys and validation. The commands below manage the independent Core; exiting TUI does not stop Core.",
+    "起動、キー操作、検証は[端末の実行と検証](tui/run-and-test.md)を参照してください。以下のコマンドは独立した Core を管理します。TUI を終了しても Core は停止しません。",
+    "Voir [exécution et vérification du terminal](tui/run-and-test.md) pour le démarrage, les touches et la validation. Les commandes ci-dessous gèrent Core indépendamment ; quitter le TUI n’arrête pas Core."
   ]
 }

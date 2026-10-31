@@ -1,6 +1,6 @@
 # 文档
 
-当前客户端重建依据见 [TUI 临时实施参考](tui/implementation-reference.md)（v1.7）；新 TUI 尚未实现。Master 已确认需求及分批方案，#82/#83/#84 已全文重写，并新增四个功能批次；准确编号和依赖见临时参考第 11 节。暂停计划不默认展示，旧失败不能继续时明确反馈，新工作经 Main 显式提出。现在使用 [Core 运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
+原生客户端见[终端运行与验证](tui/run-and-test.md)，范围与后续依赖见 [TUI 临时实施参考](tui/implementation-reference.md)。本分支实现 #82 基础能力及 #91 Main 历史、CoT、文本粘贴；产品验收独立记录。Core 运维见[运行手册](operations.md)，旧客户端见[退役记录](frontend/README.md)。
 
 从运行手册开始使用 Core；架构与数据流解释模块如何协作，不变量提供实现和测试证据。
 

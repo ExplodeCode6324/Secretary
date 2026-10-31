@@ -3,6 +3,11 @@ import type { CoreClient } from "../core-client.ts";
 import type { Receipt, RequestStatus } from "../api/contracts.ts";
 import type { Page } from "./input.ts";
 import type { LocalState, StatePersistence, Pending } from "./state.ts";
+import {
+  equalSnapshotContent,
+  plainSnapshot,
+  type DraftSnapshot,
+} from "./draft.ts";
 
 export type DeliveryClient = Pick<
   CoreClient,
@@ -30,10 +35,21 @@ export class Delivery {
   private event(type: string, id?: string) {
     this.onEvent({ type, at: performance.now(), id });
   }
-  edit(page: Page, raw: string) {
+  edit(page: Page, raw: string, snapshot?: DraftSnapshot) {
     const d = this.state.drafts[page];
-    if (d.raw === raw) return;
-    this.state.drafts[page] = { raw, generation: d.generation + 1 };
+    const same = d.raw === raw && equalSnapshotContent(d.snapshot, snapshot);
+    if (
+      same &&
+      JSON.stringify(d.snapshot?.cursor) === JSON.stringify(snapshot?.cursor)
+    )
+      return;
+    this.state.drafts[page] = same
+      ? { ...d, snapshot }
+      : {
+          raw,
+          generation: d.generation + 1,
+          ...(snapshot ? { snapshot } : {}),
+        };
     clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => {
       void this.flush().catch(() => {});
@@ -145,6 +161,7 @@ export class Delivery {
             raw: p.raw,
             generation: this.state.drafts.Main.generation + 1,
             binding: p.id,
+            snapshot: p.snapshot ?? plainSnapshot(p.raw),
           };
           await this.flush();
         }
@@ -153,7 +170,7 @@ export class Delivery {
       this.onChange();
     }
   }
-  async submit(raw: string, text: string) {
+  async submit(raw: string, text: string, snapshot?: DraftSnapshot) {
     if (this.busy || this.closed) {
       this.hint = "正在发送/保存；仍可编辑和切页";
       this.onChange();
@@ -197,6 +214,7 @@ export class Delivery {
           created_at: new Date().toISOString(),
           attempts: [],
           status: "UNKNOWN",
+          snapshot: snapshot ?? plainSnapshot(raw),
         };
         this.state.pending = p;
       }
@@ -252,9 +270,10 @@ export class Delivery {
             "INVALID_JSON",
             "REQUEST_TOO_LARGE",
           ].includes(code)
-        )
+        ) {
+          this.event("rejected", p.id);
           await this.release(p, "Core 拒绝输入；原文已保留");
-        else {
+        } else {
           p.status = code === "REQUEST_CONFLICT" ? "CONFLICT" : "UNKNOWN";
           this.hint = `${code}；原请求保留，稍后对账`;
           await this.flush();
@@ -297,6 +316,7 @@ export class Delivery {
       throw e;
     }
     this.hint = "Core 已可靠接收；业务是否完成以会话结果为准";
+    this.event("accepted", p.id);
   }
   private async release(p: Pending, message: string) {
     const file = await this.files.recover(p);
@@ -306,6 +326,7 @@ export class Delivery {
       this.state.drafts.Main = {
         raw: p.raw,
         generation: this.state.drafts.Main.generation + 1,
+        snapshot: p.snapshot ?? plainSnapshot(p.raw),
       };
     delete this.state.pending;
     try {

@@ -169,6 +169,8 @@ test("actual Core restart drops an in-memory preview but TUI keeps its place and
     app.start();
     await until(() => !!app.remote?.messages.has(previewId), 5000);
     terminal.sendInput("retained draft");
+    await terminal.flush();
+    const readingId = app.remote!.history.anchor;
     const old = f.server.endpoint.instance_id;
     await f.restart();
     await publish();
@@ -178,13 +180,23 @@ test("actual Core restart drops an in-memory preview but TUI keeps its place and
         !!app.remote?.timelineReady,
       8000,
     );
-    assert(app.remote!.notices.has(previewId));
-    assert(app.remote!.messages.has(previewId));
+    // #91 rebuilds the ordered window; vanished previews cannot remain merged
+    // into the new generation. A missing reading anchor uses a labelled survivor.
+    assert(!app.remote!.messages.has(previewId));
+    if (readingId === previewId)
+      assert(
+        [...app.remote!.notices.values()].some((notice) =>
+          notice.includes("缺口"),
+        ),
+      );
+    else assert.equal(app.remote!.history.anchor, readingId);
     await f.client.command("messages", {
       request_id: randomUUID(),
       text: "after restart",
     });
     await f.app.host.drain();
+    // A relocated earlier window is only advanced by deliberate navigation.
+    for (let page = 0; page < 4; page++) await app.remote!.historyPage("after");
     await until(
       () =>
         [...app.remote!.messages.values()].some(
