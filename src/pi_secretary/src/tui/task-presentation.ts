@@ -106,6 +106,9 @@ export function taskCardText(
           ? " …（目标预览；详情查看全文）"
           : ""),
     ),
+    ...(!t.current
+      ? [muted("  Scope  " + safeText(t.scope_name).replace(/\s+/g, " "))]
+      : []),
     `  ${muted("计划")}  ${tone(t.state)(name(t.state))} ${muted(`· ${t.executor === "AGENT" ? "Agent" : "程序"} · ${triggers[t.trigger] ?? t.trigger}${t.current ? "" : " · 历史任务"}`)}`,
   ];
   for (const e of t.active_executions)
@@ -125,7 +128,11 @@ export function taskCardText(
     attention.push(`结果待核实 ${t.unknown_operation_ids.length} 项`);
   if (t.initialization_error)
     attention.push("初始化错误：" + preview(t.initialization_error));
-  if (t.schedule_status === "deadline_ineligible")
+  if (
+    t.schedule_status === "deadline_ineligible" &&
+    t.next_due_at &&
+    ["AT", "INTERVAL"].includes(t.trigger)
+  )
     attention.push("下一次触发已超出截止时间");
   if (t.schedule_status === "unsupported_trigger")
     attention.push("事件触发当前不受支持");

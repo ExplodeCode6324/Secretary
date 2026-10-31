@@ -51,6 +51,30 @@ const task: TaskBrowserTask = {
   current: true,
 };
 
+test("R6: deadline warning requires an actual scheduled next trigger", () => {
+  const expired = {
+    ...task,
+    deadline: "2020-01-01T00:00:00.000Z",
+    schedule_status: "deadline_ineligible",
+  };
+  for (const trigger of ["IMMEDIATE", "AT", "EVENT"])
+    assert(
+      !safeText(
+        taskCardText({ ...expired, trigger, next_due_at: null }),
+      ).includes("下一次触发"),
+    );
+  for (const trigger of ["AT", "INTERVAL"])
+    assert(
+      safeText(
+        taskCardText({
+          ...expired,
+          trigger,
+          next_due_at: "2099-01-01T00:00:00.000Z",
+        }),
+      ).includes("下一次触发已超出截止时间"),
+    );
+});
+
 test("Task presentation preserves separate plan/execution states and sanitizes data before adding colors", () => {
   const text = taskCardText(
     {

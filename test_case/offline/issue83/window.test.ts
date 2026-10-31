@@ -14,6 +14,39 @@ import type {
 import type { TaskBrowserPage } from "../../../src/pi_secretary/src/api/contracts.ts";
 import { HISTORY_BYTES } from "../../../src/pi_secretary/src/tui/history.ts";
 import { bodyBytes } from "../../../src/pi_secretary/src/tui/body.ts";
+import { safeText } from "../../../src/pi_secretary/src/tui/view.ts";
+
+test("R6: historical lookup cards retain Shared and ordinary Scope labels without group headers", () =>
+  fixture(async (f) => {
+    const scope = f.app.scheduler.scopes.save({
+      name: "Historical Ordinary",
+      kind: "NONE",
+    });
+    const browser = new TaskBrowserWindow(f.client, () => false);
+    try {
+      for (const [scopeID, label] of [
+        [undefined, "Shared"],
+        [scope.id, scope.name],
+      ] as const) {
+        const plan = f.app.scheduler.propose(
+          "Historical label check",
+          id(),
+          f.app.host.sessionID,
+          { scopeID, at: "2099-01-01T00:00:00.000Z" },
+        );
+        // SEEDED paused metadata exercises historical rendering, not live acceptance.
+        f.app.store.commit([revise(plan, { state: "PAUSED" })]);
+        await browser.search(plan.id);
+        assert.equal(browser.root?.historical?.id, plan.id);
+        assert.equal(browser.root?.items.length, 0);
+        const card = browser.entries().find((entry) => entry.id === plan.id)!;
+        const rendered = safeText(card.component.render(120).join("\n"));
+        assert(rendered.includes("Scope  " + label), rendered);
+      }
+    } finally {
+      browser.stop();
+    }
+  }));
 
 const anchor = (item_id: string) => ({
   item_id,
@@ -201,6 +234,8 @@ test("terminal detail/back/M/T preserves root anchor and one Task rich draft at 
       command("/T");
       command("/search_task " + p.id.slice(0, 8));
       await until(() => app.remote!.taskBrowser.root?.target === p.id);
+      // The API reply precedes Pi's queued layout; xterm.flush only drains writes.
+      await until(() => app.documents.Task.anchor?.item_id === p.id, 5000);
       await term.flush();
       assert.equal(app.documents.Task.anchor?.item_id, p.id);
       command("/taskdetail " + p.id);
@@ -213,6 +248,7 @@ test("terminal detail/back/M/T preserves root anchor and one Task rich draft at 
       assert.equal(app.editors.Task.getExpandedText(), "中文 Task\n保留草稿");
       app.remote!.taskBrowser.back();
       app.draw();
+      await until(() => app.documents.Task.anchor?.item_id === p.id, 5000);
       await term.flush();
       assert.equal(app.editors.Task.getExpandedText(), "中文 Task\n保留草稿");
       assert.equal(app.documents.Task.anchor?.item_id, p.id);
