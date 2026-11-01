@@ -28,12 +28,13 @@ export const commandRegistry = [
   { name: "cotv", pages: ["Main"] },
   { name: "search_task", pages: ["Task"] },
   { name: "taskdetail", pages: ["Task"] },
+  { name: "show", pages: ["Task"] },
 ] as const;
 export const commands = commandRegistry.map((c) => c.name);
 export type Action =
   | { kind: "navigate"; page: Page }
   | { kind: "help" | "back" | "noop" | "draft" | "cot" }
-  | { kind: "search_task" | "taskdetail"; id: string }
+  | { kind: "search_task" | "taskdetail" | "show"; id: string }
   | { kind: "send"; text: string }
   | { kind: "error"; message: string };
 export function parseInput(
@@ -53,14 +54,18 @@ export function parseInput(
     command = name.toLowerCase();
   if (!commands.some((name) => name.toLowerCase() === command))
     return { kind: "error", message: "未知或尚未实现的命令；/help 查看范围" };
-  if (command === "search_task" || command === "taskdetail") {
+  if (
+    command === "search_task" ||
+    command === "taskdetail" ||
+    command === "show"
+  ) {
     if (page !== "Task" || (command === "search_task" && taskDetail))
       return {
         kind: "error",
         message:
           command === "search_task"
             ? "/search_task 仅在 Task 列表根视图可用"
-            : "/taskdetail 仅在 Task 可用",
+            : `/${command} 仅在 Task 可用`,
       };
     const token = /^ ([0-9A-Za-z-]+)[ \t]*$/.exec(rest);
     return token && token[0] === rest
@@ -127,7 +132,7 @@ function isCompleteLocalCommand(raw: string) {
   return (
     !/[\r\n]/.test(raw) &&
     (/^\/(?:m|t|back|help|cotvisible|cotv)[ \t]*$/i.test(raw) ||
-      /^\/(?:search_task|taskdetail) [0-9A-Za-z-]+[ \t]*$/i.test(raw))
+      /^\/(?:search_task|taskdetail|show) [0-9A-Za-z-]+[ \t]*$/i.test(raw))
   );
 }
 export function commandCompletion(
@@ -253,20 +258,22 @@ export class DraftEditor extends Editor {
     page: () => Page,
     suggestIDs?: (prefix: string) => Promise<string[]>,
     taskDetail?: () => boolean,
+    completionEnabled = true,
   ) {
     super(tui, editorTheme, { autocompleteMaxVisible: 6 });
     this.bridge = new EditorBridge(this);
     this.disableSubmit = true;
-    this.setAutocompleteProvider(
-      commandCompletion(
-        page,
-        () => originAt(this.bridge.document, 0) === "typed",
-        (a, b, start) => this.bridge.claimCompletion(a, b, start),
-        suggestIDs,
-        (text) => this.getText() === text,
-        taskDetail,
-      ),
-    );
+    if (completionEnabled)
+      this.setAutocompleteProvider(
+        commandCompletion(
+          page,
+          () => originAt(this.bridge.document, 0) === "typed",
+          (a, b, start) => this.bridge.claimCompletion(a, b, start),
+          suggestIDs,
+          (text) => this.getText() === text,
+          taskDetail,
+        ),
+      );
   }
   snapshot() {
     return this.bridge.document.snapshot(this.getText(), this.getCursor());

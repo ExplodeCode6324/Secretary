@@ -59,6 +59,12 @@ Operation の bytes/hash は公開テキスト全体を指します。source_tru
 
 PublicTaskCommand は文字列配列の `acceptance` を使います。継続では reuse_task_id と parent_execution_id の両方を渡します。[タスクのデータフロー](../../data-flow.md#タスクの提案から結果まで)を参照してください。Settings は完全な instructions/edits/command_ids を保存し、expected_revision でバージョン管理します。World の新規リソースの revision は "0"、業務バッチは最大 50 件です（公開構造上は最大 100 件）。
 
+## Master attention (#92)
+
+`GET attention?view=master` は期限内の承認待ち、有効な回答待ち、過去の実行失敗、現在の初期化失敗、結果不明の事項を返します。`view` の省略時は従来の動作を維持します。全件を不変の発生時刻とシーケンスの降順に並べて署名付きカーソルでページ分割し、全件数はページサイズに依存しません。失敗分類と `cause_evidence` は Core の権威ある記録から計算し、処置や削除を推測しません。
+
+`Execution.failure` は分類、記録された理由、関連する承認と操作、および実際の状態を提供します。拒否が原因と判断するには相互に一致する記録と失敗前の永続的な決定フレームが必要です。証拠の不整合や欠落は明示します。`TaskPlan` の変更で attention が無効になり、クライアントは `valid_until` にも更新する必要があります。
+
 ## Scope、認可、外部作用の判定
 
 Scope の作成には name/kind が必要です。DIRECTORY は既存の物理 root_path を指し、notes_path のデフォルトは `.secretary/NOTES.md` です。NONE は各タスクに個別ディレクトリを与えます。変更・アーカイブでは expected_revision を渡し、履歴と占有中の実行を保持します。Execution は作成時のバインドを固定します。condition_results は MET/NOT_MET/UNKNOWN と evidence を返し、ディレクトリ条件では SCOPE_BUSY、SCOPE_ARCHIVED、SCOPE_ROOT_CONFLICT を返す場合があります。

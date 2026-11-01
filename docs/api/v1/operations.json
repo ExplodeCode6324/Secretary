@@ -454,7 +454,7 @@
   {
     "method": "GET",
     "path": "/api/v1/attention",
-    "response": "Attention",
+    "response": "AttentionResponse",
     "status": 200,
     "parameters": [
       {
@@ -475,6 +475,18 @@
         "schema": {
           "type": "string"
         }
+      },
+      {
+        "name": "view",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": [
+            "master"
+          ]
+        },
+        "description": "Omit for legacy applicability; master shows pending approvals, questions and classified read-only exceptions."
       }
     ]
   },
