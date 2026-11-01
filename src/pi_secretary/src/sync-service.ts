@@ -28,7 +28,7 @@ export const mutationMappings = {
     "memory/commitments",
   ),
   CompactionJob: mapping(null, "memory", "session", "timeline", "activities"),
-  TaskPlan: mapping("tasks", "tasks", "task-requests", "related"),
+  TaskPlan: mapping("tasks", "tasks", "task-requests", "related", "attention"),
   Execution: mapping(
     "executions",
     "tasks",

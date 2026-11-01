@@ -1,5 +1,17 @@
 # 原生终端运行与验证
 
+#92 新增 Main 事项和定向处理，验收状态见 [#92 账本](../fix/evidence/issue92-attention/acceptance.md)。
+
+Main 编辑器上方按发起时间倒序展示待批准、待回答、失败和 UNKNOWN，分页可达全部记录。失败明确区分拒绝授权、撤销授权、执行失败、初始化失败及原因未分类；原因证据不一致另有标记。历史 FAILED 不因后续成功执行消失，精确处置和移除留给 #93。
+
+编辑器首行 ↑ 进入事项选择，↑/↓ 跨页；最新项再 ↑ 进入 Main 历史，最旧项再 ↓ 或 Esc 回编辑器。Enter 打开完整详情，查看不会延长留存。Task 普通输入支持 `/show <完整事项ID>`，只补全命令名，ID 原样保留。
+
+问题处理中 Enter 换行，Shift+Enter 原样回答当前事项，所有命令和补全停用。Tab/Shift+Tab 切换编辑器、详情和真实选项；选项焦点 ↑/↓ 选择，Enter 只复制选项原文。授权初始为中立详情，Tab 明确选择批准或拒绝，Enter 不执行，Shift+Enter 才确认。详情支持 ↑/↓、PageUp/PageDown。已结束执行的待批准授权仍可决定，但批准不能恢复该执行。
+
+普通草稿继续由原送达控制器管理，返回时保留后台更新。请求接收不等于事项完成，客户端核对实际业务状态和请求身份。断线后当前进程保留冻结提交，明确重试才沿用同 ID 和载荷；未发回答和事项提交不跨进程持久化，不自动重放。
+
+离线回归：`npx tsx --test --test-concurrency=1 test_case/offline/issue92/*.test.ts`。真实模型验收：`npx tsx test_case/online/test-issue92-live.ts .demo-data/issue92/live-<新目录>`；重跑可传上一轮 `report.json` 为第三个参数，累计预算不重置。Main/Task 各至多 48 次调用、150 次工具、每请求 90 秒、每响应 8192 tokens、总时限 20 分钟。真实 provider、虚拟终端和物理 Terminal/IME 验收分别记账。
+
 当前分支交付 #82 基础终端及 #91 Main 历史、CoT 和文本粘贴；代码/CI 与 Master 的产品验收分别记录。入口使用固定 Pi 0.87.0，不是浏览器界面。结果见 [#91 验收记录](../fix/evidence/issue91-main-history/acceptance.md)。
 
 ## 运行

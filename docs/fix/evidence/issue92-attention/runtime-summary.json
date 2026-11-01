@@ -1,0 +1,155 @@
+{
+  "evidence": "LIVE_MODEL + REAL_CORE_READONLY (separate phases)",
+  "provider": "opencode-go",
+  "model": "deepseek-v4.1-flash",
+  "limits": {
+    "main_calls": 48,
+    "task_calls": 48,
+    "tools": 150,
+    "total_ms": 1200000,
+    "request_ms": 90000,
+    "output_tokens": 8192
+  },
+  "cumulative_counts": {
+    "main": 31,
+    "task": 18
+  },
+  "cumulative_tools": 27,
+  "physical_http_attempts": 49,
+  "budget_started_at": "2026-11-01T20:12:54.405Z",
+  "finished_at": "2026-11-01T20:23:41.723Z",
+  "first_attempt": {
+    "status": "FAIL",
+    "reason": "Harness passed root instead of root_path to Scope.save; L1 both origins passed before the failure. No product change required."
+  },
+  "full_run_status": "PASS",
+  "final_answer_smoke_status": "PASS",
+  "final_product_source_hashes": {
+    "master-attention": "58c03bab974e20eb04e349561b60a4b4e23350ff26192400fd3a67fe2c7530ac",
+    "tui/matter": "b458d5853a7ddd32d53b5a744b34d046341fd778f748b75f0816ff09915d2dd9",
+    "tui/attention": "dd20e019c3f7b23f8f87a4eae5e775d30f834a82ec17a49b600e15d78d385253",
+    "tui/app": "a3d200c849948d886c1e8ddecd2d74ae91ec538e71c03828140e8db39b516d9b",
+    "application-service": "f36a8d109c006ea11e5ff927aea4391a19a9538af998988e48fe43f330f55fd0",
+    "model": "acb02e3fd91d7c82f13db2ffb74b55324c6f2e669217f1762cc615910cf87e2f",
+    "execution-runner": "7b6dba6d965a111d411c3581cee5eb8104a9958f019ab5771093e85880dc84e6",
+    "scheduler": "1cb90aaa09eea6930f35e1aaeb00658e91761d848b6401c47e194239bd7c130d",
+    "task-planning": "5db22a8b398f51b83e5a707a2a1616c6eeee2203da73a1b31f78d1d246db4800",
+    "budget": "3cebbbb0e47b60469ea9750fdedae0367ba86767f162d0ea9375cba4fd935c8f"
+  },
+  "cases": [
+    {
+      "name": "L1 real Main → Agent question → Main literal Master answer",
+      "status": "PASS",
+      "evidence": {
+        "task_id": "36e5c228-1e53-4971-9bab-4668f9d4c183",
+        "execution_id": "083c4bee-608d-471e-bc2f-13859674c6f3",
+        "decision_id": "761ac1e3-c657-4044-ac45-bd1ba34971b2",
+        "answer_request_id": "f4957821-e685-4b2f-9d74-58bb042bd8dd",
+        "answered_by": "MASTER",
+        "result_id": "aaced0f8-233b-4354-aa07-8858ede428c8",
+        "answer_sha256": "fbd5151a243827e35e6ce08a75a674b9475a4f0a919e264ed41caf7c20b19d62",
+        "resumed_literal_match": true,
+        "origin": "Main"
+      }
+    },
+    {
+      "name": "L1 real Main → Agent question → Task literal Master answer",
+      "status": "PASS",
+      "evidence": {
+        "task_id": "2653cf07-a08d-4c11-8b86-b9e2c1779540",
+        "execution_id": "fd093a75-5dc3-4202-b156-f7793179f6dc",
+        "decision_id": "e86a5f6e-bb3f-432c-9e8f-9b2809878425",
+        "answer_request_id": "0ab6b6c2-11b9-4be7-b080-e3d1a2b643e5",
+        "answered_by": "MASTER",
+        "result_id": "e1698dc1-8990-4612-b4f4-24cab3042d04",
+        "answer_sha256": "060687c2d2c73bc38511d8c72a95de72497fb7b47408eda97b8fb640c8e4c1f9",
+        "resumed_literal_match": true,
+        "origin": "Task"
+      }
+    },
+    {
+      "name": "L2 real Agent write authorization APPROVE",
+      "status": "PASS",
+      "evidence": {
+        "task_id": "0d65eaf6-c50b-43c1-80df-374a45c870dc",
+        "execution_id": "021c6ba4-e4bd-4fcf-b831-6804773ef285",
+        "authorization_id": "160a79dd-d60c-4ec0-bdc1-ad14aa04e4f8",
+        "operation_id": "83df9e86-94f7-454b-9182-3b6edbe3a0ca",
+        "decision_id": "601ed2ac-c257-4d42-baf8-537e56e9c16f",
+        "state": "CONSUMED",
+        "display_hash": "47e4939c2200b57390c40e387a36da89eb01a4765e18c58d73653b50d3cd06c9",
+        "file_exists": true,
+        "file_sha256": "1d5411cc51704acf0d0b7b5a49da655a6c87a5739495508adfe337502a5624ab"
+      }
+    },
+    {
+      "name": "L2 real Agent write authorization REJECT",
+      "status": "PASS",
+      "evidence": {
+        "task_id": "34d8004b-7874-4566-ac3c-ac258c4582cb",
+        "execution_id": "0057017e-26e3-493c-9b97-9f7822eafc18",
+        "authorization_id": "1dd9f9f5-951b-4ef8-b1f1-9d1d4653a280",
+        "operation_id": "33fb8d43-d42a-49be-83f0-dad981787c62",
+        "decision_id": "b503cd21-7b35-4d67-aa97-67a6c88f43ac",
+        "state": "REJECTED",
+        "display_hash": "f4a5c2c6456156337eedf77d3722ddfaf47ac1a9a4e16df17289b0ada5197f5e",
+        "file_exists": false,
+        "file_sha256": null
+      }
+    },
+    {
+      "name": "L2 real missing-input execution failure remains beside rejection failure",
+      "status": "PASS",
+      "evidence": {
+        "task_id": "4d098dc0-a5ec-45a5-b2c7-1b0d15694d08",
+        "execution_id": "35435ce6-60eb-4409-a7e5-c7d2cc395abd",
+        "rejected_execution_id": "0057017e-26e3-493c-9b97-9f7822eafc18",
+        "actual_failure": {
+          "id": "35435ce6-60eb-4409-a7e5-c7d2cc395abd",
+          "state": "FAILED",
+          "failure_category": "execution_failed",
+          "cause_evidence": "recorded_non_rejection",
+          "initiated_sequence": "472"
+        },
+        "rejected_failure": {
+          "id": "0057017e-26e3-493c-9b97-9f7822eafc18",
+          "state": "FAILED",
+          "failure_category": "authorization_rejected",
+          "cause_evidence": "rejection_proven",
+          "initiated_sequence": "374",
+          "authorization_id": "1dd9f9f5-951b-4ef8-b1f1-9d1d4653a280",
+          "operation_id": "33fb8d43-d42a-49be-83f0-dad981787c62"
+        }
+      }
+    },
+    {
+      "name": "L3 same-domain reconnect preserves Main draft without automatic matter replay",
+      "status": "PASS",
+      "evidence": {
+        "draft_preserved": true,
+        "extra_inputs": 0,
+        "note": "Controller reconnect; full transport loss races separately covered offline."
+      }
+    }
+  ],
+  "quiet_readonly": {
+    "status": "PASS",
+    "evidence": "REAL_CORE_READONLY",
+    "pump": false,
+    "attempted_model_calls": 0,
+    "store_sequence_before": 488,
+    "store_sequence_after": 488,
+    "inputs_before": 12,
+    "inputs_after": 12,
+    "model_calls_before": 29,
+    "model_calls_after": 29,
+    "retention_unchanged": true,
+    "real_read_error_event_id": "5e808d5e-d56b-41c6-9b96-09e8c73064bd"
+  },
+  "limits_of_evidence": [
+    "Native Terminal/IME not tested: computer-use tool refused Terminal access.",
+    "L3 full run covers controller reconnect; lost-response/race/transport cases use isolated offline Core tests.",
+    "Live provider options were empty. Nonempty options, expiry, volume, contradictory provenance and foreign sessions are SEEDED_CORE.",
+    "Full unpaused auth run observed CONSUMED; APPROVED-before-dispatch removal is separately proven with pump:false real Core."
+  ]
+}

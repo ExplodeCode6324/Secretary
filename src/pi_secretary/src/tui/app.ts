@@ -1,3 +1,5 @@
+import { MatterController } from "./matter.ts";
+import type { MasterAttentionItem } from "../api/contracts.ts";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -33,6 +35,20 @@ export class TerminalApp {
   readonly editors: Record<Page, DraftEditor>;
   readonly documents = { Main: new DocumentView(), Task: new DocumentView() };
   readonly scrolls: Record<Page, AnchoredScroll>;
+  readonly matters = new MatterController();
+  readonly matterDocument = new DocumentView();
+  readonly matterScroll = new AnchoredScroll(this.matterDocument);
+  readonly matterEditor: DraftEditor;
+  private matterFocus = "detail";
+  private matterOrigin?: {
+    page: Page;
+    generation: number;
+    snapshot: DraftSnapshot;
+    viewing: boolean;
+  };
+  private layoutMode = "";
+  private matterText = "";
+  private attentionSelecting = false;
   readonly footer = new Text("连接 Core… Ctrl+C 退出", 0, 0);
   page: Page = "Main";
   viewing = false;
@@ -89,6 +105,56 @@ export class TerminalApp {
         () => !!this.remote?.taskBrowser.selected,
       ),
     };
+    this.matterEditor = new DraftEditor(
+      this.tui,
+      () => this.page,
+      undefined,
+      undefined,
+      false,
+    );
+    this.matterEditor.onEdited = () => this.draw();
+    this.matterEditor.onExplicitSubmit = (raw) => void this.matters.submit(raw);
+    this.matters.onChange = () => {
+      const current = this.matters.current;
+      if (current && this.matterText !== current.text) {
+        this.matterFocus = current.kind === "decision" ? "editor" : "detail";
+        this.matterDocument.entries = [
+          {
+            id: current.id,
+            version: current.version,
+            component: new Text(safeText(current.text), 0, 0),
+          },
+        ];
+        this.matterText = current.text;
+        this.focusMatter();
+      }
+      this.draw();
+    };
+    this.matters.onExit = (origin, result, message) => {
+      const saved = this.matterOrigin;
+      this.page = origin;
+      if (
+        saved &&
+        this.delivery?.state.drafts[origin].generation === saved.generation
+      ) {
+        this.editors[origin].restore(saved.snapshot, false);
+        this.viewing = saved.viewing;
+      }
+      this.remote?.attention.exit();
+      if (result !== "escape") {
+        this.viewing = false;
+        if (origin === "Task") {
+          this.remote?.taskBrowser.back();
+          void this.remote?.taskBrowser.refresh();
+        }
+      }
+      this.uiHint = message;
+      this.matterOrigin = undefined;
+      this.matterText = "";
+      this.matterEditor.setText("");
+      this.remote?.attention.schedule();
+      this.draw();
+    };
     this.scrolls = {
       Main: new AnchoredScroll(this.documents.Main),
       Task: new AnchoredScroll(this.documents.Task),
@@ -135,6 +201,34 @@ export class TerminalApp {
       this.scrolls[this.page].endSelection();
       if (matchesKey(data, "ctrl+c")) {
         void this.close();
+        return { consume: true };
+      }
+      if (this.matters.current || this.matters.loading)
+        return this.matterInput(data);
+      if (this.page === "Main" && this.remote?.attention.selected) {
+        if (matchesKey(data, "escape")) {
+          this.remote.attention.exit();
+          this.tui.setFocus(this.editors.Main);
+          this.draw();
+        } else if (matchesKey(data, "enter")) {
+          const row = this.remote.attention.row;
+          if (row) void this.openMatter(row.id, row);
+        } else if (matchesKey(data, "up") || matchesKey(data, "down")) {
+          void this.remote.attention
+            .move(matchesKey(data, "up") ? -1 : 1)
+            .then((edge) => {
+              if (edge === "history") {
+                this.viewing = true;
+                this.tui.setFocus(this.scrolls.Main);
+                this.scrolls.Main.scrollBy(-1);
+              }
+              if (edge === "editor") {
+                this.viewing = false;
+                this.tui.setFocus(this.editors.Main);
+              }
+              this.draw();
+            });
+        }
         return { consume: true };
       }
       const editor = this.editors[this.page],
@@ -244,7 +338,9 @@ export class TerminalApp {
               !(this.page === "Task" && this.remote?.taskBrowser.hasAfter)
             ) {
               this.viewing = false;
-              this.tui.setFocus(editor);
+              if (this.page === "Main" && this.remote?.attention.enter())
+                this.tui.setFocus(null);
+              else this.tui.setFocus(editor);
             }
             this.draw();
             return { consume: true };
@@ -265,6 +361,12 @@ export class TerminalApp {
           !editor.isShowingAutocomplete() &&
           editor.onFirstVisualRow(this.tui.terminal.columns)
         ) {
+          if (this.page === "Main" && this.remote?.attention.enter()) {
+            this.stopFollowing();
+            this.tui.setFocus(null);
+            this.draw();
+            return { consume: true };
+          }
           this.viewing = true;
           this.tui.setFocus(scroll);
           scroll.scrollBy(-1);
@@ -286,18 +388,147 @@ export class TerminalApp {
     this.tui.start();
     void this.attach();
     this.statusTimer = setInterval(() => {
+      void this.matters.refresh();
       void this.delivery?.reconcile().catch((e) => {
         this.uiHint = String(e);
         this.draw();
       });
     }, 3000);
   }
+  private matterInput(data: string) {
+    const current = this.matters.current;
+    if (matchesKey(data, "escape")) {
+      this.matters.exit();
+      return { consume: true };
+    }
+    if (!current) return { consume: true };
+    const focuses =
+      current.kind === "authorization"
+        ? ["detail", "approve", "reject"]
+        : current.kind === "decision"
+          ? [
+              "editor",
+              "detail",
+              ...current.options.map((_, i) => "option:" + i),
+            ]
+          : ["detail"];
+    if (matchesKey(data, "tab") || matchesKey(data, "shift+tab")) {
+      const direction = matchesKey(data, "shift+tab") ? -1 : 1;
+      this.matterFocus =
+        focuses[
+          (focuses.indexOf(this.matterFocus) + direction + focuses.length) %
+            focuses.length
+        ];
+      this.focusMatter();
+      this.draw();
+      return { consume: true };
+    }
+    if (matchesKey(data, "shift+enter")) {
+      if (current.kind === "decision" && this.matterFocus === "editor")
+        void this.matters.submit(this.matterEditor.getExpandedText());
+      else if (current.kind === "authorization")
+        void this.matters.submit(
+          "",
+          this.matterFocus === "approve"
+            ? "APPROVE"
+            : this.matterFocus === "reject"
+              ? "REJECT"
+              : undefined,
+        );
+      return { consume: true };
+    }
+    if (
+      this.matterFocus.startsWith("option:") &&
+      (matchesKey(data, "up") || matchesKey(data, "down"))
+    ) {
+      const index = Number(this.matterFocus.split(":")[1]);
+      this.matterFocus =
+        "option:" +
+        Math.max(
+          0,
+          Math.min(
+            current.options.length - 1,
+            index + (matchesKey(data, "up") ? -1 : 1),
+          ),
+        );
+      this.draw();
+      return { consume: true };
+    }
+    if (this.matterFocus.startsWith("option:") && matchesKey(data, "enter")) {
+      this.matterEditor.setText(
+        current.options[Number(this.matterFocus.split(":")[1])],
+      );
+      this.matterFocus = "editor";
+      this.focusMatter();
+      this.draw();
+      return { consume: true };
+    }
+    if (this.matterFocus !== "editor") {
+      if (this.matterFocus === "detail") {
+        if (matchesKey(data, "up")) this.matterScroll.scrollBy(-1);
+        if (matchesKey(data, "down")) this.matterScroll.scrollBy(1);
+        if (matchesKey(data, "pageUp"))
+          this.matterScroll.scrollBy(
+            -Math.max(1, this.matterScroll.viewportHeight - 1),
+          );
+        if (matchesKey(data, "pageDown"))
+          this.matterScroll.scrollBy(
+            Math.max(1, this.matterScroll.viewportHeight - 1),
+          );
+      }
+      this.draw();
+      return { consume: true };
+    }
+    // Literal input, including all slash commands, goes only to the temporary editor.
+    return undefined;
+  }
+  private focusMatter() {
+    this.tui.setFocus(
+      this.matterFocus === "editor" ? this.matterEditor : this.matterScroll,
+    );
+  }
+  private async openMatter(id: string, row?: MasterAttentionItem) {
+    this.stopFollowing();
+    const draft = this.delivery!.state.drafts[this.page];
+    this.matterOrigin = {
+      page: this.page,
+      generation: draft.generation,
+      snapshot: this.editors[this.page].snapshot(),
+      viewing: this.viewing,
+    };
+    this.matterEditor.setText("");
+    this.matterText = "";
+    this.viewing = false;
+    await this.matters.open(id, this.page, row);
+    if (this.matters.current && row) this.remote?.attention.seen.add(row.key);
+    this.draw();
+  }
   private layout() {
+    const active = !!this.matters.current || this.matters.loading;
+    const attention = this.page === "Main" ? this.remote?.attention : undefined;
+    const pane =
+      attention && (!!attention.head?.counts.total || !!attention.error);
+    this.layoutMode = `${active}:${this.page}:${!!pane}`;
     this.tui.setLayoutRoot(
       new VStack([
-        { component: this.scrolls[this.page], basis: 0, grow: 1, minSize: 1 },
         {
-          component: this.editors[this.page],
+          component: active ? this.matterScroll : this.scrolls[this.page],
+          basis: 0,
+          grow: 1,
+          minSize: 1,
+        },
+        ...(pane
+          ? [
+              {
+                component: attention,
+                basis: "auto" as const,
+                minSize: 1,
+                maxSize: 8,
+              },
+            ]
+          : []),
+        {
+          component: active ? this.matterEditor : this.editors[this.page],
           basis: "auto",
           minSize: 3,
           maxSize: 10,
@@ -305,16 +536,27 @@ export class TerminalApp {
         { component: this.footer, basis: 2, minSize: 1, maxSize: 2 },
       ]),
     );
-    this.tui.setFocus(
-      this.viewing ? this.scrolls[this.page] : this.editors[this.page],
-    );
+    if (active) this.focusMatter();
+    else
+      this.tui.setFocus(
+        attention?.selected
+          ? null
+          : this.viewing
+            ? this.scrolls[this.page]
+            : this.editors[this.page],
+      );
   }
   private clearHint() {
     this.uiHint = "";
+    this.matters.hint = "";
     this.remote?.clearError();
     if (this.delivery && !this.delivery.failedSave) this.delivery.hint = "";
   }
   private submit(raw: string, snapshot: DraftSnapshot) {
+    if (this.matters.current || this.matters.loading) {
+      void this.matters.submit(raw);
+      return;
+    }
     if (!this.delivery) return;
     const pending = this.delivery.state.pending,
       draft = this.delivery.state.drafts.Main;
@@ -365,6 +607,7 @@ export class TerminalApp {
       this.remote?.taskBrowser.back();
     if (action.kind === "search_task")
       void this.remote?.taskBrowser.search(action.id);
+    if (action.kind === "show") void this.openMatter(action.id);
     if (action.kind === "taskdetail")
       void this.remote?.taskBrowser.open(action.id);
     if (action.kind === "cot") {
@@ -375,7 +618,7 @@ export class TerminalApp {
     }
     if (action.kind === "help")
       this.uiHint =
-        "/m /t /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> · ↑/↓ 连续读取";
+        "/m /t /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> · ↑/↓ 连续读取";
     this.draw();
   }
   private submitMessage(raw: string, text: string, snapshot?: DraftSnapshot) {
@@ -472,6 +715,16 @@ export class TerminalApp {
       this.remote = new RemoteViews(client);
       if (previous) this.remote.inherit(previous);
       this.remote.setFollowing(this.scrolls.Main.following);
+      this.remote.attention.height = () =>
+        Math.min(8, Math.max(3, Math.floor(this.tui.terminal.rows / 4)));
+      this.matters.connect(
+        {
+          query: this.remote.query.bind(this.remote),
+          command: client.command.bind(client),
+        },
+        core.data_domain_id + ":" + core.mode,
+      );
+      this.remote.attention.onRefresh = () => void this.matters.refresh();
       this.remote.onChange = () => {
         this.remoteDirty = true;
         this.draw();
@@ -597,6 +850,40 @@ export class TerminalApp {
         this.remote!.taskBrowser.restoreAnchor = undefined;
       }
     }
+    const active = !!this.matters.current || this.matters.loading;
+    const attention = this.page === "Main" ? this.remote?.attention : undefined;
+    const pane =
+      !!attention && (!!attention.head?.counts.total || !!attention.error);
+    if (
+      this.attentionSelecting &&
+      !attention?.selected &&
+      !active &&
+      !this.viewing
+    )
+      this.tui.setFocus(this.editors[this.page]);
+    this.attentionSelecting = !!attention?.selected;
+    if (this.layoutMode !== `${active}:${this.page}:${pane}`) this.layout();
+    if (active) {
+      const current = this.matters.current;
+      this.matterEditor.enabled = current?.kind === "decision";
+      const focus =
+        this.matterFocus === "approve"
+          ? "[批准] 拒绝"
+          : this.matterFocus === "reject"
+            ? "批准 [拒绝]"
+            : this.matterFocus.startsWith("option:")
+              ? `选项 ${Number(this.matterFocus.split(":")[1]) + 1}：${current?.options[Number(this.matterFocus.split(":")[1])]}`
+              : this.matterFocus === "editor"
+                ? "回答输入"
+                : "详情滚动";
+      this.footer.setText(
+        safeText(
+          `事项 ${current?.id ?? "读取中"} · ${focus} · Tab 切换 · Esc 返回\n${this.matters.hint || (current?.kind === "decision" ? "Enter 换行 · Shift+Enter 字面回答；命令不可用" : current?.kind === "authorization" ? "Enter 不执行 · Shift+Enter 确认所选动作" : "只读详情 · ↑/↓/PageUp/PageDown")} `,
+        ),
+      );
+      this.tui.requestRender();
+      return;
+    }
     const pending = this.delivery?.state.pending;
     const recovery = this.delivery?.state.recovery;
     const preview = Array.from(
@@ -610,6 +897,10 @@ export class TerminalApp {
     const hint =
       this.uiHint ||
       this.delivery?.hint ||
+      this.matters.hint ||
+      (attention?.selected
+        ? "↑/↓ 选择事项 · Enter 打开 · Esc 返回编辑器"
+        : attention?.error) ||
       (this.page === "Task"
         ? this.remote?.taskBrowser.error || this.remote?.taskBrowser.notice
         : this.remote?.error) ||
@@ -632,6 +923,7 @@ export class TerminalApp {
       clearTimeout(this.retry);
       clearInterval(this.statusTimer);
       this.remote?.stop();
+      this.matters.stop();
       await this.files?.close();
       this.tui.stop();
     } catch (e) {

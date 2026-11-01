@@ -174,6 +174,10 @@ export async function execute(
     if (ops.some((o) => o.state === "CANCELLED")) {
       this.finish(eid, "FAILED", {
         reason: "Authorization rejected/revoked",
+        failure_code: "CANCELLED_OPERATION_ON_RESUME",
+        cancelled_operation_ids: ops
+          .filter((o) => o.state === "CANCELLED")
+          .map((o) => o.id),
       });
       return;
     }

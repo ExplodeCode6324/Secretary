@@ -1,8 +1,12 @@
 # Issue #92 — 待处理事项、授权与定向回答
 
-日期：2026-11-02（Asia/Hong_Kong）。修订 R2，已纳入最终非阻断意见。状态：CLAUDE_PLAN_PASS / 等待 Master 批准实施。
+日期：2026-11-02（Asia/Hong_Kong）。修订 R2，已纳入最终非阻断意见。状态：MASTER_CONDITIONALLY_APPROVED / 实施中。
 
 [English](fix_20261102_issue92_attention.en.md) · [复核](evidence/issue92-attention/plan-review.md) · [验收](evidence/issue92-attention/acceptance.md)
+
+## Master 条件批准 — 2026-11-02
+
+Master 已批准实施，补充要求：失败行明确分类，尤其区分拒绝授权导致失败与实际执行失败，方便本 issue 验收。初始化失败独立显示，保留真实 FAILED 状态、准确来源/原因和全量发起顺序。分类只能依据 Core 权威事实，不能由模型文字猜测；历史原因不可用则标未分类。必要时在已知拒绝分支的既有结果 detail 中记录结构化原因，不新增状态机或处置记录。计数和只读详情呈现分类，真实模型/真实 Core 证据并列核对拒绝及实际失败。#93 仍负责精确处置/移除，不授权合并。此条件批准替代下文历史“仅计划/待批准”状态。
 
 ## 1. 依据、基线与范围
 
@@ -131,3 +135,7 @@ Claude R2 为 PASS（仅计划），B1–B6 全部关闭，双语实质一致。
 请在批准时知悉：(1) 拒绝活跃等待 Agent 的授权可能让执行变 FAILED 并保留失败行；(2) 已有 domain 全部历史 FAILED 会出现，重启后会话内已看标记重置；(3) Main 完整失败区与 Task 最新失败标记、最近三轮 Agent 历史有意不同，较旧失败即使不在 Task 当前集合/历史，也必须经 Main 只读详情可达。实施时写入 run-and-test.md。成功重做/处置后的移除登记 NOT_DELIVERED_BY_92，属于 #93，不宣称全部 C09 动作完成。
 
 SEEDED_CORE 使用 pump:false 且无真实 provider 凭据，授权参数无害且限 scratch；否则 seeded 问题回答会恢复真实 Agent，seeded 授权可能执行真实效果。真实 provider 链路使用另一个 domain。INIT_FAILED 持续初始化重试的 journal 增长属于既存独立 Core 问题；#92 只合并自身投影刷新。
+
+## 实施澄清：分类证据
+
+分类补充方案已获 Claude PASS。恢复分支标记为 CANCELLED_OPERATION_ON_RESUME，仅表示存在已取消操作。拒绝分类还要求操作与授权双向关联、MASTER_UI 决定身份，以及彼此匹配且严格早于 TaskResult 失败帧的不可变取消/决定帧。cause_evidence 区分 rejection_proven、recorded_non_rejection、inconsistent 和 unavailable。历史原因不可用时标未分类；记录的拒绝原因与证据矛盾时保留 execution_failed 并明确提示。本次不增加处置或生命周期变更。源码复核和运行证据分别记录。

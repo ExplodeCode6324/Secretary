@@ -55,6 +55,12 @@ Operation 的 bytes/hash 指完整公开文本；source_truncated 表示执行�
 
 PublicTaskCommand 使用 `acceptance` 字符串数组；接续同时传 reuse_task_id 和 parent_execution_id，规则见[任务数据流](../../data-flow.md#任务从提案到结果)。Settings 保存完整 instructions/edits/command_ids，使用 expected_revision 控制版本；World 新资源 revision 为 "0"，单次领域批次最多 50 项（公开结构上限 100）。
 
+## Master attention (#92)
+
+`GET attention?view=master` 返回未过期的待批准、有效待回答、历史执行失败、当前初始化失败和结果未知事项；不传 `view` 保持原行为。完整集合按不可变发起时间和序号倒序，再使用签名游标分页，全量计数不受页大小影响。失败类别和 `cause_evidence` 由 Core 权威记录计算，不推断处置或移除。
+
+`Execution.failure` 提供分类、原始原因、关联授权和操作及其实际状态。拒绝原因需要相互匹配的记录和先于失败的持久决定帧；证据不一致或不可用会明确标注。`TaskPlan` 变化使 attention 失效，客户端还须按 `valid_until` 刷新。
+
 ## Scope、授权与效果裁定
 
 Scope 创建必填 name/kind。DIRECTORY 指向已有物理 root_path，notes_path 默认 `.secretary/NOTES.md`；NONE 让各任务使用私有目录。修改/归档传 expected_revision；归档保留历史与已占槽执行。Execution 固定创建时的绑定，condition_results 返回 MET/NOT_MET/UNKNOWN 及 evidence，目录条件可返回 SCOPE_BUSY、SCOPE_ARCHIVED、SCOPE_ROOT_CONFLICT。

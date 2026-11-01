@@ -1,8 +1,12 @@
 # Issue #92 — Pending matters, authorization and directed answers
 
-Date: 2026-11-02 (Asia/Hong_Kong). Revision R2, final non-blocking review notes incorporated. Status: CLAUDE_PLAN_PASS / AWAITING_MASTER_APPROVAL.
+Date: 2026-11-02 (Asia/Hong_Kong). Revision R2, final non-blocking review notes incorporated. Status: MASTER_CONDITIONALLY_APPROVED / IMPLEMENTING.
 
 [中文](fix_20261102_issue92_attention.md) · [Review](evidence/issue92-attention/plan-review.md) · [Acceptance](evidence/issue92-attention/acceptance.md)
+
+## Master conditional approval — 2026-11-02
+
+Master approved implementation with one addition: visibly classify failure rows, especially authorization rejection versus actual execution failure, for this issue's acceptance. Show initialization failure separately, preserve actual FAILED state, exact source identity/reason and global initiation order. Classification must use authoritative Core provenance, never model prose guessing; unavailable legacy cause is labelled unclassified rather than misrepresented. Record structured cause in the existing result detail at the known rejection branch where needed, without new state machine or disposal record. Counts and read-only detail expose categories. Verify rejection and genuine failure side by side in real-model/real-Core evidence. #93 still owns precise disposition/removal; no merge authorization. This conditional approval supersedes the historical plan-only/approval-pending wording below.
 
 ## 1. Authority, baseline and scope
 
@@ -131,3 +135,7 @@ Claude R2 verdict is PASS (plan only); B1–B6 are closed and both languages mat
 Before approving, note: (1) rejection of an active waiting Agent authorization may finish that execution FAILED and leave its failure row; (2) all historical FAILED executions appear on existing domains, and session-only seen state resets on restart; (3) Main's complete failure region differs intentionally from Task's latest-failure flag and latest-three Agent history. Older failed executions must remain readable through Main exception detail even when absent from Task's current collection/history. Register these consequences in run-and-test.md during implementation. Successful-retry/disposition removal is NOT_DELIVERED_BY_92 and belongs to #93, not a claim that all C09 actions are complete.
 
 SEEDED_CORE domains use pump:false and no live provider credentials; approval parameters remain harmless and confined to scratch. Otherwise answering a seeded decision could resume a real Agent or approving a seeded authorization could execute a real effect. Production-provider chains use separate domains. INIT_FAILED journal growth from repeated Core initialization retries is an existing separate Core concern; #92 only coalesces its own projection refreshes.
+
+## Implementation clarification / classification evidence
+
+The approved classification addendum received Claude PASS. The resume marker is CANCELLED_OPERATION_ON_RESUME, not an assertion of rejection. Rejection classification requires reciprocal operation/authorization ownership, MASTER_UI decision identity, and matching immutable cancellation/decision frames strictly before the TaskResult failure frame. cause_evidence distinguishes rejection_proven, recorded_non_rejection, inconsistent and unavailable. Unavailable historical causes remain unclassified; contradictory recorded rejection causes remain execution_failed with an explicit warning. No disposition or lifecycle change is added. Source review and runtime evidence remain separate.

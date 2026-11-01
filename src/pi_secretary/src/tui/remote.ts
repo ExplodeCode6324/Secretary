@@ -1,3 +1,4 @@
+import { AttentionWindow } from "./attention.ts";
 import { TaskBrowserWindow } from "./task-browser.ts";
 import type { CoreClient } from "../core-client.ts";
 import type {
@@ -19,6 +20,7 @@ type Query = "timeline" | "task-browser";
 export class RemoteViews {
   readonly history: HistoryWindow;
   readonly taskBrowser: TaskBrowserWindow;
+  readonly attention: AttentionWindow;
   readonly bodies = new Map<string, MessageBody>();
   get error() {
     return this.history.error;
@@ -70,6 +72,8 @@ export class RemoteViews {
   onChange = () => {};
   onDisconnect = (error: unknown) => {};
   constructor(readonly client: CoreClient) {
+    this.attention = new AttentionWindow({ query: this.query.bind(this) });
+    this.attention.onChange = () => this.onChange();
     this.history = new HistoryWindow({
       endpoint: client.endpoint,
       query: this.query.bind(this),
@@ -88,7 +92,7 @@ export class RemoteViews {
       this.focus([...this.wanted]);
     };
   }
-  private async query<T>(path: string): Promise<T> {
+  async query<T>(path: string): Promise<T> {
     if (this.reads >= 2)
       await new Promise<void>((resolve) => this.readWaiters.push(resolve));
     else this.reads++;
@@ -102,6 +106,7 @@ export class RemoteViews {
     }
   }
   inherit(previous: RemoteViews) {
+    this.attention.inherit(previous.attention);
     this.history.inherit(previous.history);
     this.taskBrowser.inherit(previous.taskBrowser);
     // Old bodies are display-only until the new generation has been located.
@@ -115,7 +120,7 @@ export class RemoteViews {
   }
   async start() {
     const cursor = await this.client.syncCursor();
-    await this.refresh();
+    await Promise.all([this.refresh(), this.attention.refresh()]);
     if (!this.stopped) void this.listen(cursor.cursor);
   }
   refresh(queries: Query[] = ["timeline", "task-browser"]) {
@@ -408,6 +413,17 @@ export class RemoteViews {
                       ? change.query
                       : change.resource_type;
                   const root = query?.split("/")[0];
+                  if (
+                    [
+                      "tasks",
+                      "attention",
+                      "authorizations",
+                      "decisions",
+                      "operations",
+                      "executions",
+                    ].includes(root ?? "")
+                  )
+                    this.attention.schedule();
                   if (root === "timeline" || root === "activities")
                     affected.add("timeline");
                   if (
@@ -439,6 +455,7 @@ export class RemoteViews {
     this.generation++;
     this.history.stop();
     this.taskBrowser.stop();
+    this.attention.stop();
     this.wanted.clear();
     clearTimeout(this.timer);
     this.abort?.abort();

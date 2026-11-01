@@ -59,6 +59,12 @@ Les bytes/hash d’Operation concernent le texte public complet. source_truncate
 
 PublicTaskCommand utilise un tableau de chaînes `acceptance`. Une continuation fournit reuse_task_id et parent_execution_id ; voir le [flux des tâches](../../data-flow.md#de-la-proposition-de-tâche-au-résultat). Settings conserve instructions/edits/command_ids complets et utilise expected_revision pour le contrôle de version. Les nouvelles ressources World ont revision "0" ; un lot métier est limité à 50 éléments (la structure publique en autorise 100).
 
+## Master attention (#92)
+
+`GET attention?view=master` renvoie les approbations en attente non expirées, les décisions ouvertes valides, les échecs historiques d’exécution, les échecs actuels d’initialisation et les résultats inconnus ; sans `view`, le comportement initial est conservé. L’ensemble est trié par heure et séquence immuables de survenue décroissantes, puis paginé avec des curseurs signés. Les compteurs globaux ne dépendent pas de la taille des pages. Core calcule les catégories et `cause_evidence` selon les enregistrements faisant autorité, sans déduire de traitement ni de suppression.
+
+`Execution.failure` fournit la catégorie, la raison enregistrée, l’autorisation et l’opération associées et leurs états réels. Attribuer un échec au refus exige des liens réciproques et une trame de décision persistée antérieure à l’échec ; les preuves incohérentes ou indisponibles sont signalées. Les changements de `TaskPlan` invalident attention, et les clients doivent également actualiser à `valid_until`.
+
 ## Scopes, autorisations et détermination des effets
 
 La création d’un Scope exige name/kind. DIRECTORY pointe vers un root_path physique existant ; notes_path vaut `.secretary/NOTES.md` par défaut. NONE attribue un répertoire privé à chaque tâche. Modification/archivage exigent expected_revision ; l’archivage conserve l’historique et les exécutions occupantes. Execution fige sa liaison à la création. condition_results renvoie MET/NOT_MET/UNKNOWN et evidence ; les conditions de répertoire peuvent renvoyer SCOPE_BUSY, SCOPE_ARCHIVED ou SCOPE_ROOT_CONFLICT.

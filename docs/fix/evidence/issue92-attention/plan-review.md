@@ -48,3 +48,11 @@ Master-facing implications are in both plans: rejection may cause a persistent f
 Raw evidence: `.demo-data/issue92/review/r1-request.txt`, `r1-response-dom.txt`, `r1-verdict.png`, `r2-request.txt`, `r2-response-dom.txt`, `r2-pass.png`, timing and structural-check files. Session retained: https://claude.ai/chat/b9da0f21-c0b6-4bb1-8e7a-1ca6ad9b8597 . Final local plans incorporate only the review's non-blocking notes after R2 PASS.
 
 Final validation: npm run docs:check PASS (646 Markdown files, 8477 local links, 117 localization sources/351 pages); bilingual structural checks PASS. Structural checks are not a substitute for semantic review. Only the four issue92 plan/evidence documents are committed; no product source, dependency or workflow changes.
+
+## Conditional approval and classification addendum
+
+Master approved implementation on 2026-11-02, requiring separate failure categories while #93 retains exact disposition/removal. Claude Opus 5.5 Extra returned PASS for the narrow addendum, submitted 19:59:10 UTC and first inspected 20:09:16 UTC. Same conversation; baseline source inspection only, no execution.
+
+Accepted correction: resumeAuth can encounter CANCELLED operations caused by RULE_CHANGED, so its old reason string alone does not prove rejection. The new detail marker describes cancellation on resume, not denial. Classification validates the FAILED result, exact recorded branch evidence, reciprocal Operation/Authorization ownership, MASTER_UI decision identity, matching cancellation/decision frame, and a decision sequence strictly before the failure frame. Linked rejected facts without cause evidence remain execution_failed. Inconsistent evidence is explicit; unavailable historical provenance stays unclassified as approved. REVOKED has a separate label and actual state.
+
+Known Core behavior remains outside #92: the broad CANCELLED resume branch can fail after a rule change. This issue truthfully labels that inconsistency and does not alter the state machine. Raw addendum request/reply/screenshot remain ignored under `.demo-data/issue92/review/approval-addendum-*`.
