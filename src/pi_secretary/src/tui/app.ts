@@ -500,7 +500,8 @@ export class TerminalApp {
     this.matterText = "";
     this.viewing = false;
     await this.matters.open(id, this.page, row);
-    if (this.matters.current && row) this.remote?.attention.seen.add(row.key);
+    if (this.matters.current?.id === id && row)
+      this.remote?.attention.seen.add(row.key);
     this.draw();
   }
   private layout() {

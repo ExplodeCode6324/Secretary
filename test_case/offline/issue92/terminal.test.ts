@@ -249,3 +249,59 @@ test("an externally removed selection returns keyboard focus to the ordinary edi
     await cleanup();
   }
 });
+
+test("a cancelled late opening cannot mark a different matter as seen", async () => {
+  const { f, ui, terminal, cleanup } = await setup(async (f) => {
+    const first = await decision(f);
+    await decision(f);
+    return first.id;
+  });
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    terminal.sendInput(up);
+    const old = ui.remote!.attention.row!;
+    const originalOpen = ui.matters.open.bind(ui.matters);
+    let oldOpening: Promise<void> | undefined;
+    ui.matters.open = (id, origin, row) => {
+      const opening = originalOpen(id, origin, row);
+      if (id === old.id) oldOpening = opening;
+      return opening;
+    };
+    const core = await f.client.core();
+    let delayed = false;
+    ui.matters.connect(
+      {
+        query: async <T>(route: string) => {
+          if (route === old.detail_route) {
+            delayed = true;
+            await gate;
+          }
+          return f.client.query<T>(route);
+        },
+        command: f.client.command.bind(f.client),
+      },
+      core.data_domain_id + ":" + core.mode,
+    );
+    terminal.sendInput("\r");
+    await until(() => delayed);
+    terminal.sendInput(esc);
+    terminal.sendInput(up);
+    terminal.sendInput(up);
+    const next = ui.remote!.attention.row!;
+    assert.notEqual(next.id, old.id);
+    terminal.sendInput("\r");
+    await until(() => ui.matters.current?.id === next.id);
+    assert(ui.remote!.attention.seen.has(next.key));
+    release();
+    // openMatter registered its continuation before this await, so it has now drained.
+    await oldOpening;
+    assert.equal(ui.matters.current?.id, next.id);
+    assert.equal(ui.remote!.attention.seen.has(old.key), false);
+  } finally {
+    release();
+    await cleanup();
+  }
+});

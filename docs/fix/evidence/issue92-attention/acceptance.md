@@ -2,6 +2,8 @@
 
 Date: 2026-11-02. Implementation in progress; evidence below is scoped, not Master acceptance.
 
+The original source-freeze snapshot below is `c7fd8b7dc183165386f095299fdddc6993aafe22`. Later exact-head checks and Claude results are recorded in [PR #99](https://github.com/ExplodeCode6324/Secretary/pull/99).
+
 | Gate | Status | Evidence / limitation |
 | --- | --- | --- |
 | Bilingual plan + Claude review | PASS_PLAN_ONLY | R2 PASS; B1–B6 closed, non-blocking notes adopted; source review only |
@@ -46,3 +48,9 @@ Final review expectations: active Agent authorization rejection may produce FAIL
 - Final targeted suite: 21/21 passed, including evidence-frame negatives, partial/revoked authorization, current-draft restoration, option focus, external selection removal, loading reconnect and revision-only redraw suppression.
 
 Full verify and exact-head CI/reviewer results will be attached to the frozen PR conversation. Native Terminal/IME and Master product acceptance remain NOT_TESTED; the UI tool refusal is not a successful native test.
+
+## Post-smoke seen-state guard
+
+Source audit reproduced one UI-only race: cancel a slow opening of A, open B, then let A return. The old completion could mark A seen despite never displaying it. The follow-up requires the current matter ID to match the requested ID before marking seen. A deterministic Pi-input regression fails before the guard and passes after it; the final focused suite passes 22/22 and TypeScript checking passes. The real-provider-produced domain was reopened again with the no-model guard; L4 still passes with unchanged Store sequence, Input/ModelCall counts and retention.
+
+Smoke C's hashes remain evidence for the earlier freeze, not a claim of byte-identical final source. The only later product-code delta is this seen-state guard in `tui/app.ts`; Core classification, model dispatch, directed submission and controller code are unchanged. The new regression covers the late-open behavior offline; no new provider call is claimed for it. The first full local verification was already running when this guard was added; it reaches the new regression with the guard present. The final commit's full Linux and macOS CI provide the exact-head checks.

@@ -151,5 +151,13 @@
     "L3 full run covers controller reconnect; lost-response/race/transport cases use isolated offline Core tests.",
     "Live provider options were empty. Nonempty options, expiry, volume, contradictory provenance and foreign sessions are SEEDED_CORE.",
     "Full unpaused auth run observed CONSUMED; APPROVED-before-dispatch removal is separately proven with pump:false real Core."
-  ]
+  ],
+  "post_smoke_source_delta": {
+    "smoke_source_commit": "c7fd8b7dc183165386f095299fdddc6993aafe22",
+    "product_file": "src/pi_secretary/src/tui/app.ts",
+    "change": "Only mark a matter seen when the currently displayed ID matches the completed opening ID.",
+    "validation": "Deterministic Pi-input regression reproduced failure before guard; 22/22 focused tests and TypeScript check pass after guard. L4 repeated against real-provider-produced domain: PASS, zero model calls or state/retention mutations.",
+    "live_provider_repeated": false,
+    "unchanged": "Core classification, model dispatch, directed submission, and MatterController source."
+  }
 }
