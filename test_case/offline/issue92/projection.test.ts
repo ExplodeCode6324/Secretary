@@ -8,6 +8,8 @@ import type {
   Execution,
   Operation,
   TaskPlan,
+  TaskResult,
+  TaskProposal,
 } from "../../../src/pi_secretary/src/contracts.ts";
 import type {
   MasterAttention,
@@ -17,6 +19,67 @@ import type {
 import { validate } from "../../../src/pi_secretary/src/api/protocol.ts";
 const query = (f: Parameters<typeof authorization>[0], suffix = "") =>
   f.client.query<MasterAttention>("attention?view=master" + suffix);
+
+test("warm attention reads do not scale with successful history; ownership is cached by immutable proposal hash", () =>
+  fixture(async (f) => {
+    const failed = await execution(f);
+    f.app.scheduler.finish(failed.id, "FAILED", { error: "actual failure" });
+    const successful = await execution(f);
+    f.app.scheduler.finish(successful.id, "SUCCEEDED", { done: true });
+    const template = f.app.store.get<Execution>("Execution", successful.id);
+    const result = f.app.store.get<TaskResult>(
+      "TaskResult",
+      template.result_id!,
+    );
+    await query(f);
+    const originalRead = f.app.store.read.bind(f.app.store);
+    let reads = 0;
+    f.app.store.read = ((ref) => {
+      reads++;
+      return originalRead(ref);
+    }) as typeof f.app.store.read;
+    await query(f);
+    const small = reads;
+    assert.equal(small, 0);
+    for (let i = 0; i < 128; i++) {
+      const executionID = id(),
+        resultID = id();
+      f.app.store.commit([
+        { ...template, ...base(executionID), result_id: resultID },
+        { ...result, ...base(resultID), execution_id: executionID },
+      ]);
+    }
+    await query(f); // New frames are indexed once, not on every refresh.
+    reads = 0;
+    const page = await query(f);
+    assert.equal(reads, small);
+    assert.equal(page.counts.failures, 1);
+    const failedResult = f.app.store.get<TaskResult>(
+      "TaskResult",
+      f.app.store.get<Execution>("Execution", failed.id).result_id!,
+    );
+    assert.throws(
+      () =>
+        f.app.store.commit([
+          revise(failedResult, {
+            detail_ref: f.app.store.put({ error: "updated evidence detail" }),
+          }),
+        ]),
+      /IMMUTABLE_RECORD/,
+    );
+    assert.equal(
+      (await query(f)).items.find((row) => row.id === failed.id)?.preview,
+      "actual failure",
+    );
+    const plan = f.app.store.get<TaskPlan>("TaskPlan", failed.task_id);
+    const proposal = f.app.store.read<TaskProposal>(plan.proposal_ref);
+    f.app.store.commit([
+      revise(plan, {
+        proposal_ref: f.app.store.put({ ...proposal, session_id: id() }),
+      }),
+    ]);
+    assert(!(await query(f)).items.some((row) => row.id === failed.id));
+  }));
 
 test("Master PENDING is separate from legacy approval, archived and ended matters remain actionable; ownership closes task-only authorization", () =>
   fixture(async (f) => {

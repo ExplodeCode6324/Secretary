@@ -1,7 +1,7 @@
 import { truncateToWidth, type Component } from "@earendil-works/pi-tui";
 import type { MasterAttention, MasterAttentionItem } from "../api/contracts.ts";
 import type { CoreClient } from "../core-client.ts";
-import { safeText } from "./view.ts";
+import { safeText, visibleMatterText } from "./view.ts";
 
 export const failureLabels = {
   authorization_rejected: "拒绝授权导致失败",
@@ -195,7 +195,7 @@ export class AttentionWindow implements Component {
         color = selected ? "96" : this.seen.has(row.key) ? "90" : "37";
       const text = `${selected ? "›" : " "} ${attentionLabel(row)} ${row.id} · ${row.preview} · Task ${row.task_id ?? "Main"} / Execution ${row.execution_id ?? "—"}`;
       result.push(
-        `\x1b[${color}m${truncateToWidth(safeText(text), width)}\x1b[0m`,
+        `\x1b[${color}m${truncateToWidth(visibleMatterText(text), width)}\x1b[0m`,
       );
     }
     return result;

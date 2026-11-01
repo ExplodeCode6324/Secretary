@@ -77,6 +77,25 @@ try {
   report.real_read_error_event_id = readError.id;
   ui.start();
   await until(() => !!ui.remote?.attention.head && ui.editors.Main.enabled);
+  const rejected = live.cases.find(
+    (c: any) => c.name === "L2 real Agent write authorization REJECT",
+  );
+  const rows = ui.remote!.attention.head!.items;
+  const rejectedRow = rows.find(
+    (row) => row.id === rejected.evidence.execution_id,
+  )!;
+  const actualRow = rows.find(
+    (row) => row.id === actual.evidence.execution_id,
+  )!;
+  assert.equal(rejectedRow.failure_category, "authorization_rejected");
+  assert.equal(rejectedRow.cause_evidence, "rejection_proven");
+  assert.equal(actualRow.failure_category, "execution_failed");
+  assert.equal(actualRow.cause_evidence, "recorded_non_rejection");
+  report.classification = [rejectedRow, actualRow].map((row) => ({
+    execution_id: row.id,
+    category: row.failure_category,
+    cause_evidence: row.cause_evidence,
+  }));
   const before = {
     sequence: app.store.sequence,
     inputs: app.store.all("Input").length,

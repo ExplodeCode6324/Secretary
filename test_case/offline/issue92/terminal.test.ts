@@ -18,6 +18,12 @@ const shiftEnter = "\x1b[13;2u",
   up = "\x1b[A",
   down = "\x1b[B",
   esc = "\x1b";
+const invisible = "\u202e\u200b\u2066\u2028\u2029";
+function assertVisibleFormatting(text: string) {
+  for (const marker of ["202E", "200B", "2066", "2028", "2029"])
+    assert(text.includes("\\u{" + marker + "}"), marker);
+  assert(!/[\p{Cf}\u2028\u2029]/u.test(text));
+}
 async function setup(
   seed: (f: Fixture) => Promise<string>,
   columns = 80,
@@ -302,6 +308,62 @@ test("a cancelled late opening cannot mark a different matter as seen", async ()
     assert.equal(ui.remote!.attention.seen.has(old.key), false);
   } finally {
     release();
+    await cleanup();
+  }
+});
+
+test("authorization formats are visible in previews/details without changing display binding or approved bytes", async () => {
+  const { f, ui, item, terminal, cleanup, open } = await setup(
+    async (f) =>
+      f.app.authorization.prepare(
+        { session_id: f.app.host.sessionID, task_id: null, execution_id: null },
+        "file.write",
+        f.dir + "/spoof-" + invisible,
+        { text: "body" + invisible },
+      ).authorization_id!,
+  );
+  try {
+    const before = await f.client.query<Authorization>(
+      "authorizations/" + item,
+    );
+    assertVisibleFormatting(ui.remote!.attention.render(800).join("\n"));
+    await open();
+    assertVisibleFormatting(ui.matters.current!.text);
+    assert.deepEqual(ui.matters.current!.data.display, before.display);
+    assert.equal(ui.matters.current!.data.display_hash, before.display_hash);
+    terminal.sendInput("\t");
+    terminal.sendInput(shiftEnter);
+    await until(() => !ui.matters.current);
+    const after = await f.client.query<Authorization>("authorizations/" + item);
+    assert.equal(after.state, "APPROVED");
+    assert.deepEqual(after.display, before.display);
+    assert.equal(after.display_hash, before.display_hash);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("question and option formatting is visible while a directed option answer keeps literal bytes", async () => {
+  const answer = "/m option" + invisible;
+  const { f, ui, item, terminal, cleanup, open } = await setup(
+    async (f) => (await decision(f, "question" + invisible, [answer])).id,
+  );
+  try {
+    assertVisibleFormatting(ui.remote!.attention.render(800).join("\n"));
+    await open();
+    assertVisibleFormatting(ui.matters.current!.text);
+    assert.equal(ui.matters.current!.options[0], answer);
+    terminal.sendInput("\t");
+    terminal.sendInput("\t");
+    terminal.sendInput("\r");
+    assert.equal(ui.matterEditor.getExpandedText(), answer);
+    terminal.sendInput(shiftEnter);
+    await until(() => !ui.matters.current);
+    assert.deepEqual(
+      (await f.client.query<Decision>("decisions/" + item)).answer,
+      { value: answer },
+    );
+  } finally {
     await cleanup();
   }
 });

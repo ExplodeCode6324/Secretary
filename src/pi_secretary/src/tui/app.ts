@@ -25,6 +25,7 @@ import {
   AnchoredScroll,
   timelineComponent,
   safeText,
+  visibleMatterText,
   type ViewEntry,
 } from "./view.ts";
 import { visibleItem } from "./history.ts";
@@ -878,7 +879,7 @@ export class TerminalApp {
                 ? "回答输入"
                 : "详情滚动";
       this.footer.setText(
-        safeText(
+        visibleMatterText(
           `事项 ${current?.id ?? "读取中"} · ${focus} · Tab 切换 · Esc 返回\n${this.matters.hint || (current?.kind === "decision" ? "Enter 换行 · Shift+Enter 字面回答；命令不可用" : current?.kind === "authorization" ? "Enter 不执行 · Shift+Enter 确认所选动作" : "只读详情 · ↑/↓/PageUp/PageDown")} `,
         ),
       );

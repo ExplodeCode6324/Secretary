@@ -20,6 +20,15 @@ import {
 import { terminal } from "./execution-utils.ts";
 
 type Provenance = { at: string | null; sequence: number };
+type Failure = {
+  category: MasterAttentionItem["failure_category"];
+  reason: string;
+  authorization: string | null;
+  operation: string | null;
+  authorization_state: string | null;
+  operation_state: string | null;
+  cause_evidence: MasterAttentionItem["cause_evidence"];
+};
 const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 function preview(text: string) {
   let result = "";
@@ -38,6 +47,8 @@ export function assertMatterScope(
   store: Store,
   sessionID: string,
   scope: Scope,
+  taskOwner = (task: TaskPlan) =>
+    store.read<TaskProposal>(task.proposal_ref).session_id,
 ) {
   let task: TaskPlan | undefined;
   if (scope.execution_id) {
@@ -49,16 +60,15 @@ export function assertMatterScope(
     task = store.get<TaskPlan>("TaskPlan", scope.task_id);
   if (scope.session_id && scope.session_id !== sessionID)
     throw new ApiError("NOT_FOUND", 404);
-  if (
-    task &&
-    store.read<TaskProposal>(task.proposal_ref).session_id !== sessionID
-  )
+  if (task && taskOwner(task) !== sessionID)
     throw new ApiError("NOT_FOUND", 404);
   if (!task && !scope.session_id) throw new ApiError("NOT_FOUND", 404);
 }
 
 /** A rebuildable read projection; no read receipts, retention changes or UI journal. */
 export class MasterAttentionProjection {
+  private owners = new Map<string, string>();
+  private failures = new Map<string, { version: string; value: Failure }>();
   private frame = 0;
   private decisions = new Map<
     string,
@@ -70,7 +80,9 @@ export class MasterAttentionProjection {
   constructor(
     readonly app: App,
     readonly cursors: Cursors,
-  ) {}
+  ) {
+    this.sync();
+  }
   private get store() {
     return this.app.store;
   }
@@ -81,6 +93,7 @@ export class MasterAttentionProjection {
         if (m.object_type === "AuthorizationRequest") {
           const a = this.store.read<AuthorizationRequest>(m.snapshot),
             old = this.decisions.get(a.id);
+          if (a.scope.execution_id) this.failures.delete(a.scope.execution_id);
           if (
             ["REJECTED", "REVOKED"].includes(a.state) &&
             a.decision_id &&
@@ -98,6 +111,9 @@ export class MasterAttentionProjection {
         const record = this.store.read<Execution | Operation | TaskPlan>(
           m.snapshot,
         );
+        if (record.record_type === "Execution") this.failures.delete(record.id);
+        if (record.record_type === "Operation" && record.scope.execution_id)
+          this.failures.delete(record.scope.execution_id);
         const key = m.object_type + ":" + m.object_id;
         const previous = this.states.get(key);
         if (previous !== record.state) {
@@ -125,7 +141,15 @@ export class MasterAttentionProjection {
   }
   private owns(scope: Scope) {
     try {
-      assertMatterScope(this.store, this.app.host.sessionID, scope);
+      assertMatterScope(this.store, this.app.host.sessionID, scope, (task) => {
+        const hash = task.proposal_ref.sha256;
+        let owner = this.owners.get(hash);
+        if (owner === undefined) {
+          owner = this.store.read<TaskProposal>(task.proposal_ref).session_id;
+          this.owners.set(hash, owner);
+        }
+        return owner;
+      });
       return true;
     } catch (e) {
       if (/NOT_FOUND/.test(String(e))) return false;
@@ -171,16 +195,19 @@ export class MasterAttentionProjection {
       detail_route: route,
     };
   }
-  failure(e: Execution): {
-    category: MasterAttentionItem["failure_category"];
-    reason: string;
-    authorization: string | null;
-    operation: string | null;
-    authorization_state: string | null;
-    operation_state: string | null;
-    cause_evidence: MasterAttentionItem["cause_evidence"];
-  } {
+  failure(e: Execution): Failure {
     this.sync();
+    const result = e.result_id
+      ? this.store.find<TaskResult>("TaskResult", e.result_id)
+      : undefined;
+    const version = `${e.revision}:${e.result_id}:${result?.revision}:${result?.detail_ref.sha256}`;
+    const cached = this.failures.get(e.id);
+    if (cached?.version === version) return { ...cached.value };
+    const value = this.classifyFailure(e);
+    this.failures.set(e.id, { version, value });
+    return { ...value };
+  }
+  private classifyFailure(e: Execution): Failure {
     const unavailable = (reason: string) => ({
       category: "unclassified" as const,
       reason,
@@ -360,7 +387,10 @@ export class MasterAttentionProjection {
       row.operation_id = op.id;
       items.push(row);
     }
-    for (const e of this.store.all<Execution>("Execution")) {
+    for (const e of this.store.indexed<Execution>("Execution", "state", [
+      "FAILED",
+      "RESULT_UNKNOWN",
+    ])) {
       const scope: Scope = {
         session_id: null,
         task_id: e.task_id,
@@ -408,7 +438,9 @@ export class MasterAttentionProjection {
         );
       }
     }
-    for (const p of this.store.all<TaskPlan>("TaskPlan")) {
+    for (const p of this.store.indexed<TaskPlan>("TaskPlan", "state", [
+      "INIT_FAILED",
+    ])) {
       const scope: Scope = {
         session_id: null,
         task_id: p.id,

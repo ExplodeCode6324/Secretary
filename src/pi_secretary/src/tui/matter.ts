@@ -8,6 +8,7 @@ import type {
 import type { CoreClient } from "../core-client.ts";
 import type { Page } from "./input.ts";
 import { attentionLabel } from "./attention.ts";
+import { visibleMatterText } from "./view.ts";
 
 type Client = Pick<CoreClient, "query" | "command">;
 export type Matter = {
@@ -146,7 +147,7 @@ export class MatterController {
         version,
         data,
         title,
-        text,
+        text: visibleMatterText(text),
         options: kind === "decision" ? (data.options as string[]) : [],
         expires,
       };

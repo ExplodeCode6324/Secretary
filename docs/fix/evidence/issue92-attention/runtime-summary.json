@@ -24,18 +24,6 @@
   },
   "full_run_status": "PASS",
   "final_answer_smoke_status": "PASS",
-  "final_product_source_hashes": {
-    "master-attention": "58c03bab974e20eb04e349561b60a4b4e23350ff26192400fd3a67fe2c7530ac",
-    "tui/matter": "b458d5853a7ddd32d53b5a744b34d046341fd778f748b75f0816ff09915d2dd9",
-    "tui/attention": "dd20e019c3f7b23f8f87a4eae5e775d30f834a82ec17a49b600e15d78d385253",
-    "tui/app": "a3d200c849948d886c1e8ddecd2d74ae91ec538e71c03828140e8db39b516d9b",
-    "application-service": "f36a8d109c006ea11e5ff927aea4391a19a9538af998988e48fe43f330f55fd0",
-    "model": "acb02e3fd91d7c82f13db2ffb74b55324c6f2e669217f1762cc615910cf87e2f",
-    "execution-runner": "7b6dba6d965a111d411c3581cee5eb8104a9958f019ab5771093e85880dc84e6",
-    "scheduler": "1cb90aaa09eea6930f35e1aaeb00658e91761d848b6401c47e194239bd7c130d",
-    "task-planning": "5db22a8b398f51b83e5a707a2a1616c6eeee2203da73a1b31f78d1d246db4800",
-    "budget": "3cebbbb0e47b60469ea9750fdedae0367ba86767f162d0ea9375cba4fd935c8f"
-  },
   "cases": [
     {
       "name": "L1 real Main → Agent question → Main literal Master answer",
@@ -154,10 +142,44 @@
   ],
   "post_smoke_source_delta": {
     "smoke_source_commit": "c7fd8b7dc183165386f095299fdddc6993aafe22",
-    "product_file": "src/pi_secretary/src/tui/app.ts",
-    "change": "Only mark a matter seen when the currently displayed ID matches the completed opening ID.",
-    "validation": "Deterministic Pi-input regression reproduced failure before guard; 22/22 focused tests and TypeScript check pass after guard. L4 repeated against real-provider-produced domain: PASS, zero model calls or state/retention mutations.",
+    "changes": [
+      "Matching-ID seen guard (2045305).",
+      "R2: indexed anomaly queries, immutable-proposal owner cache and versioned failure memoization with relevant frame invalidation; classification predicates unchanged.",
+      "R2: visible Unicode format/line-separator markers in matter displays only; raw parameters, hashes and directed answer bytes unchanged."
+    ],
+    "validation": "Focused offline Core/Pi tests and real-produced-domain L4; exact-head CI and same-session R2 review recorded in PR #99.",
     "live_provider_repeated": false,
-    "unchanged": "Core classification, model dispatch, directed submission, and MatterController source."
+    "reviewer_requirement": "R1 explicitly requested focused tests, exact-head CI and L4; no fresh provider run required for these fixes.",
+    "unchanged": "Model dispatch, Core authorization/answer transitions and failure cause predicates."
+  },
+  "live_smoke_c_source_hashes": {
+    "master-attention": "58c03bab974e20eb04e349561b60a4b4e23350ff26192400fd3a67fe2c7530ac",
+    "tui/matter": "b458d5853a7ddd32d53b5a744b34d046341fd778f748b75f0816ff09915d2dd9",
+    "tui/attention": "dd20e019c3f7b23f8f87a4eae5e775d30f834a82ec17a49b600e15d78d385253",
+    "tui/app": "a3d200c849948d886c1e8ddecd2d74ae91ec538e71c03828140e8db39b516d9b",
+    "application-service": "f36a8d109c006ea11e5ff927aea4391a19a9538af998988e48fe43f330f55fd0",
+    "model": "acb02e3fd91d7c82f13db2ffb74b55324c6f2e669217f1762cc615910cf87e2f",
+    "execution-runner": "7b6dba6d965a111d411c3581cee5eb8104a9958f019ab5771093e85880dc84e6",
+    "scheduler": "1cb90aaa09eea6930f35e1aaeb00658e91761d848b6401c47e194239bd7c130d",
+    "task-planning": "5db22a8b398f51b83e5a707a2a1616c6eeee2203da73a1b31f78d1d246db4800",
+    "budget": "3cebbbb0e47b60469ea9750fdedae0367ba86767f162d0ea9375cba4fd935c8f"
+  },
+  "r2_readonly_recheck": {
+    "status": "PASS",
+    "classification": [
+      {
+        "execution_id": "0057017e-26e3-493c-9b97-9f7822eafc18",
+        "category": "authorization_rejected",
+        "cause_evidence": "rejection_proven"
+      },
+      {
+        "execution_id": "35435ce6-60eb-4409-a7e5-c7d2cc395abd",
+        "category": "execution_failed",
+        "cause_evidence": "recorded_non_rejection"
+      }
+    ],
+    "attempted_model_calls": 0,
+    "state_and_retention_unchanged": true,
+    "evidence": "REAL_CORE_READONLY, not LIVE_MODEL"
   }
 }
