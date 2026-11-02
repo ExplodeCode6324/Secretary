@@ -1,0 +1,101 @@
+{
+  "evidence": "LIVE_MODEL",
+  "scope": "--L3-only",
+  "started_at": "2026-11-02T17:52:02.449Z",
+  "finished_at": "2026-11-02T17:54:12.180Z",
+  "budget_started_at": "2026-11-02T17:37:20.499Z",
+  "limits": {
+    "main": 48,
+    "task": 48,
+    "tools": 150,
+    "total_ms": 1200000,
+    "request_ms": 90000,
+    "output_tokens": 8192
+  },
+  "caseLimits": {
+    "L1": {
+      "main": 12,
+      "task": 12,
+      "tools": 40,
+      "ms": 300000
+    },
+    "L2": {
+      "main": 14,
+      "task": 14,
+      "tools": 45,
+      "ms": 360000
+    },
+    "L3": {
+      "main": 14,
+      "task": 14,
+      "tools": 40,
+      "ms": 360000
+    },
+    "L4": {
+      "main": 8,
+      "task": 8,
+      "tools": 25,
+      "ms": 180000
+    }
+  },
+  "provider": "opencode-go",
+  "model": "deepseek-v4.1-flash",
+  "base": "85de015d6cc759c7996fa7520a46c908d65a94d4",
+  "source_hashes": {
+    "failure-handling": "a36f1eb23f31b5cd7f70001798e53a6b2ceb640ac36cab74c23e7e866ae8f1aa",
+    "main-loop": "e85df4b825f286d8e6c34ab412eb98bee9593888b8bd864ff3d456e139785ed7",
+    "main-tools": "b29e2e989befb9624b532084babd47eef5e238a379a7b0ceb885a80c15a54c41",
+    "task-planning": "5db22a8b398f51b83e5a707a2a1616c6eeee2203da73a1b31f78d1d246db4800",
+    "master-attention": "48f90fac06946ebc1a030e740b42050b2226731f8451ed6084ac636dfb64c52d",
+    "tui/matter": "a1db8034bb300cd0adc5aa4b61492ee5f8cee841ab48992d306b492df418d0eb",
+    "tui/cancel": "f78950679eccad0580f7f5098b98044dd8ded7b8971cd6bd250098cfe526fda3"
+  },
+  "status": "FAIL",
+  "error": "Error: MAIN_RECOVERY_BLOCKED:Error: MODEL_TRANSPORT_LOCAL:60d7c23a-b7d6-46cf-963f-98b526ce3e38: Error: LIVE_CALL_BUDGET_EXHAUSTED",
+  "cases": [
+    {
+      "name": "L3",
+      "at": "2026-11-02T17:52:02.669Z",
+      "before": {
+        "started_at": "2026-11-02T17:52:02.669Z",
+        "main": 0,
+        "task": 0,
+        "tools": 0
+      },
+      "status": "FAIL",
+      "error": "Error: MAIN_RECOVERY_BLOCKED:Error: MODEL_TRANSPORT_LOCAL:60d7c23a-b7d6-46cf-963f-98b526ce3e38: Error: LIVE_CALL_BUDGET_EXHAUSTED",
+      "finished_at": "2026-11-02T17:54:12.166Z"
+    }
+  ],
+  "usage": {
+    "main": 40,
+    "task": 14,
+    "tools": 32,
+    "cases": {
+      "L1": {
+        "started_at": "2026-11-02T17:37:20.683Z",
+        "main": 12,
+        "task": 6,
+        "tools": 14
+      },
+      "L2": {
+        "started_at": "2026-11-02T17:38:42.851Z",
+        "main": 14,
+        "task": 6,
+        "tools": 16
+      },
+      "L3": {
+        "started_at": "2026-11-02T17:52:02.669Z",
+        "main": 14,
+        "task": 2,
+        "tools": 7
+      }
+    }
+  },
+  "limitations": [
+    "L3 reached WAIT_DECISION cancellation and unchanged future periodic schedule before starting the authorization branch; scenario did not complete.",
+    "No queued-request live branch or running-shell cancellation claim.",
+    "The Task model attempted read-only bash pwd && ls -la in the authorization branch; do not claim a completed direct-write authorization path.",
+    "Cumulative provider usage is 40 Main / 14 Task / 32 generated tools; no extra allowance presumed."
+  ]
+}

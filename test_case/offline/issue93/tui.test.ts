@@ -187,7 +187,7 @@ test("definitively rejected cancellation does not trap the next valid target", (
     assert(!c.pending);
     assert.match(c.hint, /未被接收/);
     await c.submit("execution", d.execution_id);
-    assert(c.pending?.accepted);
+    assert((c as CancelController).pending?.accepted);
     assert.match(c.hint, /CANCELLED/);
     c.stop();
   }));

@@ -35,6 +35,8 @@ const root = path.resolve(
 assert(root.startsWith(path.resolve(".demo-data/issue93") + path.sep));
 assert(!fs.existsSync(root), "FRESH_DIRECTORY_REQUIRED");
 fs.mkdirSync(root, { recursive: true, mode: 0o700 });
+const selected = process.argv[3];
+assert(!selected || selected === "--L3-only", "UNKNOWN_SCENARIO_SELECTOR");
 const limits = {
   main: 48,
   task: 48,
@@ -66,6 +68,7 @@ let active: Case = "L1";
 const start = Date.parse(ledger.started_at);
 const report: any = {
   evidence: "LIVE_MODEL",
+  scope: selected ?? "full",
   started_at: new Date().toISOString(),
   budget_started_at: ledger.started_at,
   limits,
@@ -294,136 +297,144 @@ async function scenario(name: Case, run: () => Promise<unknown>) {
 let oldFailure: Execution, secondFailure: Execution, thirdFailure: Execution;
 try {
   await open();
-  await scenario("L1", async () => {
-    const scratch = path.join(root, "l1-scratch");
-    fs.mkdirSync(scratch);
-    const scope = app.scheduler.scopes.save({
-      name: "Issue93 L1 scratch",
-      kind: "DIRECTORY",
-      root_path: scratch,
-      default_write: "allow",
-    });
-    const content = "ISSUE93-" + id() + "\n";
-    report.faults.push({
-      declared_at: new Date().toISOString(),
-      kind: "CONTROLLED_HARNESS_REPAIR",
-      action:
-        "After the genuine missing input failure, create ONLY source.txt. Never change a prompt, proposal, Execution or result.",
-      path: path.join(scratch, "source.txt"),
-      sha256: hash(content),
-    });
-    save();
-    const e = await task(
-      `请创建一个新的独立 AGENT 任务，scope_id=${scope.id}，不复用旧任务。完整任务要求：用 read 读取 source.txt；如果不存在，立即 submit_result FAILED，如实报告缺失输入，不得创建 source.txt，不得替换输入或问 Master。若 source.txt 存在，用 write 将其原始 UTF-8 内容逐字写入 output.txt，再 read 核对并 submit_result SUCCEEDED，artifacts 必须包括 output.txt。不使用 bash、网络或其他文件。验收条件：output.txt 字节与 source.txt 相同并登记为 artifact。Main 收到失败只能报告并等待明确指令，不自动恢复。`,
-    );
-    assert.equal((await ended(e)).state, "FAILED");
-    const count = executions().length;
-    assert(
-      app.store.executionEvents(e.id).some(
-        (l) =>
-          l.event_type === "agent.message" &&
-          (() => {
-            const m = app.store.read<any>(l.payload);
-            return (
-              m.role === "toolResult" && m.toolName === "read" && m.isError
-            );
-          })(),
-      ),
-    );
-    fs.writeFileSync(path.join(scratch, "source.txt"), content);
-    report.faults.push({
-      performed_at: new Date().toISOString(),
-      path: path.join(scratch, "source.txt"),
-      sha256: hash(content),
-    });
-    save();
-    const intent = await action(e, "REDO");
-    assert(intent.linked_request_id);
-    await until(() =>
-      executions().some((x) => x.occurrence_key === intent.linked_request_id),
-    );
-    const redo = executions().find(
-      (x) => x.occurrence_key === intent.linked_request_id,
-    )!;
-    assert.equal((await ended(redo)).state, "SUCCEEDED");
-    assert.equal(executions().length, count + 1);
-    const result = app.store.get<TaskResult>(
-        "TaskResult",
-        current(redo).result_id!,
-      ),
-      artifact = result.artifacts.find(
-        (a) => a.workspace_path === "output.txt",
+  if (!selected)
+    await scenario("L1", async () => {
+      const scratch = path.join(root, "l1-scratch");
+      fs.mkdirSync(scratch);
+      const scope = app.scheduler.scopes.save({
+        name: "Issue93 L1 scratch",
+        kind: "DIRECTORY",
+        root_path: scratch,
+        default_write: "allow",
+      });
+      const content = "ISSUE93-" + id() + "\n";
+      report.faults.push({
+        declared_at: new Date().toISOString(),
+        kind: "CONTROLLED_HARNESS_REPAIR",
+        action:
+          "After the genuine missing input failure, create ONLY source.txt. Never change a prompt, proposal, Execution or result.",
+        path: path.join(scratch, "source.txt"),
+        sha256: hash(content),
+      });
+      save();
+      const e = await task(
+        `请创建一个新的独立 AGENT 任务，scope_id=${scope.id}，不复用旧任务。完整任务要求：用 read 读取 source.txt；如果不存在，立即 submit_result FAILED，如实报告缺失输入，不得创建 source.txt，不得替换输入或问 Master。若 source.txt 存在，用 write 将其原始 UTF-8 内容逐字写入 output.txt，再 read 核对并 submit_result SUCCEEDED，artifacts 必须包括 output.txt。不使用 bash、网络或其他文件。验收条件：output.txt 字节与 source.txt 相同并登记为 artifact。Main 收到失败只能报告并等待明确指令，不自动恢复。`,
       );
-    assert(artifact);
-    assert.equal(app.store.bytes(artifact.content).toString(), content);
-    assert.equal(
-      fs.readFileSync(path.join(scratch, "output.txt"), "utf8"),
-      content,
-    );
-    const view = await client.query<FailureDetail>(
-      "failures/EXECUTION:" + e.id,
-    );
-    assert.equal(view.disposition, "REDO_SUCCEEDED");
-    return {
-      original: e.id,
-      redo: redo.id,
-      request: intent.linked_request_id,
-      result: result.id,
-      artifact_sha256: artifact.content.sha256,
-      verified_by: result.verified_by,
-      disposition: view.disposition,
-    };
-  });
-  await scenario("L2", async () => {
-    oldFailure = await task(
-      "请创建新的独立 AGENT 任务、不指定 Scope。只用 read 读取空 cwd 下 never-provided-issue93.txt；不得创建或替换文件、不用 bash/网络、不问 Master。文件不存在时 submit_result FAILED，如实说明原因；验收条件是读取实际文件。Main 只报告终态，等待明确指令，不自主恢复。",
-    );
-    assert.equal((await ended(oldFailure)).state, "FAILED");
-    const intent = await action(oldFailure, "REDO");
-    assert(intent.linked_request_id);
-    await until(() =>
-      executions().some((e) => e.occurrence_key === intent.linked_request_id),
-    );
-    secondFailure = executions().find(
-      (e) => e.occurrence_key === intent.linked_request_id,
-    )!;
-    assert.equal((await ended(secondFailure)).state, "FAILED");
-    assert.equal(
-      (await action(oldFailure, "DISMISS")).disposition,
-      "DISMISSED",
-    );
-    await server.close();
-    await open();
-    assert.equal(
-      (await client.query<FailureDetail>("failures/EXECUTION:" + oldFailure.id))
-        .disposition,
-      "DISMISSED",
-    );
-    thirdFailure = await task(
-      `Master 明确要求对 Task ${oldFailure.task_id} 继续一次独立新工作，parent_execution_id=${secondFailure.id}，保留原 goal、constraints、acceptance、executor。再次实际 read never-provided-issue93.txt，缺失即 submit_result FAILED，不创建文件、不替换要求。此次是新的明确 Master 指令；终态后不要自动再做。`,
-    );
-    assert.equal((await ended(thirdFailure)).state, "FAILED");
-    assert.equal(thirdFailure.task_id, oldFailure.task_id);
-    assert.equal(
-      (await client.query<FailureDetail>("failures/EXECUTION:" + oldFailure.id))
-        .disposition,
-      "DISMISSED",
-    );
-    assert.equal(
-      (
-        await client.query<FailureDetail>(
-          "failures/EXECUTION:" + thirdFailure.id,
-        )
-      ).disposition,
-      "UNRESOLVED",
-    );
-    return {
-      original: oldFailure.id,
-      failed_redo: secondFailure.id,
-      new_failure: thirdFailure.id,
-      restarted: true,
-    };
-  });
+      assert.equal((await ended(e)).state, "FAILED");
+      const count = executions().length;
+      assert(
+        app.store.executionEvents(e.id).some(
+          (l) =>
+            l.event_type === "agent.message" &&
+            (() => {
+              const m = app.store.read<any>(l.payload);
+              return (
+                m.role === "toolResult" && m.toolName === "read" && m.isError
+              );
+            })(),
+        ),
+      );
+      fs.writeFileSync(path.join(scratch, "source.txt"), content);
+      report.faults.push({
+        performed_at: new Date().toISOString(),
+        path: path.join(scratch, "source.txt"),
+        sha256: hash(content),
+      });
+      save();
+      const intent = await action(e, "REDO");
+      assert(intent.linked_request_id);
+      await until(() =>
+        executions().some((x) => x.occurrence_key === intent.linked_request_id),
+      );
+      const redo = executions().find(
+        (x) => x.occurrence_key === intent.linked_request_id,
+      )!;
+      assert.equal((await ended(redo)).state, "SUCCEEDED");
+      assert.equal(executions().length, count + 1);
+      const result = app.store.get<TaskResult>(
+          "TaskResult",
+          current(redo).result_id!,
+        ),
+        artifact = result.artifacts.find(
+          (a) => a.workspace_path === "output.txt",
+        );
+      assert(artifact);
+      assert.equal(app.store.bytes(artifact.content).toString(), content);
+      assert.equal(
+        fs.readFileSync(path.join(scratch, "output.txt"), "utf8"),
+        content,
+      );
+      const view = await client.query<FailureDetail>(
+        "failures/EXECUTION:" + e.id,
+      );
+      assert.equal(view.disposition, "REDO_SUCCEEDED");
+      return {
+        original: e.id,
+        redo: redo.id,
+        request: intent.linked_request_id,
+        result: result.id,
+        artifact_sha256: artifact.content.sha256,
+        verified_by: result.verified_by,
+        disposition: view.disposition,
+      };
+    });
+  if (!selected)
+    await scenario("L2", async () => {
+      oldFailure = await task(
+        "请创建新的独立 AGENT 任务、不指定 Scope。只用 read 读取空 cwd 下 never-provided-issue93.txt；不得创建或替换文件、不用 bash/网络、不问 Master。文件不存在时 submit_result FAILED，如实说明原因；验收条件是读取实际文件。Main 只报告终态，等待明确指令，不自主恢复。",
+      );
+      assert.equal((await ended(oldFailure)).state, "FAILED");
+      const intent = await action(oldFailure, "REDO");
+      assert(intent.linked_request_id);
+      await until(() =>
+        executions().some((e) => e.occurrence_key === intent.linked_request_id),
+      );
+      secondFailure = executions().find(
+        (e) => e.occurrence_key === intent.linked_request_id,
+      )!;
+      assert.equal((await ended(secondFailure)).state, "FAILED");
+      assert.equal(
+        (await action(oldFailure, "DISMISS")).disposition,
+        "DISMISSED",
+      );
+      await server.close();
+      await open();
+      assert.equal(
+        (
+          await client.query<FailureDetail>(
+            "failures/EXECUTION:" + oldFailure.id,
+          )
+        ).disposition,
+        "DISMISSED",
+      );
+      thirdFailure = await task(
+        `Master 明确要求对 Task ${oldFailure.task_id} 继续一次独立新工作，parent_execution_id=${secondFailure.id}，保留原 goal、constraints、acceptance、executor。再次实际 read never-provided-issue93.txt，缺失即 submit_result FAILED，不创建文件、不替换要求。此次是新的明确 Master 指令；终态后不要自动再做。`,
+      );
+      assert.equal((await ended(thirdFailure)).state, "FAILED");
+      assert.equal(thirdFailure.task_id, oldFailure.task_id);
+      assert.equal(
+        (
+          await client.query<FailureDetail>(
+            "failures/EXECUTION:" + oldFailure.id,
+          )
+        ).disposition,
+        "DISMISSED",
+      );
+      assert.equal(
+        (
+          await client.query<FailureDetail>(
+            "failures/EXECUTION:" + thirdFailure.id,
+          )
+        ).disposition,
+        "UNRESOLVED",
+      );
+      return {
+        original: oldFailure.id,
+        failed_redo: secondFailure.id,
+        new_failure: thirdFailure.id,
+        restarted: true,
+      };
+    });
   await scenario("L3", async () => {
     const periodic = await task(
       "Master 明确要求一个 interval_seconds=600 的周期 AGENT 任务，不指定 Scope。每次执行只调用 request_decision，问题为「Issue93 周期：请 Master 提供当前未知口令」。不得猜测口令，不写文件、不用 bash/网络，未回答保持 WAIT_DECISION。Main 不能代答，不能取消或新建替代。",
@@ -465,15 +476,16 @@ try {
     assert.equal((await ended(auth)).state, "CANCELLED");
     assert(!fs.existsSync(path.join(scratch, "blocked.txt")));
     c.stop();
-    // Controlled pause: production Main still admits a request, scheduler ticks are temporarily gated.
+    // Controlled pause: Core admits an ordinary API task request while scheduler ticks are temporarily gated; no model is claimed for this queued branch.
     const tick = app.scheduler.tick.bind(app.scheduler);
     app.scheduler.tick = () => {};
     let queuedRequest: string;
     try {
-      await message(
-        "Master 要求一个新独立 AGENT 任务：只返回一句“队列验收”，不写文件、不用 bash/网络，不复用旧任务。",
-      );
-      await settled();
+      const queuedID = id();
+      await client.command("task-requests", {
+        request_id: queuedID,
+        goal: "Controlled queued AGENT request: return queue acceptance; no files, shell or network.",
+      });
       const pending = app.store
         .all<TaskPlan>("TaskPlan")
         .flatMap((p) => (p.pending_requests ?? []).map((r) => ({ p, r })))
@@ -502,32 +514,33 @@ try {
       in_flight_shell: "NOT_TESTED; no in-flight shell cancellation claim",
     };
   });
-  await scenario("L4", async () => {
-    const v = await action(secondFailure, "REDO");
-    assert.equal(v.status, "BLOCKED");
-    assert.match(v.error ?? "", /LATEST/);
-    const before = executions().length;
-    assert.equal(
-      (await action(secondFailure, "DISMISS")).disposition,
-      "DISMISSED",
-    );
-    assert.equal(executions().length, before);
-    const seq = app.store.sequence;
-    for (let i = 0; i < 5; i++) {
-      await client.query("failures/EXECUTION:" + secondFailure.id);
-      await client.query("attention?view=master");
-      await client.query("task-browser");
-    }
-    assert.equal(app.store.sequence, seq, "QUIET_READ_WROTE");
-    return {
-      nonlatest_failure: secondFailure.id,
-      error: v.error,
-      quiet_reads: 5,
-      retired_live: "NOT_TESTED",
-      unknown:
-        "Separate credential-free pump=false seeded acceptance; never mixed with live provider",
-    };
-  });
+  if (!selected)
+    await scenario("L4", async () => {
+      const v = await action(secondFailure, "REDO");
+      assert.equal(v.status, "BLOCKED");
+      assert.match(v.error ?? "", /LATEST/);
+      const before = executions().length;
+      assert.equal(
+        (await action(secondFailure, "DISMISS")).disposition,
+        "DISMISSED",
+      );
+      assert.equal(executions().length, before);
+      const seq = app.store.sequence;
+      for (let i = 0; i < 5; i++) {
+        await client.query("failures/EXECUTION:" + secondFailure.id);
+        await client.query("attention?view=master");
+        await client.query("task-browser");
+      }
+      assert.equal(app.store.sequence, seq, "QUIET_READ_WROTE");
+      return {
+        nonlatest_failure: secondFailure.id,
+        error: v.error,
+        quiet_reads: 5,
+        retired_live: "NOT_TESTED",
+        unknown:
+          "Separate credential-free pump=false seeded acceptance; never mixed with live provider",
+      };
+    });
   report.status = "PASS";
 } catch (e) {
   report.status = "FAIL";

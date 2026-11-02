@@ -30,3 +30,7 @@ L1 was run before the subsequent prompt-scope, deadline-prediction, optional res
 Native Terminal access was rejected by the computer-use tool's automatic safety review (`com.apple.Terminal` unavailable). The dedicated seeded server was stopped. Native keyboard/IME/clipboard and Master's manual acceptance remain NOT_TESTED; VirtualTerminal is separate evidence. UNKNOWN/retired/foreign-owner read checks run credential-free with pump disabled.
 
 Current acceptance status remains conditional: complete final verification/CI, same-conversation Claude implementation review, remaining live gates within approved budget, and Master manual acceptance. No merge is authorized.
+
+A second fresh domain exercised L3 within its original allowance. The periodic real Agent entered WAIT_DECISION, exact execution cancellation reached CANCELLED, and TaskPlan next_due_at/state stayed unchanged. The authorization branch then exhausted L3's 14 Main calls before completion; its Agent attempted read-only `pwd && ls -la`, so a completed direct-write path is not claimed. L3 remains NOT_COMPLETED. Cumulative provider usage is 40 Main / 14 Task / 32 generated tools. L4 remains NOT_RUN. No additional budget has been presumed approved.
+
+Native tooling blocked access before any Terminal UI action. The seeded server was stopped; no native UI PASS is claimed.
