@@ -59,6 +59,12 @@ Operation bytes/hash refer to the full public text. source_truncated means the e
 
 PublicTaskCommand uses an `acceptance` string array. Continuations supply both reuse_task_id and parent_execution_id; see [task data flow](../../data-flow.md#from-task-proposal-to-result). Settings stores full instructions/edits/command_ids and uses expected_revision for version control. New World resources have revision "0"; a domain batch allows at most 50 items (the public structure allows 100).
 
+## Master attention (#92)
+
+`GET attention?view=master` returns unexpired pending approvals, valid open decisions, historical execution failures, current initialization failures and unknown outcomes; omitting `view` preserves the original behavior. The full set is ordered by immutable initiation time and sequence descending, then paged with signed cursors. Full-set counts are independent of page size. Core derives failure categories and `cause_evidence` from authoritative records without inferring disposition or removal.
+
+`Execution.failure` provides the category, recorded reason, linked authorization and operation, and their actual states. A rejection cause requires reciprocal records and a persisted decision frame before the failure; inconsistent or unavailable evidence is explicit. `TaskPlan` changes invalidate attention, and clients must also refresh at `valid_until`.
+
 ## Scopes, authorization, and effect resolution
 
 Scope creation requires name/kind. DIRECTORY points to an existing physical root_path; notes_path defaults to `.secretary/NOTES.md`. NONE gives each task a private directory. Updates/archiving require expected_revision; archiving preserves history and occupied executions. Execution freezes its creation-time binding. condition_results returns MET/NOT_MET/UNKNOWN with evidence; directory conditions may return SCOPE_BUSY, SCOPE_ARCHIVED, or SCOPE_ROOT_CONFLICT.

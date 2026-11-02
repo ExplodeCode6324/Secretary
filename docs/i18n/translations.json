@@ -3518,5 +3518,15 @@
     "See [terminal operation and verification](tui/run-and-test.md) for client startup, keys and validation. The commands below manage the independent Core; exiting TUI does not stop Core.",
     "起動、キー操作、検証は[端末の実行と検証](tui/run-and-test.md)を参照してください。以下のコマンドは独立した Core を管理します。TUI を終了しても Core は停止しません。",
     "Voir [exécution et vérification du terminal](tui/run-and-test.md) pour le démarrage, les touches et la validation. Les commandes ci-dessous gèrent Core indépendamment ; quitter le TUI n’arrête pas Core."
+  ],
+  "`GET attention?view=master` 返回未过期的待批准、有效待回答、历史执行失败、当前初始化失败和结果未知事项；不传 `view` 保持原行为。完整集合按不可变发起时间和序号倒序，再使用签名游标分页，全量计数不受页大小影响。失败类别和 `cause_evidence` 由 Core 权威记录计算，不推断处置或移除。": [
+    "`GET attention?view=master` returns unexpired pending approvals, valid open decisions, historical execution failures, current initialization failures and unknown outcomes; omitting `view` preserves the original behavior. The full set is ordered by immutable initiation time and sequence descending, then paged with signed cursors. Full-set counts are independent of page size. Core derives failure categories and `cause_evidence` from authoritative records without inferring disposition or removal.",
+    "`GET attention?view=master` は期限内の承認待ち、有効な回答待ち、過去の実行失敗、現在の初期化失敗、結果不明の事項を返します。`view` の省略時は従来の動作を維持します。全件を不変の発生時刻とシーケンスの降順に並べて署名付きカーソルでページ分割し、全件数はページサイズに依存しません。失敗分類と `cause_evidence` は Core の権威ある記録から計算し、処置や削除を推測しません。",
+    "`GET attention?view=master` renvoie les approbations en attente non expirées, les décisions ouvertes valides, les échecs historiques d’exécution, les échecs actuels d’initialisation et les résultats inconnus ; sans `view`, le comportement initial est conservé. L’ensemble est trié par heure et séquence immuables de survenue décroissantes, puis paginé avec des curseurs signés. Les compteurs globaux ne dépendent pas de la taille des pages. Core calcule les catégories et `cause_evidence` selon les enregistrements faisant autorité, sans déduire de traitement ni de suppression."
+  ],
+  "`Execution.failure` 提供分类、原始原因、关联授权和操作及其实际状态。拒绝原因需要相互匹配的记录和先于失败的持久决定帧；证据不一致或不可用会明确标注。`TaskPlan` 变化使 attention 失效，客户端还须按 `valid_until` 刷新。": [
+    "`Execution.failure` provides the category, recorded reason, linked authorization and operation, and their actual states. A rejection cause requires reciprocal records and a persisted decision frame before the failure; inconsistent or unavailable evidence is explicit. `TaskPlan` changes invalidate attention, and clients must also refresh at `valid_until`.",
+    "`Execution.failure` は分類、記録された理由、関連する承認と操作、および実際の状態を提供します。拒否が原因と判断するには相互に一致する記録と失敗前の永続的な決定フレームが必要です。証拠の不整合や欠落は明示します。`TaskPlan` の変更で attention が無効になり、クライアントは `valid_until` にも更新する必要があります。",
+    "`Execution.failure` fournit la catégorie, la raison enregistrée, l’autorisation et l’opération associées et leurs états réels. Attribuer un échec au refus exige des liens réciproques et une trame de décision persistée antérieure à l’échec ; les preuves incohérentes ou indisponibles sont signalées. Les changements de `TaskPlan` invalident attention, et les clients doivent également actualiser à `valid_until`."
   ]
 }

@@ -1,6 +1,6 @@
 # TUI 的 Core API 使用清单
 
-状态：2026-10-31 #83 实现核对，新增 5 个只读 Task-browser 端点；TUI 不再读取管理用途的 tasks/scopes 列表。运行和测试见[原生终端说明](run-and-test.md)，代码、真实 provider 与人工验收分开记录于 [#91 证据](../fix/evidence/issue91-main-history/acceptance.md)。
+状态：2026-11-02 #92 实现核对，新增消费 Master attention、事项详情和定向决定/回答；Task 浏览继续使用 #83 专用端点。运行和测试见[原生终端说明](run-and-test.md)，代码、真实 provider 与人工验收分开记录于 [#92 证据](../fix/evidence/issue92-attention/acceptance.md)。
 
 #91 新增消费路径：`timeline?limit=50&thinking=<mode>&streaming=true` 首屏与 before/after 游标补读；`timeline/around?item=<id>&limit=1&thinking=<mode>&streaming=true` 定位刷新及邻页恢复；`messages/{id}/content?thinking=<mode>&streaming=true&cursor=<opaque>` 连续正文/CoT 读取。正文游标失效时重新取得首片并重建检查点；正常流式版本替换静默重读，失败保留已读内容。`sync/stream` 的 transient `previews[].id` 只作为发现提示。已有 `messages` 提交、`requests/{id}` 状态、`sync/cursor`/`sync/changes` 对账继续继承 #82，新增的是粘贴快照及相同 request_id 恢复，不伪称新接口。对应测试在 `test_case/offline/issue91/`，真实流量证据与范围限制见上述验收记录。
 
@@ -21,8 +21,8 @@
 | POST | /api/v1/task-requests/{id}/cancel | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/executions/{id}/cancel | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/executions/{id}/viewed | 未用 | 本批未接入；后续按对应功能范围处理 |
-| POST | /api/v1/decisions/{id}/answer | 未用 | 本批未接入；后续按对应功能范围处理 |
-| POST | /api/v1/authorizations/{id}/decision | 未用 | 本批未接入；后续按对应功能范围处理 |
+| POST | /api/v1/decisions/{id}/answer | 已用 | #92 directed literal answer; confirm MASTER and answer_request_id |
+| POST | /api/v1/authorizations/{id}/decision | 已用 | #92 APPROVE/REJECT with revision and display_hash |
 | POST | /api/v1/settings/draft | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/settings/apply | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/settings/applications/{id}/retry | 未用 | 本批未接入；后续按对应功能范围处理 |
@@ -48,16 +48,16 @@
 | GET | /api/v1/memory/summary | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/memory/commitments | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/tasks | 未用 | #83 使用只读 task-browser；管理查询语义保持不变 |
-| GET | /api/v1/tasks/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
+| GET | /api/v1/tasks/{id} | 已用 | #92 INIT_FAILED detail |
 | GET | /api/v1/tasks/{id}/requests | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/tasks/{id}/executions | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/task-requests/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
-| GET | /api/v1/executions/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
+| GET | /api/v1/executions/{id} | 已用 | #92 execution state and failure cause evidence |
 | GET | /api/v1/decisions | 未用 | 本批未接入；后续按对应功能范围处理 |
-| GET | /api/v1/decisions/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
+| GET | /api/v1/decisions/{id} | 已用 | #92 complete decision and business-state reconciliation |
 | GET | /api/v1/authorizations | 未用 | 本批未接入；后续按对应功能范围处理 |
-| GET | /api/v1/authorizations/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
-| GET | /api/v1/attention | 未用 | 本批未接入；后续按对应功能范围处理 |
+| GET | /api/v1/authorizations/{id} | 已用 | #92 complete display and decision identity |
+| GET | /api/v1/attention | 已用 | #92 view=master, full counts and immutable-key pagination |
 | GET | /api/v1/artifacts | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/artifacts/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/timeline | 已用 | 近期 50 项、前后连续补读与同模式游标 |
@@ -69,7 +69,7 @@
 | GET | /api/v1/world/facts | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/world/slot | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/operations | 未用 | 本批未接入；后续按对应功能范围处理 |
-| GET | /api/v1/operations/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
+| GET | /api/v1/operations/{id} | 已用 | #92 read-only UNKNOWN detail |
 | GET | /api/v1/admin/programs | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/admin/authorization-rules | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/artifacts/{id}/content | 未用 | 本批未接入；后续按对应功能范围处理 |

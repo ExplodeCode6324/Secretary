@@ -3182,6 +3182,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "view",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "master"
+              ]
+            },
+            "description": "Omit for legacy applicability; master shows pending approvals, questions and classified read-only exceptions."
           }
         ],
         "responses": {
@@ -3200,7 +3212,7 @@
                       "const": "1"
                     },
                     "data": {
-                      "$ref": "./schema.json#/$defs/Attention"
+                      "$ref": "./schema.json#/$defs/AttentionResponse"
                     }
                   }
                 }

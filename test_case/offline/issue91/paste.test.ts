@@ -20,16 +20,16 @@ const paste = (e: DraftEditor, value: string) =>
   e.handleInput(`\x1b[200~${value}\x1b[201~`);
 const undo = (e: DraftEditor) => e.handleInput("\x1f");
 
-test("30 grapheme threshold, LF/TAB blocks, terminal control removal and lossless payload", () => {
+test("60 grapheme threshold, LF/TAB blocks, terminal control removal and lossless payload", () => {
   for (const character of ["a", "中", "e\u0301", "👨‍👩‍👧‍👦", "🇭🇰"])
-    for (const count of [0, 1, 29, 30, 31]) {
+    for (const count of [0, 1, 30, 31, 59, 60, 61]) {
       const e = make(),
         text = character.repeat(count);
       paste(e, text);
       assert.equal(e.getExpandedText(), text);
       assert.equal(
         e.snapshot().ranges.some((r) => r.block),
-        count > 30,
+        count > 60,
       );
     }
   for (const [input, label, expected] of [

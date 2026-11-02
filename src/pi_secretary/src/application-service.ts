@@ -1,4 +1,8 @@
 import {
+  MasterAttentionProjection,
+  assertMatterScope,
+} from "./master-attention.ts";
+import {
   TaskBrowser,
   applicableAuthorization,
   applicableDecision,
@@ -92,6 +96,7 @@ export class ApplicationService {
   readonly changes: SyncService;
   readonly notifications: Notifications;
   readonly taskBrowser: TaskBrowser;
+  readonly masterAttention: MasterAttentionProjection;
   private readonly operationDisplay: OperationDisplay;
   readonly principal: OwnerPrincipal;
   readonly cursors = new Cursors(randomUUID());
@@ -121,6 +126,7 @@ export class ApplicationService {
   ) {
     const store = app.store;
     this.taskBrowser = new TaskBrowser(app, this.cursors);
+    this.masterAttention = new MasterAttentionProjection(app, this.cursors);
     this.attachmentImports = new AttachmentImports(
       store,
       options.attachmentPhase,
@@ -574,12 +580,7 @@ export class ApplicationService {
       "AuthorizationRequest",
       authorizationID,
     );
-    if (a.scope.execution_id) this.execution(a.scope.execution_id);
-    else if (
-      a.scope.session_id &&
-      a.scope.session_id !== this.app.host.sessionID
-    )
-      throw new ApiError("NOT_FOUND", 404);
+    assertMatterScope(this.app.store, this.app.host.sessionID, a.scope);
     return a;
   }
   artifact(artifactID: string) {
@@ -689,6 +690,7 @@ export class ApplicationService {
       ...(path === "related" ? ["scope_type", "scope_id"] : []),
       ...(path === "artifacts" ? ["task_id"] : []),
       ...(path === "tasks" ? ["scope_id"] : []),
+      ...(path === "attention" ? ["view"] : []),
       ...(path === "wakeups" ? ["state"] : []),
       ...(path === "push-dispatches" ? ["state", "target_id"] : []),
       ...(/^operations\/[^/]+\/content$/.test(path) ? ["part"] : []),
@@ -1106,6 +1108,10 @@ export class ApplicationService {
       });
     }
     if (path === "attention") {
+      if (q.has("view")) {
+        if (q.get("view") !== "master") throw new ApiError("INVALID_QUERY");
+        return this.masterAttention.query(q);
+      }
       const asOf = now();
       const approvals = store
         .all<AuthorizationRequest>("AuthorizationRequest")
@@ -1385,6 +1391,7 @@ export class ApplicationService {
       condition_results: e.condition_results,
       state: e.state,
       retention_state: e.retention_state,
+      failure: e.state === "FAILED" ? this.masterAttention.failure(e) : null,
       last_activity_at: e.last_activity_at,
       waiting_request_ids: e.waiting_request_ids,
       unknown_operation_ids: e.unknown_operation_ids,

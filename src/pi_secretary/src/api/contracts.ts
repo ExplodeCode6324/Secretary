@@ -157,6 +157,11 @@ export type TaskBrowserRow =
       kind: "task";
       task: TaskBrowserTask;
     };
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "AttentionResponse".
+ */
+export type AttentionResponse = Attention | MasterAttention;
 
 export interface ApiV1Definitions {}
 /**
@@ -594,6 +599,29 @@ export interface Execution {
   result: Result | null;
   scope_id?: string | null;
   condition_results: ConditionResult[];
+  /**
+   * Authoritative FAILED result cause and corroborated authorization category; no disposition.
+   */
+  failure?: null | {
+    category:
+      | "authorization_rejected"
+      | "authorization_revoked"
+      | "execution_failed"
+      | "initialization_failed"
+      | "unclassified"
+      | null;
+    reason: string;
+    authorization: string | null;
+    authorization_state: string | null;
+    operation_state: string | null;
+    cause_evidence:
+      | "rejection_proven"
+      | "recorded_non_rejection"
+      | "inconsistent"
+      | "unavailable"
+      | null;
+    operation: string | null;
+  };
   [k: string]: unknown;
 }
 /**
@@ -893,6 +921,7 @@ export interface Attention {
   as_of: string;
   valid_until: string | null;
   session_id: string;
+  view?: "default";
   [k: string]: unknown;
 }
 /**
@@ -1615,4 +1644,69 @@ export interface TaskBrowserMessages {
   before: string | null;
   after: string | null;
   availability: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "MasterAttentionItem".
+ */
+export interface MasterAttentionItem {
+  id: string;
+  key: string;
+  type: "authorization" | "decision" | "failure" | "unknown";
+  revision: Revision;
+  state: string;
+  session_id: string;
+  task_id: string | null;
+  execution_id: string | null;
+  operation_id: string | null;
+  authorization_id: string | null;
+  execution_state: string | null;
+  retention_state: string | null;
+  warning: string | null;
+  preview: string;
+  initiated_at: string | null;
+  initiated_sequence: string;
+  expires_at: string | null;
+  actionable: boolean;
+  failure_category:
+    | "authorization_rejected"
+    | "authorization_revoked"
+    | "execution_failed"
+    | "initialization_failed"
+    | "unclassified"
+    | null;
+  detail_route: string;
+  authorization_state: string | null;
+  operation_state: string | null;
+  cause_evidence:
+    | "rejection_proven"
+    | "recorded_non_rejection"
+    | "inconsistent"
+    | "unavailable"
+    | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "MasterAttention".
+ */
+export interface MasterAttention {
+  view: "master";
+  items: MasterAttentionItem[];
+  next_cursor: string | null;
+  version: string;
+  counts: {
+    authorizations: number;
+    decisions: number;
+    failures: number;
+    unknown: number;
+    authorization_rejected: number;
+    authorization_revoked: number;
+    execution_failed: number;
+    initialization_failed: number;
+    unclassified: number;
+    total: number;
+  };
+  as_of: string;
+  valid_until: string | null;
+  session_id: string;
 }

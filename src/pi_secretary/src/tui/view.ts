@@ -24,6 +24,14 @@ export function safeText(text: string) {
     "",
   );
 }
+/** Make invisible formatting visible at the Master decision boundary, without changing source bytes. */
+export function visibleMatterText(text: string) {
+  return safeText(text).replace(
+    /[\p{Cf}\u2028\u2029]/gu,
+    (character) =>
+      `\\u{${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}}`,
+  );
+}
 const white = color("37"),
   gray = color("90"),
   blue = color("38;5;117"),
