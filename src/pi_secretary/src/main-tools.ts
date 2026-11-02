@@ -160,7 +160,10 @@ export function tools(
         "Choose scope_id when the request clearly belongs to an available scope; ask Master when uncertain. Conversation and pure explanations do not need tasks. Only Master manages scopes. Submit new AGENT task by default; PROGRAM only with a registered program_id. For revisions of existing work, use reuse_task_id and its latest ended parent_execution_id; query tasks when identity or requirements are unclear. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace that field, so preserve unchanged requirements. goal is this round's complete goal. In a structured failure REDO input, supply reuse_task_id and parent_execution_id from failure query, omit goal and every requirements override: Core preserves all original requirements. No at/interval on reuse. Independent deliverables use a new task. Scheduler generates the executor packet. Include all relevant constraints and materials. Use null for unspecified optional fields; do not invent program IDs, dates or deadlines.",
       parameters: Type.Object({
         scope_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-        goal: bound ? Type.Optional(Type.String()) : Type.String(),
+        goal:
+          bound?.failure_action?.action === "REDO"
+            ? Type.Optional(Type.String())
+            : Type.String(),
         failure_intent_id: Type.Optional(Type.String()),
         reuse_task_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         materials: Type.Optional(

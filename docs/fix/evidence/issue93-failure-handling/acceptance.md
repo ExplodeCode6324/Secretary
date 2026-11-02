@@ -6,10 +6,10 @@ All implementation gates are NOT_TESTED at plan creation, 2026-11-02.
 | --- | --- |
 | Bilingual plan / Claude review | PASS_PLAN_ONLY / R3 PASS |
 | Master implementation approval | GRANTED — Master: “通过，可以实施。” (2026-11-03 HKT) |
-| A1–A8 / AC21, AC29 and regressions | NOT_TESTED |
-| L1–L4 real-provider/Core evidence | NOT_TESTED |
-| Native Terminal / Master manual acceptance | NOT_TESTED |
-| Implementation CI / same-session Claude review | NOT_TESTED |
+| A1–A8 / AC21, AC29 and regressions | PARTIAL — 18 focused offline cases; product/manual matrix incomplete |
+| L1–L4 real-provider/Core evidence | PARTIAL — L1 passed on recorded source; L2/L3 budget-blocked; L4 not run |
+| Native Terminal / Master manual acceptance | TOOL_BLOCKED / NOT_TESTED |
+| Implementation CI / same-session Claude review | IN_PROGRESS / PENDING |
 | Master merge authorization / merge / post-merge CI | NOT_GRANTED / NOT_DONE |
 
 Separate fixture, seeded Core, controlled faults, actual provider calls and physical manual evidence. Preserve failure keys and all business IDs with exact source SHA. Prior #83/#92 runs do not prove #93. Neither accepted receipts nor a model's verbal claim proves cancellation or disposition.
@@ -34,3 +34,5 @@ Current acceptance status remains conditional: complete final verification/CI, s
 A second fresh domain exercised L3 within its original allowance. The periodic real Agent entered WAIT_DECISION, exact execution cancellation reached CANCELLED, and TaskPlan next_due_at/state stayed unchanged. The authorization branch then exhausted L3's 14 Main calls before completion; its Agent attempted read-only `pwd && ls -la`, so a completed direct-write path is not claimed. L3 remains NOT_COMPLETED. Cumulative provider usage is 40 Main / 14 Task / 32 generated tools. L4 remains NOT_RUN. No additional budget has been presumed approved.
 
 Native tooling blocked access before any Terminal UI action. The seeded server was stopped; no native UI PASS is claimed.
+
+Final code audit also retained original cause text across detail refresh and limited optional goal strictly to REDO inputs. The persisted-Input schema is verified across restart; ordinary and DISMISS contexts still require goal. Sanitized live reports include hash-verified journal identities/state transitions and ModelCall IDs; these are observations, not claims that incomplete live gates passed.

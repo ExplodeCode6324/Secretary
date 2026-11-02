@@ -675,3 +675,22 @@ test("failed redo admission cannot leave a queued request without its handling l
     assert.equal(x.service.view(x.key, x.sid).linked_request_id, null);
     assert.match(x.service.view(x.key, x.sid).error ?? "", /PRECOMMIT/);
   }));
+
+test("only REDO relaxes goal and recovery reconstructs that schema from the persisted claimed Input", () =>
+  fixture(async (f) => {
+    const required = (loop: string) =>
+      (f.app.host as any)
+        .tools(loop)
+        .find((t: any) => t.name === "task_propose")
+        .parameters.required?.includes("goal") ?? false;
+    assert(required(id()));
+    const e = await execution(f);
+    f.app.scheduler.finish(e.id, "FAILED", { error: "original" });
+    const x = await intent(f, e, "REDO");
+    assert.equal(required(x.loop), false);
+    await f.restart();
+    assert.equal(required(x.loop), false);
+    handled(f, x.input);
+    const d = await intent(f, e, "DISMISS");
+    assert(required(d.loop));
+  }));

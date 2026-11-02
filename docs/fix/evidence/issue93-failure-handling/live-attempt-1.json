@@ -112,5 +112,1059 @@
     "Per-case historical tool counts are conservative overcounts; aggregate count is authoritative.",
     "TaskResult NOT_VERIFIED; harness checked artifact bytes/hash.",
     "Native Terminal unavailable; not equivalent to VirtualTerminal."
-  ]
+  ],
+  "durable_evidence": {
+    "journal_frames": 591,
+    "journal_sha256": "4f85263525f5586556f8303c8bd1421de28e1ab9bf9a8aa14d7a3df0846ea237",
+    "tasks": [
+      {
+        "id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "ACTIVE",
+        "next_due_at": null,
+        "trigger": {
+          "kind": "IMMEDIATE",
+          "at": null,
+          "interval_seconds": null,
+          "anchor_at": null,
+          "timezone": "Etc/UTC",
+          "event_source": null,
+          "predicate_id": null,
+          "missed_policy": "REPORT_ONLY",
+          "overlap_policy": "QUEUE"
+        }
+      },
+      {
+        "id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "ACTIVE",
+        "next_due_at": null,
+        "trigger": {
+          "kind": "IMMEDIATE",
+          "at": null,
+          "interval_seconds": null,
+          "anchor_at": null,
+          "timezone": "Etc/UTC",
+          "event_source": null,
+          "predicate_id": null,
+          "missed_policy": "REPORT_ONLY",
+          "overlap_policy": "QUEUE"
+        }
+      }
+    ],
+    "executions": [
+      {
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "FAILED",
+        "result_id": "009cc7cb-0ad4-43e5-94bb-cdec6e5c2169",
+        "continuation_of": null,
+        "occurrence_key": "3f5efdf0-a1d0-4728-8b79-453554c0e28e"
+      },
+      {
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "SUCCEEDED",
+        "result_id": "a9ba8315-2f26-4681-9afe-d2261fa9e260",
+        "continuation_of": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "occurrence_key": "bfd39ffe-e305-4b13-8db2-251b9ae0dbe2"
+      },
+      {
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED",
+        "result_id": "1bd63513-3fc7-47c4-b63c-9b453e760a49",
+        "continuation_of": null,
+        "occurrence_key": "48c00832-e0bf-4472-8b20-abc25fda6e77"
+      },
+      {
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED",
+        "result_id": "e67850c4-9a9b-41c0-b637-c8ed5f3732ea",
+        "continuation_of": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "occurrence_key": "560fc8db-3a54-4967-8960-952ca6040c90"
+      },
+      {
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED",
+        "result_id": "6f4e3d44-af0e-4992-b9a4-1391f6e45f88",
+        "continuation_of": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "occurrence_key": "bfbfd7ae-51b8-48ff-8057-af5c7c197b82"
+      }
+    ],
+    "handling": [
+      {
+        "failure_key": "EXECUTION:91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "disposition": "UNRESOLVED",
+        "intent_id": "c94745d7-d4b1-4258-9068-a6242e28c3f2",
+        "input_id": "102f37c2-12fc-4d12-a918-61d15766a6c8",
+        "phase": "LINKED",
+        "linked_request_id": "bfd39ffe-e305-4b13-8db2-251b9ae0dbe2",
+        "error": null
+      },
+      {
+        "failure_key": "EXECUTION:0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "disposition": "DISMISSED",
+        "intent_id": "2436120a-2f66-4b3f-adb4-0d0a1af3eb92",
+        "input_id": "9dc03c9c-8796-4502-8e26-b3ef8cd45841",
+        "phase": "DISMISSED",
+        "linked_request_id": "560fc8db-3a54-4967-8960-952ca6040c90",
+        "error": null
+      }
+    ],
+    "api_commands": [
+      {
+        "id": "984625b1-4c33-4957-93c8-6e9ca1394498",
+        "route": null,
+        "state": "ACCEPTED"
+      },
+      {
+        "id": "c94745d7-d4b1-4258-9068-a6242e28c3f2",
+        "route": null,
+        "state": "ACCEPTED"
+      },
+      {
+        "id": "cded6eb1-7721-4648-9437-b8ea143a7c75",
+        "route": null,
+        "state": "ACCEPTED"
+      },
+      {
+        "id": "32211e38-18ef-4beb-b9f9-69a573943d6f",
+        "route": null,
+        "state": "ACCEPTED"
+      },
+      {
+        "id": "2436120a-2f66-4b3f-adb4-0d0a1af3eb92",
+        "route": null,
+        "state": "ACCEPTED"
+      },
+      {
+        "id": "56168cad-f343-4141-9ba4-c670ed824851",
+        "route": null,
+        "state": "ACCEPTED"
+      }
+    ],
+    "model_calls": [
+      {
+        "id": "ae5fab87-abb8-4538-949b-8241de92bc1d",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "f2c86c19-bfa7-498b-92bb-d522beec8172",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "d7d6f86b-f2c8-4f94-b05b-780671df4361",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+          "execution_id": "91631100-5b5d-49a1-80f1-be2b8826e64a"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "f039add2-488d-4573-bcc0-91968b9d8cab",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+          "execution_id": "91631100-5b5d-49a1-80f1-be2b8826e64a"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "e4447265-8bc1-4bc9-aaac-0b593fe5d864",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "6f7491ed-a331-4d30-be6b-9abb52644f65",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "10b17cd2-cf5c-4de7-9ead-de7fe83c323e",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "445d889a-0bff-4484-9de3-01ac30bf0ef7",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "e11e98a9-50b6-4e52-807d-95cbca6f702e",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "b8d170b2-5c6c-4115-86c1-5abfa440f3e4",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "abc74d6f-16f6-4368-ae9a-3fbe9ffa1ffd",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "93ab9711-19fb-49b5-8633-f3a9f8d0ba7f",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+          "execution_id": "95800c2c-686b-4f52-827e-2e88779a9e54"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "07452bc6-8f9e-420b-8ff3-232a8a457219",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+          "execution_id": "95800c2c-686b-4f52-827e-2e88779a9e54"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "bb6f3582-44aa-4092-9564-b568c36ed006",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "3fc85e34-c507-4786-b3a9-3f7373083a63",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+          "execution_id": "95800c2c-686b-4f52-827e-2e88779a9e54"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "9f1fe932-f257-49a5-af26-183d71959279",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+          "execution_id": "95800c2c-686b-4f52-827e-2e88779a9e54"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "3a45b055-e0d4-4519-aeb9-00efbb0e25c2",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "b981cdf2-09c2-422d-a39f-623df4958487",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "902594ef-e029-4a1e-810c-132698ddabf5",
+        "state": "INTERRUPTED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "55daea1f-3b8d-4755-abb8-d8e61bab4ab3",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "6a38ab85-8db3-439e-a123-fc199437b178",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "7dbc264a-66da-4372-92ab-7c8a25b0d93e",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+          "execution_id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "e43ea85d-02b2-44fc-9e6c-7c34bcf3b0fc",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+          "execution_id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "77dd5feb-97d3-4e65-9ac4-c1e9a087beda",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "5b37799e-7ed0-4117-8a46-64d8a60dfabf",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "84c01ca5-852d-4cbf-89b0-c25b8c43fcec",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "5f39ba73-a38f-44c1-aa54-392853b02ae2",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "5635e663-6238-49c6-b993-0b1c9bbe05eb",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "15734c3d-223a-48d9-9504-05c1c579792e",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+          "execution_id": "02090f88-d2d6-4342-baa8-e3eea693f4c8"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "aaeaf811-f240-432e-a8a5-fef73b34b1ce",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+          "execution_id": "02090f88-d2d6-4342-baa8-e3eea693f4c8"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "c9de677d-4044-4e11-bcd4-96b107930534",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "cc28cf01-c11d-4476-bcb8-032c32b3ca6e",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "68e24340-c58b-4d43-b72a-f62fd4731c9e",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "72e8a426-e35a-41e3-8e3c-ea8b539d7715",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "0758dba0-3a89-49b7-b7d0-ce00c2143acf",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "d1404138-10d7-4567-af65-be42d9a91e64",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "60dd7161-b63e-41fe-baf7-c586c823dd7a",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "af45c9b5-ad1e-43a0-9dfe-eb927fad554a",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+          "execution_id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "f8ac7d33-97bf-4aaa-b679-2301a7dc1c7d",
+        "state": "RESPONSE_SAVED",
+        "status": null,
+        "scope": {
+          "session_id": null,
+          "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+          "execution_id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a"
+        },
+        "provider": null,
+        "model": null
+      },
+      {
+        "id": "eeb4072d-22db-4c85-ad5e-b0ddeae74247",
+        "state": "INTERRUPTED",
+        "status": null,
+        "scope": {
+          "session_id": "469142e2-7824-443a-aef6-b310e9162f5c",
+          "task_id": null,
+          "execution_id": null
+        },
+        "provider": null,
+        "model": null
+      }
+    ],
+    "execution_states": [
+      {
+        "sequence": 32,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "CREATED"
+      },
+      {
+        "sequence": 33,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "WAIT_PRECONDITION"
+      },
+      {
+        "sequence": 34,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "READY"
+      },
+      {
+        "sequence": 35,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 36,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 37,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 41,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 55,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 58,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 67,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 68,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 73,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 146,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 155,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "CREATED"
+      },
+      {
+        "sequence": 155,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 156,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "WAIT_PRECONDITION"
+      },
+      {
+        "sequence": 157,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "READY"
+      },
+      {
+        "sequence": 158,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 159,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 160,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 164,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 174,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 178,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 199,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 206,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 215,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 219,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 232,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 233,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "SUCCEEDED"
+      },
+      {
+        "sequence": 233,
+        "id": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 238,
+        "id": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "task_id": "de659cb0-33b4-49f4-a942-b44fedda794f",
+        "state": "SUCCEEDED"
+      },
+      {
+        "sequence": 300,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "CREATED"
+      },
+      {
+        "sequence": 301,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "WAIT_PRECONDITION"
+      },
+      {
+        "sequence": 302,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "READY"
+      },
+      {
+        "sequence": 303,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 304,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 305,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 309,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 319,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 322,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 335,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 336,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 341,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 395,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 404,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "CREATED"
+      },
+      {
+        "sequence": 404,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 405,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "WAIT_PRECONDITION"
+      },
+      {
+        "sequence": 406,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "READY"
+      },
+      {
+        "sequence": 407,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 408,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 409,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 413,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 423,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 426,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 439,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 440,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 440,
+        "id": "0181eb43-c4a7-44e8-8fe6-9bb733cbbef7",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 445,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 527,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 536,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "CREATED"
+      },
+      {
+        "sequence": 536,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 537,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "WAIT_PRECONDITION"
+      },
+      {
+        "sequence": 538,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "READY"
+      },
+      {
+        "sequence": 539,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 540,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "DISPATCHING"
+      },
+      {
+        "sequence": 541,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 545,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 559,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 562,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 571,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "RUNNING"
+      },
+      {
+        "sequence": 572,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 572,
+        "id": "02090f88-d2d6-4342-baa8-e3eea693f4c8",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      },
+      {
+        "sequence": 577,
+        "id": "d65d5a02-31ba-43c7-b76f-6484f9767b7a",
+        "task_id": "9b80d5fd-eaab-44fd-a62d-07b952d36dab",
+        "state": "FAILED"
+      }
+    ]
+  }
 }
