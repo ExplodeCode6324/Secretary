@@ -39,7 +39,9 @@ test("cancel parser requires one exact full ID in Task and preserves ID case and
 test("failure envelope survives lost response and reconnect; one Main input and no direct disposal", () =>
   fixture(async (f) => {
     const e = await execution(f);
-    f.app.scheduler.finish(e.id, "FAILED", { error: "x" });
+    f.app.scheduler.finish(e.id, "FAILED", {
+      error: "original cause must survive refresh 中文",
+    });
     const row = (
       await f.client.query<MasterAttention>("attention?view=master")
     ).items.find((r) => r.id === e.id)!;
@@ -64,6 +66,9 @@ test("failure envelope survives lost response and reconnect; one Main input and 
     try {
       await c.open(e.id, "Main", row);
       assert.equal(c.current?.kind, "failure");
+      assert(c.current?.text.includes(row.preview));
+      await c.refresh();
+      assert(c.current?.text.includes(row.preview));
       await c.submitFailure();
       assert.equal(posts.length, 0);
       await c.submitFailure("DISMISS");

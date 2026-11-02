@@ -295,7 +295,12 @@ export class Failures {
       kind: e ? "EXECUTION" : "TASK_INIT",
       state: e?.state ?? t.task.state,
       retention_state: e?.retention_state ?? null,
-      reason: e ? null : t.task.initialization_error,
+      reason: e
+        ? e.result_id
+          ? (this.store.find<TaskResult>("TaskResult", e.result_id)?.summary ??
+            "FAILURE_CAUSE_UNAVAILABLE")
+          : "FAILURE_CAUSE_UNAVAILABLE"
+        : t.task.initialization_error,
       disposition,
       status,
       error,

@@ -20,6 +20,7 @@ export type Matter = {
   version: string;
   data: Record<string, unknown>;
   title: string;
+  cause?: string;
   text: string;
   options: string[];
   expires: string | null;
@@ -158,6 +159,7 @@ export class MatterController {
         version,
         data,
         title,
+        cause: row?.preview,
         text: visibleMatterText(text),
         options: kind === "decision" ? (data.options as string[]) : [],
         expires,
@@ -293,7 +295,11 @@ export class MatterController {
       if (current.kind === "failure") {
         current.data = data;
         current.text = visibleMatterText(
-          this.failureText(current.title, data as unknown as FailureDetail),
+          this.failureText(
+            current.title,
+            data as unknown as FailureDetail,
+            current.cause,
+          ),
         );
         this.onChange();
         return;
@@ -447,6 +453,7 @@ export class MatterController {
                 this.failureText(
                   this.current.title,
                   data as unknown as FailureDetail,
+                  this.current.cause,
                 ),
               );
             }
