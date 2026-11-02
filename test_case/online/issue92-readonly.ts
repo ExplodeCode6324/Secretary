@@ -104,6 +104,7 @@ try {
   };
   terminal.sendInput("\x1b[A");
   assert(ui.remote!.attention.row?.type === "failure");
+  const selected = ui.remote!.attention.selected;
   terminal.sendInput("\r");
   await until(() => ui.matters.current?.kind === "exception");
   terminal.sendInput("\t");
@@ -111,6 +112,9 @@ try {
   terminal.sendInput("/m ignored");
   terminal.sendInput("\x1b");
   assert(!ui.matters.current);
+  assert.equal(ui.remote!.attention.selected, selected);
+  terminal.sendInput("\x1b");
+  assert.equal(ui.remote!.attention.selected, undefined);
   terminal.sendInput("/t");
   terminal.sendInput("\x1b[13;2u");
   assert.equal(ui.page, "Task");

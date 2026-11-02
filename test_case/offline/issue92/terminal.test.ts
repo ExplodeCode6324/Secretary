@@ -192,7 +192,7 @@ test("Task /SHOW is exact, command is consumed and processing slash commands can
   }
 });
 
-test("Main history remains reachable within one visible matter window, and seen changes only on actual opening", async () => {
+test("matter arrows wrap, detail Escape keeps the selected row, and PageUp reaches history after Escape", async () => {
   const { ui, terminal, cleanup } = await setup(async (f) => {
     let id = "";
     for (let i = 0; i < 7; i++) id = (await decision(f)).id;
@@ -202,10 +202,29 @@ test("Main history remains reachable within one visible matter window, and seen 
     assert.equal(ui.remote!.attention.seen.size, 0);
     terminal.sendInput(up);
     assert(ui.remote!.attention.selected);
-    for (let i = 0; i < 5; i++) terminal.sendInput(up);
-    await until(() => ui.viewing);
-    assert.equal(ui.remote!.attention.selected, undefined);
+    const attention = ui.remote!.attention;
+    while (attention.row?.key !== attention.page!.items[0].key)
+      terminal.sendInput(up);
+    terminal.sendInput(up);
+    await until(() => !attention.loading);
+    assert.equal(attention.row?.key, attention.page!.items.at(-1)!.key);
+    terminal.sendInput(down);
+    await until(() => !attention.loading);
+    assert.equal(attention.row?.key, attention.page!.items[0].key);
+    assert.equal(ui.viewing, false);
     assert.equal(ui.remote!.attention.seen.size, 0);
+    const selected = attention.selected;
+    terminal.sendInput("\r");
+    await until(() => !!ui.matters.current);
+    terminal.sendInput(esc);
+    assert.equal(attention.selected, selected);
+    terminal.sendInput("\r");
+    await until(() => !!ui.matters.current);
+    terminal.sendInput(esc);
+    terminal.sendInput(esc);
+    assert.equal(attention.selected, undefined);
+    terminal.sendInput("\x1b[5~");
+    assert.equal(ui.viewing, true);
     terminal.sendInput(esc);
     assert.equal(ui.viewing, false);
   } finally {
@@ -238,6 +257,41 @@ test("show completion is Task name-only; IDs preserve case and Main rejects the 
   );
   assert.equal(await c.getSuggestions(["/show A"], 0, 7, opts), null);
   assert.equal(suggestions, 0);
+});
+
+test("pasted show stays a Task draft and explains why it did not open the matter", async () => {
+  const { f, ui, terminal, item, cleanup } = await setup(
+    async (f) => (await decision(f)).id,
+  );
+  try {
+    terminal.sendInput("/t");
+    terminal.sendInput(shiftEnter);
+    const inputs = f.app.store.all("Input").length;
+    terminal.sendInput("\x1b[200~/show " + item + "\x1b[201~");
+    terminal.sendInput(shiftEnter);
+    assert.equal(ui.matters.current, undefined);
+    assert.equal(ui.editors.Task.getExpandedText(), "/show " + item);
+    assert.match(
+      ui.footer.render(120).join("\n"),
+      /粘贴的 \/show 已保留为草稿/,
+    );
+    assert.equal(f.app.store.all("Input").length, inputs);
+    assert.equal(
+      (await f.client.query<Decision>("decisions/" + item)).state,
+      "OPEN",
+    );
+    // A deliberately typed slash plus an inline pasted remainder is an
+    // explicit command; the 60-grapheme threshold accommodates a full UUID.
+    terminal.sendInput("\x15");
+    assert.equal(ui.editors.Task.getExpandedText(), "");
+    terminal.sendInput("/");
+    terminal.sendInput("\x1b[200~show " + item + "\x1b[201~");
+    terminal.sendInput(shiftEnter);
+    await until(() => ui.matters.current?.id === item);
+    assert.equal(f.app.store.all("Input").length, inputs);
+  } finally {
+    await cleanup();
+  }
 });
 
 test("an externally removed selection returns keyboard focus to the ordinary editor", async () => {
@@ -295,7 +349,7 @@ test("a cancelled late opening cannot mark a different matter as seen", async ()
     await until(() => delayed);
     terminal.sendInput(esc);
     terminal.sendInput(up);
-    terminal.sendInput(up);
+    await until(() => !ui.remote!.attention.loading);
     const next = ui.remote!.attention.row!;
     assert.notEqual(next.id, old.id);
     terminal.sendInput("\r");
@@ -332,6 +386,13 @@ test("authorization formats are visible in previews/details without changing dis
     assert.deepEqual(ui.matters.current!.data.display, before.display);
     assert.equal(ui.matters.current!.data.display_hash, before.display_hash);
     terminal.sendInput("\t");
+    assert(ui.footer.render(80).join("\n").includes("\x1b[1;30;103m"));
+    assert(ui.footer.render(80).join("\n").includes("批准：Shift+Enter 确认"));
+    terminal.sendInput("\r");
+    assert.equal(
+      (await f.client.query<Authorization>("authorizations/" + item)).state,
+      "PENDING",
+    );
     terminal.sendInput(shiftEnter);
     await until(() => !ui.matters.current);
     const after = await f.client.query<Authorization>("authorizations/" + item);

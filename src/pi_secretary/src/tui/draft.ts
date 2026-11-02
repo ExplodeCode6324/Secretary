@@ -25,7 +25,7 @@ const graphemes = new Intl.Segmenter(undefined, { granularity: "grapheme" });
 export function inlinePaste(text: string) {
   if (/[\n\t]/.test(text)) return false;
   let count = 0;
-  for (const _ of graphemes.segment(text)) if (++count > 30) return false;
+  for (const _ of graphemes.segment(text)) if (++count > 60) return false;
   return true;
 }
 export function plainSnapshot(

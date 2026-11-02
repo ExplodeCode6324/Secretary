@@ -58,6 +58,10 @@ export class AttentionWindow implements Component {
     }, 1000);
   }
   async refresh(): Promise<void> {
+    if (this.loading) {
+      this.schedule();
+      return;
+    }
     if (this.refreshJob) {
       this.refreshAgain = true;
       return this.refreshJob;
@@ -135,7 +139,7 @@ export class AttentionWindow implements Component {
     this.page = this.head;
     this.onChange();
   }
-  async move(delta: -1 | 1): Promise<"history" | "editor" | undefined> {
+  async move(delta: -1 | 1): Promise<void> {
     if (this.loading || !this.page || !this.selected) return;
     const i = this.page.items.findIndex((r) => r.key === this.selected),
       next = i + delta;
@@ -144,27 +148,45 @@ export class AttentionWindow implements Component {
       this.onChange();
       return;
     }
-    if (delta < 0 && !this.previous.length) {
-      this.exit();
-      return "history";
-    }
-    if (delta > 0 && !this.page.next_cursor) {
-      this.exit();
-      return "editor";
-    }
     this.loading = true;
-    const gen = this.generation;
-    const cursor = delta > 0 ? this.page.next_cursor! : this.previous.at(-1);
+    const gen = ++this.generation;
     try {
-      const page = await this.client.query<MasterAttention>(this.route(cursor));
+      let cursor: string | undefined;
+      let previous = [...this.previous];
+      let page: MasterAttention;
+      if (delta < 0 && !previous.length) {
+        // The API is forward-keyset paged. Walk to the tail without retaining
+        // intermediate rows, and publish only once the complete wrap succeeds.
+        page = await this.client.query<MasterAttention>(this.route());
+        const visited = new Set<string>();
+        while (page.next_cursor) {
+          if (gen !== this.generation || this.stopped) return;
+          if (visited.has(page.next_cursor)) throw Error("REPEATED_CURSOR");
+          visited.add(page.next_cursor);
+          previous.push(cursor);
+          cursor = page.next_cursor;
+          page = await this.client.query<MasterAttention>(this.route(cursor));
+        }
+      } else {
+        if (delta > 0 && !this.page.next_cursor) {
+          previous = [];
+        } else if (delta > 0) {
+          cursor = this.page.next_cursor!;
+          previous.push(this.cursor);
+        } else {
+          cursor = previous.pop();
+        }
+        page = await this.client.query<MasterAttention>(this.route(cursor));
+      }
       if (gen !== this.generation || this.stopped) return;
-      if (delta > 0) this.previous.push(this.cursor);
-      else this.previous.pop();
+      if (!page.items.length) throw Error("事项列表已变化，请刷新后重试");
+      this.previous = previous;
       this.cursor = cursor;
       this.page = page;
       this.selected = page.items[delta > 0 ? 0 : page.items.length - 1]?.key;
       this.error = "";
     } catch (e) {
+      if (gen !== this.generation || this.stopped) return;
       this.error = "事项翻页失败：" + String(e);
     } finally {
       this.loading = false;

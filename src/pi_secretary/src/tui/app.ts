@@ -8,6 +8,7 @@ import {
   VStack,
   Text,
   matchesKey,
+  getKeybindings,
   type Terminal,
 } from "@earendil-works/pi-tui";
 import { attachCore } from "../core-client.ts";
@@ -46,6 +47,7 @@ export class TerminalApp {
     generation: number;
     snapshot: DraftSnapshot;
     viewing: boolean;
+    attentionKey?: string;
   };
   private layoutMode = "";
   private matterText = "";
@@ -87,6 +89,14 @@ export class TerminalApp {
     clipboard: (text: string) => Promise<boolean | string> = copySelection,
   ) {
     configureKeys();
+    const keybindings = getKeybindings();
+    // Pi's viewport listener runs first; route page keys through our mode
+    // handling so PageUp can enter history without leaving matter selection.
+    keybindings.setUserBindings({
+      ...keybindings.getUserBindings(),
+      "tui.altScreen.pageUp": [],
+      "tui.altScreen.pageDown": [],
+    });
     this.tui = new TuiAltScreen(terminal, undefined, undefined, {
       copySelection: (text) => {
         // Pi has captured the copied text. Release even when the pointer ended
@@ -141,7 +151,13 @@ export class TerminalApp {
         this.editors[origin].restore(saved.snapshot, false);
         this.viewing = saved.viewing;
       }
-      this.remote?.attention.exit();
+      const returnToSelection =
+        result === "escape" &&
+        origin === "Main" &&
+        saved?.attentionKey !== undefined &&
+        this.remote?.attention.row?.key === saved.attentionKey;
+      if (!returnToSelection) this.remote?.attention.exit();
+      else this.viewing = false;
       if (result !== "escape") {
         this.viewing = false;
         if (origin === "Task") {
@@ -217,24 +233,25 @@ export class TerminalApp {
         } else if (matchesKey(data, "up") || matchesKey(data, "down")) {
           void this.remote.attention
             .move(matchesKey(data, "up") ? -1 : 1)
-            .then((edge) => {
-              if (edge === "history") {
-                this.viewing = true;
-                this.tui.setFocus(this.scrolls.Main);
-                this.scrolls.Main.scrollBy(-1);
-              }
-              if (edge === "editor") {
-                this.viewing = false;
-                this.tui.setFocus(this.editors.Main);
-              }
-              this.draw();
-            });
+            .then(() => this.draw());
         }
         return { consume: true };
       }
       const editor = this.editors[this.page],
         scroll = this.scrolls[this.page];
       if (!this.stopping && editor.enabled) {
+        if (matchesKey(data, "pageUp") || matchesKey(data, "pageDown")) {
+          this.stopFollowing();
+          this.viewing = true;
+          this.tui.setFocus(scroll);
+          scroll.scrollBy(
+            (matchesKey(data, "pageUp") ? -1 : 1) *
+              Math.max(1, scroll.viewportHeight - 1),
+          );
+          this.clearHint();
+          this.draw();
+          return { consume: true };
+        }
         if (this.viewing) {
           if (matchesKey(data, "escape")) {
             this.viewing = false;
@@ -496,6 +513,7 @@ export class TerminalApp {
       generation: draft.generation,
       snapshot: this.editors[this.page].snapshot(),
       viewing: this.viewing,
+      attentionKey: row?.key,
     };
     this.matterEditor.setText("");
     this.matterText = "";
@@ -586,7 +604,9 @@ export class TerminalApp {
       return;
     }
     if (action.kind === "draft") {
-      this.uiHint = "Task 草稿已保留；不会发送给 Main 或执行 Agent";
+      this.uiHint = raw.startsWith("/show ")
+        ? "粘贴的 /show 已保留为草稿；执行时请手动输入 /，再输入或粘贴 show 和 ID"
+        : "Task 草稿已保留；不会发送给 Main 或执行 Agent";
       this.draw();
       return;
     }
@@ -870,18 +890,26 @@ export class TerminalApp {
       this.matterEditor.enabled = current?.kind === "decision";
       const focus =
         this.matterFocus === "approve"
-          ? "[批准] 拒绝"
+          ? "\x1b[1;30;103m [批准：Shift+Enter 确认] \x1b[0m  拒绝"
           : this.matterFocus === "reject"
-            ? "批准 [拒绝]"
+            ? "批准  \x1b[1;31m[拒绝：Shift+Enter 确认]\x1b[0m"
             : this.matterFocus.startsWith("option:")
-              ? `选项 ${Number(this.matterFocus.split(":")[1]) + 1}：${current?.options[Number(this.matterFocus.split(":")[1])]}`
+              ? visibleMatterText(
+                  `选项 ${Number(this.matterFocus.split(":")[1]) + 1}：${current?.options[Number(this.matterFocus.split(":")[1])]}`,
+                )
               : this.matterFocus === "editor"
                 ? "回答输入"
                 : "详情滚动";
       this.footer.setText(
         visibleMatterText(
-          `事项 ${current?.id ?? "读取中"} · ${focus} · Tab 切换 · Esc 返回\n${this.matters.hint || (current?.kind === "decision" ? "Enter 换行 · Shift+Enter 字面回答；命令不可用" : current?.kind === "authorization" ? "Enter 不执行 · Shift+Enter 确认所选动作" : "只读详情 · ↑/↓/PageUp/PageDown")} `,
-        ),
+          current?.kind === "authorization"
+            ? "授权操作 · "
+            : `事项 ${current?.id ?? "读取中"} · `,
+        ) +
+          focus +
+          visibleMatterText(
+            ` · Tab 切换 · Esc 返回\n${this.matters.hint || (current?.kind === "decision" ? "Enter 换行 · Shift+Enter 字面回答；命令不可用" : current?.kind === "authorization" ? "Enter 不执行 · Shift+Enter 确认所选动作" : "只读详情 · ↑/↓/PageUp/PageDown")} `,
+          ),
       );
       this.tui.requestRender();
       return;
@@ -901,13 +929,13 @@ export class TerminalApp {
       this.delivery?.hint ||
       this.matters.hint ||
       (attention?.selected
-        ? "↑/↓ 选择事项 · Enter 打开 · Esc 返回编辑器"
+        ? "↑/↓ 循环选择事项 · Enter 打开 · Esc 返回编辑器"
         : attention?.error) ||
       (this.page === "Task"
         ? this.remote?.taskBrowser.error || this.remote?.taskBrowser.notice
         : this.remote?.error) ||
       persistentHint ||
-      "/help · Enter 换行 · Shift+Enter 提交 · 第一行 ↑ 查看 · Ctrl+C 退出";
+      "/help · Enter 换行 · Shift+Enter 提交 · ↑ 事项 · PageUp 历史 · Ctrl+C 退出";
     this.footer.setText(
       safeText(
         `${this.page} · ${this.viewing ? "查看：↑/↓ 滚动 · 输入/粘贴或 Esc 返回" : this.page === "Main" ? "发送到 Main" : "普通草稿，不发送"} ${this.tui.terminal.rows < 8 ? "（窗口过小，请增高）" : ""}\n${hint}`,

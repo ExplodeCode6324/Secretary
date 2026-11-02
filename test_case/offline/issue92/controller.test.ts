@@ -14,6 +14,59 @@ import type {
 } from "../../../src/pi_secretary/src/contracts.ts";
 import { id, revise } from "../../../src/pi_secretary/src/store.ts";
 
+test("attention wraps across all pages with bounded rows; Escape cancels a pending tail jump without restoring selection", () =>
+  fixture(async (f) => {
+    for (let i = 0; i < 65; i++) authorization(f);
+    let release: (() => void) | undefined;
+    let delay = false;
+    const window = new AttentionWindow({
+      query: async <T>(route: string) => {
+        if (delay && route.includes("cursor=")) {
+          delay = false;
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        }
+        return f.client.query<T>(route);
+      },
+    });
+    try {
+      await window.refresh();
+      window.enter();
+      window.selected = window.head!.items[0].key;
+      const first = window.selected;
+      const sequence = f.app.store.sequence;
+      await window.move(-1);
+      assert.equal(window.page!.items.length, 5);
+      assert.equal(window.selected, window.page!.items[4].key);
+      const last = window.selected;
+      await window.move(1);
+      assert.equal(window.selected, first);
+      assert(window.page!.items.length <= 30);
+      await window.move(-1);
+      for (let i = 0; i < 5; i++) await window.move(-1);
+      assert.equal(window.page!.items.length, 30);
+      assert.notEqual(window.selected, last);
+      assert.equal(window.selected, window.page!.items.at(-1)!.key);
+      assert.equal(f.app.store.sequence, sequence);
+      window.exit();
+      window.enter();
+      window.selected = first;
+      delay = true;
+      const moving = window.move(-1);
+      while (!release) await new Promise((resolve) => setTimeout(resolve, 10));
+      window.exit();
+      release();
+      await moving;
+      assert.equal(window.selected, undefined);
+      assert.equal(window.page, window.head);
+      assert.equal(f.app.store.sequence, sequence);
+    } finally {
+      release?.();
+      window.stop();
+    }
+  }));
+
 test("directed slash answer from either origin is MASTER-authored with one identity; no Main input/retention write", () =>
   fixture(async (f) => {
     for (const origin of ["Main", "Task"] as const) {
