@@ -35,7 +35,14 @@ export function proposeTask(
   loopID: string,
 ) {
   const failures = failuresFor(this.store);
-  if (failures.guardProposal(this.sessionID, loopID))
+  // A proven Scheduler receipt only replays its fingerprint-checked outcome.
+  // Keep failure-bound receipts on their stronger Input/intent recovery path.
+  const bound = failures.inputContext(this.sessionID, loopID).bound;
+  if (
+    bound ||
+    (!this.store.hasReceipt(call) &&
+      failures.guardProposal(this.sessionID, loopID))
+  )
     return result(
       failures.perform(
         this.sessionID,

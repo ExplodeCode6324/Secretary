@@ -191,7 +191,7 @@ export class MatterController {
     }
   }
   private failureText(title: string, data: FailureDetail, reason = "") {
-    return `${title}\n${reason}\n${printable(data)}\n\nTab 选择重做/移除提醒；Shift+Enter 明确提交给 Main。Enter 不执行。\n${data.kind === "TASK_INIT" ? "不能重做初始化失败；移除仅隐藏提醒，后台初始化重试继续。" : "重做保留原要求；移除不改写历史，也不停止已接受的重做。"}\nEsc 返回。`;
+    return `${title}\n${reason}\n${printable(data)}\n\nTab 选择重做/移除提醒；Shift+Enter 明确提交给 Main。Enter 不执行。\n${data.kind === "TASK_INIT" ? "不能重做初始化失败；移除仅隐藏提醒，后台初始化重试继续。" : "重做保留原要求；移除不改写历史，也不停止已接受的重做。"}其他工作和未来周期调度继续。\nEsc 返回。`;
   }
   async submitFailure(action?: "REDO" | "DISMISS") {
     const current = this.current,
@@ -459,6 +459,7 @@ export class MatterController {
                   this.current.cause,
                 ),
               );
+              this.exit("success", this.hint);
             }
             this.onChange();
           }

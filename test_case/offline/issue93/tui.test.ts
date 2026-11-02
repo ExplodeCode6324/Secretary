@@ -87,6 +87,8 @@ test("failure envelope survives lost response and reconnect; one Main input and 
         1,
       );
       assert.match(c.hint, /Main 输入已接收/);
+      assert.equal(Boolean(c.current), false);
+      await c.open(e.id, "Main", row);
       assert.equal(c.current?.data.disposition, "UNRESOLVED");
       const input = f.app.store
         .all<Input>("Input")
@@ -118,7 +120,7 @@ test("cancellation lost reply is reconciled by its exact request; terminal state
   fixture(async (f) => {
     const d = await decision(f),
       c = new CancelController();
-    let lost = true;
+    let lost = false;
     const posts: string[] = [];
     c.connect(
       {
@@ -129,6 +131,7 @@ test("cancellation lost reply is reconciled by its exact request; terminal state
         command: async (r, b) => {
           posts.push(b.request_id);
           await f.client.command(r, b);
+          lost = true;
           throw Error("lost");
         },
       },
@@ -194,7 +197,7 @@ test("failure UI opens neutral, Enter cannot execute, explicit dismissal preserv
         failure_intent_id: input.dedupe_key,
       }),
     );
-    terminal.sendInput("\x1b");
+    await until(() => !ui.matters.current);
     assert.deepEqual(ui.editors.Main.snapshot(), saved);
     assert.equal(ui.page, "Main");
     assert.equal(ui.remote?.attention.selected, undefined);

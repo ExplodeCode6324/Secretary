@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "../issue9/helpers.ts";
 import { execution } from "../issue92/helpers.ts";
-import { id, revise } from "../../../src/pi_secretary/src/store.ts";
+import { base, id, revise } from "../../../src/pi_secretary/src/store.ts";
 import { failuresFor } from "../../../src/pi_secretary/src/failure-handling.ts";
 import type {
   Input,
@@ -111,7 +111,8 @@ test("redo cannot weaken requirements; failed attempt is durable and a new inten
     );
     assert.equal(result.accepted, false);
     assert.match(String(result.error), /FAILURE_REQUIREMENTS_CHANGED/);
-    assert.equal(service.view(key, sid).status, "BLOCKED");
+    assert.equal(service.view(key, sid).status, "MAIN_PROCESSING");
+    assert.match(service.view(key, sid).error!, /FAILURE_REQUIREMENTS_CHANGED/);
     assert.equal(
       f.app.store
         .all<Execution>("Execution")
@@ -693,4 +694,187 @@ test("only REDO relaxes goal and recovery reconstructs that schema from the pers
     handled(f, x.input);
     const d = await intent(f, e, "DISMISS");
     assert(required(d.loop));
+  }));
+
+test("wrong tool/requirements can be corrected in the same intent; rejected receipts survive restart", () =>
+  fixture(async (f) => {
+    for (const action of ["DISMISS", "REDO"] as const) {
+      const e = await execution(f);
+      f.app.scheduler.finish(e.id, "FAILED", { error: "fixture" });
+      const x = await intent(f, e, action);
+      const wrong = {
+        reuse_task_id: e.task_id,
+        parent_execution_id: e.id,
+        goal: "changed",
+      };
+      const call = id();
+      const rejected = x.service.perform(
+        x.sid,
+        x.loop,
+        call,
+        "task_propose",
+        wrong,
+        f.app.scheduler,
+      );
+      assert.equal(rejected.accepted, false);
+      assert.equal(x.service.view(x.key, x.sid).status, "MAIN_PROCESSING");
+      await f.restart();
+      const service = failuresFor(f.app.store);
+      assert.deepEqual(service.recovered(call, wrong, x.sid, x.loop), rejected);
+      const args =
+        action === "DISMISS"
+          ? { id: x.key }
+          : {
+              reuse_task_id: e.task_id,
+              parent_execution_id: e.id,
+              materials: [],
+            };
+      const tool = action === "DISMISS" ? "dismiss_failure" : "task_propose";
+      const result = service.perform(
+        x.sid,
+        x.loop,
+        id(),
+        tool,
+        args,
+        f.app.scheduler,
+      );
+      assert.equal(result.accepted, true);
+      assert.equal(service.view(x.key, x.sid).error, null);
+      assert.deepEqual(
+        service.perform(x.sid, x.loop, id(), tool, args, f.app.scheduler),
+        result,
+      );
+      assert.deepEqual(service.recovered(call, wrong, x.sid, x.loop), rejected);
+      if (action === "REDO") {
+        const plan = f.app.store.get<any>("TaskPlan", e.task_id);
+        assert.equal(
+          plan.pending_requests.filter(
+            (r: any) => r.request_id === result.linked_request_id,
+          ).length,
+          1,
+        );
+      } else assert.equal(service.view(x.key, x.sid).disposition, "DISMISSED");
+      handled(f, x.input);
+    }
+  }));
+
+test("legacy source materials normalize like continuation; successful redo clears the reminder", () =>
+  fixture(async (f) => {
+    const other = await execution(f);
+    f.app.scheduler.finish(other.id, "FAILED", { error: "derived" });
+    const result = f.app.store.get<any>(
+      "TaskResult",
+      f.app.store.get<Execution>("Execution", other.id).result_id!,
+    );
+    let e = await execution(f);
+    const proposal = f.app.store.read<any>(e.proposal_ref!);
+    const source = f.app.store.put("legacy source", "text/plain");
+    delete proposal.source_context_refs;
+    proposal.context_refs = [source, result.detail_ref, source];
+    f.app.scheduler.finish(e.id, "FAILED", { error: "preceding fixture" });
+    // A separate imported legacy record, never mutate an existing proposal identity.
+    e = {
+      ...e,
+      ...base(),
+      occurrence_key: id(),
+      proposal_ref: f.app.store.put(proposal),
+    };
+    f.app.store.commit([e]);
+    f.app.scheduler.finish(e.id, "FAILED", { error: "legacy" });
+    const x = await intent(f, e, "REDO");
+    assert.equal(
+      x.service.perform(
+        x.sid,
+        x.loop,
+        id(),
+        "task_propose",
+        { reuse_task_id: e.task_id, parent_execution_id: e.id },
+        f.app.scheduler,
+      ).accepted,
+      true,
+    );
+    handled(f, x.input);
+    await finishLinked(f, e.task_id, "SUCCEEDED");
+    assert.equal(x.service.view(x.key, x.sid).disposition, "REDO_SUCCEEDED");
+  }));
+
+test("failure membership avoids detail/blocker scans across historical executions", () =>
+  fixture(async (f) => {
+    const failures: Execution[] = [];
+    for (let i = 0; i < 12; i++) {
+      const e = await execution(f);
+      f.app.scheduler.finish(e.id, "FAILED", { error: "historical" });
+      failures.push(f.app.store.get<Execution>("Execution", e.id));
+    }
+    const service = failuresFor(f.app.store),
+      sequence = f.app.store.sequence;
+    service.view = () => {
+      throw Error("membership must not build details");
+    };
+    const indexed = f.app.store.indexed.bind(f.app.store);
+    let scans = 0;
+    (f.app.store as any).indexed = (...args: any[]) => {
+      if (args[0] === "Execution" && args[1] === "task_id") scans++;
+      return (indexed as any)(...args);
+    };
+    for (let pass = 0; pass < 3; pass++)
+      for (const e of failures)
+        assert(service.unresolved(e, f.app.host.sessionID));
+    assert.equal(scans, 0);
+    assert.equal(f.app.store.sequence, sequence);
+  }));
+
+test("pre-upgrade terminal-feedback recovery replays only a proven scheduler receipt", () =>
+  fixture(async (f) => {
+    const e = await execution(f);
+    f.app.scheduler.finish(e.id, "FAILED", { error: "fixture" });
+    f.app.host.deliverFeedback();
+    const input = f.app.store
+      .all<Input>("Input")
+      .find((i) => failuresFor(f.app.store).isolatedFeedback(i))!;
+    const loop = id(),
+      args = { goal: "pre-upgrade already admitted" };
+    f.app.store.commit([revise(input, { state: "CLAIMED", loop_id: loop })]);
+    const call = {
+      type: "toolCall",
+      id: id(),
+      name: "task_propose",
+      arguments: args,
+    };
+    const key = (f.app.host as any).toolKey(loop, 0, call.id, call.name, args);
+    const { stableID } =
+      await import("../../../src/pi_secretary/src/execution-utils.ts");
+    f.app.scheduler.propose(args.goal, stableID(key), f.app.host.sessionID);
+    const count = f.app.store.all("TaskPlan").length;
+    await f.restart();
+    const recovered = (f.app.host as any).recoverTools(
+      [
+        {
+          role: "assistant",
+          content: [call],
+          api: "openai-completions",
+          provider: "fixture",
+          model: "fixture",
+          stopReason: "toolUse",
+          timestamp: Date.now(),
+        },
+      ],
+      loop,
+    );
+    assert.equal(recovered.length, 2);
+    assert.equal(recovered[1].toolCallId, call.id);
+    assert.equal(f.app.store.all("TaskPlan").length, count);
+    assert.throws(
+      () => (f.app.host as any).proposeTask(args, id(), loop),
+      /TERMINAL_FEEDBACK_STOP/,
+    );
+    assert.throws(
+      () =>
+        (f.app.host as any).proposeTask(
+          { goal: "changed" },
+          stableID(key),
+          loop,
+        ),
+      /CONFLICT/,
+    );
   }));

@@ -281,7 +281,10 @@ export function proposalFor(
   );
 }
 
-export function sourceRefs(this: TaskPlanningContext, proposal: TaskProposal) {
+export function sourceRefs(
+  this: Pick<TaskPlanningContext, "store">,
+  proposal: TaskProposal,
+) {
   if (proposal.source_context_refs) return proposal.source_context_refs;
   // Old proposals mixed source materials and derived checkpoint/result evidence.
   const derived = new Set([

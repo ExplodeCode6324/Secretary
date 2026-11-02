@@ -13,6 +13,7 @@ import { ApiError, canonical, revision } from "./api/protocol.ts";
 import { base, hash, revise, type Store } from "./store.ts";
 import { stableID, terminal } from "./execution-utils.ts";
 import type { Scheduler } from "./scheduler.ts";
+import { sourceRefs } from "./task-planning.ts";
 
 export type FailureProposal = {
   goal?: string;
@@ -152,7 +153,11 @@ export class Failures {
         preconditions: p.preconditions,
         deadline: p.deadline,
         executor: p.executor,
-        sources: p.source_context_refs ?? p.context_refs,
+        sources: [
+          ...new Map(
+            sourceRefs.call({ store: this.store }, p).map((r) => [r.sha256, r]),
+          ).values(),
+        ],
         scope_id: p.scope_id ?? null,
         safety: p.safety_rule_id,
       }),
@@ -227,7 +232,7 @@ export class Failures {
             : input?.state === "CLAIMED"
               ? "MAIN_PROCESSING"
               : "REQUESTED";
-        if (status === "NO_ACTION") error = "MAIN_NO_ACTION";
+        if (status === "NO_ACTION") error ??= "MAIN_NO_ACTION";
       } else if (f.phase === "LINKED") {
         status = linked?.state ?? "QUEUED";
         if (linked && terminal(linked) && linked.state !== "SUCCEEDED")
@@ -316,10 +321,12 @@ export class Failures {
     };
   }
   unresolved(e: Execution, sid: string) {
-    return (
-      e.state === "FAILED" &&
-      this.view(executionFailureKey(e.id), sid).disposition === "UNRESOLVED"
-    );
+    if (e.state !== "FAILED") return false;
+    const t = this.target(executionFailureKey(e.id), sid),
+      f = this.record(t.key);
+    if (f?.disposition === "DISMISSED") return false;
+    const succeeded = this.successfulSequence(f, this.linked(f));
+    return succeeded == null || !Number.isFinite(succeeded);
   }
   /** Validate before Input admission; caller commits the returned record WITH that Input. */
   prepare(action: FailureAction, sid: string, request: string, input: string) {
@@ -434,7 +441,7 @@ export class Failures {
     )
       throw Error("FAILURE_INTENT_STALE");
     // Distinct model call IDs for the same settled intent reuse its durable outcome.
-    if (f.tool_receipt?.intent_id === f.intent_id) {
+    if (f.phase !== "REQUESTED" && f.tool_receipt?.intent_id === f.intent_id) {
       const outcome =
         f.tool_receipt.fingerprint === hash(canonical(args))
           ? (f.tool_receipt.result as ToolOutcome)
@@ -483,6 +490,7 @@ export class Failures {
           settle(
             {
               phase: "DISMISSED",
+              error: null,
               disposition: "DISMISSED",
               dismissed_sequence: this.store.sequence + 1,
             },
@@ -519,6 +527,7 @@ export class Failures {
         )
           continue;
         if (v == null) continue;
+        if (k === "materials" && Array.isArray(v) && v.length === 0) continue;
         if (!(k in required) || canonical(v) !== canonical(required[k]))
           throw Error("FAILURE_REQUIREMENTS_CHANGED:" + k);
       }
@@ -534,6 +543,7 @@ export class Failures {
           settle(
             {
               phase: "LINKED",
+              error: null,
               linked_request_id: call,
               requirements_digest: this.requirements(original),
             },
@@ -553,7 +563,18 @@ export class Failures {
       if (durable?.tool_receipt?.id === call)
         return durable.tool_receipt.result as ToolOutcome;
       const result = { accepted: false, failure_key: key, error: err(e) };
-      this.store.commit([settle({ phase: "BLOCKED", error: err(e) }, result)]);
+      // Invalid arguments consume only this call, not the Master's intent.
+      // Continuation refusals remain final; recovery replays every call receipt.
+      const correctable =
+        /^FAILURE_(INTENT_MISMATCH|ACTION_MISMATCH|TARGET_MISMATCH|REQUIREMENTS_CHANGED)(:|$)/.test(
+          err(e),
+        );
+      this.store.commit([
+        settle(
+          { phase: correctable ? "REQUESTED" : "BLOCKED", error: err(e) },
+          result,
+        ),
+      ]);
       return result;
     }
   }

@@ -6,7 +6,7 @@ All implementation gates are NOT_TESTED at plan creation, 2026-11-02.
 | --- | --- |
 | Bilingual plan / Claude review | PASS_PLAN_ONLY / R3 PASS |
 | Master implementation approval | GRANTED — Master: “通过，可以实施。” (2026-11-03 HKT) |
-| A1–A8 / AC21, AC29 and regressions | PARTIAL — 18 focused offline cases; product/manual matrix incomplete |
+| A1–A8 / AC21, AC29 and regressions | PARTIAL — 22 focused offline cases; product/manual matrix incomplete |
 | L1–L4 real-provider/Core evidence | PARTIAL — L1 passed on recorded source; L2/L3 budget-blocked; L4 not run |
 | Native Terminal / Master manual acceptance | TOOL_BLOCKED / NOT_TESTED |
 | Implementation CI / same-session Claude review | IN_PROGRESS / PENDING |
@@ -36,3 +36,15 @@ A second fresh domain exercised L3 within its original allowance. The periodic r
 Native tooling blocked access before any Terminal UI action. The seeded server was stopped; no native UI PASS is claimed.
 
 Final code audit also retained original cause text across detail refresh and limited optional goal strictly to REDO inputs. The persisted-Input schema is verified across restart; ordinary and DISMISS contexts still require goal. Sanitized live reports include hash-verified journal identities/state transitions and ModelCall IDs; these are observations, not claims that incomplete live gates passed.
+
+## Implementation review I1
+
+Claude Opus 5.5 Extra fetched and inspected exact PR head `1e0f39457e6b120cad831113a6d3a285bb1d84ee` in the same plan-review conversation. Verdict: CHANGES_REQUIRED for C1; product/merge NOT_READY. It reviewed the changed Core/TUI sources and dependent continuation/admission code, but did not execute tests (its npm installation was permission-blocked). Provider observations remain Codex-supplied evidence.
+
+C1 accepted: argument/tool/target/intent/requirements errors retain a per-call durable rejection receipt and the latest error, while the same claimed Main intent can correct its next call. Only admitted work, continuation refusal or dismissal settles that intent; empty materials add nothing. Regression coverage proves correction after restart, old rejection replay and a single admitted redo. No new paid run or budget reset accompanied this fix.
+
+Non-blocking findings also addressed: normalize legacy source references with the same filtering and de-duplication used by continuation; compute unresolved membership without full detail/blocker scans; allow fingerprint-checked replay of an existing Scheduler receipt from a pre-upgrade terminal-feedback batch, while blocking new proposals. Tests cover legacy successful redo, read-only membership scan bounds and actual Host recovery across restart.
+
+UI deviations corrected to match the approved plan: confirmed Input admission returns to Main and its original draft (not a claim that the business action completed); dismissal wording states that other work/future schedules continue; cancellation reads its exact target before first submission and shows the request removal reason when present. Explicit same-ID retries preserve their envelope.
+
+I2 must review the resulting new head, followed by exact-head Linux/macOS CI. Fresh final-source L1 and remaining L2–L4 are still required, as is native acceptance. The original cumulative wall-clock window has expired in addition to exhausted per-case Main budgets; any further provider run requires Master’s explicit revised allowance for both calls and time, with all prior usage retained.
