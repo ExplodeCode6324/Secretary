@@ -57,6 +57,175 @@ async function setup(
   };
   return { f, ui, terminal, item, cleanup, open };
 }
+
+test("Ctrl+C clears Main/Task rich drafts in one undoable edit; release does not exit and empty input exits only the client", async () => {
+  const { f, ui, terminal, cleanup } = await setup(
+    async (f) => (await decision(f)).id,
+  );
+  const close = ui.close.bind(ui);
+  let closing: Promise<void> | undefined;
+  ui.close = () => (closing ??= close());
+  try {
+    const core = await f.client.core();
+    for (const page of ["Main", "Task"] as const) {
+      if (page === "Task") {
+        terminal.sendInput("/t");
+        terminal.sendInput(shiftEnter);
+      }
+      terminal.sendInput(
+        "\x1b[200~/m literal\n" + "中文😀".repeat(70) + "\x1b[201~",
+      );
+      terminal.sendInput("\x1b[D");
+      const saved = ui.editors[page].snapshot();
+      const sequence = f.app.store.sequence;
+      terminal.sendInput("\x03");
+      assert.equal(ui.editors[page].getExpandedText(), "");
+      assert.equal(ui.delivery!.state.drafts[page].raw, "");
+      assert.equal(closing, undefined);
+      terminal.sendInput("\x1b[99;5:3u");
+      assert.equal(closing, undefined);
+      terminal.sendInput("\x1f");
+      assert.deepEqual(ui.editors[page].snapshot(), saved);
+      assert.equal(f.app.store.sequence, sequence);
+      terminal.sendInput("\x03");
+      assert.equal(closing, undefined);
+    }
+    terminal.sendInput("\x03");
+    assert(closing);
+    await closing;
+    assert.equal((await f.client.core()).instance_id, core.instance_id);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("clearing a pending Main message preserves the frozen request and never posts a replacement", async () => {
+  const { f, ui, terminal, cleanup } = await setup(
+    async (f) => (await decision(f)).id,
+  );
+  try {
+    const client = ui.delivery!.client!;
+    let posts = 0;
+    await ui.delivery!.connect({
+      ...client,
+      endpoint: client.endpoint,
+      core: client.core.bind(client),
+      query: async () => {
+        throw Error("offline receipt");
+      },
+      command: async (...args) => {
+        posts++;
+        await client.command(...args);
+        throw Error("lost acknowledgement");
+      },
+      syncCursor: client.syncCursor.bind(client),
+      changes: client.changes.bind(client),
+    });
+    terminal.sendInput("frozen Main message");
+    terminal.sendInput(shiftEnter);
+    await until(
+      () =>
+        !!ui.delivery!.state.pending &&
+        !ui.delivery!.busy &&
+        ui.editors.Main.getExpandedText() === "frozen Main message",
+    );
+    const pending = JSON.stringify(ui.delivery!.state.pending);
+    const inputs = f.app.store.all("Input").length;
+    terminal.sendInput("\x03");
+    assert.equal(ui.editors.Main.getExpandedText(), "");
+    assert.equal(JSON.stringify(ui.delivery!.state.pending), pending);
+    assert.equal(posts, 1);
+    assert.equal(f.app.store.all("Input").length, inputs);
+    terminal.sendInput("\x1f");
+    assert.equal(ui.editors.Main.getExpandedText(), "frozen Main message");
+    await ui.delivery!.connect(client);
+    await ui.delivery!.reconcile();
+    assert.equal(ui.delivery!.state.pending, undefined);
+    assert.equal(posts, 1);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Ctrl+C in authorization detail exits without clearing the hidden ordinary draft or deciding", async () => {
+  const { f, ui, terminal, item, cleanup, open } = await setup(
+    async (f) => authorization(f).authorization_id!,
+  );
+  const close = ui.close.bind(ui);
+  let closing: Promise<void> | undefined;
+  ui.close = () => (closing ??= close());
+  try {
+    terminal.sendInput("hidden Main draft");
+    await open();
+    const sequence = f.app.store.sequence;
+    terminal.sendInput("\x03");
+    assert(closing);
+    await closing;
+    assert.equal(ui.editors.Main.getExpandedText(), "hidden Main draft");
+    assert.equal(ui.delivery!.state.drafts.Main.raw, "hidden Main draft");
+    assert.equal(
+      (await f.client.query<Authorization>("authorizations/" + item)).state,
+      "PENDING",
+    );
+    assert.equal(f.app.store.sequence, sequence);
+  } finally {
+    await cleanup();
+  }
+});
+
+test("Ctrl+C clears only the visible question answer, preserving its frozen pending identity and underlying Main draft", async () => {
+  const { f, ui, terminal, item, cleanup, open } = await setup(
+    async (f) => (await decision(f)).id,
+  );
+  try {
+    terminal.sendInput("Main draft stays");
+    await open();
+    terminal.sendInput(
+      "\x1b[200~/m literal answer\n" + "保留".repeat(40) + "\x1b[201~",
+    );
+    const saved = ui.matterEditor.snapshot();
+    const core = await f.client.core();
+    let offline = false,
+      posts = 0;
+    ui.matters.connect(
+      {
+        query: <T>(route: string) =>
+          offline ? Promise.reject(Error("offline")) : f.client.query<T>(route),
+        command: async (...args) => {
+          posts++;
+          const receipt = await f.client.command(...args);
+          offline = true;
+          throw Error("lost acknowledgement");
+        },
+      },
+      core.data_domain_id + ":" + core.mode,
+    );
+    terminal.sendInput(shiftEnter);
+    await until(() => !!ui.matters.pending && !ui.matters.busy);
+    const pending = JSON.stringify(ui.matters.pending);
+    terminal.sendInput("\x03");
+    assert.equal(ui.matterEditor.getExpandedText(), "");
+    assert.equal(ui.editors.Main.getExpandedText(), "Main draft stays");
+    assert.equal(JSON.stringify(ui.matters.pending), pending);
+    assert.equal(posts, 1);
+    terminal.sendInput("\x1f");
+    assert.deepEqual(ui.matterEditor.snapshot(), saved);
+    offline = false;
+    await ui.matters.refresh();
+    assert.equal(ui.matters.current, undefined);
+    assert.equal(ui.matters.pending, undefined);
+    assert.equal(ui.editors.Main.getExpandedText(), "Main draft stays");
+    assert.equal(posts, 1);
+    assert.equal(f.app.store.all("Input").length, 0);
+    assert.equal(
+      (await f.client.query<Decision>("decisions/" + item)).answered_by,
+      "MASTER",
+    );
+  } finally {
+    await cleanup();
+  }
+});
+
 for (const [columns, rows] of [
   [80, 24],
   [120, 40],

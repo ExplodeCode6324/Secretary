@@ -25,7 +25,7 @@ npm ci
 SECRETARY_DATA=/absolute/path/to/core-data npm run tui
 ```
 
-默认数据目录是仓库 `.demo-data`。TUI 只连接 Core；Ctrl+C 仅退出客户端。推荐至少 80×24；物理终端、字体、中文输入法和 120×40 的人工验收仍待 Master 完成。客户端草稿位于 `~/Library/Application Support/Secretary/tui/v1/<domain>/<mode>/`，目录名保留 v1，文件格式为 v2。首次迁移保留原 v1 备份；不要用旧代码直接覆盖 v2 文件。需要旧版导出时，先退出该状态目录的 TUI，再运行：
+默认数据目录是仓库 `.demo-data`。TUI 只连接 Core；Ctrl+C 在当前可编辑输入框有内容时一次清空全部文字，可用 Ctrl+- 撤销；空框或无可编辑回答框时才退出客户端，不停止 Core。Main/Task 草稿和问题临时回答分别处理，授权/异常详情不清空隐藏的普通草稿。清空不撤销已经提交的消息或事项操作，待确认请求仍保留原 ID 和载荷。推荐至少 80×24；物理终端、字体、中文输入法和 120×40 的人工验收仍待 Master 完成。客户端草稿位于 `~/Library/Application Support/Secretary/tui/v1/<domain>/<mode>/`，目录名保留 v1，文件格式为 v2。首次迁移保留原 v1 备份；不要用旧代码直接覆盖 v2 文件。需要旧版导出时，先退出该状态目录的 TUI，再运行：
 
 ```sh
 npx tsx src/pi_secretary/scripts/tui-export-v1.ts /absolute/path/to/state-directory /absolute/path/to/new-export.json
@@ -45,7 +45,7 @@ npx tsx src/pi_secretary/scripts/tui-export-v1.ts /absolute/path/to/state-direct
 - Core 接受提交时会清空 Main 的撤销和剪切历史；发送过程中输入的新草稿正文不会丢失，但其已有撤销步骤也会清空。这项限制仍待 Master 验收确认。
 - 首次读取超长消息需要走完整游标链以收集引用定义，可能明显等待。2/4 MiB 合成样本实测约 9.9/25.5 秒，随后翻页约 0.38–0.51 秒；不承诺所有数据/机器具有相同性能。
 
-本地 macOS 可以鼠标拖选，松开后复制到系统剪贴板。复制的是屏幕显示文本，软换行保留为换行，不是 Markdown 源码或粘贴摘要隐藏原文；选择期间同宽度文档保持稳定。Ctrl+C仍为退出，终端的复制快捷键不持有应用选择。剪贴板写入失败会明确提示；SSH及其他平台暂不支持此复制路径。
+本地 macOS 可以鼠标拖选，松开后复制到系统剪贴板。复制的是屏幕显示文本，软换行保留为换行，不是 Markdown 源码或粘贴摘要隐藏原文；选择期间同宽度文档保持稳定。Ctrl+C按上述有内容清空/空框退出规则处理，终端的复制快捷键不持有应用选择。剪贴板写入失败会明确提示；SSH及其他平台暂不支持此复制路径。
 
 ## 开发验证
 

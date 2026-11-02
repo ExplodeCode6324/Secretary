@@ -9,6 +9,7 @@ import {
   Text,
   matchesKey,
   getKeybindings,
+  isKeyRelease,
   type Terminal,
 } from "@earendil-works/pi-tui";
 import { attachCore } from "../core-client.ts";
@@ -215,9 +216,35 @@ export class TerminalApp {
       };
     }
     this.tui.addInputListener((data) => {
+      if (isKeyRelease(data)) return { consume: true };
       this.scrolls[this.page].endSelection();
       if (matchesKey(data, "ctrl+c")) {
-        void this.close();
+        const active = !!this.matters.current || this.matters.loading;
+        const editor = active
+          ? this.matters.current?.kind === "decision"
+            ? this.matterEditor
+            : undefined
+          : this.editors[this.page];
+        if (editor?.clearInput()) {
+          const hint = "已清空输入 · Ctrl+- 撤销 · 空输入时 Ctrl+C 退出";
+          if (active) {
+            this.matterFocus = "editor";
+            this.matters.hint =
+              hint +
+              (this.matters.pending ? "；已提交操作仍待核对，清空不撤销" : "");
+            this.focusMatter();
+          } else {
+            this.remote?.attention.exit();
+            this.viewing = false;
+            this.uiHint =
+              hint +
+              (this.delivery?.state.pending
+                ? "；已提交消息仍待核对，清空不撤销"
+                : "");
+            this.tui.setFocus(editor);
+          }
+          this.draw();
+        } else void this.close();
         return { consume: true };
       }
       if (this.matters.current || this.matters.loading)
@@ -640,7 +667,7 @@ export class TerminalApp {
     }
     if (action.kind === "help")
       this.uiHint =
-        "/m /t /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> · ↑/↓ 连续读取";
+        "/m /t /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
     this.draw();
   }
   private submitMessage(raw: string, text: string, snapshot?: DraftSnapshot) {
@@ -935,7 +962,7 @@ export class TerminalApp {
         ? this.remote?.taskBrowser.error || this.remote?.taskBrowser.notice
         : this.remote?.error) ||
       persistentHint ||
-      "/help · Enter 换行 · Shift+Enter 提交 · ↑ 事项 · PageUp 历史 · Ctrl+C 退出";
+      "/help · Shift+Enter 提交 · ↑ 事项 · PageUp 历史 · Ctrl+C 清空/空框退出";
     this.footer.setText(
       safeText(
         `${this.page} · ${this.viewing ? "查看：↑/↓ 滚动 · 输入/粘贴或 Esc 返回" : this.page === "Main" ? "发送到 Main" : "普通草稿，不发送"} ${this.tui.terminal.rows < 8 ? "（窗口过小，请增高）" : ""}\n${hint}`,

@@ -68,7 +68,7 @@ Long authorization/question/exception details replace the transcript content are
 | Detail reader | Up/Down and PageUp/PageDown scroll full detail; Tab/Shift+Tab cycles to editor/options or neutral/Approve/Reject. |
 | Option row (SEEDED positive case) | Up/Down selects an explicit row; Enter copies exact option text to editor without send; Shift+Enter does not submit while option focus remains. |
 | Authorization action | Tab/Shift+Tab selects neutral/Approve/Reject; Enter does not execute; Shift+Enter executes only the explicitly selected legal action. |
-| Any matter state | Esc leaves the view (submitted uncertainty remains in memory); Ctrl+C exits TUI only, never cancels Core or converts input into an operation. |
+| Any matter state | Esc leaves the view (submitted uncertainty remains in memory); Ctrl+C clears nonempty visible editable input in one undoable edit, otherwise exits only the TUI. It never stops Core or cancels a pending operation. |
 | Ordinary Main history | Down at the bottom returns to matter selection if rows exist, otherwise original editor; preserves existing no-send-on-view-transition behavior. |
 | Ordinary Task command completion | /show name completion only; no ID suggestions are required. Exact item ID goes to details, never task-ID autocomplete. Processing mode suppresses all completion. |
 
@@ -142,3 +142,5 @@ The approved classification addendum received Claude PASS. The resume marker is 
 
 
 Master manual-acceptance addendum, 2026-11-02: after the navigation corrections, raise the inline single-line, no-Tab paste threshold from 30 to 60 graphemes. At 61 or more, or with line breaks/Tab, retain the original paste blocks. Command provenance and literal submission semantics remain unchanged.
+
+Master subsequently accepted manual items 10 and 13 after the previous items, and explicitly authorized: add conditional Ctrl+C clear with undo, complete tests and same-session Claude review, then merge. Apply to visible ordinary Main/Task drafts and temporary question answers; never clear an underlying hidden draft from authorization/exception views. Pending immutable request identities/payloads survive clearing. Preserve rich paste payloads, slash provenance and cursor for one-step undo. Ignore key-release events so one physical Ctrl+C cannot clear and then exit on release. External process signals retain shutdown semantics. Physical verification of this new shortcut is not inferred from previous native acceptance.

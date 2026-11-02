@@ -287,6 +287,17 @@ export class DraftEditor extends Editor {
   override getExpandedText() {
     return expandSnapshot(this.snapshot());
   }
+  /** One undoable edit; keep paste payloads/provenance available to rich undo. */
+  clearInput() {
+    if (!this.enabled || !this.getText().length) return false;
+    this.onOperation?.();
+    this.bridge.begin();
+    super.setText("");
+    this.bridge.document.damaged = false;
+    this.bridge.finish();
+    this.onEdited?.("", this.snapshot(), true);
+    return true;
+  }
   override handleMouse(event: Parameters<Editor["handleMouse"]>[0]) {
     if (!this.enabled) return;
     const before = this.snapshot();

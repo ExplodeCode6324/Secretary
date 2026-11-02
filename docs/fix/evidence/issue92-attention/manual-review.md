@@ -26,3 +26,9 @@ Verification and exact follow-up head, CI, same-session Claude Opus 5.5 Extra ve
 Master subsequently requested raising the inline paste threshold from 30 to 60 graphemes. Adopted after the navigation fix; existing tests now cover 30/31 and 59/60/61 boundaries with ASCII, Chinese, combining marks, family emoji and flags. Multi-line/Tab folding and paste-as-text command semantics remain unchanged.
 
 Local follow-up checks: 35/35 focused issue92/paste tests pass; the completed real-provider domain passes the read-only recheck with both failure causes preserved, zero provider calls and unchanged business/retention state. The first two navigation runs failed because Pi intercepted PageUp before the app listener; the app now explicitly owns page-key routing, and the unchanged history-entry assertion passes. Broader regression and exact-head CI results follow in the PR.
+
+## Final manual report and conditional Ctrl+C extension
+
+Master subsequently accepted 2/4/6/7/8/11, then 10 and 13. The initial NOT_FOUND used an actual TaskPlan ID with /show; the correct DecisionRequest ID opened successfully and Master completed its answer. These manual results cover the exercised seeded UI, not additional provider or unrelated native scenarios.
+
+Master explicitly authorized adding Ctrl+C clear with undo, completing tests and same-session Claude review, then merging. Nonempty visible Main/Task input or temporary question answer is cleared in one undoable edit; empty/no-editable-answer Ctrl+C closes only TUI. Hidden ordinary drafts and immutable pending request envelopes are preserved. Key release events are ignored. This shortcut has new automated coverage; no new physical-key PASS is claimed.
