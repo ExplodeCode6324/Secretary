@@ -1,6 +1,6 @@
 # Issue #93 — explicit cancellation and failure handling plan
 
-Date: 2026-11-02 (Asia/Hong_Kong). Scope: **PLAN ONLY, Claude R3 PASS (plan only); awaiting Master's explicit implementation approval**.
+Date: 2026-11-02 (Asia/Hong_Kong). Scope: **IMPLEMENTING, Claude R3 PASS for the plan; Master explicitly approved implementation on 2026-11-03**.
 
 Repository: https://github.com/ExplodeCode6324/Secretary
 Issue: https://github.com/ExplodeCode6324/Secretary/issues/93
@@ -157,7 +157,7 @@ Re-budget within these unchanged hard totals: reserve up to 4 of L1's 12, 6 of L
 
 ## 8. Review record
 
-R1: CHANGES_REQUIRED; B1–B6 accepted and revised as above. R2: B1–B6 substantively closed and bilingual parity confirmed; R2-1–R2-4 and non-blocking clarifications adopted (REDO-only optional goal, origin-independent CANCELLED guard, isolated feedback batches, submittable blocked execution redo, journal-order winner and past-deadline prediction). R3: PASS (plan only), received 2026-11-03 HKT; all blockers closed and substantive bilingual parity confirmed. Implementation approval: NOT_GRANTED. Runtime/provider/native/implementation CI: NOT_TESTED. Review disposition and material revisions will be recorded in `evidence/issue93-failure-handling/plan-review.md` and mirrored in both plan languages.
+R1: CHANGES_REQUIRED; B1–B6 accepted and revised as above. R2: B1–B6 substantively closed and bilingual parity confirmed; R2-1–R2-4 and non-blocking clarifications adopted (REDO-only optional goal, origin-independent CANCELLED guard, isolated feedback batches, submittable blocked execution redo, journal-order winner and past-deadline prediction). R3: PASS (plan only), received 2026-11-03 HKT; all blockers closed and substantive bilingual parity confirmed. Implementation approval: GRANTED (Master: “通过，可以实施。” on 2026-11-03 HKT). Runtime/provider/native/implementation CI: NOT_TESTED. Review disposition and material revisions will be recorded in `evidence/issue93-failure-handling/plan-review.md` and mirrored in both plan languages.
 
 
 R3 non-blocking implementation notes adopted: classify feedback isolation by its authoritative Feedback.result_id → TaskResult outcome, never by summary prose; unreadable RESULT feedback is isolated and guarded conservatively. Recover the REDO-specific tool schema from the persisted claimed Input/intent before rebuilding Agent tools, retaining identical tool keys/receipt semantics. EXPIRED remains deliberately outside the new guard, including a deadline-expired linked redo; the baseline may autonomously propose follow-up from that feedback. This exception is disclosed for Master's approval, and an autonomous recovery invalidates a live gate rather than being passed silently. These notes clarify implementation/evidence and do not claim any runtime verification by Claude.

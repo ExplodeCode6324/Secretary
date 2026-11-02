@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type {
+  FailureDetail,
   Authorization,
   Decision,
   MasterAttentionItem,
@@ -13,7 +14,7 @@ import { visibleMatterText } from "./view.ts";
 type Client = Pick<CoreClient, "query" | "command">;
 export type Matter = {
   id: string;
-  kind: "authorization" | "decision" | "exception";
+  kind: "authorization" | "decision" | "failure" | "exception";
   origin: Page;
   route: string;
   version: string;
@@ -28,12 +29,12 @@ type Pending = {
   item: string;
   route: string;
   body: { request_id: string; [key: string]: unknown };
-  kind: "authorization" | "decision";
+  kind: "authorization" | "decision" | "failure";
   detailRoute: string;
   domain: string;
 };
 const invalid =
-  /NOT_FOUND|NOT_OPEN|EXPIRED|STALE|APPROVAL_CONFLICT|INVALID_TRANSITION/;
+  /NOT_FOUND|NOT_OPEN|EXPIRED|STALE|APPROVAL_CONFLICT|INVALID_TRANSITION|FAILURE_REVISION_CONFLICT|FAILURE_ALREADY_RESOLVED|FAILURE_INTENT_PENDING|FAILURE_REDO_PENDING|INITIALIZATION_HAS_NO_PARENT/;
 const code = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const printable = (x: unknown) => JSON.stringify(x, null, 2) ?? "";
 /** Directed business actions never use Main delivery or the ordinary command parser. */
@@ -81,7 +82,9 @@ export class MatterController {
     this.current = undefined;
     this.onChange();
     try {
-      let route = row?.detail_route ?? `authorizations/${id}`;
+      let route = row?.failure_handling
+        ? `failures/${row.failure_handling.failure_key}`
+        : (row?.detail_route ?? `authorizations/${id}`);
       let data: Record<string, unknown>;
       try {
         data = await client.query(route);
@@ -96,7 +99,9 @@ export class MatterController {
         ? "authorization"
         : route.startsWith("decisions/")
           ? "decision"
-          : "exception";
+          : route.startsWith("failures/")
+            ? "failure"
+            : "exception";
       const expires = (
         kind === "authorization"
           ? data.expires_at
@@ -138,7 +143,13 @@ export class MatterController {
           ? `${title}\n${ownerText}版本 ${data.revision} · display_hash ${data.display_hash}\n有效期 ${expires ?? "无"}\n\n${printable(data.display)}\n\nTab 选择批准/拒绝，Shift+Enter 确认；Esc 返回。`
           : kind === "decision"
             ? `${title}\n${ownerText}${String(data.question)}\n\n影响：${String(data.impact)}\n选项：${printable(data.options)}\n资料引用（内容未接入）：${printable(data.materials ?? [])}\n\nEnter 换行 · Shift+Enter 字面回答 · Tab 详情/选项 · Esc 返回`
-            : `${title}\n${row?.warning ?? ""}\n${row?.preview ?? ""}\n${printable(data)}\n\n只读；精确处置与移除由 #93 实现。Esc 返回。`;
+            : kind === "failure"
+              ? this.failureText(
+                  title,
+                  data as unknown as FailureDetail,
+                  row?.preview,
+                )
+              : `${title}\n${row?.warning ?? ""}\n${row?.preview ?? ""}\n${printable(data)}\n\n只读；UNKNOWN 不能在客户端裁决、重做或移除。Esc 返回。`;
       this.current = {
         id,
         kind,
@@ -177,6 +188,76 @@ export class MatterController {
       }
     }
   }
+  private failureText(title: string, data: FailureDetail, reason = "") {
+    return `${title}\n${reason}\n${printable(data)}\n\nTab 选择重做/移除提醒；Shift+Enter 明确提交给 Main。Enter 不执行。\n${data.kind === "TASK_INIT" ? "不能重做初始化失败；移除仅隐藏提醒，后台初始化重试继续。" : "重做保留原要求；移除不改写历史，也不停止已接受的重做。"}\nEsc 返回。`;
+  }
+  async submitFailure(action?: "REDO" | "DISMISS") {
+    const current = this.current,
+      client = this.client;
+    if (!current || current.kind !== "failure" || !client || this.busy) return;
+    if (!action) {
+      this.hint = "请先选择重做或移除提醒";
+      this.onChange();
+      return;
+    }
+    const data = current.data as unknown as FailureDetail;
+    if (
+      !this.pending &&
+      !(action === "REDO" ? data.redo_available : data.dismiss_available)
+    ) {
+      this.hint = "当前动作不可用：" + data.status;
+      this.onChange();
+      return;
+    }
+    if (
+      this.pending &&
+      (this.pending.item !== current.id ||
+        this.pending.kind !== "failure" ||
+        (this.pending.body.failure_action as { action: string })?.action !==
+          action)
+    ) {
+      this.hint = "原事项提交尚未确认；不能替换原请求";
+      this.onChange();
+      return;
+    }
+    const p = (this.pending ??= {
+      id: randomUUID(),
+      item: current.id,
+      kind: "failure",
+      route: "messages",
+      body: {
+        request_id: "",
+        text: "",
+        failure_action: {
+          failure_key: data.failure_key,
+          expected_revision: data.revision,
+          action,
+        },
+      },
+      detailRoute: current.route,
+      domain: this.domain,
+    });
+    p.body.request_id = p.id;
+    this.busy = true;
+    this.hint = "正在提交 Main 意图；尚未证明处置完成";
+    this.onChange();
+    try {
+      const receipt = await client.command(p.route, p.body);
+      if (receipt.request_id !== p.id || receipt.acceptance !== "ACCEPTED")
+        throw Error("INVALID_RECEIPT");
+    } catch (e) {
+      await this.reconcile();
+      if (this.pending === p && invalid.test(code(e))) {
+        this.pending = undefined;
+        this.hint = "未接受动作：" + code(e);
+      } else if (this.pending === p)
+        this.hint = "送达未确认；同动作同 ID 重试：" + code(e);
+    } finally {
+      this.busy = false;
+      await this.reconcile();
+      this.onChange();
+    }
+  }
   exit(result: "escape" | "invalid" | "success" = "escape", message = "") {
     const origin = this.current?.origin ?? this.origin;
     this.origin = undefined;
@@ -209,6 +290,14 @@ export class MatterController {
     try {
       const data = await client.query<Record<string, unknown>>(current.route);
       if (gen !== this.generation || client !== this.client) return;
+      if (current.kind === "failure") {
+        current.data = data;
+        current.text = visibleMatterText(
+          this.failureText(current.title, data as unknown as FailureDetail),
+        );
+        this.onChange();
+        return;
+      }
       const expiry = (
         current.kind === "authorization" ? data.expires_at : data.deadline
       ) as string | null;
@@ -241,7 +330,13 @@ export class MatterController {
   async submit(value: string, decision?: "APPROVE" | "REJECT") {
     const current = this.current,
       client = this.client;
-    if (!current || !client || current.kind === "exception" || this.busy)
+    if (
+      !current ||
+      !client ||
+      current.kind === "exception" ||
+      current.kind === "failure" ||
+      this.busy
+    )
       return;
     if (current.kind === "authorization" && !decision) {
       this.hint = "请明确选择批准或拒绝";
@@ -340,6 +435,25 @@ export class MatterController {
       try {
         const data = await client.query<Record<string, unknown>>(p.detailRoute);
         if (this.pending !== p || this.client !== client) return;
+        if (p.kind === "failure") {
+          const status = await client.query<RequestStatus>(`requests/${p.id}`);
+          if (this.pending !== p || client !== this.client) return;
+          if (status.receipt.acceptance === "ACCEPTED") {
+            this.pending = undefined;
+            this.hint = `Main 输入已接收；当前处置 ${data.disposition} · ${data.status}${data.error ? " · " + data.error : ""}`;
+            if (this.current?.id === p.item) {
+              this.current.data = data;
+              this.current.text = visibleMatterText(
+                this.failureText(
+                  this.current.title,
+                  data as unknown as FailureDetail,
+                ),
+              );
+            }
+            this.onChange();
+          }
+          return;
+        }
         const matching =
           p.kind === "authorization"
             ? data.decision_id === p.id

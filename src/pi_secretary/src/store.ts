@@ -522,10 +522,12 @@ export class Store {
       if (old?.record_type === "Input" && r.record_type === "Input") {
         if (
           r.session_id !== old.session_id ||
-          (old.attachments?.length &&
+          ((old.attachments?.length || old.failure_action) &&
             ["producer", "received_at", "dedupe_key", "feedback_id"].some(
               (k) => (r as any)[k] !== (old as any)[k],
             )) ||
+          JSON.stringify(r.failure_action) !==
+            JSON.stringify(old.failure_action) ||
           r.payload.sha256 !== old.payload.sha256 ||
           JSON.stringify(r.attachments) !== JSON.stringify(old.attachments) ||
           r.content_digest !== old.content_digest ||
@@ -554,6 +556,20 @@ export class Store {
             !(r.state === "FAILED" && r.reserved_bytes === 0))
         )
           throw Error("ATTACHMENT_IMPORT_IDENTITY_CHANGED");
+      }
+      if (
+        old?.record_type === "FailureHandling" &&
+        r.record_type === "FailureHandling"
+      ) {
+        if (
+          ["failure_key", "session_id", "task_id", "execution_id"].some(
+            (k) => (old as any)[k] !== (r as any)[k],
+          ) ||
+          (old.disposition === "DISMISSED" &&
+            (r.disposition !== old.disposition ||
+              r.dismissed_sequence !== old.dismissed_sequence))
+        )
+          throw Error("FAILURE_IDENTITY_CHANGED");
       }
       if (old) validateStateTransition(old, r);
       if (

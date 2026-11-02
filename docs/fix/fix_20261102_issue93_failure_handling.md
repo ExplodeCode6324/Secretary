@@ -1,6 +1,6 @@
 # Issue #93：明确取消与失败处置计划
 
-日期：2026-11-02（香港时间）。范围：**仅计划；Claude R3 已通过（仅计划），等待 Master 明确批准实施**。
+日期：2026-11-02（香港时间）。范围：**实施中；Claude R3 已通过计划，Master 已于 2026-11-03 明确批准实施**。
 
 仓库：https://github.com/ExplodeCode6324/Secretary
 Issue：https://github.com/ExplodeCode6324/Secretary/issues/93
@@ -157,7 +157,7 @@ Esc 保留 #92 两段返回：详情→仍有效的同一选择→输入。意�
 
 ## 8. 复核记录
 
-R1：CHANGES_REQUIRED，B1–B6 已采纳并按上文修订。R2：B1–B6 实质关闭，双语一致性通过；R2-1–R2-4 及非阻断澄清已采纳（REDO 专属可选 goal、无取消者假设的 CANCELLED guard、feedback 独立 batch、受阻执行仍可明确提交、journal 顺序胜者与过期预测）。R3：PASS（仅计划），香港时间 2026-11-03 收到；全部阻断关闭，中英文实质一致。实施批准 NOT_GRANTED。运行/provider/原生/实施 CI 均 NOT_TESTED。逐轮结论和重要修订写入 `evidence/issue93-failure-handling/plan-review.md`，同步两种语言。
+R1：CHANGES_REQUIRED，B1–B6 已采纳并按上文修订。R2：B1–B6 实质关闭，双语一致性通过；R2-1–R2-4 及非阻断澄清已采纳（REDO 专属可选 goal、无取消者假设的 CANCELLED guard、feedback 独立 batch、受阻执行仍可明确提交、journal 顺序胜者与过期预测）。R3：PASS（仅计划），香港时间 2026-11-03 收到；全部阻断关闭，中英文实质一致。实施批准 GRANTED（Master 于 2026-11-03 回复“通过，可以实施。”）。运行/provider/原生/实施 CI 均 NOT_TESTED。逐轮结论和重要修订写入 `evidence/issue93-failure-handling/plan-review.md`，同步两种语言。
 
 
 R3 非阻断实施提醒已采纳：通过权威 Feedback.result_id 指向的 TaskResult outcome 判定 feedback 隔离，不解析摘要正文；RESULT 无法读取时保守隔离并禁止自主 proposal。恢复时从持久 claimed Input/intent 重建 REDO 专属工具 schema，再建 Agent 工具，保持 tool key/receipt 语义一致。EXPIRED 明确仍是新 guard 的例外，包括锁定期限导致的关联重做过期；基线可能从该反馈自主发起后续工作。将此限制交 Master 批准，live 门槛观察到自主恢复就记失败，不静默通过。这些是实施/证据澄清，不代表 Claude 执行过运行验证。

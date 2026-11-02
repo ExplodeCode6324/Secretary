@@ -57,7 +57,9 @@ PublicTaskCommand 使用 `acceptance` 字符串数组；接续同时传 reuse_ta
 
 ## Master attention (#92)
 
-`GET attention?view=master` 返回未过期的待批准、有效待回答、历史执行失败、当前初始化失败和结果未知事项；不传 `view` 保持原行为。完整集合按不可变发起时间和序号倒序，再使用签名游标分页，全量计数不受页大小影响。失败类别和 `cause_evidence` 由 Core 权威记录计算，不推断处置或移除。
+`GET attention?view=master` 返回未过期的待批准、有效待回答、未处置执行失败、未处置当前初始化失败和结果未知事项；不传 `view` 保持原行为。完整集合按不可变发起时间和序号倒序，再使用签名游标分页，全量计数不受页大小影响。失败类别和 `cause_evidence` 由 Core 权威记录计算，通过 FailureHandling 的显式处置和直接关联重做结果计算提醒，不以无关成功推断处置。
+
+`GET failures/{failure_key}` 只读返回精确失败及当前意图/重做状态。执行失败 key 为 `EXECUTION:<id>`，初始化失败为 `TASK_INIT:<task_id>:<episode_sequence>`。旧记录默认 revision `0`、UNRESOLVED。`POST messages` 可带 `failure_action: {failure_key, expected_revision, action: "REDO" | "DISMISS"}`；text 必须为空且不带附件，Core 原子接收 Input、FailureHandling 和 API 回执，并生成固定元数据正文。相同 request_id 精确重放；不同载荷冲突。未处理意图、活动重做、陈旧版本、已处置分别返回对应 409。REDO 仅授权 Main 保留原要求继续原 Task/parent；DISMISS 仅移除指定提醒。FAILED/CANCELLED RESULT feedback 独占 Main batch，禁止自行 task_propose；EXPIRED 保持原策略。
 
 `Execution.failure` 提供分类、原始原因、关联授权和操作及其实际状态。拒绝原因需要相互匹配的记录和先于失败的持久决定帧；证据不一致或不可用会明确标注。`TaskPlan` 变化使 attention 失效，客户端还须按 `valid_until` 刷新。
 

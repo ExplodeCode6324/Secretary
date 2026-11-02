@@ -1509,5 +1509,12 @@
         }
       }
     ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/failures/{id}",
+    "response": "FailureDetail",
+    "status": 200,
+    "description": "Read exact owned failure disposition, Main intent and linked redo outcome without state or retention writes."
   }
 ]

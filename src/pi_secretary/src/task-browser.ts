@@ -1,3 +1,4 @@
+import { failuresFor } from "./failure-handling.ts";
 import type { App } from "./app.ts";
 import type { Store } from "./store.ts";
 import type {
@@ -20,7 +21,7 @@ import type {
   TaskBrowserMessages,
 } from "./api/contracts.ts";
 import { ApiError, Cursors, fingerprint, limitOf } from "./api/protocol.ts";
-import { terminal, actionableFailure } from "./execution-utils.ts";
+import { terminal } from "./execution-utils.ts";
 import {
   visibleThinking,
   thinkingPreview,
@@ -108,7 +109,6 @@ export class TaskBrowser {
       rounds: Execution[];
       active: Execution[];
       unknown: string[];
-      failed: boolean;
     }
   >();
   private proposals = new Map<string, { hash: string; value: TaskProposal }>();
@@ -176,13 +176,12 @@ export class TaskBrowser {
     const rounds = [...created].sort(
       (a, b) => desc(this.invoked(a), this.invoked(b)) || compareID(a.id, b.id),
     );
-    const last = created.at(-1);
+
     const facts = {
       created,
       rounds,
       active: created.filter((e) => !terminal(e)),
       unknown: [...new Set(created.flatMap((e) => e.unknown_operation_ids))],
-      failed: !!last && actionableFailure(last, created),
     };
     this.factsCache.set(taskID, facts);
     return facts;
@@ -269,8 +268,17 @@ export class TaskBrowser {
     at: string,
     attention = this.attention(at),
   ): TaskBrowserTask {
-    const { active, rounds, unknown, failed } = this.facts(p.id),
+    const { active, rounds, unknown, created } = this.facts(p.id),
       latest = rounds[0];
+    const unresolved = created.filter((e) =>
+      failuresFor(this.store).unresolved(e, this.app.host.sessionID),
+    );
+    const failure = unresolved.length
+      ? failuresFor(this.store).view(
+          "EXECUTION:" + unresolved.at(-1)!.id,
+          this.app.host.sessionID,
+        )
+      : null;
     const attentionIDs = attention.get(p.id)?.ids ?? [];
     const reasons: string[] = [];
     if (active.length) reasons.push("nonterminal_execution");
@@ -282,7 +290,7 @@ export class TaskBrowser {
       reasons.push(p.state.toLowerCase());
     if (attentionIDs.length) reasons.push("attention");
     if (unknown.length) reasons.push("unknown_operation");
-    if (failed) reasons.push("actionable_failure");
+    if (unresolved.length) reasons.push("actionable_failure");
     const goal = this.proposal(p).goal;
     const result = latest?.result_id
       ? this.store.find<TaskResult>("TaskResult", latest.result_id)
@@ -315,6 +323,10 @@ export class TaskBrowser {
             ? "deadline_ineligible"
             : "not_scheduled",
       current_reasons: reasons,
+      unresolved_failure_count: unresolved.length,
+      failure_summary: failure
+        ? `${failure.status}${failure.error ? ": " + failure.error : ""}`
+        : null,
       active_executions: active.map((e) => this.executionView(p, e)),
       latest_execution: latest ? this.executionView(p, latest) : null,
       pending_request_count: p.pending_requests?.length ?? 0,

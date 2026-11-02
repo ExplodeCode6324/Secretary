@@ -1,3 +1,5 @@
+import { failuresFor } from "./failure-handling.ts";
+import type { FailureAction } from "./contracts.ts";
 import {
   MasterAttentionProjection,
   assertMatterScope,
@@ -431,6 +433,7 @@ export class ApplicationService {
           requestID,
           "MASTER",
           b.attachment_ids as string[] | undefined,
+          b.failure_action as FailureAction | undefined,
         );
       case "task-requests":
         return scheduler.propose(b.goal as string, requestID, host.sessionID, {
@@ -1107,6 +1110,12 @@ export class ApplicationService {
         ),
       });
     }
+    if (parts[0] === "failures" && parts.length === 2)
+      return failuresFor(store).view(
+        target,
+        host.sessionID,
+        this.app.scheduler,
+      );
     if (path === "attention") {
       if (q.has("view")) {
         if (q.get("view") !== "master") throw new ApiError("INVALID_QUERY");

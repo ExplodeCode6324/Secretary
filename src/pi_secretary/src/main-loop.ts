@@ -1,3 +1,4 @@
+import { failuresFor } from "./failure-handling.ts";
 import { attachmentBindings } from "./attachments.ts";
 import {
   attachmentContent,
@@ -10,6 +11,7 @@ import { contentText } from "@earendil-works/pi-ai";
 import { budgetConfig, requestBudget } from "./budget.ts";
 import { saveContext } from "./context.ts";
 import type {
+  FailureAction,
   Consciousness,
   Context,
   Feedback,
@@ -22,6 +24,7 @@ import type { HostContext } from "./host-context.ts";
 import { inputMessage } from "./input-projection.ts";
 import {
   BASE_SYSTEM,
+  FAILURE_SYSTEM,
   composeInstructions,
   getInstructions,
 } from "./instructions.ts";
@@ -75,18 +78,25 @@ export function accept(
   requestID = id(),
   producer: Input["producer"] = "MASTER",
   attachmentIDs: string[] = [],
+  failureAction?: FailureAction,
 ) {
   if (
-    (!text.trim() && (text !== "" || !attachmentIDs.length)) ||
+    (!failureAction &&
+      !text.trim() &&
+      (text !== "" || !attachmentIDs.length)) ||
     Buffer.byteLength(text) > 1024 * 1024 ||
-    (attachmentIDs.length > 0 && producer !== "MASTER")
+    (attachmentIDs.length > 0 && producer !== "MASTER") ||
+    (failureAction &&
+      (text !== "" || attachmentIDs.length > 0 || producer !== "MASTER"))
   )
     throw Error("INVALID_INPUT");
   const digest = hash(
     JSON.stringify(
-      attachmentIDs.length
-        ? { version: 2, text, producer, attachment_ids: attachmentIDs }
-        : { text, producer },
+      failureAction
+        ? { version: 3, text, producer, failure_action: failureAction }
+        : attachmentIDs.length
+          ? { version: 2, text, producer, attachment_ids: attachmentIDs }
+          : { text, producer },
     ),
   );
   const old = this.store.receipt<string>(requestID, digest);
@@ -103,7 +113,16 @@ export function accept(
     dedupe_key: requestID,
     producer,
     state: "ACCEPTED",
-    payload: this.store.put(text, "text/plain"),
+    payload: this.store.put(
+      failureAction
+        ? JSON.stringify({
+            failure_action: failureAction,
+            failure_intent_id: requestID,
+          })
+        : text,
+      "text/plain",
+    ),
+    ...(failureAction ? { failure_action: failureAction } : {}),
     loop_id: null,
     received_at: now(),
     feedback_id: null,
@@ -122,6 +141,16 @@ export function accept(
   this.store.commit(
     [
       input,
+      ...(failureAction
+        ? [
+            failuresFor(this.store).prepare(
+              failureAction,
+              this.sessionID,
+              requestID,
+              input.id,
+            ),
+          ]
+        : []),
       ...(producer === "MASTER" &&
       this.session.state === "RECOVERY_BLOCKED" &&
       this.session.model_blocked_call
@@ -274,6 +303,35 @@ export function recoverTools(
           l.event_type === "main.tool.result" &&
           this.store.read<{ key: string }>(l.payload).key === key,
       );
+      if (
+        !log &&
+        (call.name === "task_propose" || call.name === "task_control")
+      ) {
+        const outcome = failuresFor(this.store).recovered(
+          stableID(key),
+          call.arguments,
+          this.sessionID,
+          loopID,
+        );
+        if (outcome) {
+          this.store.commit(
+            [],
+            [
+              this.store.event(
+                "main.tool.result",
+                { key, result: result(outcome) },
+                {
+                  session_id: this.sessionID,
+                  task_id: null,
+                  execution_id: null,
+                },
+                "MAIN",
+              ),
+            ],
+          );
+          log = this.store.logs.at(-1)!;
+        }
+      }
       // Scheduler acceptance and Host tool-result are distinct journal commits.
       // Reconcile only a proven durable proposal receipt, never replay arbitrary effects.
       if (
@@ -284,6 +342,7 @@ export function recoverTools(
         const value = this.proposeTask(
           call.arguments as Parameters<HostContext["proposeTask"]>[0],
           stableID(key),
+          loopID,
         );
         this.store.commit(
           [],
@@ -389,7 +448,12 @@ export async function run(this: MainLoopContext) {
     const loopID = recovering ? batch[0].loop_id! : id();
     if (!batch.length) {
       const accepted = pending.filter((i) => i.state === "ACCEPTED");
-      const boundary = accepted.findIndex((i) => i.attachments?.length);
+      const boundary = accepted.findIndex(
+        (i) =>
+          i.attachments?.length ||
+          i.failure_action ||
+          failuresFor(this.store).isolatedFeedback(i),
+      );
       batch =
         boundary === 0
           ? accepted.slice(0, 1)
@@ -420,8 +484,11 @@ export async function run(this: MainLoopContext) {
             model: this.model,
             systemPrompt:
               composeInstructions(settings.content) +
-              this.scheduler.scopes.promptContext(),
-            tools: this.tools(loopID),
+              this.scheduler.scopes.promptContext() +
+              (batch.some((i) => i.failure_action)
+                ? "\n\n" + FAILURE_SYSTEM
+                : ""),
+            tools: this.tools(loopID, batch),
           },
         }).state.messages[0];
       if (systemMessage.role !== "system")
@@ -505,7 +572,7 @@ export async function run(this: MainLoopContext) {
         initialState: {
           model: this.model,
           messages,
-          tools: this.tools(loopID),
+          tools: this.tools(loopID, batch),
         },
         streamFn: durableStream(
           this.store,

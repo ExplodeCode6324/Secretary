@@ -1,0 +1,116 @@
+{
+  "evidence": "LIVE_MODEL",
+  "started_at": "2026-11-02T17:37:20.500Z",
+  "finished_at": "2026-11-02T17:39:45.104Z",
+  "budget_started_at": "2026-11-02T17:37:20.499Z",
+  "limits": {
+    "main": 48,
+    "task": 48,
+    "tools": 150,
+    "total_ms": 1200000,
+    "request_ms": 90000,
+    "output_tokens": 8192
+  },
+  "caseLimits": {
+    "L1": {
+      "main": 12,
+      "task": 12,
+      "tools": 40,
+      "ms": 300000
+    },
+    "L2": {
+      "main": 14,
+      "task": 14,
+      "tools": 45,
+      "ms": 360000
+    },
+    "L3": {
+      "main": 14,
+      "task": 14,
+      "tools": 40,
+      "ms": 360000
+    },
+    "L4": {
+      "main": 8,
+      "task": 8,
+      "tools": 25,
+      "ms": 180000
+    }
+  },
+  "provider": "opencode-go",
+  "model": "deepseek-v4.1-flash",
+  "base": "9beee26de3c73bd35d0cfb52fabd8a0f46396bdf",
+  "source_hashes": {
+    "failure-handling": "cda16298870f54eae5877427cbd3f4951e80610084206c008dd572b3f9a661a2",
+    "main-loop": "b7fef7144e7c1a6d98e74b1383a4b02ebab766b94253d87a94782a55f6ea976f",
+    "main-tools": "b29e2e989befb9624b532084babd47eef5e238a379a7b0ceb885a80c15a54c41",
+    "task-planning": "5db22a8b398f51b83e5a707a2a1616c6eeee2203da73a1b31f78d1d246db4800",
+    "master-attention": "48f90fac06946ebc1a030e740b42050b2226731f8451ed6084ac636dfb64c52d",
+    "tui/matter": "a1db8034bb300cd0adc5aa4b61492ee5f8cee841ab48992d306b492df418d0eb",
+    "tui/cancel": "7e90a73826a4ed206d47e795c256c8c385194d4c8d3096b02e4c81122437b643"
+  },
+  "status": "FAIL",
+  "error": "Error: MAIN_RECOVERY_BLOCKED:Error: MODEL_TRANSPORT_LOCAL:eeb4072d-22db-4c85-ad5e-b0ddeae74247: Error: LIVE_CALL_BUDGET_EXHAUSTED",
+  "cases": [
+    {
+      "name": "L1",
+      "at": "2026-11-02T17:37:20.683Z",
+      "before": {
+        "started_at": "2026-11-02T17:37:20.683Z",
+        "main": 0,
+        "task": 0,
+        "tools": 0
+      },
+      "evidence": {
+        "original": "91631100-5b5d-49a1-80f1-be2b8826e64a",
+        "redo": "95800c2c-686b-4f52-827e-2e88779a9e54",
+        "request": "bfd39ffe-e305-4b13-8db2-251b9ae0dbe2",
+        "result": "a9ba8315-2f26-4681-9afe-d2261fa9e260",
+        "artifact_sha256": "5636fc33bb226528a227d634ad2f37f1cd2ae8f45e8356ee8acaded0bbd1cf59",
+        "verified_by": "NOT_VERIFIED",
+        "disposition": "REDO_SUCCEEDED"
+      },
+      "status": "PASS",
+      "finished_at": "2026-11-02T17:38:42.850Z"
+    },
+    {
+      "name": "L2",
+      "at": "2026-11-02T17:38:42.851Z",
+      "before": {
+        "started_at": "2026-11-02T17:38:42.851Z",
+        "main": 0,
+        "task": 0,
+        "tools": 0
+      },
+      "status": "FAIL",
+      "error": "Error: MAIN_RECOVERY_BLOCKED:Error: MODEL_TRANSPORT_LOCAL:eeb4072d-22db-4c85-ad5e-b0ddeae74247: Error: LIVE_CALL_BUDGET_EXHAUSTED",
+      "finished_at": "2026-11-02T17:39:45.092Z"
+    }
+  ],
+  "usage": {
+    "main": 26,
+    "task": 12,
+    "tools": 25,
+    "cases": {
+      "L1": {
+        "started_at": "2026-11-02T17:37:20.683Z",
+        "main": 12,
+        "task": 6,
+        "tools": 14
+      },
+      "L2": {
+        "started_at": "2026-11-02T17:38:42.851Z",
+        "main": 14,
+        "task": 6,
+        "tools": 16
+      }
+    }
+  },
+  "limitations": [
+    "L1 predates prompt-scope, optional result-evidence identity, deadline-prediction and rejected-cancel UI polish; no final-head live claim.",
+    "L2 final feedback blocked by approved per-case Main cap. L3/L4 not run.",
+    "Per-case historical tool counts are conservative overcounts; aggregate count is authoritative.",
+    "TaskResult NOT_VERIFIED; harness checked artifact bytes/hash.",
+    "Native Terminal unavailable; not equivalent to VirtualTerminal."
+  ]
+}

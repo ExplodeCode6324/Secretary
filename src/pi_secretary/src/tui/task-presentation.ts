@@ -121,7 +121,9 @@ export function taskCardText(
     );
   const attention: string[] = [];
   if (t.current_reasons.includes("actionable_failure"))
-    attention.push("最近执行失败");
+    attention.push(
+      `未处置失败 ${t.unresolved_failure_count ?? 1} 项${t.failure_summary ? " · " + preview(t.failure_summary) : ""}`,
+    );
   if (t.attention_ids.length)
     attention.push(`授权/决策事项 ${t.attention_ids.length} 项`);
   if (t.unknown_operation_ids.length)

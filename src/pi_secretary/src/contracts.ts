@@ -55,7 +55,8 @@ export type SecretaryDemoV1 =
   | PushTarget
   | PushDispatch
   | Attachment
-  | AttachmentImport;
+  | AttachmentImport
+  | FailureHandling;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -405,6 +406,7 @@ export interface Input {
     at: Time;
     reason: "OWNER_WITHDRAWN";
   };
+  failure_action?: FailureAction;
 }
 /**
  * 不可变对象引用；必须校验内容散列。
@@ -428,6 +430,11 @@ export interface AttachmentBinding {
   content: ObjectRef;
   width: number;
   height: number;
+}
+export interface FailureAction {
+  failure_key: string;
+  expected_revision: string;
+  action: "REDO" | "DISMISS";
 }
 /**
  * 不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。
@@ -1729,7 +1736,8 @@ export interface Mutation {
     | "PushTarget"
     | "PushDispatch"
     | "Attachment"
-    | "AttachmentImport";
+    | "AttachmentImport"
+    | "FailureHandling";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -2101,6 +2109,38 @@ export interface AttachmentImport {
     side: number;
     pixels: number;
   };
+}
+export interface FailureHandling {
+  schema_version: 1;
+  record_type: "FailureHandling";
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  failure_key: string;
+  session_id: ID;
+  task_id: ID;
+  execution_id: ID | null;
+  result_id: ID | null;
+  disposition: "UNRESOLVED" | "DISMISSED";
+  dismissed_sequence: number | null;
+  intent_id: ID;
+  input_id: ID;
+  action: "REDO" | "DISMISS";
+  phase: "REQUESTED" | "LINKED" | "BLOCKED" | "DISMISSED";
+  error: string | null;
+  linked_request_id: ID | null;
+  requirements_digest: Digest | null;
+  tool_receipt: {
+    id: ID;
+    fingerprint: Digest;
+    intent_id: ID;
+    result: {
+      [k: string]: unknown;
+    };
+  } | null;
 }
 
 export type Contract = SecretaryDemoV1;

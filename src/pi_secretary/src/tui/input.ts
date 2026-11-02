@@ -29,12 +29,14 @@ export const commandRegistry = [
   { name: "search_task", pages: ["Task"] },
   { name: "taskdetail", pages: ["Task"] },
   { name: "show", pages: ["Task"] },
+  { name: "cancel", pages: ["Task"] },
 ] as const;
 export const commands = commandRegistry.map((c) => c.name);
 export type Action =
   | { kind: "navigate"; page: Page }
   | { kind: "help" | "back" | "noop" | "draft" | "cot" }
   | { kind: "search_task" | "taskdetail" | "show"; id: string }
+  | { kind: "cancel"; target: "request" | "execution"; id: string }
   | { kind: "send"; text: string }
   | { kind: "error"; message: string };
 export function parseInput(
@@ -54,6 +56,23 @@ export function parseInput(
     command = name.toLowerCase();
   if (!commands.some((name) => name.toLowerCase() === command))
     return { kind: "error", message: "未知或尚未实现的命令；/help 查看范围" };
+  if (command === "cancel") {
+    const target =
+      /^ --(request|execution) ([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})[ \t]*$/.exec(
+        rest,
+      );
+    return page === "Task" && target && target[0] === rest
+      ? {
+          kind: "cancel",
+          target: target[1] as "request" | "execution",
+          id: target[2],
+        }
+      : {
+          kind: "error",
+          message:
+            "/cancel 仅在 Task 普通输入可用：--request <完整ID> 或 --execution <完整ID>，二选一",
+        };
+  }
   if (
     command === "search_task" ||
     command === "taskdetail" ||
