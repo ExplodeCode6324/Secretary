@@ -294,6 +294,9 @@ export class MatterController {
       if (gen !== this.generation || client !== this.client) return;
       if (current.kind === "failure") {
         current.data = data;
+        this.hint = data.intent_id
+          ? `当前处置 ${data.disposition} · ${data.status}${data.error ? " · " + data.error : ""}`
+          : "";
         current.text = visibleMatterText(
           this.failureText(
             current.title,

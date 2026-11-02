@@ -15,7 +15,8 @@ import { TerminalApp } from "../../../src/pi_secretary/src/tui/app.ts";
 import { VirtualTerminal } from "../../../src/pi_resource/packages/tui/test/virtual-terminal.ts";
 import type { Input } from "../../../src/pi_secretary/src/contracts.ts";
 import type { MasterAttention } from "../../../src/pi_secretary/src/api/contracts.ts";
-import { id } from "../../../src/pi_secretary/src/store.ts";
+import { id, revise } from "../../../src/pi_secretary/src/store.ts";
+import { failuresFor } from "../../../src/pi_secretary/src/failure-handling.ts";
 const shiftEnter = "\x1b[13;2u";
 test("cancel parser requires one exact full ID in Task and preserves ID case and slash origin", () => {
   const target = id().toUpperCase(),
@@ -87,6 +88,27 @@ test("failure envelope survives lost response and reconnect; one Main input and 
       );
       assert.match(c.hint, /Main 输入已接收/);
       assert.equal(c.current?.data.disposition, "UNRESOLVED");
+      const input = f.app.store
+        .all<Input>("Input")
+        .find((i) => i.dedupe_key === request)!;
+      const loop = id();
+      f.app.store.commit([revise(input, { state: "CLAIMED", loop_id: loop })]);
+      failuresFor(f.app.store).perform(
+        f.app.host.sessionID,
+        loop,
+        id(),
+        "dismiss_failure",
+        { id: "EXECUTION:" + e.id },
+        f.app.scheduler,
+      );
+      f.app.store.commit([
+        revise(f.app.store.get<Input>("Input", input.id), { state: "HANDLED" }),
+      ]);
+      await c.refresh();
+      assert.equal(c.current?.data.disposition, "DISMISSED");
+      assert.match(c.hint, /DISMISSED/);
+      assert.doesNotMatch(c.hint, /UNRESOLVED/);
+      assert(c.current?.text.includes(row.preview));
     } finally {
       c.stop();
     }
