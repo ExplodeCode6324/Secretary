@@ -138,6 +138,9 @@ test("clearing a pending Main message preserves the frozen request and never pos
     assert.equal(f.app.store.all("Input").length, inputs);
     terminal.sendInput("\x1f");
     assert.equal(ui.editors.Main.getExpandedText(), "frozen Main message");
+    // Drain the deliberately offline, coalesced status read before switching
+    // transports; otherwise this await can still observe the old client's job.
+    await ui.delivery!.reconcile();
     await ui.delivery!.connect(client);
     await ui.delivery!.reconcile();
     assert.equal(ui.delivery!.state.pending, undefined);
