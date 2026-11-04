@@ -12,7 +12,7 @@ const mapping = (
 ): Mapping => ({ resource, invalidate });
 // Compile-time coverage follows the generated journal union, including private records.
 export const mutationMappings = {
-  Session: mapping("session", "timeline"),
+  Session: mapping("session", "timeline", "attention", "failures"),
   Input: mapping(
     null,
     "timeline",

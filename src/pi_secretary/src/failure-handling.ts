@@ -1,3 +1,4 @@
+import { sessionRecovery } from "./session-recovery.ts";
 import type {
   Execution,
   FailureAction,
@@ -5,6 +6,7 @@ import type {
   Feedback,
   Input,
   TaskPlan,
+  Session,
   TaskProposal,
   TaskResult,
 } from "./contracts.ts";
@@ -212,6 +214,7 @@ export class Failures {
       f = this.record(key),
       e = t.execution,
       linked = this.linked(f);
+    const recovery = sessionRecovery(this.store.get<Session>("Session", sid));
     const succeeded = this.successfulSequence(f, linked);
     const disposition: FailureDetail["disposition"] =
       succeeded != null &&
@@ -232,6 +235,12 @@ export class Failures {
             : input?.state === "CLAIMED"
               ? "MAIN_PROCESSING"
               : "REQUESTED";
+        if (
+          input &&
+          ["ACCEPTED", "CLAIMED"].includes(input.state) &&
+          recovery.recovery_mode !== "NONE"
+        )
+          status = "MAIN_BLOCKED";
         if (status === "NO_ACTION") error ??= "MAIN_NO_ACTION";
       } else if (f.phase === "LINKED") {
         status = linked?.state ?? "QUEUED";
@@ -290,6 +299,8 @@ export class Failures {
       f?.phase === "LINKED" &&
       (!linked ? status === "QUEUED" : !terminal(linked));
     return {
+      main_recovery_mode: recovery.recovery_mode,
+      main_recovery_message: recovery.recovery_message,
       id: e?.id ?? t.task.id,
       failure_key: key,
       revision: String(f?.revision ?? 0),

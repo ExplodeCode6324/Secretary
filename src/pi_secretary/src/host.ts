@@ -144,8 +144,8 @@ export class Host {
   deliverFeedback() {
     return mainLoop.deliverFeedback.call(this.context);
   }
-  resume() {
-    return mainLoop.resume.call(this.context);
+  resume(expectedRevision?: number) {
+    return mainLoop.resume.call(this.context, expectedRevision);
   }
   drain() {
     return mainLoop.drain.call(this.context);

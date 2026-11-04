@@ -1013,13 +1013,28 @@
               "type": "null"
             }
           ]
+        },
+        "recovery_mode": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "EXPLICIT_REQUIRED",
+            "NEXT_MASTER_INPUT",
+            "CAPACITY_COMPACTION_REQUIRED"
+          ]
+        },
+        "recovery_message": {
+          "type": "string",
+          "maxLength": 240
         }
       },
       "required": [
         "id",
         "revision",
         "state",
-        "recovery_error"
+        "recovery_error",
+        "recovery_mode",
+        "recovery_message"
       ],
       "additionalProperties": true
     },
@@ -6068,6 +6083,19 @@
         },
         "dismiss_available": {
           "type": "boolean"
+        },
+        "main_recovery_mode": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "EXPLICIT_REQUIRED",
+            "NEXT_MASTER_INPUT",
+            "CAPACITY_COMPACTION_REQUIRED"
+          ]
+        },
+        "main_recovery_message": {
+          "type": "string",
+          "maxLength": 240
         }
       },
       "required": [
@@ -6092,7 +6120,25 @@
         "linked_result_id",
         "continuation_blocker",
         "redo_available",
-        "dismiss_available"
+        "dismiss_available",
+        "main_recovery_mode",
+        "main_recovery_message"
+      ],
+      "additionalProperties": false
+    },
+    "ResumeCommand": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        }
+      },
+      "required": [
+        "request_id"
       ],
       "additionalProperties": false
     }

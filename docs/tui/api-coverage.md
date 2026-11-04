@@ -28,7 +28,7 @@
 | POST | /api/v1/settings/applications/{id}/retry | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/settings/applications/{id}/restore-draft | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/session/compact | 未用 | 本批未接入；后续按对应功能范围处理 |
-| POST | /api/v1/session/resume | 未用 | 本批未接入；后续按对应功能范围处理 |
+| POST | /api/v1/session/resume | 已用 | Main 手动 /resume；版本保护、同 ID 对账，结果以会话状态为准 |
 | POST | /api/v1/memory/commitments/{id}/resolve | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/memory/extraction/retry | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/operations/{id}/verify-write | 未用 | 本批未接入；后续按对应功能范围处理 |

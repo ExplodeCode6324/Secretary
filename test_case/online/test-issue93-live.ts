@@ -1,3 +1,4 @@
+import { modelLifetime } from "../../src/pi_secretary/src/model-retry.ts";
 /** Explicit paid-provider acceptance for #93; never imported by npm test. */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -28,7 +29,7 @@ import type { FailureDetail } from "../../src/pi_secretary/src/api/contracts.ts"
 import { MatterController } from "../../src/pi_secretary/src/tui/matter.ts";
 import { CancelController } from "../../src/pi_secretary/src/tui/cancel.ts";
 import { configureLiveOutputBudget } from "./issue91-budget.ts";
-import { boundedTools } from "./tool-budget.ts";
+import { boundedTools, checkedStream } from "./tool-budget.ts";
 const root = path.resolve(
   process.argv[2] ?? `.demo-data/issue93/live-${Date.now()}`,
 );
@@ -42,7 +43,6 @@ const limits = {
   task: 48,
   tools: 150,
   total_ms: 1200000,
-  request_ms: 90000,
   output_tokens: 8192,
 };
 const caseLimits = {
@@ -52,7 +52,7 @@ const caseLimits = {
   L4: { main: 8, task: 8, tools: 25, ms: 180000 },
 };
 type Case = keyof typeof caseLimits;
-const ledgerPath = path.resolve(".demo-data/issue93/live-budget.json");
+const ledgerPath = path.join(root, "usage.json");
 const ledger: any = fs.existsSync(ledgerPath)
   ? JSON.parse(fs.readFileSync(ledgerPath, "utf8"))
   : {
@@ -131,13 +131,11 @@ const configs = Object.fromEntries(
         usage.tools >= caseLimits[active].tools
       )
         throw Error("LIVE_CALL_BUDGET_EXHAUSTED");
-      ledger[role]++;
-      usage[role]++;
 
       const call: any = {
         role,
         case: active,
-        number: ledger[role],
+        physical_sent: false,
         input_producers:
           role === "main"
             ? app?.store
@@ -149,33 +147,58 @@ const configs = Object.fromEntries(
       };
       report.calls.push(call);
       save();
-      try {
-        const source = await bounded(m, c, {
-          ...o,
-          signal: AbortSignal.any([
-            ...(o?.signal ? [o.signal] : []),
-            AbortSignal.timeout(limits.request_ms),
-          ]),
-        });
-        const result = await source.result();
-        usage.tools += result.content.filter(
-          (x) => x.type === "toolCall",
-        ).length;
-        ledger.tools = toolBudget.used;
-        call.tools = result.content
-          .filter((x) => x.type === "toolCall")
-          .map((x) => ({ name: x.name, arguments: x.arguments }));
-        call.stop_reason = result.stopReason;
-        if (usage.tools > caseLimits[active].tools)
-          throw Error("LIVE_CASE_TOOL_BUDGET_EXHAUSTED");
-        return source;
-      } catch (e) {
-        call.error = String(e);
-        throw e;
-      } finally {
-        call.finished_at = new Date().toISOString();
-        save();
-      }
+      const started = performance.now();
+      const stamp = (field: string) => {
+        call[field] = Math.round(performance.now() - started);
+      };
+      const observed = checkedStream(
+        bounded,
+        (result) => {
+          usage.tools += result.content.filter(
+            (x) => x.type === "toolCall",
+          ).length;
+          ledger.tools = toolBudget.used;
+          call.tools = result.content
+            .filter((x) => x.type === "toolCall")
+            .map((x) => ({ name: x.name }));
+          call.stop_reason = result.stopReason;
+          call.finished_at = new Date().toISOString();
+          stamp("total_ms");
+          save();
+          if (usage.tools > caseLimits[active].tools)
+            throw Error("LIVE_CASE_TOOL_BUDGET_EXHAUSTED");
+        },
+        (event) => {
+          if (call.first_event_ms == null) stamp("first_event_ms");
+          stamp("last_event_ms");
+        },
+      );
+      return observed(m, c, {
+        ...o,
+        onPayload: async (payload, model) => {
+          const result = await o?.onPayload?.(payload, model);
+          stamp("payload_ms");
+          return result;
+        },
+        fetch: async (url, init) => {
+          budget(); // Actual send boundary, including SDK preparation latency.
+          if (
+            ledger[role] >= limits[role] ||
+            usage[role] >= caseLimits[active][role]
+          )
+            throw Error("LIVE_CALL_BUDGET_EXHAUSTED");
+          ledger[role]++;
+          usage[role]++;
+          call.number = ledger[role];
+          call.physical_sent = true;
+          stamp("fetch_ms");
+          const response = await (o?.fetch ?? globalThis.fetch)(url, init);
+          stamp("headers_ms");
+          call.http_status = response.status;
+          save();
+          return response;
+        },
+      });
     };
     return [role, { model, stream }];
   }),
@@ -186,6 +209,12 @@ const open = async () => {
   server = await serveCore(app, 0);
   client = new CoreClient(server.endpoint);
 };
+const stopTimer = setTimeout(
+  () => {
+    if (app!) modelLifetime(app.store).abort(Error("CORE_STOPPING"));
+  },
+  Math.max(0, start + limits.total_ms + 120000 - Date.now()),
+);
 const executions = () => app.store.all<Execution>("Execution");
 const current = (e: Execution) => app.store.get<Execution>("Execution", e.id);
 async function until(check: () => boolean) {
@@ -548,6 +577,8 @@ try {
   console.error(String(e));
   process.exitCode = 1;
 } finally {
+  clearTimeout(stopTimer);
+  if (app!) modelLifetime(app.store).abort(Error("CORE_STOPPING"));
   if (server!) await server.close();
   report.finished_at = new Date().toISOString();
   save();

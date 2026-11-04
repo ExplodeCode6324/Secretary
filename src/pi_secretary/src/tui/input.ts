@@ -22,6 +22,7 @@ export const commandRegistry = [
   { name: "t", pages: ["Main", "Task"] },
   { name: "back", pages: ["Main", "Task"] },
   { name: "help", pages: ["Main", "Task"] },
+  { name: "resume", pages: ["Main"] },
   { name: "send", pages: ["Main"] },
   { name: "rawmessage", pages: ["Main"] },
   { name: "cotvisible", pages: ["Main"] },
@@ -34,7 +35,7 @@ export const commandRegistry = [
 export const commands = commandRegistry.map((c) => c.name);
 export type Action =
   | { kind: "navigate"; page: Page }
-  | { kind: "help" | "back" | "noop" | "draft" | "cot" }
+  | { kind: "help" | "back" | "noop" | "draft" | "cot" | "resume" }
   | { kind: "search_task" | "taskdetail" | "show"; id: string }
   | { kind: "cancel"; target: "request" | "execution"; id: string }
   | { kind: "send"; text: string }
@@ -107,6 +108,13 @@ export function parseInput(
     return page === "Main"
       ? { kind: "cot" }
       : { kind: "error", message: "CoT 显示命令仅在 Main 可用；Task 草稿保留" };
+  if (command === "resume")
+    return page === "Main"
+      ? { kind: "resume" }
+      : {
+          kind: "error",
+          message: "/resume 仅在普通 Main 输入可用；Task 草稿保留",
+        };
   if (command === "m" || command === "t")
     return { kind: "navigate", page: command === "m" ? "Main" : "Task" };
   return { kind: command === "help" ? "help" : "back" };
@@ -150,7 +158,7 @@ export function parseDraft(
 function isCompleteLocalCommand(raw: string) {
   return (
     !/[\r\n]/.test(raw) &&
-    (/^\/(?:m|t|back|help|cotvisible|cotv)[ \t]*$/i.test(raw) ||
+    (/^\/(?:m|t|back|help|cotvisible|cotv|resume)[ \t]*$/i.test(raw) ||
       /^\/(?:search_task|taskdetail|show) [0-9A-Za-z-]+[ \t]*$/i.test(raw))
   );
 }

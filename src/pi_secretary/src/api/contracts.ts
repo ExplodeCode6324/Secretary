@@ -363,6 +363,12 @@ export interface FailureDetail {
   continuation_blocker: string | null;
   redo_available: boolean;
   dismiss_available: boolean;
+  main_recovery_mode:
+    | "NONE"
+    | "EXPLICIT_REQUIRED"
+    | "NEXT_MASTER_INPUT"
+    | "CAPACITY_COMPACTION_REQUIRED";
+  main_recovery_message: string;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -516,6 +522,12 @@ export interface Session {
   revision: Revision;
   state: string;
   recovery_error: string | null;
+  recovery_mode:
+    | "NONE"
+    | "EXPLICIT_REQUIRED"
+    | "NEXT_MASTER_INPUT"
+    | "CAPACITY_COMPACTION_REQUIRED";
+  recovery_message: string;
   [k: string]: unknown;
 }
 /**
@@ -1745,4 +1757,12 @@ export interface FailureAction {
   failure_key: string;
   expected_revision: string;
   action: "REDO" | "DISMISS";
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "ResumeCommand".
+ */
+export interface ResumeCommand {
+  request_id: string;
+  expected_revision?: Revision;
 }

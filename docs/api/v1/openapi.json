@@ -1126,7 +1126,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "./schema.json#/$defs/EmptyCommand"
+                "$ref": "./schema.json#/$defs/ResumeCommand"
               }
             }
           }

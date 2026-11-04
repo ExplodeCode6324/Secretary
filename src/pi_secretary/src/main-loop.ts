@@ -233,7 +233,16 @@ export function deliverFeedback(this: MainLoopContext) {
   }
 }
 
-export function resume(this: MainLoopContext) {
+export function resume(this: MainLoopContext, expectedRevision?: number) {
+  // Includes trailing extraction: never change generation under an active drain.
+  if (this.active)
+    return Promise.resolve({ applied: false, code: "MAIN_ACTIVE" });
+  if (
+    expectedRevision !== undefined &&
+    (this.session.state !== "RECOVERY_BLOCKED" ||
+      this.session.revision !== expectedRevision)
+  )
+    return Promise.resolve({ applied: false, code: "SESSION_CHANGED" });
   this.store.commit([
     revise(this.session, {
       state: "IDLE",
@@ -242,7 +251,7 @@ export function resume(this: MainLoopContext) {
       model_retry_generation: (this.session.model_retry_generation ?? 0) + 1,
     }),
   ]);
-  return this.drain();
+  return this.drain().then(() => ({ applied: true, code: "RESUMED" }));
 }
 
 export function drain(this: MainLoopContext) {

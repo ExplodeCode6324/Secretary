@@ -16,7 +16,7 @@ export const commands = [
   ["settings/applications/:id/retry", "EmptyCommand"],
   ["settings/applications/:id/restore-draft", "RevisionCommand"],
   ["session/compact", "EmptyCommand"],
-  ["session/resume", "EmptyCommand"],
+  ["session/resume", "ResumeCommand"],
   ["memory/commitments/:id/resolve", "ResolveCommand"],
   ["memory/extraction/retry", "EmptyCommand"],
   ["operations/:id/verify-write", "EmptyCommand"],

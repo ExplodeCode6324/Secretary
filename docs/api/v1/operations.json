@@ -114,7 +114,7 @@
   {
     "method": "POST",
     "path": "/api/v1/session/resume",
-    "request": "EmptyCommand",
+    "request": "ResumeCommand",
     "response": "Receipt",
     "status": 202
   },

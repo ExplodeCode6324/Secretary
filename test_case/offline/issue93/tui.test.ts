@@ -221,3 +221,56 @@ test("definitively rejected cancellation does not trap the next valid target", (
     assert.match(c.hint, /CANCELLED/);
     c.stop();
   }));
+
+test("Main pause notice stays visible with another hint; typed resume requires Shift+Enter and preserves draft", async () => {
+  const f = new Fixture();
+  await f.open();
+  f.app.store.commit([
+    revise(f.app.host.session, {
+      state: "RECOVERY_BLOCKED",
+      recovery_error: "local interruption",
+      model_blocked_call: null,
+    }),
+  ]);
+  await fs.writeFile(
+    path.join(f.dir, "core-endpoint.json"),
+    JSON.stringify(f.server.endpoint),
+    { mode: 0o600 },
+  );
+  const terminal = new VirtualTerminal(100, 32),
+    ui = new TerminalApp(f.dir, terminal, path.join(f.dir, "tui-state"));
+  ui.start();
+  try {
+    await until(
+      () =>
+        ui.remote?.session?.state === "RECOVERY_BLOCKED" &&
+        ui.editors.Main.enabled,
+      5000,
+    );
+    (ui as any).uiHint = "other status";
+    ui.draw();
+    await new Promise((r) => setTimeout(r, 30));
+    assert.match(
+      (await terminal.flushAndGetViewport()).join("\n"),
+      /Main 已暂停/,
+    );
+    terminal.sendInput("/resume");
+    const snapshot = ui.editors.Main.snapshot();
+    assert.equal(f.app.host.session.model_retry_generation ?? 0, 0);
+    terminal.sendInput(shiftEnter);
+    await until(() => f.app.host.session.model_retry_generation === 1);
+    await until(() => ui.remote?.session?.state === "IDLE");
+    assert.deepEqual(ui.editors.Main.snapshot(), snapshot);
+    assert.equal(f.app.store.all<Input>("Input").length, 0);
+    ui.draw();
+    await new Promise((r) => setTimeout(r, 30));
+    assert.doesNotMatch(
+      (await terminal.flushAndGetViewport()).join("\n"),
+      /Main 已暂停/,
+    );
+  } finally {
+    await ui.close();
+    await f.close();
+    await fs.rm(f.dir, { recursive: true, force: true });
+  }
+});
