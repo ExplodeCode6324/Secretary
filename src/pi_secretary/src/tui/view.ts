@@ -54,7 +54,7 @@ export const markdownTheme: MarkdownTheme = {
   underline: color("4"),
 };
 export type SourceRow = {
-  region: "body" | "thinking" | "header" | "activity";
+  region: "body" | "thinking" | "header" | "activity" | "artifacts";
   block_start_utf16: number;
   row_in_block: number;
   boundary?: "before" | "after";
@@ -386,18 +386,30 @@ export function messageComponent(
         !body?.body.after
       ) {
         const cyan = color("36");
-        const artifactText = (value: string) =>
-          add(
-            new Text(cyan(visibleMatterText(value)), 0, 0).render(width),
-            "header",
-            m.text.length,
-          );
+        let artifactRow = 0;
+        const artifactText = (value: string, boundary?: "before" | "after") => {
+          for (const line of new Text(
+            cyan(visibleMatterText(value)),
+            0,
+            0,
+          ).render(width)) {
+            lines.push(line);
+            rows.push({
+              region: "artifacts",
+              block_start_utf16: 0,
+              row_in_block: artifactRow++,
+              ...(boundary ? { boundary } : {}),
+            });
+          }
+        };
         artifactText(
           `产物交付 · ${m.delivery_count} 项 · Task model explanation / NOT_VERIFIED`,
         );
-        if (artifacts?.error) artifactText(`读取失败：${artifacts.error}`);
+        if (artifacts?.error)
+          artifactText(`读取失败：${artifacts.error} · ↓ 重试`, "after");
         else if (!artifacts) artifactText("正在读取产物…");
         else {
+          if (artifacts.previous.length) artifactText("↑ 前一页产物", "before");
           for (const a of artifacts.items) {
             artifactText(
               `${a.name} · Task ${a.task_id} · Execution ${a.execution_id}`,
@@ -409,8 +421,9 @@ export function messageComponent(
             artifactText(`快照：${a.state} · ${a.content_version}`);
           }
           artifactText(
-            `产物第 ${artifacts.previous.length + 1} 页 · 历史阅读 Ctrl+← 前页 / Ctrl+→ 后页${artifacts.next_cursor ? " · 还有更多" : " · 已到末页"}`,
+            `产物第 ${artifacts.previous.length + 1} 页 · 历史阅读 ↑/↓ 越过产物边界翻页${artifacts.next_cursor ? " · 还有更多" : " · 已到末页"}`,
           );
+          if (artifacts.next_cursor) artifactText("↓ 后一页产物", "after");
         }
       }
       if (m.next_cursor) text(gray("正文片段读取中…"));

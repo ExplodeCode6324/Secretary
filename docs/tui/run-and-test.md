@@ -75,7 +75,7 @@ npx tsx --test --test-concurrency=1 test_case/offline/issue82/*.test.ts test_cas
 
 ## Issue #94 delivery and image paste
 
-Main replies display registered artifacts at their actual body tail, in cyan, with full current paths, Task/Execution identities and Task-model explanations marked NOT_VERIFIED. In history, Ctrl+Left/Right pages the selected reply's artifact block. A CAS snapshot and current file can differ; unavailable current paths never fall back to snapshot bytes.
+Main replies display registered artifacts at their actual body tail, in cyan, with full current paths, Task/Execution identities and Task-model explanations marked NOT_VERIFIED. In history, ordinary Up/Down crosses the artifact block's previous/next-page boundaries; no OS-reserved paging shortcut is required. A CAS snapshot and current file can differ; unavailable current paths never fall back to snapshot bytes.
 
 Type `/open <absolute path>` or `/open <registered relative path>` in ordinary Main. For ambiguous names, use the full path or `/open --execution <full UUID> <relative path>`. One ASCII space separates the command from the literal path; internal spaces and case are preserved. No shell expansion or quote removal. Local macOS only, no SSH; regular non-executable documents in the approved suffix list only. Symlinks and launchers are rejected. OS handoff success does not prove content was viewed. Errors expire after five seconds or the next action.
 

@@ -106,6 +106,7 @@ export class TerminalApp {
       "v1",
     ),
     clipboard: (text: string) => Promise<boolean | string> = copySelection,
+    private readonly clipboardRead: typeof readClipboard = readClipboard,
   ) {
     configureKeys();
     const keybindings = getKeybindings();
@@ -370,18 +371,6 @@ export class TerminalApp {
           return { consume: true };
         }
         if (this.viewing) {
-          if (
-            this.page === "Main" &&
-            (matchesKey(data, "ctrl+left") || matchesKey(data, "ctrl+right"))
-          ) {
-            const id = this.documents.Main.anchor?.item_id;
-            if (id)
-              void this.remote?.loadDelivery(
-                id,
-                matchesKey(data, "ctrl+left") ? "before" : "after",
-              );
-            return { consume: true };
-          }
           if (matchesKey(data, "escape")) {
             this.viewing = false;
             this.tui.setFocus(editor);
@@ -404,7 +393,11 @@ export class TerminalApp {
                 void this.mainPage(
                   "after",
                   edge.item_id,
-                  edge.region === "thinking" ? "thinking" : "body",
+                  edge.region === "artifacts"
+                    ? "artifacts"
+                    : edge.region === "thinking"
+                      ? "thinking"
+                      : "body",
                 );
                 return { consume: true };
               }
@@ -419,7 +412,11 @@ export class TerminalApp {
                 void this.mainPage(
                   up ? "before" : "after",
                   anchor.item_id,
-                  anchor.region === "thinking" ? "thinking" : "body",
+                  anchor.region === "artifacts"
+                    ? "artifacts"
+                    : anchor.region === "thinking"
+                      ? "thinking"
+                      : "body",
                 );
                 return { consume: true };
               }
@@ -847,13 +844,14 @@ export class TerminalApp {
     }, 5000);
   }
   private async pasteClipboard(imageOnly: boolean) {
-    if (
-      this.clipboardBusy ||
-      !this.delivery ||
-      !this.files ||
-      !this.imageImports
-    )
+    if (this.clipboardBusy) {
+      this.localNotice("剪贴板读取进行中");
       return;
+    }
+    if (!this.delivery || !this.files || !this.imageImports) {
+      this.localNotice("Core 尚未连接；无法读取图片");
+      return;
+    }
     const delivery = this.delivery,
       imports = this.imageImports,
       editor = this.editors.Main;
@@ -865,8 +863,8 @@ export class TerminalApp {
     this.clipboardBusy = true;
     const submissions = delivery.submissions;
     try {
-      if (imageOnly) material = await imports.begin();
-      const captured = await readClipboard(imageOnly, async () => {
+      const captured = await this.clipboardRead(imageOnly, async () => {
+        cap = await requireImageCapability(delivery.client);
         if (
           delivery.submissions !== submissions ||
           this.page !== "Main" ||
@@ -875,7 +873,6 @@ export class TerminalApp {
         )
           throw Error("CLIPBOARD_TARGET_CHANGED");
         material ??= await imports.begin();
-        cap = await requireImageCapability(delivery.client);
         return cap;
       });
       if (captured.kind === "image") {
@@ -942,14 +939,25 @@ export class TerminalApp {
   private async mainPage(
     direction: "before" | "after",
     id?: string,
-    region?: "body" | "thinking",
+    region?: "body" | "thinking" | "artifacts",
   ) {
     if (!this.remote || this.pageLoading) return;
     this.pageLoading = true;
     try {
-      if (id) await this.remote.loadBody(id, region, direction);
+      if (id && region === "artifacts") {
+        await this.remote.loadDelivery(id, direction);
+        this.documents.Main.restoreAnchor({
+          item_id: id,
+          region: "artifacts",
+          measured_width: 0,
+          block_start_utf16: 0,
+          row_in_block: direction === "after" ? 0 : Number.MAX_SAFE_INTEGER,
+        });
+      } else if (id && region !== "artifacts")
+        await this.remote.loadBody(id, region, direction);
       else await this.remote.historyPage(direction);
-      this.documents.Main.navigationDelta = direction === "before" ? -1 : 1;
+      this.documents.Main.navigationDelta =
+        region === "artifacts" ? 0 : direction === "before" ? -1 : 1;
       this.remoteDirty = true;
     } finally {
       this.pageLoading = false;
@@ -1064,6 +1072,7 @@ export class TerminalApp {
   }
   draw() {
     const materials = this.delivery?.state.drafts.Main.materials ?? [];
+    if (this.materialFocus >= materials.length) this.materialFocus = -1;
     this.materialRows.setText(
       materials.length
         ? materials

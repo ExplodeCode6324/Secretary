@@ -133,6 +133,23 @@ test("claimed result sidecar is atomic, ID-only, paginated, read-only, replayabl
       "artifacts",
       new URLSearchParams({ relative_path: "./0.txt", execution_id: e.id }),
     );
+    const filteredPage: any = await q(
+      "artifacts",
+      new URLSearchParams({ task_id: e.task_id, limit: "1" }),
+    );
+    assert(filteredPage.next_cursor);
+    for (const filters of [
+      {},
+      { execution_id: e.id },
+      { relative_path: "0.txt" },
+    ] as Record<string, string>[])
+      await assert.rejects(
+        q(
+          "artifacts",
+          new URLSearchParams({ ...filters, cursor: filteredPage.next_cursor }),
+        ),
+        /CURSOR/,
+      );
     assert.equal(exact.items.length, 1);
     assert.equal(exact.items[0].current_state, "available");
     assert.equal(exact.items[0].content_version, artifacts[0].content.sha256);

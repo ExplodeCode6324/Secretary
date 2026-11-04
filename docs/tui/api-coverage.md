@@ -103,7 +103,7 @@
 | GET | /api/v1/task-browser/{task_id} | 已用 | /taskdetail 的计划/排队/结果文本、分页详情、最近三轮描述 |
 | GET | /api/v1/task-browser/{task_id}/executions/{execution_id}/messages | 已用 | 按真实 agent.message 事件读取最近三轮；每轮消息双向分页与 ID 恢复 |
 | GET | /api/v1/task-browser/{task_id}/executions/{execution_id}/messages/{message_id}/content | 已用 | 正文、工具调用/结果、可显示 CoT 的游标补读；共享 Main CoT 开关 |
-| GET | /api/v1/messages/{id}/artifacts | 已用 | #94 reply-tail pages, max 20 entries / 128 KiB; Ctrl+Left/Right in history. |
+| GET | /api/v1/messages/{id}/artifacts | 已用 | #94 reply-tail pages, max 20 entries / 128 KiB; Up/Down across artifact boundaries in history. |
 
 #83 保持其他未用接口及理由不变，尤其不调用 `executions/{id}/viewed`，不因阅读延长保留期限。Task 根列表最多保留 200 行元数据；三轮对话合计 200 条消息、4 MiB 正文/CoT，和 Main 共用最多两个并发读取。API 明确排除归档 Scope；完整 ID 或旧游标不能绕过。细节和证据见 [#83 验收](../fix/evidence/issue83-task-browser/acceptance.md)。
 

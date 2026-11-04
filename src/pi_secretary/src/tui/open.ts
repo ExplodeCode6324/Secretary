@@ -66,7 +66,9 @@ export async function resolveOpen(
       ...(cursor ? { cursor } : {}),
     });
     const page: { items: Artifact[]; next_cursor: string | null } =
-      await client.query("artifacts?" + q.toString().replace(/\+/g, "%20"));
+      await client.query(
+        "artifacts?" + q.toString().replace(/\+/g, "%20").replace(/\*/g, "%2A"),
+      );
     for (const a of page.items) {
       if (typeof a.current_path !== "string" || !a.source_root)
         unavailable = true;

@@ -1230,7 +1230,12 @@ export class ApplicationService {
         }
       });
       // Filter and page metadata before any CAS/current-file observations.
-      const page = this.page(path, ids, q, (id) => [id]);
+      const page = this.page(
+        `${path}:${JSON.stringify([sid, task, execution, key])}`,
+        ids,
+        q,
+        (id) => [id],
+      );
       return { ...page, items: page.items.map((id) => this.artifactView(id)) };
     }
     if (

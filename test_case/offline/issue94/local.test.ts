@@ -129,7 +129,10 @@ test(
     for (const failedImage of [null, undefined, new Uint8Array()]) {
       await assert.rejects(
         readClipboard(false, async () => {}, {
-          probe: async () => ({ types: ["public.png"], changeCount: 1 }),
+          probe: async () => ({
+            types: ["public.jpeg", "public.utf8-plain-text"],
+            changeCount: 1,
+          }),
           clipboard: () => ({
             getImage: async () => failedImage,
             getText: async () => {
@@ -257,3 +260,20 @@ for (const code of [
     }
     await delivery.close();
   });
+
+test("relative open percent-encodes literal star and plus for CoreClient", async () => {
+  const value = await resolveOpen("a*+ 中文.txt", {
+    query: async (route: string) => {
+      assert(/^[a-z][a-z0-9/?=&%_.:-]*$/i.test(route));
+      assert.equal(
+        new URLSearchParams(route.split("?")[1]).get("relative_path"),
+        "a*+ 中文.txt",
+      );
+      return {
+        items: [{ current_path: "/one/a*+ 中文.txt", source_root: "/one" }],
+        next_cursor: null,
+      } as any;
+    },
+  });
+  assert.equal(value, "/one/a*+ 中文.txt");
+});
