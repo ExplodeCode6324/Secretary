@@ -25,6 +25,12 @@ test("tool budget relays partial preview before completion but rejects a tool re
         name: "write",
         arguments: { path: "never", content: "never" },
       },
+      {
+        type: "toolCall",
+        id: "second",
+        name: "write",
+        arguments: { path: "also-never", content: "never" },
+      },
     ]).result();
     let finish!: () => void,
       preview!: () => void,
@@ -49,7 +55,7 @@ test("tool budget relays partial preview before completion but rejects a tool re
       };
       return stream;
     };
-    const budget = { used: 0, limit: 0 };
+    const budget = { used: 0, limit: 1 };
     const call = durableStream(
       f.app.store,
       boundedTools(raw, budget),
@@ -74,7 +80,7 @@ test("tool budget relays partial preview before completion but rejects a tool re
     assert.equal(rejected.stopReason, "error");
     assert.match(rejected.errorMessage ?? "", /BUDGET_/);
     assert.equal(sends, 1);
-    assert.equal(budget.used, 1);
+    assert.equal(budget.used, 2);
     assert.equal(f.app.store.all("Operation").length, 0);
     assert.equal(f.app.store.all<any>("ModelCall")[0].failure_kind, "LOCAL");
   }));
