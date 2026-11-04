@@ -52,14 +52,24 @@ configureLiveOutputBudget(8192);
 const configs = Object.fromEntries(
   (["main", "task"] as const).map((role) => {
     const real = roleModel(model, keys[role], role);
-    const controlled = checkedStream(real.stream, () => {
-      if (role === "main" && !usage.controlled_fault_fired) {
-        usage.controlled_fault_fired = true;
-        usage.controlled_fault_at = new Date().toISOString();
-        saveUsage();
-        throw Error("CONTROLLED_LOCAL_RECOVERY_TEST");
-      }
-    });
+    const controlled: StreamFn = (m, c, o) =>
+      checkedStream(real.stream, (response) => {
+        if (
+          role === "main" &&
+          !usage.controlled_fault_fired &&
+          c.messages.some(
+            (message) =>
+              message.role === "system" &&
+              message.toolsAdded?.some((tool) => tool.name === "task_control"),
+          ) &&
+          !["error", "aborted"].includes(response.stopReason)
+        ) {
+          usage.controlled_fault_fired = true;
+          usage.controlled_fault_at = new Date().toISOString();
+          saveUsage();
+          throw Error("CONTROLLED_LOCAL_RECOVERY_TEST");
+        }
+      })(m, c, o);
     return [
       role,
       {

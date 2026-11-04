@@ -39,17 +39,17 @@ fs.mkdirSync(root, { recursive: true, mode: 0o700 });
 const selected = process.argv[3];
 assert(!selected || selected === "--L3-only", "UNKNOWN_SCENARIO_SELECTOR");
 const limits = {
-  main: 48,
-  task: 48,
-  tools: 150,
-  total_ms: 1200000,
+  main: 128,
+  task: 96,
+  tools: 300,
+  total_ms: 2100000,
   output_tokens: 8192,
 };
 const caseLimits = {
-  L1: { main: 12, task: 12, tools: 40, ms: 300000 },
-  L2: { main: 14, task: 14, tools: 45, ms: 360000 },
-  L3: { main: 14, task: 14, tools: 40, ms: 360000 },
-  L4: { main: 8, task: 8, tools: 25, ms: 180000 },
+  L1: { main: 32, task: 16, tools: 80, ms: 480000 },
+  L2: { main: 40, task: 24, tools: 100, ms: 600000 },
+  L3: { main: 32, task: 24, tools: 80, ms: 600000 },
+  L4: { main: 12, task: 8, tools: 30, ms: 180000 },
 };
 type Case = keyof typeof caseLimits;
 const ledgerPath = path.join(root, "usage.json");

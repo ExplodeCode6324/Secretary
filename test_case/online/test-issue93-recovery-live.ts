@@ -73,19 +73,29 @@ const gate = new Promise<void>((r) => {
   release = r;
 });
 const mainReal = roleModel(model, keys.main, "main").stream;
-const fault: StreamFn = checkedStream(mainReal, async () => {
-  if (armed && !faulted) {
-    faulted = true;
-    report.steps.push({
-      case: "controlled_fault",
-      at: new Date().toISOString(),
-      note: "Real provider response withheld before Agent receives terminal success; no claim of provider timeout",
-    });
-    save();
-    await gate;
-    throw Error("CONTROLLED_LOCAL_RECOVERY_TEST");
-  }
-});
+const fault: StreamFn = (m, c, o) =>
+  checkedStream(mainReal, async (response) => {
+    if (
+      armed &&
+      !faulted &&
+      c.messages.some(
+        (message) =>
+          message.role === "system" &&
+          message.toolsAdded?.some((tool) => tool.name === "task_control"),
+      ) &&
+      !["error", "aborted"].includes(response.stopReason)
+    ) {
+      faulted = true;
+      report.steps.push({
+        case: "controlled_fault",
+        at: new Date().toISOString(),
+        note: "Real provider response withheld before Agent receives terminal success; no claim of provider timeout",
+      });
+      save();
+      await gate;
+      throw Error("CONTROLLED_LOCAL_RECOVERY_TEST");
+    }
+  })(m, c, o);
 const app = await App.open(path.join(root, "core"), {
   main: { model, stream: acceptanceStream(fault, "main", usage, limits, save) },
   task: {
