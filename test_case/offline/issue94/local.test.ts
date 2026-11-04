@@ -126,6 +126,21 @@ test(
     );
     assert.equal(authorize, 0);
     assert.equal(images, 0);
+    for (const failedImage of [null, undefined, new Uint8Array()]) {
+      await assert.rejects(
+        readClipboard(false, async () => {}, {
+          probe: async () => ({ types: ["public.png"], changeCount: 1 }),
+          clipboard: () => ({
+            getImage: async () => failedImage,
+            getText: async () => {
+              throw Error("MUST_NOT_FALL_BACK_TO_TEXT");
+            },
+            setText: async () => {},
+          }),
+        }),
+        /CLIPBOARD_IMAGE_UNAVAILABLE/,
+      );
+    }
     let n = 0;
     await assert.rejects(
       readClipboard(

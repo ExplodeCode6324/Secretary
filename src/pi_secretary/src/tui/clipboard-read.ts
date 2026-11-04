@@ -101,7 +101,7 @@ export async function readClipboard(
   if (kind === "image") {
     await authorizeImage();
     image = await clipboard.getImage();
-    if (image === undefined) throw Error("CLIPBOARD_IMAGE_UNAVAILABLE");
+    if (!image?.length) throw Error("CLIPBOARD_IMAGE_UNAVAILABLE");
   }
   let text: string | null | undefined;
   if (!image && !imageOnly) text = await clipboard.getText();
