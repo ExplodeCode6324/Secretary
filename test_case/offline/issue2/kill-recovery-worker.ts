@@ -18,6 +18,10 @@ if (
 )
   throw Error("isolated kill fixture arguments required");
 process.env.SECRETARY_MEMORY_UPDATE_TURNS = "1";
+// Keep summary input + output feasible in this deliberately small context.
+// The fixture exercises SIGKILL/projection recovery, not maximum summary output.
+process.env.SECRETARY_COMPACTION_OUTPUT_TOKENS = "8192";
+process.env.SECRETARY_COMPACTION_RETRY_OUTPUT_TOKENS = "8192";
 let work = fs.existsSync(directory + "/seeded.json");
 const model = { ...fixtureModel, contextWindow: 49152, maxTokens: 65536 };
 const stream: StreamFn = (m, c, o) => {
