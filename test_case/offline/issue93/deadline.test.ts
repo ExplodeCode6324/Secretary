@@ -62,7 +62,10 @@ for (const mode of ["before_headers", "after_event", "continuous", "cancel"]) {
         provider: "local-diagnostic",
         baseUrl: `http://127.0.0.1:${(server.address() as any).port}/v1`,
       };
-      retryRuntime.set(f.app.store, { timeoutMs: 300, wait: async () => {} });
+      // Leave room for cold SDK/loopback startup on shared CI workers. A 300ms
+      // attempt could expire before the server receives it, testing startup
+      // scheduling instead of the intended connected-stream deadline.
+      retryRuntime.set(f.app.store, { timeoutMs: 1500, wait: async () => {} });
       const stream = boundedTools(roleModel(model, "synthetic-key").stream, {
         used: 0,
         limit: 10,
