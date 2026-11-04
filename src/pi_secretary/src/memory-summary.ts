@@ -154,6 +154,7 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
       saved?.plan ??
       createSummaryPlan({
         model: this.model,
+        refs: [sourceRef, evidence],
         items: cs.items,
         commitments: migrateCommitments(cs),
         sources: delta.map((l) => ({

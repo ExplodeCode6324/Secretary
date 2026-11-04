@@ -93,6 +93,13 @@ export class Settings {
       throw Error(
         "SETTINGS_RECOVERY_REQUIRES_ORIGINAL_RUNTIME: unfinished application belongs to an older policy or configuration; use the exact previous code version AND its model/database configuration against its backed-up store to finish/reconcile the application before upgrade. Changing environment variables alone cannot restore an older policy hash; never discard an application with an external receipt",
       );
+    if (
+      host.session.runtime_settings_hash !== this.runtimeHash &&
+      this.mainRecoveryRequired()
+    )
+      throw Error(
+        "SETTINGS_UPGRADE_REQUIRES_IDLE_MAIN: unfinished Main work must be finished/resumed/reconciled using the exact original runtime and configuration against a backed-up store before upgrading. No runtime-change application was queued; do not discard claimed inputs or active loops.",
+      );
     host.settingsBlocked = () => this.blocked;
     host.scheduler.settingsBlocked = () => this.blocked;
     host.fullMemoryRefresh = () => {
@@ -125,6 +132,16 @@ export class Settings {
     return (
       this.host.session.runtime_settings_hash !== this.runtimeHash ||
       this.pendingApplications().length > 0
+    );
+  }
+  private mainRecoveryRequired() {
+    // Match the apply-time precondition, including legacy claimed inputs from
+    // other sessions. A narrower startup guard could still deadlock the rebuild.
+    return (
+      !!this.host.session.active_loop_id ||
+      this.store
+        .all<import("./contracts.ts").Input>("Input")
+        .some((input) => input.state === "CLAIMED")
     );
   }
   private pendingApplications() {
@@ -487,17 +504,7 @@ export class Settings {
       );
       let a = this.store.get<SettingsApplication>("SettingsApplication", key);
       const payload = this.store.read<SettingsPayload>(a.payload_ref);
-      if (
-        this.host.session.active_loop_id ||
-        this.store
-          .all("Input")
-          .some(
-            (i) =>
-              "state" in i &&
-              i.record_type === "Input" &&
-              i.state === "CLAIMED",
-          )
-      )
+      if (this.mainRecoveryRequired())
         throw Error("MAIN_RECOVERY_REQUIRED: 先恢复当前轮次，再重试应用");
       let source: SettingsSource;
       if (a.source_ref) source = this.store.read<SettingsSource>(a.source_ref);

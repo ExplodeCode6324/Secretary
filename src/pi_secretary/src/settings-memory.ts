@@ -144,6 +144,7 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
   uniqueRefs.push(evidence);
   const plan = createSummaryPlan({
     model: host.model,
+    refs: uniqueRefs,
     items: cs.items,
     commitments: migrateCommitments(cs),
     sources: [...messages].map(([id, message]) => ({
