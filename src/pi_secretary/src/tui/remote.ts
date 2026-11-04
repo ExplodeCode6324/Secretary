@@ -3,6 +3,7 @@ import { TaskBrowserWindow } from "./task-browser.ts";
 import type { CoreClient } from "../core-client.ts";
 import type {
   Message,
+  Session,
   TimelineItem,
   SyncTransaction,
   SSETransient,
@@ -16,8 +17,10 @@ import {
   type Region,
 } from "./body.ts";
 
-type Query = "timeline" | "task-browser";
+type Query = "timeline" | "task-browser" | "session";
 export class RemoteViews {
+  session?: Session;
+  sessionError = "";
   readonly history: HistoryWindow;
   readonly taskBrowser: TaskBrowserWindow;
   readonly attention: AttentionWindow;
@@ -123,7 +126,7 @@ export class RemoteViews {
     await Promise.all([this.refresh(), this.attention.refresh()]);
     if (!this.stopped) void this.listen(cursor.cursor);
   }
-  refresh(queries: Query[] = ["timeline", "task-browser"]) {
+  refresh(queries: Query[] = ["timeline", "task-browser", "session"]) {
     for (const q of queries) this.requested.add(q);
     if (this.refreshing) return this.refreshing;
     this.refreshing = (async () => {
@@ -152,12 +155,19 @@ export class RemoteViews {
     const results = await Promise.allSettled([
       queries.has("timeline") ? this.history.refresh(previews) : undefined,
       queries.has("task-browser") ? this.taskBrowser.refresh() : undefined,
+      queries.has("session") ? this.query<Session>("session") : undefined,
     ]);
     if (this.stopped || gen !== this.generation) return;
     if (results[0].status === "rejected")
       this.history.error = String(results[0].reason);
     if (results[1].status === "rejected")
       this.taskBrowser.error = String(results[1].reason);
+    if (queries.has("session")) {
+      if (results[2].status === "fulfilled") {
+        this.session = results[2].value as Session;
+        this.sessionError = "";
+      } else this.sessionError = "Main 状态暂不可用";
+    }
     this.prune();
     this.onChange();
   }
@@ -424,6 +434,7 @@ export class RemoteViews {
                     ].includes(root ?? "")
                   )
                     this.attention.schedule();
+                  if (root === "session") affected.add("session");
                   if (root === "timeline" || root === "activities")
                     affected.add("timeline");
                   if (

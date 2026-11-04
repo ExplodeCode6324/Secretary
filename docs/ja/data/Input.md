@@ -26,6 +26,7 @@
 | `attachments` | array<AttachmentBinding> | いいえ |  {"minItems": 1, "maxItems": 4} 関連：[AttachmentBinding](AttachmentBinding.md) |
 | `content_digest` | Digest | いいえ |  関連：[Digest](Digest.md) |
 | `withdrawal` | object | いいえ |  {"additionalProperties": false} 関連：[ID](ID.md), [Time](Time.md) |
+| `failure_action` | FailureAction | いいえ |  関連：[FailureAction](FailureAction.md) |
 
 ## 組み合わせ制約
 

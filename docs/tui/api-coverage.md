@@ -18,8 +18,8 @@
 | POST | /api/v1/notifications/{id}/read | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/messages | 已用 | Main 明确提交；持久保存请求后才 POST |
 | POST | /api/v1/task-requests | 未用 | 本批未接入；后续按对应功能范围处理 |
-| POST | /api/v1/task-requests/{id}/cancel | 未用 | 本批未接入；后续按对应功能范围处理 |
-| POST | /api/v1/executions/{id}/cancel | 未用 | 本批未接入；后续按对应功能范围处理 |
+| POST | /api/v1/task-requests/{id}/cancel | 已用 | #93 精确请求取消，同 ID 对账 |
+| POST | /api/v1/executions/{id}/cancel | 已用 | #93 精确执行取消，不推断完成 |
 | POST | /api/v1/executions/{id}/viewed | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/decisions/{id}/answer | 已用 | #92 directed literal answer; confirm MASTER and answer_request_id |
 | POST | /api/v1/authorizations/{id}/decision | 已用 | #92 APPROVE/REJECT with revision and display_hash |
@@ -28,7 +28,7 @@
 | POST | /api/v1/settings/applications/{id}/retry | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/settings/applications/{id}/restore-draft | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/session/compact | 未用 | 本批未接入；后续按对应功能范围处理 |
-| POST | /api/v1/session/resume | 未用 | 本批未接入；后续按对应功能范围处理 |
+| POST | /api/v1/session/resume | 已用 | Main 手动 /resume；版本保护、同 ID 对账，结果以会话状态为准 |
 | POST | /api/v1/memory/commitments/{id}/resolve | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/memory/extraction/retry | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/operations/{id}/verify-write | 未用 | 本批未接入；后续按对应功能范围处理 |
@@ -105,3 +105,5 @@
 | GET | /api/v1/task-browser/{task_id}/executions/{execution_id}/messages/{message_id}/content | 已用 | 正文、工具调用/结果、可显示 CoT 的游标补读；共享 Main CoT 开关 |
 
 #83 保持其他未用接口及理由不变，尤其不调用 `executions/{id}/viewed`，不因阅读延长保留期限。Task 根列表最多保留 200 行元数据；三轮对话合计 200 条消息、4 MiB 正文/CoT，和 Main 共用最多两个并发读取。API 明确排除归档 Scope；完整 ID 或旧游标不能绕过。细节和证据见 [#83 验收](../fix/evidence/issue83-task-browser/acceptance.md)。
+
+#93 使用 `GET failures/{failure_key}` 查看处置，`POST messages` 的 failure_action 提交 Main 意图；失败动作独立于 Main 草稿及普通送达状态。

@@ -1,3 +1,4 @@
+import { failuresFor, type FailureProposal } from "./failure-handling.ts";
 import { Type } from "typebox";
 import { activitiesFor } from "./activity.ts";
 import { requestBudget } from "./budget.ts";
@@ -29,21 +30,30 @@ type MainToolsContext = Pick<
 
 export function proposeTask(
   this: MainToolsContext,
-  args: {
-    goal: string;
-    scope_id?: string | null;
-    reuse_task_id?: string | null;
-    parent_execution_id?: string | null;
-    program_id?: string | null;
-    at?: string | null;
-    interval_seconds?: number | null;
-    materials?: string[] | null;
-    constraints?: string[] | null;
-    acceptance_criteria?: string[] | null;
-    deadline?: string | null;
-  },
+  args: FailureProposal,
   call: string,
+  loopID: string,
 ) {
+  const failures = failuresFor(this.store);
+  // A proven Scheduler receipt only replays its fingerprint-checked outcome.
+  // Keep failure-bound receipts on their stronger Input/intent recovery path.
+  const bound = failures.inputContext(this.sessionID, loopID).bound;
+  if (
+    bound ||
+    (!this.store.hasReceipt(call) &&
+      failures.guardProposal(this.sessionID, loopID))
+  )
+    return result(
+      failures.perform(
+        this.sessionID,
+        loopID,
+        call,
+        "task_propose",
+        args,
+        this.scheduler,
+      ),
+    );
+  if (!args.goal) throw Error("TASK_GOAL_REQUIRED");
   return result({
     ...this.scheduler.propose(args.goal, call, this.sessionID, {
       scopeID: args.scope_id,
@@ -61,7 +71,15 @@ export function proposeTask(
   });
 }
 
-export function tools(this: MainToolsContext, loopID: string): AgentTool[] {
+export function tools(
+  this: MainToolsContext,
+  loopID: string,
+  batch?: Input[],
+): AgentTool[] {
+  const failures = failuresFor(this.store);
+  const bound = (
+    batch ?? failures.inputContext(this.sessionID, loopID).inputs
+  ).find((i) => i.failure_action);
   const wrap = (tools: AgentTool[]) =>
     tools.map(
       (t) =>
@@ -71,6 +89,17 @@ export function tools(this: MainToolsContext, loopID: string): AgentTool[] {
             const claimed = this.store
               .all<Input>("Input")
               .filter((i) => i.loop_id === loopID);
+            if (
+              bound &&
+              ([
+                "memory_propose_change",
+                "schedule_wakeup",
+                "cancel_wakeup",
+              ].includes(t.name) ||
+                (t.name === "task_control" &&
+                  (args as { action: string }).action !== "dismiss_failure"))
+            )
+              throw Error("FAILURE_ACTION_SCOPE_ONLY");
             const uncertainFeedback = claimed.some(
               (i) =>
                 i.feedback_id &&
@@ -135,10 +164,14 @@ export function tools(this: MainToolsContext, loopID: string): AgentTool[] {
       name: "task_propose",
       label: "Propose task",
       description:
-        "Choose scope_id when the request clearly belongs to an available scope; ask Master when uncertain. Conversation and pure explanations do not need tasks. Only Master manages scopes. Submit new AGENT task by default; PROGRAM only with a registered program_id. For revisions of existing work, use reuse_task_id and its latest ended parent_execution_id; query tasks when identity or requirements are unclear. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace that field, so preserve unchanged requirements. goal is this round's complete goal. No at/interval on reuse. Independent deliverables use a new task. Scheduler generates the executor packet. Include all relevant constraints and materials. Use null for unspecified optional fields; do not invent program IDs, dates or deadlines.",
+        "Choose scope_id when the request clearly belongs to an available scope; ask Master when uncertain. Conversation and pure explanations do not need tasks. Only Master manages scopes. Submit new AGENT task by default; PROGRAM only with a registered program_id. For revisions of existing work, use reuse_task_id and its latest ended parent_execution_id; query tasks when identity or requirements are unclear. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace that field, so preserve unchanged requirements. goal is this round's complete goal. In a structured failure REDO input, supply reuse_task_id and parent_execution_id from failure query, omit goal and every requirements override: Core preserves all original requirements. No at/interval on reuse. Independent deliverables use a new task. Scheduler generates the executor packet. Include all relevant constraints and materials. Use null for unspecified optional fields; do not invent program IDs, dates or deadlines.",
       parameters: Type.Object({
         scope_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-        goal: Type.String(),
+        goal:
+          bound?.failure_action?.action === "REDO"
+            ? Type.Optional(Type.String())
+            : Type.String(),
+        failure_intent_id: Type.Optional(Type.String()),
         reuse_task_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         materials: Type.Optional(
           Type.Union([Type.Array(Type.String()), Type.Null()]),
@@ -159,7 +192,7 @@ export function tools(this: MainToolsContext, loopID: string): AgentTool[] {
         ),
         deadline: Type.Optional(Type.Union([Type.String(), Type.Null()])),
       }),
-      execute: async (call, args) => this.proposeTask(args, call),
+      execute: async (call, args) => this.proposeTask(args, call, loopID),
     }),
     tool({
       name: "task_query",
@@ -167,29 +200,58 @@ export function tools(this: MainToolsContext, loopID: string): AgentTool[] {
       description:
         "Discover tasks with readable goals and continuation eligibility, read task baseline/latest requirements and results by task_id, or exact execution details by execution_id. Supply at most one ID.",
       parameters: Type.Object({
+        failure_key: Type.Optional(Type.String()),
         task_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         execution_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
       }),
       execute: async (_call, args) =>
         result(
-          this.scheduler.query(this.sessionID, args.task_id, args.execution_id),
+          args.failure_key
+            ? args.task_id || args.execution_id
+              ? (() => {
+                  throw Error("ONE_TARGET_REQUIRED");
+                })()
+              : failures.mainView(
+                  args.failure_key,
+                  this.sessionID,
+                  loopID,
+                  this.scheduler,
+                )
+            : this.scheduler.query(
+                this.sessionID,
+                args.task_id,
+                args.execution_id,
+              ),
         ),
     }),
     tool({
       name: "task_control",
       label: "Control tasks",
       description:
-        "Cancel execution, cancel_request using the accepted request_id (also cancels its execution if dispatched), or answer ordinary decision. Cannot approve authorization.",
+        "Cancel execution, cancel_request using the accepted request_id (also cancels its execution if dispatched), or answer ordinary decision. Cannot approve authorization. dismiss_failure only in an isolated Master DISMISS input; id is its exact failure_key.",
       parameters: Type.Object({
         action: Type.Union([
           Type.Literal("cancel"),
           Type.Literal("cancel_request"),
           Type.Literal("answer"),
+          Type.Literal("dismiss_failure"),
         ]),
         id: Type.String(),
+        failure_intent_id: Type.Optional(Type.String()),
         answer: Type.Optional(Type.Union([Type.String(), Type.Null()])),
       }),
       execute: async (call, args) => {
+        if (args.action === "dismiss_failure")
+          return result(
+            failures.perform(
+              this.sessionID,
+              loopID,
+              call,
+              "dismiss_failure",
+              args,
+              this.scheduler,
+            ),
+          );
         if (args.action === "cancel_request")
           this.scheduler.cancelRequest(args.id, this.sessionID);
         else if (args.action === "cancel") this.scheduler.cancel(args.id);

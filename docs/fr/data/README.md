@@ -43,7 +43,7 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [FeedbackPolicy](FeedbackPolicy.md) | 5 |  |
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
 | [Session](Session.md) | 16 | Session principale logique ; seul l’hôte écrit les changements d’état, qui survivent à l’arrêt du processus. |
-| [Input](Input.md) | 16 | Entrée externe ; les retours d’outils ne créent pas cet objet. |
+| [Input](Input.md) | 17 | Entrée externe ; les retours d’outils ne créent pas cet objet. |
 | [Context](Context.md) | 32 | CHECKPOINT complet immuable pour la reprise ; MODEL_REQUEST n’est envoyable qu’après validation du budget de capacité de la requête normalisée complète. |
 | [ModelCall](ModelCall.md) | 17 | Cycle de vie du transport du modèle ; analyser les demandes d’outils après conservation de la réponse complète. |
 | [WorkItem](WorkItem.md) | 12 | Un élément de travail se distingue d’une tâche ; un élément non accompli et sans responsable n’est pas retiré. |
@@ -111,3 +111,5 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [AttachmentBinding](AttachmentBinding.md) | 6 |  |
 | [Attachment](Attachment.md) | 10 |  |
 | [AttachmentImport](AttachmentImport.md) | 12 |  |
+| [FailureAction](FailureAction.md) | 3 |  |
+| [FailureHandling](FailureHandling.md) | 20 |  |

@@ -34,6 +34,7 @@ async function fixture(body: (store: Store) => Promise<void>) {
 test("shared summary freezes complete Unicode sources and both output budgets", async () => {
   const text = '汉字🙂\\"\n'.repeat(4000);
   const plan = createSummaryPlan({
+    refs: [],
     model,
     items: [],
     commitments: [],
@@ -54,6 +55,7 @@ test("shared summary freezes complete Unicode sources and both output budgets", 
 test("summary retry retains source and checkpoints prevent a third attempt on resume", async () =>
   fixture(async (store) => {
     const plan = createSummaryPlan({
+      refs: [store.put([{ role: "user", content: "synthetic evidence" }])],
       model,
       items: [],
       commitments: [],
@@ -99,6 +101,7 @@ test("summary retry retains source and checkpoints prevent a third attempt on re
 test("successful summary checkpoint resumes without repeating model work", async () =>
   fixture(async (store) => {
     const plan = createSummaryPlan({
+      refs: [store.put([{ role: "user", content: "synthetic evidence" }])],
       model,
       items: [],
       commitments: [],
@@ -132,6 +135,7 @@ test("successful summary checkpoint resumes without repeating model work", async
 test("aggregate oversized candidate and tool continuations never become successful memory", async () =>
   fixture(async (store) => {
     const plan = createSummaryPlan({
+      refs: [store.put([{ role: "user", content: "synthetic evidence" }])],
       model,
       items: [],
       commitments: [],
@@ -263,6 +267,7 @@ test("fixed previous memory and ledger cannot be dropped to fit a fragment", () 
   assert.throws(
     () =>
       createSummaryPlan({
+        refs: [],
         model: fixtureModel,
         items: [],
         commitments: [{ text: "x".repeat(40000) } as any],
@@ -381,6 +386,7 @@ test("commitment proof reads decoded text, excludes serialization and tool outpu
 test("retry reason is reset after each successful fragment", async () =>
   fixture(async (store) => {
     const plan = createSummaryPlan({
+      refs: [store.put("original evidence")],
       model,
       items: [],
       commitments: [],

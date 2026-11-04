@@ -1,3 +1,4 @@
+import { failuresFor, executionFailureKey } from "./failure-handling.ts";
 import type { App } from "./app.ts";
 import type { Store } from "./store.ts";
 import type {
@@ -398,6 +399,11 @@ export class MasterAttentionProjection {
       };
       if (!this.owns(scope)) continue;
       if (e.state === "FAILED") {
+        const handling = failuresFor(this.store).view(
+          executionFailureKey(e.id),
+          this.app.host.sessionID,
+        );
+        if (handling.disposition !== "UNRESOLVED") continue;
         const failure = this.failure(e);
         const result = e.result_id
           ? this.store.find<TaskResult>("TaskResult", e.result_id)
@@ -416,6 +422,9 @@ export class MasterAttentionProjection {
           failure.reason,
           `executions/${e.id}`,
         );
+        row.key = handling.failure_key;
+        row.failure_handling = handling;
+        row.actionable = true;
         row.failure_category = failure.category;
         row.authorization_id = failure.authorization;
         row.operation_id = failure.operation;
@@ -447,6 +456,12 @@ export class MasterAttentionProjection {
         execution_id: null,
       };
       if (p.state !== "INIT_FAILED" || !this.owns(scope)) continue;
+      const failureKey = failuresFor(this.store).initKey(p.id)!;
+      const handling = failuresFor(this.store).view(
+        failureKey,
+        this.app.host.sessionID,
+      );
+      if (handling.disposition !== "UNRESOLVED") continue;
       const row = this.row(
         "failure",
         p.id,
@@ -457,6 +472,9 @@ export class MasterAttentionProjection {
         p.initialization_error ?? "初始化失败",
         `tasks/${p.id}`,
       );
+      row.key = failureKey;
+      row.failure_handling = handling;
+      row.actionable = true;
       row.failure_category = "initialization_failed";
       row.cause_evidence = "recorded_non_rejection";
       items.push(row);

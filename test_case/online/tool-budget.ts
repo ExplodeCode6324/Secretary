@@ -1,30 +1,95 @@
 import {
   createAssistantMessageEventStream,
+  type AssistantMessage,
   type AssistantMessageEvent,
 } from "@earendil-works/pi-ai";
 import type { StreamFn } from "../../src/pi_secretary/src/model.ts";
 
-// Test-only budget gate. Forward the real provider events unchanged, after counting
-// every tool call, including terminal submit_result calls with no next model turn.
+/** Relay previews immediately; withhold the terminal success until checks complete. */
+export function checkedStream(
+  stream: StreamFn,
+  complete: (response: AssistantMessage) => void | Promise<void>,
+  eventSeen?: (event: AssistantMessageEvent) => void,
+): StreamFn {
+  return async (model, context, options) => {
+    const source = await stream(model, context, options);
+    const output = createAssistantMessageEventStream();
+    void (async () => {
+      let last: AssistantMessage | undefined;
+      try {
+        for await (const event of source) {
+          eventSeen?.(event);
+          if ("partial" in event) last = event.partial;
+          if (event.type === "done" || event.type === "error") continue;
+          output.push(event);
+        }
+        const response = await source.result();
+        last = response;
+        await complete(response);
+        if (
+          response.stopReason === "error" ||
+          response.stopReason === "aborted"
+        )
+          output.push({
+            type: "error",
+            reason: response.stopReason,
+            error: response,
+          });
+        else if (response.stopReason !== "pending")
+          output.push({
+            type: "done",
+            reason: response.stopReason,
+            message: response,
+          });
+        output.end(response);
+      } catch (error) {
+        const response: AssistantMessage = {
+          ...(last ?? {
+            role: "assistant",
+            content: [],
+            api: model.api,
+            provider: model.provider,
+            model: model.id,
+            timestamp: Date.now(),
+            usage: {
+              input: 0,
+              output: 0,
+              cacheRead: 0,
+              cacheWrite: 0,
+              totalTokens: 0,
+              cost: {
+                input: 0,
+                output: 0,
+                cacheRead: 0,
+                cacheWrite: 0,
+                total: 0,
+              },
+            },
+          }),
+          stopReason: "error",
+          errorMessage: String(error),
+        };
+        output.push({ type: "error", reason: "error", error: response });
+        output.end(response);
+      }
+    })();
+    return output;
+  };
+}
+
+// Every proposal counts, even a failed or rejected final response.
 export function boundedTools(
   stream: StreamFn,
   budget: { used: number; limit: number },
 ): StreamFn {
-  return async (model, context, options) => {
-    const source = await stream(model, context, options);
-    const events: AssistantMessageEvent[] = [];
-    for await (const event of source) events.push(event);
-    const response = await source.result();
-    const count = response.content.filter(
+  const checked = checkedStream(stream, (response) => {
+    budget.used += response.content.filter(
       (part) => part.type === "toolCall",
     ).length;
-    if (budget.used + count > budget.limit) throw Error("LIVE_TOOL_LIMIT");
-    budget.used += count;
-    const output = createAssistantMessageEventStream();
-    queueMicrotask(() => {
-      for (const event of events) output.push(event);
-      output.end(response);
-    });
-    return output;
+    if (budget.used > budget.limit) throw Error("LIVE_TOOL_BUDGET_EXHAUSTED");
+  });
+  return async (model, context, options) => {
+    if (budget.used >= budget.limit) throw Error("LIVE_TOOL_LIMIT");
+    return checked(model, context, options);
   };
 }

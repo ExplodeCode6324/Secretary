@@ -61,7 +61,9 @@ PublicTaskCommand は文字列配列の `acceptance` を使います。継続で
 
 ## Master attention (#92)
 
-`GET attention?view=master` は期限内の承認待ち、有効な回答待ち、過去の実行失敗、現在の初期化失敗、結果不明の事項を返します。`view` の省略時は従来の動作を維持します。全件を不変の発生時刻とシーケンスの降順に並べて署名付きカーソルでページ分割し、全件数はページサイズに依存しません。失敗分類と `cause_evidence` は Core の権威ある記録から計算し、処置や削除を推測しません。
+`GET attention?view=master` は期限内の承認、回答可能な質問、未処理の実行失敗、現在の初期化失敗、結果不明の事項を返します。`view` の省略時は既存の動作を維持します。全件を不変の開始日時とシーケンスの降順に並べ、署名付きカーソルでページ分割します。件数は全件を対象とします。Core が失敗分類と `cause_evidence` を計算します。通知の表示は明示的な FailureHandling 処置と直接関連する再実行結果に従い、無関係な成功から解決を推測しません。
+
+`GET failures/{failure_key}` は対象の失敗、現在の意図、関連する再実行状態を読み取り専用で返します。実行キーは `EXECUTION:<id>`、初期化キーは `TASK_INIT:<task_id>:<episode_sequence>` です。旧失敗は revision `0`、UNRESOLVED が既定値です。`POST messages` は空の text、添付なしで `failure_action: {failure_key, expected_revision, action: "REDO" | "DISMISS"}` を受け付けます。Core は Input、FailureHandling、API 受領記録を原子的に保存し、固定メタデータ本文を生成します。同じ request_id と同じ内容は再現され、異なる内容は競合します。未処理の意図、進行中の再実行、古い版、処置済みの失敗はそれぞれ 409 を返します。REDO は元の Task/parent を要件変更なしで継続する権限のみを Main に与え、DISMISS はその通知のみを除去します。FAILED/CANCELLED RESULT feedback は個別の Main バッチとなり、自律的な task_propose を禁止します。EXPIRED は既存方針を維持します。
 
 `Execution.failure` は分類、記録された理由、関連する承認と操作、および実際の状態を提供します。拒否が原因と判断するには相互に一致する記録と失敗前の永続的な決定フレームが必要です。証拠の不整合や欠落は明示します。`TaskPlan` の変更で attention が無効になり、クライアントは `valid_until` にも更新する必要があります。
 

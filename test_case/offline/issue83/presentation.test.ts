@@ -128,7 +128,7 @@ test("ended failure is labelled historical execution; bounded summaries never ma
   });
   const plain = safeText(text);
   assert.match(plain, /执行.*当前无进行中的执行/);
-  assert.match(plain, /注意.*最近执行失败/);
+  assert.match(plain, /注意.*未处置失败 1 项/);
   assert.match(plain, /最近.*失败/);
   assert(!plain.includes("运行中"));
   assert(plain.includes("目标预览"));

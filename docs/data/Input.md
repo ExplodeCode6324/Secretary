@@ -22,6 +22,7 @@
 | `attachments` | array<AttachmentBinding> | 否 |  {"minItems": 1, "maxItems": 4} 关联：[AttachmentBinding](AttachmentBinding.md) |
 | `content_digest` | Digest | 否 |  关联：[Digest](Digest.md) |
 | `withdrawal` | object | 否 |  {"additionalProperties": false} 关联：[ID](ID.md), [Time](Time.md) |
+| `failure_action` | FailureAction | 否 |  关联：[FailureAction](FailureAction.md) |
 
 ## 组合约束
 

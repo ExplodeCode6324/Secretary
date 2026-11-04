@@ -22,6 +22,7 @@ export const commandRegistry = [
   { name: "t", pages: ["Main", "Task"] },
   { name: "back", pages: ["Main", "Task"] },
   { name: "help", pages: ["Main", "Task"] },
+  { name: "resume", pages: ["Main"] },
   { name: "send", pages: ["Main"] },
   { name: "rawmessage", pages: ["Main"] },
   { name: "cotvisible", pages: ["Main"] },
@@ -29,12 +30,14 @@ export const commandRegistry = [
   { name: "search_task", pages: ["Task"] },
   { name: "taskdetail", pages: ["Task"] },
   { name: "show", pages: ["Task"] },
+  { name: "cancel", pages: ["Task"] },
 ] as const;
 export const commands = commandRegistry.map((c) => c.name);
 export type Action =
   | { kind: "navigate"; page: Page }
-  | { kind: "help" | "back" | "noop" | "draft" | "cot" }
+  | { kind: "help" | "back" | "noop" | "draft" | "cot" | "resume" }
   | { kind: "search_task" | "taskdetail" | "show"; id: string }
+  | { kind: "cancel"; target: "request" | "execution"; id: string }
   | { kind: "send"; text: string }
   | { kind: "error"; message: string };
 export function parseInput(
@@ -54,6 +57,23 @@ export function parseInput(
     command = name.toLowerCase();
   if (!commands.some((name) => name.toLowerCase() === command))
     return { kind: "error", message: "未知或尚未实现的命令；/help 查看范围" };
+  if (command === "cancel") {
+    const target =
+      /^ --(request|execution) ([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})[ \t]*$/.exec(
+        rest,
+      );
+    return page === "Task" && target && target[0] === rest
+      ? {
+          kind: "cancel",
+          target: target[1] as "request" | "execution",
+          id: target[2],
+        }
+      : {
+          kind: "error",
+          message:
+            "/cancel 仅在 Task 普通输入可用：--request <完整ID> 或 --execution <完整ID>，二选一",
+        };
+  }
   if (
     command === "search_task" ||
     command === "taskdetail" ||
@@ -88,6 +108,13 @@ export function parseInput(
     return page === "Main"
       ? { kind: "cot" }
       : { kind: "error", message: "CoT 显示命令仅在 Main 可用；Task 草稿保留" };
+  if (command === "resume")
+    return page === "Main"
+      ? { kind: "resume" }
+      : {
+          kind: "error",
+          message: "/resume 仅在普通 Main 输入可用；Task 草稿保留",
+        };
   if (command === "m" || command === "t")
     return { kind: "navigate", page: command === "m" ? "Main" : "Task" };
   return { kind: command === "help" ? "help" : "back" };
@@ -131,7 +158,7 @@ export function parseDraft(
 function isCompleteLocalCommand(raw: string) {
   return (
     !/[\r\n]/.test(raw) &&
-    (/^\/(?:m|t|back|help|cotvisible|cotv)[ \t]*$/i.test(raw) ||
+    (/^\/(?:m|t|back|help|cotvisible|cotv|resume)[ \t]*$/i.test(raw) ||
       /^\/(?:search_task|taskdetail|show) [0-9A-Za-z-]+[ \t]*$/i.test(raw))
   );
 }

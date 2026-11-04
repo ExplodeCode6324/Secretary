@@ -26,6 +26,7 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
 | `attachments` | array<AttachmentBinding> | No |  {"minItems": 1, "maxItems": 4} Related: [AttachmentBinding](AttachmentBinding.md) |
 | `content_digest` | Digest | No |  Related: [Digest](Digest.md) |
 | `withdrawal` | object | No |  {"additionalProperties": false} Related: [ID](ID.md), [Time](Time.md) |
+| `failure_action` | FailureAction | No |  Related: [FailureAction](FailureAction.md) |
 
 ## Combined constraints
 

@@ -101,11 +101,33 @@
             "type": "string",
             "format": "uuid"
           }
+        },
+        "failure_action": {
+          "$ref": "#/$defs/FailureAction"
         }
       },
       "required": [
         "request_id",
         "text"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "required": [
+              "failure_action"
+            ]
+          },
+          "then": {
+            "properties": {
+              "text": {
+                "const": ""
+              },
+              "attachment_ids": {
+                "maxItems": 0
+              }
+            }
+          }
+        }
       ]
     },
     "TaskCommand": {
@@ -991,13 +1013,28 @@
               "type": "null"
             }
           ]
+        },
+        "recovery_mode": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "EXPLICIT_REQUIRED",
+            "NEXT_MASTER_INPUT",
+            "CAPACITY_COMPACTION_REQUIRED"
+          ]
+        },
+        "recovery_message": {
+          "type": "string",
+          "maxLength": 240
         }
       },
       "required": [
         "id",
         "revision",
         "state",
-        "recovery_error"
+        "recovery_error",
+        "recovery_mode",
+        "recovery_message"
       ],
       "additionalProperties": true
     },
@@ -5151,6 +5188,16 @@
             "string",
             "null"
           ]
+        },
+        "unresolved_failure_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "failure_summary": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -5705,6 +5752,16 @@
             "unavailable",
             null
           ]
+        },
+        "failure_handling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/FailureDetail"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": [
@@ -5847,6 +5904,243 @@
           "$ref": "#/$defs/MasterAttention"
         }
       ]
+    },
+    "FailureAction": {
+      "type": "object",
+      "properties": {
+        "failure_key": {
+          "type": "string",
+          "pattern": "^(EXECUTION:[0-9a-f-]+|TASK_INIT:[0-9a-f-]+:[1-9][0-9]*)$"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "action": {
+          "enum": [
+            "REDO",
+            "DISMISS"
+          ]
+        }
+      },
+      "required": [
+        "failure_key",
+        "expected_revision",
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    "FailureDetail": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "failure_key": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "session_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "execution_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "kind": {
+          "enum": [
+            "EXECUTION",
+            "TASK_INIT"
+          ]
+        },
+        "state": {
+          "type": "string"
+        },
+        "retention_state": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposition": {
+          "enum": [
+            "UNRESOLVED",
+            "DISMISSED",
+            "REDO_SUCCEEDED"
+          ]
+        },
+        "status": {
+          "type": "string"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intent_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "input_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "linked_request_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "linked_execution_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "linked_result_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "continuation_blocker": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "redo_available": {
+          "type": "boolean"
+        },
+        "dismiss_available": {
+          "type": "boolean"
+        },
+        "main_recovery_mode": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "EXPLICIT_REQUIRED",
+            "NEXT_MASTER_INPUT",
+            "CAPACITY_COMPACTION_REQUIRED"
+          ]
+        },
+        "main_recovery_message": {
+          "type": "string",
+          "maxLength": 240
+        }
+      },
+      "required": [
+        "id",
+        "failure_key",
+        "revision",
+        "session_id",
+        "task_id",
+        "execution_id",
+        "result_id",
+        "kind",
+        "state",
+        "retention_state",
+        "reason",
+        "disposition",
+        "status",
+        "error",
+        "intent_id",
+        "input_id",
+        "linked_request_id",
+        "linked_execution_id",
+        "linked_result_id",
+        "continuation_blocker",
+        "redo_available",
+        "dismiss_available",
+        "main_recovery_mode",
+        "main_recovery_message"
+      ],
+      "additionalProperties": false
+    },
+    "ResumeCommand": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "expected_revision": {
+          "$ref": "#/$defs/Revision"
+        }
+      },
+      "required": [
+        "request_id"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [
@@ -5888,6 +6182,9 @@
     },
     {
       "$ref": "#/$defs/NotificationPage"
+    },
+    {
+      "$ref": "#/$defs/FailureDetail"
     }
   ]
 }

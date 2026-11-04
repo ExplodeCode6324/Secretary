@@ -12,8 +12,24 @@ const mapping = (
 ): Mapping => ({ resource, invalidate });
 // Compile-time coverage follows the generated journal union, including private records.
 export const mutationMappings = {
-  Session: mapping("session", "timeline"),
-  Input: mapping(null, "timeline", "session"),
+  Session: mapping("session", "timeline", "attention", "failures"),
+  Input: mapping(
+    null,
+    "timeline",
+    "session",
+    "attention",
+    "failures",
+    "tasks",
+    "task-browser",
+  ),
+  FailureHandling: mapping(
+    null,
+    "attention",
+    "failures",
+    "tasks",
+    "task-browser",
+    "activities",
+  ),
   AttachmentImport: none,
   Attachment: mapping("attachments"),
   PushTarget: mapping("push-targets", "push-targets"),
@@ -42,7 +58,17 @@ export const mutationMappings = {
   Dispatch: mapping(null, "tasks", "executions", "task-requests"),
   WorkerReceipt: mapping(null, "tasks", "executions"),
   Checkpoint: none,
-  TaskResult: mapping(null, "tasks", "executions", "artifacts", "related"),
+  TaskResult: mapping(
+    null,
+    "tasks",
+    "executions",
+    "artifacts",
+    "related",
+    "attention",
+    "failures",
+    "task-browser",
+    "activities",
+  ),
   Feedback: mapping(null, "timeline", "session"),
   DecisionRequest: mapping("decisions", "attention", "tasks"),
   Operation: mapping(

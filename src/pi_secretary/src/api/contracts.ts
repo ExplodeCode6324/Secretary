@@ -17,7 +17,8 @@ export type ApiV1 =
   | PresentedCommand
   | NotificationContent
   | Notification
-  | NotificationPage;
+  | NotificationPage
+  | FailureDetail;
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
  * via the `definition` "Json".
@@ -52,6 +53,13 @@ export type SyncChange =
  * via the `definition` "Revision".
  */
 export type Revision = string;
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "MessageCommand".
+ */
+export type MessageCommand = {
+  [k: string]: unknown;
+};
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
  * via the `definition` "WorldEdit".
@@ -330,6 +338,40 @@ export interface NotificationPage {
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "FailureDetail".
+ */
+export interface FailureDetail {
+  id: string;
+  failure_key: string;
+  revision: string;
+  session_id: string;
+  task_id: string;
+  execution_id: string | null;
+  result_id: string | null;
+  kind: "EXECUTION" | "TASK_INIT";
+  state: string;
+  retention_state: string | null;
+  reason: string | null;
+  disposition: "UNRESOLVED" | "DISMISSED" | "REDO_SUCCEEDED";
+  status: string;
+  error: string | null;
+  intent_id: string | null;
+  input_id: string | null;
+  linked_request_id: string | null;
+  linked_execution_id: string | null;
+  linked_result_id: string | null;
+  continuation_blocker: string | null;
+  redo_available: boolean;
+  dismiss_available: boolean;
+  main_recovery_mode:
+    | "NONE"
+    | "EXPLICIT_REQUIRED"
+    | "NEXT_MASTER_INPUT"
+    | "CAPACITY_COMPACTION_REQUIRED";
+  main_recovery_message: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
  * via the `definition` "EmptyCommand".
  */
 export interface EmptyCommand {
@@ -353,18 +395,6 @@ export interface ClientCommand {
   name: string;
   client_id?: string;
   instance_id?: string;
-}
-/**
- * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
- * via the `definition` "MessageCommand".
- */
-export interface MessageCommand {
-  request_id: string;
-  text: string;
-  /**
-   * @maxItems 4
-   */
-  attachment_ids?: string[];
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -492,6 +522,12 @@ export interface Session {
   revision: Revision;
   state: string;
   recovery_error: string | null;
+  recovery_mode:
+    | "NONE"
+    | "EXPLICIT_REQUIRED"
+    | "NEXT_MASTER_INPUT"
+    | "CAPACITY_COMPACTION_REQUIRED";
+  recovery_message: string;
   [k: string]: unknown;
 }
 /**
@@ -1541,6 +1577,8 @@ export interface TaskBrowserTask {
   initialization_error: string | null;
   current: boolean;
   latest_result_observed_at: string | null;
+  unresolved_failure_count?: number;
+  failure_summary?: string | null;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -1684,6 +1722,7 @@ export interface MasterAttentionItem {
     | "inconsistent"
     | "unavailable"
     | null;
+  failure_handling?: FailureDetail | null;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -1709,4 +1748,21 @@ export interface MasterAttention {
   as_of: string;
   valid_until: string | null;
   session_id: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "FailureAction".
+ */
+export interface FailureAction {
+  failure_key: string;
+  expected_revision: string;
+  action: "REDO" | "DISMISS";
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "ResumeCommand".
+ */
+export interface ResumeCommand {
+  request_id: string;
+  expected_revision?: Revision;
 }

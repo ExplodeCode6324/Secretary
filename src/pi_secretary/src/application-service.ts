@@ -1,3 +1,6 @@
+import { sessionRecovery } from "./session-recovery.ts";
+import { failuresFor } from "./failure-handling.ts";
+import type { FailureAction } from "./contracts.ts";
 import {
   MasterAttentionProjection,
   assertMatterScope,
@@ -238,6 +241,17 @@ export class ApplicationService {
     // A client cannot capture a legacy/internal request ID from the same store.
     if (store.hasRequestIdentity(requestID))
       throw new ApiError("REQUEST_CONFLICT", 409);
+    if (
+      route.route === "session/resume" &&
+      body.expected_revision !== undefined
+    ) {
+      const session = this.app.host.session;
+      if (
+        session.state !== "RECOVERY_BLOCKED" ||
+        session.revision !== revision(body.expected_revision)
+      )
+        throw new ApiError("SESSION_CHANGED", 409);
+    }
     const wakeupCancel = route.route === "wakeups/:id/cancel";
     if (wakeupCancel) this.app.host.wakeups.get(route.target!);
     if (route.route === "push-targets" || route.route === "push-targets/:id") {
@@ -431,6 +445,7 @@ export class ApplicationService {
           requestID,
           "MASTER",
           b.attachment_ids as string[] | undefined,
+          b.failure_action as FailureAction | undefined,
         );
       case "task-requests":
         return scheduler.propose(b.goal as string, requestID, host.sessionID, {
@@ -492,7 +507,11 @@ export class ApplicationService {
       case "session/compact":
         return host.compact();
       case "session/resume":
-        return host.resume();
+        return host.resume(
+          b.expected_revision === undefined
+            ? undefined
+            : revision(b.expected_revision),
+        );
       case "memory/commitments/:id/resolve":
         return host.resolveMemoryCommitment(
           target!,
@@ -868,6 +887,7 @@ export class ApplicationService {
         state: host.session.state,
         revision: String(host.session.revision),
         recovery_error: host.session.recovery_error,
+        ...sessionRecovery(host.session),
       };
     if (parts[0] === "requests" && parts.length === 2)
       return {
@@ -1107,6 +1127,12 @@ export class ApplicationService {
         ),
       });
     }
+    if (parts[0] === "failures" && parts.length === 2)
+      return failuresFor(store).view(
+        target,
+        host.sessionID,
+        this.app.scheduler,
+      );
     if (path === "attention") {
       if (q.has("view")) {
         if (q.get("view") !== "master") throw new ApiError("INVALID_QUERY");

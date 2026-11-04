@@ -1,3 +1,5 @@
+import { ResumeController } from "./resume.ts";
+import { CancelController } from "./cancel.ts";
 import { MatterController } from "./matter.ts";
 import type { MasterAttentionItem } from "../api/contracts.ts";
 import os from "node:os";
@@ -39,6 +41,8 @@ export class TerminalApp {
   readonly documents = { Main: new DocumentView(), Task: new DocumentView() };
   readonly scrolls: Record<Page, AnchoredScroll>;
   readonly matters = new MatterController();
+  readonly recovery = new ResumeController();
+  readonly cancellation = new CancelController();
   readonly matterDocument = new DocumentView();
   readonly matterScroll = new AnchoredScroll(this.matterDocument);
   readonly matterEditor: DraftEditor;
@@ -53,6 +57,7 @@ export class TerminalApp {
   private layoutMode = "";
   private matterText = "";
   private attentionSelecting = false;
+  readonly recoveryNotice = new Text("", 0, 0);
   readonly footer = new Text("连接 Core… Ctrl+C 退出", 0, 0);
   page: Page = "Main";
   viewing = false;
@@ -126,6 +131,8 @@ export class TerminalApp {
     );
     this.matterEditor.onEdited = () => this.draw();
     this.matterEditor.onExplicitSubmit = (raw) => void this.matters.submit(raw);
+    this.recovery.onChange = () => this.draw();
+    this.cancellation.onChange = () => this.draw();
     this.matters.onChange = () => {
       const current = this.matters.current;
       if (current && this.matterText !== current.text) {
@@ -433,6 +440,8 @@ export class TerminalApp {
     this.tui.start();
     void this.attach();
     this.statusTimer = setInterval(() => {
+      void this.cancellation.reconcile();
+      void this.recovery.reconcile();
       void this.matters.refresh();
       void this.delivery?.reconcile().catch((e) => {
         this.uiHint = String(e);
@@ -456,7 +465,13 @@ export class TerminalApp {
               "detail",
               ...current.options.map((_, i) => "option:" + i),
             ]
-          : ["detail"];
+          : current.kind === "failure"
+            ? [
+                "detail",
+                ...(current.data.redo_available ? ["redo"] : []),
+                ...(current.data.dismiss_available ? ["dismiss"] : []),
+              ]
+            : ["detail"];
     if (matchesKey(data, "tab") || matchesKey(data, "shift+tab")) {
       const direction = matchesKey(data, "shift+tab") ? -1 : 1;
       this.matterFocus =
@@ -471,6 +486,14 @@ export class TerminalApp {
     if (matchesKey(data, "shift+enter")) {
       if (current.kind === "decision" && this.matterFocus === "editor")
         void this.matters.submit(this.matterEditor.getExpandedText());
+      else if (current.kind === "failure")
+        void this.matters.submitFailure(
+          this.matterFocus === "redo"
+            ? "REDO"
+            : this.matterFocus === "dismiss"
+              ? "DISMISS"
+              : undefined,
+        );
       else if (current.kind === "authorization")
         void this.matters.submit(
           "",
@@ -555,7 +578,7 @@ export class TerminalApp {
     const attention = this.page === "Main" ? this.remote?.attention : undefined;
     const pane =
       attention && (!!attention.head?.counts.total || !!attention.error);
-    this.layoutMode = `${active}:${this.page}:${!!pane}`;
+    this.layoutMode = `${active}:${this.page}:${!!pane}:${!!this.mainRecoveryNotice}`;
     this.tui.setLayoutRoot(
       new VStack([
         {
@@ -580,6 +603,16 @@ export class TerminalApp {
           minSize: 3,
           maxSize: 10,
         },
+        ...(this.mainRecoveryNotice
+          ? [
+              {
+                component: this.recoveryNotice,
+                basis: "auto" as const,
+                minSize: 1,
+                maxSize: 5,
+              },
+            ]
+          : []),
         { component: this.footer, basis: 2, minSize: 1, maxSize: 2 },
       ]),
     );
@@ -637,6 +670,14 @@ export class TerminalApp {
       this.draw();
       return;
     }
+    if (action.kind === "resume") {
+      void this.recovery.submit();
+      return;
+    }
+    if (action.kind === "cancel") {
+      void this.cancellation.submit(action.target, action.id);
+      return;
+    }
     if (action.kind === "send") {
       this.submitMessage(raw, action.text, snapshot);
       return;
@@ -667,7 +708,7 @@ export class TerminalApp {
     }
     if (action.kind === "help")
       this.uiHint =
-        "/m /t /back /help · Main: /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
+        "/m /t /back /help · Main: /resume（继续原批次及排队输入） /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> /cancel --request <完整ID> 或 --execution <完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
     this.draw();
   }
   private submitMessage(raw: string, text: string, snapshot?: DraftSnapshot) {
@@ -766,6 +807,8 @@ export class TerminalApp {
       this.remote.setFollowing(this.scrolls.Main.following);
       this.remote.attention.height = () =>
         Math.min(8, Math.max(3, Math.floor(this.tui.terminal.rows / 4)));
+      this.recovery.connect(client, core.data_domain_id + ":" + core.mode);
+      this.cancellation.connect(client, core.data_domain_id + ":" + core.mode);
       this.matters.connect(
         {
           query: this.remote.query.bind(this.remote),
@@ -804,8 +847,16 @@ export class TerminalApp {
       this.draw();
     }
   }
+  private get mainRecoveryNotice() {
+    return this.page === "Main"
+      ? this.remote?.sessionError ||
+          this.remote?.session?.recovery_message ||
+          ""
+      : "";
+  }
   draw() {
     if (this.stopped) return;
+    this.recoveryNotice.setText(safeText(this.mainRecoveryNotice));
     if (this.delivery) {
       for (const page of ["Main", "Task"] as const) {
         const d = this.delivery.state.drafts[page];
@@ -911,22 +962,30 @@ export class TerminalApp {
     )
       this.tui.setFocus(this.editors[this.page]);
     this.attentionSelecting = !!attention?.selected;
-    if (this.layoutMode !== `${active}:${this.page}:${pane}`) this.layout();
+    if (
+      this.layoutMode !==
+      `${active}:${this.page}:${pane}:${!!this.mainRecoveryNotice}`
+    )
+      this.layout();
     if (active) {
       const current = this.matters.current;
       this.matterEditor.enabled = current?.kind === "decision";
       const focus =
-        this.matterFocus === "approve"
-          ? "\x1b[1;30;103m [批准：Shift+Enter 确认] \x1b[0m  拒绝"
-          : this.matterFocus === "reject"
-            ? "批准  \x1b[1;31m[拒绝：Shift+Enter 确认]\x1b[0m"
-            : this.matterFocus.startsWith("option:")
-              ? visibleMatterText(
-                  `选项 ${Number(this.matterFocus.split(":")[1]) + 1}：${current?.options[Number(this.matterFocus.split(":")[1])]}`,
-                )
-              : this.matterFocus === "editor"
-                ? "回答输入"
-                : "详情滚动";
+        this.matterFocus === "redo"
+          ? "[按原要求重做：Shift+Enter 提交 Main]"
+          : this.matterFocus === "dismiss"
+            ? "[移除提醒：Shift+Enter 提交 Main]"
+            : this.matterFocus === "approve"
+              ? "\x1b[1;30;103m [批准：Shift+Enter 确认] \x1b[0m  拒绝"
+              : this.matterFocus === "reject"
+                ? "批准  \x1b[1;31m[拒绝：Shift+Enter 确认]\x1b[0m"
+                : this.matterFocus.startsWith("option:")
+                  ? visibleMatterText(
+                      `选项 ${Number(this.matterFocus.split(":")[1]) + 1}：${current?.options[Number(this.matterFocus.split(":")[1])]}`,
+                    )
+                  : this.matterFocus === "editor"
+                    ? "回答输入"
+                    : "详情滚动";
       this.footer.setText(
         visibleMatterText(
           current?.kind === "authorization"
@@ -955,6 +1014,7 @@ export class TerminalApp {
       this.uiHint ||
       this.delivery?.hint ||
       this.matters.hint ||
+      (this.page === "Task" ? this.cancellation.hint : this.recovery.hint) ||
       (attention?.selected
         ? "↑/↓ 循环选择事项 · Enter 打开 · Esc 返回编辑器"
         : attention?.error) ||
@@ -981,6 +1041,8 @@ export class TerminalApp {
       clearInterval(this.statusTimer);
       this.remote?.stop();
       this.matters.stop();
+      this.cancellation.stop();
+      this.recovery.stop();
       await this.files?.close();
       this.tui.stop();
     } catch (e) {

@@ -1,3 +1,5 @@
+import type { FailureAction } from "./contracts.ts";
+import type { FailureProposal } from "./failure-handling.ts";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import * as contextAssembly from "./context-assembly.ts";
 import type { Consciousness, Input, Session } from "./contracts.ts";
@@ -127,6 +129,7 @@ export class Host {
     requestID = id(),
     producer: Input["producer"] = "MASTER",
     attachmentIDs: string[] = [],
+    failureAction?: FailureAction,
   ) {
     return mainLoop.accept.call(
       this.context,
@@ -134,14 +137,15 @@ export class Host {
       requestID,
       producer,
       attachmentIDs,
+      failureAction,
     );
   }
   private missedOffset = 0;
   deliverFeedback() {
     return mainLoop.deliverFeedback.call(this.context);
   }
-  resume() {
-    return mainLoop.resume.call(this.context);
+  resume(expectedRevision?: number) {
+    return mainLoop.resume.call(this.context, expectedRevision);
   }
   drain() {
     return mainLoop.drain.call(this.context);
@@ -180,26 +184,11 @@ export class Host {
   private finish(batch: Input[]) {
     return mainLoop.finish.call(this.context, batch);
   }
-  private proposeTask(
-    args: {
-      goal: string;
-      scope_id?: string | null;
-      reuse_task_id?: string | null;
-      parent_execution_id?: string | null;
-      program_id?: string | null;
-      at?: string | null;
-      interval_seconds?: number | null;
-      materials?: string[] | null;
-      constraints?: string[] | null;
-      acceptance_criteria?: string[] | null;
-      deadline?: string | null;
-    },
-    call: string,
-  ) {
-    return mainTools.proposeTask.call(this.context, args, call);
+  private proposeTask(args: FailureProposal, call: string, loopID: string) {
+    return mainTools.proposeTask.call(this.context, args, call, loopID);
   }
-  private tools(loopID: string): AgentTool[] {
-    return mainTools.tools.call(this.context, loopID);
+  private tools(loopID: string, batch?: Input[]): AgentTool[] {
+    return mainTools.tools.call(this.context, loopID, batch);
   }
   private memoryToolResult(value: unknown) {
     return mainTools.memoryToolResult.call(this.context, value);

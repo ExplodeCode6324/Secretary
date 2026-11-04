@@ -1024,6 +1024,9 @@
             "reason"
           ],
           "additionalProperties": false
+        },
+        "failure_action": {
+          "$ref": "#/$defs/FailureAction"
         }
       },
       "required": [
@@ -5612,7 +5615,8 @@
             "PushTarget",
             "PushDispatch",
             "Attachment",
-            "AttachmentImport"
+            "AttachmentImport",
+            "FailureHandling"
           ],
           "description": ""
         },
@@ -7596,6 +7600,205 @@
         "validation_limits"
       ],
       "additionalProperties": false
+    },
+    "FailureAction": {
+      "type": "object",
+      "properties": {
+        "failure_key": {
+          "type": "string",
+          "pattern": "^(EXECUTION:[0-9a-f-]+|TASK_INIT:[0-9a-f-]+:[1-9][0-9]*)$"
+        },
+        "expected_revision": {
+          "type": "string",
+          "pattern": "^(0|[1-9][0-9]*)$"
+        },
+        "action": {
+          "enum": [
+            "REDO",
+            "DISMISS"
+          ]
+        }
+      },
+      "required": [
+        "failure_key",
+        "expected_revision",
+        "action"
+      ],
+      "additionalProperties": false
+    },
+    "FailureHandling": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "FailureHandling"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "failure_key": {
+          "type": "string"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "task_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "result_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposition": {
+          "enum": [
+            "UNRESOLVED",
+            "DISMISSED"
+          ]
+        },
+        "dismissed_sequence": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "intent_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "input_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "action": {
+          "enum": [
+            "REDO",
+            "DISMISS"
+          ]
+        },
+        "phase": {
+          "enum": [
+            "REQUESTED",
+            "LINKED",
+            "BLOCKED",
+            "DISMISSED"
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "linked_request_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "requirements_digest": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Digest"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "tool_receipt": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "$ref": "#/$defs/ID"
+                },
+                "fingerprint": {
+                  "$ref": "#/$defs/Digest"
+                },
+                "intent_id": {
+                  "$ref": "#/$defs/ID"
+                },
+                "result": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              },
+              "required": [
+                "id",
+                "fingerprint",
+                "intent_id",
+                "result"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "failure_key",
+        "session_id",
+        "task_id",
+        "execution_id",
+        "result_id",
+        "disposition",
+        "dismissed_sequence",
+        "intent_id",
+        "input_id",
+        "action",
+        "phase",
+        "error",
+        "linked_request_id",
+        "requirements_digest",
+        "tool_receipt"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [
@@ -7763,6 +7966,9 @@
     },
     {
       "$ref": "#/$defs/AttachmentImport"
+    },
+    {
+      "$ref": "#/$defs/FailureHandling"
     }
   ]
 }
