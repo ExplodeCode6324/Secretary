@@ -55,11 +55,15 @@ export function copySelection(
   text: string,
   platform = process.platform,
 ): Promise<boolean | string> {
-  if (
-    platform !== "darwin" ||
-    process.env.SSH_CONNECTION ||
-    process.env.SSH_TTY
-  )
+  try {
+    assertLocalMac(platform);
+  } catch {
     return Promise.resolve("复制暂仅支持本地 macOS 终端；SSH 剪贴板未接入");
+  }
   return writeLocalClipboard(text);
+}
+
+export function assertLocalMac(platform = process.platform, env = process.env) {
+  if (platform !== "darwin" || env.SSH_CONNECTION || env.SSH_TTY)
+    throw Error("LOCAL_MAC_TERMINAL_REQUIRED");
 }

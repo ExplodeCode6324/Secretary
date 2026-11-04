@@ -1,3 +1,4 @@
+import type { ArtifactTail } from "./artifact-tail.ts";
 import {
   Markdown,
   ScrollView,
@@ -274,6 +275,7 @@ export function messageComponent(
   evicted = false,
   assistantLabel = "Secretary",
   bodyNotice?: string,
+  artifacts?: ArtifactTail,
 ): MappedComponent {
   const role = m.role,
     paint =
@@ -377,6 +379,40 @@ export function messageComponent(
       else region(md, "body", body?.body);
       if (m.outcome && m.outcome !== "completed")
         text(gray(`状态 ${m.outcome}`));
+      if (
+        Number(m.delivery_count) > 0 &&
+        !evicted &&
+        !m.next_cursor &&
+        !body?.body.after
+      ) {
+        const cyan = color("36");
+        const artifactText = (value: string) =>
+          add(
+            new Text(cyan(visibleMatterText(value)), 0, 0).render(width),
+            "header",
+            m.text.length,
+          );
+        artifactText(
+          `产物交付 · ${m.delivery_count} 项 · Task model explanation / NOT_VERIFIED`,
+        );
+        if (artifacts?.error) artifactText(`读取失败：${artifacts.error}`);
+        else if (!artifacts) artifactText("正在读取产物…");
+        else {
+          for (const a of artifacts.items) {
+            artifactText(
+              `${a.name} · Task ${a.task_id} · Execution ${a.execution_id}`,
+            );
+            artifactText(
+              `当前文件：${a.current_path ?? "不可用"} [${a.current_state ?? "unavailable"}]${a.current_unavailable_reason ? " · " + a.current_unavailable_reason : ""}`,
+            );
+            artifactText(`Task 模型说明：${a.description ?? "旧记录无说明"}`);
+            artifactText(`快照：${a.state} · ${a.content_version}`);
+          }
+          artifactText(
+            `产物第 ${artifacts.previous.length + 1} 页 · 历史阅读 Ctrl+← 前页 / Ctrl+→ 后页${artifacts.next_cursor ? " · 还有更多" : " · 已到末页"}`,
+          );
+        }
+      }
       if (m.next_cursor) text(gray("正文片段读取中…"));
       if (role === "master" || role === "user")
         add([blue("─".repeat(Math.max(1, width)))], "header");
@@ -392,10 +428,19 @@ export function timelineComponent(
   expanded = false,
   body?: MessageBody,
   evicted = false,
+  artifacts?: ArtifactTail,
 ): MappedComponent {
   const content =
     item.kind === "message"
-      ? messageComponent(item, expanded, body, evicted)
+      ? messageComponent(
+          item,
+          expanded,
+          body,
+          evicted,
+          "Secretary",
+          undefined,
+          artifacts,
+        )
       : new Text(
           pink(
             safeText(

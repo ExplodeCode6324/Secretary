@@ -1,6 +1,7 @@
 # Issue #94：产物交付、当前文件打开与原生图片粘贴
 
-状态：PASS_PLAN_ONLY，Claude R4 已通过；实施尚未批准。中英文计划复核后，须经 Master 批准才实施；合并另行授权。
+Implementation authorized by Master on 2026-11-05: implement, create PR, complete CI and launch an isolated manual acceptance instance. Prior plan-only status below is historical; merge remains separately gated.
+状态：IMPLEMENTING，Claude R4 计划已通过，Master 于 2026-11-05 批准实施、PR/CI 和独立人工验收实例；合并仍需另行授权。
 
 - Issue：https://github.com/ExplodeCode6324/Secretary/issues/94
 - 仓库：https://github.com/ExplodeCode6324/Secretary

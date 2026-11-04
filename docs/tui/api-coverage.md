@@ -6,9 +6,9 @@
 
 每项实施 Issue 完成时，按当时的 [操作清单](../api/v1/operations.json) 更新本表，并在完成报告链接本次版本、说明使用变化和仍未使用的 API。测试对本地接口的调用不计为 TUI 已消费。未用 API 不要求补齐菜单，也不自动成为结项阻塞。
 
-状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。实际操作清单共 91 项（57 GET、34 POST）；新 TUI 已用 14 项、未用 77 项。
+状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。API inventory: 92 operations (58 GET, 34 POST); TUI consumes 30, with 62 unused.
 
-#81 的附件、撤回等合同保持不变；本批不增加对应 UI。下表的“已用”代表 #82/#91/#83 客户端实际调用，完整产品原生验收另列。
+#94 consumes the existing attachment import/message contracts; withdrawal remains unused. 下表的“已用”代表 #82/#91/#83 客户端实际调用，完整产品原生验收另列。
 
 | Method | Path | 新 TUI 状态 | 对应功能或未用原因 |
 | --- | --- | --- | --- |
@@ -40,7 +40,7 @@
 | POST | /api/v1/core/stop | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/core | 已用 | 连接已有 Core，校验身份/模式 |
 | GET | /api/v1/assistant | 未用 | 本批未接入；后续按对应功能范围处理 |
-| GET | /api/v1/session | 未用 | 本批未接入；后续按对应功能范围处理 |
+| GET | /api/v1/session | 已用 | Main recovery state; existing #93 use. |
 | GET | /api/v1/clients/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/requests/{id} | 已用 | 只读送达对账，不自动重发 |
 | GET | /api/v1/settings | 未用 | 本批未接入；后续按对应功能范围处理 |
@@ -58,7 +58,7 @@
 | GET | /api/v1/authorizations | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/authorizations/{id} | 已用 | #92 complete display and decision identity |
 | GET | /api/v1/attention | 已用 | #92 view=master, full counts and immutable-key pagination |
-| GET | /api/v1/artifacts | 未用 | 本批未接入；后续按对应功能范围处理 |
+| GET | /api/v1/artifacts | 已用 | Exact relative_path + optional execution_id metadata lookup for /open; filters before filesystem observations. |
 | GET | /api/v1/artifacts/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/timeline | 已用 | 近期 50 项、前后连续补读与同模式游标 |
 | GET | /api/v1/timeline/around | 已用 | 稳定消息 ID 定位，刷新、模式变化和重启恢复 |
@@ -94,8 +94,8 @@
 | GET | /api/v1/push-dispatches/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/push-targets | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/push-targets/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
-| POST | /api/v1/attachments/import | 未用 | 本批未接入；后续按对应功能范围处理 |
-| GET | /api/v1/attachments/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
+| POST | /api/v1/attachments/import | 已用 | Native clipboard images; durable exact import request and source file before POST. |
+| GET | /api/v1/attachments/{id} | 已用 | Verify completed import identity, SHA256, bytes and availability. |
 | GET | /api/v1/attachments/{id}/content | 未用 | 本批未接入；后续按对应功能范围处理 |
 | POST | /api/v1/inputs/{id}/withdraw | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/task-browser | 已用 | 当前集合、全量 Scope/Shared/归档计数、稳定排序与双向游标；截止时间到期刷新 |
@@ -103,7 +103,10 @@
 | GET | /api/v1/task-browser/{task_id} | 已用 | /taskdetail 的计划/排队/结果文本、分页详情、最近三轮描述 |
 | GET | /api/v1/task-browser/{task_id}/executions/{execution_id}/messages | 已用 | 按真实 agent.message 事件读取最近三轮；每轮消息双向分页与 ID 恢复 |
 | GET | /api/v1/task-browser/{task_id}/executions/{execution_id}/messages/{message_id}/content | 已用 | 正文、工具调用/结果、可显示 CoT 的游标补读；共享 Main CoT 开关 |
+| GET | /api/v1/messages/{id}/artifacts | 已用 | #94 reply-tail pages, max 20 entries / 128 KiB; Ctrl+Left/Right in history. |
 
 #83 保持其他未用接口及理由不变，尤其不调用 `executions/{id}/viewed`，不因阅读延长保留期限。Task 根列表最多保留 200 行元数据；三轮对话合计 200 条消息、4 MiB 正文/CoT，和 Main 共用最多两个并发读取。API 明确排除归档 Scope；完整 ID 或旧游标不能绕过。细节和证据见 [#83 验收](../fix/evidence/issue83-task-browser/acceptance.md)。
 
 #93 使用 `GET failures/{failure_key}` 查看处置，`POST messages` 的 failure_action 提交 Main 意图；失败动作独立于 Main 草稿及普通送达状态。
+
+#94 artifact snapshot downloads and attachment content downloads remain unused. System opening is local-only. Acceptance evidence: [issue94 ledger](../fix/evidence/issue94-delivery/acceptance.md).

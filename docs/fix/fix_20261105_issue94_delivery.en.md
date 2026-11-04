@@ -1,6 +1,7 @@
 # Issue #94 — artifact delivery, current-file opening, and native image paste
 
-Status: PASS_PLAN_ONLY — Claude R4 passed; implementation not approved. Master must approve the reviewed bilingual plan before implementation. Merge requires separate authorization.
+Implementation authorized by Master on 2026-11-05: implement, create PR, complete CI and launch an isolated manual acceptance instance. Prior plan-only status below is historical; merge remains separately gated.
+Status: IMPLEMENTING — Claude R4 plan passed; Master authorized implementation, PR/CI and an isolated manual instance on 2026-11-05. Merge requires separate authorization.
 
 - Issue: https://github.com/ExplodeCode6324/Secretary/issues/94
 - Repository: https://github.com/ExplodeCode6324/Secretary

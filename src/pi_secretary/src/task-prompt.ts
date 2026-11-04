@@ -12,7 +12,7 @@ read/write use workspace-relative paths. For DIRECTORY scopes, update scope.note
 bash runs real commands as the local user with filesystem/network access, starting in the workspace; it is not an OS sandbox. Use external absolute paths only when the assignment requires them. Keep processes in the managed process group. Check receipts: proposed writes are not completed effects, nonzero exit codes and transport errors are not success. On WAIT_AUTH, stop until Scheduler resumes after Master's decision; do not grant permission or bypass rejection.
 
 ## Completion
-Call submit_result with a concise summary, each acceptance criterion's assessment, limitations and workspace artifact paths. Assessments are claims, not independent verification. Use FAILED for unmet criteria. Text alone does not finish the task; stop after submission.`;
+Call submit_result with a concise summary, each acceptance criterion's assessment, limitations and workspace artifact paths. For each registered artifact, include one artifact_descriptions entry with the same path and a specific explanation. Register only intended deliverables, not intermediate files. Assessments are claims, not independent verification. Use FAILED for unmet criteria. Text alone does not finish the task; stop after submission.`;
 
 export function executionPrompt(
   proposal: TaskProposal,

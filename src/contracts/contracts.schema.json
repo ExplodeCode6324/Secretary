@@ -2811,6 +2811,10 @@
               "type": "null"
             }
           ]
+        },
+        "description": {
+          "type": "string",
+          "description": "Task model explanation; NOT_VERIFIED. Absent for legacy results."
         }
       },
       "required": [

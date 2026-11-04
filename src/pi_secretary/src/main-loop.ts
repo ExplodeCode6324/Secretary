@@ -1,3 +1,4 @@
+import { deliveryEvent } from "./artifact-delivery.ts";
 import { failuresFor } from "./failure-handling.ts";
 import { attachmentBindings } from "./attachments.ts";
 import {
@@ -636,20 +637,25 @@ export async function run(this: MainLoopContext) {
             this.model.contextWindow,
             { protectedFromIndex },
           );
+          const messageEvent = this.store.event(
+            "main.message",
+            event.message.role === "assistant"
+              ? { ...event.message, display_call_id: displayCallID }
+              : event.message,
+            { session_id: this.sessionID, task_id: null, execution_id: null },
+            "MAIN",
+          );
           this.store.commit(
             [revise(this.session, { last_context_id: c.id })],
             [
-              this.store.event(
-                "main.message",
-                event.message.role === "assistant"
-                  ? { ...event.message, display_call_id: displayCallID }
-                  : event.message,
-                {
-                  session_id: this.sessionID,
-                  task_id: null,
-                  execution_id: null,
-                },
-                "MAIN",
+              messageEvent,
+              ...deliveryEvent(
+                this.store,
+                messageEvent,
+                event.message,
+                batch,
+                loopID,
+                displayCallID,
               ),
             ],
           );

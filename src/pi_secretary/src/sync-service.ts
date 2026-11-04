@@ -279,6 +279,7 @@ export class SyncService {
       if (
         [
           "main.message",
+          "main.delivery",
           "input.accepted",
           "notification.queued",
           "feedback.delivered",

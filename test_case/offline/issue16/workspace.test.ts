@@ -27,6 +27,10 @@ const complete = (m: any, artifacts: string[] = []) =>
           summary: "Synthetic completed",
           criteria: [{ id: "C1", met: true, evidence: "Synthetic evidence" }],
           artifacts,
+          artifact_descriptions: artifacts.map((path) => ({
+            path,
+            description: "Synthetic deliverable",
+          })),
           limitations: [],
         },
       },
@@ -95,7 +99,7 @@ test("authorized notes write retains bound root across update/archive and captur
         a.scheduler.scopes.save({
           name: "conflict",
           kind: "DIRECTORY",
-      default_write: "ask",
+          default_write: "ask",
           root_path: original,
         }),
       /SCOPE_ROOT_CONFLICT/,
@@ -179,8 +183,7 @@ test("NONE and legacy records retain private workspace; reuse inherits scope and
     assert.throws(
       () =>
         a.scheduler.scopes.save(
-          { kind: "DIRECTORY",
-      default_write: "ask", root_path: dir.root_path },
+          { kind: "DIRECTORY", default_write: "ask", root_path: dir.root_path },
           s.id,
           s.revision,
         ),

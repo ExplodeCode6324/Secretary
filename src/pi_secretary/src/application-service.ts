@@ -1,3 +1,4 @@
+import { deliveriesFor } from "./artifact-delivery.ts";
 import { sessionRecovery } from "./session-recovery.ts";
 import { failuresFor } from "./failure-handling.ts";
 import type { FailureAction } from "./contracts.ts";
@@ -63,7 +64,7 @@ import {
   operationParts,
   type OperationPart,
 } from "./operation-display.ts";
-import { artifactPath } from "./artifact-path.ts";
+import { currentArtifactPath, canonicalArtifactPath } from "./artifact-path.ts";
 export type OwnerPrincipal = Readonly<{
   kind: "local-owner";
   owner_id: string;
@@ -108,8 +109,9 @@ export class ApplicationService {
   private frame = 0;
   private artifacts = new Map<
     string,
-    { artifact: Artifact; task: string; execution: string }
+    { artifact: Artifact; task: string; execution: string; result: string }
   >();
+  private artifactPaths = new Map<string, Set<string>>();
   private taskIDs = new Set<string>();
   private executionIDs = new Map<string, string[]>();
   private events = new Map<
@@ -202,12 +204,24 @@ export class ApplicationService {
       for (const mutation of frame.mutations)
         if (mutation.object_type === "TaskResult") {
           const result = this.app.store.read<TaskResult>(mutation.snapshot);
-          for (const artifact of result.artifacts)
+          for (const artifact of result.artifacts) {
+            try {
+              const key = canonicalArtifactPath(
+                artifact.workspace_path,
+              ).normalize("NFC");
+              const ids = this.artifactPaths.get(key) ?? new Set<string>();
+              ids.add(artifact.artifact_id);
+              this.artifactPaths.set(key, ids);
+            } catch {
+              /* Legacy invalid paths remain accessible by ID only. */
+            }
             this.artifacts.set(artifact.artifact_id, {
               artifact,
               task: result.task_id,
               execution: result.execution_id,
+              result: result.id,
             });
+          }
         }
     }
   }
@@ -640,11 +654,14 @@ export class ApplicationService {
       name: a.artifact.name,
       task_id: a.task,
       execution_id: a.execution,
+      result_id: a.result,
+      description: a.artifact.description ?? null,
+      description_source: "Task model explanation / NOT_VERIFIED",
       content_version: a.artifact.content.sha256,
       bytes: String(a.artifact.content.bytes),
       media_type: a.artifact.content.media_type,
       state: a.state,
-      ...artifactPath(a.artifact, this.execution(a.execution)),
+      ...currentArtifactPath(a.artifact, this.execution(a.execution)),
     };
   }
   private page<T>(
@@ -707,7 +724,9 @@ export class ApplicationService {
         : []),
       ...(path.startsWith("messages/") ? ["thinking", "streaming"] : []),
       ...(path === "related" ? ["scope_type", "scope_id"] : []),
-      ...(path === "artifacts" ? ["task_id"] : []),
+      ...(path === "artifacts"
+        ? ["task_id", "relative_path", "execution_id"]
+        : []),
       ...(path === "tasks" ? ["scope_id"] : []),
       ...(path === "attention" ? ["view"] : []),
       ...(path === "wakeups" ? ["state"] : []),
@@ -1180,16 +1199,83 @@ export class ApplicationService {
       };
     }
     if (path === "artifacts") {
-      const task = q.get("task_id");
+      const task = q.get("task_id"),
+        execution = q.get("execution_id"),
+        relative = q.get("relative_path");
       if (task) this.task(task);
-      return this.page(
-        path + ":" + (task ?? ""),
-        [...this.artifacts.keys()]
-          .filter((id) => !task || this.artifacts.get(id)!.task === task)
-          .map((id) => this.artifactView(id)),
-        q,
-        (item) => [item.id],
-      );
+      if (execution) this.execution(execution);
+      let key: string | null = null;
+      try {
+        if (relative !== null)
+          key = canonicalArtifactPath(relative).normalize("NFC");
+      } catch {
+        throw new ApiError("INVALID_ARTIFACT_PATH");
+      }
+      const ids = [
+        ...(key !== null
+          ? (this.artifactPaths.get(key) ?? [])
+          : this.artifacts.keys()),
+      ].filter((id) => {
+        const a = this.artifacts.get(id)!;
+        if (
+          (task && a.task !== task) ||
+          (execution && a.execution !== execution)
+        )
+          return false;
+        try {
+          this.task(a.task);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+      // Filter and page metadata before any CAS/current-file observations.
+      const page = this.page(path, ids, q, (id) => [id]);
+      return { ...page, items: page.items.map((id) => this.artifactView(id)) };
+    }
+    if (
+      parts[0] === "messages" &&
+      parts[2] === "artifacts" &&
+      parts.length === 3
+    ) {
+      timelineFor(this.app).messageRevision(sid, target); // ownership / visible-message check
+      const event = messageDisplaysFor(store).eventFor(target);
+      const entries = deliveriesFor(store).forEvent(event)?.artifacts ?? [];
+      const scope = `delivery:${sid}:${target}`;
+      let start = q.has("cursor")
+        ? this.cursors.decode<number>(scope, q.get("cursor")!)
+        : 0;
+      if (!Number.isSafeInteger(start) || start < 0 || start > entries.length)
+        throw new ApiError("CURSOR_EXPIRED", 409);
+      const limit = Number(q.get("limit") ?? 20);
+      if (limit > 20) throw new ApiError("INVALID_LIMIT");
+      const items: ReturnType<ApplicationService["artifactView"]>[] = [];
+      let bytes = 4096;
+      for (; start < entries.length && items.length < limit; start++) {
+        const ref = entries[start],
+          a = this.artifactView(ref.artifact_id);
+        if (
+          a.task_id !== ref.task_id ||
+          a.execution_id !== ref.execution_id ||
+          a.result_id !== ref.result_id
+        )
+          throw Error("DELIVERY_REFERENCE_MISMATCH");
+        const n = Buffer.byteLength(JSON.stringify(a)) + 1;
+        if (bytes + n > 128 * 1024) {
+          if (!items.length)
+            throw new ApiError("ARTIFACT_METADATA_TOO_LARGE", 413);
+          break;
+        }
+        items.push(a);
+        bytes += n;
+      }
+      return {
+        items,
+        total: entries.length,
+        next_cursor:
+          start < entries.length ? this.cursors.encode(scope, start) : null,
+        version: String(store.sequence),
+      };
     }
     if (parts[0] === "artifacts" && parts.length === 2)
       return this.artifactView(target);
@@ -1541,6 +1627,8 @@ export class ApplicationService {
           "input_state",
           "attachments",
           "withdrawn",
+          "delivery_count",
+          "delivery_cursor",
         ]
           .filter((k) => item[k] !== undefined)
           .map((k) => [k, item[k]]),

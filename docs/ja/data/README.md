@@ -55,7 +55,7 @@
 | [Dispatch](Dispatch.md) | 15 | Scheduler -> worker の固定ディスパッチ。同じ attempt_id は既存受領記録を返し、プロセスを再起動しません。 |
 | [WorkerReceipt](WorkerReceipt.md) | 15 | PID は手掛かりに過ぎません。worker_instance/attempt を確認し、PID だけで同一プロセスと判断しません。 |
 | [Checkpoint](Checkpoint.md) | 18 | ホストは元の context と継続指示を保存します。復旧で過去のツールは実行しません。 |
-| [Artifact](Artifact.md) | 5 |  |
+| [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | 完全な結果を照会可能にしてから短い結論を返します。PARTIAL/UNKNOWN は実行終了を意味しません。 |
 | [Feedback](Feedback.md) | 16 | 短い結論と実行参照。メインセッションが読む時点で詳細は保存済みです。 |
 | [DecisionRequest](DecisionRequest.md) | 16 | 通常の判断は TaskControl、認可は独立したインターフェースを使います。 |

@@ -48,3 +48,7 @@ MPF 检查也会拒绝部分手机生成的 HDR gain-map JPEG。首版不转换 
 ## 依赖与验证边界
 
 sharp 固定为 0.35.5（Apache-2.0）；lockfile 包含 Linux/macOS 的原生可选依赖。libvips 及其组件的许可证以安装包内 LICENSE/README 为准，分发须保留相应声明。Portable 打包不在本项范围。Core 契约通过真实安装 adapter 的本机 HTTP fixture 验证；真实 provider 识图为 NOT_TESTED，由 #84 准备 profile 和合成图 smoke。新 TUI 消费与真人终端体验尚未验收。
+
+## Issue #94 TUI consumer
+
+The TUI now imports genuine native clipboard image pixels, persists source/request identity, verifies COMPLETED attachment metadata and sends ordered attachment_ids through the existing message API. READY and accepted message receipt are separate states; 202 is never interpreted as a completed import. Direct admission rejection restores all draft materials; uncertain transport preserves the exact original request. Native and actual-provider acceptance now belongs to #94 as well as the combined #84 acceptance, and cannot be inferred from #81 fixtures. See the [#94 ledger](../../fix/evidence/issue94-delivery/acceptance.md).

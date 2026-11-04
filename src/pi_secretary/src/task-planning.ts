@@ -1,3 +1,4 @@
+import { currentArtifactPath } from "./artifact-path.ts";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -657,7 +658,17 @@ export function query(
             baseline,
             effective_proposal: effective,
             proposal_ref: latest?.proposal_ref ?? p.proposal_ref,
-            result,
+            result:
+              result && latest
+                ? {
+                    ...result,
+                    artifacts: result.artifacts.map((a) => ({
+                      ...a,
+                      result_id: result.id,
+                      ...currentArtifactPath(a, latest),
+                    })),
+                  }
+                : result,
             details: latest ? this.detail(latest.id) : null,
             decisions: this.store
               .all<DecisionRequest>("DecisionRequest")

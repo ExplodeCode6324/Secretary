@@ -15,6 +15,7 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `content` | ObjectRef | Oui |  Références : [ObjectRef](ObjectRef.md) |
 | `workspace_path` | RelativePath | Oui |  Références : [RelativePath](RelativePath.md) |
 | `producing_operation_id` | ID ou null | Oui |  Références : [ID](ID.md) |
+| `description` | string | Non | Task model explanation; NOT_VERIFIED. Absent for legacy results. |
 
 ## Contraintes combinées
 

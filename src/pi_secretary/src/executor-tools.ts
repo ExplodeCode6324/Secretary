@@ -1,3 +1,4 @@
+import { describedArtifacts } from "./artifact-path.ts";
 import * as fs from "node:fs";
 import { Type } from "typebox";
 import { BACKGROUND_CONTEXT } from "../../pi_resource/packages/agent/src/harness/context.ts";
@@ -46,7 +47,7 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
       name: "submit_result",
       label: "Submit structured task result",
       description:
-        "Finish task with assessments for every C1..Cn criterion, evidence, limitations and existing workspace artifact paths. Does not independently verify semantic correctness.",
+        "Finish task with assessments for every C1..Cn criterion, evidence, limitations and existing workspace artifact paths. Each nonempty artifact list requires exactly one artifact_descriptions entry per path. Does not independently verify semantic correctness.",
       parameters: Type.Object({
         outcome: Type.Union([
           Type.Literal("SUCCEEDED"),
@@ -60,7 +61,16 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
             evidence: Type.String({ minLength: 1 }),
           }),
         ),
-        artifacts: Type.Array(Type.String()),
+        artifacts: Type.Array(Type.String(), { maxItems: 32 }),
+        artifact_descriptions: Type.Optional(
+          Type.Array(
+            Type.Object({
+              path: Type.String(),
+              description: Type.String({ minLength: 1, maxLength: 2000 }),
+            }),
+            { maxItems: 32 },
+          ),
+        ),
         limitations: Type.Array(Type.String()),
       }),
       execute: async (_call, args) => {
@@ -86,11 +96,16 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
           )
         )
           throw Error("UNRESOLVED_OPERATION");
-        const artifacts = args.artifacts.map((relative) => {
+        const described = describedArtifacts(
+          args.artifacts,
+          args.artifact_descriptions,
+        );
+        const artifacts = described.map(({ path: relative, description }) => {
           const target = this.safePath(e, relative);
           if (!fs.statSync(target).isFile()) throw Error("ARTIFACT_NOT_FILE");
           return {
             path: relative,
+            description,
             content: this.store.put(
               fs.readFileSync(target),
               "application/octet-stream",

@@ -1001,6 +1001,10 @@ export interface Artifact {
   content: ObjectRef;
   workspace_path: RelativePath;
   producing_operation_id: ID | null;
+  /**
+   * Task model explanation; NOT_VERIFIED. Absent for legacy results.
+   */
+  description?: string;
 }
 /**
  * 短结论与执行引用；主会话读到时详情已保存。

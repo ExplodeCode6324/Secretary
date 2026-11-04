@@ -11,6 +11,7 @@
 | `content` | ObjectRef | 是 |  关联：[ObjectRef](ObjectRef.md) |
 | `workspace_path` | RelativePath | 是 |  关联：[RelativePath](RelativePath.md) |
 | `producing_operation_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
+| `description` | string | 否 | Task model explanation; NOT_VERIFIED. Absent for legacy results. |
 
 ## 组合约束
 

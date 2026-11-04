@@ -55,7 +55,7 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [Dispatch](Dispatch.md) | 15 | Dispatch fixe Scheduler -> worker ; un attempt_id répété renvoie l’accusé existant sans relancer de processus. |
 | [WorkerReceipt](WorkerReceipt.md) | 15 | Le PID n’est qu’un indice ; vérifier worker_instance/attempt, jamais l’identité du processus à partir du seul PID. |
 | [Checkpoint](Checkpoint.md) | 18 | L’hôte conserve le contexte original et les instructions de continuation ; la reprise n’exécute pas les anciens outils. |
-| [Artifact](Artifact.md) | 5 |  |
+| [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | Les résultats complets sont consultables avant le retour résumé ; PARTIAL/UNKNOWN ne signifie pas que l’exécution est terminée. |
 | [Feedback](Feedback.md) | 16 | Conclusion courte et référence d’exécution ; les détails sont déjà conservés lorsque la session principale les lit. |
 | [DecisionRequest](DecisionRequest.md) | 16 | Les décisions ordinaires passent par TaskControl ; l’autorisation a une interface séparée. |

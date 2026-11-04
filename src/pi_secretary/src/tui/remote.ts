@@ -1,3 +1,4 @@
+import { tailBytes, type ArtifactTail } from "./artifact-tail.ts";
 import { AttentionWindow } from "./attention.ts";
 import { TaskBrowserWindow } from "./task-browser.ts";
 import type { CoreClient } from "../core-client.ts";
@@ -24,6 +25,9 @@ export class RemoteViews {
   readonly history: HistoryWindow;
   readonly taskBrowser: TaskBrowserWindow;
   readonly attention: AttentionWindow;
+  readonly deliveries = new Map<string, ArtifactTail>();
+  private deliveryJobs = new Set<string>();
+  private deliveryFailures = new Set<string>();
   readonly bodies = new Map<string, MessageBody>();
   get error() {
     return this.history.error;
@@ -88,7 +92,11 @@ export class RemoteViews {
     this.taskBrowser.onChange = () => this.onChange();
     this.history.onChange = () => {
       const epoch = `${this.client.endpoint.instance_id}:${this.history.generation}`;
-      if (this.bodiesEpoch && this.bodiesEpoch !== epoch) this.bodies.clear();
+      if (this.bodiesEpoch && this.bodiesEpoch !== epoch) {
+        this.bodies.clear();
+        this.deliveries.clear();
+        this.deliveryFailures.clear();
+      }
       this.bodiesEpoch = epoch;
       this.prune();
       this.onChange();
@@ -120,6 +128,7 @@ export class RemoteViews {
     this.history.clearError();
     this.taskBrowser.clearError();
     this.failedBodies.clear();
+    this.deliveryFailures.clear();
   }
   async start() {
     const cursor = await this.client.syncCursor();
@@ -172,6 +181,9 @@ export class RemoteViews {
     this.onChange();
   }
   private prune() {
+    for (const id of this.deliveries.keys())
+      if (!this.history.items.has(id) || this.history.evictedBodies.has(id))
+        this.deliveries.delete(id);
     for (const id of this.failedBodies.keys())
       if (!this.history.items.has(id)) this.failedBodies.delete(id);
     for (const id of this.budgetDeferred.keys())
@@ -186,6 +198,7 @@ export class RemoteViews {
       const body = this.bodies.get(id);
       return (
         (body ? bodyBytes(body) : 0) +
+        tailBytes(this.deliveries.get(id)) +
         (body?.message === item
           ? 0
           : Buffer.byteLength(item.text) +
@@ -212,6 +225,7 @@ export class RemoteViews {
       if (this.wanted.has(id)) this.budgetDeferred.set(id, this.budgetKey());
       bytes -= resident(id, item);
       this.bodies.delete(id);
+      this.deliveries.delete(id);
       this.history.items.set(id, { ...item, text: "", thinking: undefined });
       this.history.evictedBodies.add(id);
     }
@@ -221,6 +235,17 @@ export class RemoteViews {
     if (tail) ids = [...ids, tail];
     this.wanted = new Set(ids.filter((id) => this.history.items.has(id)));
     this.history.preferredBodies = this.wanted;
+    for (const id of this.wanted) {
+      const m = this.history.items.get(id);
+      if (
+        m?.kind === "message" &&
+        Number(m.delivery_count) > 0 &&
+        !this.deliveries.has(id) &&
+        !this.deliveryFailures.has(id) &&
+        this.budgetDeferred.get(id) !== this.budgetKey()
+      )
+        void this.loadDelivery(id);
+    }
     if (this.bodyJob || this.stopped) return;
     const followEpoch = this.followEpoch;
     this.bodyJob = (async () => {
@@ -258,6 +283,58 @@ export class RemoteViews {
       if (followEpoch !== this.followEpoch && !this.stopped)
         this.focus([...this.wanted]);
     });
+  }
+  async loadDelivery(id: string, direction?: "before" | "after") {
+    if (this.deliveryJobs.has(id) || this.stopped) return;
+    const old = this.deliveries.get(id),
+      gen = this.generation;
+    if (old?.error) direction = undefined;
+    if (direction === "after" && !old?.next_cursor) return;
+    if (direction === "before" && !old?.previous.length) return;
+    const previous = old?.previous.slice() ?? [];
+    const cursor =
+      direction === "after"
+        ? old!.next_cursor
+        : direction === "before"
+          ? (previous.pop() ?? null)
+          : (old?.cursor ?? null);
+    if (direction === "after") previous.push(old!.cursor);
+    this.deliveryJobs.add(id);
+    try {
+      const q = new URLSearchParams({
+        limit: "20",
+        ...(cursor ? { cursor } : {}),
+      });
+      const data = await this.query<{
+        items: ArtifactTail["items"];
+        total: number;
+        next_cursor: string | null;
+      }>(`messages/${messagePath(id)}/artifacts?${q}`);
+      if (
+        this.stopped ||
+        gen !== this.generation ||
+        !this.history.items.has(id)
+      )
+        return;
+      this.deliveries.set(id, { ...data, previous, cursor });
+      this.deliveryFailures.delete(id);
+      this.prune();
+      this.onChange();
+    } catch (e) {
+      if (this.stopped || gen !== this.generation) return;
+      this.deliveryFailures.add(id);
+      this.deliveries.set(id, {
+        items: [],
+        total: 0,
+        next_cursor: null,
+        previous: [],
+        cursor: null,
+        error: String(e),
+      });
+      this.onChange();
+    } finally {
+      this.deliveryJobs.delete(id);
+    }
   }
   async loadBody(id: string, region?: Region, direction?: Direction) {
     const original = this.history.items.get(id);
