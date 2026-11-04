@@ -108,3 +108,52 @@ for (const mode of ["before_headers", "after_event", "continuous", "cancel"]) {
       }
     }));
 }
+
+test("acceptance fetch refusal survives SDK error wrapping as LOCAL with zero sends", () =>
+  fixture(async (f) => {
+    const { acceptanceStream } =
+      await import("../../online/acceptance-stream.ts");
+    const usage = { main: 0, task: 0, tools: 0, calls: [] };
+    const limits = { main: 4, task: 4, tools: 8, cutoff: Date.now() + 60000 };
+    let physical = 0;
+    retryRuntime.set(f.app.store, { wait: async () => {} });
+    const model = { ...fixtureModel, baseUrl: "http://127.0.0.1:9/v1" };
+    const stream = acceptanceStream(
+      roleModel(model, "synthetic-key").stream,
+      "main",
+      usage,
+      limits,
+      () => {},
+    );
+    await assert.rejects(
+      Promise.resolve(
+        durableStream(
+          f.app.store,
+          stream,
+          {
+            session_id: f.app.host.sessionID,
+            task_id: null,
+            execution_id: null,
+          },
+          id(),
+          "MAIN",
+        )(model, context, {
+          onPayload: () => {
+            limits.cutoff = Date.now() - 1;
+          },
+          fetch: async () => {
+            physical++;
+            throw Error("UNEXPECTED_SEND");
+          },
+        }),
+      ),
+      /LOCAL.*LIVE_BUDGET_ADMISSION_REFUSED/,
+    );
+    assert.equal(physical, 0);
+    assert.equal(usage.main, 0);
+    const calls = f.app.store.all<any>("ModelCall");
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].failure_kind, "LOCAL");
+    assert.equal(usage.calls.length, 1);
+    assert.equal((usage.calls[0] as any).termination, "ADMISSION_REFUSED");
+  }));

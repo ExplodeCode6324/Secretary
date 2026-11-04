@@ -60,6 +60,13 @@ export function acceptanceStream(
       const observed = checkedStream(
         boundedTools(stream, toolBudget),
         (response) => {
+          if (call.rejected) {
+            call.termination = "ADMISSION_REFUSED";
+            call.finished_at = new Date().toISOString();
+            stamp("total_ms");
+            save();
+            throw Error("LIVE_BUDGET_ADMISSION_REFUSED");
+          }
           call.stop_reason = response.stopReason;
           call.tool_names = response.content
             .filter((p) => p.type === "toolCall")
