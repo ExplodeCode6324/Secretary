@@ -155,15 +155,28 @@ test("ordinary Up/Down crosses artifact page boundaries in the running TUI", asy
     ui = new TerminalApp(f.dir, terminal, path.join(f.dir, "tui"));
     ui.start();
     const mid = "message:" + call;
-    await until(() => !!ui?.remote?.deliveries.get(mid), 5000);
+    await until(
+      () => !!ui?.remote?.deliveries.get(mid) && !!ui?.editors.Main.enabled,
+      5000,
+    );
+    await terminal.waitForRender();
     terminal.sendInput("\x1b[5~");
+    await terminal.waitForRender();
     ui.scrolls.Main.scrollToEnd();
     ui.draw();
+    await terminal.waitForRender();
+    assert(ui.scrolls.Main.atEnd);
+    assert(
+      Array.from({ length: ui.scrolls.Main.viewportHeight }, (_, i) =>
+        ui!.documents.Main.rowAt(ui!.scrolls.Main.scrollTop + i),
+      ).some((r) => r?.region === "artifacts" && r.boundary === "after"),
+    );
     terminal.sendInput("\x1b[B");
     await until(
       () => ui?.remote?.deliveries.get(mid)?.previous.length === 1,
       5000,
     );
+    await terminal.waitForRender();
     assert.equal(ui.remote!.deliveries.get(mid)!.items.length, 12);
     const doc = ui.documents.Main;
     const rows = doc.render(100);
@@ -175,6 +188,9 @@ test("ordinary Up/Down crosses artifact page boundaries in the running TUI", asy
     assert(marker >= 0);
     ui.scrolls.Main.scrollTo(marker);
     ui.draw();
+    await terminal.waitForRender();
+    assert.equal(doc.anchor?.region, "artifacts");
+    assert.equal(doc.anchor?.boundary, "before");
     terminal.sendInput("\x1b[A");
     await until(
       () => ui?.remote?.deliveries.get(mid)?.previous.length === 0,
