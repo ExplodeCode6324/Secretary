@@ -233,8 +233,42 @@ try {
   assert(resume.pending);
   const resumeID = resume.pending.id;
   lost = false;
-  resume.connect(client, "acceptance");
+  resume.connect(
+    {
+      query: <T>(route: string) => client.query<T>(route),
+      command: (route, body) => {
+        posts.push(body.request_id);
+        return client.command(route, body);
+      },
+    },
+    "acceptance",
+  );
   await resume.reconcile();
+  await until(
+    () =>
+      (app.host.session.model_retry_generation ?? 0) === 1 ||
+      app.store.get<any>("ApiCommand", resumeID).state === "COMPLETED",
+  );
+  await resume.reconcile();
+  const firstResume = await client.query<any>(`requests/${resumeID}`);
+  let gestures = 1;
+  if (firstResume.result?.code === "MAIN_ACTIVE") {
+    assert.equal(firstResume.result.applied, false);
+    assert.match(resume.hint, /收尾维护/);
+    assert.equal(app.host.session.model_retry_generation ?? 0, 0);
+    // Simulate the user following the maintenance hint with a NEW explicit gesture.
+    // Reconnect itself must not send, and the original lost-reply request stays single-shot.
+    await (app.host as any).active;
+    await resume.reconcile();
+    assert.equal(posts.length, 1);
+    await resume.submit();
+    gestures++;
+    report.steps.push({
+      case: "explicit_retry_after_maintenance",
+      firstResumeID: resumeID,
+    });
+    save();
+  }
   await until(() =>
     app.store
       .all<Execution>("Execution")
@@ -245,7 +279,8 @@ try {
   );
   await settled();
   await resume.reconcile();
-  assert.equal(posts.length, 1);
+  assert.equal(posts.length, gestures);
+  assert.equal(new Set(posts).size, gestures);
   assert.equal(app.host.session.model_retry_generation, 1);
   assert.equal(
     fs.readFileSync(path.join(scratch, "output.txt"), "utf8"),
@@ -268,6 +303,7 @@ try {
     case: "real_resume_and_business_completion",
     resumeID,
     posts: posts.length,
+    explicit_gestures: gestures,
     generation: app.host.session.model_retry_generation,
     redo: redo.id,
     artifact_count: result.artifacts.length,
