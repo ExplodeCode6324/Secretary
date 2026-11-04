@@ -82,10 +82,14 @@ export function boundedTools(
   stream: StreamFn,
   budget: { used: number; limit: number },
 ): StreamFn {
-  return checkedStream(stream, (response) => {
+  const checked = checkedStream(stream, (response) => {
     budget.used += response.content.filter(
       (part) => part.type === "toolCall",
     ).length;
     if (budget.used > budget.limit) throw Error("LIVE_TOOL_BUDGET_EXHAUSTED");
   });
+  return async (model, context, options) => {
+    if (budget.used >= budget.limit) throw Error("LIVE_TOOL_LIMIT");
+    return checked(model, context, options);
+  };
 }

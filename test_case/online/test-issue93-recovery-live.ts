@@ -291,9 +291,9 @@ try {
   matter.stop();
   await until(() => current(h).state === "SUCCEEDED");
   await settled();
-  assert.equal(
+  assert.deepEqual(
     app.store.get<DecisionRequest>("DecisionRequest", decision.id).answer,
-    "/cancel --execution 字面测试",
+    { value: "/cancel --execution 字面测试" },
   );
   report.steps.push({
     case: "literal_answer_not_cancel",
