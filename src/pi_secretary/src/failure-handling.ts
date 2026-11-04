@@ -339,6 +339,25 @@ export class Failures {
     const succeeded = this.successfulSequence(f, this.linked(f));
     return succeeded == null || !Number.isFinite(succeeded);
   }
+  /** UI admission flags do not decide whether the already claimed intent can run. */
+  mainView(key: string, sid: string, loop: string, scheduler: Scheduler) {
+    const { redo_available, dismiss_available, ...detail } = this.view(
+      key,
+      sid,
+      scheduler,
+    );
+    const { bound } = this.inputContext(sid, loop);
+    return {
+      ...detail,
+      new_input_actions: { redo_available, dismiss_available },
+      current_intent:
+        bound?.failure_action?.failure_key === key
+          ? { intent_id: bound.dedupe_key, action: bound.failure_action.action }
+          : null,
+      action_guidance:
+        "new_input_actions only controls submitting another Master input. False is not a rejection of current_intent. For the current intent, use its prescribed task_propose or dismiss_failure tool; Core validates execution and returns the authoritative outcome. Never create replacement work or change requirements.",
+    };
+  }
   /** Validate before Input admission; caller commits the returned record WITH that Input. */
   prepare(action: FailureAction, sid: string, request: string, input: string) {
     const t = this.target(action.failure_key, sid),

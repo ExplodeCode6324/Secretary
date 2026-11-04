@@ -211,7 +211,12 @@ export function tools(
               ? (() => {
                   throw Error("ONE_TARGET_REQUIRED");
                 })()
-              : failures.view(args.failure_key, this.sessionID, this.scheduler)
+              : failures.mainView(
+                  args.failure_key,
+                  this.sessionID,
+                  loopID,
+                  this.scheduler,
+                )
             : this.scheduler.query(
                 this.sessionID,
                 args.task_id,

@@ -184,6 +184,25 @@ test("redo links atomically, pins all requirements, survives duplicate call/rest
     const x = await intent(f, e, "REDO"),
       call = id(),
       args = { reuse_task_id: e.task_id, parent_execution_id: e.id };
+    const sequence = f.app.store.sequence;
+    x.service.mainView(x.key, x.sid, x.loop, f.app.scheduler);
+    assert.equal(f.app.store.sequence, sequence);
+    const query = (f.app.host as any)
+      .tools(x.loop)
+      .find((t: any) => t.name === "task_query")!;
+    const response = await query.execute(id(), { failure_key: x.key });
+    const view = JSON.parse((response.content[0] as { text: string }).text);
+    assert.equal(view.redo_available, undefined);
+    assert.equal(view.new_input_actions.redo_available, false);
+    assert.deepEqual(view.current_intent, {
+      intent_id: x.input.dedupe_key,
+      action: "REDO",
+    });
+    assert.equal(view.continuation_blocker, null);
+    assert.equal(
+      x.service.mainView(x.key, x.sid, id(), f.app.scheduler).current_intent,
+      null,
+    );
     const out = x.service.perform(
       x.sid,
       x.loop,
