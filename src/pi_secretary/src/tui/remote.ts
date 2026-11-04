@@ -184,6 +184,8 @@ export class RemoteViews {
     for (const id of this.deliveries.keys())
       if (!this.history.items.has(id) || this.history.evictedBodies.has(id))
         this.deliveries.delete(id);
+    for (const id of this.deliveryFailures)
+      if (!this.history.items.has(id)) this.deliveryFailures.delete(id);
     for (const id of this.failedBodies.keys())
       if (!this.history.items.has(id)) this.failedBodies.delete(id);
     for (const id of this.budgetDeferred.keys())
@@ -243,8 +245,10 @@ export class RemoteViews {
         !this.deliveries.has(id) &&
         !this.deliveryFailures.has(id) &&
         this.budgetDeferred.get(id) !== this.budgetKey()
-      )
+      ) {
         void this.loadDelivery(id);
+        break;
+      }
     }
     if (this.bodyJob || this.stopped) return;
     const followEpoch = this.followEpoch;
@@ -285,10 +289,10 @@ export class RemoteViews {
     });
   }
   async loadDelivery(id: string, direction?: "before" | "after") {
-    if (this.deliveryJobs.has(id) || this.stopped) return;
+    if (this.deliveryJobs.size || this.stopped) return;
     const old = this.deliveries.get(id),
       gen = this.generation;
-    if (old?.error) direction = undefined;
+    if (!old || old.error) direction = undefined;
     if (direction === "after" && !old?.next_cursor) return;
     if (direction === "before" && !old?.previous.length) return;
     const previous = old?.previous.slice() ?? [];
@@ -334,6 +338,7 @@ export class RemoteViews {
       this.onChange();
     } finally {
       this.deliveryJobs.delete(id);
+      if (!this.stopped) this.focus([...this.wanted]);
     }
   }
   async loadBody(id: string, region?: Region, direction?: Direction) {
