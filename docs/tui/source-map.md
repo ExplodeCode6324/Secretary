@@ -24,7 +24,7 @@
 | B01–B03 | [API 清单](api-coverage.md) | 历史及 Task browser 只读投影，不新增历史库 |
 | B04–B06 | [API 清单](api-coverage.md) | 调度、事项和授权复用 Core；TUI 调用与测试调用分开 |
 | B07–B08 | [API 清单](api-coverage.md) | 结构化产物与 Shared 独立目录；系统打开在本机 |
-| B09 / 第 7.1 节 | [历史业务边界](implementation-reference.md#71-scope-归档-当前代码已经实现的含义) | 保留来源；不级联 TaskPlan，不停止已开始执行，不扩范围 |
+| B09 / 第 7.1 节 | [仍然有效的归档业务边界](implementation-reference.md#71-scope-归档-当前代码已经实现的含义) | 当前来源仍在旧参考文档，是暂不退役的原因之一；不级联 TaskPlan，不停止已开始执行，不扩范围 |
 | B10 | [运行说明](run-and-test.md)与 AC21 | 原 FAILED 保留；直接关联重做成功才能消除对应提醒 |
 | 第 9–10 节 | [完整分项标准](acceptance-criteria.md) | AC01–AC34 全部前置、动作、预期、失败判据和边界已吸收 |
 | 第 11–14 节 | [历史来源](implementation-reference.md) | 批次、取舍和设计记录保留，不再作为未实施清单 |

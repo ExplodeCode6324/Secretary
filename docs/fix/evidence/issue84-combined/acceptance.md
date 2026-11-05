@@ -100,10 +100,45 @@ Master 在 `758fb875fdcf10f7a7b342b56d03318cdf78e7a8` 确认重做复测成功�
 | AC32 图片识别链路 | PASS；图像 SHA `78f0ecc3c8c9cfaff30b38b971f716978830eb51042f394d59ff4bcc555a560a`，真实模型回报未写入提示的随机标记 | Ctrl+V、READY、失败保稿 |
 | AC22/AC33 产物/独立目录 | Shared-A Task `db2ebb58-4a84-418e-826e-e5db4860b6e1`、Shared-B `91b8d967-1784-44f6-8ca5-7dd695aaa0c5` 均 SUCCEEDED；各自 report.txt 字节 A/B、登记散列一致，scratch.txt 未登记 | 原生分组、当前文件打开、首次异常复现 |
 | AC18/AC19 定向回答 | Decision `7571b276-3179-4013-bfab-b89bffb38519` ANSWERED，`/M ISSUE84-AUTOMATIC-ANSWER` 原样送入 execution `b98f2205-6557-4d28-aeea-e1965b4f2cfe`，SUCCEEDED | 事项选择、普通草稿、Task /show 手势 |
-| AC18 授权执行 | 首次 Agent 生成禁止的 bash，被验收适配器拦截，未执行、无授权。保留 FAILED `4e375038-5734-43b5-8cac-9ffafe258651`。一次有理由的结构化 REDO 后，唯一后继 `6d5d3061-8d6c-433b-9e05-1c7566fb231b` SUCCEEDED，Authorization `b6342bce-ef7f-48bb-a3de-c0b83d8a83d2` CONSUMED，approval.txt 精确字节正确；allowlist 未放宽 | 首次不算 PASS；原生中立 Enter、APPROVED 即移除等仍未验 |
+| AC18 授权执行 | 真实 provider 授权子分支 PASS（一次记录在案的 REDO 后）。首次 Agent 生成禁止的 bash，被验收适配器拦截，未执行、无授权，首次仍记 FAILED。保留 `4e375038-5734-43b5-8cac-9ffafe258651`；唯一后继 `6d5d3061-8d6c-433b-9e05-1c7566fb231b` SUCCEEDED，Authorization `b6342bce-ef7f-48bb-a3de-c0b83d8a83d2` CONSUMED，approval.txt 精确字节正确；allowlist 未放宽。授权依据和明确 Main 意图见文末 D1 | 原生中立 Enter、APPROVED 即移除等仍按原分项证据 |
 | AC21 缺源失败→直接重做 | PASS。Task `8343a41a-2ffe-4f15-9565-fa54fcc88dbf`：`72c87038-1b14-4d39-a4ae-ab4af670eb1e` 的实际 read 返回 ENOENT；散列验证 checkpoint 后才预置 13 字节。唯一直接后继 `a2c49b52-0bd4-4ae4-ae2b-df4b35d13517` SUCCEEDED，其自身成功 write Operation、登记产物及当前文件均匹配 SHA `b4a69797d1c4a0de5428c053d8d40289d097967f2e46fd30a66aad79bbb4f82f`；原 FAILED 不变，处置 REDO_SUCCEEDED | 本轮原生失败行手势；其他失败分支仍按各自来源 |
-| AC08/AC27/AC32 原生组合 | 已准备新随机图和精确多段文本，尚未执行 | Master 实际操作与终审 |
+| AC08/AC27/AC32 原生组合 | Master 报告 r8 交接步骤全部通过；两段粘贴、图像像素/实际出站及随机标记经 Core 只读核对通过，详见文末 | 报告覆盖实际交接步骤，不扩大至未准备边界 |
 
-两个需要保留的实际观察：Shared 结束后的 `next matters` 曾因后台尚未静止被拒绝；问题场景因此仍记在 shared phase，用实际 scope/ModelCall/对象 ID 归属，不改写原账本。后续明确等空闲、核对 PHASE 后才推进。另有并发状态变化使一次真实摘要 STALE，冷却后自然收敛；STALE 请求和用量单列，不当作免费或成功摘要。初次禁止工具请求的账单用量也保留，不能因 Core 回执错误显示零用量而扣掉。
+两个需要保留的实际观察：Shared 结束后的 `next matters` 曾因后台尚未静止被拒绝；问题场景因此仍记在 shared phase，用实际 scope/ModelCall/对象 ID 归属，不改写原账本。后续明确等空闲、核对 PHASE 后才推进。另有并发状态变化使一次真实摘要 STALE，冷却后自然收敛；STALE 请求和用量单列，不当作免费或成功摘要。禁止工具请求的用量同时保存在验收账本和 FAILED ModelCall 的响应中；仅后来 Agent 合成的错误消息显示零，不能据此扣掉真实用量。
 
 所有路径原始结果为忽略目录 `runs/r8/live/automatic-*.json`，checkpoint/journal/objects 可散列复核。增强的本地 driver 在补源前检查真实 read 错误，未修改产品或正式候选。用量报告是按时点生成的 `TOKEN-USAGE.md` / `token-usage.json`；后续人工调用继续累计，最终数字写入 PR 终审记录。原生及整项 #84 均不因这些 API 子项通过而自动 GO，PR 保持 draft，合并/关闭另需 Master 授权。
+
+## r8 原生收口与复核补证
+
+Master 报告「验证完成，全部验证项通过」，随后确认手敲首句和额外空行均为其实际输入。此报告覆盖 r8 交接中的 Ctrl+V→READY→实际模型、手敲/粘贴/手敲/粘贴、显式跟随后主动上滚及两份 Shared 当前文件打开。终端行为属于 USER_REPORTED_NATIVE；下列持久化事实由 Codex 独立只读核对。完整记录见 [PR 收口证据](https://github.com/ExplodeCode6324/Secretary/pull/102#issuecomment-6665234271)和[最终 CI/运行核对](https://github.com/ExplodeCode6324/Secretary/pull/102#issuecomment-6665306234)。
+
+- Input `dfc8fc77-67da-4360-a060-6bfa10201dfe` HANDLED。两段预声明粘贴原文逐字保持且顺序正确；payload SHA `2e3a3fab711c665889df2cd67b60b21780a421eb023d77b10a53fcbb3e158894`。首轮固定全文比较失败的日志保留：Master 主动改了手敲首句及空行，确认后按实际输入裁定，不改写原期望来伪造通过。
+- 附件 `58e6d821-685c-49bd-82a3-dad17cacfd01` 为 760×200 PNG。剪贴板重编码使文件 SHA 改变，解码 RGBA 像素与准备图完全一致，像素 SHA `2f9c127aa0276763ea0331f702c3ee4e015ac46b8b0c56c5f4ec43240f3de315`。导入和实际出站 SHA 均为 `ae48069060e75bcb415efa72b02f857f28f27ec2cc89c8a76cb3efb12071d069`；ModelCall `427744f0-6ddb-425f-be68-421c0c1d6c19` 的请求证据已还原校验，模型回报正确随机标记，提示中未包含答案。
+- 两份 Shared 文件仍分别为 A/B 精确字节，登记散列一致。原生阶段只有上述一条 MASTER Input，导航和 `/open` 未成为额外 Main 消息。首次打开历史异常本次未复现，不据此宣布其根因已修复。
+- 最终 Session IDLE，18 个 Input 全部 HANDLED，covered 684 等于最新已处理序列；12 个提取任务 SUCCEEDED。真实域只观察到 IDLE/RUNNING，无 CAPACITY_BLOCKED 或 RECOVERY_BLOCKED。两个原 FAILED 分别是工具拦截和预期缺源文件，均保留成功直接后继。
+- 已知环境为 macOS 15.8.2 arm64、Node 22.22.0、pi-tui 0.87.0、安装的 Terminal 2.14；实际字体、字号、行列为 NOT_CAPTURED，不虚构值。Core 产品 SHA 为 `1ebf5cd9`，后续 TUI 所在文档提交的生产代码完全相同。
+
+### D1–D3 处置
+
+D1：授权子分支在一次记录在案的 REDO 后 PASS，首次仍 FAILED。依据已批准 observe 修订的「每个阻塞条件至多一次有理由且记日志的恢复」及 Master 本轮继续修复、独立验收和原主线的指示，Codex 在停止并诊断拒绝后，于 17:32:30 UTC 明确提交新的 Main 结构化意图 `9a4ff54d-ae5b-4560-a0b1-800ed3c2cb3d`。这不是产品自主重试，也不冒充 Master 当时亲手操作；原要求和 allowlist 未改变。Claude R10.1 接受该依据与单次执行边界。
+
+D2：本地忽略 driver 的版本归属已保存。V1（probe/初次 idle/vision/Shared）SHA `fab07f3b056a556c68a3f6118dbb18f88ac97faf1d000d9a0509ddc182785528`；V2（question/首次 approval/早期 idle）SHA `b53ce61f62e686435a4c2ef742a36b8f978bfd85309e25ca1005ef74c8157c09`；V3（approval recovery/真实缺源 REDO/后续 idle）SHA `a963be1cfed66b6918e2c2e62691b24af5d6ac17b9f54004e0d542bf289a4a7b`。这些散列是事后存档；V1/V2 由两次已记录编辑逆向重建，V3 与当前文件相同，不能冒称执行时源码签名。实际结果另由持久 Core checkpoint、Operation 和产物支持。
+
+D3：用量报告自身已标注 question 的 shared phase 归属，以及输入包含缓存未命中、缓存读和缓存写；推理已包含在输出中。禁止 bash 的响应实际为 2164 输入/49 输出，其中缓存读 1280；FAILED ModelCall `d85db2ff-7eef-42ea-9d03-3fb5691b4212` 的响应对象 SHA `708dbd5e9b289581dff767799d100f4e80d63fecd83c2b4bfcd8a912db579855` 保存这些非零用量。仅 Agent 后续合成 MODEL_TRANSPORT_LOCAL 错误显示零；没有证据表明 Core 丢了该响应的用量。该 bash 未执行。
+
+原生后快照：新 78 次物理请求，486,356 输入 + 66,848 输出 = 553,204 token；旧 40 次/253,380 token 不变；混合累计 118 次/806,584 token，未知用量 0，对账 PASS。新估算 USD 0.08559084、累计 USD 0.103584438，不等于账单。这是 90K/8192/100K 验收配置，不是生产默认消耗。运行后续若有新请求应重算快照。
+
+### Master 全账本终审边界
+
+本轮原生步骤已通过；Master 在看到下列具体边界后明确选择「先补验部分缺口，暂不收口」。Master 随后选定「先补可自动验证的 Core 边界」，并表示另两个原生样例在之前使用中未见问题、可以略过。本轮只补自动化 Core；该略过决定不等于新增原生逐分支通过，也不补齐未捕获环境。没有合并/关闭授权。补验来源及结果见 [Core 边界补验](core-boundaries.md)。
+
+| 边界 | 已有依据与限制 |
+| --- | --- |
+| 未准备的原生子分支 | 归档/歧义/纯暂停、UNKNOWN、旧失败拒绝、精确取消、4 MiB/淘汰、overflow、四轮 Agent 等沿用各批证据和 Master 早先总体反馈；未伪装为本轮逐项原生通过 |
+| 原生环境与 driver 来源 | 字体/字号/行列未捕获；V1/V2 driver 事后重建的局限见 D2 |
+| 授权单次恢复 | Codex 按已批准恢复范围提交明确 Main 意图，首次拒绝保留，见 D1 |
+| 提示和记忆 | 新提示明确「仅本轮」，未证明未标注指令的语义分类；后续提取的 OPEN 承诺仍遵循既有 `notification.presented`/明确 resolve 合同，初次 MINIMAL 不代表全部后续承诺自动完成 |
+| 观测配置与计费 | 非生产默认窗口，question phase 标签保留，费用是估算，见 D3 |
+| 历史异常与参考文档 | Shared-B 首次打开和旧 `/open` 路由根因未明；B09 仍是当前归档边界，旧参考文档继续保留，退役延期 |
+
+精确产品提交本地 1013/1013、定向 182/182 均通过；文档提交 `e73e7de7` 的 [CI 42076981001](https://github.com/ExplodeCode6324/Secretary/actions/runs/42076981001) Linux/macOS/aggregate 成功。Claude R10.1 确认该提交无实现/文档阻断，可交 Master 裁定；本次最终账本同步后的精确 SHA、CI 和复核结论追加 PR，避免仅为状态再造提交。

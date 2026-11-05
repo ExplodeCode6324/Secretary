@@ -130,3 +130,18 @@ Master 已于 2026-11-06 明确批准：“先修复组合缺陷，然后针对�
 Claude 对 `ed3d0fe1` 的源码复核为 CHANGES_REQUIRED；实施已获 Master 授权。采纳：①仅当捕获覆盖落后于目标时记录无进展冷却，空 compact 不压制后续工作；②真实提交推进覆盖后，旧无进展事件失效，STALE 冷却仍独立；③RECOVERY_BLOCKED 下显式 compact 返回 SESSION_RECOVERY_BLOCKED，排队命令沿用 API 既有保守 UNKNOWN 错误回执；④故障场景改用独立兄弟 Core 目录和空 PostgreSQL 库，在正常 dry/calibration 打开前关闭。预检校验该域 journal/快照散列、已提交来源边界、同一 Input/loop 以及物理摘要请求数；其对象/请求不能替正常 calibration 满足条件，也不混入正常用量。空闲且无未覆盖输入时提前返回，避免每 tick 扫描历史 Job。
 
 新增回归覆盖空 compact 后 critical/in-loop 维护、STALE 对 in-loop 的直接限速、冷却到期容量恢复及 API 错误；须重跑新隔离域 dry/calibration/preflight、准确 HEAD 定向/完整检查与 CI。保留 r7a/r7b：r7a 的正常 calibration 短暂阻塞暴露过期冷却；r7b 混合域预检被本轮更严格隔离要求取代。本阶段尚无新付费调用。新 live 提示明确标注“仅本轮”，其结果不能证明未标注指令也能正确分类。Reviewer 仅查阅源码，未独立执行运行验证。
+
+
+## R11 — Master 选定的 Core 边界补验
+
+Master 在原生交接全部通过及后台核对完成后，明确选择「先补验部分缺口，暂不收口」，优先「先补可自动验证的 Core 边界」。随后表示「另外两个原生样例我在之前使用中没发现有问题，可以略过」。本轮据此继续自动化 Core 补验，不追加那两个原生样例；保留未捕获字体/字号/行列及历史首次打开观察，不把略过写成逐分支原生 PASS。整项 #84、合并和关闭仍需另外裁定。
+
+范围沿用已批准的缺口补验规则：生产代码冻结在 `1ebf5cd9`，只新增可回归的无凭据测试和证据说明。在独立临时 App、实际本地 HTTP 服务、关闭自动 pump 的条件下：
+
+1. 写入明确标注为合成的十条约 512 KiB 持久消息，通过真实分页与 RemoteViews 加载越过 4 MiB，检查每次驻留字节不超限、淘汰后按稳定 ID 取回精确正文、Core 重启后旧 cursor 拒绝且锚点重新定位；只读阶段日志序列不增加，ModelCall 为零。
+2. 通过真实 Core HTTP 创建带缺失资源前置的请求和周期计划，分别取消一个待执行 request、取消一个周期 occurrence；核对精确回执、相邻请求/执行不受影响、周期计划 ACTIVE 和 next_due 不变。对隔离 scheduler 推进到下一到期时间，验证确实生成下一轮，而非仅断言字段未变。
+3. 复跑已有归档/歧义/纯暂停、UNKNOWN 只读/旧失败拒绝、注意事项分页 overflow、四轮 Agent 仅显示最近三轮等兼容测试。明确区分直接领域服务、Core HTTP、合成状态和 VirtualTerminal；均不代替物理终端操作。
+
+新增测试执行前保存源文件和散列；首次失败不删除，区分测试合同错误与产品缺陷。若发现新的产品缺陷，先定位、修改双语计划、经同一 Claude 会话复核并交 Master 批准，再修改产品。本轮无新的付费模型调用或运行配置更改。定向检查、类型/文档检查及最终提交 CI 完成后，将准确 SHA 和完整英文计划交同一 Claude Opus 5.5 Extra 会话复核，结果追加 PR，交 Master 决定是否收口。
+
+具体来源和结果见 [Core 边界补验](evidence/issue84-combined/core-boundaries.md)。
