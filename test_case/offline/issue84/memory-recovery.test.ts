@@ -184,6 +184,11 @@ test("issue84 one explicit maintenance catches up old failed source and complete
     assert.equal(app.host.compact(), first);
     await first;
     await recovered(app, state);
+    assert.equal(
+      summaryCoolingDown({ store: app.store, sessionID: app.host.sessionID }),
+      false,
+      "committed recovery supersedes the older no-progress cooldown",
+    );
   }));
 testPostgres(
   "issue84 natural due retry catches up a capacity-blocked Main with PostgreSQL",

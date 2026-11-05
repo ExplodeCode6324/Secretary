@@ -8,11 +8,13 @@ import { contentText } from "@earendil-works/pi-ai";
 import { activitiesFor } from "./activity.ts";
 import type {
   CompactionJob,
+  Consciousness,
   Execution,
   Notification,
   TaskPlan,
   TaskProposal,
   TaskResult,
+  Session,
 } from "./contracts.ts";
 import { stableID } from "./execution-utils.ts";
 import type { HostContext } from "./host-context.ts";
@@ -406,9 +408,21 @@ export function summaryCoolingDown(
   const event = store
     .events("consciousness.maintenance_stalled")
     .findLast((e) => e.scope.session_id === sessionID);
-  const stalledUntil = event
-    ? store.read<{ retry_after: number }>(event.payload).retry_after
-    : 0;
+  const stalled = event
+    ? store.read<{ retry_after: number; covered_event_sequence: number }>(
+        event.payload,
+      )
+    : null;
+  const session = store.get<Session>("Session", sessionID);
+  const covered =
+    store.get<Consciousness>("Consciousness", session.consciousness_id)
+      .covered_event_sequence ?? 0;
+  // A successful retry supersedes the older no-progress outcome. Task churn
+  // alone cannot do this: only committed working-memory coverage can advance.
+  const stalledUntil =
+    stalled && covered <= stalled.covered_event_sequence
+      ? stalled.retry_after
+      : 0;
   return retryNow(store) < Math.max(staleUntil, stalledUntil);
 }
 
