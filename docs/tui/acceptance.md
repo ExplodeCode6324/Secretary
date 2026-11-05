@@ -61,3 +61,7 @@ SECRETARY_MODE=live SECRETARY_DATA="$PWD/.demo-data/issue84/rehearsal/core" npm 
 `preflight-issue84.ts` 接收 dry 目录、calibration 目录、带日期官方价格/vision 假设 JSON 三个参数，检查当前候选及全部证据后才生成 `.demo-data/issue84/preflight.json`。真实服务 `serve-issue84.ts live` 拒绝没有匹配 PASS 的启动。真实 reserve 只能由 Master 明确释放；没有通过时保留失败记录，不手工写 PASS，不跨候选改 manifest。
 
 手工清单第 2–5 项的归档/歧义/纯暂停、UNKNOWN、旧失败拒绝、精确取消、4 MiB、overflow、四轮 Agent 及带命令样式选项样例尚未全部建立；只对实际存在的对象验收，缺少前置的子步骤保持 NOT_RUN。自动化边界证据与本次原生观察分开登记。
+
+服务窗口的操作者命令不属于 TUI：`next <phase>` 仅在工作及维护全部收敛后按原顺序切换；`release-reserve` 需要引用 Master 对当前阶段的明确指示，且无活跃请求、Main 恢复阻塞或其余工作已静止；`retry-maintenance` 仅在当前阶段 reserve 已释放且无活跃工作时调用既有 `session/compact`。后两者在 dry 中由模拟操作者执行并标记，不能视作真实授权。
+
+自动路径完成后，`native-vision` 只允许从空闲 redo 单次返回原 vision 剩余额度；不清零费用、次数或两小时起点，不允许再次循环路径。普通 Main 仍保留两次维护余量，故自动 vision 最多用三次才可保证留出一次原生发送；若不足或过期，登记 NOT_RUN 等 Master 决定。真实 reserve 仍只能由 Master 明确释放。原生图片 caption 同时采用「手敲/粘贴/手敲/粘贴」，发送后在回复到达前上滚，核对跟随停止及实际提交字节。交接必须给出剩余次数和截止时间。

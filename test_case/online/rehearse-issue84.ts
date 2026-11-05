@@ -354,9 +354,9 @@ try {
       failure_action: {
         failure_key: "EXECUTION:" + failed.id,
         expected_revision: (
-          (await client.query(
-            "failures/" + encodeURIComponent("EXECUTION:" + failed.id),
-          )) as { revision: string }
+          (await client.query("failures/EXECUTION:" + failed.id)) as {
+            revision: string;
+          }
         ).revision,
         action: "REDO",
       },
