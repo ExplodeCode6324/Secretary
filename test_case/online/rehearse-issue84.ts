@@ -310,8 +310,8 @@ try {
     scenarios.shared = true;
     scenarios.textMaterials = true;
     await next("matters");
-    command("approval-scope");
-    await until(
+    await commandWhenReady(
+      "approval-scope",
       () => fs.existsSync(path.join(root, "approval-scope.json")),
       "scope",
     );

@@ -442,7 +442,7 @@ input.on("line", (line) => {
       );
     if (
       verb === "approval-scope" &&
-      idle() &&
+      (policy === "observe" ? quiescent() : idle()) &&
       (!budgeted || budget.state.phase === "matters")
     ) {
       const directory = path.join(root, "approval");
