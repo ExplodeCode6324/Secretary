@@ -74,7 +74,7 @@ const save = () =>
   fs.writeFileSync(ledgerFile, JSON.stringify(usage, null, 2), { mode: 0o600 });
 process.env.SECRETARY_MAX_OUTPUT_TOKENS = String(limits.output);
 configureLiveOutputBudget(limits.output);
-const mainModel = getModel("deepseek", "deepseek-flash"),
+const mainModel = getModel("openai", "gpt-6-astra"),
   taskModel = mainModel;
 const profile = {
   version: 1,
@@ -82,28 +82,20 @@ const profile = {
   api: mainModel.api,
   model: mainModel.id,
   baseUrl: mainModel.baseUrl,
-  tokens_per_image: 1024,
+  tokens_per_image: 5226,
   max_side: 4096,
   max_pixels: 4194304,
   source:
-    "DeepSeek Vision documentation https://api-docs.deepseek.com/guides/vision/ (2026-11-05): upper bound 1024 tokens per image; Official model mapping https://api-docs.deepseek.com/quick_start/pricing/ . Isolated acceptance only.",
+    "OpenAI vision (https://developers.openai.com/api/docs/guides/images-vision): 32px patches x 1.2. With <=4Mi pixels and sides <=4096, padded coverage is bounded by 4096+128+128+1 patches. Reserve 5226 tokens including rounding. Isolated acceptance only.",
 };
 process.env.SECRETARY_VISION_BUDGET_PROFILES = JSON.stringify([profile]);
-const keys = process.env.DEEPSEEK_API_KEY
-  ? { main: process.env.DEEPSEEK_API_KEY, task: process.env.DEEPSEEK_API_KEY }
-  : JSON.parse(
-      fs.readFileSync(
-        process.env.SECRETARY_CREDENTIALS_FILE ??
-          ".demo-data/deepseek-credentials.json",
-        "utf8",
-      ),
-    );
-assert(keys.main && keys.task, "DEEPSEEK_CREDENTIALS_REQUIRED");
+const apiKey = process.env.OPENAI_API_KEY;
+assert(apiKey, "OPENAI_API_KEY_REQUIRED_FOR_ISSUE94");
 let app: App;
 const configs = Object.fromEntries(
   (["main", "task"] as const).map((role) => {
     const model = role === "main" ? mainModel : taskModel,
-      real = roleModel(model, keys[role], role);
+      real = roleModel(model, apiKey, role);
     const accounted: StreamFn = async (m, c, o) => {
       if (usage.active_ms >= limits.active_ms)
         throw Error("LIVE_ACTIVE_TIME_CAP");
@@ -134,7 +126,7 @@ const configs = Object.fromEntries(
             const destination = new URL(
               url instanceof Request ? url.url : String(url),
             );
-            assert.equal(destination.origin, "https://api.deepseek.com");
+            assert.equal(destination.origin, "https://api.openai.com");
             if (typeof init?.body === "string") {
               const payload = JSON.parse(init.body),
                 images = imageLeaves(payload);
@@ -157,7 +149,7 @@ const configs = Object.fromEntries(
                 save();
               }
             }
-            const http = await (o?.fetch ?? fetch)(url, init);
+            const http = await (o?.fetch ?? fetch)(url, { ...init, redirect: "error" });
             fs.appendFileSync(
               path.join(root, "provider-http.jsonl"),
               JSON.stringify({

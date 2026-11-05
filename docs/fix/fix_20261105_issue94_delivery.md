@@ -113,3 +113,5 @@ Live 只做一次可复现正常链路与要求的失败，使用 `.demo-data/is
 ## Master 后续实施指令（2026-11-05）
 
 Main 和 Task 均切换到 DeepSeek 官方 API 的 `deepseek-flash`（DeepSeek V4.1 Flash）。Master 批准三项验收任务各重新执行一次，并要求移除 Secretary 的 OpenCode 渠道。首轮三项 403 留作历史证据。所有尝试共用 §6.1 原始预算，第二轮使用新隔离域。
+
+Master 随后为本次隔离验收指定 OpenAI 密钥与 GPT-6 系列。B 轮 Main 与 Task 均使用仓库模型目录中的 `openai/gpt-6-astra`，直连官方 Responses API。已有密钥仅注入进程。本次沿用原总预算及最多三项替代任务；OpenCode 已停用。常规部署可继续配置直连 DeepSeek。

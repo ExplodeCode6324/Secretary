@@ -113,3 +113,5 @@ Approval excludes the known #80 persisted-length crash recovery repair. Approval
 ## Subsequent implementation direction from Master (2026-11-05)
 
 Use the official DeepSeek API with `deepseek-flash` (DeepSeek V4.1 Flash) for both Main and Task. Master authorized one new attempt for each of the three acceptance tasks and retired the Secretary OpenCode route. Preserve the three first-run HTTP 403 failures. All attempts share the original section 6.1 budget. Use a fresh isolated domain for the second run.
+
+Master subsequently selected a dedicated OpenAI key and the GPT-6 family for this isolated acceptance. Run B uses the pinned catalog's `openai/gpt-6-astra` with the official Responses API for both roles. Load the existing key into the process only. The original budget and three replacement-task cap apply. No further calls through OpenCode. The general direct DeepSeek configuration remains available outside this #94 harness.
