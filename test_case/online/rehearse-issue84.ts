@@ -94,6 +94,23 @@ async function connect() {
   }, "core");
 }
 const command = (line: string) => processHandle.stdin!.write(line + "\n");
+async function commandWhenReady(
+  line: string,
+  accepted: () => boolean,
+  label: string,
+) {
+  // Snapshots may briefly precede a maintenance start. A refused local dry
+  // command has no effect; retry only until its explicit acknowledgement.
+  await until(
+    () => {
+      if (accepted()) return true;
+      command(line);
+      return false;
+    },
+    label,
+    30_000,
+  );
+}
 async function send(text: string, extra: object = {}) {
   const request = id();
   const receipt = await client.command("messages", {
@@ -298,8 +315,11 @@ try {
     );
     scenarios.authorization = true;
     await until(() => obs().idle, "before-crash");
-    command("fault-hold");
-    await until(() => output.includes("FAULT_HOLD_ARMED"), "hold-armed", 5000);
+    await commandWhenReady(
+      "fault-hold",
+      () => output.includes("FAULT_HOLD_ARMED"),
+      "hold-armed",
+    );
     const crashRequest = id();
     await client.command("messages", {
       request_id: crashRequest,
