@@ -103,6 +103,8 @@ Live 只做一次可复现正常链路与要求的失败，使用 `.demo-data/is
 
 ## 8. 证据、文档与批准含义
 
+Master 追加授权停用两个 OpenCode live provider 及其 wrapper 默认配置。本次 GPT-6 隔离验收和原累计预算见下文。
+
 英文请求/原始回复/截图和运行日志保存在 Git 忽略的 `.demo-data/issue94/review/`、`.demo-data/issue94/acceptance/`；脱敏记录放 `docs/fix/evidence/issue94-delivery/`。保留首败及成功复跑、哈希/ID，不放凭据或私人图片。
 
 同步 `docs/tui/api-coverage.md`、共用键位表、运行测试说明、正式产物/消息/附件文档及本地化生成页。逐项登记实际 route/参数/来源对象/UI/失败/证据：Task/Execution/result/artifact 元数据及精确路径筛选、messages/{id}/artifacts 分页，messages/timeline/content，attachments/import、requests/{id}、attachments/{id}、消息提交、同步与重连。产物 content/快照下载明确不用于 /open；附件 content 下载无实际独立 UI 需求就登记未用。系统打开为客户端能力。保持 #92/#93 API 职责，不为未用管理接口补菜单。有 #94 真实证据后修正文档中将 vision 全部推迟到 #84 的旧说明。

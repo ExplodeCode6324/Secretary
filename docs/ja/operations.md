@@ -35,6 +35,8 @@ SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 
 wrapper のデフォルトは認証情報 `.demo-data/deepseek-credentials.json`、データ `.demo-data/interactive-live`、メインモデル deepseek-flash、タスクモデル deepseek-flash です。役割別モデルの環境変数で名前を上書きできます。直接 `SECRETARY_MODE=live npm start` を実行すると環境の役割別設定を使い、ほかの provider も選べます。
 
+更新後、live モードで `opencode` または `opencode-go` を手動指定すると `RETIRED_LIVE_PROVIDER` が返ります。wrapper 用の公式 DeepSeek 認証情報を `.demo-data/deepseek-credentials.json` に設定してください。旧 `.demo-data/live-credentials.json` と OpenCode キーは廃止されました。既存の `.demo-data/interactive-live` ドメインを次に wrapper で起動すると、Main と Task は既定で `deepseek-flash` を使用します。
+
 | 環境変数 | 用途 |
 | --- | --- |
 | SECRETARY_DATA / SECRETARY_MODE | データディレクトリと fixture/live モード |

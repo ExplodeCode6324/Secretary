@@ -103,6 +103,8 @@ Additional acceptance constraints: default 4,194,304-pixel / 4096-side limits ca
 
 ## 8. Evidence, docs, and approval implications
 
+Master expanded the implementation scope to retire both OpenCode live provider selectors and their wrapper defaults. The isolated GPT-6 run and original cumulative limits are recorded below.
+
 Raw English reviewer requests/replies/screenshots and runtime logs: ignored `.demo-data/issue94/review/` and `.demo-data/issue94/acceptance/`. Tracked sanitized records: `docs/fix/evidence/issue94-delivery/`. Record failed attempts alongside successful reruns and hashes/IDs, not secrets/private images.
 
 Update `docs/tui/api-coverage.md`, common key table and run/test instructions, formal artifact/message/attachment docs and localized generated pages. Inventory actual routes/params/source objects/UI/error/evidence: task/execution/result/artifact metadata and exact path filter, messages/{id}/artifacts pagination, messages/timeline/content, attachments/import, requests/{id}, attachments/{id}, messages submission, sync and reconnect. Mark artifact content/snapshot download unused for `/open`; attachment content download is unused unless an actual separately documented UI need arises. System opening is client-only. Retain #92/#93 API ownership and do not add management menus for unused routes. Correct stale docs that deferred real vision solely to #84 once #94 evidence exists.

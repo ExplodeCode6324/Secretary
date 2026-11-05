@@ -27,3 +27,7 @@ Focused review-fix run: 28 passed. R5 source checks accepted description validat
 - Master native acceptance and merge authorization remain separate. No GO, merge or issue closure is claimed.
 
 Raw requests/replies/screenshots are ignored under .demo-data/issue94/review/. R6 will review the exact fix commit; final frozen-head CI/reviewer evidence can be recorded in PR comments without a status-only commit.
+
+### R8 provider retirement delta
+
+Claude reviewed `29f5b317` and requested an operations migration note, explicit plan/evidence scope, and a no-network retirement-guard regression. These are included in the follow-up. The check exercises both retired IDs without role credentials, fixture mode, and official DeepSeek catalog resolution with image input. The changed #94 harness at `05b2f11e` uses OpenAI at Master's later direction. Proposal accounting and the required scope verification are recorded in the acceptance ledger. HTTP statuses require a response; Run B transport failures are captured by the cumulative attempt ledger and the TLS probes. The reviewer inspected source and did not run repository checks.

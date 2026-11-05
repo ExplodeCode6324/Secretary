@@ -35,6 +35,8 @@ SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 
 Le wrapper utilise par défaut les identifiants `.demo-data/deepseek-credentials.json`, les données `.demo-data/interactive-live`, le modèle principal deepseek-flash et le modèle de tâches deepseek-flash. Les variables d’environnement par rôle remplacent les noms de modèles. Un lancement direct par `SECRETARY_MODE=live npm start` utilise la configuration des rôles dans l’environnement et permet d’autres fournisseurs.
 
+Après la mise à jour, les fournisseurs `opencode` et `opencode-go` configurés manuellement échouent en mode live avec `RETIRED_LIVE_PROVIDER`. Pour le wrapper, configurez les identifiants officiels DeepSeek dans `.demo-data/deepseek-credentials.json`. L’ancien fichier `.demo-data/live-credentials.json` et les clés OpenCode sont retirés. Au prochain démarrage du domaine existant `.demo-data/interactive-live` via le wrapper, Main et Task utilisent `deepseek-flash` par défaut.
+
 | Variable d’environnement | Rôle |
 | --- | --- |
 | SECRETARY_DATA / SECRETARY_MODE | Répertoire de données et mode fixture/live |
