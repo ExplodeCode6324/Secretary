@@ -20,7 +20,7 @@ observe 的 `next` 要求请求、Main 输入与 Task 静止；它记录尚未�
 | C12–C16、U01 | 单行无 Tab 不超过 60 字素可编辑。长段保存原文。手敲首字符斜杠才进入命令，整条粘贴按文字处理。Ctrl+C 清空、Ctrl+- 撤销、空 Ctrl+C 退出。Ctrl+V 从系统剪贴板取真实像素，Cmd+V 走普通文本粘贴 | [#92](../fix/fix_20261102_issue92_attention.md) · [#94 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/101#issuecomment-6652193797) |
 | U05 | Tab 选择 Main 结构化重做或移除提醒。旧执行重做不可用时显示原因，INIT_FAILED 无重做，UNKNOWN 只读，后续工作需 Main 新指示。Task 取消精确关联请求或执行，接收和终态分开 | [#93](../fix/evidence/issue93-failure-handling/acceptance.md) |
 
-[v1.7 的详细操作与失败判据](implementation-reference.md) 保留供逐项交叉复核，直到组合验收确认全部分支和引用落点。#70–#73 按原顺序等 #84 完成及 Master 终验，#74 以 #70 数据为准。
+[正式 AC01–AC34 分项标准](acceptance-criteria.md)保留前置、动作及失败判据；[来源交叉表](source-map.md)说明后续裁定与历史文档保留边界。#84 经 Master 产品终验后先进入 #103–#106 主动引导，再按反馈迭代 TUI；Master 确认 UI 稳定后才进入 #70–#73，#74 以 #70 数据为准。
 
 ## 手工清单
 
@@ -54,7 +54,7 @@ SECRETARY_MODE=live SECRETARY_DATA="$PWD/.demo-data/issue84/rehearsal/core" npm 
 
 本验收服务的 Core API 模式为 `live`，TUI 必须显式设置 `SECRETARY_MODE=live`，否则默认 `fixture` 会触发 `CORE_MODE_MISMATCH`。是否请求真实模型由服务启动参数 `rehearsal` 或 `live` 决定；上述 `rehearsal` 仍使用无凭据的脚本化模型。
 
-彩排输入 `84 shared`、`84 question`、`84 approval`、`84 failure`。授权前在 Core 窗口输入 `approval-scope`。彩排使用脚本化模型，可重复检查界面及 Core 状态。原生真实模型阶段按 Main、vision、Shared、事项、失败重做的顺序，在 Core 空闲时用 `next vision`、`next shared`、`next matters`、`next redo` 切换预算。请求预算耗尽时暂停并保留当时状态，只有 Master 可以在服务窗口释放预留。
+彩排输入 `84 shared`、`84 question`、`84 approval`、`84 failure`。授权前在 Core 窗口输入 `approval-scope`。彩排使用脚本化模型，可重复检查界面及 Core 状态。原生真实模型阶段按 Main、vision、Shared、事项、失败重做的顺序，在 Core 空闲时用 `next vision`、`next shared`、`next matters`、`next redo` 切换记账阶段。observe 不设累计额度；后台反馈未静止时切换会被拒绝，应等待并确认实际切换成功。
 
 实际路径、验收启动和证据采集细节见 [#84 计划](../fix/fix_20261105_issue84_combined.md)。
 
@@ -62,12 +62,12 @@ SECRETARY_MODE=live SECRETARY_DATA="$PWD/.demo-data/issue84/rehearsal/core" npm 
 
 仅验收工具读取项目私有 `.env.local` 的 `DEEPSEEK_API_KEY`；该文件权限 600、Git 忽略，不粘贴到终端命令或证据。固定输入见 [issue84-prompts.ts](../../test_case/online/issue84-prompts.ts)。源文件预置值为 13 字节 `ISSUE84-REDO\n`，SHA-256 为 `b4a69797d1c4a0de5428c053d8d40289d097967f2e46fd30a66aad79bbb4f82f`。
 
-无付费技术预检使用 `npx tsx test_case/online/rehearse-issue84.ts <新标签> dry` 和 `npx tsx test_case/online/rehearse-issue84.ts <新标签> calibration`，分别创建隔离库并保留 observations、usage、scenarios 和日志。前者复用真实准入适配器，以脚本响应覆盖并发、429、预算拒绝、模拟操作者释放 reserve、同输入恢复、图片、Shared、事项、失败重做和重启；后者覆盖增长、裁剪、摘要及提取。它们不构成原生或真实 provider 通过。
+无付费技术预检使用 `npx tsx test_case/online/rehearse-issue84.ts <新标签> dry` 和 `npx tsx test_case/online/rehearse-issue84.ts <新标签> calibration`，分别先运行独立的 dry-recovery / calibration-recovery 故障恢复域并关闭，再启动各自空目录/空库的正常域，保留 observations、usage、scenarios 和日志。故障输入不能用于满足正常域维护条件。前者复用真实准入适配器，以脚本响应覆盖并发、429、预算拒绝、模拟操作者释放 reserve、同输入恢复、图片、Shared、事项、失败重做和重启；后者覆盖增长、裁剪、摘要及提取。它们不构成原生或真实 provider 通过。
 
-`preflight-issue84.ts` 接收 dry 目录、calibration 目录、带日期官方价格/vision 假设 JSON 三个参数，检查当前候选及全部证据后才生成 `.demo-data/issue84/preflight.json`。真实服务 `serve-issue84.ts live` 拒绝没有匹配 PASS 的启动。真实 reserve 只能由 Master 明确释放；没有通过时保留失败记录，不手工写 PASS，不跨候选改 manifest。
+`preflight-issue84.ts` 接收 dry 目录、calibration 目录、带日期官方价格/vision 假设 JSON 三个参数，检查当前候选及全部证据后才生成 `.demo-data/issue84/preflight.json`。真实服务 `serve-issue84.ts live` 拒绝没有匹配 PASS 的启动。observe 无 reserve；没有通过时保留失败记录，不手工写 PASS，不跨候选改 manifest。
 
 手工清单第 2–5 项的归档/歧义/纯暂停、UNKNOWN、旧失败拒绝、精确取消、4 MiB、overflow、四轮 Agent 及带命令样式选项样例尚未全部建立；只对实际存在的对象验收，缺少前置的子步骤保持 NOT_RUN。自动化边界证据与本次原生观察分开登记。
 
-服务窗口的操作者命令不属于 TUI：`next <phase>` 仅在工作及维护全部收敛后按原顺序切换；`release-reserve` 需要引用 Master 对当前阶段的明确指示，且无活跃请求、Main 恢复阻塞或其余工作已静止；`retry-maintenance` 仅在当前阶段 reserve 已释放且无活跃工作时调用既有 `session/compact`。后两者在 dry 中由模拟操作者执行并标记，不能视作真实授权。
+服务窗口的操作者命令不属于 TUI：observe 的 `next <phase>` 在请求、输入和 Task 静止后按顺序切换，并记录未收敛维护；必须看到 `PHASE <phase>` 再发送对应输入。`retry-maintenance` 只用于有明确理由、已记录的一次恢复，不循环发送掩盖自动维护缺陷。`release-reserve` 仅属于旧 bounded 策略。
 
-自动路径完成后，`native-vision` 只允许从空闲 redo 单次返回原 vision 剩余额度；不清零费用、次数或两小时起点，不允许再次循环路径。普通 Main 仍保留两次维护余量，故自动 vision 最多用三次才可保证留出一次原生发送；若不足或过期，登记 NOT_RUN 等 Master 决定。真实 reserve 仍只能由 Master 明确释放。原生图片 caption 同时采用「手敲/粘贴/手敲/粘贴」，发送后在回复到达前上滚，核对跟随停止及实际提交字节。交接必须给出剩余次数和截止时间。
+自动路径完成后停止自动发送，用 `native-vision` 单次进入人工阶段。原生图片使用新的随机标记，caption 同时采用「手敲/粘贴/手敲/粘贴」；等待 READY，发送后在回复到达前上滚，核对跟随停止及实际提交字节。observe 没有两小时过期和剩余次数门槛，仍保留 Core 单请求超时、容量与隔离约束。服务和环境就绪后再交 Master；API 导入和识图不代替原生 Ctrl+V。

@@ -1,6 +1,6 @@
 # Issue #84 — Combined terminal acceptance and documentation closeout
 
-> Latest diagnosis and proposed scope are in R7 below; R7 supersedes the earlier harness-only scope.
+> Current: Master authorized repairing the combination defects, independent defect acceptance, then the original mainline. R7/R8 repairs are implemented; R9 review, independent regressions, full verification and CI for exact product SHA `1ebf5cd9` are recorded in the [review ledger](evidence/issue84-combined/plan-review.md). Native product acceptance, final documentation review and merge authorization remain separate. R7 supersedes the earlier harness-only scope.
 
 > Historical quota amendment: [observable usage without acceptance quotas](fix_20261105_issue84_unlimited.en.md). Master authorized unlimited acceptance allowance; old cost, cumulative count/time and reserve clauses below are historical and superseded by that amendment.
 

@@ -1,6 +1,6 @@
 # 原生终端运行与验证
 
-组合验收与手工操作见 [macOS 终端验收](acceptance.md)。
+组合验收与手工操作见 [macOS 终端验收](acceptance.md)、[分项标准](acceptance-criteria.md)与[来源交叉表](source-map.md)。
 
 #92 新增 Main 事项和定向处理，验收状态见 [#92 账本](../fix/evidence/issue92-attention/acceptance.md)。
 

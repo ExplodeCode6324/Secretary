@@ -2,6 +2,8 @@
 
 本账本为候选提交逐项登记结果。此前各批证据按原范围引用。新验收由执行人补记日期、候选 Core/TUI SHA、环境、对象 ID、实际输入及观测、证据位置和 Master 对差异的裁定。未执行的组合检查保留 NOT_RUN。
 
+当前正式分支定义已吸收到 [AC01–AC34 分项标准](../../../tui/acceptance-criteria.md)，[来源交叉表](../../../tui/source-map.md)保留六批裁定和历史范围。下方旧行及 u2 节是历史记录；最新 r8 结果见文末，不能以新 API 子项通过覆盖尚未执行的原生分支。
+
 2026-11-05 Master 在候选 `79c4ae798ebe1ed29d1ef881e9ee37bb489afa39` 的无凭据彩排域报告「Shared-B 打开失败」「彩排任务中重做部分失败」「其他验收项成功」。其他已执行项登记为 Master 报告通过；此报告不覆盖交接文档明确未准备的边界样例，也不覆盖真实模型验收。尚未取得逐项步骤及 Terminal 版本、字体、尺寸记录，下面未逐项映射的 NOT_RUN 表示本账本尚无独立分项记录，不否定 Master 的总体反馈。
 
 重做原执行 `db41191c-481a-440f-a313-0fc80c54fdeb` 正确关联新执行 `0a2202a6-60ec-4164-9ee1-7164d6d0ae1d`。新执行实际成功读取预置字节并写出产物，但脚本化模型把写入回执的 `error: null` 误判为读取错误，提交了 FAILED。修复只检查与 read 调用 ID 对应的回执及预置字节，并保留写入失败判断。新增测试通过真实 Core、模型适配器及脚本 SSE 复现修复前失败，修复后验证新执行成功、产物散列和直接父失败处置，旧 FAILED 保留。该测试不是付费模型证据。
@@ -85,3 +87,23 @@ Master 在 `758fb875fdcf10f7a7b342b56d03318cdf78e7a8` 确认重做复测成功�
 | AC08/AC27 原生交错 | 本轮 NOT_RUN | 多段粘贴字节、显式跟随/上滚被动到达 |
 
 容量阻塞保留：Main `CAPACITY_BLOCKED`，SCHEDULER Input `3f7b0e2e-02ab-40b5-bfdb-7750455f39c3` 仍 CLAIMED；旧摘要经一次显式恢复提交，仅覆盖序列 32，最新已处理输入为 318。原先 EMPTY_WORKING_MEMORY 与非法 tier 错误未删除。服务已停止，不能沿旧人工步骤直接发送。诊断及待批准修复见 [原总体计划 R7](../../fix_20261105_issue84_combined.md#r7--工作记忆恢复缺陷已定位实施待-master-批准)。新候选真实重做、原生图片及产品终验仍待执行；以上各行均不宣告对应整项 AC 通过。
+
+## r8：组合缺陷独立验收后继续主线（2026-11-06）
+
+产品/Core/TUI SHA `1ebf5cd9c54c87f08ec1c0282d04b761d8a9e45c`。macOS 15.8.2 arm64、Node 22.22.0、pi-tui 0.87.0；安装的 Terminal 为 2.14，字体/字号/行列与本轮原生手势尚未捕获。新空域 `.demo-data/issue84/runs/r8/live`，Session `2359ab4f-686d-4fc9-ab38-6997d661e442`，隔离数据库 `secretary84_r8_live`。原 u2 及其 40 次历史用量不变，只导入带散列的账本。observe 保留 90K/8192/100K 验收配置，不代表生产默认消耗。
+
+独立缺陷门槛先完成：定向 182/182、本机完整 verify 1013/1013、CI Linux/macOS/aggregate 全绿；分离故障域、正常 dry/calibration 和 preflight 通过。真实 probe/followup 后自然提交有效 MINIMAL 摘要，无虚假进行中目标或义务、无显式 compact。详细范围与 R9 源码复核见 [复核记录](plan-review.md)。
+
+| 分支 | r8 实际结果（均为 REAL_PROVIDER_CORE_API，非原生） | 未覆盖 |
+| --- | --- | --- |
+| Main 连续输入 | probe/followup PASS，初次自然摘要覆盖序列 21 | AC01 导航、物理键位 |
+| AC32 图片识别链路 | PASS；图像 SHA `78f0ecc3c8c9cfaff30b38b971f716978830eb51042f394d59ff4bcc555a560a`，真实模型回报未写入提示的随机标记 | Ctrl+V、READY、失败保稿 |
+| AC22/AC33 产物/独立目录 | Shared-A Task `db2ebb58-4a84-418e-826e-e5db4860b6e1`、Shared-B `91b8d967-1784-44f6-8ca5-7dd695aaa0c5` 均 SUCCEEDED；各自 report.txt 字节 A/B、登记散列一致，scratch.txt 未登记 | 原生分组、当前文件打开、首次异常复现 |
+| AC18/AC19 定向回答 | Decision `7571b276-3179-4013-bfab-b89bffb38519` ANSWERED，`/M ISSUE84-AUTOMATIC-ANSWER` 原样送入 execution `b98f2205-6557-4d28-aeea-e1965b4f2cfe`，SUCCEEDED | 事项选择、普通草稿、Task /show 手势 |
+| AC18 授权执行 | 首次 Agent 生成禁止的 bash，被验收适配器拦截，未执行、无授权。保留 FAILED `4e375038-5734-43b5-8cac-9ffafe258651`。一次有理由的结构化 REDO 后，唯一后继 `6d5d3061-8d6c-433b-9e05-1c7566fb231b` SUCCEEDED，Authorization `b6342bce-ef7f-48bb-a3de-c0b83d8a83d2` CONSUMED，approval.txt 精确字节正确；allowlist 未放宽 | 首次不算 PASS；原生中立 Enter、APPROVED 即移除等仍未验 |
+| AC21 缺源失败→直接重做 | PASS。Task `8343a41a-2ffe-4f15-9565-fa54fcc88dbf`：`72c87038-1b14-4d39-a4ae-ab4af670eb1e` 的实际 read 返回 ENOENT；散列验证 checkpoint 后才预置 13 字节。唯一直接后继 `a2c49b52-0bd4-4ae4-ae2b-df4b35d13517` SUCCEEDED，其自身成功 write Operation、登记产物及当前文件均匹配 SHA `b4a69797d1c4a0de5428c053d8d40289d097967f2e46fd30a66aad79bbb4f82f`；原 FAILED 不变，处置 REDO_SUCCEEDED | 本轮原生失败行手势；其他失败分支仍按各自来源 |
+| AC08/AC27/AC32 原生组合 | 已准备新随机图和精确多段文本，尚未执行 | Master 实际操作与终审 |
+
+两个需要保留的实际观察：Shared 结束后的 `next matters` 曾因后台尚未静止被拒绝；问题场景因此仍记在 shared phase，用实际 scope/ModelCall/对象 ID 归属，不改写原账本。后续明确等空闲、核对 PHASE 后才推进。另有并发状态变化使一次真实摘要 STALE，冷却后自然收敛；STALE 请求和用量单列，不当作免费或成功摘要。初次禁止工具请求的账单用量也保留，不能因 Core 回执错误显示零用量而扣掉。
+
+所有路径原始结果为忽略目录 `runs/r8/live/automatic-*.json`，checkpoint/journal/objects 可散列复核。增强的本地 driver 在补源前检查真实 read 错误，未修改产品或正式候选。用量报告是按时点生成的 `TOKEN-USAGE.md` / `token-usage.json`；后续人工调用继续累计，最终数字写入 PR 终审记录。原生及整项 #84 均不因这些 API 子项通过而自动 GO，PR 保持 draft，合并/关闭另需 Master 授权。
