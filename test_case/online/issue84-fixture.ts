@@ -64,6 +64,30 @@ export function scriptedFixture(
   redo?: object,
 ) {
   const { messages } = JSON.parse(body) as { messages: WireMessage[] };
+  const system = messages
+    .filter((message) => message.role === "system")
+    .map(textOf)
+    .join("\n");
+  if (system.startsWith("COMMITMENT_EXTRACTION:"))
+    return fixtureResponse('{"quotes":[]}');
+  if (system.startsWith("CONSCIOUSNESS:"))
+    return fixtureResponse(
+      JSON.stringify({
+        items: [
+          {
+            tier: "ACTIVE",
+            summary: "Issue #84 synthetic rehearsal",
+            goals: [],
+            constraints: [],
+            decisions: [],
+            open_questions: [],
+            unfulfilled_commitments: [],
+            task_refs: [],
+            pending_owner: null,
+          },
+        ],
+      }),
+    );
   const conversation = messages.filter((message) => message.role === "user");
   const prompt = conversation.map(textOf).join("\n");
   const last = messages.at(-1);
@@ -125,7 +149,7 @@ export function scriptedFixture(
     tool("submit_result", {
       outcome: failed ? "FAILED" : "SUCCEEDED",
       summary: "彩排任务 " + label,
-      criteria: [],
+      criteria: [{ id: "C1", met: !failed, evidence: "彩排工具回执" }],
       artifacts,
       artifact_descriptions: artifacts.map((path) => ({
         path,
