@@ -15,13 +15,13 @@ if (!report) throw Error("report path required");
 const keys = JSON.parse(
   fs.readFileSync(
     process.env.SECRETARY_CREDENTIALS_FILE ??
-      ".demo-data/live-credentials.json",
+      ".demo-data/deepseek-credentials.json",
     "utf8",
   ),
 );
 process.env.SECRETARY_MODE = "live";
-process.env.SECRETARY_MAIN_PROVIDER ??= "opencode-go";
-process.env.SECRETARY_MAIN_MODEL ??= "deepseek-v4.1-flash";
+process.env.SECRETARY_MAIN_PROVIDER ??= "deepseek";
+process.env.SECRETARY_MAIN_MODEL ??= "deepseek-flash";
 process.env.SECRETARY_MAIN_API_KEY = keys.main;
 const directory = fs.mkdtempSync(
   path.join(os.tmpdir(), "secretary-stream-live-"),

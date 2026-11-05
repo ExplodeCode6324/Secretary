@@ -25,7 +25,7 @@ npm run stop
 
 ## 実モデルとデータベース
 
-[start-live](../../src/pi_secretary/scripts/start-live.ts) wrapper は認証情報 JSON から main/task 別のキーを読み、opencode-go provider を固定して使用します。
+[start-live](../../src/pi_secretary/scripts/start-live.ts) wrapper は認証情報 JSON から main/task 別のキーを読み、deepseek provider を固定して使用します。
 
 ```sh
 npm run start:live
@@ -33,7 +33,7 @@ SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run core -- s
 SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 ```
 
-wrapper のデフォルトは認証情報 `.demo-data/live-credentials.json`、データ `.demo-data/interactive-live`、メインモデル deepseek-v4.1-flash、タスクモデル gpt-5.6-luna です。役割別モデルの環境変数で名前を上書きできます。直接 `SECRETARY_MODE=live npm start` を実行すると環境の役割別設定を使い、ほかの provider も選べます。
+wrapper のデフォルトは認証情報 `.demo-data/deepseek-credentials.json`、データ `.demo-data/interactive-live`、メインモデル deepseek-flash、タスクモデル deepseek-flash です。役割別モデルの環境変数で名前を上書きできます。直接 `SECRETARY_MODE=live npm start` を実行すると環境の役割別設定を使い、ほかの provider も選べます。
 
 | 環境変数 | 用途 |
 | --- | --- |

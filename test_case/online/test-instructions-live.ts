@@ -19,11 +19,11 @@ import type {
 const keys = JSON.parse(
   fs.readFileSync(
     process.env.SECRETARY_CREDENTIALS_FILE ??
-      ".demo-data/live-credentials.json",
+      ".demo-data/deepseek-credentials.json",
     "utf8",
   ),
 );
-const model = getModel("opencode-go", "deepseek-v4.1-flash");
+const model = getModel("deepseek", "deepseek-flash");
 const config = roleModel(model, keys.main);
 let calls = 0;
 const start = Date.now();

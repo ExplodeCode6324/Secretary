@@ -219,7 +219,7 @@ async function run(directory: string) {
           ? input.href
           : input.url,
     );
-    if (url.hostname !== "opencode.ai") {
+    if (url.hostname !== "api.deepseek.com") {
       // Isolated loopback API requests need no pool; avoid idle socket reuse.
       const headers = new Headers(init?.headers);
       headers.set("Connection", "close");
@@ -291,8 +291,8 @@ async function run(directory: string) {
       const provider = process.env[`${prefix}_PROVIDER`],
         modelID = process.env[`${prefix}_MODEL`];
       assert(
-        provider === "opencode-go" && modelID,
-        "Explicit current OpenCode role provider/model required",
+        provider === "deepseek" && modelID,
+        "Explicit current DeepSeek role provider/model required",
       );
       const model = getModel(provider, modelID as never);
       assert(

@@ -25,7 +25,7 @@ The defaults are the fixture model and `.demo-data` directory. `start` launches 
 
 ## Live models and database
 
-The [start-live](../../src/pi_secretary/scripts/start-live.ts) wrapper reads separate main/task keys from credential JSON and always uses the opencode-go provider:
+The [start-live](../../src/pi_secretary/scripts/start-live.ts) wrapper reads separate main/task keys from credential JSON and always uses the deepseek provider:
 
 ```sh
 npm run start:live
@@ -33,7 +33,7 @@ SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run core -- s
 SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 ```
 
-The wrapper defaults to credentials in `.demo-data/live-credentials.json`, data in `.demo-data/interactive-live`, main model deepseek-v4.1-flash, and task model gpt-5.6-luna. Role-model environment variables override model names. Direct `SECRETARY_MODE=live npm start` uses role settings from the environment and permits other providers.
+The wrapper defaults to credentials in `.demo-data/deepseek-credentials.json`, data in `.demo-data/interactive-live`, main model deepseek-flash, and task model deepseek-flash. Role-model environment variables override model names. Direct `SECRETARY_MODE=live npm start` uses role settings from the environment and permits other providers.
 
 | Environment variable | Purpose |
 | --- | --- |

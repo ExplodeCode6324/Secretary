@@ -18,16 +18,16 @@ if (!directory || !report)
 const keys = JSON.parse(
   fs.readFileSync(
     process.env.SECRETARY_CREDENTIALS_FILE ??
-      ".demo-data/live-credentials.json",
+      ".demo-data/deepseek-credentials.json",
     "utf8",
   ),
 );
 Object.assign(process.env, {
   SECRETARY_MODE: "live",
-  SECRETARY_MAIN_PROVIDER: "opencode-go",
-  SECRETARY_TASK_PROVIDER: "opencode-go",
-  SECRETARY_MAIN_MODEL: "deepseek-v4.1-flash",
-  SECRETARY_TASK_MODEL: "gpt-5.6-luna",
+  SECRETARY_MAIN_PROVIDER: "deepseek",
+  SECRETARY_TASK_PROVIDER: "deepseek",
+  SECRETARY_MAIN_MODEL: "deepseek-flash",
+  SECRETARY_TASK_MODEL: "deepseek-flash",
   SECRETARY_MAIN_API_KEY: keys.main,
   SECRETARY_TASK_API_KEY: keys.task,
 });

@@ -12,9 +12,9 @@ main/task 別のキーを持つ既存の役割別認証情報ファイルを設�
 
 ```sh
 export SECRETARY_MODE=live
-export SECRETARY_MAIN_PROVIDER=opencode-go
+export SECRETARY_MAIN_PROVIDER=deepseek
 export SECRETARY_MAIN_MODEL='<主模型>'
-export SECRETARY_TASK_PROVIDER=opencode-go
+export SECRETARY_TASK_PROVIDER=deepseek
 export SECRETARY_TASK_MODEL='<任务模型>'
 export SECRETARY_CREDENTIALS_FILE='<已有私密凭据文件>'
 node --import tsx test_case/online/test-api-v1-live.ts --self-check
@@ -45,7 +45,7 @@ node --import tsx test_case/online/test-api-v1-artifacts-live.ts --live --eviden
 
 ## その他のシナリオ
 
-`test-issue21-28-live.ts` は旧入力の除外と履歴検索を合同検証します。自前の隔離 PG テスト DSN、既存の `SECRETARY_CREDENTIALS_FILE`、新規の非公開 `SECRETARY_LIVE_EVIDENCE` を使い、実データのインスタンスはテスト DSN にしません。opencode-go/deepseek-v4.1-flash で合成対話 24 ターンと資料負荷 1 ターンを行い、通常整理、Settings、開き直し後に背景事実を能動検索し、元イベントを引用します。実リクエストと通信に事実が残らず、ワーキングメモリ・台帳に答えをキャッシュせず、最新訂正と別の未変更制約が有効で、原文を読めることを確認します。
+`test-issue21-28-live.ts` は旧入力の除外と履歴検索を合同検証します。自前の隔離 PG テスト DSN、既存の `SECRETARY_CREDENTIALS_FILE`、新規の非公開 `SECRETARY_LIVE_EVIDENCE` を使い、実データのインスタンスはテスト DSN にしません。deepseek/deepseek-flash で合成対話 24 ターンと資料負荷 1 ターンを行い、通常整理、Settings、開き直し後に背景事実を能動検索し、元イベントを引用します。実リクエストと通信に事実が残らず、ワーキングメモリ・台帳に答えをキャッシュせず、最新訂正と別の未変更制約が有効で、原文を読めることを確認します。
 
 デフォルトは物理送信最大 100 回、40 分、1 回 90 秒です。`SECRETARY_LIVE_MAX_CALLS` / `SECRETARY_LIVE_WALL_MS` で制限を厳しくできます。`SECRETARY_LIVE_RESUME_STORE` は本スクリプトで 24 ターン完了した隔離合成 Store 専用で、元の応答を再確認して残りを続行し、出典を書き換えたり検索の答えを事前設定したりしません。各実行の回数とソースハッシュを別記録し、継続報告は回数を累積して初回失敗を保持します。2026-10-13 の合同結果は[実行記録](../../../fix/archive/fix_20261012_issue21_28_记忆检索与旧输入有界退出.md#13-实施记录)を参照してください。
 

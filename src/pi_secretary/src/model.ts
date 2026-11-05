@@ -169,6 +169,8 @@ export function modelConfig(role: "main" | "task" = "main"): ModelConfig {
     modelID = process.env[`${prefix}_MODEL`] ?? process.env.SECRETARY_MODEL;
   if (!provider || !modelID)
     throw Error("Live mode requires SECRETARY_PROVIDER and SECRETARY_MODEL");
+  if (provider === "opencode" || provider === "opencode-go")
+    throw Error("RETIRED_LIVE_PROVIDER: configure deepseek / deepseek-flash");
   const model = getModel(
     provider as Parameters<typeof getModel>[0],
     modelID as never,
@@ -207,7 +209,6 @@ export function roleModel(
       headers: {
         ...options?.headers,
         "User-Agent": "secretary-pi-demo/0.2",
-        "x-opencode-session": options?.sessionId ?? "secretary",
       },
     });
   };

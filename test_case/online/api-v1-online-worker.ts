@@ -235,7 +235,7 @@ async function worker() {
     );
     assert.equal(
       url.hostname,
-      "opencode.ai",
+      "api.deepseek.com",
       "Worker network is limited to existing provider transport",
     );
     const call = active.getStore();
@@ -279,7 +279,7 @@ async function worker() {
   for (const role of ["main", "task"] as const) {
     const provider = process.env[`SECRETARY_${role.toUpperCase()}_PROVIDER`],
       modelID = process.env[`SECRETARY_${role.toUpperCase()}_MODEL`];
-    assert(provider === "opencode-go" && modelID);
+    assert(provider === "deepseek" && modelID);
     const model = getModel(provider, modelID as never);
     assert(
       model && ["openai-completions", "openai-responses"].includes(model.api),

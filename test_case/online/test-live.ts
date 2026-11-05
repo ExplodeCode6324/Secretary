@@ -18,21 +18,21 @@ import type {
   DecisionRequest,
   Input,
 } from "../../src/pi_secretary/src/contracts.ts";
-const modelID = process.argv[2] ?? "deepseek-v4.1-flash";
+const modelID = process.argv[2] ?? "deepseek-flash";
 const scenario = process.argv[3] ?? "chain";
 const taskModelID = process.argv[4] ?? modelID;
-if (!["deepseek-v4.1-flash", "gpt-5.6-luna"].includes(modelID))
+if (modelID !== "deepseek-flash")
   throw Error("Unsupported test model");
 if (!["chain", "missing", "unknown", "transport", "reject"].includes(scenario))
   throw Error("Unknown scenario");
 const keys = JSON.parse(
   fs.readFileSync(
     process.env.SECRETARY_CREDENTIALS_FILE ??
-      ".demo-data/live-credentials.json",
+      ".demo-data/deepseek-credentials.json",
     "utf8",
   ),
 ) as { main: string; task: string };
-const model = getModel("opencode-go", modelID as never);
+const model = getModel("deepseek", modelID as never);
 const runID = `${modelID}${taskModelID !== modelID ? "_task-" + taskModelID : ""}-${scenario}-${Date.now()}`;
 const directory = path.resolve(".demo-data/live", runID);
 const output = path.resolve(
@@ -46,7 +46,7 @@ let transportFault = false;
 const configs = Object.fromEntries(
   (["main", "task"] as const).map((role) => {
     const selected =
-      role === "task" ? getModel("opencode-go", taskModelID as never) : model;
+      role === "task" ? getModel("deepseek", taskModelID as never) : model;
     const config = roleModel(selected, keys[role]);
     const stream: StreamFn = (m, c, o) => {
       if (++counts[role] > 24 || Date.now() - start > 600000)
@@ -267,7 +267,7 @@ try {
     }));
   const report = {
     evidence: "LIVE_MODEL",
-    provider: "opencode-go",
+    provider: "deepseek",
     model: modelID,
     task_model: taskModelID,
     scenario,

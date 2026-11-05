@@ -21,7 +21,7 @@ npm run stop
 
 ## 真实模型与数据库
 
-[start-live](../src/pi_secretary/scripts/start-live.ts) wrapper 从凭据 JSON 读取 main/task 两个密钥，固定使用 opencode-go provider：
+[start-live](../src/pi_secretary/scripts/start-live.ts) wrapper 从凭据 JSON 读取 main/task 两个密钥，固定使用 deepseek provider：
 
 ```sh
 npm run start:live
@@ -29,7 +29,7 @@ SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run core -- s
 SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 ```
 
-wrapper 默认凭据 `.demo-data/live-credentials.json`、数据 `.demo-data/interactive-live`，主模型 deepseek-v4.1-flash、任务模型 gpt-5.6-luna；角色模型环境变量可覆盖名称。直接 `SECRETARY_MODE=live npm start` 使用环境中的角色配置，可选择其他 provider。
+wrapper 默认凭据 `.demo-data/deepseek-credentials.json`、数据 `.demo-data/interactive-live`，主模型 deepseek-flash、任务模型 deepseek-flash；角色模型环境变量可覆盖名称。直接 `SECRETARY_MODE=live npm start` 使用环境中的角色配置，可选择其他 provider。
 
 | 环境变量 | 用途 |
 | --- | --- |

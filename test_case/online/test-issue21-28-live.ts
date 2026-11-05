@@ -32,7 +32,7 @@ const secret = JSON.parse(fs.readFileSync(credential, "utf8")).main;
 assert(typeof secret === "string" && secret.length > 0);
 let nonce = "ARCHIVE-" + randomUUID();
 const resumeStore = process.env.SECRETARY_LIVE_RESUME_STORE;
-const model = getModel("opencode-go", "deepseek-v4.1-flash");
+const model = getModel("deepseek", "deepseek-flash");
 const config = roleModel(model, secret);
 const started = Date.now(),
   limits = {

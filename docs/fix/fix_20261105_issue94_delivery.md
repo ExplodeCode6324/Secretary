@@ -108,3 +108,8 @@ Live 只做一次可复现正常链路与要求的失败，使用 `.demo-data/is
 同步 `docs/tui/api-coverage.md`、共用键位表、运行测试说明、正式产物/消息/附件文档及本地化生成页。逐项登记实际 route/参数/来源对象/UI/失败/证据：Task/Execution/result/artifact 元数据及精确路径筛选、messages/{id}/artifacts 分页，messages/timeline/content，attachments/import、requests/{id}、attachments/{id}、消息提交、同步与重连。产物 content/快照下载明确不用于 /open；附件 content 下载无实际独立 UI 需求就登记未用。系统打开为客户端能力。保持 #92/#93 API 职责，不为未用管理接口补菜单。有 #94 真实证据后修正文档中将 vision 全部推迟到 #84 的旧说明。
 
 批准不包含 #80 已知持久 length 崩溃恢复修复。批准范围包括新增结果/消息元数据、本地状态迁移、精确打开/剪贴板语义、草稿附件行操作、实施后有界付费 live 验证。本轮不实施、不调用模型。源码复核 PASS 仅代表计划可执行。实施完成需针对性/完整检查、准确 HEAD 的 Linux/macOS/aggregate CI、真实模型及原生验收、同会话 Claude 复核与 Master 最终判断。合并仍另授权。
+
+
+## Master 后续实施指令（2026-11-05）
+
+Main 和 Task 均切换到 DeepSeek 官方 API 的 `deepseek-flash`（DeepSeek V4.1 Flash）。Master 批准三项验收任务各重新执行一次，并要求移除 Secretary 的 OpenCode 渠道。首轮三项 403 留作历史证据。所有尝试共用 §6.1 原始预算，第二轮使用新隔离域。

@@ -57,12 +57,25 @@ const limits = {
   active_ms: 25 * 60 * 1000,
   output: 8192,
 };
+const retryThree = process.argv.includes("--retry-three");
+if (retryThree)
+  assert(
+    process.argv.includes("--tasks") &&
+      !process.argv.includes("--resume") &&
+      usage.task_proposals === 3,
+    "EXPECTED_FIRST_THREE_PROPOSALS",
+  );
+const proposalCap = process.argv.includes("--resume")
+  ? usage.task_proposals
+  : retryThree
+    ? 6
+    : 3;
 const save = () =>
   fs.writeFileSync(ledgerFile, JSON.stringify(usage, null, 2), { mode: 0o600 });
 process.env.SECRETARY_MAX_OUTPUT_TOKENS = String(limits.output);
 configureLiveOutputBudget(limits.output);
-const mainModel = getModel("opencode-go", "deepseek-v4.1-flash"),
-  taskModel = getModel("opencode-go", "gpt-5.6-luna");
+const mainModel = getModel("deepseek", "deepseek-flash"),
+  taskModel = mainModel;
 const profile = {
   version: 1,
   provider: mainModel.provider,
@@ -73,12 +86,19 @@ const profile = {
   max_side: 4096,
   max_pixels: 4194304,
   source:
-    "DeepSeek Vision documentation https://api-docs.deepseek.com/guides/vision/ (2026-11-05): upper bound 1024 tokens per image; OpenCode Go identifies DeepSeek V4.1 Flash https://opencode.ai/v2/docs/console/go/ . Isolated acceptance only.",
+    "DeepSeek Vision documentation https://api-docs.deepseek.com/guides/vision/ (2026-11-05): upper bound 1024 tokens per image; Official model mapping https://api-docs.deepseek.com/quick_start/pricing/ . Isolated acceptance only.",
 };
 process.env.SECRETARY_VISION_BUDGET_PROFILES = JSON.stringify([profile]);
-const keys = JSON.parse(
-  fs.readFileSync(".demo-data/live-credentials.json", "utf8"),
-);
+const keys = process.env.DEEPSEEK_API_KEY
+  ? { main: process.env.DEEPSEEK_API_KEY, task: process.env.DEEPSEEK_API_KEY }
+  : JSON.parse(
+      fs.readFileSync(
+        process.env.SECRETARY_CREDENTIALS_FILE ??
+          ".demo-data/deepseek-credentials.json",
+        "utf8",
+      ),
+    );
+assert(keys.main && keys.task, "DEEPSEEK_CREDENTIALS_REQUIRED");
 let app: App;
 const configs = Object.fromEntries(
   (["main", "task"] as const).map((role) => {
@@ -101,8 +121,9 @@ const configs = Object.fromEntries(
           ).length;
           usage.task_proposals += proposed;
           save();
-          if (usage.task_proposals > 3)
-            throw Error("ONLY_THREE_ACCEPTANCE_TASKS_AUTHORIZED");
+          // Three initial proposals and three explicitly authorized replacement tasks.
+          if (usage.task_proposals > proposalCap)
+            throw Error("ACCEPTANCE_TASK_PROPOSAL_CAP");
         }
         save();
       });
@@ -110,6 +131,10 @@ const configs = Object.fromEntries(
         return await tracked(m, c, {
           ...o,
           fetch: async (url, init) => {
+            const destination = new URL(
+              url instanceof Request ? url.url : String(url),
+            );
+            assert.equal(destination.origin, "https://api.deepseek.com");
             if (typeof init?.body === "string") {
               const payload = JSON.parse(init.body),
                 images = imageLeaves(payload);
@@ -132,7 +157,20 @@ const configs = Object.fromEntries(
                 save();
               }
             }
-            return (o?.fetch ?? fetch)(url, init);
+            const http = await (o?.fetch ?? fetch)(url, init);
+            fs.appendFileSync(
+              path.join(root, "provider-http.jsonl"),
+              JSON.stringify({
+                at: new Date().toISOString(),
+                role,
+                model: m.id,
+                origin: destination.origin,
+                path: destination.pathname,
+                status: http.status,
+              }) + "\n",
+              { mode: 0o600 },
+            );
+            return http;
           },
         });
       } catch (e) {
