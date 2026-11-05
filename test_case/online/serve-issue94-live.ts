@@ -74,7 +74,10 @@ const save = () =>
   fs.writeFileSync(ledgerFile, JSON.stringify(usage, null, 2), { mode: 0o600 });
 process.env.SECRETARY_MAX_OUTPUT_TOKENS = String(limits.output);
 configureLiveOutputBudget(limits.output);
-const mainModel = getModel("openai", "gpt-6-astra"),
+const useDeepSeek = process.argv.includes("--deepseek");
+const mainModel = useDeepSeek
+    ? getModel("deepseek", "deepseek-flash")
+    : getModel("openai", "gpt-6-astra"),
   taskModel = mainModel;
 const profile = {
   version: 1,
@@ -82,15 +85,17 @@ const profile = {
   api: mainModel.api,
   model: mainModel.id,
   baseUrl: mainModel.baseUrl,
-  tokens_per_image: 5226,
+  tokens_per_image: useDeepSeek ? 1024 : 5226,
   max_side: 4096,
   max_pixels: 4194304,
-  source:
-    "OpenAI vision (https://developers.openai.com/api/docs/guides/images-vision): 32px patches x 1.2. With <=4Mi pixels and sides <=4096, padded coverage is bounded by 4096+128+128+1 patches. Reserve 5226 tokens including rounding. Isolated acceptance only.",
+  source: useDeepSeek
+    ? "Official DeepSeek vision (https://api-docs.deepseek.com/guides/vision/): up to 1024 tokens per image. Isolated acceptance only."
+    : "OpenAI vision (https://developers.openai.com/api/docs/guides/images-vision): 32px patches x 1.2. With <=4Mi pixels and sides <=4096, padded coverage is bounded by 4096+128+128+1 patches. Reserve 5226 tokens including rounding. Isolated acceptance only.",
 };
 process.env.SECRETARY_VISION_BUDGET_PROFILES = JSON.stringify([profile]);
-const apiKey = process.env.OPENAI_API_KEY;
-assert(apiKey, "OPENAI_API_KEY_REQUIRED_FOR_ISSUE94");
+const apiKey = useDeepSeek ? process.env.DEEPSEEK_API_KEY : process.env.OPENAI_API_KEY;
+assert(apiKey, "SELECTED_PROVIDER_API_KEY_REQUIRED_FOR_ISSUE94");
+const officialOrigin = useDeepSeek ? "https://api.deepseek.com" : "https://api.openai.com";
 let app: App;
 const configs = Object.fromEntries(
   (["main", "task"] as const).map((role) => {
@@ -126,7 +131,7 @@ const configs = Object.fromEntries(
             const destination = new URL(
               url instanceof Request ? url.url : String(url),
             );
-            assert.equal(destination.origin, "https://api.openai.com");
+            assert.equal(destination.origin, officialOrigin);
             if (typeof init?.body === "string") {
               const payload = JSON.parse(init.body),
                 images = imageLeaves(payload);
