@@ -31,3 +31,7 @@ Raw requests/replies/screenshots are ignored under .demo-data/issue94/review/. R
 ### R8 provider retirement delta
 
 Claude reviewed `29f5b317` and requested an operations migration note, explicit plan/evidence scope, and a no-network retirement-guard regression. These are included in the follow-up. The check exercises both retired IDs without role credentials, fixture mode, and official DeepSeek catalog resolution with image input. The changed #94 harness at `05b2f11e` uses OpenAI at Master's later direction. Proposal accounting and the required scope verification are recorded in the acceptance ledger. HTTP statuses require a response; Run B transport failures are captured by the cumulative attempt ledger and the TLS probes. The reviewer inspected source and did not run repository checks.
+
+### R9 and fallback evidence
+
+R9 granted a conditional source/implementation pass at `f469ce95` and explicitly closed the two retirement findings. We added the official GPT-6 image sizing and accounting details to the acceptance ledger. OpenAI failed before headers and was not resumed. Master authorized a direct DeepSeek fallback, whose model-discovery check, actual Task and image results, and individually approved read-only command are recorded with Run C. Exact final-commit CI and Claude's decision are recorded on the PR after code freeze.
