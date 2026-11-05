@@ -1,9 +1,10 @@
 /** Frozen synthetic user inputs for the genuine provider run; never include the image oracle. */
 export const prompts = {
-  probe: "只回复 ISSUE84-PROBE，不调用工具。",
+  probe: "仅本轮：只回复 ISSUE84-PROBE，不调用工具。",
   followup:
-    "本轮只做会话衔接：引用上一轮的 ISSUE84-PROBE，再回复 ISSUE84-CONTINUED。不调用工具。",
-  vision: "读取图片上唯一的字符标记，只回复实际看到的字符。不调用工具。",
+    "仅本轮只做会话衔接：引用上一轮的 ISSUE84-PROBE，再回复 ISSUE84-CONTINUED。不调用工具。",
+  vision:
+    "仅本轮：读取图片上唯一的字符标记，只回复实际看到的字符。不调用工具。",
   shared:
     "创建两个独立 Shared AGENT 任务 A、B，不复用旧任务，不指定 Scope，完整转交本要求。只用 write 在各自 cwd 写 report.txt，A 的 UTF-8 字节为 ISSUE84-A 加一个换行，B 为 ISSUE84-B 加一个换行。再各写 scratch.txt，内容为 intermediate 加一个换行，但不要登记 scratch.txt。只把 report.txt 登记为最终产物，说明 A 或 B 并用 submit_result SUCCEEDED 完成全部验收条件。验收只允许 read、write、submit_result；禁止 bash、shell、网络、其他路径、额外任务、memory_propose_change 和 wakeup。Main 不要替 Agent 执行，不要自动重试。",
   question:

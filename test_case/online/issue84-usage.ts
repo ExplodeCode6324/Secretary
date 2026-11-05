@@ -80,7 +80,9 @@ function records(root: string) {
     assert.equal(hash(raw), envelope.sha256, "JOURNAL_HASH_CHANGED");
     const transaction = JSON.parse(raw.toString());
     for (const mutation of transaction.mutations) {
-      if (["ModelCall", "Context"].includes(mutation.object_type))
+      if (
+        ["ModelCall", "Context", "CompactionJob"].includes(mutation.object_type)
+      )
         latest.set(mutation.object_id, read(mutation.snapshot));
     }
   }
@@ -99,11 +101,20 @@ export function usageReport(root: string) {
   const domains = [...new Set(attempts.map((a) => a.domain ?? root))];
   const links: any[] = [],
     mismatches: string[] = [];
+  const staleAttempts: Attempt[] = [];
+  const staleJobs = new Set<string>();
   for (const domain of domains) {
     const { latest, read } = records(domain);
     const calls = [...latest.values()].filter(
       (r) => r.record_type === "ModelCall",
     );
+    for (const job of latest.values())
+      if (
+        job.record_type === "CompactionJob" &&
+        job.mode === "WORKING_MEMORY" &&
+        job.state === "STALE"
+      )
+        staleJobs.add(domain + ":" + job.id);
     const used = new Set<string>();
     for (const a of attempts.filter((a) => (a.domain ?? root) === domain)) {
       const matches = calls.filter((c) => {
@@ -128,6 +139,12 @@ export function usageReport(root: string) {
       const c = matches[0];
       used.add(c.id);
       const context = latest.get(c.context_id);
+      const summaryJob = latest.get(context?.loop_id);
+      if (
+        summaryJob?.record_type === "CompactionJob" &&
+        summaryJob.state === "STALE"
+      )
+        staleAttempts.push(a);
       const response = c.response ? read(c.response) : undefined;
       if (a.actualInput !== undefined) {
         const u = response?.usage;
@@ -147,6 +164,10 @@ export function usageReport(root: string) {
         scope: c.scope,
         purpose: context?.purpose,
         stream: context?.loop_id,
+        summaryJobState:
+          summaryJob?.record_type === "CompactionJob"
+            ? summaryJob.state
+            : undefined,
         state: c.state,
         transportAttempt: c.transport_attempt,
         role: a.role,
@@ -205,6 +226,7 @@ export function usageReport(root: string) {
     byRole: group("role"),
     byPhase: group("phase"),
     byKind: group("kind"),
+    staleMaintenance: { jobs: staleJobs.size, ...totals(staleAttempts) },
     proposals: { current: proposals(false), combined: proposals(true) },
     prices: {
       source: "https://api-docs.deepseek.com/quick_start/pricing/",
@@ -251,6 +273,7 @@ export function usageReport(root: string) {
   lines.push(
     "",
     report.note,
+    `STALE 摘要：${report.staleMaintenance.jobs} 个 Job，${report.staleMaintenance.physicalRequests} 次物理请求，输入 ${report.staleMaintenance.reportedInput} / 输出 ${report.staleMaintenance.reportedOutput} tokens；未知用量 ${report.staleMaintenance.unknownUsageRequests} 次。限速不代表保证收敛。`,
     "",
     "逐请求归属、逻辑调用、角色及阶段统计见同目录 token-usage.json。",
     "",

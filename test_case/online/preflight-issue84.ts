@@ -42,6 +42,14 @@ for (const [root, mode] of [
   assert.equal(manifest.mode, mode);
   assert.equal(manifest.configHash, config.hash, "WRONG_CONFIG");
   assert.equal(manifest.freshness.empty, true, "FRESHNESS_NOT_PROVEN");
+  const recovery = load(root, "memory-recovery.json");
+  assert.equal(recovery.source, source);
+  assert.equal(recovery.status, "PASS");
+  assert.equal(recovery.evidenceClass, "SCRIPTED_MODEL");
+  assert.deepEqual(recovery.states, ["CAPACITY_BLOCKED", "IDLE"]);
+  assert.equal(recovery.sameInputHandled, true);
+  assert.equal(recovery.explicitRecoveryAttempts, 0);
+  assert.equal(recovery.automaticRecoveryTicks, 1);
   assert.equal(observations.guardCalls, 0);
   assert.deepEqual(observations.wireViolations, [], "REFUSED_WIRE_VIOLATION");
   assert.equal(observations.session, "IDLE");

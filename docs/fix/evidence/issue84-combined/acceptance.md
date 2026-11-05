@@ -69,3 +69,19 @@ Master 在 `758fb875fdcf10f7a7b342b56d03318cdf78e7a8` 确认重做复测成功�
 | 边界样例 | 归档/歧义/纯暂停、UNKNOWN、旧失败拒绝、精确取消、4 MiB、overflow、四轮 Agent 的自动化证据按原范围引用；本次未建立完整原生样例域 | 不自动判 PASS |
 | 原生图片到真实 provider | 新真实域按清单操作并核对随机标记；API 导入仅证明 API 路径 | 等待新记录 |
 | 实现参考文档退役 | 仍保留唯一 AC 分支定义及未决原生引用 | 继续保留 |
+
+## u2 已保存的真实结果与续验阻塞（2026-11-05）
+
+本节补记交接前已经执行的结果，本轮只读核对，未重新运行 provider。候选 Core/TUI `0899929f630df064940c42342c8fd605a4816dff`，observe 策略，Main 90K／输出 8192／wire guard 100K；不代表生产默认窗口消耗或原生终端验收。原始文件均在 Git 忽略的 `.demo-data/issue84/runs/u2/live/`。后续生产代码变化后，必须按 R7 在新域复验；本节保留历史事实。
+
+| 对应分支 | 已保存结果（REAL_PROVIDER_CORE_API） | 尚未证明 |
+| --- | --- | --- |
+| Main 连续对话前提 | `automatic-probe-1793891463764.json` PASS，probe 与 followup 为两个实际输入 | AC01 原生导航/阅读位置等 |
+| AC32 图片模型链路 | `automatic-vision-1793891490891.json` PASS，原图/导入/出站 SHA 一致、随机图标记识别；非原生 | Ctrl+V、READY、原生失败保稿 |
+| AC22/AC33 产物和独立目录 | `automatic-shared-1793891539487.json` PASS，两个真实 Task 的各自 report.txt 为不同字节；Task/执行见 HANDOFF | 新轮原生当前文件打开、布局、全部 Shared 分支 |
+| AC18/AC19 定向问题链路 | `automatic-question-1793891601200.json` PASS，Decision `d3219765-7ddc-48bf-8a4e-4f01cb63737a`，回答 `/M ISSUE84-AUTOMATIC-ANSWER` 原样送入执行 `9b969482-8d06-484f-81a6-ff86be42433a` | 事项选择/普通草稿恢复/Task show 的本轮原生手势 |
+| AC18 授权后执行 | `automatic-approval-1793891644758.json` PASS，Authorization `7cdf1634-9c3f-4fc6-aae2-ee63e890e14e` 被 CONSUMED，Task 写入成功 | 原生 APPROVED 即移除、中立 Enter、排序等 |
+| AC21 真实失败→REDO | NOT_RUN；授权后 Main 容量阻塞，未创建本轮缺源失败 Task | 实际 provider 唯一直接重做；旧 scripted/native 结果不替代 |
+| AC08/AC27 原生交错 | 本轮 NOT_RUN | 多段粘贴字节、显式跟随/上滚被动到达 |
+
+容量阻塞保留：Main `CAPACITY_BLOCKED`，SCHEDULER Input `3f7b0e2e-02ab-40b5-bfdb-7750455f39c3` 仍 CLAIMED；旧摘要经一次显式恢复提交，仅覆盖序列 32，最新已处理输入为 318。原先 EMPTY_WORKING_MEMORY 与非法 tier 错误未删除。服务已停止，不能沿旧人工步骤直接发送。诊断及待批准修复见 [原总体计划 R7](../../fix_20261105_issue84_combined.md#r7--工作记忆恢复缺陷已定位实施待-master-批准)。新候选真实重做、原生图片及产品终验仍待执行；以上各行均不宣告对应整项 AC 通过。

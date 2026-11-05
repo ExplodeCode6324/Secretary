@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Usage } from "@earendil-works/pi-ai";
 import path from "node:path";
 import { imageLeaves } from "../../src/pi_secretary/src/vision.ts";
@@ -64,6 +64,7 @@ export function wireBound(body: string) {
 }
 
 export type Attempt = ReturnType<typeof wireBound> & {
+  attemptId?: string;
   role: Role;
   phase: Phase;
   domain?: string;
@@ -185,10 +186,26 @@ export class Issue84Budget {
             typeof b.admitted === "boolean",
           "HISTORY_BATCH",
         );
-      this.state.attempts = prior.attempts.map((a) => ({
-        ...a,
-        domain: a.domain ?? path.dirname(source.path),
-      }));
+      const ordinals = new Map<string, number>();
+      const imported = new Map<string, Attempt>();
+      for (const a of prior.attempts) {
+        const domain = a.domain ?? path.dirname(source.path);
+        const ordinal = ordinals.get(domain) ?? 0;
+        ordinals.set(domain, ordinal + 1);
+        // Legacy ledgers already contain a flat, ordered list per source domain.
+        // Never recursively import their provenance as another attempt list.
+        const attemptId =
+          a.attemptId ??
+          "legacy-" + digest(Buffer.from(JSON.stringify([domain, ordinal])));
+        const entry = { ...a, domain, attemptId };
+        const duplicate = imported.get(attemptId);
+        requireBudget(
+          !duplicate || JSON.stringify(duplicate) === JSON.stringify(entry),
+          "HISTORY_ATTEMPT_ID_CONFLICT",
+        );
+        imported.set(attemptId, entry);
+      }
+      this.state.attempts = [...imported.values()];
       this.state.batches = prior.batches.map((b) => ({
         ...b,
         domain: b.domain ?? path.dirname(source.path),
@@ -358,6 +375,7 @@ export class Issue84Budget {
       "ACTIVE_TIME",
     );
     const attempt: Attempt = {
+      attemptId: randomUUID(),
       ...wire,
       role,
       domain: path.dirname(this.file),

@@ -1,3 +1,5 @@
+> Current R7 amendment is in the original combined plan: diagnosed memory recovery defects. It proposes minimal production fixes, pending Master implementation approval. Unlimited cumulative allowance, isolation, accounting and operator recovery limits here remain effective.
+
 # Issue #84 amendment: observable usage without acceptance quotas
 
 Master has now explicitly authorized unlimited acceptance allowance and said not to worry about cost, in order to observe Secretary token consumption. This amendment supersedes the original acceptance-only cost, cumulative token/call/tool/generated-proposal, active-time, two-hour wall-window and reserve allocations. It does not remove product context capacity, per-request deadlines, task scope, isolation or evidence gates. The original bilingual plan remains historical; this amendment takes precedence.

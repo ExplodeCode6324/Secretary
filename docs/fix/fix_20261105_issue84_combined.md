@@ -1,6 +1,8 @@
 # Issue #84 — 组合终验与正式文档收口
 
-> 当前修订：[取消验收额度与 token 观测](fix_20261105_issue84_unlimited.md)。Master 已授权不设验收额度；本文件中的旧费用、累计次数/时间及 reserve 条款保留为历史，以上述修订为准。
+> 最新诊断与待批准范围见本文 R7；R7 优先于旧的仅验收工具范围。
+
+> 历史额度修订：[取消验收额度与 token 观测](fix_20261105_issue84_unlimited.md)。Master 已授权不设验收额度；本文件中的旧费用、累计次数/时间及 reserve 条款保留为历史，以上述修订为准。
 
 1. 范围与基线。Master 批准实施及真实调用预算前仅做计划。仓库 https://github.com/ExplodeCode6324/Secretary ；议题 https://github.com/ExplodeCode6324/Secretary/issues/84 ；基线 main `ed16e804d28c0b0048e37035349f1ff3f7982f38`（含 PR #101，合并后 CI 41986472952）。#82/#91/#83/#92/#93/#94 均已 COMPLETED，关闭不等于组合验收。f01076e6f5efad437d64b2a2890ae1af43ce97d7 仅为业务基线。沿用 Node/TypeScript、独立 Core 和本机 API、pi-tui 0.87.0（上游 16787ad5b2dc748047f314ca1bfe7708f30f54f3）。不换框架、不新增命令或菜单、不全面接入 API、不做目录清理、级联归档、格式转换或 #70–74。
 
@@ -20,7 +22,7 @@
 
 6. 仅就近修复可复现的组合缺陷，留首次失败及必要的针对性回归；相关代码/配置变动后重跑受影响原生和真实模型链路。收口运行测试、运维/README、架构/API/验证以及 docs/tui/api-coverage.md（已用/新增/未用/受限、原因和实际接口）。用来源到目标交叉表完整吸收 v1.7 有效要求、暂停/旧失败最终裁定、AC 定义、兼容及后置边界；修正活引用，以固定提交链接保留历史来源。没有独有规范或待修活引用才能移除 implementation-reference.md，否则保留并报告原因。更新必要的本地化及检查。
 
-7. 门槛。定向回归、按仓库配置用隔离 DB 跑 npm run verify，再跑冻结 PR HEAD 的 Linux/macOS/汇总 CI。原生、真实模型和自动化证据对应候选 SHA；仅文档差异可证明被测产品代码/配置一致，相关变更则补验。同一 Claude Opus 5.5 Extra 会话复核准确 PR HEAD、实际证据、未决分支和 CI，区分独立查阅与 Codex/Master 的观察。交可操作原生清单，由 Master 明确给出产品终验；CI、Claude、PR 状态均不代表产品通过。必要项失败/未测则阻止完成，除非 Master 对具体差异明确裁定。合并与关闭另获授权，合并后确认 main CI。#84 完成且 Master 产品通过后才进 #70 → #71 → #72 → #73；#74 由 #70 数据决定。本计划中所有新运行门槛均未执行。
+7. 门槛。定向回归、按仓库配置用隔离 DB 跑 npm run verify，再跑冻结 PR HEAD 的 Linux/macOS/汇总 CI。原生、真实模型和自动化证据对应候选 SHA；仅文档差异可证明被测产品代码/配置一致，相关变更则补验。同一 Claude Opus 5.5 Extra 会话复核准确 PR HEAD、实际证据、未决分支和 CI，区分独立查阅与 Codex/Master 的观察。交可操作原生清单，由 Master 明确给出产品终验；CI、Claude、PR 状态均不代表产品通过。必要项失败/未测则阻止完成，除非 Master 对具体差异明确裁定。合并与关闭另获授权，合并后确认 main CI。#84 完成且 Master 产品通过后先进入 #103–#106，再按使用反馈迭代 TUI；Master 确认 UI 稳定后才进 #70 → #71 → #72 → #73；#74 由 #70 数据决定。本计划中所有新运行门槛均未执行。
 
 ## R2 实施细化（作为执行依据）
 
@@ -62,3 +64,63 @@ next 等待活跃工作及尚未到期的维护来源全部收敛，不能把 60
 Master 最新要求先准备人工材料，完成 Codex 自动验收后停止，等待 Master 操作回报。因此自动 provider 流程先按固定顺序执行；redo 收敛后可用 native-vision 单次返回原 vision 额度，供 Master 真实剪贴板发送。所有历史请求、费用、墙钟起点及原 vision 六次上限保留，不释放 reserve，不允许再次循环路径。API 图片导入单独标记，不能算直接剪贴板。交接写明剩余 vision 次数和原两小时截止时间；如果额度或时间不足，保留 NOT_RUN 交 Master 下轮决定，不能重置。Codex 停止时原生完成及合并仍待确认。
 
 原生可行性选择：继续保留两次维护余量，接受自动 vision 超过三次或墙钟过期时原生发送 NOT_RUN，不豁免门槛、不自行释放 reserve。把真实消息的多段粘贴、发送跟随和被动到达并入原生图片说明：手敲一段、粘贴一段、再手敲一段并粘贴一段，Ctrl+V 图片后发送，回复到达前上滚；Master 回报后比对实际提交字节。未观察的步骤仍为 NOT_RUN。Master 已确认方便操作，随后要求自动完成后交接停止；材料列明准确截止时间。失败提取任务即使不再计为 pending，也保留于 observations 并单独报告。
+
+## R7 — 工作记忆恢复缺陷已定位；实施待 Master 批准
+
+本修订针对以下组合缺陷，取代旧计划“只改验收工具”的限制，拟最小修改生产维护调度和摘要提示，不扩展为 Core 优化。Master 本轮要求先定位、修改原双语 fix 计划并经 Claude Opus 5.5 Extra 复核，再批准实施。本轮仅诊断和计划：未改生产代码、跟踪测试、真实 journal/数据库，未调用 provider、未恢复真实服务。PR #102 仍草稿，#84 OPEN；HEAD `0899929f630df064940c42342c8fd605a4816dff` 的 Linux/macOS/verify CI 全绿，仅覆盖旧候选。
+
+### 证据与根因
+
+只读解析 u2 journal 和引用对象并核对 SHA-256：Main 因输入估计 75,438 > 可用 73,212 阻塞；SCHEDULER Input 仍 CLAIMED，active loop 保留，保护边界为 36。一次显式 compact 补交旧摘要及提取后，记忆仅覆盖序列 32，最新 input.handled 为 318，没有 CONTEXT_COMPACTION。这是 Main 90K／输出 8192／wire 100K 的验收配置观察，不外推生产默认的触发频率。
+
+1. **提示与校验不完整对齐。** 三次保存的完整摘要依次返回空 items、非法 BACKGROUND、合法 QUIET。前两次拒绝正确；SUMMARY_SYSTEM 只在例子中展示 ACTIVE，未列完整枚举或明确非空，又要求不长期保留无活跃事项的背景事实。已证提示存在合同缺口，不能据此保证修改提示后模型永不违规。
+2. **容量恢复丧失调度推进能力。** memoryDue() 在检查 summaryDue() 前拒绝所有非 IDLE；compact() 只维护一轮，并把维护后的 pressureKey 无条件记为 capacityAttemptKey。buildCompaction 正确禁止裁剪尚未被记忆覆盖的历史；旧范围提交后，阻塞状态既不 memoryDue，也不再触发压力维护，同一稳定状态下已到期的失败摘要亦可能被挡住。独立诊断调用原生产 memoryDue/maintainIfNeeded/compact，以合成回调复现两条路径：连续十个 tick 均零新增维护。它是函数级复现，不是完整 App/provider 验收；u2 未持久化易失 key，其值由实际执行的 finally 推断，不冒称保存现场读数。
+3. **待摘要原文引用倒退。** Consciousness revision 11 指向较新的 7,409 字节消息列表；旧 Job 提交时 revision 12 写回 1,474 字节旧源，revision 13 沿用。后续 delta 从 journal 事件构造，不能声称新文本被删除；这是待处理来源和出处关联倒退，后继 Job 不应以旧快照冒充当前待处理原文。原对象和事件仍完整保留。
+
+忽略目录 `.demo-data/issue84/diagnosis-capacity-20261105/` 保存 `frozen-analysis.json`、`inspect.py`、`scheduler-repro.ts/json`。原真实 journal SHA-256：`7cf2d5a1c2a5c2198b1f1e74fcd14d4a7db4ff078662cc7486ed81834562b3ed`。Claude 收到诊断事实和源码；本地证据由 Codex 提供，不等于 reviewer 独立执行。
+
+### 待批准的实现
+
+A. 新 SummaryPlan 的提示明确 tier 仅 ACTIVE/QUIET/MINIMAL，items 为 1–12 个。已完成且无持续事项的简单片段用简短、有来源的 MINIMAL 衔接项，不编造目标、义务、pending owner 或持续约束；单轮要求标为历史已履行，不重新激活。保留 previous_items 和新材料中的有效约束、未解决目标。保持严格校验、bounded-summary-v3 全部字节/元数据/完整输入界限、承诺归属和既有重试策略；不放行空数组、不强制映射 BACKGROUND、不伪造兜底文本、不放宽 schema。已保存计划继续使用冻结 system 和 policy，不静默迁移旧进度；加兼容回归。最终新域使用新计划，真实改善必须由新 provider 验证。
+
+B. 最小修改 memory-maintenance.ts 及必要的 memory-summary.ts。仅 IDLE 和 CAPACITY_BLOCKED 可维护；RECOVERY_BLOCKED、settings blocked 不放行。失败摘要仅在既有 next_attempt_at 到期时自然重试，终止失败仍需显式恢复；到期判断独立于压力去重 key。自动 tick 不重置 generation/round，不绕过退避。
+
+每次 compact 先等已有 Main 活动完成，捕获已完成输入边界；最多两轮摘要：既有旧 Job，随后最多一次新来源追赶。只有第一轮真正 COMMITTED、覆盖前进但仍落后于捕获边界，且没有失败/待处理屏障时才做第二轮。维护期间 Main 继续互斥；边界后的新输入留给后续周期。FAILED、STALE、无进展、设置/恢复阻塞或耗尽尝试时停止，保留状态与证据，不循环到成功。各轮继续受既有分片请求、重试和输出上限约束。提取沿用幂等逻辑，再按已提交覆盖裁剪；所有退出都释放 maintenance，合并并发 compact。
+
+旧前缀补交不能标为容量恢复完成。对相同、确实无法继续压缩的上下文保留压力去重；到期失败重试独立调度，只有有效完成来源/上下文/覆盖进展才允许进一步工作。验证无进展、超大的受保护输入不会每 tick 发请求。重启可以重新评估容量一次，但不能重置持久重试/退避/generation 或旧失败源。维护后仍按完整真实下一请求（工具、附件、活跃循环的 CLAIMED 后缀或 ACCEPTED 批次）重新检查，只有能容纳时清除 CAPACITY_BLOCKED；保持同一 Input/loop、操作去重、队列顺序及恢复阻塞。第二轮是产品追赶新源，不是操作者再次 compact 或重试额度重置。
+
+C. 旧 Job 提交时保留较新的 pending 原文。旧 Job source_refs/source_end 和 memory_source_ref 继续证明旧已提交前缀；pending_raw_refs 更新不得用旧 Job 覆盖新来源。后继以最新待处理来源和准确未覆盖事件区间构建，验证引用、提交覆盖和证据一致，包含图片证据及源撤回检查。没有成功且非 STALE 的校验提交，不推进 covered_event_sequence；不放宽 crop 覆盖门禁，不裁活跃保护后缀。
+
+### 验证与整体续验
+
+1. 实现前在独立无凭据真实 App 中补回归并保存首次失败：旧摘要失败→后续已处理输入→容量阻塞→旧摘要恢复→新覆盖→裁剪→原 Input 完成。同时覆盖一次显式恢复和自然到期，不用 driver 循环 compact 代替产品恢复；核对来源、退避、保护后缀和承诺，加入第二轮失败、STALE/无进展、终止失败、并发 compact、重启。复用隔离 helper，不动 u2。当前回调诊断只作辅助证据。
+2. 摘要测试覆盖已完成简单交流、合法枚举、空数组/BACKGROUND 拒绝、旧冻结计划不变、有效约束/条件义务、每轮一次和聚合预算不变。确定性夹具验证不伪造持续目标/义务；实际模型语义质量另由真实验收负责。
+3. 来源回归：旧边界失败，新增已完成输入，恢复旧 Job 后最新 pending 原文字节仍一致；后继只覆盖未覆盖区间且引用正确，补 STALE 与提取幂等。保留旧错误和 Job 身份。
+4. 跑 issue2/issue81/issue93/issue84 及直接受影响的记忆/设置定向测试，再完整 npm run verify 和准确 HEAD CI。observe dry/calibration 新增延迟摘要与积压组合，不能在每次阶段切换强制 compact；自动生成候选绑定 preflight。生产默认和 60%/30%/80% 比例不变。
+5. 保留 u2 及所有失败域；冻结旧 bounded 9 次与 u2 31 次，累计 40 次／253,380 token，散列验证且不重复计算 u2 已导入历史。新候选使用新空 Core/独立 DB，不拿旧域继续付费、不改 journal、不预置真实成功。最终候选重跑 probe、衔接、API vision、Shared、问题、授权，再真实缺源 read 失败、补入预声明 13 字节、唯一直接 REDO 子执行及其自身 write/登记产物成功，旧 FAILED 保留；护栏失败不算 AC21。
+6. 保持 observe／累计额度不限、用量对账、90K/8192/100K 验收配置、Core 超时/重试和隔离。自然维护最多观察七分钟；每个阻塞条件最多一次有理由有记录的操作者恢复，再失败停该路径。窗口外到期重试用离线受控时钟测，不缩短产品退避。区分自然/显式恢复；完整请求仍无法容纳则报告真实保护容量，不放宽界限，不自动 /resume 或重发掩盖缺陷。
+7. 自动路径及维护可用、静止后，为 Master 准备新随机标记图及原生步骤：Ctrl+V→READY→图文发送；手敲/粘贴/手敲/粘贴核对字节，显式跟随、上滚被动到达。记录终端/字体/行列/键位，对照 Core。Shared-B 首次打开失败、历史 /open 入模型仍列未定位；若复现先采集准确输入来源、错误、时间、目标和查看器状态，另提修复，不猜根因。
+8. 按原 AC01–AC34 子分支补入 u2 真实结果，原生/scripted/API 分类；不将单 API 成功升级整项通过。完成来源→正式文档交叉表及必要本地化；implementation-reference.md 独有要求和活引用未吸收前保留。最新顺序：#84 + Master 产品终验→#103–#106→使用反馈驱动 TUI 迭代→Master 确认 UI 稳定→#70→#71→#72→#73；#74 仍看数据。后续项目不纳入 #84。
+9. 同一 Claude 会话审最终准确 HEAD、diff、CI、新真实结果；源码复核不算独立执行。当前实施批准、Master 原生产品终验、后续合并/关闭授权分别独立。本轮只交付诊断和通过复核的计划，等待 Master 批准实施。
+
+### R7 定向复核处置（R7.1）
+
+Claude 在 `0899929f` 源码确认三项缺陷，要求补清四处计划边界。Codex 采纳跨 tick 限速、提示出处、单引用和固定边界要求；以下条款优先适用：
+
+- **跨 tick 的 STALE／无进展限速：** 使用现有维护 Job/事件机制持久记录结果和尝试时间。STALE 或覆盖未前进后的下一次自动尝试必须等待配置的最小维护间隔（通常 120 秒），重启后亦然；critical feedback 和 Task updated_at/revision 变化均不得绕过，不把 Task 频繁更新当作进展 key。FAILED 到期继续服从自身更长的持久退避。记忆已覆盖最新边界而保护后缀永远超大时，即使间隔到期也不能反复调用摘要。测试持续 Task 更新、critical feedback、多次 300ms tick、到期及重启。操作者的一次显式恢复独立记录。
+- **版本与提示出处：** SUMMARY_POLICY 明确保留 `bounded-summary-v3`，保持 `CONSCIOUSNESS:` 前缀；旧计划继续使用保存的 plan.system。新 SummaryPlan 增加可选 system hash，并在相关 Job 事件中记录；有 hash 时核对冻结正文，无字段的旧计划从原正文计算出处且不改写旧计划。不把提示正文/hash 加入运行设置指纹。测试旧计划用旧提示恢复、新计划用新提示和 hash、指纹不变、不新增 settings rebuild 或 CLAIMED 启动拒绝，以及新提示下设置撤回/持续约束行为。schema 与字节预算策略不变。
+- **单一 pending 来源：** 普通工作记忆路径保留当前最新的单引用 pending_raw_refs，不把旧源和新源追加为两个条目，避免误触发 length > 1 的 fullMemoryRefresh。旧 Job source_refs 和 memory_source_ref 保持旧前缀出处。既有设置刷新刻意使用的多来源状态仍由原设置刷新路径负责，不能被本修复破坏性压平。测试普通路径 length 恰为 1、新源字节一致且无意外设置刷新。
+- **固定追赶终点：** 将捕获的已完成输入 target 显式传给 maintain()；新追赶 Job 使用 min(capturedTarget,currentCompletedSequence)，pending Job 保持原冻结 end，不跨边界取材。测试后续到达、pending 与新 Job 两种路径。
+- **64 分片限制的保守裁定：** R7 不新增部分覆盖规划器。现有 createSummaryPlan 在任何 runSummary 请求和前缀提交前抛出 SUMMARY_SEGMENT_LIMIT，所以对同一超大区间反复调用不能产生进展。保留 64 分片及既有有界维护退避，保留 FAILED/错误、覆盖不前进；停止该验收路径并报告，另行评估范围/配置。调度不得每 tick 新建 Job 或重置 generation。加 >64 分片回归：零 provider 请求、不裁剪、不推进覆盖；既有重试耗尽后停止；本修订不提供该固定超大区间的产品内恢复。显式 compact 只会重置同一失败 Job 并再次失败，不作为补救或消耗那一次操作者恢复；须另行评估范围/配置。Codex 对 reviewer 建议“后续继续部分推进”作此保守替代，因为安全部分提交需要新增边界/出处设计，超出已观察缺陷；不承诺任意生产体量积压均恢复。
+- 新 probe、followup、vision 明确“仅本轮”限制，确定性测试同时含单轮和持续指令。候选因此变化，照既定流程重新 dry/preflight/live。
+- Master 批准 R7 即明确把这些 Core 记忆组合缺陷纳入 #84，不自动重开已关闭的 TUI 批次，不授权一般 Core 优化。下游顺序来源是当前 [#84 issue](https://github.com/ExplodeCode6324/Secretary/issues/84) 中 Master 的 2026-11-05 指令。历史按散列校验的源账本及物理 attempt ID 去重，u2 已导入的九次只计一次。
+
+等待复核期间，在新建无凭据真实 App 域内使用原摘要/容量/投影代码及 scripted 模型、无 World/PostgreSQL，又独立复现来源回退和容量停滞。容量夹具是 90K fixture 窗口、实际 usable 77,308/output 4096，不冒充真实配置；旧 Job 恢复后覆盖 10、最新完成 53，十次 tick 不新增摘要且继续 CAPACITY_BLOCKED。仅在此合成域再显式 compact 后，同一 Input 成为 HANDLED。这支持缺少追赶的诊断，不算修复成功；未改产品或 u2。忽略诊断目录保存 `source-repro.ts/json`、`app-capacity-repro.ts/json` 和合成域；最终配置和 PostgreSQL 下完整回归仍是实施门槛。
+
+### R7.1 最终复核
+
+Claude Opus 5.5 Extra 于 2026-11-06 定向确认 **PASS_PLAN_ONLY，No blocker remains**。四项边界通过；接受 >64 分片保守失败方案，已落实显式 compact 不是补救的非阻断措辞。后续用量报告单列 STALE 摘要次数及其 token 开销；持续 Task 更新仍可能每个最小间隔产生一次 STALE，限速不等于保证收敛。Reviewer 查阅源码，未独立运行 Codex 诊断或真实验收。当前仅计划通过，**等待 Master 批准把上述 Core 组合缺陷纳入 #84 并按 R7/R7.1 实施**；未修改产品或启动新真实运行。
+
+### 实施授权与顺序
+
+Master 已于 2026-11-06 明确批准：“先修复组合缺陷，然后针对缺陷做独立验收，再接着推原主线工作。”当前按此顺序实施 R7/R7.1；原计划中的“待批准”及“未修改代码”描述保留为诊断阶段历史，不再是当前状态。合并/关闭与原生终验仍独立。

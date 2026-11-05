@@ -22,7 +22,7 @@ import { migrateCommitments, reconcileCommitments } from "./memory.ts";
 import { maintenanceRetryAt, retryNow } from "./model-retry.ts";
 import { type AgentMessage } from "./model.ts";
 import { presentedNotification } from "./notification-service.ts";
-import { base, now, revise } from "./store.ts";
+import { base, hash, now, revise } from "./store.ts";
 import {
   SUMMARY_POLICY,
   createSummaryPlan,
@@ -40,14 +40,21 @@ type MemorySummaryContext = Pick<
   | "pendingSummary"
   | "session"
   | "sessionID"
+  | "settingsBlocked"
   | "store"
   | "stream"
   | "summaryDue"
 >;
 
-export async function maintain(this: MemorySummaryContext, inLoop = false) {
+export async function maintain(
+  this: MemorySummaryContext,
+  inLoop = false,
+  target = this.completedSequence(),
+) {
   const session = this.session;
   if (
+    this.settingsBlocked() ||
+    session.state === "RECOVERY_BLOCKED" ||
     (!inLoop && !["IDLE", "CAPACITY_BLOCKED"].includes(session.state)) ||
     !session.last_context_id
   )
@@ -55,8 +62,10 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
   const cs = this.memory(),
     pending = this.pendingSummary();
   if (pending && !this.summaryDue(pending)) return;
+  if (inLoop && !pending && summaryCoolingDown(this)) return;
   const sourceRef = pending?.source_refs[0] ?? cs.pending_raw_refs[0];
-  const sourceEnd = pending?.source_end_sequence ?? this.completedSequence();
+  const sourceEnd =
+    pending?.source_end_sequence ?? Math.min(target, this.completedSequence());
   if (!sourceRef || sourceEnd <= (cs.covered_event_sequence ?? 0)) return;
   const delta = this.store.logs.filter(
     (l) =>
@@ -197,6 +206,20 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
         },
       });
     const commitmentsBefore = saved?.commitments ?? migrateCommitments(cs);
+    this.store.commit(
+      [],
+      [
+        this.store.event(
+          "consciousness.plan",
+          {
+            job_id: job.id,
+            source_end_sequence: sourceEnd,
+            system_hash: hash(plan.system),
+          },
+          { session_id: this.sessionID, task_id: null, execution_id: null },
+        ),
+      ],
+    );
     const candidate = await runSummary({
       store: this.store,
       model: this.model,
@@ -280,7 +303,7 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
         [revise(latest, { state: "STALE" })],
         [this.store.event("consciousness.stale", { job_id: job.id })],
       );
-      return;
+      return this.store.get<CompactionJob>("CompactionJob", job.id);
     }
     const commitments = reconcileCommitments(
       this.store,
@@ -305,7 +328,9 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
           items,
           commitments,
           covered_event_ids: sources,
-          pending_raw_refs: [sourceRef],
+          // A retried job can cover an older prefix than the latest raw context.
+          // Keep the current pending source; the job retains its own provenance.
+          pending_raw_refs: current.pending_raw_refs,
           last_job_id: job.id,
           covered_event_sequence: sourceEnd,
           maintenance_version: 3,
@@ -361,6 +386,30 @@ export async function maintain(this: MemorySummaryContext, inLoop = false) {
         : "failed",
     );
   }
+  return this.store.get<CompactionJob>("CompactionJob", job.id);
+}
+
+/** Durable throttling also applies to critical feedback and pressure triggers. */
+export function summaryCoolingDown(
+  context: Pick<MemorySummaryContext, "store" | "sessionID">,
+) {
+  const { store, sessionID } = context;
+  const last = store
+    .all<CompactionJob>("CompactionJob")
+    .filter((j) => j.session_id === sessionID && j.mode === "WORKING_MEMORY")
+    .at(-1);
+  const staleUntil =
+    last?.state === "STALE"
+      ? Date.parse(last.updated_at) +
+        Number(process.env.SECRETARY_MEMORY_MIN_INTERVAL_SECONDS ?? 120) * 1000
+      : 0;
+  const event = store
+    .events("consciousness.maintenance_stalled")
+    .findLast((e) => e.scope.session_id === sessionID);
+  const stalledUntil = event
+    ? store.read<{ retry_after: number }>(event.payload).retry_after
+    : 0;
+  return retryNow(store) < Math.max(staleUntil, stalledUntil);
 }
 
 export function notifyFailure(

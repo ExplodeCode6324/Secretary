@@ -111,6 +111,8 @@ test("history import verifies frozen files, retains failed batches, and rejects 
     /HISTORY_ATTEMPT/,
   );
   old.end(a, a.started + 1, "observed");
+  old.state.attempts.push(structuredClone(a));
+  old.save(); // The same identified physical attempt is imported exactly once.
   history = freeze();
   const current = new Issue84Budget(
     path.join(dir, "new.json"),
@@ -119,6 +121,7 @@ test("history import verifies frozen files, retains failed batches, and rejects 
     history,
   );
   assert.equal(current.state.attempts.length, 1);
+  assert.equal(current.state.attempts[0].attemptId, a.attemptId);
   assert.equal(current.state.phase, "main");
   assert.equal(current.state.batches[0].admitted, false);
   assert.equal(current.state.provenance![0].policy, "bounded");
