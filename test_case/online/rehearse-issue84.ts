@@ -112,6 +112,7 @@ async function send(text: string, extra: object = {}) {
   return request;
 }
 async function next(phase: string) {
+  await client.command("session/compact", { request_id: id() });
   await until(() => obs().idle, "maintenance-before-" + phase);
   command("next " + phase);
   await until(() => read("usage.json").phase === phase, "phase-" + phase, 5000);

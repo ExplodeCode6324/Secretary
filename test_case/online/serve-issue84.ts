@@ -343,7 +343,11 @@ const scopeFile = path.join(root, "approval-scope.json");
 if (fs.existsSync(scopeFile))
   approvalScope = JSON.parse(fs.readFileSync(scopeFile, "utf8")).id;
 const quiescent = () =>
-  !app.activitySnapshot().activities.some((a) => a.scope === "maintenance") &&
+  !app
+    .activitySnapshot()
+    .activities.some(
+      (a) => a.scope === "maintenance" && a.status === "running",
+    ) &&
   active === 0 &&
   !app.settings.blocked &&
   !app.host.session.active_loop_id &&
