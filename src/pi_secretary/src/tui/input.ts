@@ -163,6 +163,7 @@ export function parseDraft(
         return page === "Task"
           ? { kind: "draft" }
           : payload(expandSnapshot(snapshot));
+      return parseInput(expandSnapshot(snapshot), page, taskDetail, images);
     }
     const action = parseInput(snapshot.text, page, taskDetail, images);
     if (action.kind !== "send") return action;

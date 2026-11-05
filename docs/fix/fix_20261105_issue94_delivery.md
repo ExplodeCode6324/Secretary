@@ -119,3 +119,5 @@ Main 和 Task 均切换到 DeepSeek 官方 API 的 `deepseek-flash`（DeepSeek V
 Master 随后为本次隔离验收指定 OpenAI 密钥与 GPT-6 系列。B 轮 Main 与 Task 均使用仓库模型目录中的 `openai/gpt-6-astra`，直连官方 Responses API。已有密钥仅注入进程。本次沿用原总预算及最多三项替代任务；OpenCode 已停用。常规部署可继续配置直连 DeepSeek。
 
 OpenAI 官方接口 TLS 失败后，Master 授权改用 DeepSeek 官方 Flash。在新的隔离域显式选择该模型，只向进程注入对应密钥。B 轮实际创建零项替代提议，因此沿用三项原有名额及同一本总账。
+
+最终验收发现手动键入首个斜杠后，较长粘贴命令被按折叠标签解析。修复时先检查首个斜杠来源，再展开保留的原文并解析命令语法。覆盖长 Execution 限定、绝对路径、草稿恢复和字面消息，保持整段粘贴消息语义、未知来源拒绝、路径大小写/空格、命令作用域及换行校验。
