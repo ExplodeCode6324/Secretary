@@ -6,7 +6,7 @@
 
 每项实施 Issue 完成时，按当时的 [操作清单](../api/v1/operations.json) 更新本表，并在完成报告链接本次版本、说明使用变化和仍未使用的 API。测试对本地接口的调用不计为 TUI 已消费。未用 API 不要求补齐菜单，也不自动成为结项阻塞。
 
-状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。API inventory: 92 operations (58 GET, 34 POST); TUI consumes 30, with 62 unused.
+状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。API inventory: 93 operations (59 GET, 34 POST); TUI consumes 31, with 62 unused.
 
 #94 consumes the existing attachment import/message contracts; withdrawal remains unused. 下表的“已用”代表终端客户端实际调用，完整产品原生验收另列。
 
@@ -41,6 +41,7 @@
 | GET | /api/v1/core | 已用 | 连接已有 Core，校验身份/模式 |
 | GET | /api/v1/assistant | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/session | 已用 | Main recovery state; existing #93 use. |
+| GET | /api/v1/failures/{id} | 已用 | #93 failure detail and disposition; exact failure key, current revision and allowed actions. |
 | GET | /api/v1/clients/{id} | 未用 | 本批未接入；后续按对应功能范围处理 |
 | GET | /api/v1/requests/{id} | 已用 | 只读送达对账，不自动重发 |
 | GET | /api/v1/settings | 未用 | 本批未接入；后续按对应功能范围处理 |
