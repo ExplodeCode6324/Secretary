@@ -49,7 +49,8 @@ export function fixtureResponse(
 type WireMessage = {
   role: string;
   content?: string | { text?: string }[];
-  tool_calls?: { function: { name: string } }[];
+  tool_call_id?: string;
+  tool_calls?: { id: string; function: { name: string } }[];
 };
 const textOf = (message: WireMessage) =>
   typeof message.content === "string"
@@ -133,9 +134,24 @@ export function scriptedFixture(
     return fixtureResponse("", [
       tool("write", { path: filename, content: label + "\n" }),
     ]);
+  // Inspect the actual read receipt, not a later write's `error: null` field
+  // or the failed parent's evidence embedded in the continuation packet.
+  const readCalls = new Set(
+    messages.flatMap(
+      (message) =>
+        message.tool_calls
+          ?.filter((call) => call.function.name === "read")
+          .map((call) => call.id) ?? [],
+    ),
+  );
+  const readResult = messages.findLast(
+    (message) =>
+      message.role === "tool" && readCalls.has(message.tool_call_id ?? ""),
+  );
   const failureRead =
     label === "FAILURE" &&
-    /error|ENOENT|no such file/i.test(textOf(last ?? { role: "" }));
+    !!readResult &&
+    textOf(readResult) !== "ISSUE84-REDO\n";
   if (label === "FAILURE" && !failureRead && !previousCalls.includes("write"))
     return fixtureResponse("", [
       tool("write", { path: filename, content: "ISSUE84-REDO\n" }),

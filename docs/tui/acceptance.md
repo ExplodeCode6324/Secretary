@@ -38,8 +38,10 @@ npx tsx test_case/online/serve-issue84.ts rehearsal --resume
 另开实际 macOS Terminal，在仓库根目录执行：
 
 ```sh
-SECRETARY_DATA="$PWD/.demo-data/issue84/rehearsal/core" npm run tui
+SECRETARY_MODE=live SECRETARY_DATA="$PWD/.demo-data/issue84/rehearsal/core" npm run tui
 ```
+
+本验收服务的 Core API 模式为 `live`，TUI 必须显式设置 `SECRETARY_MODE=live`，否则默认 `fixture` 会触发 `CORE_MODE_MISMATCH`。是否请求真实模型由服务启动参数 `rehearsal` 或 `live` 决定；上述 `rehearsal` 仍使用无凭据的脚本化模型。
 
 彩排输入 `84 shared`、`84 question`、`84 approval`、`84 failure`。授权前在 Core 窗口输入 `approval-scope`。彩排使用脚本化模型，可重复检查界面及 Core 状态。原生真实模型阶段按 Main、vision、Shared、事项、失败重做的顺序，在 Core 空闲时用 `next vision`、`next shared`、`next matters`、`next redo` 切换预算。请求预算耗尽时暂停并保留当时状态，只有 Master 可以在服务窗口释放预留。
 
