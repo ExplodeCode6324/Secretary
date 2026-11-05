@@ -51,7 +51,7 @@ Le contrôle MPF refuse aussi les JPEG HDR gain-map produits par certains télé
 
 ## Dépendances et périmètre de validation
 
-sharp est fixé à 0.35.5 (Apache-2.0), avec les dépendances natives optionnelles Linux/macOS dans le lockfile. Consulter les LICENSE/README installés pour libvips et ses composants et conserver les mentions lors d’une distribution. Le packaging Portable est hors périmètre. Les contrats Core utilisent les adapters installés et des fixtures HTTP locales. La reconnaissance réelle reste NOT_TESTED ; #84 prépare profile et smoke synthétique. Le nouveau TUI et l’expérience humaine ne sont pas encore validés.
+sharp est fixé à 0.35.5 (Apache-2.0), avec les dépendances natives optionnelles Linux/macOS dans le lockfile. Consulter les LICENSE/README installés pour libvips et ses composants et conserver les mentions lors d’une distribution. Le packaging Portable est hors périmètre. Les contrats Core utilisent les adapters installés et des fixtures HTTP locales. Le ticket #94 a vérifié un scénario limité en terminal natif et la reconnaissance réelle par DeepSeek. Les preuves et limites figurent dans le [bilan de la PR #101](https://github.com/ExplodeCode6324/Secretary/pull/101#issuecomment-6652193797). Le ticket #84 suit séparément le scénario combiné.
 
 ## Issue #94 TUI consumer
 

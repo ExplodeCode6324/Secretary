@@ -51,7 +51,7 @@ MPF 検査は一部のスマートフォンが生成する HDR gain-map JPEG も
 
 ## 依存関係と検証範囲
 
-sharp は 0.35.5（Apache-2.0）に固定し、lockfile に Linux/macOS のネイティブ任意依存を含めます。libvips と各部品のライセンスはインストール済み LICENSE/README を参照し、配布時に表示を保持します。Portable 梱包は対象外です。Core 契約は実際の adapter とローカル HTTP fixture で検証します。実 provider の画像認識は NOT_TESTED で、#84 が profile と合成画像 smoke を準備します。新 TUI と人による端末体験は未承認です。
+sharp は 0.35.5（Apache-2.0）に固定し、lockfile に Linux/macOS のネイティブ任意依存を含めます。libvips と各部品のライセンスはインストール済み LICENSE/README を参照し、配布時に表示を保持します。Portable 梱包は対象外です。Core 契約は実際の adapter とローカル HTTP fixture で検証します。#94 では限定シナリオでネイティブ端末と DeepSeek の実画像認識を検証しました。証拠と制約は [PR #101 の最終記録](https://github.com/ExplodeCode6324/Secretary/pull/101#issuecomment-6652193797) を参照してください。組み合わせシナリオは #84 で別に記録します。
 
 ## Issue #94 TUI consumer
 
