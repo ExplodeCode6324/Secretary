@@ -1,3 +1,9 @@
+import { randomUUID } from "node:crypto";
+import { openCurrentFile } from "./open.ts";
+import { readClipboard } from "./clipboard-read.ts";
+import { ImageImports, requireImageCapability } from "./image-import.ts";
+import type { ImageMaterial } from "./state.ts";
+import type { AttachmentCapability } from "../api/contracts.ts";
 import { ResumeController } from "./resume.ts";
 import { CancelController } from "./cancel.ts";
 import { MatterController } from "./matter.ts";
@@ -64,6 +70,12 @@ export class TerminalApp {
   delivery?: Delivery;
   remote?: RemoteViews;
   private files?: LocalFiles;
+  private imageImports?: ImageImports;
+  private clipboardBusy = false;
+  private materialFocus = -1;
+  readonly materialRows = new Text("", 0, 0);
+  private localNoticeTimer?: ReturnType<typeof setTimeout>;
+  private localNoticeToken = 0;
   private stopping = false;
   private stopped = false;
   private attaching = false;
@@ -74,6 +86,7 @@ export class TerminalApp {
   private renderedDraft = { Main: -1, Task: -1 };
   private initialTimeline = true;
   private messageCache = new Map<string, ViewEntry>();
+  private messageArtifactRefs = new Map<string, unknown>();
   private messageRefs = new Map<string, unknown>();
   private messageNotices = new Map<string, string | undefined>();
   private messageModes = new Map<string, boolean>();
@@ -93,6 +106,7 @@ export class TerminalApp {
       "v1",
     ),
     clipboard: (text: string) => Promise<boolean | string> = copySelection,
+    private readonly clipboardRead: typeof readClipboard = readClipboard,
   ) {
     configureKeys();
     const keybindings = getKeybindings();
@@ -107,6 +121,12 @@ export class TerminalApp {
       copySelection: (text) => {
         // Pi has captured the copied text. Release even when the pointer ended
         // outside the document; its lingering highlight must not freeze output.
+        if (this.localNoticeTimer) {
+          clearTimeout(this.localNoticeTimer);
+          this.localNoticeTimer = undefined;
+          this.localNoticeToken++;
+          this.uiHint = "";
+        }
         this.scrolls[this.page].endSelection();
         this.tui.requestRender();
         return clipboard(text);
@@ -224,6 +244,12 @@ export class TerminalApp {
     }
     this.tui.addInputListener((data) => {
       if (isKeyRelease(data)) return { consume: true };
+      if (this.localNoticeTimer) {
+        clearTimeout(this.localNoticeTimer);
+        this.localNoticeTimer = undefined;
+        this.localNoticeToken++;
+        this.uiHint = "";
+      }
       this.scrolls[this.page].endSelection();
       if (matchesKey(data, "ctrl+c")) {
         const active = !!this.matters.current || this.matters.loading;
@@ -271,6 +297,64 @@ export class TerminalApp {
         }
         return { consume: true };
       }
+      if (matchesKey(data, "ctrl+v")) {
+        if (
+          this.page === "Main" &&
+          !this.viewing &&
+          !this.pageLoading &&
+          this.editors.Main.enabled
+        )
+          void this.pasteClipboard(true);
+        else this.localNotice("图片粘贴仅在 Main 普通编辑区可用");
+        return { consume: true };
+      }
+      const materials = this.delivery?.state.drafts.Main.materials ?? [];
+      if (
+        this.page === "Main" &&
+        !this.viewing &&
+        materials.length &&
+        !this.editors.Main.isShowingAutocomplete() &&
+        !this.editors.Main.getText().startsWith("/")
+      ) {
+        if (matchesKey(data, "tab")) {
+          this.materialFocus = this.materialFocus < 0 ? 0 : -1;
+          this.draw();
+          return { consume: true };
+        }
+        if (this.materialFocus >= 0) {
+          if (matchesKey(data, "up") || matchesKey(data, "down")) {
+            this.materialFocus =
+              (this.materialFocus +
+                (matchesKey(data, "up") ? -1 : 1) +
+                materials.length) %
+              materials.length;
+            this.draw();
+            return { consume: true };
+          }
+          if (matchesKey(data, "backspace") || matchesKey(data, "delete")) {
+            const d = this.delivery!.state.drafts.Main;
+            if (d.binding && d.binding === this.delivery!.state.pending?.id)
+              this.localNotice("delivery pending：不能移除冻结的发送材料");
+            else {
+              d.materials = materials.filter(
+                (_, i) => i !== this.materialFocus,
+              );
+              d.generation++;
+              this.materialFocus = Math.min(
+                this.materialFocus,
+                d.materials.length - 1,
+              );
+              void this.delivery!.flush();
+              this.draw();
+            }
+            return { consume: true };
+          }
+          this.materialFocus = -1;
+          this.draw();
+          if (matchesKey(data, "enter") || matchesKey(data, "escape"))
+            return { consume: true };
+        }
+      }
       const editor = this.editors[this.page],
         scroll = this.scrolls[this.page];
       if (!this.stopping && editor.enabled) {
@@ -309,7 +393,11 @@ export class TerminalApp {
                 void this.mainPage(
                   "after",
                   edge.item_id,
-                  edge.region === "thinking" ? "thinking" : "body",
+                  edge.region === "artifacts"
+                    ? "artifacts"
+                    : edge.region === "thinking"
+                      ? "thinking"
+                      : "body",
                 );
                 return { consume: true };
               }
@@ -324,7 +412,11 @@ export class TerminalApp {
                 void this.mainPage(
                   up ? "before" : "after",
                   anchor.item_id,
-                  anchor.region === "thinking" ? "thinking" : "body",
+                  anchor.region === "artifacts"
+                    ? "artifacts"
+                    : anchor.region === "thinking"
+                      ? "thinking"
+                      : "body",
                 );
                 return { consume: true };
               }
@@ -440,6 +532,7 @@ export class TerminalApp {
     this.tui.start();
     void this.attach();
     this.statusTimer = setInterval(() => {
+      void this.imageImports?.reconcile().catch(() => {});
       void this.cancellation.reconcile();
       void this.recovery.reconcile();
       void this.matters.refresh();
@@ -578,7 +671,7 @@ export class TerminalApp {
     const attention = this.page === "Main" ? this.remote?.attention : undefined;
     const pane =
       attention && (!!attention.head?.counts.total || !!attention.error);
-    this.layoutMode = `${active}:${this.page}:${!!pane}:${!!this.mainRecoveryNotice}`;
+    this.layoutMode = `${active}:${this.page}:${!!pane}:${!!this.mainRecoveryNotice}:${!!this.delivery?.state.drafts.Main.materials?.length}`;
     this.tui.setLayoutRoot(
       new VStack([
         {
@@ -610,6 +703,18 @@ export class TerminalApp {
                 basis: "auto" as const,
                 minSize: 1,
                 maxSize: 5,
+              },
+            ]
+          : []),
+        ...(this.page === "Main" &&
+        !active &&
+        !!this.delivery?.state.drafts.Main.materials?.length
+          ? [
+              {
+                component: this.materialRows,
+                basis: "auto" as const,
+                minSize: 0,
+                maxSize: 6,
               },
             ]
           : []),
@@ -657,7 +762,21 @@ export class TerminalApp {
       snapshot,
       this.page,
       !!this.remote?.taskBrowser.selected,
+      !!draft.materials?.length,
     );
+    if (action.kind === "paste") {
+      void this.pasteClipboard(false);
+      return;
+    }
+    if (action.kind === "open") {
+      void openCurrentFile(action.path, this.delivery.client)
+        .then((filename) => this.localNotice("已交给系统打开：" + filename))
+        .catch((e) => this.localNotice(String(e)));
+      this.delivery.edit("Main", "");
+      this.editors.Main.setText("");
+      void this.delivery.flush();
+      return;
+    }
     if (action.kind === "error") {
       this.uiHint = action.message;
       this.draw();
@@ -708,8 +827,93 @@ export class TerminalApp {
     }
     if (action.kind === "help")
       this.uiHint =
-        "/m /t /back /help · Main: /resume（继续原批次及排队输入） /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> /cancel --request <完整ID> 或 --execution <完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
+        "/m /t /back /help · Main: /open <路径> /paste（剪贴板） Ctrl+V 图片 · Tab 图片行/Delete 移除 · /resume（继续原批次及排队输入） /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> /cancel --request <完整ID> 或 --execution <完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
     this.draw();
+  }
+  private localNotice(message: string) {
+    const token = ++this.localNoticeToken;
+    clearTimeout(this.localNoticeTimer);
+    this.uiHint = message;
+    this.draw();
+    this.localNoticeTimer = setTimeout(() => {
+      if (token === this.localNoticeToken) {
+        this.uiHint = "";
+        this.localNoticeTimer = undefined;
+        this.draw();
+      }
+    }, 5000);
+  }
+  private async pasteClipboard(imageOnly: boolean) {
+    if (this.clipboardBusy) {
+      this.localNotice("剪贴板读取进行中");
+      return;
+    }
+    if (!this.delivery || !this.files || !this.imageImports) {
+      this.localNotice("Core 尚未连接；无法读取图片");
+      return;
+    }
+    const delivery = this.delivery,
+      imports = this.imageImports,
+      editor = this.editors.Main;
+    const snapshot = editor.snapshot(),
+      raw = editor.getExpandedText(),
+      generation = delivery.state.drafts.Main.generation;
+    let material: ImageMaterial | undefined,
+      cap: AttachmentCapability | undefined;
+    this.clipboardBusy = true;
+    const submissions = delivery.submissions;
+    try {
+      const captured = await this.clipboardRead(imageOnly, async () => {
+        cap = await requireImageCapability(delivery.client);
+        if (
+          delivery.submissions !== submissions ||
+          this.page !== "Main" ||
+          this.matters.current ||
+          this.matters.loading
+        )
+          throw Error("CLIPBOARD_TARGET_CHANGED");
+        material ??= await imports.begin();
+        return cap;
+      });
+      if (captured.kind === "image") {
+        if (!material || !cap) throw Error("IMAGE_CAPTURE_INVARIANT");
+        await imports.captured(material, captured.bytes, cap);
+        const d = delivery.state.drafts.Main;
+        if (
+          !imageOnly &&
+          d.raw === raw &&
+          equalSnapshotContent(d.snapshot, snapshot)
+        ) {
+          delivery.edit("Main", "");
+          editor.setText("");
+        }
+        this.localNotice("图片已加入 Main 草稿；READY 后 Shift+Enter 明确发送");
+      } else {
+        const d = delivery.state.drafts.Main;
+        if (d.generation === generation && d.raw === raw) {
+          editor.setText("");
+          editor.handleInput("\x1b[200~" + captured.text + "\x1b[201~");
+        } else {
+          const id = randomUUID();
+          const file = await this.files.recover({
+            id,
+            raw: captured.text,
+            body: { request_id: id, text: captured.text },
+            created_at: new Date().toISOString(),
+            attempts: [],
+            status: "UNKNOWN",
+          });
+          this.localNotice("新草稿保留；剪贴板文本已存恢复文件：" + file);
+        }
+      }
+      await delivery.flush();
+    } catch (e) {
+      if (material) await imports.fail(material, e).catch(() => {});
+      this.localNotice(String(e));
+    } finally {
+      this.clipboardBusy = false;
+      this.draw();
+    }
   }
   private submitMessage(raw: string, text: string, snapshot?: DraftSnapshot) {
     // A Task switch while the durable save is pending must win over a late POST.
@@ -735,14 +939,25 @@ export class TerminalApp {
   private async mainPage(
     direction: "before" | "after",
     id?: string,
-    region?: "body" | "thinking",
+    region?: "body" | "thinking" | "artifacts",
   ) {
     if (!this.remote || this.pageLoading) return;
     this.pageLoading = true;
     try {
-      if (id) await this.remote.loadBody(id, region, direction);
+      if (id && region === "artifacts") {
+        await this.remote.loadDelivery(id, direction);
+        this.documents.Main.restoreAnchor({
+          item_id: id,
+          region: "artifacts",
+          measured_width: 0,
+          block_start_utf16: 0,
+          row_in_block: direction === "after" ? 0 : Number.MAX_SAFE_INTEGER,
+        });
+      } else if (id && region !== "artifacts")
+        await this.remote.loadBody(id, region, direction);
       else await this.remote.historyPage(direction);
-      this.documents.Main.navigationDelta = direction === "before" ? -1 : 1;
+      this.documents.Main.navigationDelta =
+        region === "artifacts" ? 0 : direction === "before" ? -1 : 1;
       this.remoteDirty = true;
     } finally {
       this.pageLoading = false;
@@ -790,6 +1005,7 @@ export class TerminalApp {
           return;
         }
         this.delivery = new Delivery(state, this.files);
+        this.imageImports = new ImageImports(this.delivery, this.files);
         this.delivery.onChange = () => this.draw();
         this.delivery.onEvent = (event) => {
           if (event.type === "post-start") this.startFollowing();
@@ -855,6 +1071,20 @@ export class TerminalApp {
       : "";
   }
   draw() {
+    const materials = this.delivery?.state.drafts.Main.materials ?? [];
+    if (this.materialFocus >= materials.length) this.materialFocus = -1;
+    this.materialRows.setText(
+      materials.length
+        ? materials
+            .map((m, i) =>
+              safeText(
+                `${this.materialFocus === i ? ">" : " "} ${m.name} [${m.status}] ${m.id}${m.error ? " · " + m.error : ""}`,
+              ),
+            )
+            .join("\n") +
+            "\nTab 图片行 · ↑↓ 选择 · Delete 移除 · Enter/Esc 编辑 · Ctrl+V 添加"
+        : "",
+    );
     if (this.stopped) return;
     this.recoveryNotice.setText(safeText(this.mainRecoveryNotice));
     if (this.delivery) {
@@ -897,6 +1127,7 @@ export class TerminalApp {
             this.messageRefs.delete(id);
             this.messageNotices.delete(id);
             this.messageModes.delete(id);
+            this.messageArtifactRefs.delete(id);
           }
         if (this.remote.error && this.remote.history.errorSide === "before")
           entries.push({
@@ -912,7 +1143,9 @@ export class TerminalApp {
             !entry ||
             this.messageRefs.get(m.id) !== m ||
             this.messageModes.get(m.id) !== this.remote.history.thinking ||
-            this.messageNotices.get(m.id) !== notice
+            this.messageNotices.get(m.id) !== notice ||
+            this.messageArtifactRefs.get(m.id) !==
+              this.remote.deliveries.get(m.id)
           ) {
             entry = {
               id: m.id,
@@ -923,6 +1156,7 @@ export class TerminalApp {
                 this.remote.history.thinking,
                 this.remote.bodies.get(m.id),
                 this.remote.history.evictedBodies.has(m.id),
+                this.remote.deliveries.get(m.id),
               ),
               revision: m.revision,
               instance_id: this.remote.client.endpoint.instance_id,
@@ -930,6 +1164,10 @@ export class TerminalApp {
             };
             this.messageCache.set(m.id, entry);
             this.messageRefs.set(m.id, m);
+            this.messageArtifactRefs.set(
+              m.id,
+              this.remote.deliveries.get(m.id),
+            );
             this.messageNotices.set(m.id, notice);
             this.messageModes.set(m.id, this.remote.history.thinking);
           }
@@ -964,7 +1202,7 @@ export class TerminalApp {
     this.attentionSelecting = !!attention?.selected;
     if (
       this.layoutMode !==
-      `${active}:${this.page}:${pane}:${!!this.mainRecoveryNotice}`
+      `${active}:${this.page}:${pane}:${!!this.mainRecoveryNotice}:${!!this.delivery?.state.drafts.Main.materials?.length}`
     )
       this.layout();
     if (active) {
@@ -1039,6 +1277,7 @@ export class TerminalApp {
       this.stopped = true;
       clearTimeout(this.retry);
       clearInterval(this.statusTimer);
+      clearTimeout(this.localNoticeTimer);
       this.remote?.stop();
       this.matters.stop();
       this.cancellation.stop();

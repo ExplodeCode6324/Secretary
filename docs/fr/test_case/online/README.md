@@ -12,9 +12,9 @@ Configurez un fichier existant d’identifiants par rôle, avec clés main/task 
 
 ```sh
 export SECRETARY_MODE=live
-export SECRETARY_MAIN_PROVIDER=opencode-go
+export SECRETARY_MAIN_PROVIDER=deepseek
 export SECRETARY_MAIN_MODEL='<主模型>'
-export SECRETARY_TASK_PROVIDER=opencode-go
+export SECRETARY_TASK_PROVIDER=deepseek
 export SECRETARY_TASK_MODEL='<任务模型>'
 export SECRETARY_CREDENTIALS_FILE='<已有私密凭据文件>'
 node --import tsx test_case/online/test-api-v1-live.ts --self-check
@@ -45,7 +45,7 @@ Chaque tour publie un programme et un artefact JSON. La recette télécharge les
 
 ## Autres scénarios
 
-`test-issue21-28-live.ts` vérifie conjointement le retrait des anciennes entrées et la recherche historique. Utilisez un DSN PG de test isolé auto-provisionné, `SECRETARY_CREDENTIALS_FILE` existant et un nouveau répertoire privé `SECRETARY_LIVE_EVIDENCE` ; aucune instance de données réelles ne doit servir de DSN de test. Il appelle opencode-go/deepseek-v4.1-flash pour 24 tours synthétiques et un tour de pression documentaire, puis recherche activement les faits de fond et cite les événements originaux après compactage, Settings et réouverture. Il vérifie l’absence des faits dans les requêtes et le transport réels, l’absence de cache des réponses dans mémoire/registre, la validité de la dernière correction et d’une autre contrainte inchangée, et la lisibilité des originaux.
+`test-issue21-28-live.ts` vérifie conjointement le retrait des anciennes entrées et la recherche historique. Utilisez un DSN PG de test isolé auto-provisionné, `SECRETARY_CREDENTIALS_FILE` existant et un nouveau répertoire privé `SECRETARY_LIVE_EVIDENCE` ; aucune instance de données réelles ne doit servir de DSN de test. Il appelle deepseek/deepseek-flash pour 24 tours synthétiques et un tour de pression documentaire, puis recherche activement les faits de fond et cite les événements originaux après compactage, Settings et réouverture. Il vérifie l’absence des faits dans les requêtes et le transport réels, l’absence de cache des réponses dans mémoire/registre, la validité de la dernière correction et d’une autre contrainte inchangée, et la lisibilité des originaux.
 
 Par défaut : 100 envois physiques et 40 minutes au maximum, 90 secondes par requête. `SECRETARY_LIVE_MAX_CALLS` / `SECRETARY_LIVE_WALL_MS` peuvent réduire le budget. `SECRETARY_LIVE_RESUME_STORE` ne concerne que le Store synthétique isolé de ce script après 24 tours terminés ; il revérifie les réponses initiales avant de terminer la recette, sans réécrire la provenance ni précharger les réponses de recherche. Chaque exécution consigne ses compteurs et hachages ; les rapports de continuation cumulent les appels et gardent le premier échec. Voir le [compte rendu](../../../fix/archive/fix_20261012_issue21_28_记忆检索与旧输入有界退出.md#13-实施记录) pour le résultat conjoint du 2026-10-13.
 

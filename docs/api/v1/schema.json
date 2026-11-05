@@ -1554,6 +1554,49 @@
             "string",
             "null"
           ]
+        },
+        "result_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source_root": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "current_unavailable_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description_source": {
+          "type": "string"
+        },
+        "current_state": {
+          "enum": [
+            "available",
+            "unavailable"
+          ]
+        },
+        "observed_at": {
+          "type": "string",
+          "format": "date-time"
         }
       },
       "required": [
@@ -1717,6 +1760,16 @@
         },
         "tool_name": {
           "type": "string"
+        },
+        "delivery_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delivery_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "required": [
@@ -6139,6 +6192,38 @@
       },
       "required": [
         "request_id"
+      ],
+      "additionalProperties": false
+    },
+    "MessageArtifactPage": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/Artifact"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_cursor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "items",
+        "total",
+        "next_cursor",
+        "version"
       ],
       "additionalProperties": false
     }

@@ -52,3 +52,7 @@ MPF 検査は一部のスマートフォンが生成する HDR gain-map JPEG も
 ## 依存関係と検証範囲
 
 sharp は 0.35.5（Apache-2.0）に固定し、lockfile に Linux/macOS のネイティブ任意依存を含めます。libvips と各部品のライセンスはインストール済み LICENSE/README を参照し、配布時に表示を保持します。Portable 梱包は対象外です。Core 契約は実際の adapter とローカル HTTP fixture で検証します。実 provider の画像認識は NOT_TESTED で、#84 が profile と合成画像 smoke を準備します。新 TUI と人による端末体験は未承認です。
+
+## Issue #94 TUI consumer
+
+The TUI now imports genuine native clipboard image pixels, persists source/request identity, verifies COMPLETED attachment metadata and sends ordered attachment_ids through the existing message API. READY and accepted message receipt are separate states; 202 is never interpreted as a completed import. Direct admission rejection restores all draft materials; uncertain transport preserves the exact original request. Native and actual-provider acceptance now belongs to #94 as well as the combined #84 acceptance, and cannot be inferred from #81 fixtures. See the [#94 ledger](../../../fix/evidence/issue94-delivery/acceptance.md).

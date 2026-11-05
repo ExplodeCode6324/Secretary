@@ -59,10 +59,10 @@ const save = () =>
     { mode: 0o600 },
   );
 save();
-const model = getModel("opencode-go", "deepseek-v4.1-flash");
+const model = getModel("deepseek", "deepseek-flash");
 const keys = offline
   ? null
-  : JSON.parse(fs.readFileSync(".demo-data/live-credentials.json", "utf8"));
+  : JSON.parse(fs.readFileSync(".demo-data/deepseek-credentials.json", "utf8"));
 const stream = offline
   ? fixtureStream
   : acceptanceStream(

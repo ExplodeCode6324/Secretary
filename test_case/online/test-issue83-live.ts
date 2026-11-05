@@ -49,9 +49,9 @@ const limits = {
 process.env.SECRETARY_MAX_OUTPUT_TOKENS = String(limits.output_tokens);
 configureLiveOutputBudget(limits.output_tokens);
 const keys = JSON.parse(
-  fs.readFileSync(".demo-data/live-credentials.json", "utf8"),
+  fs.readFileSync(".demo-data/deepseek-credentials.json", "utf8"),
 ) as { main: string; task: string };
-const model = getModel("opencode-go", "deepseek-v4.1-flash");
+const model = getModel("deepseek", "deepseek-flash");
 assert(model);
 const counts = { main: 0, task: 0 },
   toolBudget = { used: 0, limit: limits.tools },

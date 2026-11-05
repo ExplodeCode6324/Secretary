@@ -441,6 +441,7 @@ export function finish(
         agentDetail as {
           artifacts?: {
             path: string;
+            description?: string;
             content: TaskResult["evidence"][number];
           }[];
         }
@@ -450,6 +451,7 @@ export function finish(
       name: path.basename(a.path),
       content: a.content,
       workspace_path: a.path,
+      ...(a.description !== undefined ? { description: a.description } : {}),
       producing_operation_id:
         this.store
           .all<Operation>("Operation")

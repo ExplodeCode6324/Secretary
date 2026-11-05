@@ -52,3 +52,7 @@ Le contrôle MPF refuse aussi les JPEG HDR gain-map produits par certains télé
 ## Dépendances et périmètre de validation
 
 sharp est fixé à 0.35.5 (Apache-2.0), avec les dépendances natives optionnelles Linux/macOS dans le lockfile. Consulter les LICENSE/README installés pour libvips et ses composants et conserver les mentions lors d’une distribution. Le packaging Portable est hors périmètre. Les contrats Core utilisent les adapters installés et des fixtures HTTP locales. La reconnaissance réelle reste NOT_TESTED ; #84 prépare profile et smoke synthétique. Le nouveau TUI et l’expérience humaine ne sont pas encore validés.
+
+## Issue #94 TUI consumer
+
+The TUI now imports genuine native clipboard image pixels, persists source/request identity, verifies COMPLETED attachment metadata and sends ordered attachment_ids through the existing message API. READY and accepted message receipt are separate states; 202 is never interpreted as a completed import. Direct admission rejection restores all draft materials; uncertain transport preserves the exact original request. Native and actual-provider acceptance now belongs to #94 as well as the combined #84 acceptance, and cannot be inferred from #81 fixtures. See the [#94 ledger](../../../fix/evidence/issue94-delivery/acceptance.md).

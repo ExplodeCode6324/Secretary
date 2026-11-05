@@ -52,3 +52,7 @@ The MPF check also rejects HDR gain-map JPEGs produced by some phones. This vers
 ## Dependencies and validation boundaries
 
 sharp is pinned to 0.35.5 (Apache-2.0); the lockfile includes Linux/macOS native optional dependencies. libvips and component licenses are in the installed LICENSE/README files; preserve their notices when distributing. Portable packaging is outside this issue. Core contracts use installed adapters against local HTTP fixtures. Real provider vision is NOT_TESTED; #84 prepares the profile and synthetic smoke. New TUI consumption and human terminal experience remain unaccepted.
+
+## Issue #94 TUI consumer
+
+The TUI now imports genuine native clipboard image pixels, persists source/request identity, verifies COMPLETED attachment metadata and sends ordered attachment_ids through the existing message API. READY and accepted message receipt are separate states; 202 is never interpreted as a completed import. Direct admission rejection restores all draft materials; uncertain transport preserves the exact original request. Native and actual-provider acceptance now belongs to #94 as well as the combined #84 acceptance, and cannot be inferred from #81 fixtures. See the [#94 ledger](../../../fix/evidence/issue94-delivery/acceptance.md).

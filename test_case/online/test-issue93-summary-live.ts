@@ -54,9 +54,9 @@ const save = () =>
   );
 save();
 const keys = JSON.parse(
-  fs.readFileSync(".demo-data/live-credentials.json", "utf8"),
+  fs.readFileSync(".demo-data/deepseek-credentials.json", "utf8"),
 );
-const model = getModel("opencode-go", "deepseek-v4.1-flash");
+const model = getModel("deepseek", "deepseek-flash");
 assert(model);
 let armed = false,
   faulted = false;

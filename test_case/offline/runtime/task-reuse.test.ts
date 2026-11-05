@@ -772,6 +772,9 @@ test("A06/A15: shared files, immutable artifacts and independent single-use writ
         evidence: "report.txt",
       })),
       artifacts: ["report.txt"],
+      artifact_descriptions: [
+        { path: "report.txt", description: packet.assignment.goal },
+      ],
       limitations: [],
     });
   };

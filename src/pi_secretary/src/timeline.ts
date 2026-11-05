@@ -1,3 +1,4 @@
+import { deliveriesFor } from "./artifact-delivery.ts";
 import { attachmentInputView } from "./attachments.ts";
 import { randomUUID } from "node:crypto";
 import type { App } from "./app.ts";
@@ -185,7 +186,12 @@ export class Timeline {
           if (m.role !== "assistant" || !Array.isArray(m.content)) continue;
           // Abnormal empty results carry status; normal tool-only stays an activity.
           const visible = hasDisplayContent(m.content);
-          if (!visible && !abnormalReply(m.stopReason)) continue;
+          if (
+            !visible &&
+            !abnormalReply(m.stopReason) &&
+            !deliveriesFor(this.app.store).forEvent(e.event_id)
+          )
+            continue;
           role = "secretary";
           call_id = displays.forEvent(e.event_id)?.call_id;
           metadata.source_kind = "assistant_response";
@@ -470,6 +476,10 @@ export class Timeline {
         ? attachmentInputView(this.app.store, row.input_id)
         : {}),
       cursor,
+      delivery_count:
+        deliveriesFor(this.app.store).forEvent(row.source_event_id)?.artifacts
+          .length ?? 0,
+      delivery_cursor: null,
       role: row.role,
       at: row.at,
       call_id: row.call_id,

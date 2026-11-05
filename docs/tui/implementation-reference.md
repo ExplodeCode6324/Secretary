@@ -273,7 +273,7 @@ Task 的已定交互路径：使用 `/show <item_id>` 打开授权或问题；�
 | `/back` | 导航入口 | 返回逻辑上一级；一级页面无操作 | 授权或问题处理中不适用，未提交退出用 Esc |
 | `/help` | 普通状态全局 | 查看可用命令及说明 | 帮助反映真实作用域和参数；事项处理中不适用 |
 | `/cotvisible`、`/cotv` | 仅 Main | 全消息推理展开或收起 | Task 继承显示状态，不在 Task 调用 |
-| `/open <path>` | 仅 Main | 打开工作区当前文件 | ID 为可选目标，精确语法实施前登记 |
+| `/open <path>` | 仅 Main | 打开工作区当前文件 | Issue #94: absolute path or exact registered relative path; optional --execution full UUID; no artifact-ID shorthand |
 | `/send [正文]` | 仅 Main 普通输入 | 显式发送 Main 载荷 | 授权或问题处理中不适用 |
 | `/paste` | 仅 Main | 保留既定显式粘贴入口 | 需区分文字、文件引用和图片；不能以此代替图片直接粘贴验收 |
 | `/rawmessage <正文>` | 仅 Main | 仅本次消息按字面正文提交 | 正式拼写已确认 |
@@ -970,3 +970,5 @@ B10 必须补充可由 Main 完成的失败事项处置，并将结果关联到�
 [S35]: https://github.com/earendil-works/pi/blob/16787ad5b2dc748047f314ca1bfe7708f30f54f3/packages/tui/test/key-tester.ts
 [S37]: https://registry.npmjs.org/@earendil-works/pi-tui/0.87.0
 [S40]: https://github.com/ExplodeCode6324/Secretary/blob/f01076e6f5efad437d64b2a2890ae1af43ce97d7/package.json
+
+Issue #94 implementation: Ctrl+V is the native image gesture; /paste probes file references before image/text reading. Tab selects draft image rows, Delete/Backspace removes unsent references, Enter/Esc returns to editing. Native acceptance is separately recorded in the [#94 ledger](../fix/evidence/issue94-delivery/acceptance.md).

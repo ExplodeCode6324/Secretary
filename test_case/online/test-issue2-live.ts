@@ -29,15 +29,15 @@ if (!output) throw Error("Report path required");
 if (fs.existsSync(output)) throw Error("Refusing to overwrite live evidence");
 const directory = path.resolve(".demo-data/issue2-live-" + Date.now());
 const keys = JSON.parse(
-  fs.readFileSync(".demo-data/live-credentials.json", "utf8"),
+  fs.readFileSync(".demo-data/deepseek-credentials.json", "utf8"),
 );
 const main = roleModel(
-  getModel("opencode-go", "deepseek-v4.1-flash"),
+  getModel("deepseek", "deepseek-flash"),
   keys.main,
   "main",
 );
 const task = roleModel(
-  getModel("opencode-go", "gpt-5.6-luna"),
+  getModel("deepseek", "deepseek-flash"),
   keys.task,
   "task",
 );

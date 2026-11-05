@@ -62,9 +62,9 @@ if (mode === "--serve" || mode === "--resume") {
       () => {},
     );
   const credentials = JSON.parse(
-    await fs.readFile(path.resolve(".demo-data/live-credentials.json"), "utf8"),
+    await fs.readFile(path.resolve(".demo-data/deepseek-credentials.json"), "utf8"),
   );
-  const model = getModel("opencode-go", "deepseek-v4.1-flash");
+  const model = getModel("deepseek", "deepseek-flash");
   if (!model) throw Error("CONFIGURED_MODEL_NOT_FOUND");
   const real = roleModel(model, credentials.main, "main"),
     scope = new AsyncLocalStorage<number>();

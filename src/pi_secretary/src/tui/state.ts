@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { Page } from "./input.ts";
@@ -11,8 +11,27 @@ import {
   type DraftSnapshot,
 } from "./draft.ts";
 
+export type ImageMaterial = {
+  id: string;
+  name: string;
+  created_at: string;
+  status: "CAPTURING" | "IMPORTING" | "UNKNOWN" | "READY" | "FAILED";
+  error?: string;
+  body?: {
+    request_id: string;
+    source_path: string;
+    expected_sha256: string;
+    expected_bytes: string;
+    name: string;
+  };
+  attachment_id?: string;
+};
+export const materialsEqual = (a?: ImageMaterial[], b?: ImageMaterial[]) =>
+  JSON.stringify(a ?? []) === JSON.stringify(b ?? []);
+export const draftEmpty = (d: Draft) => !d.raw && !d.materials?.length;
 export type Draft = {
   raw: string;
+  materials?: ImageMaterial[];
   generation: number;
   binding?: string;
   snapshot?: DraftSnapshot;
@@ -20,7 +39,8 @@ export type Draft = {
 export type Pending = {
   id: string;
   raw: string;
-  body: { request_id: string; text: string };
+  materials?: ImageMaterial[];
+  body: { request_id: string; text: string; attachment_ids?: string[] };
   created_at: string;
   attempts: string[];
   cursor?: string;
@@ -28,15 +48,15 @@ export type Pending = {
   snapshot?: DraftSnapshot;
 };
 export type LocalState = {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   domain: string;
   mode: string;
   drafts: Record<Page, Draft>;
   pending?: Pending;
-  recovery?: { file: string; id: string };
+  recovery?: { file: string; id: string; images?: boolean };
 };
 export const freshState = (domain: string, mode: string): LocalState => ({
-  version: 2,
+  version: 3,
   domain,
   mode,
   drafts: {
@@ -108,7 +128,7 @@ export class LocalFiles implements StatePersistence {
         const original = await fs.readFile(filename, "utf8");
         const s = JSON.parse(original) as LocalState;
         if (
-          ![1, 2].includes(s.version) ||
+          ![1, 2, 3].includes(s.version) ||
           s.domain !== domain ||
           s.mode !== mode ||
           !s.drafts ||
@@ -126,8 +146,30 @@ export class LocalFiles implements StatePersistence {
             !Array.isArray(s.pending.attempts))
         )
           throw Error("INVALID_PENDING_STATE");
-        const legacy = s.version === 1;
+        const legacy = s.version < 3;
+        const priorVersion = s.version;
         for (const d of Object.values(s.drafts)) {
+          if (
+            d.materials &&
+            (!Array.isArray(d.materials) ||
+              d.materials.some(
+                (m) =>
+                  !m.id ||
+                  ![
+                    "CAPTURING",
+                    "IMPORTING",
+                    "UNKNOWN",
+                    "READY",
+                    "FAILED",
+                  ].includes(m.status),
+              ))
+          )
+            throw Error("INVALID_IMAGE_MATERIALS");
+          for (const m of d.materials ?? [])
+            if (m.status === "CAPTURING") {
+              m.status = "FAILED";
+              m.error = "CAPTURE_INTERRUPTED";
+            }
           if (!d.snapshot) d.snapshot = plainSnapshot(d.raw);
           validateSnapshot(d.snapshot);
           if (!d.snapshot.damaged && expandSnapshot(d.snapshot) !== d.raw)
@@ -144,8 +186,11 @@ export class LocalFiles implements StatePersistence {
             throw Error("PENDING_RAW_SNAPSHOT_MISMATCH");
         }
         if (legacy) {
-          await this.atomic(`v1-before-upgrade-${randomUUID()}.json`, original);
-          s.version = 2;
+          await this.atomic(
+            `v${priorVersion}-before-upgrade-${randomUUID()}.json`,
+            original,
+          );
+          s.version = 3;
           await this.save(s);
         }
         return s;
@@ -172,12 +217,15 @@ export class LocalFiles implements StatePersistence {
     });
     const snapshot: LocalState = {
       ...state,
-      version: 2,
+      version: 3,
       drafts: Object.fromEntries(
         Object.entries(state.drafts).map(([page, draft]) => [
           page,
           {
             ...draft,
+            ...(draft.materials
+              ? { materials: structuredClone(draft.materials) }
+              : {}),
             snapshot: copySnapshot(draft.snapshot ?? plainSnapshot(draft.raw)),
           },
         ]),
@@ -186,7 +234,10 @@ export class LocalFiles implements StatePersistence {
         ? {
             pending: {
               ...state.pending,
-              body: { ...state.pending.body },
+              body: structuredClone(state.pending.body),
+              ...(state.pending.materials
+                ? { materials: structuredClone(state.pending.materials) }
+                : {}),
               attempts: [...state.pending.attempts],
               snapshot: copySnapshot(
                 state.pending.snapshot ?? plainSnapshot(state.pending.raw),
@@ -211,10 +262,34 @@ export class LocalFiles implements StatePersistence {
         raw: p.raw,
         body: p.body,
         id: p.id,
+        materials: p.materials,
         snapshot: p.snapshot ?? plainSnapshot(p.raw),
       }),
     );
     return file;
+  }
+  async stageImage(id: string, bytes: Buffer) {
+    if (!this.owned || !/^[a-f0-9-]{36}$/.test(id))
+      throw Error("TUI_STATE_LOCK_LOST");
+    const filename = path.join(this.directory, `image-${id}.png`);
+    const h = await fs.open(filename, "wx", 0o600);
+    try {
+      await h.writeFile(bytes);
+      await h.sync();
+    } finally {
+      await h.close();
+    }
+    const dir = await fs.open(this.directory, "r");
+    try {
+      await dir.sync();
+    } finally {
+      await dir.close();
+    }
+    return {
+      source_path: filename,
+      expected_bytes: String(bytes.length),
+      expected_sha256: createHash("sha256").update(bytes).digest("hex"),
+    };
   }
   private async atomic(name: string, bytes: string | LocalState) {
     if (!this.owned) throw Error("TUI_STATE_LOCK_LOST");
@@ -238,6 +313,55 @@ export class LocalFiles implements StatePersistence {
     }
   }
   async collect(state: LocalState, now = new Date()) {
+    const names = await fs.readdir(this.directory);
+    const protectedImages = new Set<string>();
+    const protect = (value: unknown) => {
+      if (!value || typeof value !== "object") return;
+      const v = value as any;
+      if (typeof v.id === "string") protectedImages.add(`image-${v.id}.png`);
+      if (
+        typeof v.source_path === "string" &&
+        path.dirname(v.source_path) === this.directory
+      )
+        protectedImages.add(path.basename(v.source_path));
+      for (const member of Object.values(v))
+        if (member && typeof member === "object") protect(member);
+    };
+    protect(state);
+    let corruptReference = false;
+    for (const name of names) {
+      if (!/^(recovery-|\.tmp-)/.test(name)) continue;
+      try {
+        const full = path.join(this.directory, name),
+          st = await fs.lstat(full);
+        if (!st.isFile() || st.isSymbolicLink()) continue;
+        const value = JSON.parse(await fs.readFile(full, "utf8"));
+        if (
+          name === state.recovery?.file ||
+          !expired(value.created_at ?? st.mtime.toISOString(), now)
+        )
+          protect(value);
+      } catch {
+        corruptReference = true;
+      }
+    }
+    if (!corruptReference)
+      for (const name of names) {
+        if (
+          !/^image-[a-f0-9-]{36}\.png$/.test(name) ||
+          protectedImages.has(name)
+        )
+          continue;
+        const full = path.join(this.directory, name),
+          st = await fs.lstat(full);
+        if (
+          st.isFile() &&
+          !st.isSymbolicLink() &&
+          st.uid === process.getuid?.() &&
+          expired(st.mtime.toISOString(), now)
+        )
+          await fs.unlink(full);
+      }
     // Only owned recovery/temp names; preserve current references and unknown data.
     for (const file of await fs.readdir(this.directory)) {
       const temporary = /^\.tmp-[a-f0-9-]+$/.test(file);
@@ -265,7 +389,7 @@ export class LocalFiles implements StatePersistence {
         if (
           temporary &&
           !(
-            ([1, 2].includes(r.version) && r.drafts) ||
+            ([1, 2, 3].includes(r.version) && r.drafts) ||
             (typeof r.raw === "string" && r.body)
           )
         )
@@ -319,6 +443,13 @@ function* jsonChunks(value: unknown): Generator<string> {
 }
 /** Export current content, never use a stale upgrade backup as a rollback shortcut. */
 export function exportLegacyState(state: LocalState): LocalState {
+  if (
+    Object.values(state.drafts).some((d) => d.materials?.length) ||
+    state.pending?.materials?.length ||
+    state.pending?.body.attachment_ids?.length ||
+    state.recovery?.images
+  )
+    throw Error("LEGACY_EXPORT_HAS_IMAGES");
   for (const draft of Object.values(state.drafts))
     if (draft.snapshot) {
       validateSnapshot(draft.snapshot);

@@ -23,6 +23,8 @@ export const commandRegistry = [
   { name: "back", pages: ["Main", "Task"] },
   { name: "help", pages: ["Main", "Task"] },
   { name: "resume", pages: ["Main"] },
+  { name: "open", pages: ["Main"] },
+  { name: "paste", pages: ["Main"] },
   { name: "send", pages: ["Main"] },
   { name: "rawmessage", pages: ["Main"] },
   { name: "cotvisible", pages: ["Main"] },
@@ -38,15 +40,18 @@ export type Action =
   | { kind: "help" | "back" | "noop" | "draft" | "cot" | "resume" }
   | { kind: "search_task" | "taskdetail" | "show"; id: string }
   | { kind: "cancel"; target: "request" | "execution"; id: string }
+  | { kind: "open"; path: string }
+  | { kind: "paste" }
   | { kind: "send"; text: string }
   | { kind: "error"; message: string };
 export function parseInput(
   raw: string,
   page: Page,
   taskDetail = false,
+  images = false,
 ): Action {
   if (!raw.startsWith("/"))
-    return page === "Task" ? { kind: "draft" } : payload(raw);
+    return page === "Task" ? { kind: "draft" } : payload(raw, images);
   const match = /^\/([A-Za-z_]+)([\s\S]*)$/.exec(raw);
   if (!match)
     return {
@@ -95,11 +100,26 @@ export function parseInput(
           message: "需要一个 ID；命令后一个 ASCII 空格，不接受额外参数或换行",
         };
   }
+  if (command === "open" || command === "paste") {
+    if (page !== "Main")
+      return { kind: "error", message: "此命令仅在 Main 普通输入可用" };
+    if (command === "paste")
+      return /^[ \t]*$/.test(rest)
+        ? { kind: "paste" }
+        : { kind: "error", message: "/paste 不接受参数或换行" };
+    return rest.startsWith(" ") &&
+      rest.length > 1 &&
+      !/[\x00-\x1f\x7f-\x9f]/u.test(rest)
+      ? { kind: "open", path: rest.slice(1) }
+      : { kind: "error", message: "/open <完整路径或登记的相对路径>" };
+  }
   if (command === "send" || command === "rawmessage") {
     if (page !== "Main")
       return { kind: "error", message: "此命令仅在 Main 可用；Task 草稿保留" };
+    if (command === "send" && images && (rest === "" || rest === " "))
+      return { kind: "send", text: "" };
     return rest.startsWith(" ")
-      ? payload(rest.slice(1))
+      ? payload(rest.slice(1), images)
       : { kind: "error", message: "需要正文：/" + command + " <正文>" };
   }
   if (/[^ \t]/.test(rest))
@@ -119,8 +139,8 @@ export function parseInput(
     return { kind: "navigate", page: command === "m" ? "Main" : "Task" };
   return { kind: command === "help" ? "help" : "back" };
 }
-function payload(text: string): Action {
-  return text.trim()
+function payload(text: string, images = false): Action {
+  return text.trim() || (images && text === "")
     ? { kind: "send", text }
     : { kind: "error", message: "正文不能为空" };
 }
@@ -128,6 +148,7 @@ export function parseDraft(
   snapshot: DraftSnapshot,
   page: Page,
   taskDetail = false,
+  images = false,
 ): Action {
   try {
     if (snapshot.text.startsWith("/")) {
@@ -142,11 +163,13 @@ export function parseDraft(
         return page === "Task"
           ? { kind: "draft" }
           : payload(expandSnapshot(snapshot));
+      return parseInput(expandSnapshot(snapshot), page, taskDetail, images);
     }
-    const action = parseInput(snapshot.text, page, taskDetail);
+    const action = parseInput(snapshot.text, page, taskDetail, images);
     if (action.kind !== "send") return action;
     return payload(
       expandSnapshot(snapshot, snapshot.text.length - action.text.length),
+      images,
     );
   } catch (e) {
     return {
@@ -158,7 +181,7 @@ export function parseDraft(
 function isCompleteLocalCommand(raw: string) {
   return (
     !/[\r\n]/.test(raw) &&
-    (/^\/(?:m|t|back|help|cotvisible|cotv|resume)[ \t]*$/i.test(raw) ||
+    (/^\/(?:m|t|back|help|cotvisible|cotv|resume|paste)[ \t]*$/i.test(raw) ||
       /^\/(?:search_task|taskdetail|show) [0-9A-Za-z-]+[ \t]*$/i.test(raw))
   );
 }

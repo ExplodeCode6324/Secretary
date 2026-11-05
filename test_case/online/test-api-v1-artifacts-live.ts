@@ -329,7 +329,7 @@ async function run(directory: string) {
       write("api-http.json", apiHttp);
       return response;
     }
-    assert.equal(url.hostname, "opencode.ai");
+    assert.equal(url.hostname, "api.deepseek.com");
     const call = active.getStore();
     assert(call, "UNCOUNTED_PROVIDER_FETCH");
     assert(
@@ -403,7 +403,7 @@ async function run(directory: string) {
     assert(typeof secret === "string" && secret.length);
     const provider = process.env.SECRETARY_TASK_PROVIDER,
       modelID = process.env.SECRETARY_TASK_MODEL;
-    assert(provider === "opencode-go" && modelID);
+    assert(provider === "deepseek" && modelID);
     const model = getModel(provider, modelID as never);
     assert(model);
     const config = roleModel(model, secret, "task");

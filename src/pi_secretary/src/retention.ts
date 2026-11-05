@@ -1,3 +1,4 @@
+import { currentArtifactPath } from "./artifact-path.ts";
 import type {
   ArchiveManifest,
   Execution,
@@ -19,10 +20,20 @@ export function detail(this: RetentionContext, eid: string) {
         .all<ArchiveManifest>("ArchiveManifest")
         .find((a) => a.execution_id === eid),
     };
+  const result = e.result_id
+    ? this.store.get<TaskResult>("TaskResult", e.result_id)
+    : null;
   return {
     execution: e,
-    result: e.result_id
-      ? this.store.get<TaskResult>("TaskResult", e.result_id)
+    result: result
+      ? {
+          ...result,
+          artifacts: result.artifacts.map((a) => ({
+            ...a,
+            result_id: result.id,
+            ...currentArtifactPath(a, e),
+          })),
+        }
       : null,
     detail: e.result_id
       ? this.store.read(

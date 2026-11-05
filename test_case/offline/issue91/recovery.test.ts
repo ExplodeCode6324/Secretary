@@ -49,7 +49,7 @@ test("v1 migration backs up original bytes, marks all text unknown, and exports 
   });
   try {
     const state = await files.open("domain", "fixture");
-    assert.equal(state.version, 2);
+    assert.equal(state.version, 3);
     const backup = (await fs.readdir(directory)).find((name) =>
       name.startsWith("v1-before-upgrade-"),
     )!;

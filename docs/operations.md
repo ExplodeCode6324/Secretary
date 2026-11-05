@@ -21,7 +21,7 @@ npm run stop
 
 ## 真实模型与数据库
 
-[start-live](../src/pi_secretary/scripts/start-live.ts) wrapper 从凭据 JSON 读取 main/task 两个密钥，固定使用 opencode-go provider：
+[start-live](../src/pi_secretary/scripts/start-live.ts) wrapper 从凭据 JSON 读取 main/task 两个密钥，固定使用 deepseek provider：
 
 ```sh
 npm run start:live
@@ -29,7 +29,9 @@ SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run core -- s
 SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
 ```
 
-wrapper 默认凭据 `.demo-data/live-credentials.json`、数据 `.demo-data/interactive-live`，主模型 deepseek-v4.1-flash、任务模型 gpt-5.6-luna；角色模型环境变量可覆盖名称。直接 `SECRETARY_MODE=live npm start` 使用环境中的角色配置，可选择其他 provider。
+wrapper 默认凭据 `.demo-data/deepseek-credentials.json`、数据 `.demo-data/interactive-live`，主模型 deepseek-flash、任务模型 deepseek-flash；角色模型环境变量可覆盖名称。直接 `SECRETARY_MODE=live npm start` 使用环境中的角色配置，可选择其他 provider。
+
+升级后，手动配置的 `opencode` 和 `opencode-go` 会在 live 模式报 `RETIRED_LIVE_PROVIDER`。使用 wrapper 时，请在 `.demo-data/deepseek-credentials.json` 配置官方 DeepSeek 凭据；旧的 `.demo-data/live-credentials.json` 和 OpenCode 密钥已停用。已有 `.demo-data/interactive-live` 数据域下次通过 wrapper 启动时，Main 和 Task 默认都使用 `deepseek-flash`。
 
 | 环境变量 | 用途 |
 | --- | --- |

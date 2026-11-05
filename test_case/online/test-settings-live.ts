@@ -24,11 +24,11 @@ if (!process.env.SECRETARY_TEST_DATABASE_URL || !process.argv[2])
 const keys = JSON.parse(
   fs.readFileSync(
     process.env.SECRETARY_CREDENTIALS_FILE ??
-      ".demo-data/live-credentials.json",
+      ".demo-data/deepseek-credentials.json",
     "utf8",
   ),
 );
-const model = getModel("opencode-go", "deepseek-v4.1-flash"),
+const model = getModel("deepseek", "deepseek-flash"),
   config = roleModel(model, keys.main);
 let calls = 0;
 const stream: StreamFn = (m, c, o) => {

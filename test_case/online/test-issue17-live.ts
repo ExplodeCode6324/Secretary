@@ -21,12 +21,12 @@ const evidence = process.env.SECRETARY_ISSUE17_EVIDENCE;
 if (!evidence)
   throw Error("Set SECRETARY_ISSUE17_EVIDENCE to a private evidence directory");
 const keyFile =
-  process.env.SECRETARY_CREDENTIALS_FILE ?? ".demo-data/live-credentials.json";
+  process.env.SECRETARY_CREDENTIALS_FILE ?? ".demo-data/deepseek-credentials.json";
 if (!fs.existsSync(keyFile))
   throw Error("LIVE_MODEL_NOT_RUN: credentials unavailable");
 const keys = JSON.parse(fs.readFileSync(keyFile, "utf8"));
-const modelID = process.env.SECRETARY_TASK_MODEL ?? "gpt-5.6-luna";
-const model = getModel("opencode-go", modelID as never);
+const modelID = process.env.SECRETARY_TASK_MODEL ?? "deepseek-flash";
+const model = getModel("deepseek", modelID as never);
 const config = roleModel(model, keys.task);
 let calls = 0;
 const started = Date.now();

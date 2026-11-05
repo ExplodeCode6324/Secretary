@@ -29,9 +29,9 @@ fs.mkdirSync(root, { recursive: true, mode: 0o700 });
 const dir = path.join(root, "core");
 const manifestPath = path.join(root, "manifest.json");
 const usagePath = path.join(root, "manual-usage.json");
-const model = getModel("opencode-go", "deepseek-v4.1-flash");
+const model = getModel("deepseek", "deepseek-flash");
 const keys = JSON.parse(
-  fs.readFileSync(".demo-data/live-credentials.json", "utf8"),
+  fs.readFileSync(".demo-data/deepseek-credentials.json", "utf8"),
 );
 let providerEnabled = false;
 const lifetimeEnd = Date.now() + 8 * 3600000;

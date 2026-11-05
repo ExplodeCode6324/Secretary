@@ -51,7 +51,7 @@
 | [Dispatch](Dispatch.md) | 15 | Scheduler -> worker 固定分派；重复 attempt_id 返回既有回执，不重新起进程。 |
 | [WorkerReceipt](WorkerReceipt.md) | 15 | PID 仅线索；核对 worker_instance/attempt，不能凭 PID 判断同一进程。 |
 | [Checkpoint](Checkpoint.md) | 18 | 宿主保存原 context + 接续说明；恢复不执行历史工具。 |
-| [Artifact](Artifact.md) | 5 |  |
+| [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | 完整结果先可查询，再反馈简要结论；PARTIAL/UNKNOWN 不意味着执行已结束。 |
 | [Feedback](Feedback.md) | 16 | 短结论与执行引用；主会话读到时详情已保存。 |
 | [DecisionRequest](DecisionRequest.md) | 16 | 普通决定通过 TaskControl；授权走独立接口。 |

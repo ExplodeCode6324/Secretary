@@ -1,3 +1,5 @@
+import { draftEmpty, materialsEqual } from "./state.ts";
+import { requireImageCapability } from "./image-import.ts";
 import { randomUUID } from "node:crypto";
 import type { CoreClient } from "../core-client.ts";
 import type { Receipt, RequestStatus } from "../api/contracts.ts";
@@ -19,6 +21,7 @@ export class Delivery {
   client?: DeliveryClient;
   hint = "";
   busy = false;
+  submissions = 0;
   failedSave = false;
   private statusJob?: Promise<void>;
   private restoreRequested?: string;
@@ -46,6 +49,9 @@ export class Delivery {
     this.state.drafts[page] = same
       ? { ...d, snapshot }
       : {
+          ...d,
+          binding: undefined,
+          snapshot: undefined,
           raw,
           generation: d.generation + 1,
           ...(snapshot ? { snapshot } : {}),
@@ -87,7 +93,7 @@ export class Delivery {
         if (
           restore &&
           this.restoreRequested &&
-          !this.state.drafts.Main.raw &&
+          draftEmpty(this.state.drafts.Main) &&
           !this.busy &&
           !this.closed
         )
@@ -154,7 +160,7 @@ export class Delivery {
         p.status === "UNKNOWN"
       ) {
         if (this.restoredId === p.id) this.restoreRequested = undefined;
-        else if (!this.state.drafts.Main.raw) {
+        else if (draftEmpty(this.state.drafts.Main)) {
           this.restoreRequested = undefined;
           this.restoredId = p.id;
           this.state.drafts.Main = {
@@ -162,6 +168,7 @@ export class Delivery {
             generation: this.state.drafts.Main.generation + 1,
             binding: p.id,
             snapshot: p.snapshot ?? plainSnapshot(p.raw),
+            materials: structuredClone(p.materials ?? []),
           };
           await this.flush();
         }
@@ -194,14 +201,31 @@ export class Delivery {
           this.hint = "原请求已对账；请确认当前草稿后再次明确提交";
           return;
         }
-        if (p.status === "CONFLICT" || text !== p.body.text) {
+        if (
+          p.status === "CONFLICT" ||
+          text !== p.body.text ||
+          !materialsEqual(this.state.drafts.Main.materials, p.materials)
+        ) {
           this.hint = "原请求未解决；新草稿已保留，不会重发旧正文";
           return;
         }
       } else {
-        const body = { request_id: randomUUID(), text };
+        const materials = structuredClone(
+          this.state.drafts.Main.materials ?? [],
+        );
+        if (materials.some((m) => m.status !== "READY" || !m.attachment_id))
+          throw Error("IMAGE_MATERIAL_NOT_READY_DISCARD_OR_WAIT");
+        if (materials.length) await requireImageCapability(client, false);
+        const body = {
+          request_id: randomUUID(),
+          text,
+          ...(materials.length
+            ? { attachment_ids: materials.map((m) => m.attachment_id!) }
+            : {}),
+        };
         if (
-          !text.trim() ||
+          (!text && !materials.length) ||
+          (!!text && !text.trim()) ||
           text.length > 1048576 ||
           Buffer.byteLength(text) > 1048576 ||
           Buffer.byteLength(JSON.stringify(body)) > 1048576
@@ -209,6 +233,7 @@ export class Delivery {
           throw Error("REQUEST_TOO_LARGE_OR_EMPTY");
         p = {
           id: body.request_id,
+          materials,
           raw,
           body,
           created_at: new Date().toISOString(),
@@ -217,6 +242,7 @@ export class Delivery {
           snapshot: snapshot ?? plainSnapshot(raw),
         };
         this.state.pending = p;
+        this.submissions++;
       }
       if (this.client !== client) throw Error("CORE_CONNECTION_CHANGED");
       // Capture attempt identity before dispatch. Each retry changes proof eligibility.
@@ -228,6 +254,7 @@ export class Delivery {
       const d = this.state.drafts.Main;
       if (
         d.raw === raw &&
+        materialsEqual(d.materials, p.materials) &&
         d.generation === submittedGeneration &&
         d.binding !== p.id
       ) {
@@ -263,14 +290,7 @@ export class Delivery {
       } catch (e) {
         if (this.state.pending !== p || this.closed) return;
         const code = e instanceof Error ? e.message : String(e);
-        if (
-          [
-            "INVALID_REQUEST",
-            "INVALID_INPUT",
-            "INVALID_JSON",
-            "REQUEST_TOO_LARGE",
-          ].includes(code)
-        ) {
+        if (MESSAGE_ADMISSION_REJECTIONS.includes(code)) {
           this.event("rejected", p.id);
           await this.release(p, "Core 拒绝输入；原文已保留");
         } else {
@@ -304,7 +324,11 @@ export class Delivery {
     p.status = "ACCEPTED";
     delete this.state.recovery;
     const d = this.state.drafts.Main;
-    if (d.binding === p.id && d.raw === p.raw)
+    if (
+      d.binding === p.id &&
+      d.raw === p.raw &&
+      materialsEqual(d.materials, p.materials)
+    )
       this.state.drafts.Main = { raw: "", generation: d.generation + 1 };
     // First checkpoint retains the body and acceptance fact for disk-error recovery.
     await this.flush();
@@ -321,12 +345,13 @@ export class Delivery {
   private async release(p: Pending, message: string) {
     const file = await this.files.recover(p);
     if (this.state.pending !== p) return;
-    this.state.recovery = { id: p.id, file };
-    if (!this.state.drafts.Main.raw)
+    this.state.recovery = { id: p.id, file, images: !!p.materials?.length };
+    if (draftEmpty(this.state.drafts.Main))
       this.state.drafts.Main = {
         raw: p.raw,
         generation: this.state.drafts.Main.generation + 1,
         snapshot: p.snapshot ?? plainSnapshot(p.raw),
+        materials: structuredClone(p.materials ?? []),
       };
     delete this.state.pending;
     try {
@@ -342,3 +367,24 @@ export class Delivery {
     this.closed = true;
   }
 }
+
+// Direct POST errors only. A receipt always wins; timeouts/arbitrary 5xx stay unknown.
+export const MESSAGE_ADMISSION_REJECTIONS = [
+  "INVALID_REQUEST",
+  "INVALID_INPUT",
+  "INVALID_JSON",
+  "REQUEST_TOO_LARGE",
+  "ATTACHMENT_BUDGET_UNCONFIGURED",
+  "ATTACHMENT_MODEL_UNSUPPORTED",
+  "ATTACHMENT_TOO_LARGE",
+  "ATTACHMENT_NOT_READY",
+  "ATTACHMENT_UNAVAILABLE",
+  "ATTACHMENT_BUDGET_CONFIG_INVALID",
+  "ATTACHMENT_INVALID_IMAGE_BLOCK",
+  "CAPACITY_BLOCKED",
+  "ATTACHMENT_CONFIG_INVALID",
+  "BUDGET_CONFIG_INVALID",
+  "CAPACITY_OUTPUT_LIMIT",
+  "CAPACITY_UNCOUNTABLE_REQUEST",
+  "CAPACITY_UNCOUNTABLE_NON_TEXT",
+];

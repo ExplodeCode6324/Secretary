@@ -15,6 +15,7 @@
 | `content` | ObjectRef | はい |  関連：[ObjectRef](ObjectRef.md) |
 | `workspace_path` | RelativePath | はい |  関連：[RelativePath](RelativePath.md) |
 | `producing_operation_id` | ID または null | はい |  関連：[ID](ID.md) |
+| `description` | string | いいえ | Task model explanation; NOT_VERIFIED. Absent for legacy results. |
 
 ## 組み合わせ制約
 

@@ -29,7 +29,7 @@ npm ci
 SECRETARY_DATA=/absolute/path/to/core-data npm run tui
 ```
 
-默认数据目录是仓库 `.demo-data`。TUI 只连接 Core；Ctrl+C 在当前可编辑输入框有内容时一次清空全部文字，可用 Ctrl+- 撤销；空框或无可编辑回答框时才退出客户端，不停止 Core。Main/Task 草稿和问题临时回答分别处理，授权/异常详情不清空隐藏的普通草稿。清空不撤销已经提交的消息或事项操作，待确认请求仍保留原 ID 和载荷。推荐至少 80×24；物理终端、字体、中文输入法和 120×40 的人工验收仍待 Master 完成。客户端草稿位于 `~/Library/Application Support/Secretary/tui/v1/<domain>/<mode>/`，目录名保留 v1，文件格式为 v2。首次迁移保留原 v1 备份；不要用旧代码直接覆盖 v2 文件。需要旧版导出时，先退出该状态目录的 TUI，再运行：
+默认数据目录是仓库 `.demo-data`。TUI 只连接 Core；Ctrl+C 在当前可编辑输入框有内容时一次清空全部文字，可用 Ctrl+- 撤销；空框或无可编辑回答框时才退出客户端，不停止 Core。Main/Task 草稿和问题临时回答分别处理，授权/异常详情不清空隐藏的普通草稿。清空不撤销已经提交的消息或事项操作，待确认请求仍保留原 ID 和载荷。推荐至少 80×24；物理终端、字体、中文输入法和 120×40 的人工验收仍待 Master 完成。客户端草稿位于 `~/Library/Application Support/Secretary/tui/v1/<domain>/<mode>/`，目录名保留 v1，文件格式为 v3。首次从 v1/v2 迁移保留原版本备份；不要用旧代码直接覆盖 v3 文件。包含图片草稿、待发送图片或图片恢复引用时拒绝旧版导出。仅纯文字状态需要旧版导出时，先退出该状态目录的 TUI，再运行：
 
 ```sh
 npx tsx src/pi_secretary/scripts/tui-export-v1.ts /absolute/path/to/state-directory /absolute/path/to/new-export.json
@@ -72,3 +72,17 @@ npx tsx --test --test-concurrency=1 test_case/offline/issue82/*.test.ts test_cas
 仍只有 Main、Task 两份草稿。Task 普通文本不会发送；Tab/Enter 补全只编辑文本，Shift+Enter 才执行命令。只有 Main 的 `/cotvisible` 或 `/cotv` 能修改共同 CoT 显示状态。查看模式 ↑/↓ 到正文或消息窗口边界继续读取，Esc 返回编辑。归档、最近三轮替换和断线恢复通过任务/消息 ID 重新定位，并显示位置变化提示。
 
 离线回归：`npx tsx --test --test-concurrency=1 test_case/offline/issue83/*.test.ts`。付费真实模型验收需现有私有凭证，并显式运行 `npx tsx test_case/online/test-issue83-live.ts .demo-data/issue83/live-<独立名称>`；目录必须全新，固定请求/工具/时间/输出预算，在 Core 冻结预算之前配置，保留首次失败。此脚本不由 npm test 执行，不代表原生 IME 或 Master 人工验收。
+
+## Issue #94 delivery and image paste
+
+Main replies display registered artifacts at their actual body tail, in cyan, with full current paths, Task/Execution identities and Task-model explanations marked NOT_VERIFIED. In history, ordinary Up/Down crosses the artifact block's previous/next-page boundaries; no OS-reserved paging shortcut is required. A CAS snapshot and current file can differ; unavailable current paths never fall back to snapshot bytes.
+
+Type `/open <absolute path>` or `/open <registered relative path>` in ordinary Main. For ambiguous names, use the full path or `/open --execution <full UUID> <relative path>`. One ASCII space separates the command from the literal path; internal spaces and case are preserved. No shell expansion or quote removal. Local macOS only, no SSH; regular non-executable documents in the approved suffix list only. Symlinks and launchers are rejected. OS handoff success does not prove content was viewed. Errors expire after five seconds or the next action.
+
+Ctrl+V explicitly reads genuine native clipboard image pixels into Main draft material rows. `/paste` is a whole-command fallback: genuine images win, text-only content retains paste provenance, Finder file references are rejected even when they expose an icon. Cmd+V/bracketed paste retains its text behavior. The fixed AppKit JXA probe checks types/changeCount before and after native reads; permission refusal, timeout or clipboard changes cause an explicit error. Native gesture/provider acceptance is recorded separately in the [ledger](../fix/evidence/issue94-delivery/acceptance.md).
+
+Tab selects image rows when command completion is inactive; arrows select, Delete/Backspace removes an unsent draft reference, Enter/Esc returns to editing. Failed/importing images block sending until explicitly discarded or READY. Shift+Enter explicitly sends text plus ordered ready images; empty text and `/send` support image-only submission. Ctrl+C clears text only. Task, history selection and active matters cannot initiate image reads. No paste auto-sends.
+
+Local state is now v3 (the existing directory still ends in `tui/v1`). Both v1 and v2 upgrade with a backup. Image attempts, staging source hashes and exact import/message request bodies survive restart; uncertain requests retain their IDs. Legacy export refuses any image materials, including recovery references. Owned staging sources remain protected by active draft/outbox/recovery references and three-calendar-year retention.
+
+Focused checks: `npx tsx --test --test-concurrency=1 test_case/offline/issue94/*.test.ts`. Paid tests are explicit online harnesses, never part of npm test. Master acceptance uses an isolated instance and its exact command, provided with the implementation handoff.

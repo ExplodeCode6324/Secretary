@@ -14,7 +14,7 @@ const live = JSON.parse(
   fs.readFileSync(path.join(root, "report.json"), "utf8"),
 );
 assert.equal(live.status, "PASS");
-const model = getModel("opencode-go", "deepseek-v4.1-flash");
+const model = getModel("deepseek", "deepseek-flash");
 assert(model);
 let attempted = 0;
 // Deliberate no-model guard in this phase; never reported as a LIVE_MODEL call.

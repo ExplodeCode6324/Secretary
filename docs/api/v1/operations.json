@@ -523,6 +523,22 @@
           "type": "string",
           "format": "uuid"
         }
+      },
+      {
+        "name": "relative_path",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "execution_id",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
       }
     ]
   },
@@ -1516,5 +1532,30 @@
     "response": "FailureDetail",
     "status": 200,
     "description": "Read exact owned failure disposition, Main intent and linked redo outcome without state or retention writes."
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/messages/{id}/artifacts",
+    "response": "MessageArtifactPage",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "cursor",
+        "in": "query",
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 20,
+          "default": 20
+        }
+      }
+    ]
   }
 ]

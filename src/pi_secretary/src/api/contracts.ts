@@ -692,6 +692,14 @@ export interface Artifact {
   path_base: "scope" | "task" | "unknown";
   scope_id: string | null;
   path_unavailable_reason: string | null;
+  result_id?: string | null;
+  description?: string | null;
+  source_root?: string | null;
+  current_path?: string | null;
+  current_unavailable_reason?: string | null;
+  description_source?: string;
+  current_state?: "available" | "unavailable";
+  observed_at?: string;
   [k: string]: unknown;
 }
 /**
@@ -743,6 +751,8 @@ export interface Message {
   attachments?: AttachmentMetadata[];
   withdrawn?: boolean;
   tool_name?: string;
+  delivery_count?: number;
+  delivery_cursor?: string | null;
   [k: string]: unknown;
 }
 /**
@@ -1765,4 +1775,17 @@ export interface FailureAction {
 export interface ResumeCommand {
   request_id: string;
   expected_revision?: Revision;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "MessageArtifactPage".
+ */
+export interface MessageArtifactPage {
+  /**
+   * @maxItems 20
+   */
+  items: Artifact[];
+  total: number;
+  next_cursor: string | null;
+  version: string;
 }

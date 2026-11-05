@@ -374,8 +374,8 @@ async function run(directory: string) {
       "2031-05-05",
     ],
     limits: LIMITS,
-    provider: "opencode-go",
-    model: "deepseek-v4.1-flash",
+    provider: "deepseek",
+    model: "deepseek-flash",
     directory,
     started_at: new Date(started).toISOString(),
     requests,
@@ -507,7 +507,7 @@ async function run(directory: string) {
     );
     // Declare the test output cap before Host freezes its request budget.
     // Clamping only inside the stream would disagree with the saved payload check.
-    const catalogModel = getModel("opencode-go", "deepseek-v4.1-flash");
+    const catalogModel = getModel("deepseek", "deepseek-flash");
     const model = {
       ...catalogModel,
       maxTokens: Math.min(catalogModel.maxTokens, LIMITS.output_tokens),
@@ -515,8 +515,8 @@ async function run(directory: string) {
     const config = roleModel(model, secret);
     const stream: StreamFn = async (m, context, options) => {
       try {
-        assert.equal(m.provider, "opencode-go");
-        assert.equal(m.id, "deepseek-v4.1-flash");
+        assert.equal(m.provider, "deepseek");
+        assert.equal(m.id, "deepseek-flash");
         assert(
           !transportFailed,
           "prior request failed; automatic retry is forbidden",

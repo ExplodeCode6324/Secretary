@@ -16,7 +16,7 @@ import type {
   Context,
   Operation,
 } from "../../src/pi_secretary/src/contracts.ts";
-const modelID = process.argv[2] ?? "deepseek-v4.1-flash";
+const modelID = process.argv[2] ?? "deepseek-flash";
 const runID = `task-reuse-${Date.now()}`;
 const dir = path.resolve(".demo-data", runID);
 const output = path.resolve(
@@ -27,11 +27,11 @@ const output = path.resolve(
 const keys = JSON.parse(
   fs.readFileSync(
     process.env.SECRETARY_CREDENTIALS_FILE ??
-      ".demo-data/live-credentials.json",
+      ".demo-data/deepseek-credentials.json",
     "utf8",
   ),
 ) as { main: string; task: string };
-const model = getModel("opencode-go", modelID as never);
+const model = getModel("deepseek", modelID as never);
 assert(model, "Unknown model");
 const start = Date.now();
 const counts = { main: 0, task: 0 };
@@ -60,7 +60,7 @@ let app = await App.open(dir, configs);
 const report: any = {
   evidence: "LIVE_MODEL",
   model: modelID,
-  provider: "opencode-go",
+  provider: "deepseek",
   reasoning: "low",
   budgets: { calls_per_role: 48, tools: 100, total_ms: 720000, call_ms: 60000 },
   prompt_hashes: Object.fromEntries(

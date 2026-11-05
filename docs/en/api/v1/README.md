@@ -121,3 +121,13 @@ SSETransient/SSEPreview define the public transient shape; Preview.version remai
 thinking_preview and thinking preserve raw model text, which may contain control characters or ANSI sequences. Terminal clients must escape or sanitize it before rendering; the API does not perform terminal-safety processing for clients.
 
 For imports, budget profiles, K=0 residency and safe withdrawal, see the [attachment contract](attachments.md).
+
+## Issue #94 artifact delivery
+
+Artifact metadata adds result_id, nullable description (Task model / NOT_VERIFIED), source_root, current_path, current_state, observed_at and current_unavailable_reason. Read-only paths use the originating Execution.workspace_binding; missing historical bindings remain unavailable. Snapshot state/content_version/bytes retain their existing meaning. No Scope lookup may create a directory during projection.
+
+GET artifacts accepts exact canonical relative_path and optional execution_id, filters to accessible tasks before CAS/current-file observations and paginates matching metadata. Unicode normalization is a comparison alias only; distinct physical paths remain ambiguous for clients. GET messages/{id}/artifacts resolves the visible, owned Main reply's durable references in registration order. Pages contain at most 20 entries and 128 KiB, shrinking count without truncating an entry; cursors are opaque and message-bound. Timeline/message delivery_count exposes the total and delivery_cursor is null for the first page.
+
+The main.delivery event is an ID-only sidecar to an unchanged main.message event, committed atomically with the Context pointer. Only RESULT feedback CLAIMED by that Main loop supplies references. Stop/length replies without tool calls may carry delivery, including empty bodies; length stays truncated. Queries, previews, tool continuations and failed replies do not create delivery. Existing stop-only crash recovery is unchanged.
+
+New submit_result artifacts remain a path array and require exactly one artifact_descriptions item per nonempty registered path. Paths canonicalize dot segments and reject traversal/control/duplicates; limits are 32 artifacts, 2000 Unicode characters per explanation and 64 KiB total encoded descriptions. Legacy stored results remain readable without descriptions. Host generates Artifact IDs and binds explanations before publishing the result.

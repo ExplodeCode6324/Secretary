@@ -55,7 +55,7 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [Dispatch](Dispatch.md) | 15 | Fixed Scheduler -> worker dispatch; a repeated attempt_id returns the existing receipt without starting another process. |
 | [WorkerReceipt](WorkerReceipt.md) | 15 | PID is only a clue; check worker_instance/attempt, never infer process identity from PID alone. |
 | [Checkpoint](Checkpoint.md) | 18 | The host saves original context plus continuation instructions; recovery does not execute historical tools. |
-| [Artifact](Artifact.md) | 5 |  |
+| [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | Full results become queryable before summary feedback; PARTIAL/UNKNOWN does not mean execution has ended. |
 | [Feedback](Feedback.md) | 16 | Short conclusion and execution reference; details are already saved when the main session reads them. |
 | [DecisionRequest](DecisionRequest.md) | 16 | Ordinary decisions use TaskControl; authorization has a separate interface. |

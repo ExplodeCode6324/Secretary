@@ -12,9 +12,9 @@ Configure an existing role-credential file with separate main/task keys:
 
 ```sh
 export SECRETARY_MODE=live
-export SECRETARY_MAIN_PROVIDER=opencode-go
+export SECRETARY_MAIN_PROVIDER=deepseek
 export SECRETARY_MAIN_MODEL='<主模型>'
-export SECRETARY_TASK_PROVIDER=opencode-go
+export SECRETARY_TASK_PROVIDER=deepseek
 export SECRETARY_TASK_MODEL='<任务模型>'
 export SECRETARY_CREDENTIALS_FILE='<已有私密凭据文件>'
 node --import tsx test_case/online/test-api-v1-live.ts --self-check
@@ -45,7 +45,7 @@ Each round publishes a program and JSON artifact. Acceptance downloads all four 
 
 ## Other scenarios
 
-`test-issue21-28-live.ts` jointly validates removal of old inputs and history retrieval. Use a self-provisioned isolated PG test DSN, existing `SECRETARY_CREDENTIALS_FILE`, and a new private `SECRETARY_LIVE_EVIDENCE` directory; real-data instances must not be test DSNs. It calls opencode-go/deepseek-v4.1-flash for 24 synthetic conversation turns plus one material-pressure turn, then actively searches background facts and cites original events after routine compaction, Settings, and reopening. Checks confirm facts are absent from actual requests and transport, working memory/ledger do not cache answers, the latest correction and another unchanged constraint still hold, and originals remain readable.
+`test-issue21-28-live.ts` jointly validates removal of old inputs and history retrieval. Use a self-provisioned isolated PG test DSN, existing `SECRETARY_CREDENTIALS_FILE`, and a new private `SECRETARY_LIVE_EVIDENCE` directory; real-data instances must not be test DSNs. It calls deepseek/deepseek-flash for 24 synthetic conversation turns plus one material-pressure turn, then actively searches background facts and cites original events after routine compaction, Settings, and reopening. Checks confirm facts are absent from actual requests and transport, working memory/ledger do not cache answers, the latest correction and another unchanged constraint still hold, and originals remain readable.
 
 Defaults: at most 100 physical sends and 40 minutes, 90 seconds per request. `SECRETARY_LIVE_MAX_CALLS` / `SECRETARY_LIVE_WALL_MS` can tighten budgets. `SECRETARY_LIVE_RESUME_STORE` applies only to this script’s isolated synthetic Store after 24 completed turns; it rechecks original replies before finishing acceptance, without rewriting provenance or preloading search answers. Each run records its own counts and source hashes; continuation reports accumulate calls and preserve the first failure. See the [execution record](../../../fix/archive/fix_20261012_issue21_28_记忆检索与旧输入有界退出.md#13-实施记录) for the 2026-10-13 joint result.
 
