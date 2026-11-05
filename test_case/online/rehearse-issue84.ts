@@ -25,7 +25,7 @@ try {
 } finally {
   await admin.end();
 }
-let processHandle: ChildProcess;
+let processHandle!: ChildProcess;
 let output = "";
 let exit: number | null | undefined;
 const spawnService = (resume: boolean) => {
@@ -185,6 +185,37 @@ try {
     });
     assert(obs().requests.some((r: any) => r.images.length > 0));
     scenarios.image = true;
+    // First normal request plus summary/extraction uses three vision calls.
+    await client.command("session/compact", { request_id: id() });
+    await until(() => obs().idle, "vision-first-compact");
+    await send("dry vision followup");
+    const armedBefore = output.split("FAULT_429_ARMED").length;
+    command("fault-429 2");
+    await until(
+      () => output.split("FAULT_429_ARMED").length > armedBefore,
+      "maintenance-fault-armed",
+      5000,
+    );
+    // Two HTTP errors exhaust the remaining two calls; the next maintenance
+    // attempt is denied by the real admission gate and becomes FAILED.
+    await client.command("session/compact", { request_id: id() });
+    await until(
+      () =>
+        obs().compactionJobs.some(
+          (j: any) => j.state === "FAILED" && !j.next_attempt_at,
+        ),
+      "maintenance-budget-refusal",
+    );
+    assert.equal(obs().session, "IDLE");
+    command("release-reserve");
+    await until(
+      () => read("usage.json").release === "vision",
+      "maintenance-reserve",
+      5000,
+    );
+    command("retry-maintenance");
+    await until(() => obs().idle, "maintenance-recovered");
+    scenarios.maintenanceRecovery = true;
     await next("shared");
     const before = new Set(obs().executions.map((e: any) => e.id));
     await send("84 shared");
@@ -233,7 +264,7 @@ try {
     const decision = obs().decisions.find((d: any) => d.state === "OPEN");
     await client.command(`decisions/${decision.id}/answer`, {
       request_id: id(),
-      answer: { value: "/M synthetic answer" },
+      answer: "/M synthetic answer",
     });
     await completed(decision.task_id);
     const answered = obs().decisions.find((d: any) => d.id === decision.id);
@@ -265,6 +296,43 @@ try {
       "consumed",
     );
     scenarios.authorization = true;
+    await until(() => obs().idle, "before-crash");
+    command("fault-hold");
+    await until(() => output.includes("FAULT_HOLD_ARMED"), "hold-armed", 5000);
+    const crashRequest = id();
+    await client.command("messages", {
+      request_id: crashRequest,
+      text: "dry crash recovery probe",
+    });
+    await until(
+      () => read("usage.json").attempts.some((a: any) => a.ended === undefined),
+      "inflight-before-kill",
+      5000,
+    );
+    processHandle.kill("SIGKILL");
+    while (exit === undefined) await pause(100);
+    spawnService(true);
+    await connect();
+    await until(
+      () => obs().session === "IDLE" || obs().session === "RECOVERY_BLOCKED",
+      "crash-reopen",
+    );
+    if (obs().session === "RECOVERY_BLOCKED")
+      await client.command("session/resume", { request_id: id() });
+    await until(
+      () =>
+        obs().inputs.some(
+          (i: any) => i.dedupe_key === crashRequest && i.state === "HANDLED",
+        ),
+      "crash-input-recovered",
+    );
+    assert(
+      read("usage.json").attempts.some(
+        (a: any) =>
+          a.termination === "unknown_after_restart" && a.ms === 120_000,
+      ),
+    );
+    scenarios.crashRecovery = true;
     await next("redo");
     const oldIds = new Set(obs().executions.map((e: any) => e.id));
     await send("84 failure");

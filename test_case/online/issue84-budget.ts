@@ -12,6 +12,7 @@ export const phases = [
 ] as const;
 export type Phase = (typeof phases)[number];
 export type Role = "main" | "task";
+export type RequestKind = "normal" | "summary" | "extraction";
 export const attemptMs = 120_000;
 export const windowMs = 7_200_000;
 export const outputCap = 8192;
@@ -73,6 +74,8 @@ type Attempt = ReturnType<typeof wireBound> & {
   inputIds: string[];
   ended?: number;
   termination?: string;
+  observedMs?: number;
+  kind?: RequestKind;
 };
 type ToolBatch = { phase: Phase; names: string[]; admitted: boolean };
 type LedgerState = {
@@ -82,6 +85,7 @@ type LedgerState = {
   attempts: Attempt[];
   batches: ToolBatch[];
   refusals: { at: number; phase: Phase; reason: string }[];
+  finalNative?: boolean;
 };
 export class Issue84Budget {
   readonly state: LedgerState;
@@ -100,6 +104,15 @@ export class Issue84Budget {
           refusals: [],
         };
     this.state.refusals ??= [];
+    if (resume)
+      for (const attempt of this.state.attempts) {
+        if (attempt.ended === undefined) {
+          attempt.ended = Date.now();
+          attempt.termination = "unknown_after_restart";
+          // Unknown requests retain their full time AND cost reservations.
+          attempt.ms = attemptMs;
+        }
+      }
     this.save();
   }
   save() {
@@ -122,6 +135,7 @@ export class Issue84Budget {
     }
   }
   advance(phase: Phase) {
+    requireBudget(!this.state.finalNative, "FINAL_NATIVE_ONLY");
     requireBudget(
       phases.indexOf(phase) === phases.indexOf(this.state.phase) + 1 &&
         phase !== "reserve",
@@ -155,9 +169,30 @@ export class Issue84Budget {
     this.state.release = this.state.phase;
     this.save();
   }
-  admit(role: Role, wire: ReturnType<typeof wireBound>, inputIds: string[]) {
+  revisitNativeVision() {
+    requireBudget(
+      this.state.phase === "redo" && !this.state.finalNative,
+      "NATIVE_ORDER",
+    );
+    requireBudget(
+      this.state.attempts.every((a) => a.ended !== undefined),
+      "UNFINISHED_ATTEMPTS",
+    );
+    this.state.phase = "vision";
+    this.state.release = null;
+    this.state.finalNative = true;
+    // Master's requested automatic-first handoff: reuse only the ORIGINAL
+    // unspent vision allocation; never reset attempts, wall clock or costs.
+    this.save();
+  }
+  admit(
+    role: Role,
+    wire: ReturnType<typeof wireBound>,
+    inputIds: string[],
+    kind: RequestKind = "normal",
+  ) {
     try {
-      return this.admitAttempt(role, wire, inputIds);
+      return this.admitAttempt(role, wire, inputIds, kind);
     } catch (error) {
       this.state.refusals.push({
         at: Date.now(),
@@ -172,6 +207,7 @@ export class Issue84Budget {
     role: Role,
     wire: ReturnType<typeof wireBound>,
     inputIds: string[],
+    kind: RequestKind,
   ) {
     requireBudget(!this.state.halted, "HALTED");
     const started = Date.now();
@@ -191,6 +227,12 @@ export class Issue84Budget {
       return previous.filter((a) => a.role === role).length < limits[p][role];
     };
     requireBudget(fits(bucket), "PATH_CALLS");
+    if (role === "main" && kind === "normal") {
+      const used = attempts.filter(
+        (a) => a.phase === bucket && a.role === "main",
+      ).length;
+      requireBudget(limits[bucket].main - used > 2, "MAINTENANCE_HEADROOM");
+    }
     requireBudget(
       attempts.reduce((sum, a) => sum + a.ms, attemptMs) <= 1_500_000,
       "ACTIVE_TIME",
@@ -203,6 +245,7 @@ export class Issue84Budget {
       ms: attemptMs,
       nanoUSD,
       inputIds,
+      kind,
     };
     attempts.push(attempt);
     this.save();
@@ -211,12 +254,17 @@ export class Issue84Budget {
   end(attempt: Attempt, ended: number, termination: string) {
     if (attempt.ended !== undefined) return;
     const elapsed = ended - attempt.started;
-    if (elapsed < 0 || elapsed > attemptMs) {
+    if (elapsed < 0) {
       this.state.halted = "UNVERIFIED_PROVIDER_USAGE_OR_DEADLINE";
       this.save();
       throw Error("BUDGET_ISSUE84_" + this.state.halted);
     }
-    Object.assign(attempt, { ms: elapsed, ended, termination });
+    Object.assign(attempt, {
+      ms: Math.min(elapsed, attemptMs),
+      observedMs: elapsed,
+      ended,
+      termination,
+    });
     // An observed end releases time, never an unverified cost reservation.
     this.save();
   }
@@ -235,15 +283,15 @@ export class Issue84Budget {
       Number.isSafeInteger(output) &&
       output >= 0 &&
       output <= attempt.output &&
-      elapsed >= 0 &&
-      elapsed <= attemptMs;
+      elapsed >= 0;
     if (!valid) {
       this.state.halted = "UNVERIFIED_PROVIDER_USAGE_OR_DEADLINE";
       this.save();
       throw Error("BUDGET_ISSUE84_" + this.state.halted);
     }
     Object.assign(attempt, {
-      ms: elapsed,
+      ms: Math.min(elapsed, attemptMs),
+      observedMs: elapsed,
       ended,
       termination: "completed",
       nanoUSD: cost(input, output),

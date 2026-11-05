@@ -109,11 +109,24 @@ if (paid) {
   );
   assert.equal(preflight.status, "PASS", "PREFLIGHT_NOT_PASSED");
   assert(
+    Array.isArray(preflight.evidence) && preflight.evidence.length >= 6,
+    "PREFLIGHT_MISSING_EVIDENCE",
+  );
+  for (const evidence of preflight.evidence) {
+    assert.equal(
+      hash(fs.readFileSync(evidence.path)),
+      evidence.sha256,
+      "PREFLIGHT_EVIDENCE_CHANGED",
+    );
+  }
+  assert(
     Date.now() - Date.parse(preflight.checkedAt) < 24 * 60 * 60 * 1000,
     "PREFLIGHT_EXPIRED",
   );
 }
 const key = paid ? acceptanceKey("DEEPSEEK_API_KEY") : "issue84-fixture";
+delete process.env.DEEPSEEK_API_KEY;
+delete process.env.OPENAI_API_KEY;
 const database = "secretary84_" + (run ? run + "_" : "") + mode;
 const dsn = "postgresql://secretary84@127.0.0.1:55484/" + database;
 const freshness = resume ? prior.freshness : await requireEmptyDatabase(dsn);
@@ -135,7 +148,10 @@ const requests: RequestObservation[] = previousObservation?.requests ?? [];
 let activePeak = previousObservation?.activePeak ?? 0;
 let shutdownRefusals = 0;
 let stopping = false;
-let inject429 = false;
+let inject429 = 0;
+let holdNext = false;
+const wireViolations: string[] = previousObservation?.wireViolations ?? [];
+const operatorActions: object[] = previousObservation?.operatorActions ?? [];
 if (budgeted) budget = new Issue84Budget(path.join(root, "usage.json"), resume);
 const config = (role: Role): ModelConfig =>
   acceptanceAdapter(role, {
@@ -160,14 +176,21 @@ const config = (role: Role): ModelConfig =>
       requests.push(request);
       observedBounds[role] = Math.max(observedBounds[role], request.input);
     },
+    violation: (reason) => {
+      wireViolations.push(reason);
+    },
     scripted: paid
       ? undefined
       : async (body) => {
+          if (holdNext) {
+            holdNext = false;
+            await new Promise((resolve) => setTimeout(resolve, 30_000));
+          }
           await new Promise((resolve) =>
             setTimeout(resolve, role === "task" && mode === "dry" ? 600 : 40),
           );
           if (inject429) {
-            inject429 = false;
+            inject429--;
             return new Response(
               JSON.stringify({
                 error: {
@@ -357,6 +380,8 @@ const snapshot = () => {
     requests,
     activePeak,
     shutdownRefusals,
+    wireViolations,
+    operatorActions,
     compactionJobs: app.store.all("CompactionJob"),
     extractionJobs: app.store.all("MemoryExtractionJob"),
     operations: app.store.all("Operation"),
@@ -407,6 +432,14 @@ input.on("line", (line) => {
       budget.advance(phase as Phase);
       return console.log("PHASE " + phase);
     }
+    if (verb === "native-vision" && budgeted && idle()) {
+      budget.revisitNativeVision();
+      operatorActions.push({
+        action: "native-vision",
+        at: new Date().toISOString(),
+      });
+      return console.log("NATIVE_VISION_READY");
+    }
     if (
       verb === "release-reserve" &&
       budgeted &&
@@ -414,11 +447,39 @@ input.on("line", (line) => {
       (app.host.session.state === "RECOVERY_BLOCKED" || quiescent())
     ) {
       budget.releaseReserve();
+      operatorActions.push({
+        action: "release-reserve",
+        phase: budget.state.phase,
+        at: new Date().toISOString(),
+        simulated: mode === "dry",
+      });
       return console.log("RESERVE RELEASED FOR " + budget.state.phase);
     }
+    if (
+      verb === "retry-maintenance" &&
+      budgeted &&
+      quiescent() &&
+      budget.state.release === budget.state.phase
+    ) {
+      operatorActions.push({
+        action: "session/compact",
+        phase: budget.state.phase,
+        at: new Date().toISOString(),
+        simulated: mode === "dry",
+      });
+      void client
+        .command("session/compact", { request_id: id() })
+        .then(() => console.log("MAINTENANCE_RETRY_ACCEPTED"))
+        .catch((error) => console.error(String(error)));
+      return;
+    }
     if (verb === "fault-429" && mode === "dry" && active === 0) {
-      inject429 = true;
+      inject429 = phase === "2" ? 2 : 1;
       return console.log("FAULT_429_ARMED");
+    }
+    if (verb === "fault-hold" && mode === "dry" && active === 0) {
+      holdNext = true;
+      return console.log("FAULT_HOLD_ARMED");
     }
     console.error("COMMAND_REFUSED");
   } catch (error) {

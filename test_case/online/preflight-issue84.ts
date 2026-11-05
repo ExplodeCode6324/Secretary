@@ -42,6 +42,7 @@ for (const [root, mode] of [
   assert.equal(manifest.configHash, config.hash, "WRONG_CONFIG");
   assert.equal(manifest.freshness.empty, true, "FRESHNESS_NOT_PROVEN");
   assert.equal(observations.guardCalls, 0);
+  assert.deepEqual(observations.wireViolations, [], "REFUSED_WIRE_VIOLATION");
   assert.equal(observations.session, "IDLE");
   assert(!observations.sessionStates.includes("CAPACITY_BLOCKED"));
   assert(!observations.maintenancePending, "PENDING_MAINTENANCE");
@@ -95,6 +96,8 @@ for (const [root, mode] of [
       "authorization",
       "redo",
       "restarted",
+      "maintenanceRecovery",
+      "crashRecovery",
     ])
       assert(scenarios[key] === true, "MISSING_SCENARIO_" + key);
     assert(!ledger.halted);

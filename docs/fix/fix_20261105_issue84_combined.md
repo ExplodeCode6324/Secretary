@@ -54,3 +54,7 @@ Master 已确认 `758fb875` 的原生重做复测成功，Codex 核对唯一子�
 精确真实模型输入冻结在 `test_case/online/issue84-prompts.ts`，包括源于 #92 的未知口令提问、隔离的一次授权、Shared 独立文件和缺文件后重做。预置源为 `ISSUE84-REDO\n`，13 字节，SHA-256 `b4a69797d1c4a0de5428c053d8d40289d097967f2e46fd30a66aad79bbb4f82f`。禁止 shell、memory mutation、wakeup 与越界提议，拒绝后不执行工具，且不将这类预算失败用于 AC21。Master 可明确为阻塞 Main 或已静止的 Task/维护失败释放 reserve；终态 Task 需新 Main 意图，不能静默恢复。
 
 next 等待活跃工作及尚未到期的维护来源全部收敛，不能把 60/120 秒后才触发的摘要计入下一路径。pi-tui 版本读取已安装包，启动和关闭拒绝分别计数。操作者 stop 会取消当前请求，不冒充预算自然排空。vision 固定为每边 2000/总 4,000,000 像素及官方每图最多 1024 token。既有原生证据保留原 SHA，真实 provider 证据必须在最终实施候选上新跑。
+
+后续真实运行前复核发现三个恢复边界。普通 Main 准入保护最后两次调用用于摘要/提取；无活跃工作的维护失败允许 Master 明确释放 reserve，再用操作者专用 retry-maintenance 调用既有 session/compact，记录两个动作。dry 以两个脚本 429 耗尽 vision 维护额度，观察永久预算拒绝，再显式释放、重试并要求摘要提交后才能切换。重启时未知请求标记 unknown_after_restart，完整保留时间和费用；Core 超时回调延迟另记实际时长，计费活跃时间最多按既有 120 秒 deadline，不加竞争定时器。dry 加入在途强制结束、恢复及后续切换。真实 fetch 继续经过 Core 包装器；超大/无效出站在拒绝前记录；所有模式移除凭据环境变量；真实启动重新验算 preflight 证据散列。不增加预算。失败 dry 记录保留，初始驱动修复包括 OPEN 提问状态及标量 API 回答合同。
+
+Master 最新要求先准备人工材料，完成 Codex 自动验收后停止，等待 Master 操作回报。因此自动 provider 流程先按固定顺序执行；redo 收敛后可用 native-vision 单次返回原 vision 额度，供 Master 真实剪贴板发送。所有历史请求、费用、墙钟起点及原 vision 六次上限保留，不释放 reserve，不允许再次循环路径。API 图片导入单独标记，不能算直接剪贴板。交接写明剩余 vision 次数和原两小时截止时间；如果额度或时间不足，保留 NOT_RUN 交 Master 下轮决定，不能重置。Codex 停止时原生完成及合并仍待确认。

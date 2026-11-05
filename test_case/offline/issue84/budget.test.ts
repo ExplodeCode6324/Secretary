@@ -24,7 +24,7 @@ test("abandoned provider attempts retain the full reservation after reopen", (t)
   const resumed = new Issue84Budget(file, true);
   assert.equal(resumed.state.attempts[0].ms, 120_000);
   for (let i = 0; i < 7; i++) {
-    const attempt = resumed.admit("main", wire, []);
+    const attempt = resumed.admit("main", wire, [], "summary");
     resumed.end(attempt, attempt.started + 1, "observed_http_error");
   }
   assert.throws(() => resumed.admit("main", wire, []), /PATH_CALLS/);
@@ -103,4 +103,62 @@ test("wire accounting refuses unsupported destinations embedded as image URLs an
     () => wireBound(sample().replace("8192", "8193")),
     /WIRE_SHAPE/,
   );
+});
+
+test("normal Main calls preserve two maintenance slots; restart closes unknown holds without reducing exposure", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "issue84-recovery-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const b = new Issue84Budget(path.join(directory, "ledger.json"), false);
+  for (let i = 0; i < 6; i++) {
+    const a = b.admit("main", wireBound(sample()), []);
+    b.end(a, a.started + 1, "observed");
+  }
+  assert.throws(
+    () => b.admit("main", wireBound(sample()), []),
+    /MAINTENANCE_HEADROOM/,
+  );
+  const unknown = b.admit("main", wireBound(sample()), [], "summary");
+  const reservation = unknown.nanoUSD;
+  const r = new Issue84Budget(b.file, true);
+  assert.equal(r.state.attempts.at(-1)!.termination, "unknown_after_restart");
+  assert.equal(r.state.attempts.at(-1)!.ms, 120_000);
+  assert.equal(r.state.attempts.at(-1)!.nanoUSD, reservation);
+  r.advance("vision");
+  assert.equal(r.state.phase, "vision");
+});
+
+test("observed timeout handling latency is recorded without adding a competing deadline", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "issue84-timeout-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const b = new Issue84Budget(path.join(directory, "ledger.json"), false);
+  const a = b.admit("main", wireBound(sample()), []);
+  const cost = a.nanoUSD;
+  b.end(a, a.started + 120_005, "Core_timeout");
+  assert.equal(a.ms, 120_000);
+  assert.equal(a.observedMs, 120_005);
+  assert.equal(a.nanoUSD, cost);
+  assert.equal(b.state.halted, null);
+});
+
+test("final native handoff reuses the original vision balance and cannot restart phase allocations", (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "issue84-native-"));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const b = new Issue84Budget(path.join(directory, "ledger.json"), false);
+  b.advance("vision");
+  const a = b.admit("main", wireBound(sample()), []);
+  b.end(a, a.started + 1, "observed");
+  b.advance("shared");
+  b.advance("matters");
+  b.advance("redo");
+  b.revisitNativeVision();
+  assert.equal(b.state.attempts.length, 1);
+  for (let i = 0; i < 3; i++) {
+    const next = b.admit("main", wireBound(sample()), []);
+    b.end(next, next.started + 1, "observed");
+  }
+  assert.throws(
+    () => b.admit("main", wireBound(sample()), []),
+    /MAINTENANCE_HEADROOM/,
+  );
+  assert.throws(() => b.advance("shared"), /FINAL_NATIVE_ONLY/);
 });

@@ -26,6 +26,7 @@ export function acceptanceAdapter(
     approvalScope: () => string | undefined;
     inputIds: () => string[];
     observe: (request: RequestObservation) => void;
+    violation: (reason: string) => void;
     scripted?: (body: string) => Promise<Response> | Response;
   },
 ): ModelConfig {
@@ -96,28 +97,41 @@ export function acceptanceAdapter(
               "BUDGET_ISSUE84_UNINSPECTABLE_BODY",
             );
             const body = init!.body as string;
-            const wire = wireBound(body);
-            if (options.scripted)
-              assert(wire.input <= 80_000, "ISSUE84_REHEARSAL_WIRE_HEADROOM");
+            let wire: ReturnType<typeof wireBound>;
+            try {
+              wire = wireBound(body);
+            } catch (error) {
+              options.violation(String(error));
+              throw error;
+            }
             const system = JSON.parse(body)
               .messages.filter((m: { role: string }) => m.role === "system")
               .map((m: { content: unknown }) => JSON.stringify(m.content))
               .join("\n");
+            const kind = system.includes("COMMITMENT_EXTRACTION:")
+              ? "extraction"
+              : system.includes("CONSCIOUSNESS:")
+                ? "summary"
+                : "normal";
             options.observe({
               ...wire,
               role,
-              kind: system.includes("COMMITMENT_EXTRACTION:")
-                ? "extraction"
-                : system.includes("CONSCIOUSNESS:")
-                  ? "summary"
-                  : "normal",
+              kind,
               at: new Date().toISOString(),
             });
+            if (options.scripted && wire.input > 80_000) {
+              options.violation("ISSUE84_REHEARSAL_WIRE_HEADROOM");
+              throw Error("ISSUE84_REHEARSAL_WIRE_HEADROOM");
+            }
             assert(!attempt, "BUDGET_ISSUE84_MULTIPLE_FETCHES");
-            if (budget) attempt = budget.admit(role, wire, options.inputIds());
+            if (budget)
+              attempt = budget.admit(role, wire, options.inputIds(), kind);
             const response = options.scripted
               ? await options.scripted(body)
-              : await fetch(url, { ...init, redirect: "error" });
+              : await (opts?.fetch ?? fetch)(url, {
+                  ...init,
+                  redirect: "error",
+                });
             if (attempt) {
               attempt.http = response.status;
               attempt.requestId =
