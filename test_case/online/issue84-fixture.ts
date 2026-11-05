@@ -63,6 +63,7 @@ export function scriptedFixture(
   body: string,
   approvalScope?: string,
   redo?: object,
+  growth = false,
 ) {
   const { messages } = JSON.parse(body) as { messages: WireMessage[] };
   const system = messages
@@ -110,7 +111,11 @@ export function scriptedFixture(
         ),
       );
     }
-    return fixtureResponse("彩排回执。", [], "rehearsal context");
+    return fixtureResponse(
+      "彩排回执。",
+      [],
+      growth ? "Synthetic reasoning block. ".repeat(130) : "rehearsal context",
+    );
   }
   const label = prompt.match(
     /ISSUE84-(SHARED-A|SHARED-B|QUESTION|APPROVAL|FAILURE)/,

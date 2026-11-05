@@ -1,0 +1,330 @@
+/** Fresh credential-free rehearsal through the SAME admission/adapter/Core service as live. */
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import path from "node:path";
+import { spawn, type ChildProcess } from "node:child_process";
+import { Client } from "pg";
+import { CoreClient } from "../../src/pi_secretary/src/core-client.ts";
+import { id, hash } from "../../src/pi_secretary/src/store.ts";
+import { redoSource } from "./issue84-prompts.ts";
+
+const [run, mode] = process.argv.slice(2);
+assert(
+  /^[a-z0-9_]{1,24}$/.test(run) && ["dry", "calibration"].includes(mode),
+  "USE_RUN_LABEL_DRY_OR_CALIBRATION",
+);
+const root = path.resolve(".demo-data/issue84/runs", run, mode);
+assert(!fs.existsSync(root), "FRESH_ROOT_REQUIRED");
+const database = "secretary84_" + run + "_" + mode;
+const admin = new Client({
+  connectionString: "postgresql://secretary84@127.0.0.1:55484/postgres",
+});
+await admin.connect();
+try {
+  await admin.query(`CREATE DATABASE "${database}" TEMPLATE template0`);
+} finally {
+  await admin.end();
+}
+let processHandle: ChildProcess;
+let output = "";
+let exit: number | null | undefined;
+const spawnService = (resume: boolean) => {
+  exit = undefined;
+  processHandle = spawn(
+    process.execPath,
+    [
+      "--import",
+      "tsx",
+      "test_case/online/serve-issue84.ts",
+      mode,
+      ...(resume ? ["--resume"] : []),
+    ],
+    {
+      env: { ...process.env, ISSUE84_RUN: run },
+      stdio: ["pipe", "pipe", "pipe"],
+    },
+  );
+  processHandle.on("exit", (code) => {
+    exit = code;
+  });
+  const capture = (chunk: Buffer) => {
+    output += chunk.toString();
+  };
+  processHandle.stdout!.on("data", capture);
+  processHandle.stderr!.on("data", capture);
+};
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+async function until(
+  check: () => boolean | Promise<boolean>,
+  label: string,
+  ms = 180_000,
+) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (await check()) return;
+    assert(
+      exit === undefined,
+      "SERVICE_EXIT_" + String(exit) + ": " + output.slice(-2000),
+    );
+    await pause(200);
+  }
+  throw Error("REHEARSAL_TIMEOUT_" + label);
+}
+const read = (file: string) =>
+  JSON.parse(fs.readFileSync(path.join(root, file), "utf8"));
+const obs = () => read("observations.json");
+const scenarios: Record<string, unknown> = {
+  evidenceClass: "SCRIPTED_MODEL",
+  native: false,
+};
+let client!: CoreClient;
+async function connect() {
+  await until(
+    () => fs.existsSync(path.join(root, "core/core-endpoint.json")),
+    "endpoint",
+  );
+  await until(async () => {
+    try {
+      client = new CoreClient(read("core/core-endpoint.json"));
+      await client.core();
+      return true;
+    } catch {
+      return false;
+    }
+  }, "core");
+}
+const command = (line: string) => processHandle.stdin!.write(line + "\n");
+async function send(text: string, extra: object = {}) {
+  const request = id();
+  const receipt = await client.command("messages", {
+    request_id: request,
+    text,
+    ...extra,
+  });
+  assert.equal(receipt.acceptance, "ACCEPTED");
+  await until(
+    () =>
+      obs().inputs.some(
+        (i: any) => i.dedupe_key === request && i.state === "HANDLED",
+      ) || obs().session === "RECOVERY_BLOCKED",
+    "input",
+  );
+  return request;
+}
+async function next(phase: string) {
+  await until(() => obs().idle, "maintenance-before-" + phase);
+  command("next " + phase);
+  await until(() => read("usage.json").phase === phase, "phase-" + phase, 5000);
+  console.log("PHASE " + phase);
+}
+async function completed(task: string) {
+  await until(
+    () =>
+      obs().executions.some(
+        (e: any) =>
+          e.task_id === task && ["SUCCEEDED", "FAILED"].includes(e.state),
+      ),
+    "task",
+  );
+}
+spawnService(false);
+try {
+  await connect();
+  if (mode === "calibration") {
+    for (let i = 0; i < 12; i++) {
+      await send(
+        `Calibration ${i + 1}: ` +
+          "synthetic conversation context ".repeat(190),
+      );
+      assert.equal(obs().session, "IDLE");
+    }
+    await until(() => obs().idle, "calibration-maintenance");
+  } else {
+    command("fault-429");
+    await until(() => output.includes("FAULT_429_ARMED"), "429-armed", 5000);
+    let blockedRequest = "";
+    for (let n = 0; n < 12; n++) {
+      blockedRequest = await send("dry probe " + n);
+      if (obs().session === "RECOVERY_BLOCKED") break;
+    }
+    assert.equal(obs().session, "RECOVERY_BLOCKED");
+    scenarios.recoveryBlocked = true;
+    command("release-reserve");
+    await until(() => read("usage.json").release === "main", "reserve", 5000);
+    await client.command("session/resume", { request_id: id() });
+    await until(
+      () =>
+        obs().inputs.some(
+          (i: any) => i.dedupe_key === blockedRequest && i.state === "HANDLED",
+        ),
+      "resume-input",
+    );
+    assert.equal(
+      obs().inputs.filter((i: any) => i.dedupe_key === blockedRequest).length,
+      1,
+    );
+    scenarios.resumedSameInput = true;
+    await next("vision");
+    const file = path.join(root, "vision.png"),
+      bytes = fs.readFileSync(file),
+      request = id();
+    await client.command("attachments/import", {
+      request_id: request,
+      source_path: file,
+      expected_sha256: hash(bytes),
+      expected_bytes: String(bytes.length),
+      name: "vision.png",
+    });
+    let imported: any;
+    await until(async () => {
+      imported = await client.query("requests/" + request);
+      return imported.receipt.state === "COMPLETED";
+    }, "image-import");
+    await send("dry image", {
+      attachment_ids: [imported.result.attachment_id],
+    });
+    assert(obs().requests.some((r: any) => r.images.length > 0));
+    scenarios.image = true;
+    await next("shared");
+    const before = new Set(obs().executions.map((e: any) => e.id));
+    await send("84 shared");
+    await until(
+      () =>
+        obs().executions.filter(
+          (e: any) => !before.has(e.id) && e.state === "RUNNING",
+        ).length === 2,
+      "two-running",
+    );
+    await send("dry concurrent main");
+    await until(
+      () =>
+        obs().executions.filter(
+          (e: any) => !before.has(e.id) && e.state === "SUCCEEDED",
+        ).length === 2,
+      "shared-complete",
+    );
+    const shared = obs().executions.filter((e: any) => !before.has(e.id));
+    assert.notEqual(
+      shared[0].workspace_binding.root_path,
+      shared[1].workspace_binding.root_path,
+    );
+    assert.notEqual(
+      fs.readFileSync(
+        path.join(shared[0].workspace_binding.root_path, "report.txt"),
+        "utf8",
+      ),
+      fs.readFileSync(
+        path.join(shared[1].workspace_binding.root_path, "report.txt"),
+        "utf8",
+      ),
+    );
+    scenarios.shared = true;
+    await next("matters");
+    command("approval-scope");
+    await until(
+      () => fs.existsSync(path.join(root, "approval-scope.json")),
+      "scope",
+    );
+    await send("84 question");
+    await until(
+      () => obs().decisions.some((d: any) => d.state === "PENDING"),
+      "decision",
+    );
+    const decision = obs().decisions.find((d: any) => d.state === "PENDING");
+    await client.command(`decisions/${decision.id}/answer`, {
+      request_id: id(),
+      answer: { value: "/M synthetic answer" },
+    });
+    await completed(decision.task_id);
+    scenarios.decision = true;
+    await send("84 approval");
+    await until(
+      () => obs().authorizations.some((a: any) => a.state === "PENDING"),
+      "authorization",
+    );
+    const a = obs().authorizations.find((a: any) => a.state === "PENDING");
+    const display: any = await client.query("authorizations/" + a.id);
+    await client.command(`authorizations/${a.id}/decision`, {
+      request_id: id(),
+      expected_revision: display.revision,
+      display_hash: display.display_hash,
+      decision: "APPROVE",
+    });
+    await until(
+      () =>
+        obs().authorizations.find((x: any) => x.id === a.id).state ===
+        "CONSUMED",
+      "consumed",
+    );
+    scenarios.authorization = true;
+    await next("redo");
+    const oldIds = new Set(obs().executions.map((e: any) => e.id));
+    await send("84 failure");
+    await until(
+      () =>
+        obs().executions.some(
+          (e: any) => !oldIds.has(e.id) && e.state === "FAILED",
+        ),
+      "failure",
+    );
+    const failed = obs().executions.find((e: any) => !oldIds.has(e.id));
+    fs.writeFileSync(
+      path.join(failed.workspace_binding.root_path, "source.txt"),
+      redoSource,
+      { flag: "wx", mode: 0o600 },
+    );
+    await send("", {
+      failure_action: {
+        failure_key: "EXECUTION:" + failed.id,
+        expected_revision: "0",
+        action: "REDO",
+      },
+    });
+    await until(
+      () =>
+        obs().executions.some(
+          (e: any) =>
+            e.continuation_of === failed.id && e.state === "SUCCEEDED",
+        ),
+      "redo",
+    );
+    const success = obs().executions.find(
+      (e: any) => e.continuation_of === failed.id,
+    );
+    const result = obs().results.find(
+      (r: any) => r.execution_id === success.id,
+    );
+    assert.equal(result.artifacts[0].content.sha256, hash(redoSource));
+    assert(
+      obs().operations.some(
+        (o: any) =>
+          o.id === result.artifacts[0].producing_operation_id &&
+          o.scope.execution_id === success.id &&
+          o.state === "SUCCEEDED",
+      ),
+    );
+    scenarios.redo = true;
+    await until(() => obs().idle, "final-maintenance");
+    await client.command("core/stop", { request_id: id() });
+    while (exit === undefined) await pause(100);
+    const beforeRestart = read("manifest.json");
+    spawnService(true);
+    await connect();
+    assert.equal(read("manifest.json").fingerprint, beforeRestart.fingerprint);
+    scenarios.restarted = true;
+  }
+  scenarios.status = "PASS";
+  console.log("PASS " + mode);
+} finally {
+  if (client! && exit === undefined)
+    await client.command("core/stop", { request_id: id() }).catch(() => {});
+  await pause(500);
+  if (exit === undefined) processHandle!.kill("SIGTERM");
+  fs.mkdirSync(root, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(path.join(root, "driver.log"), output, { mode: 0o600 });
+  fs.writeFileSync(
+    path.join(root, "scenarios.json"),
+    JSON.stringify(scenarios, null, 2) + "\n",
+    { mode: 0o600 },
+  );
+}

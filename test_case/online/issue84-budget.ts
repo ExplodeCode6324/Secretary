@@ -18,7 +18,7 @@ export const outputCap = 8192;
 export const inputCap = 100_000;
 // Nano-USD: $0.30 and $1.20 per million tokens at peak, with no cache discount.
 const cost = (input: number, output: number) => 300 * input + 1200 * output;
-const limits = {
+export const limits = {
   main: { main: 8, task: 0, proposals: 0, tools: 12, ms: 171_000 },
   vision: { main: 6, task: 0, proposals: 0, tools: 8, ms: 158_000 },
   shared: { main: 20, task: 14, proposals: 3, tools: 55, ms: 337_000 },
@@ -71,6 +71,8 @@ type Attempt = ReturnType<typeof wireBound> & {
   actualInput?: number;
   actualOutput?: number;
   inputIds: string[];
+  ended?: number;
+  termination?: string;
 };
 type ToolBatch = { phase: Phase; names: string[]; admitted: boolean };
 type LedgerState = {
@@ -79,6 +81,7 @@ type LedgerState = {
   halted: string | null;
   attempts: Attempt[];
   batches: ToolBatch[];
+  refusals: { at: number; phase: Phase; reason: string }[];
 };
 export class Issue84Budget {
   readonly state: LedgerState;
@@ -94,7 +97,9 @@ export class Issue84Budget {
           halted: null,
           attempts: [],
           batches: [],
+          refusals: [],
         };
+    this.state.refusals ??= [];
     this.save();
   }
   save() {
@@ -122,6 +127,26 @@ export class Issue84Budget {
         phase !== "reserve",
       "PHASE_ORDER",
     );
+    requireBudget(
+      this.state.attempts.every((a) => a.ended !== undefined),
+      "UNFINISHED_ATTEMPTS",
+    );
+    const future = phases.slice(phases.indexOf(phase));
+    const held = this.state.attempts.reduce((n, a) => n + a.ms, 0);
+    const spentReserve = this.state.attempts
+      .filter((a) => a.phase === "reserve")
+      .reduce((n, a) => n + a.ms, 0);
+    requireBudget(
+      held +
+        future.reduce(
+          (n, p) =>
+            n +
+            Math.max(0, limits[p].ms - (p === "reserve" ? spentReserve : 0)),
+          0,
+        ) <=
+        1_500_000,
+      "FUTURE_PATH_TIME",
+    );
     this.state.phase = phase;
     this.state.release = null;
     this.save();
@@ -131,6 +156,23 @@ export class Issue84Budget {
     this.save();
   }
   admit(role: Role, wire: ReturnType<typeof wireBound>, inputIds: string[]) {
+    try {
+      return this.admitAttempt(role, wire, inputIds);
+    } catch (error) {
+      this.state.refusals.push({
+        at: Date.now(),
+        phase: this.state.phase,
+        reason: String(error),
+      });
+      this.save();
+      throw error;
+    }
+  }
+  private admitAttempt(
+    role: Role,
+    wire: ReturnType<typeof wireBound>,
+    inputIds: string[],
+  ) {
     requireBudget(!this.state.halted, "HALTED");
     const started = Date.now();
     const { phase, attempts } = this.state;
@@ -143,16 +185,12 @@ export class Issue84Budget {
       attempts.reduce((sum, a) => sum + a.nanoUSD, nanoUSD) <= 5_000_000_000,
       "USD",
     );
-    let bucket = phase;
+    const bucket = this.state.release === phase ? "reserve" : phase;
     const fits = (p: Phase) => {
       const previous = attempts.filter((a) => a.phase === p);
-      return (
-        previous.filter((a) => a.role === role).length < limits[p][role] &&
-        previous.reduce((sum, a) => sum + a.ms, attemptMs) <= limits[p].ms
-      );
+      return previous.filter((a) => a.role === role).length < limits[p][role];
     };
-    if (!fits(bucket) && this.state.release === phase) bucket = "reserve";
-    requireBudget(fits(bucket), "PATH_TIME_OR_CALLS");
+    requireBudget(fits(bucket), "PATH_CALLS");
     requireBudget(
       attempts.reduce((sum, a) => sum + a.ms, attemptMs) <= 1_500_000,
       "ACTIVE_TIME",
@@ -169,6 +207,18 @@ export class Issue84Budget {
     attempts.push(attempt);
     this.save();
     return attempt;
+  }
+  end(attempt: Attempt, ended: number, termination: string) {
+    if (attempt.ended !== undefined) return;
+    const elapsed = ended - attempt.started;
+    if (elapsed < 0 || elapsed > attemptMs) {
+      this.state.halted = "UNVERIFIED_PROVIDER_USAGE_OR_DEADLINE";
+      this.save();
+      throw Error("BUDGET_ISSUE84_" + this.state.halted);
+    }
+    Object.assign(attempt, { ms: elapsed, ended, termination });
+    // An observed end releases time, never an unverified cost reservation.
+    this.save();
   }
   finish(
     attempt: Attempt,
@@ -194,6 +244,8 @@ export class Issue84Budget {
     }
     Object.assign(attempt, {
       ms: elapsed,
+      ended,
+      termination: "completed",
       nanoUSD: cost(input, output),
       responseId,
       actualInput: input,
@@ -201,7 +253,7 @@ export class Issue84Budget {
     });
     this.save();
   }
-  tools(role: Role, names: string[], attempt: Attempt) {
+  tools(role: Role, names: string[], attempt: Attempt, scopeAllowed = true) {
     const phase = attempt.phase;
     const allowed =
       role === "main"
@@ -218,6 +270,7 @@ export class Issue84Budget {
       .filter((batch) => batch.phase === phase && batch.admitted)
       .flatMap((batch) => batch.names);
     const admitted =
+      scopeAllowed &&
       names.every((name) => allowed.includes(name)) &&
       counted.length + names.length <= limits[phase].tools &&
       [...counted, ...names].filter((n) => n === "task_propose").length <=
