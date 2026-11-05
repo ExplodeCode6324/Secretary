@@ -319,8 +319,8 @@ const client = new CoreClient(server.endpoint);
 const scopeFile = path.join(root, "approval-scope.json");
 if (fs.existsSync(scopeFile))
   approvalScope = JSON.parse(fs.readFileSync(scopeFile, "utf8")).id;
-const idle = () =>
-  !maintenancePending(app) &&
+const quiescent = () =>
+  !app.activitySnapshot().activities.some((a) => a.scope === "maintenance") &&
   active === 0 &&
   !app.settings.blocked &&
   !app.host.session.active_loop_id &&
@@ -342,6 +342,7 @@ const idle = () =>
   !app.store
     .all<TaskPlan>("TaskPlan")
     .some((item) => item.pending_requests?.length);
+const idle = () => quiescent() && !maintenancePending(app);
 const sessionStates: string[] = previousObservation?.sessionStates ?? [];
 const snapshot = () => {
   if (!sessionStates.includes(app.host.session.state))
@@ -410,7 +411,7 @@ input.on("line", (line) => {
       verb === "release-reserve" &&
       budgeted &&
       active === 0 &&
-      (app.host.session.state === "RECOVERY_BLOCKED" || idle())
+      (app.host.session.state === "RECOVERY_BLOCKED" || quiescent())
     ) {
       budget.releaseReserve();
       return console.log("RESERVE RELEASED FOR " + budget.state.phase);

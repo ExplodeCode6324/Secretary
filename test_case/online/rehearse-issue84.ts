@@ -227,15 +227,23 @@ try {
     );
     await send("84 question");
     await until(
-      () => obs().decisions.some((d: any) => d.state === "PENDING"),
+      () => obs().decisions.some((d: any) => d.state === "OPEN"),
       "decision",
     );
-    const decision = obs().decisions.find((d: any) => d.state === "PENDING");
+    const decision = obs().decisions.find((d: any) => d.state === "OPEN");
     await client.command(`decisions/${decision.id}/answer`, {
       request_id: id(),
       answer: { value: "/M synthetic answer" },
     });
     await completed(decision.task_id);
+    const answered = obs().decisions.find((d: any) => d.id === decision.id);
+    assert.equal(answered.answered_by, "MASTER");
+    assert.deepEqual(answered.answer, { value: "/M synthetic answer" });
+    assert(
+      obs().executions.some(
+        (e: any) => e.task_id === decision.task_id && e.state === "SUCCEEDED",
+      ),
+    );
     scenarios.decision = true;
     await send("84 approval");
     await until(
@@ -276,7 +284,11 @@ try {
     await send("", {
       failure_action: {
         failure_key: "EXECUTION:" + failed.id,
-        expected_revision: "0",
+        expected_revision: (
+          (await client.query(
+            "failures/" + encodeURIComponent("EXECUTION:" + failed.id),
+          )) as { revision: string }
+        ).revision,
         action: "REDO",
       },
     });
@@ -315,6 +327,10 @@ try {
   }
   scenarios.status = "PASS";
   console.log("PASS " + mode);
+} catch (error) {
+  scenarios.status = "FAIL";
+  scenarios.error = String(error);
+  throw error;
 } finally {
   if (client! && exit === undefined)
     await client.command("core/stop", { request_id: id() }).catch(() => {});

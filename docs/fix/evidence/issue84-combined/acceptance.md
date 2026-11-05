@@ -39,7 +39,7 @@ Shared-B 当前文件及登记散列匹配，Core 查询、TUI 路径解析、�
 | AC18 | Main 定向回答 批准完成与原稿恢复 | [#92](../issue92-attention/acceptance.md) | NOT_RUN |
 | AC19 | Task show 与普通 Task 输入区分 | [#92](../issue92-attention/acceptance.md) | NOT_RUN |
 | AC20 | 目标失效 报错并自动返回 | [#92](../issue92-attention/acceptance.md) | NOT_RUN |
-| AC21 | 失败行委托主会话 真实处置与状态刷新 | [#93](../issue93-failure-handling/acceptance.md) | 彩排重做 FAILED；fixture 修复后自动回归通过，Master 复测待执行 |
+| AC21 | 失败行委托主会话 真实处置与状态刷新 | [#93](../issue93-failure-handling/acceptance.md) | 原失败保留；758fb875 新任务单步重做经 Master 原生复测 PASS，Core 独立验证 PASS；真实 provider 待执行 |
 | AC22 | 产物末尾列表与当前文件 | [#94](../issue94-delivery/acceptance.md) | Shared-B 首次失败，后续 Master 确认可打开；首次异常待复现 |
 | AC23 | open 不存在路径 | [#94](../issue94-delivery/acceptance.md) | NOT_RUN |
 | AC24 | 命令大小写 作用域与处理状态禁用 | [#82](../issue82-rebuild/acceptance.md), [#91](../issue91-main-history/acceptance.md), [#83](../issue83-task-browser/acceptance.md), [#92](../issue92-attention/acceptance.md), [#93](../issue93-failure-handling/acceptance.md), [#94](../issue94-delivery/acceptance.md) | NOT_RUN |
@@ -55,3 +55,17 @@ Shared-B 当前文件及登记散列匹配，Core 查询、TUI 路径解析、�
 | AC34 | 未提交时 Esc 退出处理 | [#92](../issue92-attention/acceptance.md) | NOT_RUN |
 
 原始逐项前置、动作及失败判据见 [v1.7 固定版本](https://github.com/ExplodeCode6324/Secretary/blob/ed16e804d28c0b0048e37035349f1ff3f7982f38/docs/tui/implementation-reference.md#10-可直接执行的验收操作)。AC08 以 #91 后续跟随裁定为准。AC28 的复制验收含已交付的鼠标松开复制。#94 最终记录见 [PR #101](https://github.com/ExplodeCode6324/Secretary/pull/101#issuecomment-6652193797)。此前 /open report.txt 异常派发的原因仍未确定。
+
+## 2026-11-05 重做复测与证据边界
+
+Master 在 `758fb875fdcf10f7a7b342b56d03318cdf78e7a8` 确认重做复测成功。新失败 Task 为 `01546734-c028-4f5b-9c62-7210d54e6de4`，原执行 `34d53977-d123-4b6b-a4fc-79d78e7c3979` 真实读取缺失文件后 FAILED；预置 13 字节 `ISSUE84-REDO\n` 后，原生失败行重做产生唯一直接后继 `a89ba2b6-39d6-4f9c-98ae-604c0db68519`，SUCCEEDED。Codex 核对后继自己的 SUCCEEDED/APPLIED 写入 Operation、登记产物、实际字节与 SHA-256 `b4a69797d1c4a0de5428c053d8d40289d097967f2e46fd30a66aad79bbb4f82f`，原执行仍 FAILED，直接父处置为 REDO_SUCCEEDED。证据类别为 USER_REPORTED_NATIVE + SCRIPTED_MODEL_CORE，不能替代真实 provider。原始核对在忽略目录 `.demo-data/issue84/diagnosis-20261105/native-redo-pass.json`。
+
+其他 NOT_RUN 行的共同原因：尚无足以逐分支映射的本次原生操作记录；不把 Master 总体通过反馈扩展为未准备样例的通过。各行前置、输入、期望及失败判据绑定上文 v1.7 固定版本的 AC 同号条款。原生来源候选为 79c4ae7，重做复测为 758fb875；未执行行没有测试 SHA。后续自动化、Core API、真实 provider 结果必须声明证据类别，不能覆盖终端键位、布局或真实剪贴板操作。最新候选的冻结后 CI/复核结果追加 PR #102。
+
+| 未决项 | 当前证据与下一步 | Master 裁定 |
+| --- | --- | --- |
+| Shared-B 首次打开失败 | 后续原生打开成功；若复现记录精确提示、时间及查看器是否已运行 | 保留观察，按 Master 后续反馈 |
+| 原生分项记录及环境 | 总体报告通过；Terminal 版本、字体、行列及逐分支记录未捕获 | 终审确认范围 |
+| 边界样例 | 归档/歧义/纯暂停、UNKNOWN、旧失败拒绝、精确取消、4 MiB、overflow、四轮 Agent 的自动化证据按原范围引用；本次未建立完整原生样例域 | 不自动判 PASS |
+| 原生图片到真实 provider | 新真实域按清单操作并核对随机标记；API 导入仅证明 API 路径 | 等待新记录 |
+| 实现参考文档退役 | 仍保留唯一 AC 分支定义及未决原生引用 | 继续保留 |

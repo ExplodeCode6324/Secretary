@@ -31,9 +31,14 @@
 
 使用仓库根目录执行。首次启动需有 Issue #84 专用的两个空 PostgreSQL 数据库，监听本机 55484，数据库名为 `secretary84_rehearsal` 与 `secretary84_live`。启动脚本会创建对应数据域，后续用 `--resume` 并核对候选指纹。
 
+首次运行（仅在新目录及空库时）：
+
 ```sh
-npx tsx test_case/online/serve-issue84.ts rehearsal --resume
+createdb -h 127.0.0.1 -p 55484 -U secretary84 -T template0 secretary84_rehearsal
+npx tsx test_case/online/serve-issue84.ts rehearsal
 ```
+
+已有验收域恢复用 `npx tsx test_case/online/serve-issue84.ts rehearsal --resume`。勿重建或清空旧库；当前旧域已含 Master 验收记录，仅能在其原候选恢复。新候选可用 `ISSUE84_RUN=<label>` 建立独立 `.demo-data/issue84/runs/<label>/<mode>`，数据库同步命名为 `secretary84_<label>_<mode>`；首次必须为空。
 
 另开实际 macOS Terminal，在仓库根目录执行：
 
@@ -46,3 +51,13 @@ SECRETARY_MODE=live SECRETARY_DATA="$PWD/.demo-data/issue84/rehearsal/core" npm 
 彩排输入 `84 shared`、`84 question`、`84 approval`、`84 failure`。授权前在 Core 窗口输入 `approval-scope`。彩排使用脚本化模型，可重复检查界面及 Core 状态。原生真实模型阶段按 Main、vision、Shared、事项、失败重做的顺序，在 Core 空闲时用 `next vision`、`next shared`、`next matters`、`next redo` 切换预算。请求预算耗尽时暂停并保留当时状态，只有 Master 可以在服务窗口释放预留。
 
 实际路径、验收启动和证据采集细节见 [#84 计划](../fix/fix_20261105_issue84_combined.md)。
+
+## 真实模型预检与固定输入
+
+仅验收工具读取项目私有 `.env.local` 的 `DEEPSEEK_API_KEY`；该文件权限 600、Git 忽略，不粘贴到终端命令或证据。固定输入见 [issue84-prompts.ts](../../test_case/online/issue84-prompts.ts)。源文件预置值为 13 字节 `ISSUE84-REDO\n`，SHA-256 为 `b4a69797d1c4a0de5428c053d8d40289d097967f2e46fd30a66aad79bbb4f82f`。
+
+无付费技术预检使用 `npx tsx test_case/online/rehearse-issue84.ts <新标签> dry` 和 `npx tsx test_case/online/rehearse-issue84.ts <新标签> calibration`，分别创建隔离库并保留 observations、usage、scenarios 和日志。前者复用真实准入适配器，以脚本响应覆盖并发、429、预算拒绝、模拟操作者释放 reserve、同输入恢复、图片、Shared、事项、失败重做和重启；后者覆盖增长、裁剪、摘要及提取。它们不构成原生或真实 provider 通过。
+
+`preflight-issue84.ts` 接收 dry 目录、calibration 目录、带日期官方价格/vision 假设 JSON 三个参数，检查当前候选及全部证据后才生成 `.demo-data/issue84/preflight.json`。真实服务 `serve-issue84.ts live` 拒绝没有匹配 PASS 的启动。真实 reserve 只能由 Master 明确释放；没有通过时保留失败记录，不手工写 PASS，不跨候选改 manifest。
+
+手工清单第 2–5 项的归档/歧义/纯暂停、UNKNOWN、旧失败拒绝、精确取消、4 MiB、overflow、四轮 Agent 及带命令样式选项样例尚未全部建立；只对实际存在的对象验收，缺少前置的子步骤保持 NOT_RUN。自动化边界证据与本次原生观察分开登记。
