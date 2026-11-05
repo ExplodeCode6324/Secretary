@@ -50,17 +50,39 @@ export function acceptanceAdapter(
         // Restore the local refusal so Core never schedules network retries.
         if (admissionError) throw admissionError;
         if (!attempt) return;
-        if (["error", "aborted"].includes(response.stopReason)) {
-          end(response.stopReason);
+        const failed = ["error", "aborted"].includes(response.stopReason);
+        const { input, cacheRead, cacheWrite, output } = response.usage;
+        if (failed) {
+          // Partial usage can be billed. Missing usage stays unknown.
+          if (input + cacheRead + cacheWrite > 0) {
+            budget!.finish(
+              attempt,
+              Date.now(),
+              response.responseId ?? "",
+              input + cacheRead + cacheWrite,
+              output,
+              response.usage,
+            );
+            attempt.termination = response.stopReason;
+            budget!.save();
+          } else end(response.stopReason);
+          const generated = response.content
+            .filter((p) => p.type === "toolCall")
+            .map((p) => p.name);
+          if (generated.length) {
+            try {
+              budget!.tools(role, generated, attempt, false);
+            } catch {}
+          }
           return;
         }
-        const { input, cacheRead, cacheWrite, output } = response.usage;
         budget!.finish(
           attempt,
           Date.now(),
           response.responseId ?? "",
           input + cacheRead + cacheWrite,
           output,
+          response.usage,
         );
         const calls = response.content.filter(
           (part) => part.type === "toolCall",
@@ -72,8 +94,9 @@ export function acceptanceAdapter(
             !args.program_id &&
             !args.at &&
             !args.interval_seconds &&
-            (!args.materials ||
-              (Array.isArray(args.materials) && args.materials.length === 0)) &&
+            (args.materials == null ||
+              (Array.isArray(args.materials) &&
+                args.materials.every((v) => typeof v === "string"))) &&
             (!args.scope_id || args.scope_id === options.approvalScope())
           );
         });
@@ -90,16 +113,23 @@ export function acceptanceAdapter(
         const events = await checked(model, context, {
           ...opts,
           fetch: async (url, init) => {
-            assert.equal(
-              url instanceof Request ? url.url : String(url),
-              acceptanceEndpoint,
-              "BUDGET_ISSUE84_DESTINATION",
-            );
-            assert.equal(
-              typeof init?.body,
-              "string",
-              "BUDGET_ISSUE84_UNINSPECTABLE_BODY",
-            );
+            try {
+              assert.equal(
+                url instanceof Request ? url.url : String(url),
+                acceptanceEndpoint,
+                "BUDGET_ISSUE84_DESTINATION",
+              );
+              assert.equal(
+                typeof init?.body,
+                "string",
+                "BUDGET_ISSUE84_UNINSPECTABLE_BODY",
+              );
+              assert(!attempt, "BUDGET_ISSUE84_MULTIPLE_FETCHES");
+            } catch (error) {
+              admissionError = error;
+              options.violation(String(error));
+              throw error;
+            }
             const body = init!.body as string;
             let wire: ReturnType<typeof wireBound>;
             try {
@@ -129,10 +159,18 @@ export function acceptanceAdapter(
               admissionError = Error("BUDGET_ISSUE84_REHEARSAL_WIRE_HEADROOM");
               throw admissionError;
             }
-            assert(!attempt, "BUDGET_ISSUE84_MULTIPLE_FETCHES");
             if (budget) {
               try {
-                attempt = budget.admit(role, wire, options.inputIds(), kind);
+                attempt = budget.admit(
+                  role,
+                  wire,
+                  role === "main" && kind === "normal"
+                    ? options.inputIds()
+                    : [],
+                  kind,
+                );
+                attempt.sessionId = opts?.sessionId;
+                budget.save();
               } catch (error) {
                 admissionError = error;
                 throw error;

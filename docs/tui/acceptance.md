@@ -1,5 +1,11 @@
 # macOS 终端组合验收
 
+> Issue #84 最新策略：[取消额度与用量观测修订](../fix/fix_20261105_issue84_unlimited.md)。Master 已取消累计费用、token、调用/工具/提案次数及时间额度。下文旧两小时、reserve、维护余量条款仅保留为 bounded 历史；新 live 使用 observe。90K Main、8192 输出和 100K 出站护栏仍是验收配置，不能将其消耗当作产品默认配置下的日常消耗。
+
+observe 的 `next` 要求请求、Main 输入与 Task 静止；它记录尚未到期或失败的维护，不强制 compact，也不宣称维护已收敛。`retry-maintenance` 允许有理由且记日志的一次操作者恢复，不需要旧 reserve；工具策略拒绝仍先停止。`native-vision` 是 redo 后的一次人工阶段，无两小时过期限制。自动流程完成后停止自动发送，等待 Master 操作。
+
+新真实域必须使用新的空目录和数据库；`ISSUE84_HISTORY` / `ISSUE84_HISTORY_SHA256` 指向冻结的历史证据清单，启动和续接校验散列。凭据从项目忽略的 `.env.local` 私下读取。当前候选的 observe dry、calibration、preflight 和 CI 必须匹配。`TOKEN-USAGE.md` / `token-usage.json` 区分本轮、历史与累计，包含缓存、推理、物理请求、逻辑调用、流和未知用量。估算金额不是账单。具体目录及原生步骤以交接材料为准。
+
 验收按同一候选提交记录三类证据：真实终端操作、真实模型与 Core 状态，以及无凭据的故障或历史彩排。记录 macOS、Terminal、Node、pi-tui、字体、行列、实际键位、Core/TUI SHA 和数据域。建议先记录 80×24，再调整到 120×40。无法捕获按键字节时登记 NOT_CAPTURED。结果填入 [AC01–AC34 账本](../fix/evidence/issue84-combined/acceptance.md)。
 
 ## 当前行为和来源

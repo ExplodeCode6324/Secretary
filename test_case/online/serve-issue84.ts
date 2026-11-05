@@ -35,7 +35,7 @@ import {
 } from "./issue84-config.ts";
 import { modelLifetime } from "../../src/pi_secretary/src/model-retry.ts";
 import { checkedStream } from "./tool-budget.ts";
-import { scriptedFixture } from "./issue84-fixture.ts";
+import { scriptedFixture, fixtureResponse } from "./issue84-fixture.ts";
 import {
   Issue84Budget,
   outputCap,
@@ -96,10 +96,12 @@ assert(
   "TRACKED_WORKTREE_DIRTY",
 );
 
-const configIdentity = freezeAcceptanceConfig();
+const policy = paid ? "observe" : (process.env.ISSUE84_POLICY ?? "observe");
+assert(policy === "observe" || policy === "bounded", "INVALID_POLICY");
+const configIdentity = freezeAcceptanceConfig(policy);
 if (paid) {
   const preflight = JSON.parse(
-    fs.readFileSync(path.join(base, "preflight.json"), "utf8"),
+    fs.readFileSync(path.join(runBase, "preflight.json"), "utf8"),
   );
   assert.equal(preflight.source, source, "PREFLIGHT_WRONG_CANDIDATE");
   assert.equal(
@@ -150,9 +152,26 @@ let shutdownRefusals = 0;
 let stopping = false;
 let inject429 = 0;
 let holdNext = false;
+let forbiddenNext = false;
 const wireViolations: string[] = previousObservation?.wireViolations ?? [];
 const operatorActions: object[] = previousObservation?.operatorActions ?? [];
-if (budgeted) budget = new Issue84Budget(path.join(root, "usage.json"), resume);
+if (budgeted) {
+  const history =
+    paid && !resume
+      ? {
+          path: process.env.ISSUE84_HISTORY!,
+          sha256: process.env.ISSUE84_HISTORY_SHA256!,
+        }
+      : undefined;
+  if (paid && !resume)
+    assert(history?.path && history.sha256, "HISTORY_PROVENANCE_REQUIRED");
+  budget = new Issue84Budget(
+    path.join(root, "usage.json"),
+    resume,
+    policy,
+    history,
+  );
+}
 const config = (role: Role): ModelConfig =>
   acceptanceAdapter(role, {
     key,
@@ -189,6 +208,12 @@ const config = (role: Role): ModelConfig =>
           await new Promise((resolve) =>
             setTimeout(resolve, role === "task" && mode === "dry" ? 600 : 40),
           );
+          if (forbiddenNext) {
+            forbiddenNext = false;
+            return fixtureResponse("", [
+              { name: "bash", args: { command: "must not execute" } },
+            ]);
+          }
           if (inject429) {
             inject429--;
             return new Response(
@@ -296,6 +321,7 @@ try {
   write("manifest.json", {
     head,
     source,
+    policy,
     fingerprint,
     visionHash: hash(JSON.stringify(profile)),
     mode,
@@ -380,7 +406,9 @@ const snapshot = () => {
     ...tally(),
     observedBounds,
     guardCalls,
+    policy,
     phase: budgeted ? budget.state.phase : mode,
+    modelCallRecords: app.store.all("ModelCall"),
     requests,
     activePeak,
     shutdownRefusals,
@@ -391,6 +419,7 @@ const snapshot = () => {
     operations: app.store.all("Operation"),
     maintenancePending: maintenancePending(app),
     idle: idle(),
+    quiescent: quiescent(),
     session: app.host.session.state,
     sessionStates,
     inputs: app.store.all<Input>("Input"),
@@ -430,13 +459,24 @@ input.on("line", (line) => {
     if (
       verb === "next" &&
       budgeted &&
-      idle() &&
+      (policy === "observe" ? quiescent() : idle()) &&
       phases.includes(phase as Phase)
     ) {
+      operatorActions.push({
+        action: "next",
+        at: new Date().toISOString(),
+        from: budget.state.phase,
+        to: phase,
+        maintenancePending: maintenancePending(app),
+      });
       budget.advance(phase as Phase);
       return console.log("PHASE " + phase);
     }
-    if (verb === "native-vision" && budgeted && idle()) {
+    if (
+      verb === "native-vision" &&
+      budgeted &&
+      (policy === "observe" ? quiescent() : idle())
+    ) {
       budget.revisitNativeVision();
       operatorActions.push({
         action: "native-vision",
@@ -463,7 +503,7 @@ input.on("line", (line) => {
       verb === "retry-maintenance" &&
       budgeted &&
       quiescent() &&
-      budget.state.release === budget.state.phase
+      (policy === "observe" || budget.state.release === budget.state.phase)
     ) {
       operatorActions.push({
         action: "session/compact",
@@ -476,6 +516,10 @@ input.on("line", (line) => {
         .then(() => console.log("MAINTENANCE_RETRY_ACCEPTED"))
         .catch((error) => console.error(String(error)));
       return;
+    }
+    if (verb === "fault-tool" && mode === "dry" && active === 0) {
+      forbiddenNext = true;
+      return console.log("FAULT_TOOL_ARMED");
     }
     if (verb === "fault-429" && mode === "dry" && active === 0) {
       inject429 = phase === "2" ? 2 : 1;

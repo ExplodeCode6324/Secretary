@@ -38,6 +38,7 @@ for (const [root, mode] of [
   const manifest = load(root, "manifest.json"),
     observations = load(root, "observations.json");
   assert.equal(manifest.source, source, "WRONG_CANDIDATE");
+  assert.equal(manifest.policy, "observe", "WRONG_POLICY");
   assert.equal(manifest.mode, mode);
   assert.equal(manifest.configHash, config.hash, "WRONG_CONFIG");
   assert.equal(manifest.freshness.empty, true, "FRESHNESS_NOT_PROVEN");
@@ -83,12 +84,20 @@ for (const [root, mode] of [
         (a: { http: number; ms: number }) => a.http === 429 && a.ms < 120_000,
       ),
     );
-    assert(ledger.refusals.length > 0);
-    assert(
-      ledger.attempts.some((a: { phase: string }) => a.phase === "reserve"),
+    assert.equal(ledger.policy, "observe");
+    const report = load(root, "token-usage.json");
+    assert.equal(report.reconciliation.status, "PASS");
+    assert.equal(
+      report.current.unknownUsageRequests,
+      2,
+      "429_AND_CRASH_USAGE_UNKNOWN",
     );
     for (const key of [
-      "recoveryBlocked",
+      "transientRetry",
+      "forbiddenTool",
+      "textMaterials",
+      "reconciliation",
+      "usageReport",
       "resumedSameInput",
       "shared",
       "image",
@@ -96,7 +105,6 @@ for (const [root, mode] of [
       "authorization",
       "redo",
       "restarted",
-      "maintenanceRecovery",
       "crashRecovery",
     ])
       assert(scenarios[key] === true, "MISSING_SCENARIO_" + key);
@@ -142,6 +150,7 @@ evidence.push({
 });
 const result = {
   status: "PASS",
+  policy: "observe",
   checkedAt: new Date().toISOString(),
   head: git("rev-parse", "HEAD"),
   source,
@@ -152,7 +161,7 @@ const result = {
     "Technical preflight only; Master native acceptance and final real-provider evidence are separate.",
 };
 fs.writeFileSync(
-  ".demo-data/issue84/preflight.json",
+  path.resolve(dryPath, "../preflight.json"),
   JSON.stringify(result, null, 2) + "\n",
   { mode: 0o600, flag: "wx" },
 );

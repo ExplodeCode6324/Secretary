@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
+import type { Usage } from "@earendil-works/pi-ai";
 import path from "node:path";
 import { imageLeaves } from "../../src/pi_secretary/src/vision.ts";
 
@@ -11,6 +13,7 @@ export const phases = [
   "reserve",
 ] as const;
 export type Phase = (typeof phases)[number];
+export type Policy = "bounded" | "observe";
 export type Role = "main" | "task";
 export type RequestKind = "normal" | "summary" | "extraction";
 export const attemptMs = 120_000;
@@ -60,9 +63,12 @@ export function wireBound(body: string) {
   };
 }
 
-type Attempt = ReturnType<typeof wireBound> & {
+export type Attempt = ReturnType<typeof wireBound> & {
   role: Role;
   phase: Phase;
+  domain?: string;
+  sessionId?: string;
+  usage?: Usage;
   started: number;
   ms: number;
   nanoUSD: number;
@@ -77,8 +83,22 @@ type Attempt = ReturnType<typeof wireBound> & {
   observedMs?: number;
   kind?: RequestKind;
 };
-type ToolBatch = { phase: Phase; names: string[]; admitted: boolean };
-type LedgerState = {
+type ToolBatch = {
+  phase: Phase;
+  names: string[];
+  admitted: boolean;
+  domain?: string;
+  responseId?: string;
+};
+export type LedgerState = {
+  policy?: Policy;
+  provenance?: {
+    path: string;
+    sha256: string;
+    head: string;
+    policy: Policy;
+    evidence: { path: string; sha256: string }[];
+  }[];
   phase: Phase;
   release: Phase | null;
   halted: string | null;
@@ -92,7 +112,14 @@ export class Issue84Budget {
   constructor(
     readonly file: string,
     resume: boolean,
+    readonly policy: Policy = "bounded",
+    history?: { path: string; sha256: string },
   ) {
+    requireBudget(["bounded", "observe"].includes(policy), "POLICY");
+    requireBudget(
+      !history || (!resume && policy === "observe"),
+      "HISTORY_MODE",
+    );
     this.state = resume
       ? JSON.parse(fs.readFileSync(file, "utf8"))
       : {
@@ -103,7 +130,95 @@ export class Issue84Budget {
           batches: [],
           refusals: [],
         };
+    requireBudget(
+      !resume || (this.state.policy ?? "bounded") === policy,
+      "POLICY_CHANGED",
+    );
+    this.state.policy = policy;
     this.state.refusals ??= [];
+    if (history) {
+      const raw = fs.readFileSync(history.path);
+      const digest = (bytes: Buffer) =>
+        createHash("sha256").update(bytes).digest("hex");
+      requireBudget(digest(raw) === history.sha256, "HISTORY_HASH");
+      const frozen = JSON.parse(raw.toString());
+      requireBudget(
+        Array.isArray(frozen.evidence) && frozen.evidence.length >= 5,
+        "HISTORY_EVIDENCE",
+      );
+      for (const e of frozen.evidence)
+        requireBudget(
+          digest(fs.readFileSync(e.path)) === e.sha256,
+          "HISTORY_EVIDENCE_CHANGED",
+        );
+      const source = frozen.evidence.find(
+        (e: { path: string }) => e.path === frozen.ledger,
+      );
+      requireBudget(source, "HISTORY_LEDGER_MISSING");
+      const prior = JSON.parse(
+        fs.readFileSync(source.path, "utf8"),
+      ) as LedgerState;
+      requireBudget(
+        Array.isArray(prior.attempts) &&
+          Array.isArray(prior.batches) &&
+          Array.isArray(prior.refusals),
+        "HISTORY_SHAPE",
+      );
+      for (const a of prior.attempts)
+        requireBudget(
+          a.ended !== undefined &&
+            Number.isFinite(a.ended) &&
+            a.ended >= a.started &&
+            [a.started, a.ms, a.nanoUSD, a.input, a.output].every(
+              (n) => Number.isSafeInteger(n) && n >= 0,
+            ) &&
+            ["main", "task"].includes(a.role) &&
+            phases.includes(a.phase) &&
+            Array.isArray(a.inputIds),
+          "HISTORY_ATTEMPT",
+        );
+      for (const b of prior.batches)
+        requireBudget(
+          phases.includes(b.phase) &&
+            Array.isArray(b.names) &&
+            b.names.every((n) => typeof n === "string") &&
+            typeof b.admitted === "boolean",
+          "HISTORY_BATCH",
+        );
+      this.state.attempts = prior.attempts.map((a) => ({
+        ...a,
+        domain: a.domain ?? path.dirname(source.path),
+      }));
+      this.state.batches = prior.batches.map((b) => ({
+        ...b,
+        domain: b.domain ?? path.dirname(source.path),
+      }));
+      this.state.refusals = prior.refusals;
+      this.state.provenance = [
+        ...(prior.provenance ?? []),
+        {
+          path: path.resolve(history.path),
+          sha256: history.sha256,
+          head: frozen.head,
+          policy: prior.policy ?? "bounded",
+          evidence: frozen.evidence,
+        },
+      ];
+    }
+    for (const prior of this.state.provenance ?? []) {
+      requireBudget(
+        createHash("sha256")
+          .update(fs.readFileSync(prior.path))
+          .digest("hex") === prior.sha256,
+        "HISTORY_HASH",
+      );
+      for (const e of prior.evidence)
+        requireBudget(
+          createHash("sha256").update(fs.readFileSync(e.path)).digest("hex") ===
+            e.sha256,
+          "HISTORY_EVIDENCE_CHANGED",
+        );
+    }
     if (resume)
       for (const attempt of this.state.attempts) {
         if (attempt.ended === undefined) {
@@ -151,14 +266,15 @@ export class Issue84Budget {
       .filter((a) => a.phase === "reserve")
       .reduce((n, a) => n + a.ms, 0);
     requireBudget(
-      held +
-        future.reduce(
-          (n, p) =>
-            n +
-            Math.max(0, limits[p].ms - (p === "reserve" ? spentReserve : 0)),
-          0,
-        ) <=
-        1_500_000,
+      this.policy === "observe" ||
+        held +
+          future.reduce(
+            (n, p) =>
+              n +
+              Math.max(0, limits[p].ms - (p === "reserve" ? spentReserve : 0)),
+            0,
+          ) <=
+          1_500_000,
       "FUTURE_PATH_TIME",
     );
     this.state.phase = phase;
@@ -213,12 +329,15 @@ export class Issue84Budget {
     const started = Date.now();
     const { phase, attempts } = this.state;
     requireBudget(
-      !attempts.length || started - attempts[0].started < windowMs,
+      this.policy === "observe" ||
+        !attempts.length ||
+        started - attempts[0].started < windowMs,
       "WALL_TIME",
     );
     const nanoUSD = cost(wire.input, wire.output);
     requireBudget(
-      attempts.reduce((sum, a) => sum + a.nanoUSD, nanoUSD) <= 5_000_000_000,
+      this.policy === "observe" ||
+        attempts.reduce((sum, a) => sum + a.nanoUSD, nanoUSD) <= 5_000_000_000,
       "USD",
     );
     const bucket = this.state.release === phase ? "reserve" : phase;
@@ -226,20 +345,22 @@ export class Issue84Budget {
       const previous = attempts.filter((a) => a.phase === p);
       return previous.filter((a) => a.role === role).length < limits[p][role];
     };
-    requireBudget(fits(bucket), "PATH_CALLS");
-    if (role === "main" && kind === "normal") {
+    requireBudget(this.policy === "observe" || fits(bucket), "PATH_CALLS");
+    if (this.policy === "bounded" && role === "main" && kind === "normal") {
       const used = attempts.filter(
         (a) => a.phase === bucket && a.role === "main",
       ).length;
       requireBudget(limits[bucket].main - used > 2, "MAINTENANCE_HEADROOM");
     }
     requireBudget(
-      attempts.reduce((sum, a) => sum + a.ms, attemptMs) <= 1_500_000,
+      this.policy === "observe" ||
+        attempts.reduce((sum, a) => sum + a.ms, attemptMs) <= 1_500_000,
       "ACTIVE_TIME",
     );
     const attempt: Attempt = {
       ...wire,
       role,
+      domain: path.dirname(this.file),
       phase: bucket,
       started,
       ms: attemptMs,
@@ -274,6 +395,7 @@ export class Issue84Budget {
     responseId: string,
     input: number,
     output: number,
+    usage?: Usage,
   ) {
     const elapsed = ended - attempt.started;
     const valid =
@@ -283,7 +405,20 @@ export class Issue84Budget {
       Number.isSafeInteger(output) &&
       output >= 0 &&
       output <= attempt.output &&
-      elapsed >= 0;
+      elapsed >= 0 &&
+      (!usage ||
+        ([
+          usage.input,
+          usage.output,
+          usage.cacheRead,
+          usage.cacheWrite,
+          usage.totalTokens,
+          usage.reasoning ?? 0,
+        ].every((n) => Number.isSafeInteger(n) && n >= 0) &&
+          usage.input + usage.cacheRead + usage.cacheWrite === input &&
+          usage.output === output &&
+          usage.totalTokens === input + output &&
+          (usage.reasoning ?? 0) <= output));
     if (!valid) {
       this.state.halted = "UNVERIFIED_PROVIDER_USAGE_OR_DEADLINE";
       this.save();
@@ -298,6 +433,7 @@ export class Issue84Budget {
       responseId,
       actualInput: input,
       actualOutput: output,
+      ...(usage ? { usage } : {}),
     });
     this.save();
   }
@@ -317,14 +453,25 @@ export class Issue84Budget {
     const counted = this.state.batches
       .filter((batch) => batch.phase === phase && batch.admitted)
       .flatMap((batch) => batch.names);
+    const generated = this.state.batches
+      .filter((b) => b.phase === phase)
+      .flatMap((b) => b.names)
+      .filter((n) => n === "task_propose").length;
     const admitted =
       scopeAllowed &&
       names.every((name) => allowed.includes(name)) &&
-      counted.length + names.length <= limits[phase].tools &&
-      [...counted, ...names].filter((n) => n === "task_propose").length <=
-        limits[phase].proposals;
+      (this.policy === "observe" ||
+        (counted.length + names.length <= limits[phase].tools &&
+          generated + names.filter((n) => n === "task_propose").length <=
+            limits[phase].proposals));
     if (names.length) {
-      this.state.batches.push({ phase, names, admitted });
+      this.state.batches.push({
+        phase,
+        names,
+        admitted,
+        domain: path.dirname(this.file),
+        responseId: attempt.responseId,
+      });
       this.save();
     }
     requireBudget(admitted, "TOOLS_OR_PROPOSALS");

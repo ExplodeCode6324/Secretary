@@ -46,7 +46,9 @@ export function acceptanceKey(name: "DEEPSEEK_API_KEY" | "OPENAI_API_KEY") {
   delete process.env.OPENAI_API_KEY;
   return key;
 }
-export function freezeAcceptanceConfig() {
+export function freezeAcceptanceConfig(
+  policy: "bounded" | "observe" = "observe",
+) {
   assert(
     model.api === "openai-completions" &&
       model.input.includes("image") &&
@@ -67,6 +69,7 @@ export function freezeAcceptanceConfig() {
   };
   Object.assign(process.env, values);
   const manifest = {
+    policy,
     values,
     main: budgetConfig("main"),
     task: budgetConfig("task"),

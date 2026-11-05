@@ -6,9 +6,11 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { Client } from "pg";
 import { CoreClient } from "../../src/pi_secretary/src/core-client.ts";
 import { id, hash } from "../../src/pi_secretary/src/store.ts";
+import { usageReport } from "./issue84-usage.ts";
 import { redoSource } from "./issue84-prompts.ts";
 
 const [run, mode] = process.argv.slice(2);
+const observe = (process.env.ISSUE84_POLICY ?? "observe") === "observe";
 assert(
   /^[a-z0-9_]{1,24}$/.test(run) && ["dry", "calibration"].includes(mode),
   "USE_RUN_LABEL_DRY_OR_CALIBRATION",
@@ -129,8 +131,11 @@ async function send(text: string, extra: object = {}) {
   return request;
 }
 async function next(phase: string) {
-  await client.command("session/compact", { request_id: id() });
-  await until(() => obs().idle, "maintenance-before-" + phase);
+  if (!observe) await client.command("session/compact", { request_id: id() });
+  await until(
+    () => (observe ? obs().quiescent : obs().idle),
+    "quiescence-before-" + phase,
+  );
   command("next " + phase);
   await until(() => read("usage.json").phase === phase, "phase-" + phase, 5000);
   console.log("PHASE " + phase);
@@ -160,28 +165,61 @@ try {
   } else {
     command("fault-429");
     await until(() => output.includes("FAULT_429_ARMED"), "429-armed", 5000);
-    let blockedRequest = "";
-    for (let n = 0; n < 12; n++) {
-      blockedRequest = await send("dry probe " + n);
-      if (obs().session === "RECOVERY_BLOCKED") break;
-    }
-    assert.equal(obs().session, "RECOVERY_BLOCKED");
-    scenarios.recoveryBlocked = true;
-    command("release-reserve");
-    await until(() => read("usage.json").release === "main", "reserve", 5000);
-    await client.command("session/resume", { request_id: id() });
-    await until(
-      () =>
-        obs().inputs.some(
-          (i: any) => i.dedupe_key === blockedRequest && i.state === "HANDLED",
+    if (observe) {
+      await send("dry probe with transient 429");
+      assert.equal(obs().session, "IDLE");
+      scenarios.transientRetry = true;
+      await until(() => obs().quiescent, "before-forbidden-tool");
+      await commandWhenReady(
+        "fault-tool",
+        () => output.includes("FAULT_TOOL_ARMED"),
+        "forbidden-armed",
+      );
+      const oldOperations = obs().operations.length;
+      const refused = await send("dry forbidden-tool probe");
+      assert.equal(obs().session, "RECOVERY_BLOCKED");
+      assert.equal(obs().operations.length, oldOperations);
+      assert(
+        read("usage.json").batches.some(
+          (b: any) => !b.admitted && b.names.includes("bash"),
         ),
-      "resume-input",
-    );
-    assert.equal(
-      obs().inputs.filter((i: any) => i.dedupe_key === blockedRequest).length,
-      1,
-    );
-    scenarios.resumedSameInput = true;
+      );
+      scenarios.forbiddenTool = true;
+      // One explicit operator recovery after a reviewed synthetic fault; no repeat loop.
+      await client.command("session/resume", { request_id: id() });
+      await until(
+        () =>
+          obs().inputs.some(
+            (i: any) => i.dedupe_key === refused && i.state === "HANDLED",
+          ),
+        "policy-recovery",
+      );
+      scenarios.resumedSameInput = true;
+    } else {
+      let blockedRequest = "";
+      for (let n = 0; n < 12; n++) {
+        blockedRequest = await send("dry probe " + n);
+        if (obs().session === "RECOVERY_BLOCKED") break;
+      }
+      assert.equal(obs().session, "RECOVERY_BLOCKED");
+      scenarios.recoveryBlocked = true;
+      command("release-reserve");
+      await until(() => read("usage.json").release === "main", "reserve", 5000);
+      await client.command("session/resume", { request_id: id() });
+      await until(
+        () =>
+          obs().inputs.some(
+            (i: any) =>
+              i.dedupe_key === blockedRequest && i.state === "HANDLED",
+          ),
+        "resume-input",
+      );
+      assert.equal(
+        obs().inputs.filter((i: any) => i.dedupe_key === blockedRequest).length,
+        1,
+      );
+      scenarios.resumedSameInput = true;
+    }
     await next("vision");
     const file = path.join(root, "vision.png"),
       bytes = fs.readFileSync(file),
@@ -203,37 +241,39 @@ try {
     });
     assert(obs().requests.some((r: any) => r.images.length > 0));
     scenarios.image = true;
-    // First normal request plus summary/extraction uses three vision calls.
-    await client.command("session/compact", { request_id: id() });
-    await until(() => obs().idle, "vision-first-compact");
-    await send("dry vision followup");
-    const armedBefore = output.split("FAULT_429_ARMED").length;
-    command("fault-429 2");
-    await until(
-      () => output.split("FAULT_429_ARMED").length > armedBefore,
-      "maintenance-fault-armed",
-      5000,
-    );
-    // Two HTTP errors exhaust the remaining two calls; the next maintenance
-    // attempt is denied by the real admission gate and becomes FAILED.
-    await client.command("session/compact", { request_id: id() });
-    await until(
-      () =>
-        obs().compactionJobs.some(
-          (j: any) => j.state === "FAILED" && !j.next_attempt_at,
-        ),
-      "maintenance-budget-refusal",
-    );
-    assert.equal(obs().session, "IDLE");
-    command("release-reserve");
-    await until(
-      () => read("usage.json").release === "vision",
-      "maintenance-reserve",
-      5000,
-    );
-    command("retry-maintenance");
-    await until(() => obs().idle, "maintenance-recovered");
-    scenarios.maintenanceRecovery = true;
+    if (!observe) {
+      // First normal request plus summary/extraction uses three vision calls.
+      await client.command("session/compact", { request_id: id() });
+      await until(() => obs().idle, "vision-first-compact");
+      await send("dry vision followup");
+      const armedBefore = output.split("FAULT_429_ARMED").length;
+      command("fault-429 2");
+      await until(
+        () => output.split("FAULT_429_ARMED").length > armedBefore,
+        "maintenance-fault-armed",
+        5000,
+      );
+      // Two HTTP errors exhaust the remaining two calls; the next maintenance
+      // attempt is denied by the real admission gate and becomes FAILED.
+      await client.command("session/compact", { request_id: id() });
+      await until(
+        () =>
+          obs().compactionJobs.some(
+            (j: any) => j.state === "FAILED" && !j.next_attempt_at,
+          ),
+        "maintenance-budget-refusal",
+      );
+      assert.equal(obs().session, "IDLE");
+      command("release-reserve");
+      await until(
+        () => read("usage.json").release === "vision",
+        "maintenance-reserve",
+        5000,
+      );
+      command("retry-maintenance");
+      await until(() => obs().idle, "maintenance-recovered");
+      scenarios.maintenanceRecovery = true;
+    }
     await next("shared");
     const before = new Set(obs().executions.map((e: any) => e.id));
     await send("84 shared");
@@ -268,6 +308,7 @@ try {
       ),
     );
     scenarios.shared = true;
+    scenarios.textMaterials = true;
     await next("matters");
     command("approval-scope");
     await until(
@@ -413,6 +454,13 @@ try {
     await connect();
     assert.equal(read("manifest.json").fingerprint, beforeRestart.fingerprint);
     scenarios.restarted = true;
+    await until(() => obs().idle, "restarted-idle");
+  }
+  if (mode === "dry" && observe) {
+    const report = usageReport(root);
+    assert.deepEqual(report.reconciliation.mismatches, []);
+    scenarios.reconciliation = true;
+    scenarios.usageReport = true;
   }
   scenarios.status = "PASS";
   console.log("PASS " + mode);

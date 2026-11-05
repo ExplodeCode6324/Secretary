@@ -1,5 +1,7 @@
 # Issue #84 — 组合终验与正式文档收口
 
+> 当前修订：[取消验收额度与 token 观测](fix_20261105_issue84_unlimited.md)。Master 已授权不设验收额度；本文件中的旧费用、累计次数/时间及 reserve 条款保留为历史，以上述修订为准。
+
 1. 范围与基线。Master 批准实施及真实调用预算前仅做计划。仓库 https://github.com/ExplodeCode6324/Secretary ；议题 https://github.com/ExplodeCode6324/Secretary/issues/84 ；基线 main `ed16e804d28c0b0048e37035349f1ff3f7982f38`（含 PR #101，合并后 CI 41986472952）。#82/#91/#83/#92/#93/#94 均已 COMPLETED，关闭不等于组合验收。f01076e6f5efad437d64b2a2890ae1af43ce97d7 仅为业务基线。沿用 Node/TypeScript、独立 Core 和本机 API、pi-tui 0.87.0（上游 16787ad5b2dc748047f314ca1bfe7708f30f54f3）。不换框架、不新增命令或菜单、不全面接入 API、不做目录清理、级联归档、格式转换或 #70–74。
 
 2. 改动前建立证据账本。按原 AC01–AC34 逐分支记录，将 v1.7 C01–C16/U01–U09 对照实际行为。查阅 docs/fix/evidence 六批账本、issue/PR 最终结论和实际被测 SHA；[#94 最终证据](https://github.com/ExplodeCode6324/Secretary/pull/101#issuecomment-6652193797) 覆盖冻结账本的暂定记录。#82 AC01–04/25/26/30；#91 AC03/05–09/27；#83 AC01/05/10–15/28/33；#92 AC02/16–20/34；#93 AC21/29 及 AC11/16/30 回归；#94 AC22/23/32/33。按 issue 归属纳入各批 AC24/28/31 子分支。每条写前置、输入或手势、预期和实际、证据链接、TUI/Core SHA、证据类别及通过/失败/未执行和受阻原因。核对历史 SHA 到候选代码的相关差异，仅复用行为和配置兼容证据；补验变更和缺口，不全量重复、不以子项通过替代整项。保留先前限制，尤其 #94 合法 `/open report.txt` 曾进入模型，原因未明，不推断斜杠来源或参数丢失。

@@ -107,6 +107,7 @@ export function scriptedFixture(
           tool("task_propose", {
             scope_id: goal === "APPROVAL" ? approvalScope : null,
             goal: "ISSUE84-" + goal,
+            materials: ["Synthetic plain text material for " + goal],
           }),
         ),
       );
