@@ -39,12 +39,16 @@ export function acceptanceAdapter(
         throw Error("BUDGET_ISSUE84_GUARDED_START");
       }
       let attempt: ReturnType<Issue84Budget["admit"]> | undefined;
+      let admissionError: unknown;
       const budget = options.budget;
       const end = (reason: string) => {
         if (attempt && attempt.ended === undefined)
           budget!.end(attempt, Date.now(), reason);
       };
       const checked = checkedStream(adapter.stream, (response) => {
+        // The SDK wraps a fetch admission throw as "Connection error".
+        // Restore the local refusal so Core never schedules network retries.
+        if (admissionError) throw admissionError;
         if (!attempt) return;
         if (["error", "aborted"].includes(response.stopReason)) {
           end(response.stopReason);
@@ -102,6 +106,7 @@ export function acceptanceAdapter(
               wire = wireBound(body);
             } catch (error) {
               options.violation(String(error));
+              admissionError = error;
               throw error;
             }
             const system = JSON.parse(body)
@@ -121,11 +126,18 @@ export function acceptanceAdapter(
             });
             if (options.scripted && wire.input > 80_000) {
               options.violation("ISSUE84_REHEARSAL_WIRE_HEADROOM");
-              throw Error("ISSUE84_REHEARSAL_WIRE_HEADROOM");
+              admissionError = Error("BUDGET_ISSUE84_REHEARSAL_WIRE_HEADROOM");
+              throw admissionError;
             }
             assert(!attempt, "BUDGET_ISSUE84_MULTIPLE_FETCHES");
-            if (budget)
-              attempt = budget.admit(role, wire, options.inputIds(), kind);
+            if (budget) {
+              try {
+                attempt = budget.admit(role, wire, options.inputIds(), kind);
+              } catch (error) {
+                admissionError = error;
+                throw error;
+              }
+            }
             const response = options.scripted
               ? await options.scripted(body)
               : await (opts?.fetch ?? fetch)(url, {
