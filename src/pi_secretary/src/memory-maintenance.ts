@@ -82,8 +82,8 @@ export function memoryDue(this: MemoryMaintenanceContext) {
         l.sequence > start,
     );
   if (this.pendingSummary()) return this.summaryDue();
-  if (summaryCoolingDown(this)) return false;
   if (!turns.length) return false;
+  if (summaryCoolingDown(this)) return false;
   const jobs = this.store
     .all<CompactionJob>("CompactionJob")
     .filter(
@@ -162,7 +162,8 @@ export function compact(this: MemoryMaintenanceContext, reset = true) {
   if (this.settingsBlocked())
     return Promise.reject(Error("SETTINGS_APPLICATION_IN_PROGRESS"));
   if (this.maintenance) return this.maintenance;
-  if (this.session.state === "RECOVERY_BLOCKED") return Promise.resolve();
+  if (this.session.state === "RECOVERY_BLOCKED")
+    return Promise.reject(Error("SESSION_RECOVERY_BLOCKED"));
   if (reset) {
     const pending = this.pendingSummary();
     if (pending && pending.state === "FAILED")
@@ -202,7 +203,10 @@ export function compact(this: MemoryMaintenanceContext, reset = true) {
         ["IDLE", "CAPACITY_BLOCKED"].includes(this.session.state)
       )
         await this.maintain(false, target);
-      if ((this.memory().covered_event_sequence ?? 0) <= before)
+      if (
+        before < target &&
+        (this.memory().covered_event_sequence ?? 0) <= before
+      )
         this.store.commit(
           [],
           [

@@ -37,10 +37,6 @@ import { modelLifetime } from "../../src/pi_secretary/src/model-retry.ts";
 import { checkedStream } from "./tool-budget.ts";
 import { scriptedFixture, fixtureResponse } from "./issue84-fixture.ts";
 import {
-  MemoryRecoveryFixture,
-  memoryRecoveryCheck,
-} from "./issue84-memory-recovery.ts";
-import {
   Issue84Budget,
   outputCap,
   wireBound,
@@ -157,7 +153,6 @@ let stopping = false;
 let inject429 = 0;
 let holdNext = false;
 let forbiddenNext = false;
-const memoryFixture = new MemoryRecoveryFixture();
 const wireViolations: string[] = previousObservation?.wireViolations ?? [];
 const operatorActions: object[] = previousObservation?.operatorActions ?? [];
 if (budgeted) {
@@ -206,8 +201,6 @@ const config = (role: Role): ModelConfig =>
     scripted: paid
       ? undefined
       : async (body) => {
-          const recovery = memoryFixture.respond(body);
-          if (recovery) return recovery;
           if (holdNext) {
             holdNext = false;
             await new Promise((resolve) => setTimeout(resolve, 30_000));
@@ -362,18 +355,6 @@ try {
   throw error;
 }
 enabled = true;
-if (!resume && policy === "observe" && ["dry", "calibration"].includes(mode)) {
-  try {
-    write("memory-recovery.json", {
-      head,
-      source,
-      ...(await memoryRecoveryCheck(app, memoryFixture)),
-    });
-  } catch (error) {
-    await app.close();
-    throw error;
-  }
-}
 const server = await serveCore(app, 0, () => {
   void stop();
 });

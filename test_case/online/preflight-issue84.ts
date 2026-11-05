@@ -42,14 +42,76 @@ for (const [root, mode] of [
   assert.equal(manifest.mode, mode);
   assert.equal(manifest.configHash, config.hash, "WRONG_CONFIG");
   assert.equal(manifest.freshness.empty, true, "FRESHNESS_NOT_PROVEN");
-  const recovery = load(root, "memory-recovery.json");
+  const recoveryRoot = root + "-recovery";
+  const recovery = load(recoveryRoot, "memory-recovery.json");
   assert.equal(recovery.source, source);
+  assert.equal(recovery.configHash, config.hash);
+  assert.equal(recovery.freshness.empty, true);
   assert.equal(recovery.status, "PASS");
   assert.equal(recovery.evidenceClass, "SCRIPTED_MODEL");
   assert.deepEqual(recovery.states, ["CAPACITY_BLOCKED", "IDLE"]);
   assert.equal(recovery.sameInputHandled, true);
   assert.equal(recovery.explicitRecoveryAttempts, 0);
   assert.equal(recovery.automaticRecoveryTicks, 1);
+  const journalFile = path.resolve(recoveryRoot, "core/journal.jsonl");
+  const journal = fs.readFileSync(journalFile);
+  assert.equal(hash(journal), recovery.journalHash);
+  evidence.push({ path: journalFile, sha256: hash(journal) });
+  const records = new Map<string, any>();
+  for (const line of journal.toString().trim().split("\n")) {
+    const envelope = JSON.parse(line),
+      payload = Buffer.from(envelope.payload_b64, "base64");
+    assert.equal(hash(payload), envelope.sha256);
+    for (const mutation of JSON.parse(payload.toString()).mutations) {
+      const file = path.resolve(recoveryRoot, "core", mutation.snapshot.path);
+      assert(file.startsWith(path.resolve(recoveryRoot, "core") + path.sep));
+      const bytes = fs.readFileSync(file);
+      assert.equal(hash(bytes), mutation.snapshot.sha256);
+      if (!evidence.some((e) => e.path === file))
+        evidence.push({ path: file, sha256: mutation.snapshot.sha256 });
+      records.set(mutation.object_id, JSON.parse(bytes.toString()));
+    }
+  }
+  const old = records.get(recovery.initialJob),
+    catchup = records.get(recovery.catchupJob),
+    input = records.get(recovery.input);
+  assert.equal(old.state, "COMMITTED");
+  assert.equal(old.retry_generation, 0);
+  assert.equal(old.retry_round, 1);
+  assert(
+    old.validation_errors.some((e: string) =>
+      e.includes("EMPTY_WORKING_MEMORY"),
+    ),
+  );
+  assert.equal(catchup.state, "COMMITTED");
+  assert.equal(catchup.source_start_sequence, old.source_end_sequence);
+  assert.equal(catchup.source_end_sequence, recovery.target);
+  assert.equal(catchup.source_refs[0].sha256, recovery.latestSource);
+  assert.equal(input.state, "HANDLED");
+  assert.equal(input.loop_id, recovery.loop);
+  const summaryCalls = [...records.values()].filter(
+    (r) =>
+      r.record_type === "ModelCall" &&
+      [old.id, catchup.id].includes(records.get(r.context_id)?.loop_id),
+  );
+  assert.equal(summaryCalls.length, recovery.summaryRequests);
+  assert.equal(
+    recovery.requests.filter((r: any) => r.kind === "summary").length,
+    summaryCalls.length,
+  );
+  assert(
+    [...records.values()].some(
+      (r) =>
+        r.record_type === "CompactionJob" &&
+        r.mode === "CONTEXT_COMPACTION" &&
+        r.state === "COMMITTED" &&
+        r.source_end_sequence === recovery.target,
+    ),
+  );
+  assert(
+    !observations.inputs.some((i: any) => i.id === input.id),
+    "RECOVERY_DOMAIN_LEAKED",
+  );
   assert.equal(observations.guardCalls, 0);
   assert.deepEqual(observations.wireViolations, [], "REFUSED_WIRE_VIOLATION");
   assert.equal(observations.session, "IDLE");

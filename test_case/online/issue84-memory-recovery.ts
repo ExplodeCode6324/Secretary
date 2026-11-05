@@ -1,6 +1,15 @@
 /** Credential-free fault scenario; runs before the normal acceptance service. */
 import assert from "node:assert/strict";
-import type { App } from "../../src/pi_secretary/src/app.ts";
+import fs from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { App } from "../../src/pi_secretary/src/app.ts";
+import { acceptanceAdapter, type RequestObservation } from "./issue84-model.ts";
+import {
+  freezeAcceptanceConfig,
+  requireEmptyDatabase,
+} from "./issue84-config.ts";
+import { hash } from "../../src/pi_secretary/src/store.ts";
 import type {
   CompactionJob,
   Consciousness,
@@ -80,6 +89,7 @@ export async function memoryRecoveryCheck(
       await app.host.drain();
     }
     assert.equal(app.host.session.state, "CAPACITY_BLOCKED");
+    const states = [app.host.session.state];
     const blocked = app.store
       .all<Input>("Input")
       .find((i) => i.state === "CLAIMED")!;
@@ -99,6 +109,7 @@ export async function memoryRecoveryCheck(
     });
     await tick();
     assert.equal(app.host.session.state, "IDLE");
+    states.push(app.host.session.state);
     assert.equal(memory().covered_event_sequence, target);
     assert.deepEqual(memory().pending_raw_refs, [latest]);
     const recovered = app.store.get<CompactionJob>("CompactionJob", old.id);
@@ -126,14 +137,15 @@ export async function memoryRecoveryCheck(
       evidenceClass: "SCRIPTED_MODEL",
       native: false,
       clock: "Controlled retry deadline; no wall-clock waiting claim",
-      states: ["CAPACITY_BLOCKED", "IDLE"],
+      states,
       initialJob: old.id,
       catchupJob: catchup.id,
       target,
       latestSource: latest.sha256,
       input: handled.id,
       loop: handled.loop_id,
-      sameInputHandled: true,
+      sameInputHandled:
+        handled.state === "HANDLED" && handled.loop_id === blocked.loop_id,
       automaticRecoveryTicks: 1,
       explicitRecoveryAttempts: 0,
       summaryRequests: fixture.summaries,
@@ -142,4 +154,76 @@ export async function memoryRecoveryCheck(
     retryRuntime.delete(app.store);
     fixture.active = false;
   }
+}
+
+/** Separate sibling domain: no fixture objects or attempts enter normal acceptance. */
+export async function runRecoveryHarness(root: string, dsn: string) {
+  assert(!fs.existsSync(root), "RECOVERY_FRESH_ROOT_REQUIRED");
+  const git = (...args: string[]) =>
+    execFileSync("git", args, { encoding: "utf8" }).trim();
+  assert(
+    !git("status", "--porcelain", "--untracked-files=no"),
+    "TRACKED_WORKTREE_DIRTY",
+  );
+  const config = freezeAcceptanceConfig();
+  const freshness = await requireEmptyDatabase(dsn);
+  const fixture = new MemoryRecoveryFixture();
+  const requests: RequestObservation[] = [];
+  let enabled = false,
+    guardCalls = 0;
+  const adapter = (role: "main" | "task") =>
+    acceptanceAdapter(role, {
+      key: "synthetic-key",
+      enabled: () => enabled,
+      guard: () => {
+        guardCalls++;
+      },
+      active: () => {},
+      approvalScope: () => undefined,
+      inputIds: () => [],
+      observe: (request) => requests.push(request),
+      violation: (reason) => {
+        throw Error(reason);
+      },
+      scripted: (body) => {
+        const reply = fixture.respond(body);
+        assert(reply, "OUTSIDE_RECOVERY_SCENARIO");
+        return reply;
+      },
+    });
+  const app = await App.open(
+    path.join(root, "core"),
+    { main: adapter("main"), task: adapter("task") },
+    dsn,
+  );
+  let result: Awaited<ReturnType<typeof memoryRecoveryCheck>>;
+  try {
+    await app.world!.migrate();
+    await app.settle();
+    assert.equal(guardCalls, 0);
+    assert.equal(app.store.all("Input").length, 0);
+    enabled = true;
+    result = await memoryRecoveryCheck(app, fixture);
+  } finally {
+    await app.close();
+  }
+  fs.writeFileSync(
+    path.join(root, "memory-recovery.json"),
+    JSON.stringify(
+      {
+        head: git("rev-parse", "HEAD"),
+        source: git("rev-parse", "HEAD^{tree}"),
+        configHash: config.hash,
+        freshness,
+        ...result,
+        requests,
+        journalHash: hash(
+          fs.readFileSync(path.join(root, "core/journal.jsonl")),
+        ),
+      },
+      null,
+      2,
+    ) + "\n",
+    { mode: 0o600, flag: "wx" },
+  );
 }

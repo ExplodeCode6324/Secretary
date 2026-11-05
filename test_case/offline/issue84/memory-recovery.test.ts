@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import { contentText } from "@earendil-works/pi-ai";
 import { App } from "../../../src/pi_secretary/src/app.ts";
+import { serveCore } from "../../../src/pi_secretary/src/api-v1.ts";
+import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import {
   fixtureModel,
   fixtureStream,
@@ -226,6 +228,47 @@ const tick = async (app: App) => {
   await (app.host as unknown as { maintenance?: Promise<void> }).maintenance;
 };
 
+test("issue84 no-op compact never throttles the next critical or in-loop summary", async () =>
+  fixture(async (app, counts) => {
+    counts.mainText = "Synthetic completed reply.";
+    counts.onSummary = () => JSON.stringify({ items: [item] });
+    await app.host.compact(); // Fresh session, no source.
+    assert.equal(
+      app.store.events("consciousness.maintenance_stalled").length,
+      0,
+    );
+    app.host.accept("Synthetic completed turn");
+    await app.host.drain();
+    await app.host.compact();
+    await app.host.compact(); // Memory is already current.
+    assert.equal(
+      app.store.events("consciousness.maintenance_stalled").length,
+      0,
+    );
+    const scope = {
+      session_id: app.host.sessionID,
+      task_id: null,
+      execution_id: null,
+    };
+    app.store.commit([], [app.store.event("feedback.delivered", {}, scope)]);
+    const before = counts.summary;
+    app.host.accept("Synthetic critical follow-up");
+    await app.host.drain();
+    assert.equal(counts.summary, before + 1);
+    await app.host.compact();
+    app.host.accept("Synthetic later uncovered turn");
+    await app.host.drain();
+    const second = counts.summary;
+    await (
+      app.host as unknown as { maintain(inLoop: boolean): Promise<unknown> }
+    ).maintain(true);
+    assert.equal(counts.summary, second + 1);
+    assert.equal(
+      app.store.events("consciousness.maintenance_stalled").length,
+      0,
+    );
+  }));
+
 test("issue84 failed catch-up retains its boundary/backoff and never crops uncovered source", async () =>
   fixture(async (app, counts) => {
     const state = await blocked(app);
@@ -282,11 +325,28 @@ test("issue84 terminal failed source and recovery blocks are never automatically
         recovery_error: "synthetic unrelated recovery block",
       }),
     ]);
-    await app.host.compact();
-    await tick(app);
-    assert.equal(counts.summary, before);
-    assert.equal(app.host.session.state, "RECOVERY_BLOCKED");
-    assert.equal(jobs(app)[0].retry_generation, 0);
+    await assert.rejects(app.host.compact(), /SESSION_RECOVERY_BLOCKED/);
+    const server = await serveCore(app, 0, undefined, { pump: false });
+    try {
+      const client = new CoreClient(server.endpoint);
+      const request = id();
+      await client.command("session/compact", { request_id: request });
+      for (let n = 0; n < 100; n++) {
+        const status: any = await client.query("requests/" + request);
+        if (status.receipt.state === "UNKNOWN") {
+          assert.match(JSON.stringify(status), /SESSION_RECOVERY_BLOCKED/);
+          break;
+        }
+        assert(n < 99, "compact command must fail explicitly");
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      await tick(app);
+      assert.equal(counts.summary, before);
+      assert.equal(app.host.session.state, "RECOVERY_BLOCKED");
+      assert.equal(jobs(app)[0].retry_generation, 0);
+    } finally {
+      await server.close();
+    }
   }));
 
 test("issue84 fixed catch-up endpoint excludes newly accepted inputs", async () =>
@@ -443,6 +503,9 @@ test("issue84 stale runtime changes throttle critical feedback and pressure acro
     assert.equal(jobs(app).at(-1)!.state, "STALE");
     const before = counts.summary;
     for (let i = 0; i < 20; i++) await tick(app);
+    await (
+      app.host as unknown as { maintain(inLoop: boolean): Promise<unknown> }
+    ).maintain(true);
     assert.equal(counts.summary, before);
     assert(
       summaryCoolingDown({ store: app.store, sessionID: app.host.sessionID }),
@@ -506,4 +569,57 @@ test("issue84 oversized historical source retains one failed job and exhausts on
         .all<CompactionJob>("CompactionJob")
         .some((j) => j.mode === "CONTEXT_COMPACTION"),
     );
+  }));
+
+test("issue84 a stale capacity recovery waits one interval then handles the original input", async () =>
+  fixture(async (app, counts) => {
+    const state = await blocked(app);
+    counts.taskGate = new Promise<void>((resolve) => {
+      counts.releaseTasks = resolve;
+    });
+    app.scheduler.propose(
+      "Synthetic concurrent recovery task",
+      id(),
+      app.host.sessionID,
+    );
+    app.scheduler.tick();
+    await new Promise((resolve) => setImmediate(resolve));
+    const execution = app.store.all<Execution>("Execution")[0];
+    assert.equal(execution.state, "RUNNING");
+    counts.onSummary = () => {
+      const e = app.store.get<Execution>("Execution", execution.id);
+      app.store.commit([
+        revise(e, {
+          updated_at: new Date(Date.parse(e.updated_at) + 1).toISOString(),
+        }),
+      ]);
+      return JSON.stringify({ items: [item] });
+    };
+    await app.host.compact();
+    assert.equal(jobs(app).at(-1)!.state, "STALE");
+    assert.equal(app.host.session.state, "CAPACITY_BLOCKED");
+    const before = counts.summary;
+    for (let n = 0; n < 10; n++) await tick(app);
+    await (
+      app.host as unknown as { maintain(inLoop: boolean): Promise<unknown> }
+    ).maintain(true);
+    assert.equal(counts.summary, before);
+    counts.onSummary = () => JSON.stringify({ items: [item] });
+    const realNow = Date.now;
+    const expired = realNow() + 120_001;
+    // Existing ordinary maintenance timers use wall time; retry timers use
+    // retryRuntime. Advance both only for this deterministic expiry check.
+    Date.now = () => expired;
+    retryRuntime.set(app.store, { now: () => expired });
+    try {
+      await tick(app);
+    } finally {
+      Date.now = realNow;
+    }
+    assert.equal(app.host.session.state, "IDLE");
+    assert.equal(memory(app).covered_event_sequence, state.target);
+    await app.host.drain();
+    const handled = app.store.get<Input>("Input", state.pending.id);
+    assert.equal(handled.state, "HANDLED");
+    assert.equal(handled.loop_id, state.pending.loop_id);
   }));

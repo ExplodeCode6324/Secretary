@@ -124,3 +124,9 @@ Claude Opus 5.5 Extra 于 2026-11-06 定向确认 **PASS_PLAN_ONLY，No blocker 
 ### 实施授权与顺序
 
 Master 已于 2026-11-06 明确批准：“先修复组合缺陷，然后针对缺陷做独立验收，再接着推原主线工作。”当前按此顺序实施 R7/R7.1；原计划中的“待批准”及“未修改代码”描述保留为诊断阶段历史，不再是当前状态。合并/关闭与原生终验仍独立。
+
+### R8 实施复核修订
+
+Claude 对 `ed3d0fe1` 的源码复核为 CHANGES_REQUIRED；实施已获 Master 授权。采纳：①仅当捕获覆盖落后于目标时记录无进展冷却，空 compact 不压制后续工作；②真实提交推进覆盖后，旧无进展事件失效，STALE 冷却仍独立；③RECOVERY_BLOCKED 下显式 compact 返回 SESSION_RECOVERY_BLOCKED，排队命令沿用 API 既有保守 UNKNOWN 错误回执；④故障场景改用独立兄弟 Core 目录和空 PostgreSQL 库，在正常 dry/calibration 打开前关闭。预检校验该域 journal/快照散列、已提交来源边界、同一 Input/loop 以及物理摘要请求数；其对象/请求不能替正常 calibration 满足条件，也不混入正常用量。空闲且无未覆盖输入时提前返回，避免每 tick 扫描历史 Job。
+
+新增回归覆盖空 compact 后 critical/in-loop 维护、STALE 对 in-loop 的直接限速、冷却到期容量恢复及 API 错误；须重跑新隔离域 dry/calibration/preflight、准确 HEAD 定向/完整检查与 CI。保留 r7a/r7b：r7a 的正常 calibration 短暂阻塞暴露过期冷却；r7b 混合域预检被本轮更严格隔离要求取代。本阶段尚无新付费调用。新 live 提示明确标注“仅本轮”，其结果不能证明未标注指令也能正确分类。Reviewer 仅查阅源码，未独立执行运行验证。

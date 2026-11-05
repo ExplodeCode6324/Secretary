@@ -8,6 +8,7 @@ import { CoreClient } from "../../src/pi_secretary/src/core-client.ts";
 import { id, hash } from "../../src/pi_secretary/src/store.ts";
 import { usageReport } from "./issue84-usage.ts";
 import { redoSource } from "./issue84-prompts.ts";
+import { runRecoveryHarness } from "./issue84-memory-recovery.ts";
 
 const [run, mode] = process.argv.slice(2);
 const observe = (process.env.ISSUE84_POLICY ?? "observe") === "observe";
@@ -24,6 +25,10 @@ const admin = new Client({
 await admin.connect();
 try {
   await admin.query(`CREATE DATABASE "${database}" TEMPLATE template0`);
+  if (observe)
+    await admin.query(
+      `CREATE DATABASE "${database}_recovery" TEMPLATE template0`,
+    );
 } finally {
   await admin.end();
 }
@@ -150,6 +155,11 @@ async function completed(task: string) {
     "task",
   );
 }
+if (observe)
+  await runRecoveryHarness(
+    root + "-recovery",
+    `postgresql://secretary84@127.0.0.1:55484/${database}_recovery`,
+  );
 spawnService(false);
 try {
   await connect();
