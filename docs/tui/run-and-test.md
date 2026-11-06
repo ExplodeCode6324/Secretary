@@ -75,6 +75,23 @@ npx tsx --test --test-concurrency=1 test_case/offline/issue82/*.test.ts test_cas
 
 离线回归：`npx tsx --test --test-concurrency=1 test_case/offline/issue83/*.test.ts`。付费真实模型验收需现有私有凭证，并显式运行 `npx tsx test_case/online/test-issue83-live.ts .demo-data/issue83/live-<独立名称>`；目录必须全新，固定请求/工具/时间/输出预算，在 Core 冻结预算之前配置，保留首次失败。此脚本不由 npm test 执行，不代表原生 IME 或 Master 人工验收。
 
+### Scope 归档边界
+
+Scope 归档关闭新工作入口、阻止尚未开始的执行；不等于关闭所属 TaskPlan。Core 入口 `POST /api/v1/scopes/{id}/archive` 使用 `request_id` 和 `expected_revision`，将 Scope 从 ACTIVE 改为 ARCHIVED 并记录 `scope.archived`，不遍历删除 Task、目录、产物或历史。
+
+| 对象或动作 | 当前行为 |
+| --- | --- |
+| 新建或继续 Task | 新请求返回 `SCOPE_ARCHIVED`；已可靠接收请求的同 ID 重放仍返回原结果，不算新工作 |
+| 已开始的执行 | 归档本身不取消；沿已绑定目录收尾。等待授权者仍可批准；等待回答者仍可按原 Decision ID 回答并完成同一 Execution |
+| 尚未开始的执行 | 分派进入 WAIT_PRECONDITION，原因为 `SCOPE_ARCHIVED`，不调用模型开始工作 |
+| TaskPlan 与周期调度 | 不级联关闭计划，也不清空请求或发生队列。已登记的周期计划到期仍可创建受阻执行；有未终结执行时，后续发生点按 QUEUE 累积，不能称作已取消计划 |
+| 对象与文件 | 不删除 Task、工作目录、产物或历史；Execution 留存/退役独立，归档不触发退役 |
+| 公开 Core 查询与 TUI 浏览 | 既有 Task 的公开查询仍可读，但继续能力不可用；TUI 的列表、短 ID 查找和详情统一排除归档 Scope 任务，仅显示归档 Scope 数量 |
+| 活跃授权、问题和异常 | 不因浏览排除而抹除。Main 事项及已知 ID 处理入口仍按真实状态/作用域校验，不自动批准、回答、取消或新增归档浏览页 |
+| 恢复归档 Scope | 没有公开 restore/unarchive；普通更新不接受 state，已归档 Scope 拒绝保存修改 |
+
+这些边界来自现有 Core 合同，未新增级联归档。自动验证包括 [Scope/工作目录测试](../../test_case/offline/issue16/workspace.test.ts)、[归档请求幂等](../../test_case/offline/issue16/review-contract.test.ts)、[TUI 浏览排除](../../test_case/offline/issue83/api.test.ts)及[归档后回答/周期发生测试](../../test_case/offline/issue83/archive-boundaries.test.ts)。归档后回答及周期队列这两条原先仅为源码推断，现通过独立 Core App、实际领域转换及脚本化 provider 验证；不是付费模型或物理终端验收。历史设计出处仍保留在 `implementation-reference.md`。
+
 ## Issue #94 delivery and image paste
 
 Main replies display registered artifacts at their actual body tail, in cyan, with full current paths, Task/Execution identities and Task-model explanations marked NOT_VERIFIED. In history, ordinary Up/Down crosses the artifact block's previous/next-page boundaries; no OS-reserved paging shortcut is required. A CAS snapshot and current file can differ; unavailable current paths never fall back to snapshot bytes.

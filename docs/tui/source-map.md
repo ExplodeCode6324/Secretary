@@ -24,13 +24,13 @@
 | B01–B03 | [API 清单](api-coverage.md) | 历史及 Task browser 只读投影，不新增历史库 |
 | B04–B06 | [API 清单](api-coverage.md) | 调度、事项和授权复用 Core；TUI 调用与测试调用分开 |
 | B07–B08 | [API 清单](api-coverage.md) | 结构化产物与 Shared 独立目录；系统打开在本机 |
-| B09 / 第 7.1 节 | [仍然有效的归档业务边界](implementation-reference.md#71-scope-归档-当前代码已经实现的含义) | 当前来源仍在旧参考文档，是暂不退役的原因之一；不级联 TaskPlan，不停止已开始执行，不扩范围 |
+| B09 / 第 7.1 节 | [正式归档业务边界](run-and-test.md#scope-归档边界) | 已吸收完整语义；归档后回答/周期队列有 Core 实测，不级联 TaskPlan、不停止已开始执行 |
 | B10 | [运行说明](run-and-test.md)与 AC21 | 原 FAILED 保留；直接关联重做成功才能消除对应提醒 |
 | 第 9–10 节 | [完整分项标准](acceptance-criteria.md) | AC01–AC34 全部前置、动作、预期、失败判据和边界已吸收 |
 | 第 11–14 节 | [历史来源](implementation-reference.md) | 批次、取舍和设计记录保留，不再作为未实施清单 |
 
 每个 AC 的实际结果统一登记在 [组合账本](../fix/evidence/issue84-combined/acceptance.md)。原生、脚本化 Core 与真实 provider 证据分列，一条 API 成功不能把整个 AC 改为 PASS。跨项前置可复用同一对象；Master 总体反馈保留，缺单项记录不推翻该反馈。
 
-`implementation-reference.md` 继续保留为历史设计来源。本次已吸收完整 AC 操作，但尚未宣告所有原生分支通过，历史 fix/证据也仍引用它。只有全部有效要求有正式目标、活引用修正且 Master 接受收口后，才考虑退役。
+`implementation-reference.md` 继续保留为历史设计来源。完整 AC 操作和 B09 归档边界现均有正式目标，当前需求不再依赖其中独有条款。该文件继续承载旧 fix/验收的历史版本语境及设计出处，故保留只读历史引用；不把删除历史证据当作产品完成条件。未执行的原生追加项按 Master 明确略过记录，不改写成 PASS。
 
 后续顺序：#84 与 Master 产品终验 → #103–#106 主动引导 → 按反馈迭代 TUI → Master 确认 UI 稳定 → #70→#71→#72→#73。#74 由 #70 真实数据决定。本页不授权实施下游项目。
