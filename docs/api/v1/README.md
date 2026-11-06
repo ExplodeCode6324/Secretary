@@ -112,7 +112,7 @@ thinking_preview 是可选的 `{text,truncated}` 显示字段。它按原顺序�
 
 默认 timeline、around、消息 content 和 SSE transient 提供相同短预览；thinking=true 才展开完整推理，临时正文另需 streaming=true。隐藏推理不产生续读游标，纯推理消息默认 next_cursor=null。显式展开按 Unicode 标量边界分页，每个正文或推理分片最多 4,999 个 UTF-16 单元、28,000 JSON 字节，总消息分片保持 64 KiB。预览的 truncated、消息保留截断和 outcome=truncated 是三个独立含义。
 
-SSETransient/SSEPreview 定义 transient 的公开形状；Preview.version 保持 number，事件没有持久 cursor。短预览在保留容量截断前计算；redaction（包括 done/error 快照）撤销已保留的推理并推进 revision，旧内容游标返回 CURSOR_EXPIRED。仍最多保留 8 个预览、每个 128 块和 32,768 UTF-16 单元；正常 redacted-only/tool-only 持久回复仍可能省略行，因此 transient 过期不证明没有持久事件。
+SSETransient/SSEPreview 定义 transient 的公开形状；Preview.version 保持 number，事件没有持久 cursor。短预览在保留容量截断前计算；redaction（包括 done/error 快照）撤销已保留的推理并推进 revision，旧内容游标返回 CURSOR_EXPIRED。Main 最多保留 8 个预览；Task 独立最多 32 个、合计 1 MiB 文本；每个最多 128 块和 32,768 UTF-16 单元；正常 redacted-only/tool-only 持久回复仍可能省略行，因此 transient 过期不证明没有持久事件。
 
 thinking_preview 和 thinking 保留原始模型文本，可能包含控制字符或 ANSI 序列。终端客户端必须在渲染前进行转义或净化；API 不会替客户端执行终端安全处理。
 
@@ -141,3 +141,9 @@ New submit_result artifacts remain a path array and require exactly one artifact
 WAIT_AUTH 收到指导仍等待授权；批准会退役过时且未启动的旧操作，重新规划后重新检查授权。拒绝仍使执行失败。authorization 详情的 guidance_warning 解释此行为。等待回答不自动回答，未知效果不自动重放，取消后不为补消费而复活执行。失败/取消/过期结清未处理指导并保留原因。
 
 本项提供后端与既有事项提示。Task 流式阅读、稳定标题/轮次和 `/guide` 命令分别由 #104、#105、#106 交付。
+
+## Task streaming and latest tails (#104)
+
+Task previews are disposable, unsaved display state. SSE sends an independent metadata-only Task frame (at most 64 KiB) with epoch/version and exact task, execution, ModelCall, attempt and status; it contains no body or thinking. Main transient size cannot suppress it. Clients fetch only the affected Task message. Token deltas create no journal transaction, Main Input, ordinary progress Feedback or Main model call. Durable ModelCall and agent-message facts continue to invalidate timeline/activity history and additionally invalidate the exact Task-message query.
+
+Task message routes accept `position=latest`; content tails expose `body_offset`, `body_length`, `thinking_offset`, `thinking_length` and at most 32,768 UTF-16 units per region. A missing format prefix must be labeled and rendered literally; normal cursor paging still reads full durable content. Message IDs use `call:<model_call_id>` only with proven provenance; legacy event IDs remain aliases or original rows. `persistence=transient` and `preview_status` distinguish unsaved output from durable response. Missing previews from an older runtime or ended execution report interruption, never indefinite waiting or fabricated saved text. Encode message IDs as URL path segments. Existing owner, retention and latest-three-executions checks apply to queries and SSE visibility.

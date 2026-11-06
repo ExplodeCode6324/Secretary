@@ -161,14 +161,15 @@ export async function applyShell(
       ]);
     }
     if (unknown) {
-      this.setState(eid, "RESULT_UNKNOWN", {
-        unknown_operation_ids: [op.id],
-      });
-      this.feedback(
+      this.setState(
         eid,
-        "UNKNOWN",
-        "Shell interrupted; effects require verification, do not retry",
-        this.store.put(receipt),
+        "RESULT_UNKNOWN",
+        {},
+        {
+          summary:
+            "Shell interrupted; effects require verification, do not retry",
+          detail: this.store.put(receipt),
+        },
       );
     }
     return receipt;
@@ -234,7 +235,15 @@ export async function applyWrite(this: EffectsContext, op: Operation) {
     return this.auth.finish(op.id, { result, evidence });
   } catch (error) {
     this.auth.finish(op.id, { error: String(error) }, "UNKNOWN");
-    this.setState(e.id, "RESULT_UNKNOWN", { unknown_operation_ids: [op.id] });
+    this.setState(
+      e.id,
+      "RESULT_UNKNOWN",
+      {},
+      {
+        summary: "File write result unknown; verify before retrying",
+        detail: this.store.put({ operation_id: op.id, error: String(error) }),
+      },
+    );
     throw error;
   }
 }
@@ -432,12 +441,19 @@ export async function program(
       { stdout: output, stderr: error, code, error: String(err) },
       "UNKNOWN",
     );
-    this.setState(eid, "RESULT_UNKNOWN", { unknown_operation_ids: [opID] });
-    this.feedback(
+    this.setState(
       eid,
-      "UNKNOWN",
-      "Program result unknown; no automatic retry",
-      this.store.put({ stdout: output, stderr: error, code }),
+      "RESULT_UNKNOWN",
+      {},
+      {
+        summary: "Program result unknown; no automatic retry",
+        detail: this.store.put({
+          stdout: output,
+          stderr: error,
+          code,
+          error: String(err),
+        }),
+      },
     );
   }
 }

@@ -220,9 +220,43 @@ export type ExecutionState =
  */
 export type RetentionState = "HOT" | "ARCHIVE_PENDING" | "RETIRED";
 /**
+ * 短结论与执行引用；主会话读到时详情已保存。
+ */
+export type Feedback = {
+  [k: string]: unknown;
+} & {
+  schema_version: 1;
+  record_type: "Feedback";
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  state: FeedbackState;
+  task_id: ID;
+  execution_id: ID;
+  kind:
+    | "RESULT"
+    | "DECISION_REQUIRED"
+    | "PROGRESS"
+    | "UNKNOWN"
+    | "AUTHORIZATION_REQUIRED";
+  summary: string;
+  detail_ref: ObjectRef;
+  result_id: ID | null;
+  decision_request_id: ID | null;
+  input_id: ID | null;
+  created_at: Time;
+  scope_id?: ID | null;
+  authorization_id?: ID;
+  suppressed_at?: Time;
+  suppressed_reason?: string;
+};
+/**
  * Feedback 状态由领域模块推进，见 docs/state-machines.md
  */
-export type FeedbackState = "QUEUED" | "DELIVERED" | "HANDLED";
+export type FeedbackState = "QUEUED" | "DELIVERED" | "HANDLED" | "SUPPRESSED";
 /**
  * Decision 状态由领域模块推进，见 docs/state-machines.md
  */
@@ -1020,30 +1054,6 @@ export interface Artifact {
    * Task model explanation; NOT_VERIFIED. Absent for legacy results.
    */
   description?: string;
-}
-/**
- * 短结论与执行引用；主会话读到时详情已保存。
- */
-export interface Feedback {
-  schema_version: 1;
-  record_type: "Feedback";
-  id: ID;
-  /**
-   * 宿主 CAS revision；从 1 开始。
-   */
-  revision: number;
-  updated_at: Time;
-  state: FeedbackState;
-  task_id: ID;
-  execution_id: ID;
-  kind: "RESULT" | "DECISION_REQUIRED" | "PROGRESS" | "UNKNOWN";
-  summary: string;
-  detail_ref: ObjectRef;
-  result_id: ID | null;
-  decision_request_id: ID | null;
-  input_id: ID | null;
-  created_at: Time;
-  scope_id?: ID | null;
 }
 /**
  * 普通决定通过 TaskControl；授权走独立接口。

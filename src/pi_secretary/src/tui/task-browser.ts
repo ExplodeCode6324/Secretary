@@ -6,9 +6,11 @@ import type {
   TaskBrowserMessages,
   TaskBrowserTask,
   Message,
+  SSETaskTransient,
 } from "../api/contracts.ts";
 import {
   readMessageBody,
+  tailMessageBody,
   bodyBytes,
   type MessageBody,
   type Region,
@@ -42,6 +44,13 @@ const textEntry = (id: string, text: string): ViewEntry => ({
   version: text,
   component: new Text(safeText(text), 0, 0),
 });
+const previewBoundary = (body: MessageBody) => {
+  if (body.message.persistence === "transient" && body.message.truncated) {
+    body.body.contextBoundary = true;
+    body.thinking.contextBoundary = true;
+  }
+  return body;
+};
 const code = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 type Group = {
@@ -67,6 +76,198 @@ export class TaskBrowserWindow {
   error = "";
   notice = "";
   private epoch = 0;
+  followTarget?: string;
+  private finalTailReady = false;
+  private messagePending = new Set<string>();
+  private groupReads = new Map<string, number>();
+  private previewPending = new Map<string, Set<string>>();
+  private messageTimer?: ReturnType<typeof setTimeout>;
+  private messageJob?: Promise<void>;
+  private transientState?: SSETaskTransient;
+  stopFollowing() {
+    if (!this.followTarget) return;
+    this.followTarget = undefined;
+    this.finalTailReady = false;
+    this.epoch++;
+  }
+  followed() {
+    if (!this.finalTailReady || !this.followTarget) return;
+    this.followTarget = undefined;
+    this.finalTailReady = false;
+    this.notice = "执行已结束；已显示最终末尾并停止跟随";
+    queueMicrotask(() => this.onChange());
+  }
+  async follow(id?: string) {
+    if (id === "off") {
+      this.stopFollowing();
+      this.notice = "已停止跟随";
+      this.changed();
+      return;
+    }
+    if (!this.selected || !this.detail) {
+      this.error = "/follow 仅在 Task 详情可用";
+      this.changed();
+      return;
+    }
+    const anchor = this.detailAnchor?.item_id;
+    const target =
+      id ??
+      this.detail.executions.find(
+        (e) =>
+          anchor === "execution:" + e.id ||
+          anchor?.startsWith(e.id + ":") ||
+          anchor?.startsWith("page:" + e.id + ":"),
+      )?.id ??
+      this.detail.executions[0]?.id;
+    if (
+      !target ||
+      !this.detail.executions.some((e) => e.id === target && e.kind === "AGENT")
+    ) {
+      this.error = "指定执行不是当前详情最近三轮中的 AGENT 执行";
+      this.changed();
+      return;
+    }
+    this.epoch++;
+    this.followTarget = target;
+    this.finalTailReady = false;
+    this.restoreAnchor = undefined;
+    this.notice = "跟随执行 " + target + "；阅读或 /follow off 停止";
+    this.refreshMessages([target]);
+  }
+  transient(state: SSETaskTransient) {
+    const old = this.transientState;
+    this.transientState = state;
+    const changed = new Set<string>();
+    for (const p of state.previews)
+      if (
+        p.task_id === this.selected &&
+        (old?.epoch !== state.epoch ||
+          !old.previews.some(
+            (o) =>
+              o.id === p.id && o.version === p.version && o.status === p.status,
+          ))
+      ) {
+        const group = this.groups.get(p.execution_id);
+        if (!group) continue;
+        if (group.items.some((m) => m.model_call_id === p.id)) {
+          let ids = this.previewPending.get(p.execution_id);
+          if (!ids) this.previewPending.set(p.execution_id, (ids = new Set()));
+          ids.add(p.id);
+        } else if (this.followTarget === p.execution_id || !group.after)
+          changed.add(p.execution_id);
+      }
+    for (const p of old?.previews ?? [])
+      if (
+        p.task_id === this.selected &&
+        !state.previews.some((n) => n.id === p.id)
+      )
+        changed.add(p.execution_id);
+    if (this.followTarget && old?.epoch !== state.epoch)
+      changed.add(this.followTarget);
+    this.refreshMessages([...changed]);
+  }
+  private async readPreview(eid: string, call: string, epoch: number) {
+    const group = this.groups.get(eid),
+      original = group?.items.find((m) => m.model_call_id === call);
+    if (!original || !group) return;
+    const id = key(original),
+      tail =
+        this.followTarget === eid && group.items.at(-1)?.id === original.id;
+    const mode = this.thinking(),
+      path = messagePath(original);
+    const current = await this.client.query<Message>(
+      path + "?thinking=" + mode + (tail ? "&position=latest" : ""),
+    );
+    const valid = () =>
+      !this.stopped &&
+      epoch === this.epoch &&
+      mode === this.thinking() &&
+      this.groups.get(eid) === group;
+    if (!valid()) return;
+    if (
+      current.revision === original.revision &&
+      this.bodies.get(id)?.message.revision === current.revision
+    )
+      return;
+    group.items[group.items.indexOf(original)] = {
+      ...current,
+      text: current.text.slice(0, 4096),
+      ...(current.thinking
+        ? { thinking: current.thinking.slice(0, 4096) }
+        : {}),
+    };
+    this.bodies.delete(id);
+    this.entryCache.delete(id);
+    this.deferred.delete(id);
+    if (tail || this.wanted.has(id)) {
+      const body = tail
+        ? tailMessageBody(current, mode)
+        : await readMessageBody(this.client, current, mode, {
+            contentPath: path,
+            valid,
+          });
+      if (valid()) this.bodies.set(id, previewBoundary(body));
+    }
+  }
+
+  refreshMessages(ids: string[]) {
+    for (const id of ids)
+      if (this.detail?.executions.some((e) => e.id === id))
+        this.messagePending.add(id);
+    if (
+      this.stopped ||
+      this.messageJob ||
+      this.messageTimer ||
+      (!this.messagePending.size && !this.previewPending.size)
+    )
+      return;
+    this.messageTimer = setTimeout(() => {
+      this.messageTimer = undefined;
+      this.messageJob = (async () => {
+        const ids = [...this.messagePending];
+        this.messagePending.clear();
+        const previews = new Map(this.previewPending);
+        this.previewPending.clear();
+        const epoch = this.epoch;
+        for (const id of ids) {
+          if (epoch !== this.epoch || this.stopped) break;
+          try {
+            await this.readGroup(
+              id,
+              epoch,
+              undefined,
+              this.groups
+                .get(id)
+                ?.items.find((m) => key(m) === this.detailAnchor?.item_id)
+                ?.id ?? this.groups.get(id)?.items[0]?.id,
+              true,
+            );
+          } catch (e) {
+            if (epoch === this.epoch)
+              this.error = "Task 消息读取失败：" + code(e);
+          }
+        }
+        for (const [eid, calls] of previews)
+          if (!ids.includes(eid))
+            for (const call of calls) {
+              if (epoch !== this.epoch || this.stopped) break;
+              try {
+                await this.readPreview(eid, call, epoch);
+              } catch (e) {
+                if (
+                  epoch === this.epoch &&
+                  !/CURSOR_EXPIRED|BODY_INVALIDATED/.test(code(e))
+                )
+                  this.error = "Task 预览读取失败：" + code(e);
+              }
+            }
+        if (epoch === this.epoch) this.changed();
+      })().finally(() => {
+        this.messageJob = undefined;
+        this.refreshMessages([]);
+      });
+    }, 100);
+  }
   private rootTask?: string;
   private searchTarget?: string;
   private entrySerial = 0;
@@ -105,6 +306,7 @@ export class TaskBrowserWindow {
   ) {}
   inherit(old: TaskBrowserWindow) {
     this.selected = old.selected;
+    this.followTarget = old.followTarget;
     this.rootAnchor = old.rootAnchor;
     this.rootTask = old.rootTask;
     this.searchTarget = old.searchTarget;
@@ -121,6 +323,7 @@ export class TaskBrowserWindow {
     this.stopped = true;
     this.epoch++;
     clearTimeout(this.expiry);
+    clearTimeout(this.messageTimer);
     this.wanted.clear();
   }
   private changed() {
@@ -241,7 +444,12 @@ export class TaskBrowserWindow {
     }
     this.changed();
   }
-  async suggest(id: string) {
+  async suggest(id: string, command?: string) {
+    if (command === "follow")
+      return [
+        "off",
+        ...(this.detail?.executions.map((e) => e.id) ?? []),
+      ].filter((value) => value.startsWith(id));
     try {
       return (
         await this.client.query<TaskBrowserPage>(
@@ -262,6 +470,9 @@ export class TaskBrowserWindow {
     };
   }
   async open(id: string) {
+    this.stopFollowing();
+    this.previewPending.clear();
+    this.messagePending.clear();
     const epoch = this.beginNavigation();
     try {
       // Fetch/authorize before replacing the existing view.
@@ -292,6 +503,7 @@ export class TaskBrowserWindow {
     }
   }
   back() {
+    this.stopFollowing();
     if (!this.selected) return;
     this.epoch++;
     this.selected = undefined;
@@ -330,6 +542,13 @@ export class TaskBrowserWindow {
     }
     if (this.stopped || epoch !== this.epoch || id !== this.selected) return;
     this.detail = detail;
+    if (
+      this.followTarget &&
+      !detail.executions.some((e) => e.id === this.followTarget)
+    ) {
+      this.followTarget = undefined;
+      this.notice = "跟随目标已不可用；已停止跟随";
+    }
     const retained = new Set(detail.executions.map((e) => e.id));
     let removed = false;
     for (const eid of this.groups.keys())
@@ -373,15 +592,27 @@ export class TaskBrowserWindow {
     replace = false,
   ) {
     if (!this.selected) return;
+    const request = (this.groupReads.get(eid) ?? 0) + 1;
+    this.groupReads.set(eid, request);
     const route = `${taskPath(this.selected)}/executions/${encodeURIComponent(eid)}/messages`;
     const q = new URLSearchParams({
       limit: "50",
       thinking: String(this.thinking()),
     });
-    if (direction) q.set("direction", direction);
-    if (around) q.set("message_id", around);
+    const following = this.followTarget === eid;
+    if (following) q.set("position", "latest");
+    else {
+      if (direction) q.set("direction", direction);
+      if (around) q.set("message_id", around);
+    }
+    if (following) replace = true;
     const page = await this.client.query<TaskBrowserMessages>(route + "?" + q);
-    if (this.stopped || epoch !== this.epoch) return;
+    if (
+      this.stopped ||
+      epoch !== this.epoch ||
+      this.groupReads.get(eid) !== request
+    )
+      return;
     const old = this.groups.get(eid),
       map = new Map<string, Message>();
     // Around-boundary pages must overlap the loaded window. Keep existing data
@@ -411,8 +642,28 @@ export class TaskBrowserWindow {
           : (old?.after ?? !!page.after),
       availability: page.availability,
     });
+    for (const m of page.items) {
+      const id = key(m),
+        cached = this.bodies.get(id);
+      if (cached && cached.message.revision !== m.revision) {
+        this.bodies.delete(id);
+        this.entryCache.delete(id);
+        this.deferred.delete(id);
+      }
+    }
+    if (following && this.followTarget === eid) {
+      const tail = page.items.at(-1);
+      if (tail) await this.loadBody(key(tail), undefined, undefined, true);
+      if (epoch === this.epoch && this.followTarget === eid)
+        this.finalTailReady = !!this.detail?.executions.some(
+          (e) =>
+            e.id === eid &&
+            ["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"].includes(e.state),
+        );
+    }
   }
   async page(direction: Direction, marker?: string) {
+    this.stopFollowing();
     const epoch = this.beginNavigation();
     this.pageDirection = direction;
     try {
@@ -539,7 +790,12 @@ export class TaskBrowserWindow {
     }
     return undefined;
   }
-  async loadBody(id: string, region?: Region, direction?: Direction) {
+  async loadBody(
+    id: string,
+    region?: Region,
+    direction?: Direction,
+    tail = false,
+  ) {
     const original = this.message(id);
     if (!original) return;
     const epoch = this.epoch,
@@ -574,18 +830,20 @@ export class TaskBrowserWindow {
           : cached![region].nextStart;
     try {
       const first = await this.client.query<Message>(
-        path + "?thinking=" + mode,
+        path + "?thinking=" + mode + (tail ? "&position=latest" : ""),
       );
       if (!valid()) return;
-      const body = await readMessageBody(this.client, first, mode, {
-        contentPath: path,
-        windowed: !!cached?.windowed || !!targets,
-        targets,
-        previous: cached,
-        valid,
-      });
+      const body = tail
+        ? tailMessageBody(first, mode)
+        : await readMessageBody(this.client, first, mode, {
+            contentPath: path,
+            windowed: !!cached?.windowed || !!targets,
+            targets,
+            previous: cached,
+            valid,
+          });
       if (!valid()) return;
-      this.bodies.set(id, body);
+      this.bodies.set(id, previewBoundary(body));
       this.notices.delete(id);
       this.deferred.delete(id);
       this.changed();
@@ -609,7 +867,15 @@ export class TaskBrowserWindow {
   }
   private prune() {
     let all = this.orderedMessages();
-    while (all.length > HISTORY_ITEMS) {
+    const metadataBytes = () =>
+      [...all, ...(this.detail ? [this.detail] : [])].reduce(
+        (n, m) => n + Buffer.byteLength(JSON.stringify(m)),
+        0,
+      );
+    while (
+      all.length > HISTORY_ITEMS ||
+      (all.length > 1 && metadataBytes() > HISTORY_BYTES)
+    ) {
       const pos = all.findIndex((m) => key(m) === this.detailAnchor?.item_id);
       const dropLast =
         pos >= 0 ? pos < all.length / 2 : this.pageDirection === "before";
@@ -627,15 +893,18 @@ export class TaskBrowserWindow {
     for (const id of this.bodies.keys())
       if (!messages.has(id)) this.bodies.delete(id);
     for (const id of this.entryCache.keys())
-      if (!messages.has(id)) this.entryCache.delete(id);
+      if (
+        !messages.has(id) ||
+        this.entryCache.get(id)?.body !== this.bodies.get(id)
+      )
+        this.entryCache.delete(id);
     for (const id of this.deferred)
       if (!messages.has(id)) this.deferred.delete(id);
     for (const id of this.notices.keys())
       if (!messages.has(id)) this.notices.delete(id);
     let bytes =
       [...messages.values()].reduce(
-        (n, m) =>
-          n + Buffer.byteLength(m.text) + Buffer.byteLength(m.thinking ?? ""),
+        (n, m) => n + Buffer.byteLength(JSON.stringify(m)),
         0,
       ) + [...this.bodies.values()].reduce((n, b) => n + bodyBytes(b), 0);
     const victims = [...this.bodies.keys()].sort(
@@ -645,6 +914,7 @@ export class TaskBrowserWindow {
       if (bytes <= HISTORY_BYTES) break;
       bytes -= bodyBytes(this.bodies.get(id)!);
       this.bodies.delete(id);
+      this.entryCache.delete(id);
       this.deferred.add(id);
       this.notices.set(id, "正文窗口已释放；↑/↓ 重新读取");
     }
@@ -697,8 +967,11 @@ export class TaskBrowserWindow {
         "task-detail-title",
         taskTitleText(
           "Task · 详情",
-          detail.task.scope_name,
-          "/back 返回列表 · 正文与最近执行记录见下方",
+          detail.task.scope_name +
+            (this.followTarget
+              ? " · 跟随 " + this.followTarget
+              : " · 阅读模式"),
+          "/back 返回列表 · /follow [Execution ID|off] 跟随末尾",
         ),
       ),
       this.taskEntry(detail.task),

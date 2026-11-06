@@ -8,6 +8,7 @@ import type {
   TimelineItem,
   SyncTransaction,
   SSETransient,
+  SSETaskTransient,
 } from "../api/contracts.ts";
 import { HistoryWindow, HISTORY_BYTES, type Direction } from "./history.ts";
 import {
@@ -479,7 +480,16 @@ export class RemoteViews {
             if (frame.startsWith("event:")) {
               if (frame.includes("event: reset"))
                 throw Error("RESYNC_REQUIRED");
-              if (frame.startsWith("event: transient")) {
+              if (frame.startsWith("event: task_transient")) {
+                const data = frame
+                  .split("\n")
+                  .filter((l) => l.startsWith("data: "))
+                  .map((l) => l.slice(6))
+                  .join("\n");
+                this.taskBrowser.transient(
+                  JSON.parse(data) as SSETaskTransient,
+                );
+              } else if (frame.startsWith("event: transient")) {
                 const data = frame
                   .split("\n")
                   .filter((line) => line.startsWith("data: "))
@@ -505,6 +515,11 @@ export class RemoteViews {
                       ? change.query
                       : change.resource_type;
                   const root = query?.split("/")[0];
+                  if (root === "task-messages") {
+                    const [, task, eid] = query!.split("/");
+                    if (task === this.taskBrowser.selected && eid)
+                      this.taskBrowser.refreshMessages([eid]);
+                  }
                   if (
                     [
                       "tasks",

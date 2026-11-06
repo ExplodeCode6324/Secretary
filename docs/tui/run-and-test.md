@@ -105,3 +105,11 @@ Tab selects image rows when command completion is inactive; arrows select, Delet
 Local state is now v3 (the existing directory still ends in `tui/v1`). Both v1 and v2 upgrade with a backup. Image attempts, staging source hashes and exact import/message request bodies survive restart; uncertain requests retain their IDs. Legacy export refuses any image materials, including recovery references. Owned staging sources remain protected by active draft/outbox/recovery references and three-calendar-year retention.
 
 Focused checks: `npx tsx --test --test-concurrency=1 test_case/offline/issue94/*.test.ts`. Paid tests are explicit online harnesses, never part of npm test. Master acceptance uses an isolated instance and its exact command, provided with the implementation handoff.
+
+## #104 Task 流式阅读
+
+Task 普通详情中，`/follow` 选择当前阅读段落的 AGENT Execution；不在执行段落时选择当前详情最新一轮，并立即固定完整 ID。`/follow <完整 Execution ID>` 显式选择最近三轮中的目标，参数可补全；`/follow off` 停止。标题显示跟随目标，跟随只滚到该执行段落末尾。新一轮不会抢走目标。进入历史阅读、滚轮、选择、翻页、导航会停止跟随；手动滚到底部不会恢复。
+
+流式正文是暂态预览，不代表结果已保存、工具已执行或 Guidance 已采纳。响应保存后同一消息身份切换为持久正文；执行结束时读取最终末尾再停止跟随。断线重连会重新核对目标和正文；旧进程的预览不作为新进程的当前内容。正文末尾缺少 Markdown 前文时明确显示格式上下文边界，仍可向前翻阅原文。
+
+`position=latest` 消息接口直接读取最后一页；正文接口直接读取有界末尾，不需要从第一条消息逐页追赶。普通 Task 输出不唤醒 Main；授权、问题、UNKNOWN 与最终结果仍通过持久通知处理。#104 验证及原生工具受限情况见 [实施证据](../fix/evidence/issue104-streaming/implementation.md)。

@@ -274,9 +274,19 @@ export async function recover(this: ExecutionRecoveryContext) {
           unknown_operation_ids: [],
         });
       } else {
-        this.setState(e.id, "RESULT_UNKNOWN", {
-          unknown_operation_ids: unknown,
-        });
+        this.setState(
+          e.id,
+          "RESULT_UNKNOWN",
+          { unknown_operation_ids: unknown },
+          {
+            summary: "Execution interrupted; verify before resuming",
+            detail: this.store.put({
+              execution_id: e.id,
+              reason: "restart",
+              operation_ids: unknown,
+            }),
+          },
+        );
         this.settleUnknownExecution(e.id);
         if (
           this.store.get<Execution>("Execution", e.id).state ===

@@ -14,7 +14,8 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
   "enum": [
     "QUEUED",
     "DELIVERED",
-    "HANDLED"
+    "HANDLED",
+    "SUPPRESSED"
   ],
   "description": "Feedback 状态由领域模块推进，见 docs/state-machines.md"
 }

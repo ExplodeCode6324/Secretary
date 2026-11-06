@@ -73,6 +73,7 @@ function syncDir(dir: string) {
   }
 }
 const indexFields: Record<string, string[]> = {
+  AuthorizationRequest: ["state"],
   Guidance: ["execution_id", "request_id"],
   GuidanceInjection: ["execution_id"],
   GuidanceReceipt: ["execution_id", "guidance_id"],

@@ -200,7 +200,7 @@
               "condition_id": {
                 "type": "string",
                 "minLength": 1,
-                "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+                "description": "\u5bbf\u4e3b\u4ea7\u751f\u7684 UUID\uff1b\u6a21\u578b\u4e0d\u53ef\u5192\u5145\u5bbf\u4e3b\u6216 Master \u8eab\u4efd\u3002",
                 "format": "uuid"
               },
               "kind": {
@@ -215,7 +215,7 @@
               "target": {
                 "type": "string",
                 "minLength": 1,
-                "description": "登记设备/资源标识或 execution UUID"
+                "description": "\u767b\u8bb0\u8bbe\u5907/\u8d44\u6e90\u6807\u8bc6\u6216 execution UUID"
               },
               "required_revision": {
                 "anyOf": [
@@ -237,7 +237,7 @@
               "required_revision"
             ],
             "additionalProperties": false,
-            "description": "运行前提只引用已登记检查器，禁止运行模型提交的表达式。"
+            "description": "\u8fd0\u884c\u524d\u63d0\u53ea\u5f15\u7528\u5df2\u767b\u8bb0\u68c0\u67e5\u5668\uff0c\u7981\u6b62\u8fd0\u884c\u6a21\u578b\u63d0\u4ea4\u7684\u8868\u8fbe\u5f0f\u3002"
           }
         },
         "scope_id": {
@@ -873,19 +873,19 @@
         "entity_id": {
           "type": "string",
           "minLength": 1,
-          "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+          "description": "\u5bbf\u4e3b\u4ea7\u751f\u7684 UUID\uff1b\u6a21\u578b\u4e0d\u53ef\u5192\u5145\u5bbf\u4e3b\u6216 Master \u8eab\u4efd\u3002",
           "format": "uuid"
         },
         "subject_id": {
           "type": "string",
           "minLength": 1,
-          "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+          "description": "\u5bbf\u4e3b\u4ea7\u751f\u7684 UUID\uff1b\u6a21\u578b\u4e0d\u53ef\u5192\u5145\u5bbf\u4e3b\u6216 Master \u8eab\u4efd\u3002",
           "format": "uuid"
         },
         "assertion_id": {
           "type": "string",
           "minLength": 1,
-          "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+          "description": "\u5bbf\u4e3b\u4ea7\u751f\u7684 UUID\uff1b\u6a21\u578b\u4e0d\u53ef\u5192\u5145\u5bbf\u4e3b\u6216 Master \u8eab\u4efd\u3002",
           "format": "uuid"
         },
         "object_entity_id": {
@@ -893,7 +893,7 @@
             {
               "type": "string",
               "minLength": 1,
-              "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+              "description": "\u5bbf\u4e3b\u4ea7\u751f\u7684 UUID\uff1b\u6a21\u578b\u4e0d\u53ef\u5192\u5145\u5bbf\u4e3b\u6216 Master \u8eab\u4efd\u3002",
               "format": "uuid"
             },
             {
@@ -906,7 +906,7 @@
             {
               "type": "string",
               "minLength": 1,
-              "description": "宿主产生的 UUID；模型不可冒充宿主或 Master 身份。",
+              "description": "\u5bbf\u4e3b\u4ea7\u751f\u7684 UUID\uff1b\u6a21\u578b\u4e0d\u53ef\u5192\u5145\u5bbf\u4e3b\u6216 Master \u8eab\u4efd\u3002",
               "format": "uuid"
             },
             {
@@ -917,7 +917,7 @@
         "valid_from": {
           "type": "string",
           "minLength": 1,
-          "description": "UTC RFC3339；时区意图在 Trigger.timezone 另存。",
+          "description": "UTC RFC3339\uff1b\u65f6\u533a\u610f\u56fe\u5728 Trigger.timezone \u53e6\u5b58\u3002",
           "format": "date-time",
           "pattern": "Z$"
         },
@@ -926,7 +926,7 @@
             {
               "type": "string",
               "minLength": 1,
-              "description": "UTC RFC3339；时区意图在 Trigger.timezone 另存。",
+              "description": "UTC RFC3339\uff1b\u65f6\u533a\u610f\u56fe\u5728 Trigger.timezone \u53e6\u5b58\u3002",
               "format": "date-time",
               "pattern": "Z$"
             },
@@ -940,7 +940,7 @@
             {
               "type": "string",
               "minLength": 1,
-              "description": "UTC RFC3339；时区意图在 Trigger.timezone 另存。",
+              "description": "UTC RFC3339\uff1b\u65f6\u533a\u610f\u56fe\u5728 Trigger.timezone \u53e6\u5b58\u3002",
               "format": "date-time",
               "pattern": "Z$"
             },
@@ -957,7 +957,7 @@
             "maxLength": 128
           },
           "maxItems": 20,
-          "description": "实体别名；缺省时保留已有值，空数组清空。"
+          "description": "\u5b9e\u4f53\u522b\u540d\uff1b\u7f3a\u7701\u65f6\u4fdd\u7559\u5df2\u6709\u503c\uff0c\u7a7a\u6570\u7ec4\u6e05\u7a7a\u3002"
         }
       },
       "required": [
@@ -1770,6 +1770,31 @@
             "string",
             "null"
           ]
+        },
+        "model_call_id": {
+          "type": "string"
+        },
+        "transport_attempt": {
+          "type": "integer"
+        },
+        "preview_epoch": {
+          "type": "string"
+        },
+        "body_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "thinking_offset": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "body_length": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "thinking_length": {
+          "type": "integer",
+          "minimum": 0
         }
       },
       "required": [
@@ -6397,6 +6422,71 @@
         "next_cursor",
         "version"
       ]
+    },
+    "SSETaskTransient": {
+      "type": "object",
+      "properties": {
+        "epoch": {
+          "type": "string"
+        },
+        "version": {
+          "type": "number"
+        },
+        "previews": {
+          "type": "array",
+          "maxItems": 32,
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "task_id": {
+                "type": "string"
+              },
+              "execution_id": {
+                "type": "string"
+              },
+              "transport_attempt": {
+                "type": "integer"
+              },
+              "attempt_id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "number"
+              },
+              "status": {
+                "enum": [
+                  "running",
+                  "saved",
+                  "incomplete"
+                ]
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "task_id",
+              "execution_id",
+              "transport_attempt",
+              "attempt_id",
+              "version",
+              "status",
+              "truncated"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "epoch",
+        "version",
+        "previews"
+      ],
+      "additionalProperties": false
     }
   },
   "oneOf": [

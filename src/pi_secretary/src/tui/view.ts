@@ -366,6 +366,16 @@ export function messageComponent(
           );
       };
       text(paint(safeText(title)));
+      if (assistantLabel === "Agent" && m.persistence === "transient") {
+        text(
+          gray(
+            m.preview_status === "running"
+              ? "正在生成 · 未保存预览"
+              : "未完成预览 · 尚无持久响应",
+          ),
+        );
+        if (m.truncated) text(gray("预览仅保留最近内容；完整保存后可向前读取"));
+      }
       if (expanded && m.thinking) region(thought, "thinking", body?.thinking);
       else if (m.thinking_preview?.text)
         text(gray(m.thinking_preview.text), "thinking");
@@ -528,6 +538,14 @@ export class DocumentView implements Component {
   get anchor() {
     return this.rows[this.scroll?.scrollTop ?? 0];
   }
+  lastRowFor(execution: string) {
+    return this.rows.findLastIndex(
+      (r) =>
+        r.item_id === "execution:" + execution ||
+        r.item_id.startsWith(execution + ":") ||
+        r.item_id === "availability:" + execution,
+    );
+  }
   rowAt(index: number) {
     return this.rows[index];
   }
@@ -602,6 +620,8 @@ export class AnchoredScroll extends ScrollView {
   private maxTop = 0;
   private selected = false;
   following = false;
+  followRow?: () => number | undefined;
+  onFollowed = () => {};
   onReading = () => {};
   endSelection() {
     this.document.selectionDragging = false;
@@ -645,7 +665,11 @@ export class AnchoredScroll extends ScrollView {
       this.document.initialEnd = false;
       this.document.desiredTop = undefined;
       this.document.navigationDelta = 0;
-      super.scrollToEnd();
+      const target = this.followRow?.();
+      if (target !== undefined && target >= 0)
+        super.scrollTo(Math.max(0, target - viewport + 1));
+      else super.scrollToEnd();
+      this.onFollowed();
     } else if (this.document.desiredTop !== undefined) {
       const target = this.document.desiredTop;
       this.document.desiredTop = undefined;

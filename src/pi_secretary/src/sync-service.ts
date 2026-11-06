@@ -1,5 +1,5 @@
 import type { App } from "./app.ts";
-import type { Mutation, TaskPlan, TaskProposal } from "./contracts.ts";
+import type { Context, Mutation, TaskPlan, TaskProposal } from "./contracts.ts";
 import { type Store, type Stored } from "./store.ts";
 import { ApiError, limitOf } from "./api/protocol.ts";
 import type { SyncChange, SyncPage, SyncTransaction } from "./api/contracts.ts";
@@ -219,6 +219,14 @@ export class SyncService {
       if (!m.resource && !m.invalidate.length) continue;
       const r = this.store.read<Stored>(mutation.snapshot);
       if (!this.visible(r)) continue;
+      if (
+        r.record_type === "ModelCall" &&
+        r.scope.task_id &&
+        r.scope.execution_id &&
+        this.store.get<Context>("Context", r.context_id).purpose === "TASK"
+      ) {
+        invalidate(`task-messages/${r.scope.task_id}/${r.scope.execution_id}`);
+      }
       for (const query of m.invalidate) invalidate(query);
       // Exact aggregate queries supplement collection invalidations; coarse fallback
       // keeps only bounded resource classes, never an unbounded set of IDs.
@@ -279,7 +287,16 @@ export class SyncService {
     )
       invalidate("task-browser");
     for (const event of frame.log_records) {
-      if (event.event_type === "agent.message") invalidate("task-browser");
+      if (
+        ["agent.message", "guidance.sent", "model.response"].includes(
+          event.event_type,
+        ) &&
+        event.scope.task_id &&
+        event.scope.execution_id
+      )
+        invalidate(
+          `task-messages/${event.scope.task_id}/${event.scope.execution_id}`,
+        );
       if (event.event_type.startsWith("world.change_")) invalidate("world");
       if (
         event.scope.session_id &&

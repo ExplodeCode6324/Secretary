@@ -108,6 +108,25 @@ function point(points: Checkpoint[], value: Checkpoint) {
     );
 }
 
+/** A bounded literal tail carries explicit missing-context boundaries. */
+export function tailMessageBody(message: Message, mode: boolean): MessageBody {
+  const window = (text: string, start = 0) => ({
+    ...region(text),
+    start,
+    previousStart: Math.max(0, start - 32768),
+    nextStart: start + text.length,
+    before: start > 0,
+    contextBoundary: start > 0 || !!message.truncated,
+  });
+  return {
+    mode,
+    message,
+    body: window(message.text, message.body_offset),
+    thinking: window(message.thinking ?? "", message.thinking_offset),
+    windowed: true,
+  };
+}
+
 /** Cursor chains are coherent for a revision. No partial chain becomes visible. */
 export async function readMessageBody(
   client: Pick<CoreClient, "query">,

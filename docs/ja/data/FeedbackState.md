@@ -14,7 +14,8 @@ Feedback の状態はドメインモジュールが進めます。docs/state-mac
   "enum": [
     "QUEUED",
     "DELIVERED",
-    "HANDLED"
+    "HANDLED",
+    "SUPPRESSED"
   ],
   "description": "Feedback 状态由领域模块推进，见 docs/state-machines.md"
 }

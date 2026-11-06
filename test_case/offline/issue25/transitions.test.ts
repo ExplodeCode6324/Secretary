@@ -233,6 +233,7 @@ test("Authorization next preserves event semantics; only enforced or called mach
     "AttachmentImport",
     "Authorization",
     "Execution",
+    "Feedback",
     "Input",
     "Operation",
   ]);

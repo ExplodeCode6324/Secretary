@@ -1,3 +1,4 @@
+import { taskFeedback } from "./task-feedback.ts";
 import { guidanceFor } from "./guidance.ts";
 import { describedArtifacts } from "./artifact-path.ts";
 import * as fs from "node:fs";
@@ -295,9 +296,19 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
           answer_request_id: null,
         };
         const current = this.store.get<Execution>("Execution", e.id);
+        const notification = taskFeedback(
+          this.store,
+          current,
+          "DECISION_REQUIRED",
+          args.question,
+          this.store.put(d),
+          null,
+          d.id,
+        );
         this.store.commit(
           [
             d,
+            ...(notification.fresh ? [notification.record] : []),
             revise(current, {
               state: "WAIT_DECISION",
               waiting_request_ids: [d.id],

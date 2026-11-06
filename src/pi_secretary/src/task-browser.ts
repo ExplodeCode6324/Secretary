@@ -1,3 +1,4 @@
+import { taskMessagesFor } from "./task-messages.ts";
 import { failuresFor } from "./failure-handling.ts";
 import type { App } from "./app.ts";
 import type { Store } from "./store.ts";
@@ -224,6 +225,17 @@ export class TaskBrowser {
       (!p.scope_id || this.scopes.get(p.scope_id)?.state === "ACTIVE")
     );
   }
+  allowsPreview(task: string, execution: string) {
+    this.sync();
+    const p = this.plans.get(task);
+    return (
+      !!p &&
+      this.browsable(p) &&
+      this.rounds(p)
+        .slice(0, 3)
+        .some((e) => e.id === execution)
+    );
+  }
   private task(id: string) {
     const p = this.plans.get(id);
     if (!p || !this.browsable(p)) throw new ApiError("TASK_NOT_BROWSABLE", 404);
@@ -256,9 +268,7 @@ export class TaskBrowser {
       history_availability:
         kind === "PROGRAM"
           ? "not_agent"
-          : this.store
-                .executionEvents(e.id)
-                .some((l) => l.event_type === "agent.message")
+          : taskMessagesFor(this.store).rows(e.id).length > 0
             ? "recorded"
             : "no_recorded_messages",
     };
@@ -441,12 +451,15 @@ export class TaskBrowser {
     scope: string,
     around?: string,
     byteBudget = PAGE_BYTES,
+    positions?: (id: string) => number,
   ) {
     const limit = q.has("limit") ? limitOf(q) : 50;
     let start = 0,
       end = rows.length;
     if (around) {
-      start = rows.findIndex((r) => r.id === around);
+      start = positions
+        ? positions(around)
+        : rows.findIndex((r) => r.id === around);
       if (start < 0) throw new ApiError("BROWSER_ITEM_NOT_FOUND", 404);
       if (q.get("direction") === "before") {
         end = start + 1;
@@ -454,7 +467,9 @@ export class TaskBrowser {
       } else end = Math.min(rows.length, start + limit);
     } else if (q.has("cursor")) {
       const c = this.cursors.decode<{ id: string }>(scope, q.get("cursor")!);
-      const pos = rows.findIndex((r) => r.id === c.id);
+      const pos = positions
+        ? positions(c.id)
+        : rows.findIndex((r) => r.id === c.id);
       if (pos < 0) throw new ApiError("BROWSER_RESET_REQUIRED", 409);
       if (q.get("direction") === "before") {
         end = pos;
@@ -463,11 +478,13 @@ export class TaskBrowser {
         start = pos + 1;
         end = Math.min(rows.length, start + limit);
       }
-    } else end = Math.min(end, limit);
+    } else if (q.get("position") === "latest") start = Math.max(0, end - limit);
+    else end = Math.min(end, limit);
     let items = rows.slice(start, end),
       bytes = 2;
     const backwards =
-      q.get("direction") === "before" && (!!around || q.has("cursor"));
+      (q.get("direction") === "before" && (!!around || q.has("cursor"))) ||
+      q.get("position") === "latest";
     const bounded: T[] = [];
     for (const row of backwards ? items.toReversed() : items) {
       const size = Buffer.byteLength(JSON.stringify(row)) + 1;
@@ -498,7 +515,12 @@ export class TaskBrowser {
     q: URLSearchParams,
   ): TaskBrowserPage | TaskBrowserDetail | TaskBrowserMessages | Message {
     this.sync();
-    const parts = path.split("/");
+    let parts: string[];
+    try {
+      parts = path.split("/").map(decodeURIComponent);
+    } catch {
+      throw new ApiError("INVALID_QUERY");
+    }
     const allowed =
       parts.length === 1
         ? ["limit", "cursor", "direction"]
@@ -507,8 +529,21 @@ export class TaskBrowser {
           : parts.length === 2
             ? ["cursor", "thinking"]
             : parts.length === 5
-              ? ["limit", "cursor", "direction", "message_id", "thinking"]
-              : ["cursor", "thinking"];
+              ? [
+                  "limit",
+                  "cursor",
+                  "direction",
+                  "message_id",
+                  "thinking",
+                  "position",
+                ]
+              : ["cursor", "thinking", "position"];
+    if (
+      q.has("position") &&
+      (q.get("position") !== "latest" ||
+        ["cursor", "message_id", "direction"].some((k) => q.has(k)))
+    )
+      throw new ApiError("INVALID_QUERY");
     for (const key of q.keys())
       if (!allowed.includes(key) || q.getAll(key).length !== 1)
         throw new ApiError("INVALID_QUERY");
@@ -642,93 +677,22 @@ export class TaskBrowser {
       .slice(0, 3)
       .find((e) => e.id === parts[3]);
     if (!execution) throw new ApiError("EXECUTION_OUTSIDE_RECENT_THREE", 404);
-    const events = this.store
-      .executionEvents(execution.id)
-      .filter(
-        (e) =>
-          e.event_type === "agent.message" || e.event_type === "guidance.sent",
-      );
+    const index = taskMessagesFor(this.store);
+    const identities = index.rows(execution.id);
     const mode = q.get("thinking") === "true";
-    const eventMessage = (eid: string): Message => {
-      const event = events.find((e) => e.event_id === eid);
-      if (!event) throw new ApiError("MESSAGE_NOT_FOUND", 404);
-      try {
-        const raw = this.store.read<{
-          role: string;
-          content: string | DisplayBlock[];
-          stopReason?: string;
-          toolCallId?: string;
-          toolName?: string;
-          isError?: boolean;
-        }>(event.payload);
-        if (event.event_type === "guidance.sent") {
-          const sent = this.store.read<{ guidance_id: string }>(event.payload);
-          const g = this.store.get<import("./contracts.ts").Guidance>(
-            "Guidance",
-            sent.guidance_id,
-          );
-          raw.role = "user";
-          raw.content = `Guidance SENT · ${g.source} · ${g.id}\n${this.store.bytes(g.text).toString()}`;
-        }
-        const blocks = Array.isArray(raw.content) ? raw.content : [];
-        const text =
-          typeof raw.content === "string"
-            ? raw.content
-            : blocks
-                .map((b) =>
-                  b.type === "text"
-                    ? (b.text ?? "")
-                    : b.type === "thinking"
-                      ? ""
-                      : b.type === "toolCall"
-                        ? `Tool ${String((b as any).name)} (${String((b as any).id)})\n${JSON.stringify((b as any).arguments)}`
-                        : `[${b.type}: non-text content]`,
-                )
-                .filter(Boolean)
-                .join("\n");
-        return {
-          id: event.event_id,
-          kind: "message",
-          revision: String(event.sequence),
-          role: raw.role,
-          at: event.occurred_at,
-          text,
-          thinking: mode ? [...visibleThinking(blocks)].join("\n") : undefined,
-          thinking_preview: thinkingPreview(blocks),
-          call_id: raw.toolCallId ?? null,
-          ...(raw.toolName ? { tool_name: raw.toolName } : {}),
-          ...(raw.isError || raw.stopReason === "error"
-            ? { outcome: "failed" as const }
-            : raw.stopReason === "aborted"
-              ? { outcome: "interrupted" as const }
-              : raw.stopReason === "length"
-                ? { outcome: "truncated" as const }
-                : raw.stopReason === "stop"
-                  ? { outcome: "completed" as const }
-                  : raw.stopReason === "toolUse"
-                    ? { outcome: "continued" as const }
-                    : {}),
-          incomplete: false,
-          next_cursor: null,
-          persistence: "durable",
-          source_event_id: event.event_id,
-          task_id: p.id,
-          execution_id: execution.id,
-        };
-      } catch {
-        throw new ApiError("AGENT_MESSAGE_UNAVAILABLE", 410);
-      }
-    };
+    const eventMessage = (id: string) =>
+      index.message(p.id, execution.id, id, mode);
     const scope = `agent:${p.id}:${execution.id}:${mode}`;
     if (parts.length === 7 && parts[6] === "content")
       return this.content(eventMessage(parts[5]), q, scope);
     if (parts.length !== 5) throw new ApiError("NOT_FOUND", 404);
-    const identities = events.map((e) => ({ id: e.event_id }));
     const page = this.page(
       identities,
       q,
       scope,
       q.get("message_id") ?? undefined,
+      PAGE_BYTES,
+      (id) => index.position(execution.id, id),
     );
     let unavailable = false;
     const items = page.items.map((row) => {
@@ -765,13 +729,15 @@ export class TaskBrowser {
     let bytes = 2 + items.reduce((sum, item) => sum + itemBytes(item), 0);
     while (items.length > 1 && bytes > PAGE_BYTES) {
       const removed =
-        q.get("direction") === "before" ? items.shift()! : items.pop()!;
+        q.get("direction") === "before" || q.get("position") === "latest"
+          ? items.shift()!
+          : items.pop()!;
       bytes -= itemBytes(removed);
     }
     const first = items[0]?.id;
-    const firstIndex = identities.findIndex((i) => i.id === first);
+    const firstIndex = first ? index.position(execution.id, first) : -1;
     const last = items.at(-1)?.id;
-    const lastIndex = identities.findIndex((i) => i.id === last);
+    const lastIndex = last ? index.position(execution.id, last) : -1;
     return {
       items,
       before:
@@ -786,7 +752,7 @@ export class TaskBrowser {
       version: String(this.store.sequence),
       availability: unavailable
         ? "partially_unavailable"
-        : events.length
+        : identities.length
           ? "recorded"
           : this.executionView(p, execution).history_availability,
     };
@@ -803,14 +769,22 @@ export class TaskBrowser {
       message.revision +
       ":" +
       (q.get("thinking") === "true");
+    const full = message.text,
+      thought = q.get("thinking") === "true" ? (message.thinking ?? "") : "";
+    const tailStart = (value: string) => {
+      let n = Math.max(0, value.length - 32768);
+      if (n && value.charCodeAt(n) >= 0xdc00 && value.charCodeAt(n) <= 0xdfff)
+        n++;
+      return n;
+    };
     const position = q.has("cursor")
       ? this.cursors.decode<{ body: number; thinking: number }>(
           scope,
           q.get("cursor")!,
         )
-      : { body: 0, thinking: 0 };
-    const full = message.text,
-      thought = q.get("thinking") === "true" ? (message.thinking ?? "") : "";
+      : q.get("position") === "latest"
+        ? { body: tailStart(full), thinking: tailStart(thought) }
+        : { body: 0, thinking: 0 };
     if (
       ![position.body, position.thinking].every(
         (n) => Number.isSafeInteger(n) && n >= 0,
@@ -819,14 +793,23 @@ export class TaskBrowser {
       position.thinking > thought.length
     )
       throw new ApiError("CURSOR_EXPIRED", 409);
-    const text = fragment(full, position.body),
-      thinking = fragment(thought, position.thinking);
+    const size = q.get("position") === "latest" ? 32768 : 4096;
+    const text = fragment(full, position.body, size),
+      thinking = fragment(thought, position.thinking, size);
     const next = {
       body: position.body + text.length,
       thinking: position.thinking + thinking.length,
     };
     return {
       ...message,
+      ...(q.get("position") === "latest"
+        ? {
+            body_offset: position.body,
+            thinking_offset: position.thinking,
+            body_length: full.length,
+            thinking_length: thought.length,
+          }
+        : {}),
       text,
       ...(q.get("thinking") === "true" ? { thinking } : {}),
       next_cursor:

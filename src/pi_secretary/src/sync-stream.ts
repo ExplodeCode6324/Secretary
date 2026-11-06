@@ -20,6 +20,7 @@ export class SyncStreams {
     req: IncomingMessage,
     res: ServerResponse,
     q: URLSearchParams,
+    allowsTaskPreview?: (task: string, execution: string) => boolean,
   ) {
     for (const key of q.keys())
       if (key !== "after" || q.getAll(key).length !== 1)
@@ -68,7 +69,8 @@ export class SyncStreams {
       return !ended;
     };
     let heartbeat = Date.now(),
-      transient = "";
+      transient = "",
+      taskTransient = "";
     try {
       res.writeHead(200, {
         "Content-Type": "text/event-stream; charset=utf-8",
@@ -106,6 +108,22 @@ export class SyncStreams {
           )
             return;
           transient = state;
+        }
+        const taskSnapshot = sync.app.host.previews.taskSnapshot(
+          sync.app.host.sessionID,
+        );
+        if (allowsTaskPreview)
+          taskSnapshot.previews = taskSnapshot.previews.filter((p) =>
+            allowsTaskPreview(p.task_id, p.execution_id),
+          );
+        const taskState = JSON.stringify(taskSnapshot);
+        if (taskState !== taskTransient) {
+          if (
+            Buffer.byteLength(taskState) <= 64 * 1024 &&
+            !(await write(`event: task_transient\ndata: ${taskState}\n\n`))
+          )
+            return;
+          taskTransient = taskState;
         }
         await wait(page.has_more ? 0 : 100);
       }

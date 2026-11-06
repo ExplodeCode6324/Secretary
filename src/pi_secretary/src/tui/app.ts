@@ -137,8 +137,9 @@ export class TerminalApp {
       Task: new DraftEditor(
         this.tui,
         () => "Task",
-        (prefix) =>
-          this.remote?.taskBrowser.suggest(prefix) ?? Promise.resolve([]),
+        (prefix, command) =>
+          this.remote?.taskBrowser.suggest(prefix, command) ??
+          Promise.resolve([]),
         () => !!this.remote?.taskBrowser.selected,
       ),
     };
@@ -217,6 +218,13 @@ export class TerminalApp {
       );
       this.remote?.focus([...new Set(rows.map((row) => row.item_id))]);
     };
+    this.scrolls.Task.onReading = () => this.stopFollowing();
+    this.documents.Task.onPointerRead = () => this.stopFollowing();
+    this.scrolls.Task.followRow = () => {
+      const id = this.remote?.taskBrowser.followTarget;
+      return id ? this.documents.Task.lastRowFor(id) : undefined;
+    };
+    this.scrolls.Task.onFollowed = () => this.remote?.taskBrowser.followed();
     this.documents.Task.selectionActive = () =>
       this.page === "Task" && this.tui.hasActiveSelection();
     this.documents.Task.onViewport = (rows) => {
@@ -814,6 +822,8 @@ export class TerminalApp {
     }
     if (action.kind === "back" && this.page === "Task")
       this.remote?.taskBrowser.back();
+    if (action.kind === "follow")
+      void this.remote?.taskBrowser.follow(action.id);
     if (action.kind === "search_task")
       void this.remote?.taskBrowser.search(action.id);
     if (action.kind === "show") void this.openMatter(action.id);
@@ -827,7 +837,7 @@ export class TerminalApp {
     }
     if (action.kind === "help")
       this.uiHint =
-        "/m /t /back /help · Main: /open <路径> /paste（剪贴板） Ctrl+V 图片 · Tab 图片行/Delete 移除 · /resume（继续原批次及排队输入） /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> /cancel --request <完整ID> 或 --execution <完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
+        "/m /t /back /help · Main: /open <路径> /paste（剪贴板） Ctrl+V 图片 · Tab 图片行/Delete 移除 · /resume（继续原批次及排队输入） /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /follow [Execution ID|off] /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> /cancel --request <完整ID> 或 --execution <完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
     this.draw();
   }
   private localNotice(message: string) {
@@ -920,10 +930,14 @@ export class TerminalApp {
     if (!this.delivery?.busy) this.followCandidate = this.navigationEpoch;
     void this.delivery?.submit(raw, text, snapshot);
   }
-  private stopFollowing() {
+  private stopFollowing(task = true) {
     this.navigationEpoch++;
     this.followCandidate = undefined;
     this.scrolls.Main.following = false;
+    if (task) {
+      this.scrolls.Task.following = false;
+      this.remote?.taskBrowser.stopFollowing();
+    }
     this.remote?.setFollowing(false);
     this.remote?.history.cancelLatest();
   }
@@ -1009,7 +1023,7 @@ export class TerminalApp {
         this.delivery.onChange = () => this.draw();
         this.delivery.onEvent = (event) => {
           if (event.type === "post-start") this.startFollowing();
-          if (event.type === "rejected") this.stopFollowing();
+          if (event.type === "rejected") this.stopFollowing(false);
           if (event.type === "accepted")
             this.editors.Main.bridge.clearHistory();
         };
@@ -1181,6 +1195,7 @@ export class TerminalApp {
           component: new Text(safeText(this.remote.error), 0, 0),
         });
       this.documents.Main.entries = entries;
+      this.scrolls.Task.following = !!this.remote?.taskBrowser.followTarget;
       this.documents.Task.entries = this.remote?.taskBrowser.entries() ?? [];
       const taskRestore = this.remote?.taskBrowser.restoreAnchor;
       if (taskRestore) {

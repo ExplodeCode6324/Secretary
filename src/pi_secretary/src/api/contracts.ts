@@ -797,6 +797,13 @@ export interface Message {
   tool_name?: string;
   delivery_count?: number;
   delivery_cursor?: string | null;
+  model_call_id?: string;
+  transport_attempt?: number;
+  preview_epoch?: string;
+  body_offset?: number;
+  thinking_offset?: number;
+  body_length?: number;
+  thinking_length?: number;
   [k: string]: unknown;
 }
 /**
@@ -1838,4 +1845,25 @@ export interface MessageArtifactPage {
   total: number;
   next_cursor: string | null;
   version: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "SSETaskTransient".
+ */
+export interface SSETaskTransient {
+  epoch: string;
+  version: number;
+  /**
+   * @maxItems 32
+   */
+  previews: {
+    id: string;
+    task_id: string;
+    execution_id: string;
+    transport_attempt: number;
+    attempt_id: string;
+    version: number;
+    status: "running" | "saved" | "incomplete";
+    truncated: boolean;
+  }[];
 }

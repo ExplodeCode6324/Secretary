@@ -1,3 +1,4 @@
+import { taskMessagesFor } from "./task-messages.ts";
 import { Pushes, type PushDelivery } from "./push-service.ts";
 import { modelLifetime } from "./model-retry.ts";
 import { activitiesFor } from "./activity.ts";
@@ -62,6 +63,7 @@ export class App {
       // Warm the disposable read index once, before accepting UI requests.
       try {
         activityHistoryFor(store);
+        taskMessagesFor(store).sync();
       } catch {
         /* A display projection must not prevent business recovery. */
       }

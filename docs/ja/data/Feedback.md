@@ -18,7 +18,7 @@
 | `state` | FeedbackState | はい |  関連：[FeedbackState](FeedbackState.md) |
 | `task_id` | ID | はい |  関連：[ID](ID.md) |
 | `execution_id` | ID | はい |  関連：[ID](ID.md) |
-| `kind` | RESULT / DECISION_REQUIRED / PROGRESS / UNKNOWN | はい |  |
+| `kind` | RESULT / DECISION_REQUIRED / PROGRESS / UNKNOWN / AUTHORIZATION_REQUIRED | はい |  |
 | `summary` | string | はい |  {"minLength": 1} |
 | `detail_ref` | ObjectRef | はい |  関連：[ObjectRef](ObjectRef.md) |
 | `result_id` | ID または null | はい |  関連：[ID](ID.md) |
@@ -26,11 +26,53 @@
 | `input_id` | ID または null | はい |  関連：[ID](ID.md) |
 | `created_at` | Time | はい |  関連：[Time](Time.md) |
 | `scope_id` | ID または null | いいえ |  関連：[ID](ID.md) |
+| `authorization_id` | ID | いいえ |  関連：[ID](ID.md) |
+| `suppressed_at` | Time | いいえ |  関連：[Time](Time.md) |
+| `suppressed_reason` | string | いいえ |  |
 
 ## 組み合わせ制約
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "AUTHORIZATION_REQUIRED"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "authorization_id"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "SUPPRESSED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "kind": {
+            "const": "AUTHORIZATION_REQUIRED"
+          },
+          "input_id": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "suppressed_at",
+          "suppressed_reason"
+        ]
+      }
+    }
+  ]
 }
 ```

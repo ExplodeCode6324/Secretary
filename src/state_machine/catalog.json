@@ -701,6 +701,46 @@
           "commit": "失败回执与保留或释放容量同帧"
         }
       ]
+    },
+    "Feedback": {
+      "owner": "scheduler/host",
+      "initial": "QUEUED",
+      "terminal": [
+        "HANDLED",
+        "SUPPRESSED"
+      ],
+      "states": [
+        "QUEUED",
+        "DELIVERED",
+        "HANDLED",
+        "SUPPRESSED"
+      ],
+      "transitions": [
+        {
+          "id": "Feedback-01",
+          "from": "QUEUED",
+          "event": "deliver",
+          "to": "DELIVERED",
+          "guard": "actionable_if_authorization",
+          "commit": "Input and delivery atomically"
+        },
+        {
+          "id": "Feedback-02",
+          "from": "DELIVERED",
+          "event": "handled",
+          "to": "HANDLED",
+          "guard": "main_batch_processed",
+          "commit": "Input and feedback handled atomically"
+        },
+        {
+          "id": "Feedback-03",
+          "from": "QUEUED",
+          "event": "suppress",
+          "to": "SUPPRESSED",
+          "guard": "authorization_no_longer_actionable",
+          "commit": "reason and time; no Input"
+        }
+      ]
     }
   }
 }
