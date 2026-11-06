@@ -146,6 +146,7 @@ export async function run(this: ExecutionRunnerContext, eid: string) {
         this.finish(eid, "FAILED", { error: String(error) });
     })
     .finally(() => {
+      guidanceFor(this.store).unregister(eid);
       this.running.delete(eid);
       this.settleUnknownExecution(eid);
     });
@@ -196,20 +197,20 @@ export async function execute(
     for (const o of ops.filter(
       (o) => o.state === "AUTHORIZED" && o.action.action === "file.write",
     )) {
-      if (guidanceFor(this.store).retire(eid)) break;
+      guidanceFor(this.store).retire(eid);
       if (this.store.get<Operation>("Operation", o.id).state !== "AUTHORIZED")
         continue;
       const applied = await this.applyWrite(o);
-      if (applied && "guidance_deferred" in applied) break;
+      if (applied && "guidance_deferred" in applied) continue;
     }
     for (const o of ops.filter(
       (o) => o.state === "AUTHORIZED" && o.action.action === "shell.run",
     )) {
-      if (guidanceFor(this.store).retire(eid)) break;
+      guidanceFor(this.store).retire(eid);
       if (this.store.get<Operation>("Operation", o.id).state !== "AUTHORIZED")
         continue;
       const applied = await this.applyShell(o, entry);
-      if (applied && "guidance_deferred" in applied) break;
+      if (applied && "guidance_deferred" in applied) continue;
       if (
         this.store.get<Execution>("Execution", eid).state === "RESULT_UNKNOWN"
       )
@@ -462,12 +463,11 @@ export function finish(
   const settlement = guidance.settlement(eid, state, receiptChanges);
   // A receipt's Guidance update is folded into the same revision as settlement.
   receiptChanges = receiptChanges.filter((r) => r.record_type !== "Guidance");
-  detail = {
-    ...(typeof detail === "object" && detail !== null
-      ? detail
-      : { value: detail }),
-    guidance: guidance.summary(eid, settlement),
-  };
+  // Preserve existing result-detail identities used by failure classification.
+  // Guidance is additional evidence, not a rewrite of the primary failure cause.
+  const guidanceEvidence = settlement.length
+    ? this.store.put({ guidance: guidance.summary(eid, settlement) })
+    : null;
   const ref = this.store.put(detail);
   const agentDetail =
     this.proposalFor(e).executor.kind === "AGENT" ? detail : undefined;
@@ -489,7 +489,7 @@ export function finish(
       ...(structured?.limitations ?? []),
       "Model output is not independent verification",
     ],
-    evidence: [ref],
+    evidence: [ref, ...(guidanceEvidence ? [guidanceEvidence] : [])],
     artifacts: (
       (
         agentDetail as {

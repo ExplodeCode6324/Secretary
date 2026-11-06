@@ -293,11 +293,6 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
           answer: null,
           answered_by: null,
           answer_request_id: null,
-          ...(guidanceFor(this.store)
-            .list(e.id)
-            .some((g) => g.source === "MASTER" && !g.closed_reason)
-            ? { required_answerer: "MASTER" as const }
-            : {}),
         };
         const current = this.store.get<Execution>("Execution", e.id);
         this.store.commit(
@@ -328,6 +323,17 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
       const current = this.store.get<Execution>("Execution", e.id);
       if (current.state !== "RUNNING" || current.cancel_requested)
         return jsonTool({ state: current.state, blocked: true }, true);
+      const key = `${e.id}:${call}:${t.name}:${hash(JSON.stringify(args))}`;
+      const prior = this.store.logs.find(
+        (l) =>
+          l.event_type === "executor.tool.result" &&
+          l.scope.execution_id === e.id &&
+          this.store.read<{ key: string }>(l.payload).key === key,
+      );
+      if (prior)
+        return this.store.read<{
+          result: Awaited<ReturnType<typeof t.execute>>;
+        }>(prior.payload).result;
       const guidance = guidanceFor(this.store);
       if (guidance.list(e.id).length) {
         guidance.assertTool(e.id, call, t.name, args);
@@ -378,17 +384,6 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
             );
         }
       }
-      const key = `${e.id}:${call}:${t.name}:${hash(JSON.stringify(args))}`;
-      const prior = this.store.logs.find(
-        (l) =>
-          l.event_type === "executor.tool.result" &&
-          l.scope.execution_id === e.id &&
-          this.store.read<{ key: string }>(l.payload).key === key,
-      );
-      if (prior)
-        return this.store.read<{
-          result: Awaited<ReturnType<typeof t.execute>>;
-        }>(prior.payload).result;
       const value = await activitiesFor(this.store).tool(
         "tool:" + e.id + ":" + call,
         scopeOf(e),

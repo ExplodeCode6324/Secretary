@@ -1,3 +1,4 @@
+import { effectiveTools } from "../../../src/pi_secretary/src/budget.ts";
 import { Agent } from "../../../src/pi_secretary/src/model.ts";
 import { checkpoint } from "../../../src/pi_secretary/src/context.ts";
 import { approvalScope } from "../helpers/approval-scope.ts";
@@ -362,8 +363,15 @@ test("Main guide derives provenance from its durable tool response and creates n
     const e = await pending(f);
     let calls = 0;
     Object.assign(f.app.host, {
-      stream: () =>
-        ++calls === 1
+      stream: (_model: unknown, context: Parameters<StreamFn>[1]) => {
+        const advertised = effectiveTools(context.messages);
+        const control = advertised.find((t) => t.name === "task_control")!
+          .parameters as { properties: Record<string, unknown> };
+        const proposal = advertised.find((t) => t.name === "task_propose")!
+          .parameters as { properties: Record<string, unknown> };
+        assert(control.properties.task_id && control.properties.text);
+        assert(!proposal.properties.task_id && !proposal.properties.text);
+        return ++calls === 1
           ? replyStream([
               {
                 type: "toolCall",
@@ -377,7 +385,8 @@ test("Main guide derives provenance from its durable tool response and creates n
                 },
               },
             ])
-          : replyStream([{ type: "text", text: "Guidance sent." }]),
+          : replyStream([{ type: "text", text: "Guidance sent." }]);
+      },
     });
     f.app.host.accept("Give that task guidance");
     await f.app.host.drain();
@@ -1023,4 +1032,228 @@ test("same-argument replacement after guidance cannot reuse a retired write appr
     assert.equal(ops[0].state, "CANCELLED");
     assert.equal(ops[1].state, "WAIT_AUTH");
     assert.notEqual(ops[0].authorization_id, ops[1].authorization_id);
+  }));
+
+test("restart returns a previously applied tool result before gating unexecuted old tools", () =>
+  fixture(async (f) => {
+    const e = await pending(f),
+      root = f.app.scheduler.rootFor(e),
+      store = f.app.store;
+    fs.writeFileSync(path.join(root, "gate"), "ready");
+    const service = guidanceFor(store),
+      register = service.register.bind(service),
+      commit = store.commit.bind(store);
+    let armed = false,
+      crashed = false;
+    store.commit = (records, ...rest) => {
+      if (
+        crashed ||
+        (armed && records.some((r) => r.record_type === "ModelCall"))
+      ) {
+        crashed = true;
+        throw Error("SIMULATED_PROCESS_LOSS");
+      }
+      return commit(records, ...rest);
+    };
+    service.register = (eid, agent, attempt, held) => {
+      register(eid, agent, attempt, held);
+      agent.subscribe((event) => {
+        if (event.type === "tool_execution_end" && !armed) {
+          send(f, e, "From now on, inspect only");
+          armed = true;
+        }
+      });
+    };
+    Object.assign(f.app.scheduler, {
+      stream: () =>
+        replyStream([
+          {
+            type: "toolCall",
+            id: "applied-write",
+            name: "write",
+            arguments: { path: "applied.txt", content: "one effect" },
+          },
+        ]),
+    });
+    f.app.scheduler.ready(e.id);
+    await f.app.scheduler.run(e.id).catch(() => {});
+    assert(armed && crashed);
+    assert.equal(
+      fs.readFileSync(path.join(root, "applied.txt"), "utf8"),
+      "one effect",
+    );
+    store.commit = commit;
+    await f.restart();
+    let fresh: Parameters<StreamFn>[1] | undefined;
+    Object.assign(f.app.scheduler, {
+      stream: (_m: unknown, ctx: Parameters<StreamFn>[1]) => {
+        fresh = ctx;
+        return replyStream([receipt(guidance(f, e)[0]), result()]);
+      },
+    });
+    await f.app.scheduler.run(e.id);
+    const replayed = fresh!.messages.find(
+      (m) => m.role === "toolResult" && m.toolCallId === "applied-write",
+    );
+    assert(replayed);
+    assert.doesNotMatch(JSON.stringify(replayed), /GUIDANCE_PENDING/);
+    assert.match(JSON.stringify(replayed), /SUCCEEDED|success|Successfully/);
+    assert.equal(
+      f.app.store.indexed("Operation", "scope.execution_id", [e.id]).length,
+      1,
+    );
+    assert.equal(
+      f.app.store.get<Execution>("Execution", e.id).state,
+      "SUCCEEDED",
+    );
+  }));
+
+test("launcher stop retires all remaining obsolete shells and does not swallow a newly adopted write", () =>
+  fixture(async (f) => {
+    const e = await pending(f),
+      root = f.app.scheduler.rootFor(e);
+    let calls = 0;
+    await run(f, e, () => {
+      if (++calls === 1)
+        return replyStream([
+          {
+            type: "toolCall",
+            id: "first-shell",
+            name: "bash",
+            arguments: { command: "printf one > one.txt" },
+          },
+        ]);
+      if (calls === 2)
+        return replyStream([
+          receipt(guidance(f, e)[0]),
+          {
+            type: "toolCall",
+            id: "adopted-write",
+            name: "write",
+            arguments: { path: "new.txt", content: "adopted plan" },
+          },
+        ]);
+      return replyStream([result()]);
+    });
+    const scope = { session_id: null, task_id: e.task_id, execution_id: e.id },
+      intent = id();
+    const second = f.app.authorization.prepare(
+      scope,
+      "shell.run",
+      root,
+      f.app.authorization.shellParameters(
+        scope,
+        "printf two > two.txt",
+        120,
+        root,
+        intent,
+      ),
+      intent,
+    );
+    decide(f);
+    const store = f.app.store,
+      commit = store.commit.bind(store);
+    let admitted = false;
+    store.commit = (records, ...rest) => {
+      const value = commit(records, ...rest);
+      if (
+        !admitted &&
+        records.some(
+          (r) =>
+            r.record_type === "Operation" && r.process?.state === "STARTING",
+        )
+      ) {
+        admitted = true;
+        queueMicrotask(() =>
+          send(
+            f,
+            e,
+            "Stop old shells; instead write new.txt with the text adopted plan.",
+          ),
+        );
+      }
+      return value;
+    };
+    await f.app.scheduler.run(e.id);
+    assert(admitted);
+    assert.equal(
+      f.app.store.get<Execution>("Execution", e.id).state,
+      "SUCCEEDED",
+    );
+    assert.equal(
+      fs.readFileSync(path.join(root, "new.txt"), "utf8"),
+      "adopted plan",
+    );
+    assert(
+      !fs.existsSync(path.join(root, "one.txt")) &&
+        !fs.existsSync(path.join(root, "two.txt")),
+    );
+    assert(guidanceFor(store).isRetired(store.get("Operation", second.id)));
+    assert(
+      !store
+        .indexed<any>("Operation", "scope.execution_id", [e.id])
+        .some((o) => o.state === "AUTHORIZED"),
+    );
+    assert.equal(guidanceFor(store).currentCall(e.id), undefined);
+  }));
+
+test("unresolved conflict after an answer returns to a single explicit wait, not a model-call-limit loop", () =>
+  fixture(async (f) => {
+    const e = await pending(f);
+    send(f, e);
+    await run(f, e, () =>
+      replyStream([receipt(guidance(f, e)[0], "CONFLICT")]),
+    );
+    const before = f.app.store.get<Execution>("Execution", e.id),
+      did = before.waiting_request_ids[0];
+    f.app.scheduler.answer(did, "Inspect only", id(), "MASTER");
+    let calls = 0;
+    Object.assign(f.app.scheduler, {
+      stream: () => {
+        calls++;
+        return replyStream([result()]);
+      },
+    });
+    await f.app.scheduler.run(e.id);
+    const after = f.app.store.get<Execution>("Execution", e.id);
+    assert.equal(calls, 1);
+    assert.equal(after.state, "WAIT_DECISION");
+    assert.notEqual(after.waiting_request_ids[0], did);
+    const count = f.app.store.indexed("DecisionRequest", "execution_id", [
+      e.id,
+    ]).length;
+    guidanceFor(f.app.store).waitForConflict(e.id);
+    assert.equal(
+      f.app.store.indexed("DecisionRequest", "execution_id", [e.id]).length,
+      count,
+    );
+  }));
+
+test("adopted Master guidance does not make an unrelated ordinary question Master-only", () =>
+  fixture(async (f) => {
+    const e = await pending(f);
+    send(f, e);
+    await run(f, e, () =>
+      replyStream([
+        receipt(guidance(f, e)[0]),
+        {
+          type: "toolCall",
+          id: "ordinary",
+          name: "request_decision",
+          arguments: {
+            question: "Which of the permitted sources is relevant?",
+          },
+        },
+      ]),
+    );
+    const waiting = f.app.store.get<Execution>("Execution", e.id);
+    assert.equal(waiting.state, "WAIT_DECISION");
+    const d = f.app.store.get<any>(
+      "DecisionRequest",
+      waiting.waiting_request_ids[0],
+    );
+    assert.equal(d.required_answerer, undefined);
+    assert.doesNotThrow(() =>
+      f.app.scheduler.answer(d.id, "The first permitted source", id(), "MAIN"),
+    );
   }));

@@ -623,13 +623,31 @@ export class GuidanceService {
       ["WAIT_AUTH", "RESULT_UNKNOWN"].includes(e.state)
     )
       return;
-    const key = stableID(
+    let key = stableID(
       "guidance-conflict:" +
         eid +
         ":" +
         conflicts.map((g) => g.receipt_id).join(":"),
     );
-    if (this.store.find("DecisionRequest", key)) return;
+    // One open question per receipt set and answer epoch. An answer does not
+    // itself certify adoption; unresolved guidance must return to an explicit wait.
+    let previous = this.store.find<DecisionRequest>("DecisionRequest", key);
+    while (previous?.state === "ANSWERED") {
+      key = stableID(
+        "guidance-conflict-reopen:" + key + ":" + previous.answer_request_id,
+      );
+      previous = this.store.find<DecisionRequest>("DecisionRequest", key);
+    }
+    if (previous) {
+      if (previous.state === "OPEN" && e.state !== "WAIT_DECISION")
+        this.store.commit([
+          revise(e, {
+            state: "WAIT_DECISION",
+            waiting_request_ids: [previous.id],
+          }),
+        ]);
+      return;
+    }
     const needsMaster = conflicts.some(
       (g) =>
         g.source === "MASTER" ||

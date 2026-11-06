@@ -184,8 +184,6 @@ export function tools(
           bound?.failure_action?.action === "REDO"
             ? Type.Optional(Type.String())
             : Type.String(),
-        task_id: Type.Optional(Type.String()),
-        text: Type.Optional(Type.String()),
         failure_intent_id: Type.Optional(Type.String()),
         reuse_task_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         materials: Type.Optional(
@@ -243,7 +241,7 @@ export function tools(
       name: "task_control",
       label: "Control tasks",
       description:
-        "Guide an exact unfinished execution using action=guide, id=execution_id, task_id and exact text. Guidance changes approach within existing authority, not approval or answering a Master-only question. Informational Master guidance is already delivered: never resend it. Otherwise cancel execution, cancel_request using the accepted request_id (also cancels its execution if dispatched), or answer ordinary decision. Cannot approve authorization. dismiss_failure only in an isolated Master DISMISS input; id is its exact failure_key.",
+        "guide: exact id=execution_id, task_id, text; no added authority or resending delivered Master guidance. cancel: execution. cancel_request: request_id and its execution. answer: ordinary decisions, never Master-only or authorization. dismiss_failure: isolated Master DISMISS, exact failure_key.",
       parameters: Type.Object({
         action: Type.Union([
           Type.Literal("cancel"),
@@ -253,6 +251,8 @@ export function tools(
           Type.Literal("guide"),
         ]),
         id: Type.String(),
+        task_id: Type.Optional(Type.String()),
+        text: Type.Optional(Type.String()),
         failure_intent_id: Type.Optional(Type.String()),
         answer: Type.Optional(Type.Union([Type.String(), Type.Null()])),
       }),

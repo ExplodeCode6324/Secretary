@@ -64,8 +64,8 @@ export async function applyShell(
     throw Error("RESOURCE_CHANGED");
   if (this.conditions(e).some((c) => c.status !== "MET"))
     throw Error("PRECONDITION_CHANGED");
+  guidanceFor(this.store).retire(eid);
   if (
-    guidanceFor(this.store).retire(eid) ||
     guidanceFor(this.store).isRetired(
       this.store.get<Operation>("Operation", op.id),
     )
@@ -143,6 +143,7 @@ export async function applyShell(
       result.not_started ? "NOT_APPLIED" : unknown ? "UNKNOWN" : "APPLIED",
     );
     if (result.not_started && deferredGuidance.length) {
+      guidanceFor(this.store).retire(eid);
       const stopped = this.store.get<Operation>("Operation", op.id);
       this.store.commit([
         revise(stopped, {
@@ -204,8 +205,8 @@ export async function applyWrite(this: EffectsContext, op: Operation) {
   if (this.conditions(e).some((c) => c.status !== "MET"))
     throw Error("PRECONDITION_CHANGED");
   const eid = op.scope.execution_id!;
+  guidanceFor(this.store).retire(eid);
   if (
-    guidanceFor(this.store).retire(eid) ||
     guidanceFor(this.store).isRetired(
       this.store.get<Operation>("Operation", op.id),
     )
