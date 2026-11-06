@@ -224,6 +224,15 @@ function isCompleteLocalCommand(raw: string) {
       ))
   );
 }
+function taskArgumentContext(text: string, page: Page, detail: boolean) {
+  const match = /^\/(search_task|taskdetail|follow) ([^\r\n]*)$/i.exec(text);
+  return match &&
+    page === "Task" &&
+    !(match[1].toLowerCase() === "search_task" && detail) &&
+    !(match[1].toLowerCase() === "follow" && !detail)
+    ? match
+    : null;
+}
 export function commandCompletion(
   page: () => Page,
   typedSlash = () => true,
@@ -245,19 +254,25 @@ export function commandCompletion(
         head = lines[0].slice(0, col);
       argumentContext = undefined;
       if (!typedSlash() || line !== 0 || lines.length !== 1) return null;
-      const argument = /^\/(search_task|taskdetail|follow) ([^\r\n]*)$/i.exec(
+      const requestedPage = page(),
+        requestedDetail = taskDetail();
+      const argument = taskArgumentContext(
         head,
+        requestedPage,
+        requestedDetail,
       );
-      if (
-        argument &&
-        page() === "Task" &&
-        !(argument[1].toLowerCase() === "search_task" && taskDetail()) &&
-        !(argument[1].toLowerCase() === "follow" && !taskDetail())
-      ) {
+      if (argument) {
         if (!/^\/(search_task|taskdetail|follow) [^\r\n]*$/i.test(text))
           return null;
         const ids = await suggestIDs(argument[2], argument[1].toLowerCase());
-        if (gen !== generation || !current(text) || !typedSlash()) return null;
+        if (
+          gen !== generation ||
+          !current(text) ||
+          !typedSlash() ||
+          page() !== requestedPage ||
+          taskDetail() !== requestedDetail
+        )
+          return null;
         argumentContext = text;
         return ids.length
           ? {
@@ -338,6 +353,8 @@ export class DraftEditor extends Editor {
   readonly bridge: EditorBridge;
   enabled = true;
   private hiddenRows = 0;
+  private appliedArgument = false;
+  private requestArguments?: () => boolean;
   protected override renderTopBorder(width: number, hidden: number) {
     this.hiddenRows = hidden;
     return super.renderTopBorder(width, hidden);
@@ -362,17 +379,31 @@ export class DraftEditor extends Editor {
     super(tui, editorTheme, { autocompleteMaxVisible: 6 });
     this.bridge = new EditorBridge(this);
     this.disableSubmit = true;
-    if (completionEnabled)
+    if (completionEnabled) {
+      this.requestArguments = () => {
+        if (
+          this.getCursor().line !== 0 ||
+          originAt(this.bridge.document, 0) !== "typed" ||
+          !taskArgumentContext(this.getText(), page(), taskDetail?.() ?? false)
+        )
+          return false;
+        this.bridge.requestAutocomplete();
+        return true;
+      };
       this.setAutocompleteProvider(
         commandCompletion(
           page,
           () => originAt(this.bridge.document, 0) === "typed",
-          (a, b, start) => this.bridge.claimCompletion(a, b, start),
+          (a, b, start) => {
+            this.appliedArgument = !!start;
+            this.bridge.claimCompletion(a, b, start);
+          },
           suggestIDs,
           (text) => this.getText() === text,
           taskDetail,
         ),
       );
+    }
   }
   snapshot() {
     return this.bridge.document.snapshot(this.getText(), this.getCursor());
@@ -418,6 +449,7 @@ export class DraftEditor extends Editor {
     this.onOperation?.();
     const before = this.getText();
     const beforeSnapshot = this.snapshot();
+    this.appliedArgument = false;
     this.bridge.begin(true);
     if (data.startsWith("\x1b[200~")) {
       if (!data.endsWith("\x1b[201~")) return;
@@ -439,6 +471,12 @@ export class DraftEditor extends Editor {
         this.onExplicitSubmit?.(raw, snapshot);
         return;
       }
+    } else if (
+      matchesKey(data, "tab") &&
+      !this.isShowingAutocomplete() &&
+      this.requestArguments?.()
+    ) {
+      // Explicit Tab reopens only a command argument picker, never file completion.
     } else if (this.isShowingAutocomplete() && matchesKey(data, "enter"))
       super.handleInput(data);
     else if (
@@ -450,8 +488,9 @@ export class DraftEditor extends Editor {
     else super.handleInput(data);
     this.bridge.finish(matchesKey(data, "left") || matchesKey(data, "right"));
     const after = this.getText();
-    if (isCompleteLocalCommand(after) && this.isShowingAutocomplete())
-      super.handleInput("\x1b");
+    // Query after edits (including a separator or IME commit), not selection keys.
+    // Accepting an argument closes the picker until another edit or explicit Tab.
+    if (after !== before && !this.appliedArgument) this.requestArguments?.();
     const snapshot = this.snapshot();
     let raw = after;
     try {

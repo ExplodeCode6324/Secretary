@@ -157,3 +157,13 @@ Display SENT/RECEIVED/GUIDED and unresolved/conflict/ended reasons from durable 
 ## Review outcome
 
 R1 CHANGES_REQUIRED identified replay-rule classification and Pi fallback-click provenance. R2 PASS confirmed both resolved and found no route drift toward #106. The final text incorporates its explicitly nonblocking precisions: Unicode-independent replay, retaining archived-running-work guidance capability, updating allocation fixtures, UUID-shaped naming fallback and clear space/newline help. The local request-version clarification follows the existing GuidanceCommand schema. No third independent review or implementation validation is claimed. See the linked review record for chronology and evidence limits. Master approved implementation on 2026-11-07; final acceptance remains pending.
+
+## Completion repair after Master's native acceptance
+
+Master's real Terminal acceptance at `664c3df4` failed A04 (title argument completion/arrow selection) and A11 (follow argument completion); all other checklist items passed. This remains the approved #105 interaction scope, with no merge authorization.
+
+Root causes: DraftEditor closed the picker after every key whenever the text parsed as a complete local command, including arrow selection. Pi's separator insertion and command-name completion do not reliably trigger argument queries. Earlier tests inserted the entire command in one input event and missed paced typing.
+
+Repair: remove the generic syntax-completeness dismissal. Refresh a scope-gated argument picker after text edits, command-name completion and explicit Tab. Arrows only select; accepting an argument closes the picker; Esc does not reopen it. Extend the existing pinned Pi 0.87.0 EditorBridge version/method checks to invoke regular asynchronous completion, without file completion or implicit single-item acceptance. Preserve typed-slash provenance, page restrictions and stale-result rejection; preserve explicit Shift+Enter command submission behavior.
+
+Additional validation covers paced typing, a single CJK character, a multi-character IME commit, Up/Down selection, Tab/Enter acceptance, Esc, follow trailing-space and command-name completion, and the actual TerminalApp→Core/API path. Negative cases cover pasted slash, wrong page and delayed stale results. Native A04/A11 remain pending Master's retest after repair. Record complete checks, CI and same-session Claude verdict at the new HEAD in the PR.

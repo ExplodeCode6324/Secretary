@@ -30,6 +30,7 @@ type PiSeam = {
   handleForwardDelete(): void;
   insertYankedText(text: string): void;
   setCursorCol(column: number): void;
+  requestAutocomplete(options: { force: boolean; explicitTab: boolean }): void;
 };
 type RichState = { ranges: OwnedRange[]; damaged: boolean };
 type RichKill = { text: string; ranges: OwnedRange[] };
@@ -39,6 +40,10 @@ const packageVersion = createRequire(import.meta.url)(
 
 /** The pinned runtime's TS-private methods are ordinary properties. Keep all access here. */
 export class EditorBridge {
+  /** Refresh the pinned editor's picker without file lookup or auto-accept. */
+  requestAutocomplete() {
+    this.seam.requestAutocomplete({ force: false, explicitTab: false });
+  }
   readonly document = new PasteDocument();
   private seam: PiSeam;
   private undo: RichState[] = [];
@@ -64,6 +69,7 @@ export class EditorBridge {
         s.handleForwardDelete,
         s.insertYankedText,
         s.setCursorCol,
+        s.requestAutocomplete,
         s.undoStack?.push,
         s.undoStack?.pop,
         s.undoStack?.clear,
