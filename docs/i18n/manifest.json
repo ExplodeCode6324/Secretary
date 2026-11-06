@@ -16,7 +16,7 @@
     "docs/data-model.md": "d055b24ae5e4d9b4cc73024ad4764a14d436fe64b12e73b35c8d30e54c314dff",
     "docs/state-machines.md": "58241b4b18edd40f38576059cd56261a52f35c6b3df94dbc944085b623b153f6",
     "docs/database.md": "00531f18a71aae89f2cf7701c9fa17f0131bdc248156d2cff6097eb719c31bb3",
-    "docs/api/v1/README.md": "43e224af15112420db840bf152c3bafb851fe6fdb55d138018f58ee7a0fce4eb",
+    "docs/api/v1/README.md": "fae827df9afb888b22f040212230284e893ec0fb2f142f4178393abe3d8eacc6",
     "docs/api/v1/push.md": "6e111f4fc509fb8f79b4a99ccad03235e10fc414d52af51dcab1ae9b08bb905b",
     "docs/api/v1/attachments.md": "070368c1d6b05190d3f8ee29f5492f6be8db9d56a8f724bcd690c685177b22da",
     "docs/frontend/README.md": "5bc7f66f06423af8d249265ba646aea3d25cdc8a869680d4b936fb2efc3c2fb9",
@@ -129,7 +129,7 @@
     "test_case/offline/issue2/README.md": "ca30d99aa6262c09c0bc0952ce53b9b3adbb844565884c452fe63c91f8a4bdc6",
     "test_case/offline/issue5/README.md": "3baf27bf3d3e621631ea183b92f6830ea77de42e976ad5d1a4da76e9bcf86a0f"
   },
-  "catalog_sha256": "ad7272ec73678240ccb4191925094a0394827d12beb107e4141ea1d3214f2981",
+  "catalog_sha256": "0e3aff9449021457b747880c38cdae46cd0655208a038e472e1d6a4c707a4901",
   "outputs": [
     "README.fr.md",
     "README.ja.md",

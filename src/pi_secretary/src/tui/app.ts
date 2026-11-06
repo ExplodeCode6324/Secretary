@@ -930,12 +930,14 @@ export class TerminalApp {
     if (!this.delivery?.busy) this.followCandidate = this.navigationEpoch;
     void this.delivery?.submit(raw, text, snapshot);
   }
-  private stopFollowing() {
+  private stopFollowing(task = true) {
     this.navigationEpoch++;
     this.followCandidate = undefined;
     this.scrolls.Main.following = false;
-    this.scrolls.Task.following = false;
-    this.remote?.taskBrowser.stopFollowing();
+    if (task) {
+      this.scrolls.Task.following = false;
+      this.remote?.taskBrowser.stopFollowing();
+    }
     this.remote?.setFollowing(false);
     this.remote?.history.cancelLatest();
   }
@@ -1021,7 +1023,7 @@ export class TerminalApp {
         this.delivery.onChange = () => this.draw();
         this.delivery.onEvent = (event) => {
           if (event.type === "post-start") this.startFollowing();
-          if (event.type === "rejected") this.stopFollowing();
+          if (event.type === "rejected") this.stopFollowing(false);
           if (event.type === "accepted")
             this.editors.Main.bridge.clearHistory();
         };

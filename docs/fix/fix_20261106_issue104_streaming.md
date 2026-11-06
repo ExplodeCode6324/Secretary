@@ -75,7 +75,7 @@ PageUp/PageDown、进入阅读的方向键、滚轮、指针按下/拖选/选择
 
 仅对有效 Task/Execution 作用域，在 authorization.prepare 的 PENDING AuthorizationRequest + WAIT_AUTH Operation 同一事务中创建通知，覆盖 AGENT 和 PROGRAM。没有 Execution 的 Main/World 授权保持现有路径，不伪造 Task ID 或纳入 Task Feedback。引用精确 task/execution/operation/authorization 及已有 display_ref，不额外复制敏感内容或授权能力。合同源为 Feedback 增加 kind 与可选 authorization_id，Main Input 携带同一引用；生成类型、状态/API 文档并审计 timeline/push/retention/recovery/Main 所有读取方。Feedback→Input 前在同步边界明确检查：AuthorizationRequest 为 PENDING 且未过期，关联 Operation 为 WAIT_AUTH，Execution 非终态且没有 cancel_requested，并照常验证归属/引用。不要求 Execution.state=WAIT_AUTH：授权先提交、执行状态后更新，间隙崩溃恢复后有效等待可能暂为 READY。“授权事务后崩溃”的测试必须在重开后仍得到恰好一个 Input，不能永久压掉有效通知。已解决、过期、取消或不再可操作的授权不新增 Main Input；将排队 Feedback 原子置为明确终态 `SUPPRESSED`，保存原因/时间、input_id=null，保留原授权事实。状态源 `src/state_machine/catalog.json` 只增加 QUEUED→SUPPRESSED，审计所有终态读取方；尤其 `retention.ts` 当前把非 HANDLED 都视为未结清，必须将 SUPPRESSED 计为已结清并验证仍能退休，类型/文档从源生成，不伪称 DELIVERED/HANDLED。仍可处理则原子生成 Input + DELIVERED。Input 提交后才解决的，不撤回已受理 Input，Main 协调前仍读取当前状态；通知不是批准或持续待处理的保证。一次授权规则与 API 权限不变。
 
-复用 #103 确定性 Feedback ID。Feedback→Input 与 DELIVERED 原子保存；反复 prepare/recover/pump/刷新不为同一授权多发。升级恢复只为仍活跃、待处理而缺少通知的旧授权补发，使用窄索引，在启动及后续增量中处理，不回放全部已解决历史授权。新事务本身没有这个缺口。SUPPRESSED 已结清，重开/刷新不重新入队；新的授权有独立 ID。普通问题/结果按 decision_id/result_id 稳定去重，并尽量与事实原子生成 Feedback，保留恢复修补。当前 Execution 最多一个 RESULT_UNKNOWN episode：恢复不会继续它，对账后只会 FAILED，保持此语义。UNKNOWN 按一次执行异常发一条，不按每个受影响 Operation 分发。新确定性身份由 execution_id 加首次持久进入 RESULT_UNKNOWN 的 Execution revision 导出；当前没有所谓中断事件，也无需新增。运行及恢复用同一首次转换，不用反复恢复后的新 revision；共用生产入口尽量与该执行转换原子生成 Feedback，恢复按同一转换修补缺口。多个 Operation 只是同一通知的证据引用。升级时该执行任意既有 legacy UNKNOWN Feedback 已覆盖唯一异常，即便是随机 ID/没有 Operation 引用也保留、不另发新键通知。本项不增加未来恢复继续/多异常周期语义。保证每个事实一次送达所需窄修复属于本项，不另建通知总线。保持 Guidance 冲突身份。验收证明持久 Input 去重及既有 Main 批次恢复，不宣称模型物理调用恰好一次。
+复用 #103 确定性 Feedback ID。Feedback→Input 与 DELIVERED 原子保存；反复 prepare/recover/pump/刷新不为同一授权多发。升级恢复只为仍活跃、待处理而缺少通知的旧授权补发，使用窄索引，在启动及后续增量中处理，不回放全部已解决历史授权。新事务本身没有这个缺口。SUPPRESSED 已结清，重开/刷新不重新入队；新的授权有独立 ID。普通问题/结果按 decision_id/result_id 稳定去重，并尽量与事实原子生成 Feedback，保留恢复修补。当前 Execution 最多一个 RESULT_UNKNOWN episode：恢复不会继续它，对账后只会 FAILED，保持此语义。UNKNOWN 按一次执行异常发一条，不按每个受影响 Operation 分发。确定性身份只用 execution_id，因为每次执行仅有一个未知周期，不再回扫历史 Execution 快照。仅在确有未知 Operation 或进程停止尚未确认时，与执行转换原子生成 UNKNOWN。恢复中无未知副作用的临时 RESULT_UNKNOWN 应结算 FAILED，只发 RESULT。原始生产者把具体摘要/详情交给原子入口，保留 shell 回执、程序输出和 runner 错误；恢复为同一真实未知条件修补通知。多个 Operation 只是同一通知的证据引用。升级时该执行任意既有 legacy UNKNOWN Feedback 已覆盖唯一异常，即便是随机 ID/没有 Operation 引用也保留、不另发新键通知。本项不增加未来恢复继续/多异常周期语义。保证每个事实一次送达所需窄修复属于本项，不另建通知总线。保持 Guidance 冲突身份。验收证明持久 Input 去重及既有 Main 批次恢复，不宣称模型物理调用恰好一次。
 
 源码目前无运行时 PROGRESS 生产者，枚举仅为历史兼容保留；普通对话已只走显示，不给流式代码加 Feedback。不删除、改写旧 PROGRESS/已受理 Input，不做猜测性迁移。验证所有新普通过程/阶段不生成 PROGRESS 或 Main Input。分流和回执不增加模型调用，#103 最终结果中的 Guidance 摘要仍供 Main 阅读。
 
@@ -94,7 +94,7 @@ PageUp/PageDown、进入阅读的方向键、滚轮、指针按下/拖选/选择
 - 预览→RESPONSE_SAVED→agent.message 全程同键单份正文、完整尾部；各交接点崩溃、失败后重试、length、partial error、取消、RESULT_UNKNOWN、Core 重开；旧无关联消息可读，user/tool 不误合并。先成功一次，再分别触发 onPrepared 前的容量/调用数/引导/恢复错误及后续传输失败，断言先前真实消息和新合成失败同在、身份不同。
 - 快照/完成中断线，旧 epoch/CoT/页面/跟随代次，删除成员、慢 SSE；CoT 开关、redacted 替换、中文/emoji/长正文。
 - 同执行至少 125 条消息，直接跟随最新窗口及超长正文尾部；关闭后锚点/选择保持；最近三轮替换、区段排序、终态/新执行、resize/重连/CoT 意图、手动到底不重开；导航不发业务、不清草稿。真实滚轮/拖选/复制单独观察。
-- 普通输出/正常引导阶段新增 Main Input/ModelCall 为零；原始直投仍一次。问题、结果/失败、未知效果、授权、引导冲突在重试/重开后一次送达；同一未知结果涉及多个 Operation 仍只有一个 Input，旧随机 ID UNKNOWN 升级不重复，新生产/恢复键指向同一首次持久转换。授权事务及 Feedback/Input 事务前后故障、重复 pump、先批准/拒绝/过期/取消后投递应 SUPPRESSED 且零 Input，先投递后解决应一个 Input 且不重复；升级待授权恢复及没有 Execution 的 Main World 待批请求不产生 Task Feedback；Main 不获代批或解除 Master 专属问题的权限。
+- 普通输出/正常引导阶段新增 Main Input/ModelCall 为零；原始直投仍一次。问题、结果/失败、未知效果、授权、引导冲突在重试/重开后一次送达；同一未知结果涉及多个 Operation 仍只有一个 Input，旧随机 ID UNKNOWN 升级不重复，新生产/恢复键指向同一 execution_id。授权事务及 Feedback/Input 事务前后故障、重复 pump、先批准/拒绝/过期/取消后投递应 SUPPRESSED 且零 Input，先投递后解决应一个 Input 且不重复；升级待授权恢复及没有 Execution 的 Main World 待批请求不产生 Task Feedback；Main 不获代批或解除 Master 专属问题的权限。
 - 固定活跃/可见工作量，扩大无关历史，记录索引访问/读取/journal 写次数、刷新频率、队列深度、缓存/注册表字节、慢连接峰值。不逐 token 写盘或扫全史，上限包含预览；索引重建内存与热路径成本分开报告。
 - 相关 #9 同步/预览、#80 响应状态、#91 阅读/重连、#92 事项、#93 恢复、#94 产物、#103 引导及原 A06/A15 续接容量夹具。不无关扩跑真实验收，不放宽容量限制。
 
@@ -118,4 +118,8 @@ Review dispositions / 复核处置：[plan-review](evidence/issue104-streaming/p
 
 ## Master 批准后的实施更新
 
-实施与首次失败处置见[证据账本](evidence/issue104-streaming/implementation.md)。每次调用的显示标记与 IN_FLIGHT 同事务提交，复用 OperationLogRecord 字段，使旧完成调用不会额外生成重复正文行。直接末尾读取记录 UTF-16 偏移/总长，并明确标示缺失的格式上下文。Feedback 的新增抑制迁移由 Store 强制检查。工具拒绝访问原生 Terminal，物理终端验收保持 NOT_TESTED，与真实 DeepSeek HTTP/SSE 证据分开。本次不包含 #105/#106 功能。
+实施与首次失败处置见[证据账本](evidence/issue104-streaming/implementation.md)。每次调用的显示标记与 IN_FLIGHT 同事务提交，复用 OperationLogRecord 字段，使旧完成调用不会额外生成重复正文行。直接末尾读取记录 UTF-16 偏移/总长，并明确标示缺失的格式上下文。Feedback 的新增抑制迁移由生产者调用迁移目录检查，不对旧日志回放追加通用 Feedback 迁移限制。工具拒绝访问原生 Terminal，物理终端验收保持 NOT_TESTED，与真实 DeepSeek HTTP/SSE 证据分开。本次不包含 #105/#106 功能。
+
+### R3 实施复核处置
+
+R3 为 CHANGES_REQUIRED。采纳 B1（无副作用重启误发 UNKNOWN，且覆盖原始错误详情）和 B2（持久 Task 事实须保留 timeline/activity 刷新）。同时修正旧进程预览的中断提示、按项缓存 UTF-8 字节数、截断/未保存标签、Task 元数据与渲染缓存总预算、Main 拒绝提交只停止 Main 跟随，并补 API 文档。按建议将 UNKNOWN 身份简化为 execution_id，兼容旧通知去重。新增真实恢复 READY、PROGRAM 先批准后投递、多未知 Operation、无副作用重启/取消、onPrepared 前容量失败、抑制后退休、显示预算回归。已有 HTTP/SSE 用例包含三个 32K CJK Main 并发预览。原生 Terminal 被工具明确拒绝，仍为 NOT_TESTED。R4 将复核替换提交，不代表 Master 已授权合并。

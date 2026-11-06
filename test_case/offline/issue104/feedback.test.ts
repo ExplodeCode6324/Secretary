@@ -1,3 +1,10 @@
+import fs from "node:fs";
+import { normalizeContext } from "@earendil-works/pi-ai";
+import { durableStream } from "../../../src/pi_secretary/src/transport.ts";
+import {
+  fixtureModel,
+  replyStream,
+} from "../../../src/pi_secretary/src/model.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
@@ -20,6 +27,25 @@ test("WAIT_AUTH outbox is atomic, actionable during recovery READY, delivered on
   fixture(async (f) => {
     const e = await pending(f, approvalScope(f.app));
     const scope = { session_id: null, task_id: e.task_id, execution_id: e.id };
+    for (const state of ["READY", "DISPATCHING", "RUNNING"] as const)
+      f.app.scheduler["setState"](e.id, state);
+    await assert.rejects(
+      Promise.resolve(
+        durableStream(f.app.store, () => replyStream([]), scope, e.id, "TASK", {
+          onPrepared: () => {
+            throw Error("CRASH_AFTER_PREPARED");
+          },
+        })(
+          fixtureModel,
+          normalizeContext({
+            messages: [
+              { role: "user", content: "recover authorization", timestamp: 0 },
+            ],
+          }),
+        ),
+      ),
+      /CRASH_AFTER_PREPARED/,
+    );
     const op = f.app.authorization.prepare(
       scope,
       "file.write",
@@ -42,8 +68,8 @@ test("WAIT_AUTH outbox is atomic, actionable during recovery READY, delivered on
     )!;
     assert(frame.mutations.some((m) => m.object_id === auth.id));
     assert(frame.mutations.some((m) => m.object_id === op.id));
-    const current = f.app.store.get<Execution>("Execution", e.id);
-    f.app.store.commit([revise(current, { state: "READY" })]);
+    await f.restart();
+    assert.equal(f.app.store.get<Execution>("Execution", e.id).state, "READY");
     assert(authorizationActionable(f.app.store, auth.id));
     f.app.host.deliverFeedback();
     f.app.host.deliverFeedback();
@@ -134,17 +160,41 @@ test("UNKNOWN is one execution episode, atomic and legacy random IDs cover upgra
   fixture(async (f) => {
     const e = await pending(f);
     const detail = f.app.store.put({ synthetic: true });
-    for (const state of [
-      "READY",
-      "DISPATCHING",
-      "RUNNING",
-      "RESULT_UNKNOWN",
-    ] as const)
+    for (const state of ["READY", "DISPATCHING", "RUNNING"] as const)
       f.app.scheduler["setState"](e.id, state);
+    const operationIDs = [];
+    for (const name of ["unknown-one", "unknown-two"]) {
+      const op = f.app.authorization.prepare(
+        { session_id: null, task_id: e.task_id, execution_id: e.id },
+        "file.write",
+        path.join(f.app.scheduler.rootFor(e), name),
+        { path: name, content: "x" },
+        id(),
+        "ABSENT",
+      );
+      f.app.authorization.dispatch(op.id);
+      f.app.authorization.finish(op.id, { error: name }, "UNKNOWN");
+      operationIDs.push(op.id);
+    }
+    f.app.scheduler["setState"](
+      e.id,
+      "RESULT_UNKNOWN",
+      {},
+      {
+        summary: "Specific runner error",
+        detail,
+      },
+    );
+    assert.deepEqual(
+      f.app.store.get<Execution>("Execution", e.id).unknown_operation_ids,
+      operationIDs,
+    );
     const first = f.app.store
       .all<Feedback>("Feedback")
       .find((x) => x.kind === "UNKNOWN")!;
     assert(first);
+    assert.equal(first.summary, "Specific runner error");
+    assert.deepEqual(first.detail_ref, detail);
     const frame = f.app.store.projectionFrames.find((x) =>
       x.mutations.some((m) => m.object_id === first.id),
     )!;
@@ -152,6 +202,13 @@ test("UNKNOWN is one execution episode, atomic and legacy random IDs cover upgra
     f.app.scheduler.feedback(e.id, "UNKNOWN", "second operation", detail);
     assert.equal(
       f.app.store.all<Feedback>("Feedback").filter((x) => x.kind === "UNKNOWN")
+        .length,
+      1,
+    );
+    f.app.host.deliverFeedback();
+    f.app.host.deliverFeedback();
+    assert.equal(
+      f.app.store.all<Input>("Input").filter((i) => i.feedback_id === first.id)
         .length,
       1,
     );
@@ -183,4 +240,104 @@ test("UNKNOWN is one execution episode, atomic and legacy random IDs cover upgra
     const built = taskFeedback(f.app.store, legacy, "UNKNOWN", "new", detail);
     assert.equal(built.fresh, false);
     assert.equal(built.record.id, old.id);
+  }));
+
+test("a suppressed authorization notification does not pin an otherwise settled execution", () =>
+  fixture(async (f) => {
+    const e = await pending(f, approvalScope(f.app));
+    const op = f.app.authorization.prepare(
+      { session_id: null, task_id: e.task_id, execution_id: e.id },
+      "file.write",
+      path.join(f.app.scheduler.rootFor(e), "retire.txt"),
+      { path: "retire.txt", content: "x" },
+      id(),
+      "ABSENT",
+    );
+    f.app.scheduler.cancel(e.id);
+    f.app.host.deliverFeedback();
+    const feedback = f.app.store.all<Feedback>("Feedback");
+    assert.equal(
+      feedback.find((f) => f.authorization_id === op.authorization_id)?.state,
+      "SUPPRESSED",
+    );
+    await f.app.host.drain();
+    f.app.scheduler.retire(Date.now() + 30 * 86400000);
+    assert.equal(
+      f.app.store.get<Execution>("Execution", e.id).retention_state,
+      "RETIRED",
+    );
+  }));
+
+for (const cancelled of [false, true])
+  test(`restart without unknown effects emits only RESULT (cancelled=${cancelled})`, () =>
+    fixture(async (f) => {
+      const e = await pending(f);
+      f.app.scheduler["setState"](e.id, "READY");
+      f.app.scheduler["setState"](e.id, "DISPATCHING", {
+        cancel_requested: cancelled,
+      });
+      await f.restart();
+      assert.equal(
+        f.app.store.get<Execution>("Execution", e.id).state,
+        "FAILED",
+      );
+      assert.deepEqual(
+        f.app.store
+          .all<Feedback>("Feedback")
+          .filter((x) => x.execution_id === e.id)
+          .map((x) => x.kind),
+        ["RESULT"],
+      );
+      f.app.host.deliverFeedback();
+      assert.equal(
+        f.app.store.all<Input>("Input").filter((i) => i.feedback_id).length,
+        1,
+      );
+    }));
+
+test("PROGRAM authorization is atomic and approval before delivery suppresses the notification", () =>
+  fixture(async (f) => {
+    const script = path.join(f.dir, "program.mjs");
+    fs.writeFileSync(script, "console.log('{}')");
+    const program = f.app.scheduler.registerProgram(script, "outbox fixture");
+    const p = f.app.scheduler.propose(
+      "Program approval",
+      id(),
+      f.app.host.sessionID,
+      { programID: program.id },
+    );
+    f.app.scheduler.tick();
+    await f.app.scheduler.idle();
+    const e = f.app.store
+      .all<Execution>("Execution")
+      .find((e) => e.task_id === p.id)!;
+    assert.equal(e.state, "WAIT_AUTH");
+    const a = f.app.store
+      .all<AuthorizationRequest>("AuthorizationRequest")
+      .find((a) => a.scope.execution_id === e.id)!;
+    const notice = f.app.store
+      .all<Feedback>("Feedback")
+      .find((x) => x.authorization_id === a.id)!;
+    assert(notice);
+    const frame = f.app.store.projectionFrames.find((f) =>
+      f.mutations.some((m) => m.object_id === notice.id),
+    )!;
+    assert(frame.mutations.some((m) => m.object_id === a.id));
+    f.app.authorization.decide({
+      schema_version: 1,
+      record_type: "ApprovalCommand",
+      request_id: id(),
+      authorization_id: a.id,
+      expected_revision: a.revision,
+      display_hash: a.display_hash,
+      decision: "APPROVE",
+    });
+    f.app.host.deliverFeedback();
+    assert.equal(
+      f.app.store.get<Feedback>("Feedback", notice.id).state,
+      "SUPPRESSED",
+    );
+    assert(
+      !f.app.store.all<Input>("Input").some((i) => i.feedback_id === notice.id),
+    );
   }));

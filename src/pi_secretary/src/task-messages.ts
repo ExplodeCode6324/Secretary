@@ -1,7 +1,9 @@
+import { terminal } from "./execution-utils.ts";
 import { createHash } from "node:crypto";
 import type { Store } from "./store.ts";
 import type {
   Context,
+  Execution,
   Guidance,
   ModelCall,
   OperationLogRecord,
@@ -41,7 +43,7 @@ export function taskMessagesFor(store: Store) {
 export class TaskMessages {
   private frame = 0;
   private executions = new Map<string, Bucket>();
-  private eligible = new Set<string>();
+  private eligible = new Map<string, string | undefined>();
   framesVisited = 0;
   rowsRead = 0;
   constructor(readonly store: Store) {}
@@ -70,7 +72,11 @@ export class TaskMessages {
       // agent event rows instead of manufacturing duplicate saved-response rows.
       for (const e of f.log_records)
         if (e.event_type === "model.task_preview" && e.causation_id)
-          this.eligible.add(e.causation_id);
+          this.eligible.set(
+            e.causation_id,
+            this.store.read<{ preview_epoch?: string }>(e.payload)
+              .preview_epoch,
+          );
       for (const m of f.mutations)
         if (m.object_type === "ModelCall") {
           const call = this.store.get<ModelCall>("ModelCall", m.object_id);
@@ -125,6 +131,12 @@ export class TaskMessages {
     const live = call
       ? previewsFor(this.store).get(call.id, thinking)
       : undefined;
+    const interrupted =
+      !!call &&
+      !call.response &&
+      !live &&
+      (this.eligible.get(call.id) !== previewsFor(this.store).epoch ||
+        terminal(this.store.get<Execution>("Execution", eid)));
     const saved = call?.state === "RESPONSE_SAVED" && !!call.response;
     try {
       if (event) {
@@ -153,7 +165,7 @@ export class TaskMessages {
         raw = {
           role: "assistant",
           content:
-            call?.state === "IN_FLIGHT"
+            call?.state === "IN_FLIGHT" && !interrupted
               ? "预览已释放或连接中断；等待持久响应"
               : call?.state === "PREPARED"
                 ? "模型请求已准备"
@@ -185,7 +197,7 @@ export class TaskMessages {
       (!event && call?.state === "FAILED")
         ? "failed"
         : raw.stopReason === "aborted" ||
-            (!event && call?.state === "INTERRUPTED")
+            (!event && (call?.state === "INTERRUPTED" || interrupted))
           ? "interrupted"
           : raw.stopReason === "length"
             ? "truncated"

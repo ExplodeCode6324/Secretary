@@ -39,6 +39,7 @@ export type PreviewUpdate =
 export class Previews {
   revision = 0;
   readonly epoch = randomUUID();
+  private byteCounts = new Map<string, number>();
   private entries = new Map<string, Preview>();
   update(update: PreviewUpdate) {
     if (update.type === "start") {
@@ -63,6 +64,7 @@ export class Previews {
         truncated: false,
         blocks: [],
       });
+      this.byteCounts.set(update.id, 0);
       this.prune();
       return;
     }
@@ -100,6 +102,7 @@ export class Previews {
         e.type !== "thinking_end"
       ) {
         if (content) item.version = ++this.revision;
+        this.cacheBytes(item);
         return;
       }
       const type = e.type.startsWith("text") ? "text" : "thinking";
@@ -113,6 +116,7 @@ export class Previews {
           !source.thinking)
       ) {
         item.version = ++this.revision;
+        this.cacheBytes(item);
         return;
       }
       let block = item.blocks.find((b) => b.index === e.contentIndex);
@@ -120,6 +124,7 @@ export class Previews {
         if (item.blocks.length >= 128) {
           item.truncated = true;
           item.version = ++this.revision;
+          this.cacheBytes(item);
           return;
         }
         block = { index: e.contentIndex, type, text: "" };
@@ -170,6 +175,10 @@ export class Previews {
       }
     }
     item.version = ++this.revision;
+    this.cacheBytes(item);
+  }
+  private cacheBytes(p: Preview) {
+    this.byteCounts.set(p.id, this.bytes(p));
     this.prune();
   }
   private prune() {
@@ -177,7 +186,10 @@ export class Previews {
       const items = [...this.entries.values()].filter(
         (p) => p.source === source,
       );
-      let bytes = items.reduce((n, p) => n + this.bytes(p), 0);
+      let bytes = items.reduce(
+        (n, p) => n + (this.byteCounts.get(p.id) ?? 0),
+        0,
+      );
       const limit = source === "MAIN" ? 8 : 32;
       while (
         items.length > limit ||
@@ -188,7 +200,8 @@ export class Previews {
           items.findIndex((p) => p.status !== "running"),
         );
         const [victim] = items.splice(i, 1);
-        bytes -= this.bytes(victim);
+        bytes -= this.byteCounts.get(victim.id) ?? 0;
+        this.byteCounts.delete(victim.id);
         this.entries.delete(victim.id);
       }
     }

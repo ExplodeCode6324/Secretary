@@ -1,3 +1,4 @@
+import { next } from "../../../src/pi_secretary/src/state-transitions.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -14,6 +15,7 @@ import {
 import { base, id } from "../../../src/pi_secretary/src/store.ts";
 import type {
   ModelCall,
+  Execution,
   Feedback,
 } from "../../../src/pi_secretary/src/contracts.ts";
 import type { TaskBrowserMessages } from "../../../src/pi_secretary/src/api/contracts.ts";
@@ -64,11 +66,28 @@ test("saved response precedes Agent handoff, done-only replay survives restart, 
           },
         },
       )(fixtureModel, context);
+    const syncBefore = f.cursor();
     const response = await invoke();
     const kinds = [];
     for await (const event of response) kinds.push(event.type);
     assert.deepEqual(kinds, ["done"]);
     assert.equal(calls, 1);
+    const changes = f.server.service.changes
+      .changes(syncBefore)
+      .transactions.flatMap((t) => t.changes);
+    assert(
+      changes.some(
+        (c) =>
+          c.kind === "invalidate" &&
+          c.query === `task-messages/${e.task_id}/${e.id}`,
+      ),
+    );
+    assert(
+      changes.some((c) => c.kind === "invalidate" && c.query === "timeline"),
+    );
+    assert(
+      changes.some((c) => c.kind === "invalidate" && c.query === "activities"),
+    );
     const route = `task-browser/${e.task_id}/executions/${e.id}/messages?position=latest`;
     let page = await f.client.query<TaskBrowserMessages>(route);
     assert.equal(page.items.length, 1);
@@ -104,32 +123,48 @@ test("saved response precedes Agent handoff, done-only replay survives restart, 
     assert.equal(taskMessagesFor(f.app.store).framesVisited, before);
   }));
 
-test("Feedback terminal suppression cannot be revived by an illegal transition", () =>
+test("Feedback catalog rejects re-delivery of terminal suppression", () => {
+  assert.equal(next("Feedback", "QUEUED", "suppress"), "SUPPRESSED");
+  assert.throws(
+    () => next("Feedback", "SUPPRESSED", "deliver"),
+    /INVALID_TRANSITION/,
+  );
+});
+
+test("old-runtime IN_FLIGHT rows are interrupted rather than waiting forever", () =>
   fixture(async (f) => {
-    const e = await pending(f),
-      at = new Date().toISOString();
-    const f1: Feedback = {
-      ...base(),
-      schema_version: 1,
-      record_type: "Feedback",
-      scope_id: e.scope_id,
-      task_id: e.task_id,
-      execution_id: e.id,
-      state: "SUPPRESSED",
-      kind: "AUTHORIZATION_REQUIRED",
-      authorization_id: id(),
-      summary: "fixture",
-      detail_ref: f.app.store.put("fixture"),
-      result_id: null,
-      decision_request_id: null,
-      input_id: null,
-      created_at: at,
-      suppressed_at: at,
-      suppressed_reason: "fixture",
-    };
-    f.app.store.commit([f1]);
-    assert.throws(
-      () => f.app.store.commit([revise(f1, { state: "QUEUED" })]),
-      /INVALID_FEEDBACK_TRANSITION/,
+    const e = await pending(f);
+    const scope = { session_id: null, task_id: e.task_id, execution_id: e.id };
+    await assert.rejects(
+      Promise.resolve(
+        durableStream(f.app.store, () => replyStream([]), scope, e.id, "TASK", {
+          onPrepared: () => {
+            throw Error("PROCESS_LOSS");
+          },
+        })(
+          fixtureModel,
+          normalizeContext({
+            messages: [{ role: "user", content: "lost process", timestamp: 0 }],
+          }),
+        ),
+      ),
+      /PROCESS_LOSS/,
     );
+    const call = f.app.store.all<ModelCall>("ModelCall")[0];
+    const event = {
+      ...f.app.store.event(
+        "model.task_preview",
+        { call_id: call.id, preview_epoch: "old-process" },
+        scope,
+      ),
+      causation_id: call.id,
+    };
+    f.app.store.commit([revise(call, { state: "IN_FLIGHT" })], [event]);
+    await f.restart();
+    const page = await f.client.query<TaskBrowserMessages>(
+      `task-browser/${e.task_id}/executions/${e.id}/messages?position=latest`,
+    );
+    assert.match(page.items[0].text, /已中断/);
+    assert.equal(page.items[0].outcome, "interrupted");
+    assert.equal(page.items[0].persistence, "transient");
   }));

@@ -116,7 +116,7 @@ export function tailMessageBody(message: Message, mode: boolean): MessageBody {
     previousStart: Math.max(0, start - 32768),
     nextStart: start + text.length,
     before: start > 0,
-    contextBoundary: start > 0,
+    contextBoundary: start > 0 || !!message.truncated,
   });
   return {
     mode,

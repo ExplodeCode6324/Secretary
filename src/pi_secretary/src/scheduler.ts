@@ -177,8 +177,15 @@ export class Scheduler {
     eid: string,
     state: Execution["state"],
     patch: Partial<Execution> = {},
+    unknown?: { summary: string; detail: Feedback["detail_ref"] },
   ) {
-    return executionRunner.setState.call(this.context, eid, state, patch);
+    return executionRunner.setState.call(
+      this.context,
+      eid,
+      state,
+      patch,
+      unknown,
+    );
   }
   run(eid: string) {
     return executionRunner.run.call(this.context, eid);

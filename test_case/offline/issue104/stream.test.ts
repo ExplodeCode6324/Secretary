@@ -231,3 +231,45 @@ test("success then pre-transport failure keeps synthetic assistant error separat
     );
     assert(page.items.some((m) => m.id === assistant.at(-1)!.event_id));
   }));
+
+test("capacity rejection before onPrepared cannot reuse the preceding saved provenance", () =>
+  fixture(async (f) => {
+    const e = await pending(f);
+    let calls = 0;
+    await run(f, e, () => {
+      if (calls++ === 0)
+        return replyStream([
+          { type: "text", text: "first-success" + "界".repeat(100000) },
+          {
+            type: "toolCall",
+            id: "read-gate",
+            name: "read",
+            arguments: { path: "gate" },
+          },
+        ]);
+      throw Error("PROVIDER_MUST_NOT_BE_CALLED_AFTER_CAPACITY_REJECTION");
+    });
+    const events = f.app.store
+      .executionEvents(e.id)
+      .filter((x) => x.event_type === "agent.message");
+    const assistant = events.filter(
+      (x) => f.app.store.read<any>(x.payload).role === "assistant",
+    );
+    assert.equal(calls, 1);
+    assert(
+      f.app.store
+        .executionEvents(e.id)
+        .some((x) => x.event_type === "model.capacity_blocked"),
+    );
+    assert(assistant.length >= 2);
+    assert(assistant[0].causation_id);
+    assert.equal(assistant.at(-1)!.causation_id, null);
+    const page = await f.client.query<TaskBrowserMessages>(
+      `task-browser/${e.task_id}/executions/${e.id}/messages?position=latest`,
+    );
+    assert.equal(
+      page.items.filter((m) => m.text.includes("first-success")).length,
+      1,
+    );
+    assert(page.items.some((m) => m.id === assistant.at(-1)!.event_id));
+  }));

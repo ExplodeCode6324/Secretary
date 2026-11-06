@@ -116,7 +116,7 @@ thinking_preview は任意の表示フィールド `{text,truncated}` です。�
 
 既定の timeline、around、メッセージ content、SSE transient は同じ短いプレビューを提供します。推論全体の展開には thinking=true、一時的な本文にはさらに streaming=true が必要です。非表示の推論は継続カーソルを生成せず、推論だけのメッセージは既定で next_cursor=null です。明示的な展開は Unicode スカラー境界で分割し、本文または推論の各断片は最大 4,999 UTF-16 単位かつ 28,000 JSON バイト、メッセージ断片全体は最大 64 KiB です。プレビューの truncated、保持本文の切り詰め、outcome=truncated は別の意味です。
 
-SSETransient/SSEPreview は transient の公開形式を定義します。Preview.version は number のままで、イベントに永続 cursor はありません。短いプレビューは保持容量による切り詰め前に計算します。done/error スナップショットを含む redaction は保持中の推論を取り消して revision を進め、古い内容カーソルには CURSOR_EXPIRED を返します。保持上限は従来どおり 8 プレビュー、各 128 ブロック、32,768 UTF-16 単位です。正常な redacted-only/tool-only の永続応答は行が省略される場合があるため、transient の期限切れは永続イベントの不在を意味しません。
+SSETransient/SSEPreview は transient の公開形式を定義します。Preview.version は number のままで、イベントに永続 cursor はありません。短いプレビューは保持容量による切り詰め前に計算します。done/error スナップショットを含む redaction は保持中の推論を取り消して revision を進め、古い内容カーソルには CURSOR_EXPIRED を返します。Main は最大 8 プレビュー、Task は独立に最大 32 プレビュー、合計 1 MiB のテキストを保持します。各プレビューは最大 128 ブロック、32,768 UTF-16 単位です。正常な redacted-only/tool-only の永続応答は行が省略される場合があるため、transient の期限切れは永続イベントの不在を意味しません。
 
 thinking_preview と thinking はモデルの生テキストを保持し、制御文字や ANSI シーケンスを含む場合があります。端末クライアントは表示前にエスケープまたは無害化する必要があります。API はクライアントに代わって端末向けの安全処理を行いません。
 
@@ -145,3 +145,9 @@ New submit_result artifacts remain a path array and require exactly one artifact
 WAIT_AUTH 中に指示を受けても承認待ちを維持します。承認後は古くなった未開始の操作を退役させ、再計画して承認を再確認します。拒否は引き続き実行失敗となります。authorization 詳細の guidance_warning がこの動作を説明します。質問への自動回答、結果不明の効果の自動再実行、指示を処理するためのキャンセル済み実行の復活は行いません。失敗・キャンセル・期限切れ時は未処理の指示を理由付きで確定します。
 
 本件はバックエンドと既存の事項通知を提供します。Task のストリーミング表示、固定タイトルと実行ラウンド、`/guide` コマンドは、それぞれ #104、#105、#106 で提供します。
+
+## Task streaming and latest tails (#104)
+
+Task previews are disposable, unsaved display state. SSE sends an independent metadata-only Task frame (at most 64 KiB) with epoch/version and exact task, execution, ModelCall, attempt and status; it contains no body or thinking. Main transient size cannot suppress it. Clients fetch only the affected Task message. Token deltas create no journal transaction, Main Input, ordinary progress Feedback or Main model call. Durable ModelCall and agent-message facts continue to invalidate timeline/activity history and additionally invalidate the exact Task-message query.
+
+Task message routes accept `position=latest`; content tails expose `body_offset`, `body_length`, `thinking_offset`, `thinking_length` and at most 32,768 UTF-16 units per region. A missing format prefix must be labeled and rendered literally; normal cursor paging still reads full durable content. Message IDs use `call:<model_call_id>` only with proven provenance; legacy event IDs remain aliases or original rows. `persistence=transient` and `preview_status` distinguish unsaved output from durable response. Missing previews from an older runtime or ended execution report interruption, never indefinite waiting or fabricated saved text. Encode message IDs as URL path segments. Existing owner, retention and latest-three-executions checks apply to queries and SSE visibility.

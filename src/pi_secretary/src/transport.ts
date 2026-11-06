@@ -10,7 +10,7 @@ import {
   createAssistantMessageEventStream,
   type AssistantMessage,
 } from "@earendil-works/pi-ai";
-import type { PreviewUpdate } from "./preview.ts";
+import { previewsFor, type PreviewUpdate } from "./preview.ts";
 import type { StreamFn } from "./model.ts";
 import type { Scope, ModelCall, Context } from "./contracts.ts";
 import { Store, base, now, revise, hash } from "./store.ts";
@@ -270,7 +270,11 @@ export function durableStream(
               {
                 ...store.event(
                   "model.task_preview",
-                  { call_id: call.id, attempt_id: metadata.attemptID ?? null },
+                  {
+                    call_id: call.id,
+                    attempt_id: metadata.attemptID ?? null,
+                    preview_epoch: previewsFor(store).epoch,
+                  },
                   scope,
                 ),
                 causation_id: call.id,

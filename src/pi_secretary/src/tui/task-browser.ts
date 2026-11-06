@@ -44,6 +44,13 @@ const textEntry = (id: string, text: string): ViewEntry => ({
   version: text,
   component: new Text(safeText(text), 0, 0),
 });
+const previewBoundary = (body: MessageBody) => {
+  if (body.message.persistence === "transient" && body.message.truncated) {
+    body.body.contextBoundary = true;
+    body.thinking.contextBoundary = true;
+  }
+  return body;
+};
 const code = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 type Group = {
@@ -199,7 +206,7 @@ export class TaskBrowserWindow {
             contentPath: path,
             valid,
           });
-      if (valid()) this.bodies.set(id, body);
+      if (valid()) this.bodies.set(id, previewBoundary(body));
     }
   }
 
@@ -836,7 +843,7 @@ export class TaskBrowserWindow {
             valid,
           });
       if (!valid()) return;
-      this.bodies.set(id, body);
+      this.bodies.set(id, previewBoundary(body));
       this.notices.delete(id);
       this.deferred.delete(id);
       this.changed();
@@ -860,7 +867,15 @@ export class TaskBrowserWindow {
   }
   private prune() {
     let all = this.orderedMessages();
-    while (all.length > HISTORY_ITEMS) {
+    const metadataBytes = () =>
+      [...all, ...(this.detail ? [this.detail] : [])].reduce(
+        (n, m) => n + Buffer.byteLength(JSON.stringify(m)),
+        0,
+      );
+    while (
+      all.length > HISTORY_ITEMS ||
+      (all.length > 1 && metadataBytes() > HISTORY_BYTES)
+    ) {
       const pos = all.findIndex((m) => key(m) === this.detailAnchor?.item_id);
       const dropLast =
         pos >= 0 ? pos < all.length / 2 : this.pageDirection === "before";
@@ -878,15 +893,18 @@ export class TaskBrowserWindow {
     for (const id of this.bodies.keys())
       if (!messages.has(id)) this.bodies.delete(id);
     for (const id of this.entryCache.keys())
-      if (!messages.has(id)) this.entryCache.delete(id);
+      if (
+        !messages.has(id) ||
+        this.entryCache.get(id)?.body !== this.bodies.get(id)
+      )
+        this.entryCache.delete(id);
     for (const id of this.deferred)
       if (!messages.has(id)) this.deferred.delete(id);
     for (const id of this.notices.keys())
       if (!messages.has(id)) this.notices.delete(id);
     let bytes =
       [...messages.values()].reduce(
-        (n, m) =>
-          n + Buffer.byteLength(m.text) + Buffer.byteLength(m.thinking ?? ""),
+        (n, m) => n + Buffer.byteLength(JSON.stringify(m)),
         0,
       ) + [...this.bodies.values()].reduce((n, b) => n + bodyBytes(b), 0);
     const victims = [...this.bodies.keys()].sort(

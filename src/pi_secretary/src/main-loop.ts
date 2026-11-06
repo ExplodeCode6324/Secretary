@@ -1,3 +1,4 @@
+import { next } from "./state-transitions.ts";
 import { authorizationActionable } from "./task-feedback.ts";
 import { guidanceFor } from "./guidance.ts";
 import { deliveryEvent } from "./artifact-delivery.ts";
@@ -202,7 +203,7 @@ export function deliverFeedback(this: MainLoopContext) {
     ) {
       this.store.commit([
         revise(f, {
-          state: "SUPPRESSED",
+          state: next("Feedback", f.state, "suppress") as Feedback["state"],
           suppressed_at: now(),
           suppressed_reason: "AUTHORIZATION_NOT_ACTIONABLE",
         }),

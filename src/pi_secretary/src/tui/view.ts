@@ -366,6 +366,16 @@ export function messageComponent(
           );
       };
       text(paint(safeText(title)));
+      if (assistantLabel === "Agent" && m.persistence === "transient") {
+        text(
+          gray(
+            m.preview_status === "running"
+              ? "正在生成 · 未保存预览"
+              : "未完成预览 · 尚无持久响应",
+          ),
+        );
+        if (m.truncated) text(gray("预览仅保留最近内容；完整保存后可向前读取"));
+      }
       if (expanded && m.thinking) region(thought, "thinking", body?.thinking);
       else if (m.thinking_preview?.text)
         text(gray(m.thinking_preview.text), "thinking");

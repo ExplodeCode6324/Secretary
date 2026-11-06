@@ -102,8 +102,8 @@
 | GET | /api/v1/task-browser | 已用 | 当前集合、全量 Scope/Shared/归档计数、稳定排序与双向游标；截止时间到期刷新 |
 | GET | /api/v1/task-browser/locate | 已用 | /search_task、完整 ID 定位刷新、前缀补全；历史临时区不改变计数 |
 | GET | /api/v1/task-browser/{task_id} | 已用 | /taskdetail 的计划/排队/结果文本、分页详情、最近三轮描述 |
-| GET | /api/v1/task-browser/{task_id}/executions/{execution_id}/messages | 已用 | 按真实 agent.message 事件读取最近三轮；每轮消息双向分页与 ID 恢复 |
-| GET | /api/v1/task-browser/{task_id}/executions/{execution_id}/messages/{message_id}/content | 已用 | 正文、工具调用/结果、可显示 CoT 的游标补读；共享 Main CoT 开关 |
+| GET | /api/v1/task-browser/{task_id}/executions/{execution_id}/messages | 已用 | 按已证明因果关系的 ModelCall/agent.message 读取最近三轮；position=latest 直接尾页、稳定别名和普通双向分页 |
+| GET | /api/v1/task-browser/{task_id}/executions/{execution_id}/messages/{message_id}/content | 已用 | 正文、工具调用/结果、可显示 CoT 的游标补读；position=latest 有界末尾和偏移；共享 Main CoT 开关 |
 | GET | /api/v1/messages/{id}/artifacts | 已用 | #94 reply-tail pages, max 20 entries / 128 KiB; Up/Down across artifact boundaries in history. |
 
 #83 保持其他未用接口及理由不变，尤其不调用 `executions/{id}/viewed`，不因阅读延长保留期限。Task 根列表最多保留 200 行元数据；三轮对话合计 200 条消息、4 MiB 正文/CoT，和 Main 共用最多两个并发读取。API 明确排除归档 Scope；完整 ID 或旧游标不能绕过。细节和证据见 [#83 验收](../fix/evidence/issue83-task-browser/acceptance.md)。
@@ -119,3 +119,5 @@
 | POST | /api/v1/executions/{id}/guidance | 未用 | #106 will submit the exact frozen execution target. |
 | GET | /api/v1/guidance/{id} | 未用 | #106 will reconcile durable guidance receipts. |
 | GET | /api/v1/executions/{id}/guidance | 未用 | Backend paginated query; frontend receipt history remains later scope. |
+
+#104 adds `/follow [execution_id|off]` in Task detail. The frozen AGENT execution follows targeted SSE metadata and durable changes, with a final tail before stopping. Reading, selection, paging and navigation stop following. Reconnect/resize/CoT preserve only a still-valid exact target. Transient output is visibly unsaved; lost formatting prefixes render literally with a boundary label. Main and Task follow states are independent. The 200-message/4 MiB Task budget includes serialized metadata, body/thinking text and released render-cache references. No token-driven root-list or whole-window reread is added. Physical terminal acceptance is separate from HTTP/SSE and headless tests.

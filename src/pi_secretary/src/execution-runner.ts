@@ -60,20 +60,36 @@ export function setState(
   eid: string,
   state: Execution["state"],
   patch: Partial<Execution> = {},
+  unknown?: { summary: string; detail: Feedback["detail_ref"] },
 ) {
   const e = this.store.get<Execution>("Execution", eid);
-  const updated = revise(e, { ...patch, state, owner_epoch: this.store.epoch });
-  const notification =
+  const unknownIDs =
     state === "RESULT_UNKNOWN"
+      ? this.store
+          .indexed<Operation>("Operation", "scope.execution_id", [eid])
+          .filter((op) => op.state === "RESULT_UNKNOWN")
+          .map((op) => op.id)
+      : undefined;
+  const updated = revise(e, {
+    ...patch,
+    ...(unknownIDs ? { unknown_operation_ids: unknownIDs } : {}),
+    state,
+    owner_epoch: this.store.epoch,
+  });
+  const notification =
+    state === "RESULT_UNKNOWN" &&
+    (unknownIDs!.length > 0 || !this.processStopped(eid))
       ? taskFeedback(
           this.store,
           updated,
           "UNKNOWN",
-          "Execution effects are unknown; verify before continuing, never replay automatically",
-          this.store.put({
-            execution_id: eid,
-            operation_ids: updated.unknown_operation_ids,
-          }),
+          unknown?.summary ??
+            "Execution effects are unknown; verify before continuing, never replay automatically",
+          unknown?.detail ??
+            this.store.put({
+              execution_id: eid,
+              operation_ids: updated.unknown_operation_ids,
+            }),
         )
       : undefined;
   this.store.commit([
@@ -151,14 +167,14 @@ export async function run(this: ExecutionRunnerContext, eid: string) {
         for (const op of inflight)
           if (op.state === "DISPATCHED")
             this.auth.finish(op.id, { error: String(error) }, "UNKNOWN");
-        this.setState(eid, "RESULT_UNKNOWN", {
-          unknown_operation_ids: inflight.map((o) => o.id),
-        });
-        this.feedback(
+        this.setState(
           eid,
-          "UNKNOWN",
-          "Effect could not be confirmed",
-          this.store.put({ error: String(error) }),
+          "RESULT_UNKNOWN",
+          {},
+          {
+            summary: "Effect could not be confirmed",
+            detail: this.store.put({ error: String(error) }),
+          },
         );
       } else if (
         !terminal(e) &&

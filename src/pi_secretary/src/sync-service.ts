@@ -226,7 +226,6 @@ export class SyncService {
         this.store.get<Context>("Context", r.context_id).purpose === "TASK"
       ) {
         invalidate(`task-messages/${r.scope.task_id}/${r.scope.execution_id}`);
-        continue;
       }
       for (const query of m.invalidate) invalidate(query);
       // Exact aggregate queries supplement collection invalidations; coarse fallback
@@ -311,6 +310,7 @@ export class SyncService {
           "input.accepted",
           "notification.queued",
           "feedback.delivered",
+          "agent.message",
           "main.tool.result",
         ].includes(event.event_type)
       )

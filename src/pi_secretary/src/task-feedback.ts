@@ -7,23 +7,6 @@ import type {
 import { Store, base, now } from "./store.ts";
 import { stableID, terminal } from "./execution-utils.ts";
 
-const episodes = new WeakMap<
-  Store,
-  { frame: number; revisions: Map<string, number> }
->();
-function unknownRevision(store: Store, e: Execution) {
-  let index = episodes.get(store);
-  if (!index) episodes.set(store, (index = { frame: 0, revisions: new Map() }));
-  for (; index.frame < store.projectionFrames.length; index.frame++) {
-    for (const m of store.projectionFrames[index.frame].mutations)
-      if (m.object_type === "Execution" && !index.revisions.has(m.object_id)) {
-        const snapshot = store.read<Execution>(m.snapshot);
-        if (snapshot.state === "RESULT_UNKNOWN")
-          index.revisions.set(snapshot.id, snapshot.revision);
-      }
-  }
-  return index.revisions.get(e.id) ?? e.revision;
-}
 /** Builds, but does not commit, the outbox fact so its producer can commit atomically. */
 export function taskFeedback(
   store: Store,
@@ -53,7 +36,7 @@ export function taskFeedback(
     authorizationID ??
     resultID ??
     decisionID ??
-    (kind === "UNKNOWN" ? `${e.id}:${unknownRevision(store, e)}` : undefined);
+    (kind === "UNKNOWN" ? e.id : undefined);
   const record: Feedback = {
     ...base(key ? stableID(`task-feedback:${kind}:${key}`) : undefined),
     schema_version: 1,
