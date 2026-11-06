@@ -371,6 +371,8 @@ test("Main guide derives provenance from its durable tool response and creates n
           .parameters as { properties: Record<string, unknown> };
         assert(control.properties.task_id && control.properties.text);
         assert(!proposal.properties.task_id && !proposal.properties.text);
+        if (calls > 0)
+          assert.match(JSON.stringify(context.messages), /THIS_EXECUTION_ONLY/);
         return ++calls === 1
           ? replyStream([
               {
@@ -1257,3 +1259,78 @@ test("adopted Master guidance does not make an unrelated ordinary question Maste
       f.app.scheduler.answer(d.id, "The first permitted source", id(), "MAIN"),
     );
   }));
+
+for (const outcome of ["ADOPTED", "UNPROCESSED"] as const)
+  test(`Main receives ${outcome} guidance in its existing RESULT input and actual task_query`, () =>
+    fixture(async (f) => {
+      const e = await pending(f);
+      send(f, e);
+      const g = guidance(f, e)[0];
+      await run(f, e, () =>
+        replyStream(
+          outcome === "ADOPTED" ? [receipt(g), result()] : [result()],
+        ),
+      );
+      const direct = f.app.store
+        .all<Input>("Input")
+        .find((i) => i.guidance_id === g.id)!;
+      const notice = JSON.parse(f.app.store.bytes(direct.payload).toString());
+      assert.equal(notice.guidance_scope, "THIS_EXECUTION_ONLY");
+      assert.equal(notice.persistent_changes, "USE_CONTINUATION");
+      assert.equal(notice.reporting, "QUIET_UNLESS_CONFLICT");
+      f.app.host.deliverFeedback();
+      const feedbackInputs = f.app.store
+        .all<Input>("Input")
+        .filter((i) => i.feedback_id);
+      assert.equal(feedbackInputs.length, 1);
+      const payload = JSON.parse(
+        f.app.store.bytes(feedbackInputs[0].payload).toString(),
+      );
+      assert.equal(payload.feedback_kind, "RESULT");
+      assert.equal(payload.guidance.length, 1);
+      assert.equal(payload.guidance[0].guidance_id, g.id);
+      assert.equal(payload.guidance[0].disposition, outcome);
+      let queried = false,
+        calls = 0;
+      Object.assign(f.app.host, {
+        stream: (_m: unknown, ctx: Parameters<StreamFn>[1]) => {
+          if (++calls === 1)
+            return replyStream([
+              {
+                type: "toolCall",
+                id: "query-guidance-result",
+                name: "task_query",
+                arguments:
+                  outcome === "ADOPTED"
+                    ? { execution_id: e.id }
+                    : { task_id: e.task_id },
+              },
+            ]);
+          const returned = ctx.messages.find(
+            (m) =>
+              m.role === "toolResult" &&
+              m.toolCallId === "query-guidance-result",
+          );
+          assert(returned && returned.role === "toolResult");
+          const text = returned.content
+            .filter((p) => p.type === "text")
+            .map((p) => p.text)
+            .join("");
+          const response = JSON.parse(text);
+          const data = response.details ?? response;
+          assert.equal(data.guidance[0].guidance_id, g.id);
+          assert.equal(data.guidance[0].disposition, outcome);
+          assert.equal(data.detail.guidance, undefined);
+          queried = true;
+          return replyStream([
+            { type: "text", text: "Result checked with its guidance outcome." },
+          ]);
+        },
+      });
+      await f.app.host.drain();
+      assert(queried);
+      assert.equal(
+        f.app.store.all<Input>("Input").filter((i) => i.feedback_id).length,
+        1,
+      );
+    }));

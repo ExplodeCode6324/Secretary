@@ -1,3 +1,4 @@
+import { guidanceFor } from "./guidance.ts";
 import { currentArtifactPath } from "./artifact-path.ts";
 import type {
   ArchiveManifest,
@@ -23,8 +24,10 @@ export function detail(this: RetentionContext, eid: string) {
   const result = e.result_id
     ? this.store.get<TaskResult>("TaskResult", e.result_id)
     : null;
+  const guidance = guidanceFor(this.store).summary(eid);
   return {
     execution: e,
+    ...(guidance.length ? { guidance } : {}),
     result: result
       ? {
           ...result,

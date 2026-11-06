@@ -1,4 +1,4 @@
-import { guidanceFor } from "./guidance.ts";
+import { guidanceFor, GUIDANCE_CONTEXT } from "./guidance.ts";
 import { failuresFor, type FailureProposal } from "./failure-handling.ts";
 import { Type } from "typebox";
 import { activitiesFor } from "./activity.ts";
@@ -141,15 +141,16 @@ export function tools(
               async () =>
                 t.name === "task_control" &&
                 (args as { action: string }).action === "guide"
-                  ? result(
-                      guidanceFor(this.store).main(
+                  ? result({
+                      ...guidanceFor(this.store).main(
                         this.sessionID,
                         loopID,
                         call,
                         stableID(key),
                         args as { id: string; task_id?: string; text?: string },
                       ),
-                    )
+                      ...GUIDANCE_CONTEXT,
+                    })
                   : t.execute(stableID(key), args, signal),
               { loop_id: loopID },
             );

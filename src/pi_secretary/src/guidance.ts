@@ -18,6 +18,12 @@ import type {
 import { Store, base, hash, id, now, revise, type Stored } from "./store.ts";
 import { scopeOf, stableID, terminal } from "./execution-utils.ts";
 
+// Delivered as task context, keeping ordinary Main requests unchanged.
+export const GUIDANCE_CONTEXT = {
+  guidance_scope: "THIS_EXECUTION_ONLY",
+  persistent_changes: "USE_CONTINUATION",
+  reporting: "QUIET_UNLESS_CONFLICT",
+} as const;
 export const GUIDANCE_LIMITS = {
   instructionBytes: 16384,
   count: 64,
@@ -233,6 +239,7 @@ export class GuidanceService {
             text,
             delivery: "ALREADY_ACCEPTED_DO_NOT_RESEND",
             informational: true,
+            ...GUIDANCE_CONTEXT,
           }),
           "text/plain",
         ),
