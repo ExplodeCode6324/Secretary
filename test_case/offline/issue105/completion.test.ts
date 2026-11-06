@@ -14,6 +14,7 @@ import {
 import { Fixture, until } from "../issue9/helpers.ts";
 import { TerminalApp } from "../../../src/pi_secretary/src/tui/app.ts";
 import { id } from "../../../src/pi_secretary/src/store.ts";
+import type { Execution } from "../../../src/pi_secretary/src/contracts.ts";
 import fs from "node:fs/promises";
 import path from "node:path";
 
@@ -213,7 +214,7 @@ test("actual TerminalApp routes title and follow picker arrows to the editor wit
       await pause();
     }
     const execution = f.app.store
-      .all<{ id: string; task_id: string }>("Execution")
+      .all<Execution>("Execution")
       .find((e) => e.task_id === p.id)!;
     terminal.sendInput(`\x1b[200~${execution.id.slice(0, 8)}\x1b[201~`);
     await until(() => editor.isShowingAutocomplete());
