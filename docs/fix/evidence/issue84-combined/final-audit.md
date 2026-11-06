@@ -6,6 +6,8 @@ Master 最新指示：「除了我确定略过的内容之外还有没有未完�
 
 在已批准范围内，R7/R8 组合缺陷独立验收、r8 真实 provider 主线、Master 准备过的原生步骤和 R11 Core 边界补验均已完成。最终逐条核对 B09 时另发现两条只标源码推断的归档行为，已增加确定性 Core 实测：已开始的 WAIT_DECISION 在归档后可回答并完成同一 Execution；周期计划在归档后仍保留 ACTIVE/next_due/QUEUE，尚未开始的执行保持 SCOPE_ARCHIVED 阻断。两项单独通过，产品未修改。
 
+R12 Claude 复核纠正了本轮初次核对的遗漏：R7 要求的非空承诺账本跨容量恢复断言、提取幂等断言尚未实际执行。已补入现有 memory-recovery 测试：旧前缀和追赶区间各一条有效承诺，核对两批完整来源与互斥身份、OPEN 状态、来源批次和稳定 ID；重启后五次维护及当前边界 compact 不新增提取或承诺。STALE 变体也核对有效来源提取只发生一次。首次失败是测试预期散列的 JSON 字段顺序写错，修正为既有 id/text/role 身份合同后通过，产品未改；失败和执行前源码散列保留。
+
 待完成的只剩本次精确提交的最终 CI、同一 Claude Opus 5.5 Extra 复核、合并和合并后的 main CI。这些门槛的实际结果追加 PR，不以旧提交的通过替代。若全部通过，除 Master 明确略过的追加原生两组外，**没有未完成的必需验证，也没有需要 Master 再操作的材料**。
 
 ### Master 已明确略过的原名
@@ -74,3 +76,5 @@ Master 最新指示：「除了我确定略过的内容之外还有没有未完�
 `archive-boundaries.test.ts` 新增两项：实际 Core App / ApplicationService / scheduler，回答路径使用脚本化 provider；不是物理终端或付费模型。执行前源码散列与日志在忽略目录 `.demo-data/issue84/recovery-20261106/final-audit/`。首次为 1 PASS/1 FAIL：新增测试误将普通对象传给需要 URLSearchParams 的 query 方法，修正调用后两项通过；原失败保留，产品未改。本机相关定向组 **35/35 PASS、0 skipped**，类型检查通过。最终 CI 与 Claude 精确提交结论在 [PR #102](https://github.com/ExplodeCode6324/Secretary/pull/102) 保存。
 
 合并前再次确认 HEAD 未变、CI 全绿、review 无阻断，按 Master 本轮授权合并；然后验证 main CI。任何失败都暂停合并并继续调查。Issue 关闭不由本次合并指令额外推定。
+
+R13 补验结果：新增恢复账本测试 1/1，通过相关恢复/承诺回归 53/53，0 skipped（含 PostgreSQL 自动到期重试），类型与文档/链接/多语言同步检查通过。R12 的旧提交 CI 全绿不能替代新提交 CI；最终精确提交复核和 CI 仍按 PR 记录判定。

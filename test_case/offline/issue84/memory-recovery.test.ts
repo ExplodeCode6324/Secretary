@@ -12,6 +12,7 @@ import {
   fixtureStream,
   replyStream,
   type StreamFn,
+  type AgentMessage,
 } from "../../../src/pi_secretary/src/model.ts";
 import { retryRuntime } from "../../../src/pi_secretary/src/model-retry.ts";
 import type {
@@ -19,8 +20,9 @@ import type {
   Consciousness,
   Input,
   Execution,
+  MemoryExtractionJob,
 } from "../../../src/pi_secretary/src/contracts.ts";
-import { id, revise } from "../../../src/pi_secretary/src/store.ts";
+import { hash, id, revise } from "../../../src/pi_secretary/src/store.ts";
 import { summaryCoolingDown } from "../../../src/pi_secretary/src/memory-summary.ts";
 import { testPostgres } from "../helpers/postgres.ts";
 
@@ -52,6 +54,7 @@ type Controls = {
     app: App,
     context: Parameters<StreamFn>[1],
   ) => string | undefined;
+  onExtraction?: (context: Parameters<StreamFn>[1]) => string;
   mainText?: string;
   taskGate?: Promise<void>;
   releaseTasks?: () => void;
@@ -89,7 +92,7 @@ async function fixture(
           ? '{"items":[]}'
           : JSON.stringify({ items: [item] }));
     } else if (system.includes("COMMITMENT_EXTRACTION:"))
-      text = '{"quotes":[]}';
+      text = counts.onExtraction?.(c) ?? '{"quotes":[]}';
     else {
       counts.main++;
       text =
@@ -124,8 +127,12 @@ async function fixture(
     );
   }
 }
-async function blocked(app: App) {
-  app.host.accept("Synthetic first input, this turn only.");
+async function blocked(
+  app: App,
+  firstInput = "Synthetic first input, this turn only.",
+  laterInput = "Synthetic later input 0",
+) {
+  app.host.accept(firstInput);
   await app.host.drain();
   await app.host.compact();
   const old = jobs(app)[0];
@@ -135,7 +142,7 @@ async function blocked(app: App) {
     n < 12 && app.host.session.state !== "CAPACITY_BLOCKED";
     n++
   ) {
-    app.host.accept(`Synthetic later input ${n}`);
+    app.host.accept(n === 0 ? laterInput : `Synthetic later input ${n}`);
     await app.host.drain();
   }
   assert.equal(app.host.session.state, "CAPACITY_BLOCKED");
@@ -598,6 +605,15 @@ test("issue84 a stale capacity recovery waits one interval then handles the orig
     await app.host.compact();
     assert.equal(jobs(app).at(-1)!.state, "STALE");
     assert.equal(app.host.session.state, "CAPACITY_BLOCKED");
+    // Extraction freezes valid completed source before the summary CAS check.
+    // STALE rejects the summary candidate, not the independent source extraction.
+    const staleExtractions = structuredClone(
+      app.store.all<MemoryExtractionJob>("MemoryExtractionJob"),
+    );
+    assert.equal(staleExtractions.length, 1);
+    assert.equal(staleExtractions[0].owner_id, jobs(app).at(-1)!.id);
+    assert.equal(staleExtractions[0].state, "SUCCEEDED");
+    assert.equal(staleExtractions[0].merged, true);
     const before = counts.summary;
     for (let n = 0; n < 10; n++) await tick(app);
     await (
@@ -618,8 +634,191 @@ test("issue84 a stale capacity recovery waits one interval then handles the orig
     }
     assert.equal(app.host.session.state, "IDLE");
     assert.equal(memory(app).covered_event_sequence, state.target);
+    const recoveredExtractions = app.store.all<MemoryExtractionJob>(
+      "MemoryExtractionJob",
+    );
+    assert.equal(recoveredExtractions.length, 2);
+    assert.deepEqual(recoveredExtractions[0], staleExtractions[0]);
+    const sourceKeys = recoveredExtractions.flatMap((job) => job.source_keys);
+    assert.equal(new Set(sourceKeys).size, sourceKeys.length);
+    const sourceIDs = recoveredExtractions.flatMap(
+      (job) => job.source_event_ids,
+    );
+    assert.equal(new Set(sourceIDs).size, sourceIDs.length);
+    const eligibleIDs = app.store
+      .events("main.message")
+      .filter(
+        (event) =>
+          event.scope.session_id === app.host.sessionID &&
+          event.sequence <= state.target,
+      )
+      .filter((event) => {
+        const message = app.store.read<AgentMessage>(event.payload);
+        return (
+          (message.role === "user" || message.role === "assistant") &&
+          !!contentText(message.content)
+        );
+      })
+      .map((event) => event.event_id);
+    assert.deepEqual(new Set(sourceIDs), new Set(eligibleIDs));
+    assert(
+      recoveredExtractions.every(
+        (job) => job.state === "SUCCEEDED" && job.merged,
+      ),
+    );
     await app.host.drain();
     const handled = app.store.get<Input>("Input", state.pending.id);
     assert.equal(handled.state, "HANDLED");
     assert.equal(handled.loop_id, state.pending.loop_id);
+  }));
+
+test("issue84 recovery preserves commitment source batches and extracts each completed message once across restart", async () =>
+  fixture(async (app, counts, directory, stream) => {
+    const quotes = [
+      "I will independently check the synthetic old-prefix report tomorrow.",
+      "I will independently check the synthetic catch-up report tomorrow.",
+    ];
+    let extractionCalls = 0;
+    counts.onExtraction = (context) => {
+      extractionCalls++;
+      const body = JSON.parse(contentText(context.messages.at(-1)!.content));
+      return JSON.stringify({
+        quotes: quotes.filter((quote) =>
+          body.source.some((message: { text: string }) =>
+            message.text.includes(quote),
+          ),
+        ),
+      });
+    };
+    const state = await blocked(app, quotes[0], quotes[1]);
+    assert.equal(app.store.all("MemoryExtractionJob").length, 0);
+    assert.deepEqual(memory(app).commitments ?? [], []);
+    const eligible = app.store
+      .events("main.message")
+      .filter(
+        (event) =>
+          event.scope.session_id === app.host.sessionID &&
+          event.sequence <= state.target,
+      )
+      .flatMap((event) => {
+        const message = app.store.read<AgentMessage>(event.payload);
+        return (message.role === "user" || message.role === "assistant") &&
+          contentText(message.content)
+          ? [
+              {
+                id: event.event_id,
+                role: message.role,
+                text: contentText(message.content),
+              },
+            ]
+          : [];
+      });
+    assert(eligible.length > 2);
+    await app.host.compact();
+    assert.equal(memory(app).covered_event_sequence, state.target);
+    const summaries = jobs(app);
+    assert.equal(summaries.length, 2);
+    assert(summaries.every((job) => job.state === "COMMITTED"));
+    const extractions = app.store.all<MemoryExtractionJob>(
+      "MemoryExtractionJob",
+    );
+    assert.equal(extractions.length, 2);
+    assert.deepEqual(
+      new Set(extractions.map((job) => job.owner_id)),
+      new Set(summaries.map((job) => job.id)),
+    );
+    assert(extractions.every((job) => job.state === "SUCCEEDED" && job.merged));
+    const keys = extractions.flatMap((job) => job.source_keys);
+    assert.equal(
+      new Set(keys).size,
+      keys.length,
+      "old-prefix and catch-up source keys must be disjoint",
+    );
+    assert.deepEqual(
+      new Set(keys),
+      new Set(
+        eligible.map((message) =>
+          hash(
+            JSON.stringify({
+              id: message.id,
+              text: message.text,
+              role: message.role,
+            }),
+          ),
+        ),
+      ),
+    );
+    assert.deepEqual(
+      new Set(extractions.flatMap((job) => job.source_event_ids)),
+      new Set(eligible.map((message) => message.id)),
+    );
+    for (const job of extractions) {
+      const summary = summaries.find(
+        (candidate) => candidate.id === job.owner_id,
+      )!;
+      const events = app.store
+        .events("main.message")
+        .filter(
+          (event) =>
+            event.sequence > summary.source_start_sequence! &&
+            event.sequence <= summary.source_end_sequence! &&
+            eligible.some((message) => message.id === event.event_id),
+        );
+      assert.deepEqual(
+        new Set(job.source_event_ids),
+        new Set(events.map((event) => event.event_id)),
+      );
+      assert.deepEqual(
+        app.store.read(job.source_ref),
+        eligible.filter((message) => job.source_event_ids.includes(message.id)),
+      );
+    }
+    const ledger = structuredClone(memory(app).commitments!);
+    assert.equal(ledger.length, 2);
+    assert.equal(new Set(ledger.map((entry) => entry.id)).size, 2);
+    assert.deepEqual(
+      new Set(ledger.map((entry) => entry.text)),
+      new Set(quotes),
+    );
+    for (const [index, quote] of quotes.entries()) {
+      const entry = ledger.find((candidate) => candidate.text === quote)!;
+      const extraction = extractions.find(
+        (job) => job.owner_id === summaries[index].id,
+      )!;
+      assert.equal(entry.state, "OPEN");
+      assert.deepEqual(entry.resolution_event_ids, []);
+      assert.deepEqual(entry.source_refs, [extraction.evidence_ref]);
+      assert.deepEqual(entry.source_batch, {
+        owner_type: "MemoryExtractionJob",
+        owner_id: extraction.id,
+        source_event_ids: extraction.source_event_ids,
+        source_end_sequence: extraction.source_end_sequence,
+      });
+    }
+    const savedJobs = structuredClone(extractions);
+    const calls = extractionCalls;
+    await app.close();
+    const restored = await App.open(directory, { model, stream });
+    try {
+      assert.equal(restored.settings.blocked, false);
+      assert.equal(memory(restored).covered_event_sequence, state.target);
+      for (let n = 0; n < 5; n++) await tick(restored);
+      await restored.host.compact();
+      assert.deepEqual(
+        restored.store.all<MemoryExtractionJob>("MemoryExtractionJob"),
+        savedJobs,
+      );
+      assert.deepEqual(memory(restored).commitments, ledger);
+      assert.equal(
+        extractionCalls,
+        calls,
+        "restart/ticks/current-memory compact must not re-extract",
+      );
+      assert.equal(jobs(restored).length, 2);
+      counts.mainText = "Synthetic resumed reply.";
+      await recovered(restored, state);
+      assert.deepEqual(memory(restored).commitments, ledger);
+    } finally {
+      await restored.close();
+    }
   }));
