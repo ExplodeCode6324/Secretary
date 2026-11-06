@@ -48,7 +48,7 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
       name: "guidance_receipt",
       label: "Record guidance disposition",
       description:
-        "Report a structured disposition for host-injected guidance in this execution. ADOPTED states effective requirements; CONFLICT/CANNOT_APPLY enters an explicit decision wait. Resolution references must be real newer guidance or answered decisions. Does not grant authority.",
+        "Record host guidance disposition under the task protocol; conflicts wait for a decision. No authority is granted.",
       parameters: Type.Object({
         items: Type.Array(
           Type.Object({
