@@ -434,3 +434,32 @@ test("warm exact resolver and typed completion avoid whole-plan scans and are re
     assert.equal(f.app.store.sequence, seq);
   });
 });
+
+test("HTTP candidate null/absence replay the same acceptance and explicit changed candidate conflicts", async () => {
+  const { fixture: httpFixture } = await import("../issue9/helpers.ts");
+  await httpFixture(async (f) => {
+    for (const nullFirst of [false, true]) {
+      const request = id();
+      const body = { request_id: request, goal: "API identity" };
+      const accepted = await f.client.command("task-requests", {
+        ...body,
+        ...(nullFirst ? { title_candidate: null } : {}),
+      });
+      const retry = await f.client.command("task-requests", {
+        ...body,
+        ...(nullFirst ? {} : { title_candidate: null }),
+      });
+      assert.deepEqual(retry, accepted);
+      await assert.rejects(
+        f.client.command("task-requests", {
+          ...body,
+          title_candidate: "changed",
+        }),
+        /REQUEST_CONFLICT/,
+      );
+      const status: any = await f.client.query("task-requests/" + request);
+      validate("TaskRequestStatus", status);
+      assert.equal(typeof status.title, "string");
+    }
+  });
+});

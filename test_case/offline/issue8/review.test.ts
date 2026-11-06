@@ -1,3 +1,4 @@
+import { nextExecutionRound } from "../../../src/pi_secretary/src/task-identity.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -74,9 +75,14 @@ for (const actor of ["MASTER", "MAIN"] as const) {
           app.host.sessionID,
         );
         await app.settle();
+        const roundPlan = app.store.get<
+          import("../../../src/pi_secretary/src/contracts.ts").TaskPlan
+        >("TaskPlan", plan.id);
+        const round = nextExecutionRound(roundPlan);
         const execution: Execution = {
           ...app.store.all<Execution>("Execution")[0],
           ...base(),
+          execution_round: round,
           state: "WAIT_DECISION",
           ended_at: null,
           result_id: null,
@@ -98,6 +104,7 @@ for (const actor of ["MASTER", "MAIN"] as const) {
           answer_request_id: null,
         };
         app.store.commit([
+          revise(roundPlan, { execution_round_high_water: round }),
           decision,
           {
             ...execution,

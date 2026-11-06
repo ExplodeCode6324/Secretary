@@ -245,7 +245,18 @@ export class ApplicationService {
     if (!route) throw new ApiError("NOT_FOUND", 404);
     validate(route.schema, body);
     const requestID = body.request_id as string;
-    const digest = fingerprint({ owner: principal.owner_id, path, body });
+    // This new advisory field treats null as omission, including old API receipts.
+    const fingerprintBody =
+      route.route === "task-requests" && body.title_candidate === null
+        ? Object.fromEntries(
+            Object.entries(body).filter(([key]) => key !== "title_candidate"),
+          )
+        : body;
+    const digest = fingerprint({
+      owner: principal.owner_id,
+      path,
+      body: fingerprintBody,
+    });
     const store = this.app.store,
       old = store.find<ApiCommand>("ApiCommand", requestID);
     if (old) {
