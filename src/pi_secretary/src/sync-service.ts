@@ -70,6 +70,16 @@ export const mutationMappings = {
     "activities",
   ),
   Feedback: mapping(null, "timeline", "session"),
+  GuidanceInjection: mapping(null, "guidance", "tasks", "task-browser"),
+  Guidance: mapping(
+    "guidance",
+    "guidance",
+    "tasks",
+    "task-browser",
+    "attention",
+    "authorizations",
+  ),
+  GuidanceReceipt: mapping(null, "guidance", "tasks", "task-browser"),
   DecisionRequest: mapping("decisions", "attention", "tasks"),
   Operation: mapping(
     "operations",

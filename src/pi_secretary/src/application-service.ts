@@ -1,3 +1,4 @@
+import { guidanceFor } from "./guidance.ts";
 import { deliveriesFor } from "./artifact-delivery.ts";
 import { sessionRecovery } from "./session-recovery.ts";
 import { failuresFor } from "./failure-handling.ts";
@@ -382,6 +383,15 @@ export class ApplicationService {
     const { host, scheduler, settings, authorization, store } = this.app;
     const requestID = b.request_id as string;
     switch (route) {
+      case "executions/:id/guidance":
+        return guidanceFor(store).master(
+          host.sessionID,
+          this.identity.owner_id,
+          requestID,
+          b.task_id as string,
+          target!,
+          b.text as string,
+        );
       case "push-targets":
       case "push-targets/:id": {
         const { request_id, expected_revision, ...config } = b;
@@ -1141,6 +1151,12 @@ export class ApplicationService {
       return project({
         ...a,
         display: store.read(a.display_ref),
+        guidance_warning:
+          a.scope.execution_id &&
+          guidanceFor(store).obsolete(store.get("Operation", a.operation_id))
+            .length
+            ? "Newer guidance is pending: approval retires the obsolete operation and replans; denial fails the execution."
+            : null,
         remember_context: this.app.authorization.rememberContext(
           store.get("Operation", a.operation_id),
         ),
@@ -1279,6 +1295,40 @@ export class ApplicationService {
         total: entries.length,
         next_cursor:
           start < entries.length ? this.cursors.encode(scope, start) : null,
+        version: String(store.sequence),
+      };
+    }
+    if (parts[0] === "guidance" && parts.length === 2) {
+      const g = store.get<import("./contracts.ts").Guidance>(
+        "Guidance",
+        target,
+      );
+      this.execution(g.execution_id);
+      return project(guidanceFor(store).view(g));
+    }
+    if (
+      parts[0] === "executions" &&
+      parts[2] === "guidance" &&
+      parts.length === 3
+    ) {
+      this.execution(target);
+      const scope = "guidance:" + target;
+      const after = q.get("cursor")
+        ? this.cursors.decode<number>(scope, q.get("cursor")!)
+        : 0;
+      const limit = Number(q.get("limit") ?? 20);
+      if (!Number.isInteger(limit) || limit < 1 || limit > 100)
+        throw new ApiError("INVALID_LIMIT");
+      const all = guidanceFor(store)
+        .list(target)
+        .filter((g) => g.sequence > after);
+      const selected = all.slice(0, limit);
+      return {
+        items: selected.map((g) => project(guidanceFor(store).view(g))),
+        next_cursor:
+          all.length > selected.length
+            ? this.cursors.encode(scope, selected.at(-1)!.sequence)
+            : null,
         version: String(store.sequence),
       };
     }

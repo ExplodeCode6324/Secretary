@@ -8,6 +8,7 @@ export const commands = [
   ["task-requests", "TaskCommand"],
   ["task-requests/:id/cancel", "EmptyCommand"],
   ["executions/:id/cancel", "EmptyCommand"],
+  ["executions/:id/guidance", "GuidanceCommand"],
   ["executions/:id/viewed", "EmptyCommand"],
   ["decisions/:id/answer", "AnswerCommand"],
   ["authorizations/:id/decision", "ApprovalCommand"],

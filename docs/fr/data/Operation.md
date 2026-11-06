@@ -28,6 +28,8 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `effect` | NOT_STARTED / APPLIED / NOT_APPLIED / PARTIAL / UNKNOWN | Oui |  |
 | `error` | string ou null | Oui |  |
 | `process` | object | Non |  {"additionalProperties": false} |
+| `generating_call_id` | ID | Non |  Références : [ID](ID.md) |
+| `guidance_supersession` | object | Non |  {"additionalProperties": false} Références : [ID](ID.md), [ObjectRef](ObjectRef.md), [Time](Time.md) |
 
 ## Contraintes combinées
 

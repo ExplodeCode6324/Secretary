@@ -1,3 +1,4 @@
+import { guidanceFor } from "./guidance.ts";
 import { describedArtifacts } from "./artifact-path.ts";
 import * as fs from "node:fs";
 import { Type } from "typebox";
@@ -43,6 +44,37 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
   const upstreamRead = createReadTool(),
     upstreamWrite = createWriteTool();
   const tools: AgentTool[] = [
+    tool({
+      name: "guidance_receipt",
+      label: "Record guidance disposition",
+      description:
+        "Record host guidance disposition under the task protocol; conflicts wait for a decision. No authority is granted.",
+      parameters: Type.Object({
+        items: Type.Array(
+          Type.Object({
+            guidance_id: Type.String(),
+            outcome: Type.Union([
+              Type.Literal("ADOPTED"),
+              Type.Literal("CONFLICT"),
+              Type.Literal("CANNOT_APPLY"),
+            ]),
+            explanation: Type.String({ minLength: 1, maxLength: 4000 }),
+            effective_requirements: Type.String({
+              minLength: 1,
+              maxLength: 8000,
+            }),
+            conflicts_with: Type.Array(Type.String(), { maxItems: 64 }),
+            resolution_refs: Type.Array(Type.String(), { maxItems: 64 }),
+          }),
+          { minItems: 1, maxItems: 64 },
+        ),
+      }),
+      execute: async () => {
+        const service = guidanceFor(this.store);
+        service.commitReceipts(e.id, service.receipts(e.id));
+        return jsonTool({ saved: true });
+      },
+    }),
     tool({
       name: "submit_result",
       label: "Submit structured task result",
@@ -117,7 +149,11 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
           artifacts,
         });
         return jsonTool(
-          { saved: true, outcome: args.outcome, verified_by: "NOT_VERIFIED" },
+          {
+            saved: true,
+            outcome: this.store.get<Execution>("Execution", e.id).state,
+            verified_by: "NOT_VERIFIED",
+          },
           true,
         );
       },
@@ -152,7 +188,13 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
       parameters: upstreamWrite.parameters,
       execute: async (_call, args) => {
         const resource = this.safePath(e, args.path);
-        const intent = stableID(e.id + ":write:" + JSON.stringify(args));
+        const intent = stableID(
+          e.id +
+            ":write:" +
+            (guidanceFor(this.store).list(e.id).length
+              ? _call
+              : JSON.stringify(args)),
+        );
         const op = this.auth.prepare(
           scopeOf(e),
           "file.write",
@@ -292,6 +334,56 @@ export function tools(this: ExecutorToolsContext, e: Execution): AgentTool[] {
         return this.store.read<{
           result: Awaited<ReturnType<typeof t.execute>>;
         }>(prior.payload).result;
+      const guidance = guidanceFor(this.store);
+      if (guidance.list(e.id).length) {
+        guidance.assertTool(e.id, call, t.name, args);
+        const failedResult =
+          t.name === "submit_result" &&
+          (args as { outcome?: string }).outcome === "FAILED";
+        if (!failedResult) {
+          let receipts;
+          try {
+            receipts = guidance.receipts(e.id);
+          } catch (error) {
+            if (t.name === "submit_result") {
+              this.finish(e.id, "FAILED", {
+                failure_code: "GUIDANCE_NOT_PROCESSED",
+                error: String(error),
+              });
+              return jsonTool({ error: "GUIDANCE_NOT_PROCESSED" }, true);
+            }
+            return jsonTool({ error: String(error), blocked: true });
+          }
+          const kind =
+            t.name === "submit_result"
+              ? "success"
+              : ["write", "bash"].includes(t.name)
+                ? "effect"
+                : "ordinary";
+          const gate = guidance.gate(e.id, kind, receipts);
+          if (gate === "FAIL") {
+            if (receipts.length) this.store.commit(receipts);
+            this.finish(e.id, "FAILED", {
+              failure_code: "GUIDANCE_NOT_PROCESSED",
+            });
+            return jsonTool({ error: "GUIDANCE_NOT_PROCESSED" }, true);
+          }
+          if (gate === "PENDING") {
+            guidance.commitReceipts(e.id, receipts);
+            return jsonTool({ error: "GUIDANCE_PENDING", blocked: true });
+          }
+          if (t.name !== "submit_result" || gate === "CONFLICT")
+            guidance.commitReceipts(e.id, receipts);
+          if (gate === "CONFLICT")
+            return jsonTool(
+              {
+                state: this.store.get<Execution>("Execution", e.id).state,
+                blocked: true,
+              },
+              true,
+            );
+        }
+      }
       const value = await activitiesFor(this.store).tool(
         "tool:" + e.id + ":" + call,
         scopeOf(e),

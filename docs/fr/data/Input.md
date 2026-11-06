@@ -27,6 +27,7 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `content_digest` | Digest | Non |  Références : [Digest](Digest.md) |
 | `withdrawal` | object | Non |  {"additionalProperties": false} Références : [ID](ID.md), [Time](Time.md) |
 | `failure_action` | FailureAction | Non |  Références : [FailureAction](FailureAction.md) |
+| `guidance_id` | ID | Non |  Références : [ID](ID.md) |
 
 ## Contraintes combinées
 

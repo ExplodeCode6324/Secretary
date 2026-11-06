@@ -27,6 +27,7 @@
 | `content_digest` | Digest | いいえ |  関連：[Digest](Digest.md) |
 | `withdrawal` | object | いいえ |  {"additionalProperties": false} 関連：[ID](ID.md), [Time](Time.md) |
 | `failure_action` | FailureAction | いいえ |  関連：[FailureAction](FailureAction.md) |
+| `guidance_id` | ID | いいえ |  関連：[ID](ID.md) |
 
 ## 組み合わせ制約
 

@@ -1,3 +1,4 @@
+import { guidanceFor } from "./guidance.ts";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
@@ -17,7 +18,7 @@ import {
 import type { SchedulerContext } from "./scheduler-context.ts";
 import { relativePath } from "./scopes.ts";
 import { shellEnvironment, type ShellExecution } from "./shell-policy.ts";
-import { base, hash, now } from "./store.ts";
+import { base, hash, now, revise } from "./store.ts";
 
 type EffectsContext = Pick<
   SchedulerContext,
@@ -63,6 +64,13 @@ export async function applyShell(
     throw Error("RESOURCE_CHANGED");
   if (this.conditions(e).some((c) => c.status !== "MET"))
     throw Error("PRECONDITION_CHANGED");
+  guidanceFor(this.store).retire(eid);
+  if (
+    guidanceFor(this.store).isRetired(
+      this.store.get<Operation>("Operation", op.id),
+    )
+  )
+    return { guidance_deferred: true, operation_id: op.id };
   this.auth.dispatch(op.id);
   let stdout = "",
     stderr = "",
@@ -98,7 +106,11 @@ export async function applyShell(
     this.stopChild(child);
   }, params.timeout * 1000);
   try {
-    if (this.store.get<Execution>("Execution", eid).cancel_requested)
+    const deferredGuidance = guidanceFor(this.store).obsolete(op);
+    if (
+      deferredGuidance.length ||
+      this.store.get<Execution>("Execution", eid).cancel_requested
+    )
       requestStop(child);
     else launched.start();
     const result = await launched.closed;
@@ -113,6 +125,9 @@ export async function applyShell(
       stdout,
       stderr,
       ...result,
+      ...(result.not_started && deferredGuidance.length
+        ? { guidance_deferred: true }
+        : {}),
       timed_out,
       truncated,
     };
@@ -127,6 +142,24 @@ export async function applyShell(
       receipt,
       result.not_started ? "NOT_APPLIED" : unknown ? "UNKNOWN" : "APPLIED",
     );
+    if (result.not_started && deferredGuidance.length) {
+      guidanceFor(this.store).retire(eid);
+      const stopped = this.store.get<Operation>("Operation", op.id);
+      this.store.commit([
+        revise(stopped, {
+          guidance_supersession: {
+            reason: "SUPERSEDED_BY_GUIDANCE",
+            guidance_ids: deferredGuidance.map((g) => g.id),
+            at: now(),
+            evidence: this.store.put({
+              operation_id: op.id,
+              not_started: true,
+              receipt: stopped.receipt,
+            }),
+          },
+        }),
+      ]);
+    }
     if (unknown) {
       this.setState(eid, "RESULT_UNKNOWN", {
         unknown_operation_ids: [op.id],
@@ -171,6 +204,14 @@ export async function applyWrite(this: EffectsContext, op: Operation) {
     );
   if (this.conditions(e).some((c) => c.status !== "MET"))
     throw Error("PRECONDITION_CHANGED");
+  const eid = op.scope.execution_id!;
+  guidanceFor(this.store).retire(eid);
+  if (
+    guidanceFor(this.store).isRetired(
+      this.store.get<Operation>("Operation", op.id),
+    )
+  )
+    return { guidance_deferred: true, operation_id: op.id };
   this.auth.dispatch(op.id);
   try {
     const tool = createWriteTool();

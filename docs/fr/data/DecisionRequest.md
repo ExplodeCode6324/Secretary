@@ -26,6 +26,8 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `answer` | JSON ou null | Oui |  |
 | `answered_by` | MAIN / MASTER ou null | Oui |  |
 | `answer_request_id` | ID ou null | Oui |  Références : [ID](ID.md) |
+| `required_answerer` | "MASTER" | Non |  |
+| `guidance_ids` | array<ID> | Non |  {"maxItems": 64} Références : [ID](ID.md) |
 
 ## Contraintes combinées
 

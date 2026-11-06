@@ -27,6 +27,7 @@
 | `logical_key` | Digest | いいえ |  関連：[Digest](Digest.md) |
 | `failure_kind` | TRANSIENT / PERMANENT / CANCELLED / LOCAL | いいえ |  |
 | `retry_at` | Time または null | いいえ |  関連：[Time](Time.md) |
+| `guidance_cutoff` | integer | いいえ |  {"minimum": 0, "maximum": 9007199254740991} |
 
 ## 組み合わせ制約
 

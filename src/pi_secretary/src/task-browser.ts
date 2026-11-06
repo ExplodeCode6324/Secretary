@@ -644,7 +644,10 @@ export class TaskBrowser {
     if (!execution) throw new ApiError("EXECUTION_OUTSIDE_RECENT_THREE", 404);
     const events = this.store
       .executionEvents(execution.id)
-      .filter((e) => e.event_type === "agent.message");
+      .filter(
+        (e) =>
+          e.event_type === "agent.message" || e.event_type === "guidance.sent",
+      );
     const mode = q.get("thinking") === "true";
     const eventMessage = (eid: string): Message => {
       const event = events.find((e) => e.event_id === eid);
@@ -658,6 +661,15 @@ export class TaskBrowser {
           toolName?: string;
           isError?: boolean;
         }>(event.payload);
+        if (event.event_type === "guidance.sent") {
+          const sent = this.store.read<{ guidance_id: string }>(event.payload);
+          const g = this.store.get<import("./contracts.ts").Guidance>(
+            "Guidance",
+            sent.guidance_id,
+          );
+          raw.role = "user";
+          raw.content = `Guidance SENT · ${g.source} · ${g.id}\n${this.store.bytes(g.text).toString()}`;
+        }
         const blocks = Array.isArray(raw.content) ? raw.content : [];
         const text =
           typeof raw.content === "string"

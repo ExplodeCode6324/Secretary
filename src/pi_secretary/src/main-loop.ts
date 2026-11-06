@@ -1,3 +1,4 @@
+import { guidanceFor } from "./guidance.ts";
 import { deliveryEvent } from "./artifact-delivery.ts";
 import { failuresFor } from "./failure-handling.ts";
 import { attachmentBindings } from "./attachments.ts";
@@ -194,6 +195,10 @@ export function deliverFeedback(this: MainLoopContext) {
     "QUEUED",
   ])) {
     this.store.bytes(f.detail_ref);
+    const guidance =
+      f.kind === "RESULT"
+        ? guidanceFor(this.store).summary(f.execution_id)
+        : [];
     const i: Input = {
       schema_version: 1,
       record_type: "Input",
@@ -206,6 +211,7 @@ export function deliverFeedback(this: MainLoopContext) {
         JSON.stringify({
           summary: f.summary,
           feedback_kind: f.kind,
+          ...(guidance.length ? { guidance } : {}),
           execution_id: f.execution_id,
           detail_ref: f.detail_ref,
           decision_request_id: f.decision_request_id,

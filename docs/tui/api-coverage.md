@@ -6,7 +6,7 @@
 
 每项实施 Issue 完成时，按当时的 [操作清单](../api/v1/operations.json) 更新本表，并在完成报告链接本次版本、说明使用变化和仍未使用的 API。测试对本地接口的调用不计为 TUI 已消费。未用 API 不要求补齐菜单，也不自动成为结项阻塞。
 
-状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。API inventory: 93 operations (59 GET, 34 POST); TUI consumes 31, with 62 unused.
+状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。API inventory: 96 operations (61 GET, 35 POST); TUI consumes 31, with 65 unused.
 
 #94 consumes the existing attachment import/message contracts; withdrawal remains unused. 下表的“已用”代表终端客户端实际调用，完整产品原生验收另列。
 
@@ -111,3 +111,11 @@
 #93 使用 `GET failures/{failure_key}` 查看处置，`POST messages` 的 failure_action 提交 Main 意图；失败动作独立于 Main 草稿及普通送达状态。
 
 #94 artifact snapshot downloads and attachment content downloads remain unused. System opening is local-only. Acceptance evidence: [issue94 ledger](../fix/evidence/issue94-delivery/acceptance.md).
+
+#103 adds three backend guidance operations, not yet consumed by the TUI; `/guide` is scoped to #106. Existing authorization/decision views display guidance warnings and Master-only answering restrictions.
+
+| Method | Path | 新 TUI 状态 | 对应功能或未用原因 |
+| --- | --- | --- | --- |
+| POST | /api/v1/executions/{id}/guidance | 未用 | #106 will submit the exact frozen execution target. |
+| GET | /api/v1/guidance/{id} | 未用 | #106 will reconcile durable guidance receipts. |
+| GET | /api/v1/executions/{id}/guidance | 未用 | Backend paginated query; frontend receipt history remains later scope. |

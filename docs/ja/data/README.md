@@ -43,9 +43,9 @@
 | [FeedbackPolicy](FeedbackPolicy.md) | 5 |  |
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
 | [Session](Session.md) | 16 | 論理メインセッション。状態変更はホストのみが書き込み、プロセス停止後も保持します。 |
-| [Input](Input.md) | 17 | 外部入力。ツールの戻り値ではこのオブジェクトを作りません。 |
+| [Input](Input.md) | 18 | 外部入力。ツールの戻り値ではこのオブジェクトを作りません。 |
 | [Context](Context.md) | 32 | 復旧用の不変な完全 CHECKPOINT。MODEL_REQUEST は完全な正規化リクエストの予算が容量検証を通過した場合のみ送信できます。 |
-| [ModelCall](ModelCall.md) | 17 | モデル通信のライフサイクル。完全な応答を保存してからツール要求を解析します。 |
+| [ModelCall](ModelCall.md) | 18 | モデル通信のライフサイクル。完全な応答を保存してからツール要求を解析します。 |
 | [WorkItem](WorkItem.md) | 12 | 事項はタスクとは異なります。未履行かつ引受先のない事項は除外しません。 |
 | [Consciousness](Consciousness.md) | 19 | 現在のワーキングメモリ。すべての要約コミットと引き継ぐ原文集合を一括保存します。 |
 | [CompactionJob](CompactionJob.md) | 24 | 範囲固定の要約ジョブ。新規入力はカバー集合に含めません。 |
@@ -58,9 +58,9 @@
 | [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | 完全な結果を照会可能にしてから短い結論を返します。PARTIAL/UNKNOWN は実行終了を意味しません。 |
 | [Feedback](Feedback.md) | 16 | 短い結論と実行参照。メインセッションが読む時点で詳細は保存済みです。 |
-| [DecisionRequest](DecisionRequest.md) | 16 | 通常の判断は TaskControl、認可は独立したインターフェースを使います。 |
+| [DecisionRequest](DecisionRequest.md) | 18 | 通常の判断は TaskControl、認可は独立したインターフェースを使います。 |
 | [ActionScope](ActionScope.md) | 6 |  |
-| [Operation](Operation.md) | 18 | 最終ゲートの単位。権限、キャンセル、対象バージョンをここで検証します。 |
+| [Operation](Operation.md) | 20 | 最終ゲートの単位。権限、キャンセル、対象バージョンをここで検証します。 |
 | [AuthorizationRequest](AuthorizationRequest.md) | 17 | host/scheduler の非公開記録。モデルは承認状態を提出できません。 |
 | [ApprovalCommand](ApprovalCommand.md) | 8 | 認証済み Master UI のみ呼び出し可能。身元はサーバー session から取得し、body は信用しません。 |
 | [AuthorizationRule](AuthorizationRule.md) | 13 | 手動確認した永続ルール。メインセッションには書き込み口がなく、操作ごとに現行 revision と照合します。 |
@@ -113,3 +113,6 @@
 | [AttachmentImport](AttachmentImport.md) | 12 |  |
 | [FailureAction](FailureAction.md) | 3 |  |
 | [FailureHandling](FailureHandling.md) | 20 |  |
+| [Guidance](Guidance.md) | 21 | Durable exact-execution guidance; independent sent, received and adopted milestones. |
+| [GuidanceInjection](GuidanceInjection.md) | 13 | Host-only injection provenance. A queued message is not reception or model consumption. |
+| [GuidanceReceipt](GuidanceReceipt.md) | 15 | Append-only validated disposition from the actual durable model request and response. |

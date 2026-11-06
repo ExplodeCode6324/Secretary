@@ -28,6 +28,8 @@
 | `effect` | NOT_STARTED / APPLIED / NOT_APPLIED / PARTIAL / UNKNOWN | はい |  |
 | `error` | string または null | はい |  |
 | `process` | object | いいえ |  {"additionalProperties": false} |
+| `generating_call_id` | ID | いいえ |  関連：[ID](ID.md) |
+| `guidance_supersession` | object | いいえ |  {"additionalProperties": false} 関連：[ID](ID.md), [ObjectRef](ObjectRef.md), [Time](Time.md) |
 
 ## 組み合わせ制約
 

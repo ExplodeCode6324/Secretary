@@ -1,3 +1,4 @@
+import { guidanceFor } from "./guidance.ts";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ChildProcess } from "node:child_process";
 import * as fs from "node:fs";
@@ -145,6 +146,7 @@ export async function run(this: ExecutionRunnerContext, eid: string) {
         this.finish(eid, "FAILED", { error: String(error) });
     })
     .finally(() => {
+      guidanceFor(this.store).unregister(eid);
       this.running.delete(eid);
       this.settleUnknownExecution(eid);
     });
@@ -171,12 +173,19 @@ export async function execute(
       .all<Operation>("Operation")
       .filter((o) => o.scope.execution_id === eid);
     if (ops.some((o) => o.state === "WAIT_AUTH")) return;
-    if (ops.some((o) => o.state === "CANCELLED")) {
+    if (
+      ops.some(
+        (o) => o.state === "CANCELLED" && !guidanceFor(this.store).isRetired(o),
+      )
+    ) {
       this.finish(eid, "FAILED", {
         reason: "Authorization rejected/revoked",
         failure_code: "CANCELLED_OPERATION_ON_RESUME",
         cancelled_operation_ids: ops
-          .filter((o) => o.state === "CANCELLED")
+          .filter(
+            (o) =>
+              o.state === "CANCELLED" && !guidanceFor(this.store).isRetired(o),
+          )
           .map((o) => o.id),
       });
       return;
@@ -187,12 +196,21 @@ export async function execute(
     }
     for (const o of ops.filter(
       (o) => o.state === "AUTHORIZED" && o.action.action === "file.write",
-    ))
-      await this.applyWrite(o);
+    )) {
+      guidanceFor(this.store).retire(eid);
+      if (this.store.get<Operation>("Operation", o.id).state !== "AUTHORIZED")
+        continue;
+      const applied = await this.applyWrite(o);
+      if (applied && "guidance_deferred" in applied) continue;
+    }
     for (const o of ops.filter(
       (o) => o.state === "AUTHORIZED" && o.action.action === "shell.run",
     )) {
-      await this.applyShell(o, entry);
+      guidanceFor(this.store).retire(eid);
+      if (this.store.get<Operation>("Operation", o.id).state !== "AUTHORIZED")
+        continue;
+      const applied = await this.applyShell(o, entry);
+      if (applied && "guidance_deferred" in applied) continue;
       if (
         this.store.get<Execution>("Execution", eid).state === "RESULT_UNKNOWN"
       )
@@ -311,7 +329,11 @@ export async function execute(
     },
     streamFn: durableStream(this.store, this.stream, scopeOf(e), eid, "TASK", {
       resumeCallID: recoveryCall?.id,
+      guidanceCutoff: () => guidanceFor(this.store).requestCutoff(eid),
+      checkGuidance: (context, cutoff) =>
+        guidanceFor(this.store).checkRequest(eid, context, cutoff),
       onPrepared: (call) => {
+        guidanceFor(this.store).prepared(eid, call);
         const current = this.store.get<Execution>("Execution", eid);
         if (current.recovery_call_id) {
           const { recovery_call_id: _, ...cleared } = current;
@@ -319,16 +341,20 @@ export async function execute(
         }
       },
     }),
+    steeringMode: "all",
     toolExecution: "sequential",
   });
   agent.finishTurn = () => {
     const current = this.store.get<Execution>("Execution", eid);
     if (current.state !== "RUNNING") return { action: "end" };
+    guidanceFor(this.store).nextTurn(eid);
   };
+  guidanceFor(this.store).register(eid, agent, attempt, !!recoveryRequest);
   entry.agent = agent;
   agent.subscribe((event) => {
     if (event.type === "message_end") {
       const cp = checkpoint(this.store, agent, e.task_id, eid);
+      guidanceFor(this.store).checkpoint(eid, cp, agent.state.messages);
       const current = this.store.get<Execution>("Execution", eid);
       this.store.commit(
         [revise(current, { checkpoint_id: cp.id })],
@@ -355,7 +381,7 @@ export async function execute(
     );
   };
   const proposal = this.proposalFor(e);
-  const packet = executionPrompt(
+  let packet = executionPrompt(
     proposal,
     e,
     this.promptMaterials(proposal),
@@ -376,6 +402,8 @@ export async function execute(
     },
     this.scopes.packet(e, this.rootFor(e)),
   );
+  if (!recoveryRequest)
+    packet = guidanceFor(this.store).initialPacket(eid, packet);
   this.store.commit(
     [],
     [
@@ -414,6 +442,32 @@ export function finish(
     this.setState(eid, "RESULT_UNKNOWN");
     return;
   }
+  const guidance = guidanceFor(this.store);
+  let receiptChanges: Stored[] = [];
+  if (state === "SUCCEEDED" && guidance.list(eid).length) {
+    receiptChanges = guidance.receipts(eid);
+    const gate = guidance.gate(eid, "success", receiptChanges);
+    if (gate === "PENDING") throw Error("GUIDANCE_PENDING");
+    if (gate === "CONFLICT") {
+      guidance.commitReceipts(eid, receiptChanges);
+      return;
+    }
+    if (gate === "FAIL") {
+      state = "FAILED";
+      detail = {
+        failure_code: "GUIDANCE_NOT_PROCESSED",
+        attempted_result: detail,
+      };
+    }
+  }
+  const settlement = guidance.settlement(eid, state, receiptChanges);
+  // A receipt's Guidance update is folded into the same revision as settlement.
+  receiptChanges = receiptChanges.filter((r) => r.record_type !== "Guidance");
+  // Preserve existing result-detail identities used by failure classification.
+  // Guidance is additional evidence, not a rewrite of the primary failure cause.
+  const guidanceEvidence = settlement.length
+    ? this.store.put({ guidance: guidance.summary(eid, settlement) })
+    : null;
   const ref = this.store.put(detail);
   const agentDetail =
     this.proposalFor(e).executor.kind === "AGENT" ? detail : undefined;
@@ -435,7 +489,7 @@ export function finish(
       ...(structured?.limitations ?? []),
       "Model output is not independent verification",
     ],
-    evidence: [ref],
+    evidence: [ref, ...(guidanceEvidence ? [guidanceEvidence] : [])],
     artifacts: (
       (
         agentDetail as {
@@ -468,6 +522,8 @@ export function finish(
     observed_at: now(),
   };
   const changes: Stored[] = [
+    ...receiptChanges,
+    ...settlement,
     ...this.store
       .all<DecisionRequest>("DecisionRequest")
       .filter((d) => d.execution_id === eid && d.state === "OPEN")

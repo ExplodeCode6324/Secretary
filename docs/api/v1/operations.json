@@ -57,6 +57,13 @@
   },
   {
     "method": "POST",
+    "path": "/api/v1/executions/{id}/guidance",
+    "request": "GuidanceCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
     "path": "/api/v1/executions/{id}/viewed",
     "request": "EmptyCommand",
     "response": "Receipt",
@@ -1557,5 +1564,17 @@
         }
       }
     ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/guidance/{id}",
+    "response": "Guidance",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/executions/{id}/guidance",
+    "response": "GuidancePage",
+    "status": 200
   }
 ]

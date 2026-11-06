@@ -1,3 +1,4 @@
+import { guidanceFor } from "./guidance.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { Scopes, relativePath } from "./scopes.ts";
@@ -100,6 +101,14 @@ export class Authorization {
         ? this.store.get<Execution>("Execution", scope.execution_id).attempt_id
         : null,
       retry_of: retryOf,
+      ...(scope.execution_id &&
+      guidanceFor(this.store).currentCall(scope.execution_id)
+        ? {
+            generating_call_id: guidanceFor(this.store).currentCall(
+              scope.execution_id,
+            )!,
+          }
+        : {}),
       receipt: null,
       effect: "NOT_STARTED",
       error: null,
