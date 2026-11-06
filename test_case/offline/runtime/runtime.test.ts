@@ -275,7 +275,9 @@ test("short-term retirement keeps history and blocks pending feedback", () =>
       "RETIRED",
     );
     assert(app.store.logs.length >= events);
-    assert.equal(app.scheduler.detail(e.id).status, "RETIRED");
+    const detail = app.scheduler.detail(e.id);
+    assert("status" in detail);
+    assert.equal(detail.status, "RETIRED");
   }));
 test("Consciousness compaction preserves originals and does not schedule a new input", () =>
   fixture(async (app) => {

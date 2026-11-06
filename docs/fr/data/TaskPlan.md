@@ -31,6 +31,9 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `initialization_error` | string ou null | Oui |  |
 | `pending_requests` | array<object> | Non | Unique représentation d’exécution en attente d’une requête immédiate admise ; vide par défaut dans les anciens enregistrements. Les occurrences récurrentes utilisent toujours pending_occurrences. Références : [ID](ID.md), [ObjectRef](ObjectRef.md), [Time](Time.md) |
 | `scope_id` | ID ou null | Non |  Références : [ID](ID.md) |
+| `title` | string | Non | Titre unique et permanent dans le domaine de données Core ; les anciens enregistrements sont complétés au démarrage. {"minLength": 1, "maxLength": 64} |
+| `identity_version` | 1 | Non | Version achevée de migration des titres et numéros permanents. |
+| `execution_round_high_water` | integer | Non | Maximum permanent des numéros, jamais réduit par retrait ou changement de fenêtre. {"minimum": 0, "maximum": 9007199254740991} |
 
 ## Contraintes combinées
 

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture, executions } from "../issue16/helpers.ts";
-import { base, id } from "../../../src/pi_secretary/src/store.ts";
+import { base, id, revise } from "../../../src/pi_secretary/src/store.ts";
 import {
   effectiveSchedule,
   applicableAuthorization,
@@ -126,6 +126,8 @@ test("SEEDED projection: paused/CLOSED retain own work; cross-task followup alon
         ...plan,
         ...base(),
         state: c.state,
+        title: "seed " + id(),
+        execution_round_high_water: 0,
         pending_requests: c.requests
           ? [
               {
@@ -141,10 +143,12 @@ test("SEEDED projection: paused/CLOSED retain own work; cross-task followup alon
       a.store.commit([p]);
       if (c.execution || c.followups)
         a.store.commit([
+          revise(p, { execution_round_high_water: 1 }),
           {
             ...source,
             ...base(),
             task_id: p.id,
+            execution_round: 1,
             plan_revision: p.revision,
             state: c.execution ?? "SUCCEEDED",
             pending_followup_ids: c.followups ? [completed.id] : [],

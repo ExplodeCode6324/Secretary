@@ -197,6 +197,10 @@ export type Execution = {
     root_path: string;
     notes_path: string | null;
   };
+  /**
+   * Task 内永久创建轮次；恢复保留，旧记录启动补齐。
+   */
+  execution_round?: number;
 };
 /**
  * 状态枚举对应 src/state_machine/catalog.json 的 Execution
@@ -822,6 +826,10 @@ export interface TaskProposal {
    */
   source_context_refs?: ObjectRef[];
   scope_id?: ID | null;
+  /**
+   * 仅新建任务的建议标题；Core 规范化分配，非身份。
+   */
+  title_candidate?: string;
 }
 /**
  * 运行前提只引用已登记检查器，禁止运行模型提交的表达式。
@@ -893,6 +901,18 @@ export interface TaskPlan {
     proposal_ref: ObjectRef;
   }[];
   scope_id?: ID | null;
+  /**
+   * Core 数据域唯一且永久保留的标题；旧记录由启动迁移补齐。
+   */
+  title?: string;
+  /**
+   * 标题与固定轮次迁移完成版本。
+   */
+  identity_version?: 1;
+  /**
+   * 永久轮次高水位，不随退役或窗口变化降低。
+   */
+  execution_round_high_water?: number;
 }
 export interface ConditionResult {
   condition_id: ID;

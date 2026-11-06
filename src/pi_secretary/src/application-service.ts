@@ -473,6 +473,9 @@ export class ApplicationService {
         );
       case "task-requests":
         return scheduler.propose(b.goal as string, requestID, host.sessionID, {
+          ...(b.title_candidate != null
+            ? { title_candidate: b.title_candidate as string }
+            : {}),
           scopeID: b.scope_id as string | null | undefined,
           reuse: b.reuse_task_id as string | undefined,
           parent: b.parent_execution_id as string | undefined,
@@ -1015,6 +1018,7 @@ export class ApplicationService {
           const latest = latestID ? this.execution(latestID) : null;
           return {
             id: p.id,
+            title: p.title!,
             scope_id: p.scope_id ?? null,
             revision: String(p.revision),
             state: p.state,
@@ -1022,10 +1026,15 @@ export class ApplicationService {
             active_execution_ids: p.active_execution_ids,
             active_executions: p.active_execution_ids.map((executionID) => {
               const execution = this.execution(executionID);
-              return { id: execution.id, state: execution.state };
+              return {
+                id: execution.id,
+                state: execution.state,
+                execution_round: execution.execution_round!,
+              };
             }),
             latest_execution_id: latest?.id ?? null,
             latest_execution_state: latest?.state ?? null,
+            latest_execution_round: latest?.execution_round ?? null,
             pending_request_count: p.pending_requests?.length ?? 0,
           };
         }),
@@ -1040,6 +1049,7 @@ export class ApplicationService {
         effective = e ? scheduler.proposalFor(e) : null;
       return project({
         id: p.id,
+        title: p.title!,
         scope_id: p.scope_id ?? null,
         revision: p.revision,
         state: p.state,
@@ -1058,6 +1068,7 @@ export class ApplicationService {
           : null,
         latest_execution_id: latest ?? null,
         latest_state: e?.state ?? null,
+        latest_execution_round: e?.execution_round ?? null,
         continuation: scheduler.continuationStatus(p.id, latest, sid),
         pending_requests: (p.pending_requests ?? [])
           .slice(0, 100)
@@ -1554,6 +1565,8 @@ export class ApplicationService {
       id: e.id,
       revision: e.revision,
       task_id: e.task_id,
+      title: this.task(e.task_id).title!,
+      execution_round: e.execution_round!,
       scope_id: e.scope_id ?? null,
       condition_results: e.condition_results,
       state: e.state,

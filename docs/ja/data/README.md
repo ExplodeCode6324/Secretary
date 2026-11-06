@@ -49,9 +49,9 @@
 | [WorkItem](WorkItem.md) | 12 | 事項はタスクとは異なります。未履行かつ引受先のない事項は除外しません。 |
 | [Consciousness](Consciousness.md) | 19 | 現在のワーキングメモリ。すべての要約コミットと引き継ぐ原文集合を一括保存します。 |
 | [CompactionJob](CompactionJob.md) | 24 | 範囲固定の要約ジョブ。新規入力はカバー集合に含めません。 |
-| [TaskProposal](TaskProposal.md) | 20 | メインセッションはタスクを提案するだけで、authorized、grant などのモデルの宣言は受け付けません。 |
-| [TaskPlan](TaskPlan.md) | 21 | id は task_id です。計画保存後に冪等にディレクトリを作り、実行可能時に dispatch が agent を起動します。 |
-| [Execution](Execution.md) | 28 | 実行ライフサイクルと短期保持は独立し、終了履歴は RUNNING に戻れません。 |
+| [TaskProposal](TaskProposal.md) | 21 | メインセッションはタスクを提案するだけで、authorized、grant などのモデルの宣言は受け付けません。 |
+| [TaskPlan](TaskPlan.md) | 24 | id は task_id です。計画保存後に冪等にディレクトリを作り、実行可能時に dispatch が agent を起動します。 |
+| [Execution](Execution.md) | 29 | 実行ライフサイクルと短期保持は独立し、終了履歴は RUNNING に戻れません。 |
 | [Dispatch](Dispatch.md) | 15 | Scheduler -> worker の固定ディスパッチ。同じ attempt_id は既存受領記録を返し、プロセスを再起動しません。 |
 | [WorkerReceipt](WorkerReceipt.md) | 15 | PID は手掛かりに過ぎません。worker_instance/attempt を確認し、PID だけで同一プロセスと判断しません。 |
 | [Checkpoint](Checkpoint.md) | 18 | ホストは元の context と継続指示を保存します。復旧で過去のツールは実行しません。 |

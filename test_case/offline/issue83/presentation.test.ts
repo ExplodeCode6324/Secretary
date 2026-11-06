@@ -12,6 +12,7 @@ import type {
   TaskBrowserExecution,
 } from "../../../src/pi_secretary/src/api/contracts.ts";
 const execution: TaskBrowserExecution = {
+  execution_round: 7,
   id: "exec-full-id",
   state: "RUNNING",
   kind: "AGENT",
@@ -25,6 +26,7 @@ const execution: TaskBrowserExecution = {
   history_availability: "recorded",
 };
 const task: TaskBrowserTask = {
+  title: "示例任务",
   id: "12345678-0000-4000-8000-000000000001",
   scope_id: null,
   scope_name: "Shared",

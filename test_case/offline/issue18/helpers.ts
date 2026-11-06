@@ -1,5 +1,6 @@
+import { nextExecutionRound } from "../../../src/pi_secretary/src/task-identity.ts";
 import type { App } from "../../../src/pi_secretary/src/app.ts";
-import { base, id, now } from "../../../src/pi_secretary/src/store.ts";
+import { base, id, now, revise } from "../../../src/pi_secretary/src/store.ts";
 import type {
   Execution,
   Operation,
@@ -20,6 +21,7 @@ export function interrupted(
     record_type: "Execution",
     ...base(),
     task_id: task.id,
+    execution_round: nextExecutionRound(task),
     state: "RESULT_UNKNOWN",
     retention_state: "HOT",
     occurrence_key: id(),
@@ -73,6 +75,10 @@ export function interrupted(
         }),
   };
   e.unknown_operation_ids = [op.id];
-  app.store.commit([e, op]);
+  app.store.commit([
+    e,
+    op,
+    revise(task, { execution_round_high_water: e.execution_round! }),
+  ]);
   return { e, op };
 }

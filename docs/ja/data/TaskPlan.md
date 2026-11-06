@@ -31,6 +31,9 @@ id は task_id です。計画保存後に冪等にディレクトリを作り�
 | `initialization_error` | string または null | はい |  |
 | `pending_requests` | array<object> | いいえ | 受理済み即時要求の唯一の実行待ち表現。旧記録のデフォルトは空です。周期の時点は引き続き pending_occurrences を使います。 関連：[ID](ID.md), [ObjectRef](ObjectRef.md), [Time](Time.md) |
 | `scope_id` | ID または null | いいえ |  関連：[ID](ID.md) |
+| `title` | string | いいえ | Core データ領域で一意かつ永続的なタイトル。旧レコードは起動時の移行で補完します。 {"minLength": 1, "maxLength": 64} |
+| `identity_version` | 1 | いいえ | タイトルと固定実行番号の移行完了バージョン。 |
+| `execution_round_high_water` | integer | いいえ | 退役や表示範囲の変更で減少しない永続的な実行番号の上限。 {"minimum": 0, "maximum": 9007199254740991} |
 
 ## 組み合わせ制約
 

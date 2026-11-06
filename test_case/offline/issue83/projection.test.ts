@@ -179,9 +179,14 @@ test("real Agent events, latest three, duplicate messages preserved, long conten
       "task-browser",
     )) as TaskBrowserPage;
     assert.equal(current.counts.shared_tasks, 0);
+    const nextPlan = a.store.get<TaskPlan>("TaskPlan", p.id);
     a.store.commit([
+      revise(nextPlan, {
+        execution_round_high_water: nextPlan.execution_round_high_water! + 1,
+      }),
       {
         ...a.store.get<Execution>("Execution", last.id),
+        execution_round: nextPlan.execution_round_high_water! + 1,
         ...base(),
         state: "FAILED",
         retention_state: "RETIRED",

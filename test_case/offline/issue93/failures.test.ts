@@ -1,3 +1,4 @@
+import { nextExecutionRound } from "../../../src/pi_secretary/src/task-identity.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "../issue9/helpers.ts";
@@ -791,14 +792,22 @@ test("legacy source materials normalize like continuation; successful redo clear
     delete proposal.source_context_refs;
     proposal.context_refs = [source, result.detail_ref, source];
     f.app.scheduler.finish(e.id, "FAILED", { error: "preceding fixture" });
+    const plan = f.app.store.get<
+      import("../../../src/pi_secretary/src/contracts.ts").TaskPlan
+    >("TaskPlan", e.task_id);
+    const round = nextExecutionRound(plan);
     // A separate imported legacy record, never mutate an existing proposal identity.
     e = {
       ...e,
       ...base(),
       occurrence_key: id(),
+      execution_round: round,
       proposal_ref: f.app.store.put(proposal),
     };
-    f.app.store.commit([e]);
+    f.app.store.commit([
+      revise(plan, { execution_round_high_water: round }),
+      e,
+    ]);
     f.app.scheduler.finish(e.id, "FAILED", { error: "legacy" });
     const x = await intent(f, e, "REDO");
     assert.equal(

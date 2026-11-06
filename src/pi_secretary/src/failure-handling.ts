@@ -18,6 +18,7 @@ import type { Scheduler } from "./scheduler.ts";
 import { sourceRefs } from "./task-planning.ts";
 
 export type FailureProposal = {
+  title_candidate?: string | null;
   goal?: string;
   reuse_task_id?: string | null;
   parent_execution_id?: string | null;

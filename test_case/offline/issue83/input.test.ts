@@ -26,7 +26,6 @@ test("ID command grammar preserves ID case, restricts Task root and never sends 
       `/${name} abc def`,
       `/${name} abc\n`,
       `/${name} abc\n/T`,
-      `/${name} abc_`,
     ])
       assert.equal(parseInput(text, "Task").kind, "error", text);
     assert.equal(parseInput("/" + name + " abc", "Main").kind, "error");

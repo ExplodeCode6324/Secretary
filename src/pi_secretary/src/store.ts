@@ -1,3 +1,4 @@
+import { TaskIdentityIndex, IDENTITY_ACTIVATED } from "./task-identity.ts";
 import { EVIDENCE_MEDIA, hydrateEvidence } from "./evidence.ts";
 import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
@@ -82,8 +83,14 @@ const indexFields: Record<string, string[]> = {
   WorldCommand: ["state"],
   Input: ["state"],
   Feedback: ["state", "execution_id"],
-  Execution: ["state", "retention_state", "task_id", "task_occurrence"],
-  TaskPlan: ["state", "pending_requests.length"],
+  Execution: [
+    "state",
+    "retention_state",
+    "task_id",
+    "task_occurrence",
+    "task_round",
+  ],
+  TaskPlan: ["state", "pending_requests.length", "title"],
   Operation: ["process.state", "scope.execution_id"],
   ModelCall: ["scope.execution_id"],
   SettingsApplication: ["state"],
@@ -93,13 +100,19 @@ const indexFields: Record<string, string[]> = {
 const fieldValue = (record: Stored, field: string): unknown =>
   field === "pending_extraction" && record.record_type === "MemoryExtractionJob"
     ? !record.merged && (record.state !== "FAILED" || !!record.next_attempt_at)
-    : field === "task_occurrence"
+    : field === "task_round"
       ? JSON.stringify([
           (record as any).task_id,
-          (record as any).occurrence_key,
+          (record as any).execution_round,
         ])
-      : field.split(".").reduce((value: any, key) => value?.[key], record);
+      : field === "task_occurrence"
+        ? JSON.stringify([
+            (record as any).task_id,
+            (record as any).occurrence_key,
+          ])
+        : field.split(".").reduce((value: any, key) => value?.[key], record);
 export class Store {
+  readonly taskIdentities = new TaskIdentityIndex();
   readonly dir: string;
   epoch = 1;
   sequence = 0;
@@ -847,6 +860,19 @@ export class Store {
       )
         throw Error("MISSING_SESSION");
     }
+    const identityEvents = txn.log_records.filter(
+      (e) => e.event_type === IDENTITY_ACTIVATED,
+    );
+    if (
+      identityEvents.length > 1 ||
+      identityEvents.some(
+        (e) =>
+          JSON.stringify(this.read(e.payload)) !==
+          JSON.stringify({ version: 1 }),
+      )
+    )
+      throw Error("INVALID_IDENTITY_ACTIVATION");
+    this.taskIdentities.validate(staged, identityEvents.length === 1);
     const eventIDs = new Set<string>();
     for (const [index, e] of txn.log_records.entries()) {
       this.verifyRefs(e);
@@ -867,6 +893,10 @@ export class Store {
     return staged;
   }
   private install(txn: JournalTransaction, digest: string, staged: Stored[]) {
+    this.taskIdentities.install(
+      staged,
+      txn.log_records.some((e) => e.event_type === IDENTITY_ACTIVATED),
+    );
     this.projectionFrames.push({
       digest,
       sequence: txn.sequence,

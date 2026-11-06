@@ -481,6 +481,7 @@ export interface TaskCommand {
     required_revision: string | null;
   }[];
   scope_id?: string | null;
+  title_candidate?: string | null;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -600,10 +601,13 @@ export interface TaskSummary {
   active_executions: {
     id: string;
     state: string;
+    execution_round: number;
   }[];
   latest_execution_id: string | null;
   latest_execution_state: string | null;
   pending_request_count: number;
+  title: string;
+  latest_execution_round: number | null;
   [k: string]: unknown;
 }
 /**
@@ -660,6 +664,8 @@ export interface TaskDetail {
   pending_request_count: number;
   result: Result | null;
   scope_id?: string | null;
+  title: string;
+  latest_execution_round: number | null;
   [k: string]: unknown;
 }
 /**
@@ -702,6 +708,8 @@ export interface Execution {
       | null;
     operation: string | null;
   };
+  execution_round: number;
+  title: string;
   [k: string]: unknown;
 }
 /**
@@ -1181,6 +1189,8 @@ export interface TaskRequestStatus {
   constraints: string[];
   acceptance_criteria: string[];
   scope_id?: string | null;
+  title: string;
+  execution_round: number | null;
   [k: string]: unknown;
 }
 /**
@@ -1614,6 +1624,7 @@ export interface TaskBrowserExecution {
   invoked_at: string | null;
   ordering_source: string;
   history_availability: string;
+  execution_round: number;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -1646,6 +1657,7 @@ export interface TaskBrowserTask {
   latest_result_observed_at: string | null;
   unresolved_failure_count?: number;
   failure_summary?: string | null;
+  title: string;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -1685,6 +1697,21 @@ export interface TaskBrowserPage {
   target: string | null;
   historical: TaskBrowserTask | null;
   suggestions: string[];
+  locator_suggestions?: TaskLocatorSuggestion[];
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskLocatorSuggestion".
+ */
+export interface TaskLocatorSuggestion {
+  task_id: string;
+  title: string;
+  state: string;
+  executions: {
+    id: string;
+    execution_round: number;
+    state: string;
+  }[];
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -1866,4 +1893,28 @@ export interface SSETaskTransient {
     status: "running" | "saved" | "incomplete";
     truncated: boolean;
   }[];
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskTargetResolution".
+ */
+export interface TaskTargetResolution {
+  task_id: string;
+  title: string;
+  execution_id: string;
+  execution_round: number;
+  state: string;
+  task_revision: string;
+  execution_revision: string;
+  version: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskLocatorSuggestions".
+ */
+export interface TaskLocatorSuggestions {
+  /**
+   * @maxItems 20
+   */
+  items: TaskLocatorSuggestion[];
 }

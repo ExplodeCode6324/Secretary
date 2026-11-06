@@ -31,6 +31,9 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
 | `initialization_error` | string or null | Yes |  |
 | `pending_requests` | array<object> | No | The sole pending-execution representation of an admitted immediate request; absent in legacy records. Recurring occurrences still use pending_occurrences. Related: [ID](ID.md), [ObjectRef](ObjectRef.md), [Time](Time.md) |
 | `scope_id` | ID or null | No |  Related: [ID](ID.md) |
+| `title` | string | No | Unique permanent title within the Core data domain; legacy records are backfilled during startup migration. {"minLength": 1, "maxLength": 64} |
+| `identity_version` | 1 | No | Completed title and permanent round migration version. |
+| `execution_round_high_water` | integer | No | Permanent round high-water mark, never reduced by retirement or window changes. {"minimum": 0, "maximum": 9007199254740991} |
 
 ## Combined constraints
 

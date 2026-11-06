@@ -1,3 +1,4 @@
+import { nextExecutionRound } from "../../../src/pi_secretary/src/task-identity.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -18,6 +19,7 @@ import {
 } from "../../../src/pi_secretary/src/store.ts";
 import { scopeOf } from "../../../src/pi_secretary/src/scheduler.ts";
 import type {
+  TaskPlan,
   Execution,
   Input,
   Operation,
@@ -101,6 +103,17 @@ async function fixture(
   }
 }
 
+function seed(store: Store, record: Managed) {
+  if (record.record_type !== "Execution") {
+    store.commit([record]);
+    return;
+  }
+  const plan = store.get<TaskPlan>("TaskPlan", record.task_id);
+  const round = nextExecutionRound(plan);
+  record.execution_round = round;
+  store.commit([revise(plan, { execution_round_high_water: round }), record]);
+}
+
 for (const kind of ["Execution", "Operation", "Input"] as const) {
   test(`${kind}: every state pair, same-state update and first snapshot; rejected transactions are atomic`, () =>
     fixture(async (store, templates) => {
@@ -115,7 +128,7 @@ for (const kind of ["Execution", "Operation", "Input"] as const) {
         for (const to of machine.states) {
           // Creating an already-running historical snapshot is supported. Only updates are gated.
           const before = { ...template, ...base(), state: from } as Managed;
-          store.commit([before]);
+          seed(store, before);
           const updated = revise(before, { state: to } as Partial<Managed>);
           const session = store.all<Session>("Session")[0];
           const request = id();
@@ -190,7 +203,7 @@ test("terminal executions and operations cannot be resurrected, independent of c
       for (const state of ["SUCCEEDED", "FAILED", "CANCELLED"]) {
         const before = { ...template, ...base(), state } as
           Execution | Operation;
-        store.commit([before]);
+        seed(store, before);
         const target =
           before.record_type === "Execution" ? "RUNNING" : "DISPATCHED";
         assert.throws(
@@ -208,7 +221,7 @@ test("replay rejects a correctly hashed journal carrying an illegal transition w
   fixture(async (store, templates) => {
     const template = templates[0] as Execution;
     const terminal: Execution = { ...template, ...base(), state: "SUCCEEDED" };
-    store.commit([terminal]);
+    seed(store, terminal);
     store.commit([revise(terminal, {})]);
     const invalid = store.put(revise(terminal, { state: "RUNNING" }));
     await store.close();

@@ -121,3 +121,7 @@
 | GET | /api/v1/executions/{id}/guidance | 未用 | Backend paginated query; frontend receipt history remains later scope. |
 
 #104 adds `/follow [execution_id|off]` in Task detail. The frozen AGENT execution follows targeted SSE metadata and durable changes, with a final tail before stopping. Reading, selection, paging and navigation stop following. Reconnect/resize/CoT preserve only a still-valid exact target. Transient output is visibly unsaved; lost formatting prefixes render literally with a boundary label. Main and Task follow states are independent. The 200-message/4 MiB Task budget includes serialized metadata, body/thinking text and released render-cache references. No token-driven root-list or whole-window reread is added. Physical terminal acceptance is separate from HTTP/SSE and headless tests.
+
+### #105 identity additions
+
+Task navigation uses the discriminated `task-browser/locate` selector and typed `task-browser/suggestions` endpoint. The generated read-only `task-browser/resolve` endpoint supplies exact Task/Execution identity for the later #106 integration. #105 does not submit `/guide`. Titles and permanent rounds are shown alongside retained UUIDs; mouse/Esc navigation remains read-only.

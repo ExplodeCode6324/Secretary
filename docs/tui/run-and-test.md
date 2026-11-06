@@ -113,3 +113,11 @@ Task 普通详情中，`/follow` 选择当前阅读段落的 AGENT Execution；�
 流式正文是暂态预览，不代表结果已保存、工具已执行或 Guidance 已采纳。响应保存后同一消息身份切换为持久正文；执行结束时读取最终末尾再停止跟随。断线重连会重新核对目标和正文；旧进程的预览不作为新进程的当前内容。正文末尾缺少 Markdown 前文时明确显示格式上下文边界，仍可向前翻阅原文。
 
 `position=latest` 消息接口直接读取最后一页；正文接口直接读取有界末尾，不需要从第一条消息逐页追赶。普通 Task 输出不唤醒 Main；授权、问题、UNKNOWN 与最终结果仍通过持久通知处理。#104 验证及原生工具受限情况见 [实施证据](../fix/evidence/issue104-streaming/implementation.md)。
+
+### Stable Task identity (#105)
+
+Task cards display the permanent title and execution round. Use `/search_task "整理 本周报告"` on the Task list or `/taskdetail "整理 本周报告"` on ordinary Task input. Double quotes accept only escaped quote and backslash. Unquoted tokens resolve without title/ID precedence; `/taskdetail --id <prefix>` forces ID lookup. Extra arguments and newlines are rejected. Completion inserts an escaped quoted title without sending. `/show` still takes a matter ID; `/follow` still uses an execution ID or its existing anchor, with round labels.
+
+The list card's `[详情]` hotspot opens that exact task; its title and goal remain ordinary selectable text. Esc first respects a matter or completion menu, then returns ordinary Task detail to the list and its saved anchor. Mouse/Esc navigation preserves the shared Task draft, undo and paste provenance. Explicitly submitted local commands consume their own command text. No guidance command is added by #105.
+
+Automated coverage: `npx tsx --test test_case/offline/issue105/*.test.ts`. This includes the pinned Pi dispatch path; headless results do not establish native-terminal acceptance. Back up a real data root before its first upgraded start as described in the API guide.

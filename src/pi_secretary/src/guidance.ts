@@ -76,7 +76,7 @@ export class GuidanceService {
       [eid],
     );
   }
-  private target(session: string, task: string, eid: string) {
+  target(session: string, task: string, eid: string) {
     const e = this.store.find<Execution>("Execution", eid);
     const p = this.store.find<TaskPlan>("TaskPlan", task);
     if (!e || !p) throw Error("TARGET_NOT_FOUND");
@@ -85,6 +85,7 @@ export class GuidanceService {
       this.store.read<TaskProposal>(p.proposal_ref).session_id !== session
     )
       throw Error("TARGET_MISMATCH");
+    if (e.state === "RESULT_UNKNOWN") throw Error("TARGET_RESULT_UNKNOWN");
     if (terminal(e)) throw Error("TARGET_ENDED");
     if (e.cancel_requested || e.state === "CANCEL_REQUESTED")
       throw Error("TARGET_CANCELLING");

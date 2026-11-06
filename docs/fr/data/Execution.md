@@ -38,6 +38,7 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `recovery_call_id` | ID | Non |  Références : [ID](ID.md) |
 | `scope_id` | ID ou null | Non |  Références : [ID](ID.md) |
 | `workspace_binding` | object | Non |  {"additionalProperties": false} |
+| `execution_round` | integer | Non | Numéro de création permanent dans une Task ; conservé après reprise et complété au démarrage pour les anciens enregistrements. {"minimum": 1, "maximum": 9007199254740991} |
 
 ## Contraintes combinées
 

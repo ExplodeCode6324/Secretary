@@ -1,3 +1,4 @@
+import { allocateTaskTitle } from "./task-identity.ts";
 import { currentArtifactPath } from "./artifact-path.ts";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import * as fs from "node:fs";
@@ -44,6 +45,7 @@ export function propose(
   requestID = id(),
   sessionID: string,
   options: {
+    title_candidate?: string | null;
     scopeID?: string | null;
     reuse?: string | null;
     programID?: string | null;
@@ -57,6 +59,10 @@ export function propose(
     preconditions?: Precondition[] | null;
   } = {},
 ): TaskPlan {
+  if (options.title_candidate == null && "title_candidate" in options) {
+    const { title_candidate: _title, ...withoutTitle } = options;
+    options = withoutTitle;
+  }
   if (!goal.trim()) throw Error("EMPTY_GOAL");
   if (options.reuse != null && !options.reuse.trim())
     throw Error("INVALID_REUSE_TASK");
@@ -81,7 +87,7 @@ export function propose(
     deadline: options.deadline ?? undefined,
   };
   const legacy =
-    options.reuse || options.scopeID != null
+    options.title_candidate != null || options.reuse || options.scopeID != null
       ? []
       : [
           legacyOptions,
@@ -101,6 +107,8 @@ export function propose(
     !Number.isFinite(Date.parse(options.deadline))
   )
     throw Error("INVALID_DEADLINE");
+  if (options.reuse && options.title_candidate != null)
+    throw Error("TITLE_ON_REUSE_NOT_ALLOWED");
   if (options.reuse)
     return this.continueTask(goal, requestID, sessionID, options, fingerprint);
   const workScope = this.scopes.active(options.scopeID);
@@ -125,6 +133,9 @@ export function propose(
   const proposal: TaskProposal = {
     schema_version: 1,
     record_type: "TaskProposal",
+    ...(options.title_candidate != null
+      ? { title_candidate: options.title_candidate }
+      : {}),
     scope_id: workScope?.id ?? null,
     request_id: requestID,
     request_hash: fingerprint,
@@ -211,6 +222,11 @@ export function propose(
     record_type: "TaskPlan",
     scope_id: proposal.scope_id ?? null,
     ...base(taskID),
+    title: allocateTaskTitle(goal, options.title_candidate, (title) =>
+      this.store.taskIdentities.hasTitle(title),
+    ),
+    identity_version: 1,
+    execution_round_high_water: 0,
     state: "INITIALIZING",
     proposal_request_id: requestID,
     proposal_ref: this.store.put(proposal),
@@ -592,6 +608,8 @@ export function requestStatus(this: TaskPlanningContext, requestID: string) {
   );
   return {
     ...accepted,
+    title: this.store.get<TaskPlan>("TaskPlan", accepted.task_id).title!,
+    execution_round: e?.execution_round ?? null,
     execution_id: e?.id ?? null,
     state: e?.state ?? (stopped ? "CANCELLED_OR_REJECTED" : "ACCEPTED"),
     reason: stopped ? this.store.read(stopped.payload) : null,
@@ -643,11 +661,13 @@ export function query(
       : null;
     return {
       task_id: p.id,
+      title: p.title!,
       scope_id: p.scope_id ?? null,
       state: p.state,
       goal: baseline.goal,
       latest_execution_id: latest?.id ?? null,
       latest_state: latest?.state ?? null,
+      latest_execution_round: latest?.execution_round ?? null,
       active_execution_ids: es.filter((e) => !terminal(e)).map((e) => e.id),
       pending_requests: p.pending_requests ?? [],
       can_continue: reason === null,

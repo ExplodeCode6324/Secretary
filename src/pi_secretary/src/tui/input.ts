@@ -1,3 +1,4 @@
+import { parseTaskSelector, type SelectorKind } from "../task-locator.ts";
 import {
   Editor,
   CURSOR_MARKER,
@@ -39,7 +40,11 @@ export const commands = commandRegistry.map((c) => c.name);
 export type Action =
   | { kind: "navigate"; page: Page }
   | { kind: "help" | "back" | "noop" | "draft" | "cot" | "resume" }
-  | { kind: "search_task" | "taskdetail" | "show"; id: string }
+  | {
+      kind: "search_task" | "taskdetail" | "show";
+      id: string;
+      selectorKind?: SelectorKind;
+    }
   | { kind: "cancel"; target: "request" | "execution"; id: string }
   | { kind: "follow"; id?: string }
   | { kind: "open"; path: string }
@@ -106,6 +111,16 @@ export function parseInput(
             ? "/search_task 仅在 Task 列表根视图可用"
             : `/${command} 仅在 Task 可用`,
       };
+    if (command !== "show") {
+      const selector = parseTaskSelector(rest);
+      return selector
+        ? { kind: command, ...selector }
+        : {
+            kind: "error",
+            message:
+              '需要精确标题、"带空格标题" 或 --id <ID>；引号内只支持 \" 和 \\，不接受额外参数或换行',
+          };
+    }
     const token = /^ ([0-9A-Za-z-]+)[ \t]*$/.exec(rest);
     return token && token[0] === rest
       ? { kind: command, id: token[1] }
@@ -195,9 +210,15 @@ export function parseDraft(
 function isCompleteLocalCommand(raw: string) {
   return (
     !/[\r\n]/.test(raw) &&
-    (/^\/(?:m|t|back|help|cotvisible|cotv|resume|paste|follow)[ \t]*$/i.test(
-      raw,
+    (!!(
+      /^\/(?:search_task|taskdetail)([\s\S]*)$/i.exec(raw)?.[1] &&
+      parseTaskSelector(
+        /^\/(?:search_task|taskdetail)([\s\S]*)$/i.exec(raw)![1],
+      )
     ) ||
+      /^\/(?:m|t|back|help|cotvisible|cotv|resume|paste|follow)[ \t]*$/i.test(
+        raw,
+      ) ||
       /^\/(?:search_task|taskdetail|show|follow) [0-9A-Za-z-]+[ \t]*$/i.test(
         raw,
       ))
@@ -210,7 +231,7 @@ export function commandCompletion(
   suggestIDs: (
     prefix: string,
     command?: string,
-  ) => Promise<string[]> = async () => [],
+  ) => Promise<(string | AutocompleteItem)[]> = async () => [],
   current: (text: string) => boolean = () => true,
   taskDetail: () => boolean = () => false,
 ): AutocompleteProvider {
@@ -224,17 +245,16 @@ export function commandCompletion(
         head = lines[0].slice(0, col);
       argumentContext = undefined;
       if (!typedSlash() || line !== 0 || lines.length !== 1) return null;
-      const argument =
-        /^\/(search_task|taskdetail|follow) ([0-9A-Za-z-]*)$/i.exec(head);
+      const argument = /^\/(search_task|taskdetail|follow) ([^\r\n]*)$/i.exec(
+        head,
+      );
       if (
         argument &&
         page() === "Task" &&
         !(argument[1].toLowerCase() === "search_task" && taskDetail()) &&
         !(argument[1].toLowerCase() === "follow" && !taskDetail())
       ) {
-        if (
-          !/^\/(search_task|taskdetail|follow) [0-9A-Za-z-]*[ \t]*$/i.test(text)
-        )
+        if (!/^\/(search_task|taskdetail|follow) [^\r\n]*$/i.test(text))
           return null;
         const ids = await suggestIDs(argument[2], argument[1].toLowerCase());
         if (gen !== generation || !current(text) || !typedSlash()) return null;
@@ -242,7 +262,9 @@ export function commandCompletion(
         return ids.length
           ? {
               prefix: argument[2],
-              items: ids.map((id) => ({ value: id, label: id })),
+              items: ids.map((id) =>
+                typeof id === "string" ? { value: id, label: id } : id,
+              ),
             }
           : null;
       }
@@ -273,14 +295,14 @@ export function commandCompletion(
       if (!typedSlash()) return { lines, cursorLine: line, cursorCol: col };
       if (!item.value.startsWith("/")) {
         const match =
-          /^(\/(?:search_task|taskdetail|follow) )([0-9A-Za-z-]*)([ \t]*)$/i.exec(
+          /^(\/(?:search_task|taskdetail|follow) )([^\r\n]*?)([ \t]*)$/i.exec(
             lines[0],
           );
         if (
           !match ||
           lines.join("\n") !== argumentContext ||
           !current(argumentContext) ||
-          !/^[0-9A-Za-z-]+$/.test(item.value)
+          !parseTaskSelector(" " + item.value)
         )
           return { lines, cursorLine: line, cursorCol: col };
         applied?.(match[2].length, item.value.length, match[1].length);
@@ -330,7 +352,10 @@ export class DraftEditor extends Editor {
   constructor(
     tui: TUI,
     page: () => Page,
-    suggestIDs?: (prefix: string, command?: string) => Promise<string[]>,
+    suggestIDs?: (
+      prefix: string,
+      command?: string,
+    ) => Promise<(string | AutocompleteItem)[]>,
     taskDetail?: () => boolean,
     completionEnabled = true,
   ) {

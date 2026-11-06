@@ -38,6 +38,7 @@
 | `recovery_call_id` | ID | いいえ |  関連：[ID](ID.md) |
 | `scope_id` | ID または null | いいえ |  関連：[ID](ID.md) |
 | `workspace_binding` | object | いいえ |  {"additionalProperties": false} |
+| `execution_round` | integer | いいえ | Task 内の永続的な作成番号。復旧時も保持し、旧レコードは起動時に補完します。 {"minimum": 1, "maximum": 9007199254740991} |
 
 ## 組み合わせ制約
 

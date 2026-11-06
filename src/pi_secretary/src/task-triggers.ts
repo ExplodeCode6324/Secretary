@@ -1,3 +1,4 @@
+import { nextExecutionRound } from "./task-identity.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type {
@@ -350,6 +351,7 @@ export function tick(this: TaskTriggersContext, at = Date.now()) {
       this.removePending(p.id, request.request_id, String(error));
       continue;
     }
+    const round = nextExecutionRound(p);
     const e: Execution = {
       schema_version: 1,
       record_type: "Execution",
@@ -360,6 +362,7 @@ export function tick(this: TaskTriggersContext, at = Date.now()) {
         path.join(this.workspace, p.id, "work"),
       ),
       task_id: p.id,
+      execution_round: round,
       state: "CREATED",
       retention_state: "HOT",
       occurrence_key: key,
@@ -383,6 +386,7 @@ export function tick(this: TaskTriggersContext, at = Date.now()) {
     const records: Stored[] = [
       e,
       revise(p, {
+        execution_round_high_water: round,
         active_execution_ids: [...p.active_execution_ids, e.id],
         pending_requests: request
           ? (p.pending_requests ?? []).filter(

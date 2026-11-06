@@ -1,7 +1,9 @@
+import { type SelectorKind } from "../task-locator.ts";
 import { Text } from "@earendil-works/pi-tui";
 import type { CoreClient } from "../core-client.ts";
 import type {
   TaskBrowserPage,
+  TaskLocatorSuggestions,
   TaskBrowserDetail,
   TaskBrowserMessages,
   TaskBrowserTask,
@@ -51,8 +53,12 @@ const previewBoundary = (body: MessageBody) => {
   }
   return body;
 };
-const code = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
+const code = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("AMBIGUOUS_TASK_SELECTOR")
+    ? message + '；用 "精确标题" 或 --id <ID前缀> 明确目标'
+    : message;
+};
 type Group = {
   items: Message[];
   before: boolean;
@@ -419,7 +425,7 @@ export class TaskBrowserWindow {
     });
     return this.refreshJob;
   }
-  async search(id: string) {
+  async search(id: string, kind: SelectorKind = "auto") {
     if (this.selected) {
       this.error = "/search_task 仅在 Task 列表根视图可用";
       this.changed();
@@ -428,7 +434,7 @@ export class TaskBrowserWindow {
     const epoch = this.beginNavigation();
     try {
       const page = await this.client.query<TaskBrowserPage>(
-        `task-browser/locate?match=prefix&task_id=${encodeURIComponent(id)}`,
+        `task-browser/locate?selector_kind=${kind}&selector=${encodeURIComponent(id)}`,
       );
       if (this.stopped || epoch !== this.epoch) return;
       this.root = page;
@@ -447,18 +453,36 @@ export class TaskBrowserWindow {
   async suggest(id: string, command?: string) {
     if (command === "follow")
       return [
-        "off",
-        ...(this.detail?.executions.map((e) => e.id) ?? []),
-      ].filter((value) => value.startsWith(id));
+        { value: "off", label: "off" },
+        ...(this.detail?.executions.map((e) => ({
+          value: e.id,
+          label: `第 ${e.execution_round} 次 · ${e.state} · ${e.id}`,
+        })) ?? []),
+      ].filter((v) => v.value.startsWith(id));
     try {
-      return (
-        await this.client.query<TaskBrowserPage>(
-          `task-browser/locate?match=prefix&suggest=true&limit=20&task_id=${encodeURIComponent(id)}`,
-        )
-      ).suggestions;
+      const forcedID = id.startsWith("--id ");
+      let value = forcedID ? id.slice(5) : id;
+      if (value.startsWith('"')) {
+        value = value.slice(1);
+        if (value.endsWith('"')) value = value.slice(0, -1);
+        value = value.replace(/\\(["\\])/g, "$1");
+      }
+      const page = await this.client.query<TaskLocatorSuggestions>(
+        `task-browser/suggestions?selector_kind=${forcedID ? "id" : "auto"}&limit=20&selector=${encodeURIComponent(value)}`,
+      );
+      return page.items.map((t) => ({
+        value: JSON.stringify(t.title),
+        label: `${t.title} · ${t.state} · ${t.executions.map((e) => `#${e.execution_round} ${e.state}`).join(", ")}`,
+      }));
     } catch {
       return [];
     }
+  }
+  get navigationGeneration() {
+    return this.epoch;
+  }
+  get navigating() {
+    return this.navigations > 0;
   }
   private anchor(id: string): ReadingAnchor {
     return {
@@ -469,12 +493,19 @@ export class TaskBrowserWindow {
       row_in_block: 0,
     };
   }
-  async open(id: string) {
+  async open(id: string, selectorKind?: SelectorKind) {
     this.stopFollowing();
     this.previewPending.clear();
     this.messagePending.clear();
     const epoch = this.beginNavigation();
     try {
+      if (selectorKind) {
+        const located = await this.client.query<TaskBrowserPage>(
+          `task-browser/locate?selector_kind=${selectorKind}&selector=${encodeURIComponent(id)}`,
+        );
+        if (this.stopped || epoch !== this.epoch) return;
+        id = located.target!;
+      }
       // Fetch/authorize before replacing the existing view.
       const detail = await this.client.query<TaskBrowserDetail>(taskPath(id));
       if (this.stopped || epoch !== this.epoch) return;
@@ -1013,7 +1044,7 @@ export class TaskBrowserWindow {
     return entries;
   }
   private taskEntry(t: TaskBrowserTask) {
-    return styledEntry(
+    const entry = styledEntry(
       t.id,
       taskCardText(
         t,
@@ -1021,6 +1052,8 @@ export class TaskBrowserWindow {
         !!this.selected,
       ),
     );
+    if (!this.selected) entry.taskAction = t.id;
+    return entry;
   }
   private messageEntry(m: Message): ViewEntry {
     const id = key(m),

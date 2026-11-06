@@ -220,6 +220,21 @@ export class TerminalApp {
     };
     this.scrolls.Task.onReading = () => this.stopFollowing();
     this.documents.Task.onPointerRead = () => this.stopFollowing();
+    this.documents.Task.navigationEnabled = () =>
+      this.page === "Task" &&
+      !this.remote?.taskBrowser.selected &&
+      !this.remote?.taskBrowser.navigating &&
+      !this.matters.current &&
+      !this.matters.loading &&
+      !this.editors.Task.isShowingAutocomplete() &&
+      !this.pageLoading &&
+      !this.stopping;
+    this.documents.Task.navigationGeneration = () =>
+      this.remote?.taskBrowser.navigationGeneration ?? 0;
+    this.documents.Task.onTaskOpen = (id) => {
+      void this.openTask(id);
+    };
+
     this.scrolls.Task.followRow = () => {
       const id = this.remote?.taskBrowser.followTarget;
       return id ? this.documents.Task.lastRowFor(id) : undefined;
@@ -251,6 +266,8 @@ export class TerminalApp {
       };
     }
     this.tui.addInputListener((data) => {
+      if (!data.startsWith("\x1b[<"))
+        this.documents.Task.cancelNavigationGesture();
       if (isKeyRelease(data)) return { consume: true };
       if (this.localNoticeTimer) {
         clearTimeout(this.localNoticeTimer);
@@ -366,6 +383,17 @@ export class TerminalApp {
       const editor = this.editors[this.page],
         scroll = this.scrolls[this.page];
       if (!this.stopping && editor.enabled) {
+        if (this.page === "Task" && matchesKey(data, "escape")) {
+          if (editor.isShowingAutocomplete()) {
+            this.tui.setFocus(editor);
+            return;
+          }
+          if (this.pageLoading || this.remote?.taskBrowser.navigating)
+            return { consume: true };
+          this.backTask();
+          return { consume: true };
+        }
+
         if (matchesKey(data, "pageUp") || matchesKey(data, "pageDown")) {
           this.stopFollowing();
           this.viewing = true;
@@ -656,6 +684,22 @@ export class TerminalApp {
       this.matterFocus === "editor" ? this.matterEditor : this.matterScroll,
     );
   }
+  private backTask() {
+    this.remote?.taskBrowser.back();
+    this.viewing = false;
+    this.tui.setFocus(this.editors.Task);
+    this.draw();
+  }
+  private async openTask(
+    id: string,
+    kind?: import("../task-locator.ts").SelectorKind,
+  ) {
+    const browser = this.remote?.taskBrowser;
+    if (!browser) return;
+    if (!browser.selected) browser.rootAnchor = this.documents.Task.anchor;
+    await browser.open(id, kind);
+    this.draw();
+  }
   private async openMatter(id: string, row?: MasterAttentionItem) {
     this.stopFollowing();
     const draft = this.delivery!.state.drafts[this.page];
@@ -820,15 +864,14 @@ export class TerminalApp {
       this.page = action.page;
       this.layout();
     }
-    if (action.kind === "back" && this.page === "Task")
-      this.remote?.taskBrowser.back();
+    if (action.kind === "back" && this.page === "Task") this.backTask();
     if (action.kind === "follow")
       void this.remote?.taskBrowser.follow(action.id);
     if (action.kind === "search_task")
-      void this.remote?.taskBrowser.search(action.id);
+      void this.remote?.taskBrowser.search(action.id, action.selectorKind);
     if (action.kind === "show") void this.openMatter(action.id);
     if (action.kind === "taskdetail")
-      void this.remote?.taskBrowser.open(action.id);
+      void this.openTask(action.id, action.selectorKind ?? "auto");
     if (action.kind === "cot") {
       void this.remote?.toggleThinking().catch((e) => {
         this.uiHint = "CoT 显示切换失败：" + String(e);
@@ -837,7 +880,7 @@ export class TerminalApp {
     }
     if (action.kind === "help")
       this.uiHint =
-        "/m /t /back /help · Main: /open <路径> /paste（剪贴板） Ctrl+V 图片 · Tab 图片行/Delete 移除 · /resume（继续原批次及排队输入） /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /follow [Execution ID|off] /search_task <ID> /taskdetail <完整ID> /show <事项完整ID> /cancel --request <完整ID> 或 --execution <完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
+        "/m /t /back /help · Main: /open <路径> /paste（剪贴板） Ctrl+V 图片 · Tab 图片行/Delete 移除 · /resume（继续原批次及排队输入） /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /follow [Execution ID|off] /search_task <标题|ID> /taskdetail <标题|ID>（带空格标题加双引号；--id 强制 ID） /show <事项完整ID> /cancel --request <完整ID> 或 --execution <完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
     this.draw();
   }
   private localNotice(message: string) {

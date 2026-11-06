@@ -1386,6 +1386,94 @@
         "schema": {
           "type": "integer"
         }
+      },
+      {
+        "name": "selector_kind",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "selector",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/task-browser/suggestions",
+    "response": "TaskLocatorSuggestions",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "selector_kind",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "selector",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer"
+        }
+      }
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/task-browser/resolve",
+    "response": "TaskTargetResolution",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "selector_kind",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "selector",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "execution_round",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
+      },
+      {
+        "name": "purpose",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string"
+        }
       }
     ]
   },
