@@ -14,7 +14,7 @@
 | `state` | FeedbackState | 是 |  关联：[FeedbackState](FeedbackState.md) |
 | `task_id` | ID | 是 |  关联：[ID](ID.md) |
 | `execution_id` | ID | 是 |  关联：[ID](ID.md) |
-| `kind` | RESULT / DECISION_REQUIRED / PROGRESS / UNKNOWN | 是 |  |
+| `kind` | RESULT / DECISION_REQUIRED / PROGRESS / UNKNOWN / AUTHORIZATION_REQUIRED | 是 |  |
 | `summary` | string | 是 |  {"minLength": 1} |
 | `detail_ref` | ObjectRef | 是 |  关联：[ObjectRef](ObjectRef.md) |
 | `result_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
@@ -22,11 +22,53 @@
 | `input_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
 | `created_at` | Time | 是 |  关联：[Time](Time.md) |
 | `scope_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
+| `authorization_id` | ID | 否 |  关联：[ID](ID.md) |
+| `suppressed_at` | Time | 否 |  关联：[Time](Time.md) |
+| `suppressed_reason` | string | 否 |  |
 
 ## 组合约束
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "AUTHORIZATION_REQUIRED"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "authorization_id"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "SUPPRESSED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "kind": {
+            "const": "AUTHORIZATION_REQUIRED"
+          },
+          "input_id": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "suppressed_at",
+          "suppressed_reason"
+        ]
+      }
+    }
+  ]
 }
 ```

@@ -6403,6 +6403,17 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "position",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "latest"
+              ]
+            },
+            "description": "Newest bounded window; excludes cursor, message_id and direction."
           }
         ],
         "responses": {
@@ -6497,6 +6508,17 @@
             "schema": {
               "type": "boolean"
             }
+          },
+          {
+            "name": "position",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "latest"
+              ]
+            },
+            "description": "Bounded literal tail with explicit UTF-16 offsets and lengths; excludes cursor."
           }
         ],
         "responses": {

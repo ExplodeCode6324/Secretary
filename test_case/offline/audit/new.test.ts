@@ -47,11 +47,11 @@ test('NEW03 cancelled decision becomes obsolete and cannot block retirement inco
 test('NEW04 decision accepted without a nonempty answer must be rejected',()=>fixture(async a=>{
  await waiting(a);const d=a.store.all<DecisionRequest>('DecisionRequest')[0];assert.throws(()=>a.scheduler.answer(d.id,undefined,id()));
 },ask));
-test('NEW05 crash after decision commit but before feedback must be repaired on reopen',async()=>{
+test('NEW05 decision outbox is already atomic when the legacy feedback callback crashes',async()=>{
  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'sec-decision-gap-'));let a=await App.open(dir,{model:fixtureModel,stream:ask});
  try{
   a.scheduler.feedback=(()=>{throw Error('injected stop before feedback')}) as typeof a.scheduler.feedback;
-  const e=await waiting(a);assert.equal(e.state,'WAIT_DECISION');assert.equal(a.store.all('Feedback').length,0);await a.close();
+  const e=await waiting(a);assert.equal(e.state,'WAIT_DECISION');assert.equal(a.store.all('Feedback').length,1);const decision=a.store.all<DecisionRequest>('DecisionRequest')[0];const frame=a.store.projectionFrames.find(f=>f.mutations.some(m=>m.object_id===decision.id))!;assert(frame.mutations.some(m=>m.object_type==='Feedback'));await a.close();
   a=await App.open(dir,{model:fixtureModel,stream:ask});a.host.deliverFeedback();
   assert(a.store.all('Input').length>0,'durable OPEN decision never redelivered to main after restart');
  }finally{await a.close();fs.rmSync(dir,{recursive:true,force:true});}

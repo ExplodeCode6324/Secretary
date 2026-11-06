@@ -1,3 +1,7 @@
+import {
+  authorizationFeedback,
+  authorizationActionable,
+} from "./task-feedback.ts";
 import { guidanceFor } from "./guidance.ts";
 import fs from "node:fs";
 import path from "node:path";
@@ -151,8 +155,9 @@ export class Authorization {
       state: "WAIT_AUTH",
       authorization_id: auth.id,
     };
+    const notification = authorizationFeedback(this.store, auth);
     this.store.commit(
-      [waiting, auth],
+      [waiting, auth, ...(notification?.fresh ? [notification.record] : [])],
       [prepared, this.store.event("authorization.requested", auth, scope)],
     );
     return waiting;
@@ -746,6 +751,15 @@ export class Authorization {
     return resolved;
   }
   recover() {
+    for (const a of this.store.indexed<AuthorizationRequest>(
+      "AuthorizationRequest",
+      "state",
+      ["PENDING"],
+    )) {
+      if (!authorizationActionable(this.store, a.id)) continue;
+      const f = authorizationFeedback(this.store, a);
+      if (f?.fresh) this.store.commit([f.record]);
+    }
     for (const op of this.store.all<Operation>("Operation")) {
       if (
         ["PREPARED", "WAIT_AUTH", "AUTHORIZED"].includes(op.state) &&

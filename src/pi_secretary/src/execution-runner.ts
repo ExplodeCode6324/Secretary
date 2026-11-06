@@ -1,3 +1,7 @@
+import { taskFeedback } from "./task-feedback.ts";
+import { isDeepStrictEqual } from "node:util";
+import { previewsFor } from "./preview.ts";
+import type { AssistantMessage } from "@earendil-works/pi-ai";
 import { guidanceFor } from "./guidance.ts";
 import { Ajv2020 } from "ajv/dist/2020.js";
 import type { ChildProcess } from "node:child_process";
@@ -6,6 +10,7 @@ import * as path from "node:path";
 import { checkpoint, saveContext } from "./context.ts";
 import type {
   Checkpoint,
+  Context,
   DecisionRequest,
   Dispatch,
   Execution,
@@ -14,6 +19,7 @@ import type {
   Operation,
   ProgramRegistration,
   TaskPlan,
+  TaskProposal,
   TaskResult,
 } from "./contracts.ts";
 import { scopeOf, stableID, terminal } from "./execution-utils.ts";
@@ -56,8 +62,23 @@ export function setState(
   patch: Partial<Execution> = {},
 ) {
   const e = this.store.get<Execution>("Execution", eid);
+  const updated = revise(e, { ...patch, state, owner_epoch: this.store.epoch });
+  const notification =
+    state === "RESULT_UNKNOWN"
+      ? taskFeedback(
+          this.store,
+          updated,
+          "UNKNOWN",
+          "Execution effects are unknown; verify before continuing, never replay automatically",
+          this.store.put({
+            execution_id: eid,
+            operation_ids: updated.unknown_operation_ids,
+          }),
+        )
+      : undefined;
   this.store.commit([
-    revise(e, { ...patch, state, owner_epoch: this.store.epoch }),
+    updated,
+    ...(notification?.fresh ? [notification.record] : []),
   ]);
 }
 
@@ -320,14 +341,28 @@ export async function execute(
     : saved?.raw_context
       ? this.store.read<AgentMessage[]>(saved.raw_context)
       : [];
-  const agent = new Agent({
-    initialState: {
-      model: this.model,
-      systemPrompt: EXECUTOR_SYSTEM,
-      messages,
-      tools: this.tools(e),
-    },
-    streamFn: durableStream(this.store, this.stream, scopeOf(e), eid, "TASK", {
+  let display: { call: ModelCall; response: AssistantMessage } | undefined;
+  const taskStream = durableStream(
+    this.store,
+    this.stream,
+    scopeOf(e),
+    eid,
+    "TASK",
+    {
+      attemptID: attempt,
+      observe: (update) =>
+        previewsFor(this.store).update(
+          update.type === "start"
+            ? {
+                ...update,
+                session: this.store.read<TaskProposal>(p.proposal_ref)
+                  .session_id,
+              }
+            : update,
+        ),
+      onSaved: (call, response) => {
+        display = { call, response };
+      },
       resumeCallID: recoveryCall?.id,
       guidanceCutoff: () => guidanceFor(this.store).requestCutoff(eid),
       checkGuidance: (context, cutoff) =>
@@ -340,7 +375,24 @@ export async function execute(
           this.store.commit([revise(cleared, {})]);
         }
       },
-    }),
+    },
+  );
+  const agent = new Agent({
+    initialState: {
+      model: this.model,
+      systemPrompt: EXECUTOR_SYSTEM,
+      messages,
+      tools: this.tools(e),
+    },
+    streamFn: async (...args) => {
+      display = undefined;
+      try {
+        return await taskStream(...args);
+      } catch (error) {
+        display = undefined;
+        throw error;
+      }
+    },
     steeringMode: "all",
     toolExecution: "sequential",
   });
@@ -356,17 +408,27 @@ export async function execute(
       const cp = checkpoint(this.store, agent, e.task_id, eid);
       guidanceFor(this.store).checkpoint(eid, cp, agent.state.messages);
       const current = this.store.get<Execution>("Execution", eid);
-      this.store.commit(
-        [revise(current, { checkpoint_id: cp.id })],
-        [
-          this.store.event(
-            "agent.message",
-            event.message,
-            scopeOf(e),
-            "EXECUTOR",
-          ),
-        ],
+      const log = this.store.event(
+        "agent.message",
+        event.message,
+        scopeOf(e),
+        "EXECUTOR",
       );
+      if (event.message.role === "assistant") {
+        if (
+          display &&
+          this.store.get<Context>("Context", display.call.context_id)
+            .purpose === "TASK" &&
+          display.call.scope.execution_id === eid &&
+          display.call.scope.task_id === e.task_id &&
+          isDeepStrictEqual(event.message, display.response)
+        ) {
+          log.causation_id = display.call.id;
+          log.related_object_ids = [display.call.id];
+        }
+        display = undefined;
+      }
+      this.store.commit([revise(current, { checkpoint_id: cp.id })], [log]);
     }
   });
   agent.prepareRequest = () => {
@@ -414,8 +476,12 @@ export async function execute(
       ),
     ],
   );
-  if (recoveryRequest) await agent.continue();
-  else await agent.prompt(packet);
+  try {
+    if (recoveryRequest) await agent.continue();
+    else await agent.prompt(packet);
+  } finally {
+    display = undefined;
+  }
   e = this.store.get<Execution>("Execution", eid);
   if (["WAIT_AUTH", "WAIT_DECISION", "RESULT_UNKNOWN"].includes(e.state))
     return;
@@ -548,6 +614,15 @@ export function finish(
       }),
     );
   }
+  const notification = taskFeedback(
+    this.store,
+    e,
+    "RESULT",
+    r.summary,
+    ref,
+    r.id,
+  );
+  if (notification.fresh) changes.push(notification.record);
   this.store.commit(changes, [
     this.store.event("execution.finished", r, scopeOf(e)),
   ]);
@@ -564,22 +639,15 @@ export function feedback(
   decisionID: string | null = null,
 ) {
   const e = this.store.get<Execution>("Execution", eid);
-  const f: Feedback = {
-    schema_version: 1,
-    record_type: "Feedback",
-    scope_id: this.store.get<Execution>("Execution", eid).scope_id ?? null,
-    ...base(),
-    state: "QUEUED",
-    task_id: e.task_id,
-    execution_id: eid,
+  const f = taskFeedback(
+    this.store,
+    e,
     kind,
     summary,
-    detail_ref: ref,
-    result_id: resultID,
-    decision_request_id: decisionID,
-    input_id: null,
-    created_at: now(),
-  };
-  this.store.commit([f]);
-  return f;
+    ref,
+    resultID,
+    decisionID,
+  );
+  if (f.fresh) this.store.commit([f.record]);
+  return f.record;
 }

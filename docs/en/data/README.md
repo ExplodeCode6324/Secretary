@@ -57,7 +57,7 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [Checkpoint](Checkpoint.md) | 18 | The host saves original context plus continuation instructions; recovery does not execute historical tools. |
 | [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | Full results become queryable before summary feedback; PARTIAL/UNKNOWN does not mean execution has ended. |
-| [Feedback](Feedback.md) | 16 | Short conclusion and execution reference; details are already saved when the main session reads them. |
+| [Feedback](Feedback.md) | 19 | Short conclusion and execution reference; details are already saved when the main session reads them. |
 | [DecisionRequest](DecisionRequest.md) | 18 | Ordinary decisions use TaskControl; authorization has a separate interface. |
 | [ActionScope](ActionScope.md) | 6 |  |
 | [Operation](Operation.md) | 20 | Unit of the final gate; permissions, cancellation, and object version are checked here. |

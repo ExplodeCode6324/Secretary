@@ -1,3 +1,4 @@
+import { authorizationActionable } from "./task-feedback.ts";
 import { guidanceFor } from "./guidance.ts";
 import { deliveryEvent } from "./artifact-delivery.ts";
 import { failuresFor } from "./failure-handling.ts";
@@ -194,6 +195,20 @@ export function deliverFeedback(this: MainLoopContext) {
   for (const f of this.store.indexed<Feedback>("Feedback", "state", [
     "QUEUED",
   ])) {
+    if (
+      f.kind === "AUTHORIZATION_REQUIRED" &&
+      (!f.authorization_id ||
+        !authorizationActionable(this.store, f.authorization_id))
+    ) {
+      this.store.commit([
+        revise(f, {
+          state: "SUPPRESSED",
+          suppressed_at: now(),
+          suppressed_reason: "AUTHORIZATION_NOT_ACTIONABLE",
+        }),
+      ]);
+      continue;
+    }
     this.store.bytes(f.detail_ref);
     const guidance =
       f.kind === "RESULT"
@@ -211,6 +226,9 @@ export function deliverFeedback(this: MainLoopContext) {
         JSON.stringify({
           summary: f.summary,
           feedback_kind: f.kind,
+          ...(f.authorization_id
+            ? { authorization_id: f.authorization_id }
+            : {}),
           ...(guidance.length ? { guidance } : {}),
           execution_id: f.execution_id,
           detail_ref: f.detail_ref,

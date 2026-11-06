@@ -53,7 +53,7 @@
 | [Checkpoint](Checkpoint.md) | 18 | 宿主保存原 context + 接续说明；恢复不执行历史工具。 |
 | [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | 完整结果先可查询，再反馈简要结论；PARTIAL/UNKNOWN 不意味着执行已结束。 |
-| [Feedback](Feedback.md) | 16 | 短结论与执行引用；主会话读到时详情已保存。 |
+| [Feedback](Feedback.md) | 19 | 短结论与执行引用；主会话读到时详情已保存。 |
 | [DecisionRequest](DecisionRequest.md) | 18 | 普通决定通过 TaskControl；授权走独立接口。 |
 | [ActionScope](ActionScope.md) | 6 |  |
 | [Operation](Operation.md) | 20 | 最终 gate 的单位；权限、取消、对象版本在此核验。 |

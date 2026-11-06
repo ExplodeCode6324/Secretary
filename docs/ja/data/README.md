@@ -57,7 +57,7 @@
 | [Checkpoint](Checkpoint.md) | 18 | ホストは元の context と継続指示を保存します。復旧で過去のツールは実行しません。 |
 | [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | 完全な結果を照会可能にしてから短い結論を返します。PARTIAL/UNKNOWN は実行終了を意味しません。 |
-| [Feedback](Feedback.md) | 16 | 短い結論と実行参照。メインセッションが読む時点で詳細は保存済みです。 |
+| [Feedback](Feedback.md) | 19 | 短い結論と実行参照。メインセッションが読む時点で詳細は保存済みです。 |
 | [DecisionRequest](DecisionRequest.md) | 18 | 通常の判断は TaskControl、認可は独立したインターフェースを使います。 |
 | [ActionScope](ActionScope.md) | 6 |  |
 | [Operation](Operation.md) | 20 | 最終ゲートの単位。権限、キャンセル、対象バージョンをここで検証します。 |

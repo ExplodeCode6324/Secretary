@@ -154,7 +154,8 @@
       "enum": [
         "QUEUED",
         "DELIVERED",
-        "HANDLED"
+        "HANDLED",
+        "SUPPRESSED"
       ],
       "description": "Feedback 状态由领域模块推进，见 docs/state-machines.md"
     },
@@ -2992,7 +2993,8 @@
             "RESULT",
             "DECISION_REQUIRED",
             "PROGRESS",
-            "UNKNOWN"
+            "UNKNOWN",
+            "AUTHORIZATION_REQUIRED"
           ],
           "description": ""
         },
@@ -3046,6 +3048,15 @@
               "type": "null"
             }
           ]
+        },
+        "authorization_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "suppressed_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "suppressed_reason": {
+          "type": "string"
         }
       },
       "required": [
@@ -3066,7 +3077,46 @@
         "created_at"
       ],
       "additionalProperties": false,
-      "description": "短结论与执行引用；主会话读到时详情已保存。"
+      "description": "短结论与执行引用；主会话读到时详情已保存。",
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "AUTHORIZATION_REQUIRED"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "authorization_id"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "const": "SUPPRESSED"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "kind": {
+                "const": "AUTHORIZATION_REQUIRED"
+              },
+              "input_id": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "suppressed_at",
+              "suppressed_reason"
+            ]
+          }
+        }
+      ]
     },
     "DecisionRequest": {
       "type": "object",

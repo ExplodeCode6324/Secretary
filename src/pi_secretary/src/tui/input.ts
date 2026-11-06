@@ -31,6 +31,7 @@ export const commandRegistry = [
   { name: "cotv", pages: ["Main"] },
   { name: "search_task", pages: ["Task"] },
   { name: "taskdetail", pages: ["Task"] },
+  { name: "follow", pages: ["Task"] },
   { name: "show", pages: ["Task"] },
   { name: "cancel", pages: ["Task"] },
 ] as const;
@@ -40,6 +41,7 @@ export type Action =
   | { kind: "help" | "back" | "noop" | "draft" | "cot" | "resume" }
   | { kind: "search_task" | "taskdetail" | "show"; id: string }
   | { kind: "cancel"; target: "request" | "execution"; id: string }
+  | { kind: "follow"; id?: string }
   | { kind: "open"; path: string }
   | { kind: "paste" }
   | { kind: "send"; text: string }
@@ -62,6 +64,18 @@ export function parseInput(
     command = name.toLowerCase();
   if (!commands.some((name) => name.toLowerCase() === command))
     return { kind: "error", message: "未知或尚未实现的命令；/help 查看范围" };
+  if (command === "follow") {
+    if (page !== "Task" || !taskDetail)
+      return { kind: "error", message: "/follow 仅在 Task 普通详情可用" };
+    if (/^[ \t]*$/.test(rest)) return { kind: "follow" };
+    const target =
+      /^ (off|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})[ \t]*$/.exec(
+        rest,
+      );
+    return target
+      ? { kind: "follow", id: target[1] }
+      : { kind: "error", message: "/follow [完整 Execution ID|off]" };
+  }
   if (command === "cancel") {
     const target =
       /^ --(request|execution) ([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})[ \t]*$/.exec(
@@ -181,15 +195,22 @@ export function parseDraft(
 function isCompleteLocalCommand(raw: string) {
   return (
     !/[\r\n]/.test(raw) &&
-    (/^\/(?:m|t|back|help|cotvisible|cotv|resume|paste)[ \t]*$/i.test(raw) ||
-      /^\/(?:search_task|taskdetail|show) [0-9A-Za-z-]+[ \t]*$/i.test(raw))
+    (/^\/(?:m|t|back|help|cotvisible|cotv|resume|paste|follow)[ \t]*$/i.test(
+      raw,
+    ) ||
+      /^\/(?:search_task|taskdetail|show|follow) [0-9A-Za-z-]+[ \t]*$/i.test(
+        raw,
+      ))
   );
 }
 export function commandCompletion(
   page: () => Page,
   typedSlash = () => true,
   applied?: (before: number, after: number, start?: number) => void,
-  suggestIDs: (prefix: string) => Promise<string[]> = async () => [],
+  suggestIDs: (
+    prefix: string,
+    command?: string,
+  ) => Promise<string[]> = async () => [],
   current: (text: string) => boolean = () => true,
   taskDetail: () => boolean = () => false,
 ): AutocompleteProvider {
@@ -203,17 +224,19 @@ export function commandCompletion(
         head = lines[0].slice(0, col);
       argumentContext = undefined;
       if (!typedSlash() || line !== 0 || lines.length !== 1) return null;
-      const argument = /^\/(search_task|taskdetail) ([0-9A-Za-z-]*)$/i.exec(
-        head,
-      );
+      const argument =
+        /^\/(search_task|taskdetail|follow) ([0-9A-Za-z-]*)$/i.exec(head);
       if (
         argument &&
         page() === "Task" &&
-        !(argument[1].toLowerCase() === "search_task" && taskDetail())
+        !(argument[1].toLowerCase() === "search_task" && taskDetail()) &&
+        !(argument[1].toLowerCase() === "follow" && !taskDetail())
       ) {
-        if (!/^\/(search_task|taskdetail) [0-9A-Za-z-]*[ \t]*$/i.test(text))
+        if (
+          !/^\/(search_task|taskdetail|follow) [0-9A-Za-z-]*[ \t]*$/i.test(text)
+        )
           return null;
-        const ids = await suggestIDs(argument[2]);
+        const ids = await suggestIDs(argument[2], argument[1].toLowerCase());
         if (gen !== generation || !current(text) || !typedSlash()) return null;
         argumentContext = text;
         return ids.length
@@ -233,6 +256,7 @@ export function commandCompletion(
         (c) =>
           (c.pages as readonly string[]).includes(page()) &&
           !(c.name === "search_task" && taskDetail()) &&
+          !(c.name === "follow" && !taskDetail()) &&
           ("/" + c.name).toLowerCase().startsWith(head.toLowerCase()),
       );
       return names.length
@@ -249,7 +273,7 @@ export function commandCompletion(
       if (!typedSlash()) return { lines, cursorLine: line, cursorCol: col };
       if (!item.value.startsWith("/")) {
         const match =
-          /^(\/(?:search_task|taskdetail) )([0-9A-Za-z-]*)([ \t]*)$/i.exec(
+          /^(\/(?:search_task|taskdetail|follow) )([0-9A-Za-z-]*)([ \t]*)$/i.exec(
             lines[0],
           );
         if (
@@ -306,7 +330,7 @@ export class DraftEditor extends Editor {
   constructor(
     tui: TUI,
     page: () => Page,
-    suggestIDs?: (prefix: string) => Promise<string[]>,
+    suggestIDs?: (prefix: string, command?: string) => Promise<string[]>,
     taskDetail?: () => boolean,
     completionEnabled = true,
   ) {

@@ -69,7 +69,11 @@ export function retire(this: RetentionContext, at = Date.now()) {
       e.pending_followup_ids.length ||
       this.store
         .indexed<Feedback>("Feedback", "execution_id", [e.id])
-        .some((f) => f.execution_id === e.id && f.state !== "HANDLED") ||
+        .some(
+          (f) =>
+            f.execution_id === e.id &&
+            !["HANDLED", "SUPPRESSED"].includes(f.state),
+        ) ||
       at - Math.max(Date.parse(e.ended_at!), Date.parse(e.last_activity_at)) <
         e.retire_after_seconds * 1000
     )

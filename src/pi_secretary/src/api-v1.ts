@@ -83,6 +83,8 @@ export async function serveCore(
             req,
             res,
             url.searchParams,
+            (task, execution) =>
+              service.taskBrowser.allowsPreview(task, execution),
           );
         const attachment = /^attachments\/([^/]+)\/content$/.exec(route);
         if (attachment) {

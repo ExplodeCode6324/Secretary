@@ -47,6 +47,8 @@ export function durableStream(
     checkGuidance?: (context: Parameters<StreamFn>[1], cutoff: number) => void;
     consciousnessRevision?: number | null;
     onPrepared?: (call: ModelCall) => void;
+    onSaved?: (call: ModelCall, response: AssistantMessage) => void;
+    attemptID?: string;
     maxTokens?: number;
     requestKey?: string;
     resumeCallID?: string;
@@ -162,9 +164,19 @@ export function durableStream(
         id: last.id,
         loop: loopID,
         session: scope.session_id ?? "",
+        ...(purpose === "TASK"
+          ? {
+              task_id: scope.task_id!,
+              execution_id: scope.execution_id!,
+              transport_attempt: last.transport_attempt,
+              attempt_id: metadata.attemptID,
+            }
+          : {}),
       });
       observe({ type: "saved", id: last.id });
-      return savedResponse(store.read<AssistantMessage>(last.response));
+      const response = store.read<AssistantMessage>(last.response);
+      metadata.onSaved?.(last, response);
+      return savedResponse(response);
     }
     // Frozen request bytes also retain the original existing-ledger snapshot on replay.
     if (last) {
@@ -251,12 +263,34 @@ export function durableStream(
       if (last?.state !== "PREPARED") store.commit([call]);
       metadata.onPrepared?.(call);
       const active = revise(call, { state: "IN_FLIGHT", started_at: now() });
-      store.commit([active]);
+      store.commit(
+        [active],
+        purpose === "TASK"
+          ? [
+              {
+                ...store.event(
+                  "model.task_preview",
+                  { call_id: call.id, attempt_id: metadata.attemptID ?? null },
+                  scope,
+                ),
+                causation_id: call.id,
+              },
+            ]
+          : [],
+      );
       observe({
         type: "start",
         id: call.id,
         loop: loopID,
         session: scope.session_id ?? "",
+        ...(purpose === "TASK"
+          ? {
+              task_id: scope.task_id!,
+              execution_id: scope.execution_id!,
+              transport_attempt: call.transport_attempt,
+              attempt_id: metadata.attemptID,
+            }
+          : {}),
       });
       const activity = activitiesFor(store),
         activityID = "model:" + call.id;
@@ -363,13 +397,13 @@ export function durableStream(
           aborted,
         ]);
         const replay = createAssistantMessageEventStream();
-        if (metadata.observe) {
+        if (metadata.observe || purpose === "TASK") {
           const iterator = response[Symbol.asyncIterator]();
           while (true) {
             const next = await Promise.race([iterator.next(), aborted]);
             if (next.done) break;
             observe({ type: "event", id: call.id, event: next.value });
-            replay.push(next.value);
+            if (purpose !== "TASK") replay.push(next.value);
           }
         }
         complete = await Promise.race([response.result(), aborted]);
@@ -384,7 +418,16 @@ export function durableStream(
               error: null,
             }),
           ],
-          [store.event("model.response", complete, scope)],
+          [
+            {
+              ...store.event("model.response", complete, scope),
+              causation_id: call.id,
+            },
+          ],
+        );
+        metadata.onSaved?.(
+          store.get<ModelCall>("ModelCall", call.id),
+          complete,
         );
         observe({ type: "saved", id: call.id });
         try {
@@ -393,6 +436,7 @@ export function durableStream(
             activity.end(activityID, "truncated");
           } else activity.end(activityID, "succeeded");
         } catch {}
+        if (purpose === "TASK") return savedResponse(complete);
         if (metadata.observe) {
           replay.end(complete);
           return replay;
@@ -440,6 +484,7 @@ export function durableStream(
             complete &&
             ["error", "aborted"].includes(complete.stopReason) &&
             metadata.observe &&
+            purpose !== "TASK" &&
             kind !== "CANCELLED"
           ) {
             const diagnostic = {

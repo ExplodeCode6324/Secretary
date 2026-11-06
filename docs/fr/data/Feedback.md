@@ -18,7 +18,7 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `state` | FeedbackState | Oui |  Références : [FeedbackState](FeedbackState.md) |
 | `task_id` | ID | Oui |  Références : [ID](ID.md) |
 | `execution_id` | ID | Oui |  Références : [ID](ID.md) |
-| `kind` | RESULT / DECISION_REQUIRED / PROGRESS / UNKNOWN | Oui |  |
+| `kind` | RESULT / DECISION_REQUIRED / PROGRESS / UNKNOWN / AUTHORIZATION_REQUIRED | Oui |  |
 | `summary` | string | Oui |  {"minLength": 1} |
 | `detail_ref` | ObjectRef | Oui |  Références : [ObjectRef](ObjectRef.md) |
 | `result_id` | ID ou null | Oui |  Références : [ID](ID.md) |
@@ -26,11 +26,53 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `input_id` | ID ou null | Oui |  Références : [ID](ID.md) |
 | `created_at` | Time | Oui |  Références : [Time](Time.md) |
 | `scope_id` | ID ou null | Non |  Références : [ID](ID.md) |
+| `authorization_id` | ID | Non |  Références : [ID](ID.md) |
+| `suppressed_at` | Time | Non |  Références : [Time](Time.md) |
+| `suppressed_reason` | string | Non |  |
 
 ## Contraintes combinées
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "AUTHORIZATION_REQUIRED"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "authorization_id"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "SUPPRESSED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "kind": {
+            "const": "AUTHORIZATION_REQUIRED"
+          },
+          "input_id": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "suppressed_at",
+          "suppressed_reason"
+        ]
+      }
+    }
+  ]
 }
 ```

@@ -18,7 +18,7 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
 | `state` | FeedbackState | Yes |  Related: [FeedbackState](FeedbackState.md) |
 | `task_id` | ID | Yes |  Related: [ID](ID.md) |
 | `execution_id` | ID | Yes |  Related: [ID](ID.md) |
-| `kind` | RESULT / DECISION_REQUIRED / PROGRESS / UNKNOWN | Yes |  |
+| `kind` | RESULT / DECISION_REQUIRED / PROGRESS / UNKNOWN / AUTHORIZATION_REQUIRED | Yes |  |
 | `summary` | string | Yes |  {"minLength": 1} |
 | `detail_ref` | ObjectRef | Yes |  Related: [ObjectRef](ObjectRef.md) |
 | `result_id` | ID or null | Yes |  Related: [ID](ID.md) |
@@ -26,11 +26,53 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
 | `input_id` | ID or null | Yes |  Related: [ID](ID.md) |
 | `created_at` | Time | Yes |  Related: [Time](Time.md) |
 | `scope_id` | ID or null | No |  Related: [ID](ID.md) |
+| `authorization_id` | ID | No |  Related: [ID](ID.md) |
+| `suppressed_at` | Time | No |  Related: [Time](Time.md) |
+| `suppressed_reason` | string | No |  |
 
 ## Combined constraints
 
 ```json
 {
-  "additionalProperties": false
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "AUTHORIZATION_REQUIRED"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "authorization_id"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "state": {
+            "const": "SUPPRESSED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "kind": {
+            "const": "AUTHORIZATION_REQUIRED"
+          },
+          "input_id": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "suppressed_at",
+          "suppressed_reason"
+        ]
+      }
+    }
+  ]
 }
 ```

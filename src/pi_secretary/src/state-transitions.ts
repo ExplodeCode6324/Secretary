@@ -19,7 +19,7 @@ export function next(machine: string, state: string, event: string): string {
   return edge.to;
 }
 
-const managed = ["Execution", "Operation", "Input"] as const;
+const managed = ["Execution", "Operation", "Input", "Feedback"] as const;
 const pairs = new Map(
   managed.map((name) => [
     name,

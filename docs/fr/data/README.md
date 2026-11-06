@@ -57,7 +57,7 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [Checkpoint](Checkpoint.md) | 18 | L’hôte conserve le contexte original et les instructions de continuation ; la reprise n’exécute pas les anciens outils. |
 | [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | Les résultats complets sont consultables avant le retour résumé ; PARTIAL/UNKNOWN ne signifie pas que l’exécution est terminée. |
-| [Feedback](Feedback.md) | 16 | Conclusion courte et référence d’exécution ; les détails sont déjà conservés lorsque la session principale les lit. |
+| [Feedback](Feedback.md) | 19 | Conclusion courte et référence d’exécution ; les détails sont déjà conservés lorsque la session principale les lit. |
 | [DecisionRequest](DecisionRequest.md) | 18 | Les décisions ordinaires passent par TaskControl ; l’autorisation a une interface séparée. |
 | [ActionScope](ActionScope.md) | 6 |  |
 | [Operation](Operation.md) | 20 | Unité du contrôle final ; permissions, annulation et version d’objet sont vérifiées ici. |

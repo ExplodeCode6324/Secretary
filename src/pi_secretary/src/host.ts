@@ -16,14 +16,16 @@ import {
   type AgentTool,
   type StreamFn,
 } from "./model.ts";
-import { Previews } from "./preview.ts";
+import { previewsFor } from "./preview.ts";
 import type { Scheduler } from "./scheduler.ts";
 import { Store, base, id, revise } from "./store.ts";
 import { Wakeups } from "./wakeups.ts";
 import { World } from "./world.ts";
 export class Host {
   readonly wakeups: Wakeups;
-  readonly previews = new Previews();
+  get previews() {
+    return previewsFor(this.store);
+  }
   sessionID: string;
   private active?: Promise<void>;
   settingsBlocked: () => boolean = () => false;

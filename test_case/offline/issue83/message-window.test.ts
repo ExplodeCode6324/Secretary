@@ -37,7 +37,9 @@ test("expanded-CoT byte-capped Agent pages stay contiguous backwards by anchor, 
     const ids = f.app.store
       .executionEvents(e.id)
       .filter((event) => event.event_type === "agent.message")
-      .map((event) => event.event_id);
+      .map((event) =>
+        event.causation_id ? "call:" + event.causation_id : event.event_id,
+      );
     const positions = new Map(ids.map((id, i) => [id, i])),
       last = ids.at(-1)!;
     const route = `task-browser/${p.id}/executions/${e.id}/messages`;
