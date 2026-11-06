@@ -702,6 +702,7 @@ export class TerminalApp {
   }
   private async openMatter(id: string, row?: MasterAttentionItem) {
     this.stopFollowing();
+    this.remote?.taskBrowser.cancelNavigation();
     const draft = this.delivery!.state.drafts[this.page];
     this.matterOrigin = {
       page: this.page,
@@ -861,6 +862,7 @@ export class TerminalApp {
     void this.delivery.flush().catch(() => this.draw());
     if (action.kind === "navigate" && action.page !== this.page) {
       this.stopFollowing();
+      this.remote?.taskBrowser.cancelNavigation();
       this.page = action.page;
       this.layout();
     }

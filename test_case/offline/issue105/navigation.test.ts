@@ -67,3 +67,31 @@ test("real TerminalApp click and Esc keep rich draft/anchor; completion owns Esc
     await fs.rm(f.dir, { recursive: true, force: true });
   }
 });
+
+test("leaving Task or back cancels a delayed open and delayed suggestions without replacing current view", async () => {
+  const { TaskBrowserWindow } =
+    await import("../../../src/pi_secretary/src/tui/task-browser.ts");
+  let release!: (value: any) => void;
+  const window = new TaskBrowserWindow(
+    { query: async <T>() => new Promise<T>((r) => (release = r)) },
+    () => false,
+  );
+  try {
+    const open = window.open("task");
+    window.cancelNavigation();
+    release({ task: { id: "task" }, executions: [] });
+    await open;
+    assert.equal(window.selected, undefined);
+    const second = window.open("task");
+    window.back();
+    release({ task: { id: "task" }, executions: [] });
+    await second;
+    assert.equal(window.selected, undefined);
+    const suggestions = window.suggest("prefix");
+    window.cancelNavigation();
+    release({ items: [{ title: "prefix", state: "ACTIVE", executions: [] }] });
+    assert.deepEqual(await suggestions, []);
+  } finally {
+    window.stop();
+  }
+});

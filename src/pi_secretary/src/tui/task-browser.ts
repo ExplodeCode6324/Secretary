@@ -451,6 +451,7 @@ export class TaskBrowserWindow {
     this.changed();
   }
   async suggest(id: string, command?: string) {
+    const epoch = this.epoch;
     if (command === "follow")
       return [
         { value: "off", label: "off" },
@@ -470,6 +471,7 @@ export class TaskBrowserWindow {
       const page = await this.client.query<TaskLocatorSuggestions>(
         `task-browser/suggestions?selector_kind=${forcedID ? "id" : "auto"}&limit=20&selector=${encodeURIComponent(value)}`,
       );
+      if (this.stopped || epoch !== this.epoch) return [];
       return page.items.map((t) => ({
         value: JSON.stringify(t.title),
         label: `${t.title} · ${t.state} · ${t.executions.map((e) => `#${e.execution_round} ${e.state}`).join(", ")}`,
@@ -477,6 +479,10 @@ export class TaskBrowserWindow {
     } catch {
       return [];
     }
+  }
+  cancelNavigation() {
+    this.stopFollowing();
+    this.epoch++;
   }
   get navigationGeneration() {
     return this.epoch;
@@ -535,8 +541,8 @@ export class TaskBrowserWindow {
   }
   back() {
     this.stopFollowing();
-    if (!this.selected) return;
     this.epoch++;
+    if (!this.selected) return;
     this.selected = undefined;
     this.detail = undefined;
     this.groups.clear();
