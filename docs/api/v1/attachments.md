@@ -47,7 +47,7 @@ MPF 检查也会拒绝部分手机生成的 HDR gain-map JPEG。首版不转换 
 
 ## 依赖与验证边界
 
-sharp 固定为 0.35.5（Apache-2.0）；lockfile 包含 Linux/macOS 的原生可选依赖。libvips 及其组件的许可证以安装包内 LICENSE/README 为准，分发须保留相应声明。Portable 打包不在本项范围。Core 契约通过真实安装 adapter 的本机 HTTP fixture 验证；真实 provider 识图为 NOT_TESTED，由 #84 准备 profile 和合成图 smoke。新 TUI 消费与真人终端体验尚未验收。
+sharp 固定为 0.35.5（Apache-2.0）；lockfile 包含 Linux/macOS 的原生可选依赖。libvips 及其组件的许可证以安装包内 LICENSE/README 为准，分发须保留相应声明。Portable 打包不在本项范围。Core 契约通过真实安装 adapter 的本机 HTTP fixture 验证；原生终端及真实 DeepSeek 识图已在 #94 的限定场景中验证，证据与限制见 [PR #101 最终记录](https://github.com/ExplodeCode6324/Secretary/pull/101#issuecomment-6652193797)。#84 单独记录组合场景。
 
 ## Issue #94 TUI consumer
 

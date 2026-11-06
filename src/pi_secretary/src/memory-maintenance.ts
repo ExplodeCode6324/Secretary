@@ -14,6 +14,7 @@ import {
   retryExtractions as retryMemoryExtractions,
 } from "./memory-extraction.ts";
 import { migrateCommitments } from "./memory.ts";
+import { summaryCoolingDown } from "./memory-summary.ts";
 import { retryNow } from "./model-retry.ts";
 import { type AgentMessage } from "./model.ts";
 import { id, revise } from "./store.ts";
@@ -66,7 +67,7 @@ export function completedSequence(this: MemoryMaintenanceContext) {
 export function memoryDue(this: MemoryMaintenanceContext) {
   if (
     this.settingsBlocked() ||
-    this.session.state !== "IDLE" ||
+    !["IDLE", "CAPACITY_BLOCKED"].includes(this.session.state) ||
     this.maintenance
   )
     return false;
@@ -82,12 +83,12 @@ export function memoryDue(this: MemoryMaintenanceContext) {
     );
   if (this.pendingSummary()) return this.summaryDue();
   if (!turns.length) return false;
+  if (summaryCoolingDown(this)) return false;
   const jobs = this.store
     .all<CompactionJob>("CompactionJob")
     .filter(
       (j) => j.session_id === this.sessionID && j.mode !== "CONTEXT_COMPACTION",
     );
-  if (this.pendingSummary()) return this.summaryDue();
   const critical = this.store
     .eventsSince("feedback.delivered", start)
     .some(
@@ -120,7 +121,13 @@ export function pressureKey(this: MemoryMaintenanceContext) {
 }
 
 export function maintainIfNeeded(this: MemoryMaintenanceContext) {
-  if (this.active || this.maintenance || this.settingsBlocked()) return;
+  if (
+    this.active ||
+    this.maintenance ||
+    this.settingsBlocked() ||
+    !["IDLE", "CAPACITY_BLOCKED"].includes(this.session.state)
+  )
+    return;
   const key = this.pressureKey();
   if (this.pressureCache?.key !== key)
     this.pressureCache = {
@@ -131,7 +138,9 @@ export function maintainIfNeeded(this: MemoryMaintenanceContext) {
           budgetConfig().normal,
     };
   const pressure =
-    this.pressureCache.pressured && this.capacityAttemptKey !== key;
+    this.pressureCache.pressured &&
+    this.capacityAttemptKey !== key &&
+    !summaryCoolingDown(this);
   const extractionDue = this.store
     .indexed<MemoryExtractionJob>("MemoryExtractionJob", "pending_extraction", [
       true,
@@ -153,6 +162,8 @@ export function compact(this: MemoryMaintenanceContext, reset = true) {
   if (this.settingsBlocked())
     return Promise.reject(Error("SETTINGS_APPLICATION_IN_PROGRESS"));
   if (this.maintenance) return this.maintenance;
+  if (this.session.state === "RECOVERY_BLOCKED")
+    return Promise.reject(Error("SESSION_RECOVERY_BLOCKED"));
   if (reset) {
     const pending = this.pendingSummary();
     if (pending && pending.state === "FAILED")
@@ -173,7 +184,49 @@ export function compact(this: MemoryMaintenanceContext, reset = true) {
     })();
   this.maintenance = (async () => {
     await active;
-    await this.maintain();
+    const target = this.completedSequence();
+    const before = this.memory().covered_event_sequence ?? 0;
+    const pending = this.pendingSummary();
+    const maySummarize =
+      reset || (pending ? this.summaryDue(pending) : !summaryCoolingDown(this));
+    if (maySummarize) {
+      const first = await this.maintain(false, target);
+      const covered = this.memory().covered_event_sequence ?? 0;
+      // Recover a frozen old prefix, then cover the captured completed boundary.
+      // No failed/stale/no-progress pass may turn this into an unbounded drain.
+      if (
+        first?.state === "COMMITTED" &&
+        covered > before &&
+        covered < target &&
+        !this.pendingSummary() &&
+        !this.settingsBlocked() &&
+        ["IDLE", "CAPACITY_BLOCKED"].includes(this.session.state)
+      )
+        await this.maintain(false, target);
+      if (
+        before < target &&
+        (this.memory().covered_event_sequence ?? 0) <= before
+      )
+        this.store.commit(
+          [],
+          [
+            this.store.event(
+              "consciousness.maintenance_stalled",
+              {
+                covered_event_sequence: before,
+                target,
+                retry_after:
+                  retryNow(this.store) +
+                  Number(
+                    process.env.SECRETARY_MEMORY_MIN_INTERVAL_SECONDS ?? 120,
+                  ) *
+                    1000,
+              },
+              { session_id: this.sessionID, task_id: null, execution_id: null },
+            ),
+          ],
+        );
+    }
     await this.extractPending();
     await this.world?.memorySearch?.catchUp();
     if (this.session.last_context_id) {

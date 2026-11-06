@@ -14,6 +14,8 @@ Consciousness 保存当前工作摘要、承诺和覆盖引用；MemoryExtractio
 
 [普通维护](../src/pi_secretary/src/memory-maintenance.ts) 在累计 8 个完成轮次或首个未覆盖轮次等待 60 秒后触发，间隔至少 120 秒；任务反馈可提前触发。上下文占用达到可用输入的 60% 时在安全边界整理，80% 为强制阈值，目标为 30%。整理固定来源期间新输入继续排队，提交候选时核对记忆版本与来源。
 
+维护也可在 CAPACITY_BLOCKED 时运行；一次整理最多先恢复旧前缀，再追赶到开始时捕获的已完成边界，不纳入后到输入。STALE 或无进展后按最小维护间隔退避，RECOVERY_BLOCKED 状态拒绝显式 compact。
+
 来源最多拆成 64 段，已成功候选跨重启复用。摘要成功即可提交，承诺提取独立推进；失败分段保留来源并补提，合并读取最新承诺账本。Settings 也遵循同一来源与投影规则，应用流程见[数据流](data-flow.md#记忆维护与设置)。
 
 [MemoryCommitment](../src/pi_secretary/src/memory.ts) 保存稳定 ID、原文、状态、来源批次和处理凭证。结果汇报类承诺由匹配 TaskResult 及其后同会话的真实 `notification.presented` 证据完成，并校验来源批次、事件顺序及 sourceEnd；一般/复合承诺由 `memory/commitments/{id}/resolve` 明确处理。旧 ExtractionRecovery 仍可读取，新提取工作使用 MemoryExtractionJob。

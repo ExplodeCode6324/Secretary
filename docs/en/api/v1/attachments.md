@@ -51,7 +51,7 @@ The MPF check also rejects HDR gain-map JPEGs produced by some phones. This vers
 
 ## Dependencies and validation boundaries
 
-sharp is pinned to 0.35.5 (Apache-2.0); the lockfile includes Linux/macOS native optional dependencies. libvips and component licenses are in the installed LICENSE/README files; preserve their notices when distributing. Portable packaging is outside this issue. Core contracts use installed adapters against local HTTP fixtures. Real provider vision is NOT_TESTED; #84 prepares the profile and synthetic smoke. New TUI consumption and human terminal experience remain unaccepted.
+sharp is pinned to 0.35.5 (Apache-2.0); the lockfile includes Linux/macOS native optional dependencies. libvips and component licenses are in the installed LICENSE/README files; preserve their notices when distributing. Portable packaging is outside this issue. Core contracts use installed adapters against local HTTP fixtures. Issue #94 verified a scoped native Terminal run and actual DeepSeek image recognition. See the [final PR #101 record](https://github.com/ExplodeCode6324/Secretary/pull/101#issuecomment-6652193797) for evidence and limits. Issue #84 tracks the combined scenario separately.
 
 ## Issue #94 TUI consumer
 

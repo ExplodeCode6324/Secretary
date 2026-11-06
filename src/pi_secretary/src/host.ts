@@ -217,8 +217,8 @@ export class Host {
   private crop(original: AgentMessage[], eligible: number): AgentMessage[] {
     return contextAssembly.crop.call(this.context, original, eligible);
   }
-  private maintain(inLoop = false) {
-    return memorySummary.maintain.call(this.context, inLoop);
+  private maintain(inLoop = false, target?: number) {
+    return memorySummary.maintain.call(this.context, inLoop, target);
   }
   retryExtractions(requestID: string) {
     return memoryMaintenance.retryExtractions.call(this.context, requestID);
