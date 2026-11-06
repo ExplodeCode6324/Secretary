@@ -27,6 +27,7 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `logical_key` | Digest | Non |  Références : [Digest](Digest.md) |
 | `failure_kind` | TRANSIENT / PERMANENT / CANCELLED / LOCAL | Non |  |
 | `retry_at` | Time ou null | Non |  Références : [Time](Time.md) |
+| `guidance_cutoff` | integer | Non |  {"minimum": 0, "maximum": 9007199254740991} |
 
 ## Contraintes combinées
 

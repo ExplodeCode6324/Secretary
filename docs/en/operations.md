@@ -129,3 +129,9 @@ verify runs type checks, link checks for Git-tracked Markdown, and `test_case/of
 - Real phone delivery belongs to portable terminal #11; acceptance of actual macOS presentation awaits a later client phase.
 
 Image attachments reserve capacity in a separate import ledger and bind immutable CAS to Inputs; see the [attachment guide](api/v1/attachments.md) for formats, budgets, residency and withdrawal.
+
+## Guidance during execution
+
+Core provides a durable Guidance API targeting an exact execution_id; see the [API guidance contract](api/v1/README.md#exact-execution-guidance-103) for usage and limits. Main can adjust execution through `task_control(action=guide, id=execution_id, task_id, text)`; this cannot approve authorization or answer Master-only questions.
+
+Assess durable acceptance, checkpoint receipt and actual ModelCall adoption separately. Queued guidance cannot be silently dropped and must have a valid disposition before success; conflicts create explicit questions. New guidance does not undo started external effects or replay operations with unknown outcomes. After failure reconcile the original request identity and execution, never the next round. The terminal currently uses existing authorization/question interfaces; `/guide` input belongs to #106.

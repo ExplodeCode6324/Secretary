@@ -1,3 +1,4 @@
+import { guidanceFor } from "./guidance.ts";
 import type {
   DecisionRequest,
   Execution,
@@ -105,6 +106,8 @@ export function answer(
   actor: "MAIN" | "MASTER" = "MAIN",
 ) {
   const d = this.store.get<DecisionRequest>("DecisionRequest", did);
+  if (d.required_answerer === "MASTER" && actor !== "MASTER")
+    throw Error("DECISION_MASTER_REQUIRED");
   if (
     answer == null ||
     (typeof answer === "string" && !answer.trim()) ||
@@ -197,6 +200,11 @@ export async function recoverProcesses(
 
 export async function recover(this: ExecutionRecoveryContext) {
   await this.recoverProcesses(true);
+  for (const e of this.store.all<Execution>("Execution"))
+    if (terminal(e)) {
+      const changes = guidanceFor(this.store).settlement(e.id, e.state);
+      if (changes.length) this.store.commit(changes);
+    }
   for (const e of this.store.all<Execution>("Execution")) {
     if (!e.proposal_ref)
       this.store.commit([

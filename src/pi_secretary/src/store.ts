@@ -73,6 +73,11 @@ function syncDir(dir: string) {
   }
 }
 const indexFields: Record<string, string[]> = {
+  Guidance: ["execution_id", "request_id"],
+  GuidanceInjection: ["execution_id"],
+  GuidanceReceipt: ["execution_id", "guidance_id"],
+  Context: ["loop_id"],
+  DecisionRequest: ["execution_id"],
   WorldCommand: ["state"],
   Input: ["state"],
   Feedback: ["state", "execution_id"],
@@ -531,6 +536,7 @@ export class Store {
           r.payload.sha256 !== old.payload.sha256 ||
           JSON.stringify(r.attachments) !== JSON.stringify(old.attachments) ||
           r.content_digest !== old.content_digest ||
+          r.guidance_id !== old.guidance_id ||
           (JSON.stringify(r.withdrawal) !== JSON.stringify(old.withdrawal) &&
             old.state === "WITHDRAWN")
         )
@@ -571,6 +577,69 @@ export class Store {
         )
           throw Error("FAILURE_IDENTITY_CHANGED");
       }
+      if (old?.record_type === "Guidance" && r.record_type === "Guidance") {
+        const fixed = [
+          "task_id",
+          "execution_id",
+          "session_id",
+          "source",
+          "source_ref",
+          "request_id",
+          "request_hash",
+          "text",
+          "text_bytes",
+          "sequence",
+          "sent_at",
+        ] as const;
+        if (
+          fixed.some((k) => JSON.stringify(old[k]) !== JSON.stringify(r[k])) ||
+          (old.received_at && old.received_at !== r.received_at) ||
+          (old.guided_at && old.guided_at !== r.guided_at) ||
+          (old.closed_reason && old.closed_reason !== r.closed_reason)
+        )
+          throw Error("GUIDANCE_IDENTITY_IMMUTABLE");
+      }
+      if (old?.record_type === "GuidanceReceipt")
+        throw Error("GUIDANCE_RECEIPT_IMMUTABLE");
+      if (
+        old?.record_type === "GuidanceInjection" &&
+        r.record_type === "GuidanceInjection"
+      ) {
+        const fixed = [
+          "execution_id",
+          "guidance_ids",
+          "attempt_id",
+          "message",
+          "message_hash",
+        ] as const;
+        if (
+          fixed.some((k) => JSON.stringify(old[k]) !== JSON.stringify(r[k])) ||
+          (old.received_at && JSON.stringify(old) !== JSON.stringify(r))
+        )
+          throw Error("GUIDANCE_INJECTION_IMMUTABLE");
+      }
+      if (
+        old?.record_type === "DecisionRequest" &&
+        r.record_type === "DecisionRequest" &&
+        old.required_answerer === "MASTER" &&
+        r.required_answerer !== "MASTER"
+      )
+        throw Error("DECISION_AUTHORITY_IMMUTABLE");
+      if (
+        old?.record_type === "ModelCall" &&
+        r.record_type === "ModelCall" &&
+        old.guidance_cutoff !== r.guidance_cutoff
+      )
+        throw Error("GUIDANCE_CUTOFF_IMMUTABLE");
+      if (
+        old?.record_type === "Operation" &&
+        r.record_type === "Operation" &&
+        (old.generating_call_id !== r.generating_call_id ||
+          (old.guidance_supersession &&
+            JSON.stringify(old.guidance_supersession) !==
+              JSON.stringify(r.guidance_supersession)))
+      )
+        throw Error("OPERATION_PROVENANCE_IMMUTABLE");
       if (old) validateStateTransition(old, r);
       if (
         old?.record_type === "Execution" &&

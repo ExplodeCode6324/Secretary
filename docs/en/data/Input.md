@@ -27,6 +27,7 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
 | `content_digest` | Digest | No |  Related: [Digest](Digest.md) |
 | `withdrawal` | object | No |  {"additionalProperties": false} Related: [ID](ID.md), [Time](Time.md) |
 | `failure_action` | FailureAction | No |  Related: [FailureAction](FailureAction.md) |
+| `guidance_id` | ID | No |  Related: [ID](ID.md) |
 
 ## Combined constraints
 

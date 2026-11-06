@@ -56,7 +56,10 @@ export type SecretaryDemoV1 =
   | PushDispatch
   | Attachment
   | AttachmentImport
-  | FailureHandling;
+  | FailureHandling
+  | Guidance
+  | GuidanceInjection
+  | GuidanceReceipt;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -259,6 +262,16 @@ export type Operation = {
     pgid?: number;
     start?: string;
   };
+  generating_call_id?: ID;
+  guidance_supersession?: {
+    reason: "SUPERSEDED_BY_GUIDANCE";
+    /**
+     * @maxItems 64
+     */
+    guidance_ids: ID[];
+    at: Time;
+    evidence: ObjectRef;
+  };
 };
 /**
  * 状态枚举对应 src/state_machine/catalog.json 的 Operation
@@ -407,6 +420,7 @@ export interface Input {
     reason: "OWNER_WITHDRAWN";
   };
   failure_action?: FailureAction;
+  guidance_id?: ID;
 }
 /**
  * 不可变对象引用；必须校验内容散列。
@@ -571,6 +585,7 @@ export interface ModelCall {
   logical_key?: Digest;
   failure_kind?: "TRANSIENT" | "PERMANENT" | "CANCELLED" | "LOCAL";
   retry_at?: Time | null;
+  guidance_cutoff?: number;
 }
 /**
  * 日志定位：main 至少 session；task 必须 task 与 execution；跨域见语义校验。
@@ -1061,6 +1076,11 @@ export interface DecisionRequest {
   } | null;
   answered_by: ("MAIN" | "MASTER") | null;
   answer_request_id: ID | null;
+  required_answerer?: "MASTER";
+  /**
+   * @maxItems 64
+   */
+  guidance_ids?: ID[];
 }
 export interface ActionScope {
   /**
@@ -1741,7 +1761,10 @@ export interface Mutation {
     | "PushDispatch"
     | "Attachment"
     | "AttachmentImport"
-    | "FailureHandling";
+    | "FailureHandling"
+    | "Guidance"
+    | "GuidanceInjection"
+    | "GuidanceReceipt";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -2145,6 +2168,89 @@ export interface FailureHandling {
       [k: string]: unknown;
     };
   } | null;
+}
+/**
+ * Durable exact-execution guidance; independent sent, received and adopted milestones.
+ */
+export interface Guidance {
+  schema_version: 1;
+  record_type: "Guidance";
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  task_id: ID;
+  execution_id: ID;
+  session_id: ID;
+  source: "MASTER" | "MAIN";
+  source_ref: ObjectRef;
+  request_id: ID;
+  request_hash: Digest;
+  text: ObjectRef;
+  text_bytes: number;
+  sequence: number;
+  sent_at: Time;
+  received_at: Time | null;
+  guided_at: Time | null;
+  disposition:
+    "PENDING" | "ADOPTED" | "CONFLICT" | "CANNOT_APPLY" | "UNPROCESSED";
+  receipt_id: ID | null;
+  closed_reason: string | null;
+}
+/**
+ * Host-only injection provenance. A queued message is not reception or model consumption.
+ */
+export interface GuidanceInjection {
+  schema_version: 1;
+  record_type: "GuidanceInjection";
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  execution_id: ID;
+  /**
+   * @maxItems 64
+   */
+  guidance_ids: ID[];
+  attempt_id: ID;
+  message: ObjectRef;
+  message_hash: Digest;
+  message_index: number | null;
+  checkpoint_id: ID | null;
+  received_at: Time | null;
+}
+/**
+ * Append-only validated disposition from the actual durable model request and response.
+ */
+export interface GuidanceReceipt {
+  schema_version: 1;
+  record_type: "GuidanceReceipt";
+  id: ID;
+  /**
+   * 宿主 CAS revision；从 1 开始。
+   */
+  revision: number;
+  updated_at: Time;
+  execution_id: ID;
+  guidance_id: ID;
+  call_id: ID;
+  tool_call_id: string;
+  outcome: "ADOPTED" | "CONFLICT" | "CANNOT_APPLY";
+  explanation: string;
+  effective_requirements: string;
+  /**
+   * @maxItems 64
+   */
+  conflicts_with: ID[];
+  /**
+   * @maxItems 64
+   */
+  resolution_refs: ID[];
+  observed_at: Time;
 }
 
 export type Contract = SecretaryDemoV1;

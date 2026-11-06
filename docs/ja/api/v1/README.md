@@ -20,7 +20,7 @@ POST は application/json を使い、body は最大 1 MiB、UUID の request_id
 
 | 受信した結果 | クライアントの対処 |
 | --- | --- |
-| コマンド POST 400/404/409/410/422 | 受理前に拒否。REQUEST_CONFLICT の場合は元 ID の既存受領記録を維持 |
+| コマンド POST 400/404/409/410/413/422 | 受理前に拒否。REQUEST_CONFLICT の場合は元 ID の既存受領記録を維持 |
 | 202 | 受領記録を保存して関連リソースを照会 |
 | タイムアウト、切断、5xx | 元の request_id で照会し、受領記録があれば照合。明示的に NOT_FOUND で、ローカルにも受理済み・UNKNOWN の証拠がなければ元の ID、パス、body で再送 |
 | 401/403 | 認証またはリクエスト元を修正してから操作 |
@@ -131,3 +131,17 @@ GET artifacts accepts exact canonical relative_path and optional execution_id, f
 The main.delivery event is an ID-only sidecar to an unchanged main.message event, committed atomically with the Context pointer. Only RESULT feedback CLAIMED by that Main loop supplies references. Stop/length replies without tool calls may carry delivery, including empty bodies; length stays truncated. Queries, previews, tool continuations and failed replies do not create delivery. Existing stop-only crash recovery is unchanged.
 
 New submit_result artifacts remain a path array and require exactly one artifact_descriptions item per nonempty registered path. Paths canonicalize dot segments and reject traversal/control/duplicates; limits are 32 artifacts, 2000 Unicode characters per explanation and 64 KiB total encoded descriptions. Legacy stored results remain readable without descriptions. Host generates Artifact IDs and binds explanations before publishing the result.
+
+## 実行を指定した指示（#103）
+
+`POST executions/{execution_id}/guidance` は `{request_id, task_id, text}` を受け付けます。対象は現在のデータ領域に属する未終了の AGENT 実行です。本人確認は認証に基づき、送信元や受領証を自己申告できません。上限は1件16,384 UTF-8バイト、実行ごとに64件かつ原文合計65,536バイトです。超過時は413（GUIDANCE_TOO_LARGE / GUIDANCE_LIMIT_REACHED）を返し、Guidance も通知用 Input も作成しません。切り詰めや分割は行いません。空白だけの本文は拒否し、それ以外は原文を保存します。
+
+受理時に Guidance、Master への通知用 Input 1件、元の要求の受領証を同一トランザクションで保存します。Main の task_control guide は同じドメインサービスを使いますが、自己通知を作成しません。同一要求・同一引数なら終了後も元の結果を取得できます。引数や対象の変更は REQUEST_CONFLICT です。応答不明時は元の request_id で照合し、新しい識別子や latest への変更で再送しないでください。
+
+`GET guidance/{id}` は原文、送信元、SENT/RECEIVED/GUIDED の時刻、処置、実際の ModelCall の受領証を返します。`GET executions/{id}/guidance?limit=20&cursor=...` は受理順でページングし、limit は1–100です。SENT は永続的な受理、RECEIVED は永続 checkpoint 内へのホストによる注入、GUIDED は実際のモデル要求と有効な ADOPTED 受領証を必要とします。steer 呼び出し、画面表示、HTTP 202 は採用の証明ではありません。
+
+受理した指示は、次に許可される新しいモデル要求に必ず含めます。古い処理中または凍結済み応答はブロックし、新しいターンで処理します。要求に含まれた指示の有効な処置がないまま成功終了を試みた場合は、直ちに GUIDANCE_NOT_PROCESSED で失敗します。3応答分の猶予はありません。有効な競合や採用不可の報告は重複のない DecisionRequest を生成し、required_answerer=MASTER の場合は Main が回答できません。
+
+WAIT_AUTH 中に指示を受けても承認待ちを維持します。承認後は古くなった未開始の操作を退役させ、再計画して承認を再確認します。拒否は引き続き実行失敗となります。authorization 詳細の guidance_warning がこの動作を説明します。質問への自動回答、結果不明の効果の自動再実行、指示を処理するためのキャンセル済み実行の復活は行いません。失敗・キャンセル・期限切れ時は未処理の指示を理由付きで確定します。
+
+本件はバックエンドと既存の事項通知を提供します。Task のストリーミング表示、固定タイトルと実行ラウンド、`/guide` コマンドは、それぞれ #104、#105、#106 で提供します。

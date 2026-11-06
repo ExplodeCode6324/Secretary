@@ -2065,6 +2065,17 @@
               "type": "null"
             }
           ]
+        },
+        "required_answerer": {
+          "const": "MASTER"
+        },
+        "guidance_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxItems": 64
         }
       },
       "required": [
@@ -2199,6 +2210,12 @@
                 "tokens"
               ]
             }
+          ]
+        },
+        "guidance_warning": {
+          "type": [
+            "string",
+            "null"
           ]
         }
       },
@@ -6226,6 +6243,160 @@
         "version"
       ],
       "additionalProperties": false
+    },
+    "GuidanceCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "request_id",
+        "task_id",
+        "text"
+      ]
+    },
+    "Guidance": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "task_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "execution_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "source": {
+          "enum": [
+            "MASTER",
+            "MAIN"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "string"
+        },
+        "sent_at": {
+          "type": "string"
+        },
+        "received_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "guided_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposition": {
+          "enum": [
+            "PENDING",
+            "ADOPTED",
+            "CONFLICT",
+            "CANNOT_APPLY",
+            "UNPROCESSED"
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "receipt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Json"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "task_id",
+        "execution_id",
+        "source",
+        "text",
+        "revision",
+        "sequence",
+        "sent_at",
+        "received_at",
+        "guided_at",
+        "disposition",
+        "reason",
+        "receipt"
+      ]
+    },
+    "GuidancePage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Guidance"
+          },
+          "maxItems": 100
+        },
+        "next_cursor": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "items",
+        "next_cursor",
+        "version"
+      ]
     }
   },
   "oneOf": [
@@ -6270,6 +6441,15 @@
     },
     {
       "$ref": "#/$defs/FailureDetail"
+    },
+    {
+      "$ref": "#/$defs/GuidanceCommand"
+    },
+    {
+      "$ref": "#/$defs/Guidance"
+    },
+    {
+      "$ref": "#/$defs/GuidancePage"
     }
   ]
 }

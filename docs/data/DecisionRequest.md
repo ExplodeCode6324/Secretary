@@ -22,6 +22,8 @@
 | `answer` | JSON 或 null | 是 |  |
 | `answered_by` | MAIN / MASTER 或 null | 是 |  |
 | `answer_request_id` | ID 或 null | 是 |  关联：[ID](ID.md) |
+| `required_answerer` | "MASTER" | 否 |  |
+| `guidance_ids` | array<ID> | 否 |  {"maxItems": 64} 关联：[ID](ID.md) |
 
 ## 组合约束
 

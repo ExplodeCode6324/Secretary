@@ -125,3 +125,9 @@ verify 依次执行类型检查、Git 跟踪 Markdown 链接检查及 `test_case
 - 手机真实送达归随身终端 #11，macOS 实际展示验收等待后续客户端安排。
 
 图片附件通过独立导入账本预留容量，使用不可变 CAS 与 Input 绑定；完整格式、预算、驻留和撤回合同见[附件说明](api/v1/attachments.md)。
+
+## 执行中指导
+
+Core 提供精确 execution_id 的持久 Guidance API，使用方法与限制见 [API 指导合同](api/v1/README.md#精确执行指导103)。Main 可通过 `task_control(action=guide, id=execution_id, task_id, text)` 调整执行方式；该入口不能代批授权或回答 Master 专属问题。
+
+核对指导是否生效时，分别查看持久受理、checkpoint 接收和真实 ModelCall 采用证据。已进入队列的指导不能被静默丢弃，成功结束前必须有有效处理结论；冲突会进入明确待回答事项。新指导不会撤销已启动的外部效果，也不会自动重放结果未知的操作。故障后按原请求身份与原执行对账，禁止改投下一轮。当前终端仍使用既有授权/问题界面；`/guide` 输入交互属于后续 #106。

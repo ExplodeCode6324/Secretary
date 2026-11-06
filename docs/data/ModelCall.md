@@ -23,6 +23,7 @@
 | `logical_key` | Digest | 否 |  关联：[Digest](Digest.md) |
 | `failure_kind` | TRANSIENT / PERMANENT / CANCELLED / LOCAL | 否 |  |
 | `retry_at` | Time 或 null | 否 |  关联：[Time](Time.md) |
+| `guidance_cutoff` | integer | 否 |  {"minimum": 0, "maximum": 9007199254740991} |
 
 ## 组合约束
 

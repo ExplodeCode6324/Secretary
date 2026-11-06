@@ -1,3 +1,4 @@
+import { guidanceFor } from "./guidance.ts";
 import { failuresFor, type FailureProposal } from "./failure-handling.ts";
 import { Type } from "typebox";
 import { activitiesFor } from "./activity.ts";
@@ -137,7 +138,19 @@ export function tools(
               },
               t.name,
               args,
-              () => t.execute(stableID(key), args, signal),
+              async () =>
+                t.name === "task_control" &&
+                (args as { action: string }).action === "guide"
+                  ? result(
+                      guidanceFor(this.store).main(
+                        this.sessionID,
+                        loopID,
+                        call,
+                        stableID(key),
+                        args as { id: string; task_id?: string; text?: string },
+                      ),
+                    )
+                  : t.execute(stableID(key), args, signal),
               { loop_id: loopID },
             );
             this.store.commit(
@@ -171,6 +184,8 @@ export function tools(
           bound?.failure_action?.action === "REDO"
             ? Type.Optional(Type.String())
             : Type.String(),
+        task_id: Type.Optional(Type.String()),
+        text: Type.Optional(Type.String()),
         failure_intent_id: Type.Optional(Type.String()),
         reuse_task_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         materials: Type.Optional(
@@ -228,13 +243,14 @@ export function tools(
       name: "task_control",
       label: "Control tasks",
       description:
-        "Cancel execution, cancel_request using the accepted request_id (also cancels its execution if dispatched), or answer ordinary decision. Cannot approve authorization. dismiss_failure only in an isolated Master DISMISS input; id is its exact failure_key.",
+        "Guide an exact unfinished execution using action=guide, id=execution_id, task_id and exact text. Guidance changes approach within existing authority, not approval or answering a Master-only question. Informational Master guidance is already delivered: never resend it. Otherwise cancel execution, cancel_request using the accepted request_id (also cancels its execution if dispatched), or answer ordinary decision. Cannot approve authorization. dismiss_failure only in an isolated Master DISMISS input; id is its exact failure_key.",
       parameters: Type.Object({
         action: Type.Union([
           Type.Literal("cancel"),
           Type.Literal("cancel_request"),
           Type.Literal("answer"),
           Type.Literal("dismiss_failure"),
+          Type.Literal("guide"),
         ]),
         id: Type.String(),
         failure_intent_id: Type.Optional(Type.String()),

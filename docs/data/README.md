@@ -39,9 +39,9 @@
 | [FeedbackPolicy](FeedbackPolicy.md) | 5 |  |
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
 | [Session](Session.md) | 16 | 逻辑主会话；状态变化由宿主单写，进程停止仍保留。 |
-| [Input](Input.md) | 17 | 外部输入；工具返回不创建此对象。 |
+| [Input](Input.md) | 18 | 外部输入；工具返回不创建此对象。 |
 | [Context](Context.md) | 32 | 不可变完整 CHECKPOINT 用于恢复；MODEL_REQUEST 使用完整归一化请求预算通过容量检查后才允许发送。 |
-| [ModelCall](ModelCall.md) | 17 | 模型传输生命周期；完整响应保存后才解析工具请求。 |
+| [ModelCall](ModelCall.md) | 18 | 模型传输生命周期；完整响应保存后才解析工具请求。 |
 | [WorkItem](WorkItem.md) | 12 | 事项不等于任务；未履行且无人承接的事项不退出。 |
 | [Consciousness](Consciousness.md) | 19 | 当前工作记忆；全部摘要提交与原文承接集合一次保存。 |
 | [CompactionJob](CompactionJob.md) | 24 | 固定范围摘要任务；新增输入不纳入覆盖集合。 |
@@ -54,9 +54,9 @@
 | [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | 完整结果先可查询，再反馈简要结论；PARTIAL/UNKNOWN 不意味着执行已结束。 |
 | [Feedback](Feedback.md) | 16 | 短结论与执行引用；主会话读到时详情已保存。 |
-| [DecisionRequest](DecisionRequest.md) | 16 | 普通决定通过 TaskControl；授权走独立接口。 |
+| [DecisionRequest](DecisionRequest.md) | 18 | 普通决定通过 TaskControl；授权走独立接口。 |
 | [ActionScope](ActionScope.md) | 6 |  |
-| [Operation](Operation.md) | 18 | 最终 gate 的单位；权限、取消、对象版本在此核验。 |
+| [Operation](Operation.md) | 20 | 最终 gate 的单位；权限、取消、对象版本在此核验。 |
 | [AuthorizationRequest](AuthorizationRequest.md) | 17 | host/scheduler 私有记录，模型不可提交批准状态。 |
 | [ApprovalCommand](ApprovalCommand.md) | 8 | 仅已认证 Master UI 可调用；身份取服务端 session，不能从 body 信任。 |
 | [AuthorizationRule](AuthorizationRule.md) | 13 | 手工确认的持续规则，主会话无写入口；每次操作匹配当前 revision。 |
@@ -109,3 +109,6 @@
 | [AttachmentImport](AttachmentImport.md) | 12 |  |
 | [FailureAction](FailureAction.md) | 3 |  |
 | [FailureHandling](FailureHandling.md) | 20 |  |
+| [Guidance](Guidance.md) | 21 | Durable exact-execution guidance; independent sent, received and adopted milestones. |
+| [GuidanceInjection](GuidanceInjection.md) | 13 | Host-only injection provenance. A queued message is not reception or model consumption. |
+| [GuidanceReceipt](GuidanceReceipt.md) | 15 | Append-only validated disposition from the actual durable model request and response. |

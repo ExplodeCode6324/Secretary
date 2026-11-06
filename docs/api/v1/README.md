@@ -16,7 +16,7 @@ POST 使用 application/json，body 最大 1 MiB，包含 UUID request_id。owne
 
 | 收到的结果 | 客户端处理 |
 | --- | --- |
-| 命令 POST 400/404/409/410/422 | 本次提交在受理前被拒绝；REQUEST_CONFLICT 时保留原 ID 的已有回执 |
+| 命令 POST 400/404/409/410/413/422 | 本次提交在受理前被拒绝；REQUEST_CONFLICT 时保留原 ID 的已有回执 |
 | 202 | 保存回执并查询关联资源 |
 | 超时、断连、5xx | 用原 request_id 查询；找到回执就对账；明确 NOT_FOUND 且本地无已受理/UNKNOWN 证据时按原 ID、路径和 body 重投 |
 | 401/403 | 修复认证或请求来源后再操作 |
@@ -127,3 +127,17 @@ GET artifacts accepts exact canonical relative_path and optional execution_id, f
 The main.delivery event is an ID-only sidecar to an unchanged main.message event, committed atomically with the Context pointer. Only RESULT feedback CLAIMED by that Main loop supplies references. Stop/length replies without tool calls may carry delivery, including empty bodies; length stays truncated. Queries, previews, tool continuations and failed replies do not create delivery. Existing stop-only crash recovery is unchanged.
 
 New submit_result artifacts remain a path array and require exactly one artifact_descriptions item per nonempty registered path. Paths canonicalize dot segments and reject traversal/control/duplicates; limits are 32 artifacts, 2000 Unicode characters per explanation and 64 KiB total encoded descriptions. Legacy stored results remain readable without descriptions. Host generates Artifact IDs and binds explanations before publishing the result.
+
+## 精确执行指导（#103）
+
+`POST executions/{execution_id}/guidance` 接收 `{request_id, task_id, text}`，目标必须是属于当前数据域的未结束 AGENT 执行。身份由认证决定，不能自报来源或回执。单条最多 16,384 UTF-8 字节；每次执行最多 64 条、累计原文 65,536 字节。超限返回 413（GUIDANCE_TOO_LARGE / GUIDANCE_LIMIT_REACHED），不创建 Guidance 或知情 Input，不截断、不拆条。空白正文拒绝，其余正文原样保存。
+
+受理同一事务保存 Guidance、一次 Master 知情 Input 与原请求回执；Main 的 task_control guide 共用领域服务，但不产生自我知情副本。相同请求同参可在目标结束后查回原结果；改参/改目标返回 REQUEST_CONFLICT。响应不确定时用原 request_id 对账，不能换请求身份重发或改投 latest。
+
+`GET guidance/{id}` 查看原文、来源、SENT/RECEIVED/GUIDED 时间、处置及真实 ModelCall 回执；`GET executions/{id}/guidance?limit=20&cursor=...` 按受理顺序分页，limit 为 1–100。SENT 代表持久受理；RECEIVED 需要宿主注入已进入持久 checkpoint；GUIDED 需要真实模型请求和合法 ADOPTED 回执。steer、界面显示或 HTTP 202 均不代表采用。
+
+已受理指导必须进入下一次允许的新模型请求。旧在途/冻结响应先被挡住，让新回合消费；请求已包含指导但尝试成功结束时仍无有效处理结论，立即 GUIDANCE_NOT_PROCESSED 失败，没有三次宽限。合法冲突/无法采用进入去重 DecisionRequest；required_answerer=MASTER 时 Main 不能回答。
+
+WAIT_AUTH 收到指导仍等待授权；批准会退役过时且未启动的旧操作，重新规划后重新检查授权。拒绝仍使执行失败。authorization 详情的 guidance_warning 解释此行为。等待回答不自动回答，未知效果不自动重放，取消后不为补消费而复活执行。失败/取消/过期结清未处理指导并保留原因。
+
+本项提供后端与既有事项提示。Task 流式阅读、稳定标题/轮次和 `/guide` 命令分别由 #104、#105、#106 交付。

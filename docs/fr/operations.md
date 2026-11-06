@@ -129,3 +129,9 @@ La [CI](../../.github/workflows/verify.yml) exécute verify complet avec Postgre
 - La livraison réelle sur téléphone relève du terminal portable #11 ; la recette de l’affichage effectif sous macOS attend une phase client ultérieure.
 
 Les images réservent leur capacité dans un registre dédié et lient le CAS immuable aux Inputs ; voir le [guide des pièces jointes](api/v1/attachments.md) pour formats, budgets, résidence et retrait.
+
+## Instructions en cours d’exécution
+
+Core fournit une API Guidance durable ciblant un execution_id exact ; consultez le [contrat des instructions API](api/v1/README.md#instructions-pour-une-exécution-précise-103) pour son usage et ses limites. Main peut ajuster l’exécution via `task_control(action=guide, id=execution_id, task_id, text)`, sans approuver une autorisation ni répondre aux questions réservées à Master.
+
+Vérifiez séparément l’acceptation durable, la réception dans un checkpoint et l’adoption par un ModelCall réel. Une instruction en file ne peut pas être abandonnée silencieusement et doit avoir un traitement valide avant le succès ; les conflits créent des questions explicites. Une nouvelle instruction n’annule pas les effets externes démarrés et ne rejoue pas les opérations au résultat inconnu. Après un incident, rapprochez l’identité et l’exécution initiales, sans rediriger vers le tour suivant. Le terminal utilise les interfaces d’autorisation et de questions existantes ; la saisie `/guide` relève de #106.

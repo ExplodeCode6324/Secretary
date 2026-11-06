@@ -1027,6 +1027,9 @@
         },
         "failure_action": {
           "$ref": "#/$defs/FailureAction"
+        },
+        "guidance_id": {
+          "$ref": "#/$defs/ID"
         }
       },
       "required": [
@@ -1445,6 +1448,11 @@
               "type": "null"
             }
           ]
+        },
+        "guidance_cutoff": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
         }
       },
       "required": [
@@ -3162,6 +3170,16 @@
               "type": "null"
             }
           ]
+        },
+        "required_answerer": {
+          "const": "MASTER"
+        },
+        "guidance_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "maxItems": 64
         }
       },
       "required": [
@@ -3397,6 +3415,37 @@
           "required": [
             "token",
             "state"
+          ]
+        },
+        "generating_call_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "guidance_supersession": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "reason": {
+              "const": "SUPERSEDED_BY_GUIDANCE"
+            },
+            "guidance_ids": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/ID"
+              },
+              "maxItems": 64
+            },
+            "at": {
+              "$ref": "#/$defs/Time"
+            },
+            "evidence": {
+              "$ref": "#/$defs/ObjectRef"
+            }
+          },
+          "required": [
+            "reason",
+            "guidance_ids",
+            "at",
+            "evidence"
           ]
         }
       },
@@ -5620,7 +5669,10 @@
             "PushDispatch",
             "Attachment",
             "AttachmentImport",
-            "FailureHandling"
+            "FailureHandling",
+            "Guidance",
+            "GuidanceInjection",
+            "GuidanceReceipt"
           ],
           "description": ""
         },
@@ -7803,6 +7855,318 @@
         "tool_receipt"
       ],
       "additionalProperties": false
+    },
+    "Guidance": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "Guidance"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "task_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "session_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "source": {
+          "enum": [
+            "MASTER",
+            "MAIN"
+          ]
+        },
+        "source_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "request_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "request_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "text": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "text_bytes": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "sent_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "received_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "guided_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "disposition": {
+          "enum": [
+            "PENDING",
+            "ADOPTED",
+            "CONFLICT",
+            "CANNOT_APPLY",
+            "UNPROCESSED"
+          ]
+        },
+        "receipt_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "closed_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "task_id",
+        "execution_id",
+        "session_id",
+        "source",
+        "source_ref",
+        "request_id",
+        "request_hash",
+        "text",
+        "text_bytes",
+        "sequence",
+        "sent_at",
+        "received_at",
+        "guided_at",
+        "disposition",
+        "receipt_id",
+        "closed_reason"
+      ],
+      "additionalProperties": false,
+      "description": "Durable exact-execution guidance; independent sent, received and adopted milestones."
+    },
+    "GuidanceInjection": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "GuidanceInjection"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "guidance_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "maxItems": 64
+        },
+        "attempt_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "message": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "message_hash": {
+          "$ref": "#/$defs/Digest"
+        },
+        "message_index": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "checkpoint_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "received_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "execution_id",
+        "guidance_ids",
+        "attempt_id",
+        "message",
+        "message_hash",
+        "message_index",
+        "checkpoint_id",
+        "received_at"
+      ],
+      "additionalProperties": false,
+      "description": "Host-only injection provenance. A queued message is not reception or model consumption."
+    },
+    "GuidanceReceipt": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "GuidanceReceipt"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991,
+          "description": "宿主 CAS revision；从 1 开始。"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "execution_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "guidance_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "call_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "tool_call_id": {
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "ADOPTED",
+            "CONFLICT",
+            "CANNOT_APPLY"
+          ]
+        },
+        "explanation": {
+          "type": "string"
+        },
+        "effective_requirements": {
+          "type": "string"
+        },
+        "conflicts_with": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "maxItems": 64
+        },
+        "resolution_refs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          },
+          "maxItems": 64
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Time"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "execution_id",
+        "guidance_id",
+        "call_id",
+        "tool_call_id",
+        "outcome",
+        "explanation",
+        "effective_requirements",
+        "conflicts_with",
+        "resolution_refs",
+        "observed_at"
+      ],
+      "additionalProperties": false,
+      "description": "Append-only validated disposition from the actual durable model request and response."
     }
   },
   "oneOf": [
@@ -7973,6 +8337,15 @@
     },
     {
       "$ref": "#/$defs/FailureHandling"
+    },
+    {
+      "$ref": "#/$defs/Guidance"
+    },
+    {
+      "$ref": "#/$defs/GuidanceInjection"
+    },
+    {
+      "$ref": "#/$defs/GuidanceReceipt"
     }
   ]
 }

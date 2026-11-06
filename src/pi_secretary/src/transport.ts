@@ -43,6 +43,8 @@ export function durableStream(
   loopID: string,
   purpose: Context["purpose"],
   metadata: {
+    guidanceCutoff?: () => number;
+    checkGuidance?: (context: Parameters<StreamFn>[1], cutoff: number) => void;
     consciousnessRevision?: number | null;
     onPrepared?: (call: ModelCall) => void;
     maxTokens?: number;
@@ -141,6 +143,13 @@ export function durableStream(
       throw Error("MODEL_RECOVERY_IDENTITY_MISMATCH");
     const prior = store.modelCallsFor(key);
     let last = prior.at(-1);
+    const guidanceCutoff = resume
+      ? resume.guidance_cutoff
+      : last
+        ? last.guidance_cutoff
+        : metadata.guidanceCutoff?.();
+    if (!resume && !last && guidanceCutoff !== undefined)
+      metadata.checkGuidance?.(context, guidanceCutoff);
     const observe = (update: PreviewUpdate) => {
       try {
         metadata.observe?.(update);
@@ -230,6 +239,9 @@ export function durableStream(
               scope,
               transport_attempt: attempt,
               logical_key: key,
+              ...(guidanceCutoff !== undefined
+                ? { guidance_cutoff: guidanceCutoff }
+                : {}),
               request: putEvidence(store, context),
               response: null,
               started_at: null,

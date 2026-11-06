@@ -3548,5 +3548,60 @@
     "Maintenance can also run in CAPACITY_BLOCKED. One compact operation can recover the old prefix and then catch up to the completed boundary captured at its start; later inputs are excluded. STALE or no progress triggers the minimum maintenance interval, and RECOVERY_BLOCKED rejects explicit compact.",
     "保守処理は CAPACITY_BLOCKED でも実行できます。1 回の compact は古いプレフィックスを復旧した後、開始時に取得した完了済み境界まで追いつきます。後から到着した入力は含みません。STALE または進展がない場合は最小保守間隔を待ち、RECOVERY_BLOCKED では明示的な compact を拒否します。",
     "La maintenance peut aussi fonctionner en état CAPACITY_BLOCKED. Une opération compact peut restaurer l’ancien préfixe, puis rattraper la limite des échanges terminés capturée au départ ; les entrées ultérieures sont exclues. Après STALE ou une absence de progrès, elle attend l’intervalle minimal de maintenance. RECOVERY_BLOCKED refuse un compact explicite."
+  ],
+  "精确执行指导（#103）": [
+    "Exact execution guidance (#103)",
+    "実行を指定した指示（#103）",
+    "Instructions pour une exécution précise (#103)"
+  ],
+  "执行中指导": [
+    "Guidance during execution",
+    "実行中の指示",
+    "Instructions en cours d’exécution"
+  ],
+  "命令 POST 400/404/409/410/413/422": [
+    "Command POST 400/404/409/410/413/422",
+    "コマンド POST 400/404/409/410/413/422",
+    "Commande POST 400/404/409/410/413/422"
+  ],
+  "`POST executions/{execution_id}/guidance` 接收 `{request_id, task_id, text}`，目标必须是属于当前数据域的未结束 AGENT 执行。身份由认证决定，不能自报来源或回执。单条最多 16,384 UTF-8 字节；每次执行最多 64 条、累计原文 65,536 字节。超限返回 413（GUIDANCE_TOO_LARGE / GUIDANCE_LIMIT_REACHED），不创建 Guidance 或知情 Input，不截断、不拆条。空白正文拒绝，其余正文原样保存。": [
+    "`POST executions/{execution_id}/guidance` accepts `{request_id, task_id, text}` for a nonterminal AGENT execution in the current data domain. Authentication supplies identity; callers cannot declare sources or receipts. Limits are 16,384 UTF-8 bytes per instruction, 64 instructions and 65,536 original bytes per execution. Excess returns 413 (GUIDANCE_TOO_LARGE / GUIDANCE_LIMIT_REACHED), creating neither Guidance nor an informational Input. Text is never truncated or split. Blank text is rejected; all other text is preserved exactly.",
+    "`POST executions/{execution_id}/guidance` は `{request_id, task_id, text}` を受け付けます。対象は現在のデータ領域に属する未終了の AGENT 実行です。本人確認は認証に基づき、送信元や受領証を自己申告できません。上限は1件16,384 UTF-8バイト、実行ごとに64件かつ原文合計65,536バイトです。超過時は413（GUIDANCE_TOO_LARGE / GUIDANCE_LIMIT_REACHED）を返し、Guidance も通知用 Input も作成しません。切り詰めや分割は行いません。空白だけの本文は拒否し、それ以外は原文を保存します。",
+    "`POST executions/{execution_id}/guidance` accepte `{request_id, task_id, text}` pour une exécution AGENT non terminée du domaine courant. L’authentification détermine l’identité ; la source et les reçus ne peuvent pas être déclarés par l’appelant. Limites : 16 384 octets UTF-8 par instruction, 64 instructions et 65 536 octets originaux par exécution. Un dépassement renvoie 413 (GUIDANCE_TOO_LARGE / GUIDANCE_LIMIT_REACHED), sans créer de Guidance ni d’Input informatif. Aucun texte n’est tronqué ou fractionné. Un texte vide est refusé ; tout autre texte est conservé à l’identique."
+  ],
+  "受理同一事务保存 Guidance、一次 Master 知情 Input 与原请求回执；Main 的 task_control guide 共用领域服务，但不产生自我知情副本。相同请求同参可在目标结束后查回原结果；改参/改目标返回 REQUEST_CONFLICT。响应不确定时用原 request_id 对账，不能换请求身份重发或改投 latest。": [
+    "Admission atomically stores Guidance, one informational Master Input and the original request receipt. Main task_control guide uses the same domain service without a self-notification copy. Identical retries recover the original result even after termination; changed arguments or targets return REQUEST_CONFLICT. Reconcile uncertain responses using the original request_id; never resend under a new identity or retarget latest.",
+    "受理時に Guidance、Master への通知用 Input 1件、元の要求の受領証を同一トランザクションで保存します。Main の task_control guide は同じドメインサービスを使いますが、自己通知を作成しません。同一要求・同一引数なら終了後も元の結果を取得できます。引数や対象の変更は REQUEST_CONFLICT です。応答不明時は元の request_id で照合し、新しい識別子や latest への変更で再送しないでください。",
+    "L’admission enregistre atomiquement Guidance, un Input informatif pour Master et le reçu de la requête initiale. Main task_control guide utilise le même service sans copie de notification pour lui-même. Une répétition identique retrouve le résultat initial même après la fin ; changer les arguments ou la cible renvoie REQUEST_CONFLICT. Une réponse incertaine doit être rapprochée du request_id initial, sans nouvelle identité ni redirection vers latest."
+  ],
+  "`GET guidance/{id}` 查看原文、来源、SENT/RECEIVED/GUIDED 时间、处置及真实 ModelCall 回执；`GET executions/{id}/guidance?limit=20&cursor=...` 按受理顺序分页，limit 为 1–100。SENT 代表持久受理；RECEIVED 需要宿主注入已进入持久 checkpoint；GUIDED 需要真实模型请求和合法 ADOPTED 回执。steer、界面显示或 HTTP 202 均不代表采用。": [
+    "`GET guidance/{id}` exposes original text, source, SENT/RECEIVED/GUIDED timestamps, disposition and actual ModelCall receipts. `GET executions/{id}/guidance?limit=20&cursor=...` paginates in admission order with limit 1–100. SENT means durable acceptance; RECEIVED requires host injection in a durable checkpoint; GUIDED requires an actual model request and valid ADOPTED receipt. A steer call, UI display or HTTP 202 does not prove adoption.",
+    "`GET guidance/{id}` は原文、送信元、SENT/RECEIVED/GUIDED の時刻、処置、実際の ModelCall の受領証を返します。`GET executions/{id}/guidance?limit=20&cursor=...` は受理順でページングし、limit は1–100です。SENT は永続的な受理、RECEIVED は永続 checkpoint 内へのホストによる注入、GUIDED は実際のモデル要求と有効な ADOPTED 受領証を必要とします。steer 呼び出し、画面表示、HTTP 202 は採用の証明ではありません。",
+    "`GET guidance/{id}` expose le texte original, la source, les dates SENT/RECEIVED/GUIDED, le traitement et les reçus ModelCall réels. `GET executions/{id}/guidance?limit=20&cursor=...` pagine par ordre d’admission avec une limite de 1–100. SENT signifie une acceptation durable ; RECEIVED exige une injection par l’hôte dans un checkpoint durable ; GUIDED exige une requête réelle et un reçu ADOPTED valide. Un appel steer, un affichage ou HTTP 202 ne prouve pas l’adoption."
+  ],
+  "已受理指导必须进入下一次允许的新模型请求。旧在途/冻结响应先被挡住，让新回合消费；请求已包含指导但尝试成功结束时仍无有效处理结论，立即 GUIDANCE_NOT_PROCESSED 失败，没有三次宽限。合法冲突/无法采用进入去重 DecisionRequest；required_answerer=MASTER 时 Main 不能回答。": [
+    "Accepted guidance must enter the next eligible fresh model request. An older in-flight or frozen response is blocked so a fresh turn can consume it. If an included instruction still has no valid disposition when success is attempted, fail immediately with GUIDANCE_NOT_PROCESSED; there is no three-response grace period. Valid conflict or inability to adopt creates a deduplicated DecisionRequest; Main cannot answer required_answerer=MASTER.",
+    "受理した指示は、次に許可される新しいモデル要求に必ず含めます。古い処理中または凍結済み応答はブロックし、新しいターンで処理します。要求に含まれた指示の有効な処置がないまま成功終了を試みた場合は、直ちに GUIDANCE_NOT_PROCESSED で失敗します。3応答分の猶予はありません。有効な競合や採用不可の報告は重複のない DecisionRequest を生成し、required_answerer=MASTER の場合は Main が回答できません。",
+    "Toute instruction acceptée doit entrer dans la prochaine nouvelle requête admissible. Une ancienne réponse en cours ou figée est bloquée pour permettre son traitement au tour suivant. Si une instruction incluse n’a toujours pas de traitement valide lors d’une tentative de succès, l’exécution échoue immédiatement avec GUIDANCE_NOT_PROCESSED, sans délai de trois réponses. Un conflit valide ou une impossibilité d’adoption crée un DecisionRequest dédupliqué ; Main ne peut pas répondre si required_answerer=MASTER."
+  ],
+  "WAIT_AUTH 收到指导仍等待授权；批准会退役过时且未启动的旧操作，重新规划后重新检查授权。拒绝仍使执行失败。authorization 详情的 guidance_warning 解释此行为。等待回答不自动回答，未知效果不自动重放，取消后不为补消费而复活执行。失败/取消/过期结清未处理指导并保留原因。": [
+    "Guidance during WAIT_AUTH leaves authorization pending. Approval retires obsolete operations that have not started, then replans and rechecks authorization. Denial still fails execution. Authorization details expose guidance_warning explaining this behavior. Waiting questions are not automatically answered, unknown effects are not replayed, and cancellation never revives execution to consume guidance. Failure, cancellation and expiry settle unprocessed guidance with a retained reason.",
+    "WAIT_AUTH 中に指示を受けても承認待ちを維持します。承認後は古くなった未開始の操作を退役させ、再計画して承認を再確認します。拒否は引き続き実行失敗となります。authorization 詳細の guidance_warning がこの動作を説明します。質問への自動回答、結果不明の効果の自動再実行、指示を処理するためのキャンセル済み実行の復活は行いません。失敗・キャンセル・期限切れ時は未処理の指示を理由付きで確定します。",
+    "Une instruction reçue pendant WAIT_AUTH maintient l’attente d’autorisation. L’approbation retire les opérations obsolètes non démarrées, puis déclenche une nouvelle planification et vérification des autorisations. Le refus fait toujours échouer l’exécution. Le champ guidance_warning des détails explique ce comportement. Les questions ne reçoivent pas de réponse automatique, les effets inconnus ne sont pas rejoués et une annulation ne réactive jamais l’exécution pour traiter des instructions. Échec, annulation et expiration clôturent les instructions non traitées en conservant la raison."
+  ],
+  "本项提供后端与既有事项提示。Task 流式阅读、稳定标题/轮次和 `/guide` 命令分别由 #104、#105、#106 交付。": [
+    "This issue provides the backend and existing matter notices. Task streaming, stable titles/rounds and the `/guide` command are delivered by #104, #105 and #106 respectively.",
+    "本件はバックエンドと既存の事項通知を提供します。Task のストリーミング表示、固定タイトルと実行ラウンド、`/guide` コマンドは、それぞれ #104、#105、#106 で提供します。",
+    "Ce ticket fournit le backend et les avis dans les éléments existants. La lecture Task en flux, les titres et tours stables, et la commande `/guide` seront livrés respectivement par #104, #105 et #106."
+  ],
+  "Core 提供精确 execution_id 的持久 Guidance API，使用方法与限制见 [API 指导合同](api/v1/README.md#精确执行指导103)。Main 可通过 `task_control(action=guide, id=execution_id, task_id, text)` 调整执行方式；该入口不能代批授权或回答 Master 专属问题。": [
+    "Core provides a durable Guidance API targeting an exact execution_id; see the [API guidance contract](api/v1/README.md#精确执行指导103) for usage and limits. Main can adjust execution through `task_control(action=guide, id=execution_id, task_id, text)`; this cannot approve authorization or answer Master-only questions.",
+    "Core は正確な execution_id を指定する永続 Guidance API を提供します。使い方と制限は [API 指示の契約](api/v1/README.md#精确执行指导103) を参照してください。Main は `task_control(action=guide, id=execution_id, task_id, text)` で実行方法を調整できますが、承認の代行や Master 専用の質問への回答はできません。",
+    "Core fournit une API Guidance durable ciblant un execution_id exact ; consultez le [contrat des instructions API](api/v1/README.md#精确执行指导103) pour son usage et ses limites. Main peut ajuster l’exécution via `task_control(action=guide, id=execution_id, task_id, text)`, sans approuver une autorisation ni répondre aux questions réservées à Master."
+  ],
+  "核对指导是否生效时，分别查看持久受理、checkpoint 接收和真实 ModelCall 采用证据。已进入队列的指导不能被静默丢弃，成功结束前必须有有效处理结论；冲突会进入明确待回答事项。新指导不会撤销已启动的外部效果，也不会自动重放结果未知的操作。故障后按原请求身份与原执行对账，禁止改投下一轮。当前终端仍使用既有授权/问题界面；`/guide` 输入交互属于后续 #106。": [
+    "Assess durable acceptance, checkpoint receipt and actual ModelCall adoption separately. Queued guidance cannot be silently dropped and must have a valid disposition before success; conflicts create explicit questions. New guidance does not undo started external effects or replay operations with unknown outcomes. After failure reconcile the original request identity and execution, never the next round. The terminal currently uses existing authorization/question interfaces; `/guide` input belongs to #106.",
+    "永続的な受理、checkpoint での受信、実際の ModelCall による採用を個別に確認してください。キューに入った指示は黙って破棄できず、成功前に有効な処置が必要です。競合は明示的な質問になります。新しい指示は開始済みの外部効果を取り消さず、結果不明の操作も再実行しません。障害後は元の要求識別子と実行で照合し、次のラウンドへ転送しないでください。端末は現在の承認・質問画面を使い、`/guide` 入力操作は #106 の対象です。",
+    "Vérifiez séparément l’acceptation durable, la réception dans un checkpoint et l’adoption par un ModelCall réel. Une instruction en file ne peut pas être abandonnée silencieusement et doit avoir un traitement valide avant le succès ; les conflits créent des questions explicites. Une nouvelle instruction n’annule pas les effets externes démarrés et ne rejoue pas les opérations au résultat inconnu. Après un incident, rapprochez l’identité et l’exécution initiales, sans rediriger vers le tour suivant. Le terminal utilise les interfaces d’autorisation et de questions existantes ; la saisie `/guide` relève de #106."
   ]
 }

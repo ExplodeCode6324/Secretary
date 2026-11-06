@@ -141,9 +141,9 @@ export class MatterController {
         String(data.revision) + ":" + String(data.display_hash ?? "");
       const text =
         kind === "authorization"
-          ? `${title}\n${ownerText}版本 ${data.revision} · display_hash ${data.display_hash}\n有效期 ${expires ?? "无"}\n\n${printable(data.display)}\n\nTab 选择批准/拒绝，Shift+Enter 确认；Esc 返回。`
+          ? `${title}\n${ownerText}${data.guidance_warning ? "注意：有更新引导；批准将退役旧操作并重新规划，拒绝仍使执行失败。\n" : ""}版本 ${data.revision} · display_hash ${data.display_hash}\n有效期 ${expires ?? "无"}\n\n${printable(data.display)}\n\nTab 选择批准/拒绝，Shift+Enter 确认；Esc 返回。`
           : kind === "decision"
-            ? `${title}\n${ownerText}${String(data.question)}\n\n影响：${String(data.impact)}\n选项：${printable(data.options)}\n资料引用（内容未接入）：${printable(data.materials ?? [])}\n\nEnter 换行 · Shift+Enter 字面回答 · Tab 详情/选项 · Esc 返回`
+            ? `${title}\n${ownerText}${data.required_answerer === "MASTER" ? "须由 Master 回答\n" : ""}${String(data.question)}\n\n影响：${String(data.impact)}\n选项：${printable(data.options)}\n资料引用（内容未接入）：${printable(data.materials ?? [])}\n\nEnter 换行 · Shift+Enter 字面回答 · Tab 详情/选项 · Esc 返回`
             : kind === "failure"
               ? this.failureText(
                   title,

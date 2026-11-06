@@ -26,6 +26,8 @@
 | `answer` | JSON または null | はい |  |
 | `answered_by` | MAIN / MASTER または null | はい |  |
 | `answer_request_id` | ID または null | はい |  関連：[ID](ID.md) |
+| `required_answerer` | "MASTER" | いいえ |  |
+| `guidance_ids` | array<ID> | いいえ |  {"maxItems": 64} 関連：[ID](ID.md) |
 
 ## 組み合わせ制約
 

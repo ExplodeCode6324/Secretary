@@ -20,7 +20,7 @@ Short commands commit ApiCommand with the first domain change in one transaction
 
 | Result received | Client action |
 | --- | --- |
-| Command POST 400/404/409/410/422 | Submission was rejected before admission; for REQUEST_CONFLICT, retain the existing receipt for the original ID |
+| Command POST 400/404/409/410/413/422 | Submission was rejected before admission; for REQUEST_CONFLICT, retain the existing receipt for the original ID |
 | 202 | Save the receipt and query related resources |
 | Timeout, disconnect, 5xx | Query the original request_id; reconcile if a receipt exists. Resubmit the original ID, path, and body only after explicit NOT_FOUND and with no local admitted/UNKNOWN evidence |
 | 401/403 | Correct authentication or request origin before proceeding |
@@ -131,3 +131,17 @@ GET artifacts accepts exact canonical relative_path and optional execution_id, f
 The main.delivery event is an ID-only sidecar to an unchanged main.message event, committed atomically with the Context pointer. Only RESULT feedback CLAIMED by that Main loop supplies references. Stop/length replies without tool calls may carry delivery, including empty bodies; length stays truncated. Queries, previews, tool continuations and failed replies do not create delivery. Existing stop-only crash recovery is unchanged.
 
 New submit_result artifacts remain a path array and require exactly one artifact_descriptions item per nonempty registered path. Paths canonicalize dot segments and reject traversal/control/duplicates; limits are 32 artifacts, 2000 Unicode characters per explanation and 64 KiB total encoded descriptions. Legacy stored results remain readable without descriptions. Host generates Artifact IDs and binds explanations before publishing the result.
+
+## Exact execution guidance (#103)
+
+`POST executions/{execution_id}/guidance` accepts `{request_id, task_id, text}` for a nonterminal AGENT execution in the current data domain. Authentication supplies identity; callers cannot declare sources or receipts. Limits are 16,384 UTF-8 bytes per instruction, 64 instructions and 65,536 original bytes per execution. Excess returns 413 (GUIDANCE_TOO_LARGE / GUIDANCE_LIMIT_REACHED), creating neither Guidance nor an informational Input. Text is never truncated or split. Blank text is rejected; all other text is preserved exactly.
+
+Admission atomically stores Guidance, one informational Master Input and the original request receipt. Main task_control guide uses the same domain service without a self-notification copy. Identical retries recover the original result even after termination; changed arguments or targets return REQUEST_CONFLICT. Reconcile uncertain responses using the original request_id; never resend under a new identity or retarget latest.
+
+`GET guidance/{id}` exposes original text, source, SENT/RECEIVED/GUIDED timestamps, disposition and actual ModelCall receipts. `GET executions/{id}/guidance?limit=20&cursor=...` paginates in admission order with limit 1–100. SENT means durable acceptance; RECEIVED requires host injection in a durable checkpoint; GUIDED requires an actual model request and valid ADOPTED receipt. A steer call, UI display or HTTP 202 does not prove adoption.
+
+Accepted guidance must enter the next eligible fresh model request. An older in-flight or frozen response is blocked so a fresh turn can consume it. If an included instruction still has no valid disposition when success is attempted, fail immediately with GUIDANCE_NOT_PROCESSED; there is no three-response grace period. Valid conflict or inability to adopt creates a deduplicated DecisionRequest; Main cannot answer required_answerer=MASTER.
+
+Guidance during WAIT_AUTH leaves authorization pending. Approval retires obsolete operations that have not started, then replans and rechecks authorization. Denial still fails execution. Authorization details expose guidance_warning explaining this behavior. Waiting questions are not automatically answered, unknown effects are not replayed, and cancellation never revives execution to consume guidance. Failure, cancellation and expiry settle unprocessed guidance with a retained reason.
+
+This issue provides the backend and existing matter notices. Task streaming, stable titles/rounds and the `/guide` command are delivered by #104, #105 and #106 respectively.

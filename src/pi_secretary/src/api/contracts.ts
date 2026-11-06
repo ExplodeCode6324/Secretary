@@ -18,7 +18,10 @@ export type ApiV1 =
   | NotificationContent
   | Notification
   | NotificationPage
-  | FailureDetail;
+  | FailureDetail
+  | GuidanceCommand
+  | Guidance
+  | GuidancePage;
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
  * via the `definition` "Json".
@@ -369,6 +372,47 @@ export interface FailureDetail {
     | "NEXT_MASTER_INPUT"
     | "CAPACITY_COMPACTION_REQUIRED";
   main_recovery_message: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "GuidanceCommand".
+ */
+export interface GuidanceCommand {
+  request_id: string;
+  task_id: string;
+  text: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "Guidance".
+ */
+export interface Guidance {
+  id: string;
+  task_id: string;
+  execution_id: string;
+  source: "MASTER" | "MAIN";
+  text: string;
+  revision: string;
+  sequence: string;
+  sent_at: string;
+  received_at: string | null;
+  guided_at: string | null;
+  disposition:
+    "PENDING" | "ADOPTED" | "CONFLICT" | "CANNOT_APPLY" | "UNPROCESSED";
+  reason: string | null;
+  receipt: Json | null;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "GuidancePage".
+ */
+export interface GuidancePage {
+  /**
+   * @maxItems 100
+   */
+  items: Guidance[];
+  next_cursor: string | null;
+  version: string;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -861,6 +905,11 @@ export interface Decision {
   answer: Json | null;
   answered_by: string | null;
   answer_request_id: string | null;
+  required_answerer?: "MASTER";
+  /**
+   * @maxItems 64
+   */
+  guidance_ids?: string[];
   [k: string]: unknown;
 }
 /**
@@ -887,6 +936,7 @@ export interface Authorization {
     path: string | null;
     tokens: string[] | null;
   };
+  guidance_warning?: string | null;
   [k: string]: unknown;
 }
 /**

@@ -20,7 +20,7 @@ Les commandes courtes committent ApiCommand avec le premier changement métier d
 
 | Résultat reçu | Action du client |
 | --- | --- |
-| POST de commande 400/404/409/410/422 | Soumission refusée avant admission ; en cas de REQUEST_CONFLICT, conserver l’accusé existant de l’ID initial |
+| Commande POST 400/404/409/410/413/422 | Soumission refusée avant admission ; en cas de REQUEST_CONFLICT, conserver l’accusé existant de l’ID initial |
 | 202 | Conserver l’accusé et consulter les ressources associées |
 | Délai dépassé, déconnexion, 5xx | Consulter le request_id initial et rapprocher tout accusé trouvé ; renvoyer l’ID, le chemin et le body initiaux uniquement après un NOT_FOUND explicite et en l’absence de preuve locale d’admission ou d’état UNKNOWN |
 | 401/403 | Corriger l’authentification ou l’origine de la requête avant de poursuivre |
@@ -131,3 +131,17 @@ GET artifacts accepts exact canonical relative_path and optional execution_id, f
 The main.delivery event is an ID-only sidecar to an unchanged main.message event, committed atomically with the Context pointer. Only RESULT feedback CLAIMED by that Main loop supplies references. Stop/length replies without tool calls may carry delivery, including empty bodies; length stays truncated. Queries, previews, tool continuations and failed replies do not create delivery. Existing stop-only crash recovery is unchanged.
 
 New submit_result artifacts remain a path array and require exactly one artifact_descriptions item per nonempty registered path. Paths canonicalize dot segments and reject traversal/control/duplicates; limits are 32 artifacts, 2000 Unicode characters per explanation and 64 KiB total encoded descriptions. Legacy stored results remain readable without descriptions. Host generates Artifact IDs and binds explanations before publishing the result.
+
+## Instructions pour une exécution précise (#103)
+
+`POST executions/{execution_id}/guidance` accepte `{request_id, task_id, text}` pour une exécution AGENT non terminée du domaine courant. L’authentification détermine l’identité ; la source et les reçus ne peuvent pas être déclarés par l’appelant. Limites : 16 384 octets UTF-8 par instruction, 64 instructions et 65 536 octets originaux par exécution. Un dépassement renvoie 413 (GUIDANCE_TOO_LARGE / GUIDANCE_LIMIT_REACHED), sans créer de Guidance ni d’Input informatif. Aucun texte n’est tronqué ou fractionné. Un texte vide est refusé ; tout autre texte est conservé à l’identique.
+
+L’admission enregistre atomiquement Guidance, un Input informatif pour Master et le reçu de la requête initiale. Main task_control guide utilise le même service sans copie de notification pour lui-même. Une répétition identique retrouve le résultat initial même après la fin ; changer les arguments ou la cible renvoie REQUEST_CONFLICT. Une réponse incertaine doit être rapprochée du request_id initial, sans nouvelle identité ni redirection vers latest.
+
+`GET guidance/{id}` expose le texte original, la source, les dates SENT/RECEIVED/GUIDED, le traitement et les reçus ModelCall réels. `GET executions/{id}/guidance?limit=20&cursor=...` pagine par ordre d’admission avec une limite de 1–100. SENT signifie une acceptation durable ; RECEIVED exige une injection par l’hôte dans un checkpoint durable ; GUIDED exige une requête réelle et un reçu ADOPTED valide. Un appel steer, un affichage ou HTTP 202 ne prouve pas l’adoption.
+
+Toute instruction acceptée doit entrer dans la prochaine nouvelle requête admissible. Une ancienne réponse en cours ou figée est bloquée pour permettre son traitement au tour suivant. Si une instruction incluse n’a toujours pas de traitement valide lors d’une tentative de succès, l’exécution échoue immédiatement avec GUIDANCE_NOT_PROCESSED, sans délai de trois réponses. Un conflit valide ou une impossibilité d’adoption crée un DecisionRequest dédupliqué ; Main ne peut pas répondre si required_answerer=MASTER.
+
+Une instruction reçue pendant WAIT_AUTH maintient l’attente d’autorisation. L’approbation retire les opérations obsolètes non démarrées, puis déclenche une nouvelle planification et vérification des autorisations. Le refus fait toujours échouer l’exécution. Le champ guidance_warning des détails explique ce comportement. Les questions ne reçoivent pas de réponse automatique, les effets inconnus ne sont pas rejoués et une annulation ne réactive jamais l’exécution pour traiter des instructions. Échec, annulation et expiration clôturent les instructions non traitées en conservant la raison.
+
+Ce ticket fournit le backend et les avis dans les éléments existants. La lecture Task en flux, les titres et tours stables, et la commande `/guide` seront livrés respectivement par #104, #105 et #106.

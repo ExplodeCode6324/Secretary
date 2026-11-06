@@ -43,9 +43,9 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [FeedbackPolicy](FeedbackPolicy.md) | 5 |  |
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
 | [Session](Session.md) | 16 | Session principale logique ; seul l’hôte écrit les changements d’état, qui survivent à l’arrêt du processus. |
-| [Input](Input.md) | 17 | Entrée externe ; les retours d’outils ne créent pas cet objet. |
+| [Input](Input.md) | 18 | Entrée externe ; les retours d’outils ne créent pas cet objet. |
 | [Context](Context.md) | 32 | CHECKPOINT complet immuable pour la reprise ; MODEL_REQUEST n’est envoyable qu’après validation du budget de capacité de la requête normalisée complète. |
-| [ModelCall](ModelCall.md) | 17 | Cycle de vie du transport du modèle ; analyser les demandes d’outils après conservation de la réponse complète. |
+| [ModelCall](ModelCall.md) | 18 | Cycle de vie du transport du modèle ; analyser les demandes d’outils après conservation de la réponse complète. |
 | [WorkItem](WorkItem.md) | 12 | Un élément de travail se distingue d’une tâche ; un élément non accompli et sans responsable n’est pas retiré. |
 | [Consciousness](Consciousness.md) | 19 | Mémoire de travail courante ; tous les résumés validés et l’ensemble des originaux repris sont conservés ensemble. |
 | [CompactionJob](CompactionJob.md) | 24 | Travail de résumé à périmètre fixe ; les nouvelles entrées ne rejoignent pas sa couverture. |
@@ -58,9 +58,9 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | Les résultats complets sont consultables avant le retour résumé ; PARTIAL/UNKNOWN ne signifie pas que l’exécution est terminée. |
 | [Feedback](Feedback.md) | 16 | Conclusion courte et référence d’exécution ; les détails sont déjà conservés lorsque la session principale les lit. |
-| [DecisionRequest](DecisionRequest.md) | 16 | Les décisions ordinaires passent par TaskControl ; l’autorisation a une interface séparée. |
+| [DecisionRequest](DecisionRequest.md) | 18 | Les décisions ordinaires passent par TaskControl ; l’autorisation a une interface séparée. |
 | [ActionScope](ActionScope.md) | 6 |  |
-| [Operation](Operation.md) | 18 | Unité du contrôle final ; permissions, annulation et version d’objet sont vérifiées ici. |
+| [Operation](Operation.md) | 20 | Unité du contrôle final ; permissions, annulation et version d’objet sont vérifiées ici. |
 | [AuthorizationRequest](AuthorizationRequest.md) | 17 | Enregistrement privé host/scheduler ; les modèles ne peuvent soumettre un état d’approbation. |
 | [ApprovalCommand](ApprovalCommand.md) | 8 | Seule l’interface Master authentifiée peut appeler ; l’identité vient de la session serveur, le body n’est pas une source de confiance. |
 | [AuthorizationRule](AuthorizationRule.md) | 13 | Règle persistante confirmée manuellement ; la session principale n’a pas d’accès en écriture. Chaque opération correspond à la révision courante. |
@@ -113,3 +113,6 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [AttachmentImport](AttachmentImport.md) | 12 |  |
 | [FailureAction](FailureAction.md) | 3 |  |
 | [FailureHandling](FailureHandling.md) | 20 |  |
+| [Guidance](Guidance.md) | 21 | Durable exact-execution guidance; independent sent, received and adopted milestones. |
+| [GuidanceInjection](GuidanceInjection.md) | 13 | Host-only injection provenance. A queued message is not reception or model consumption. |
+| [GuidanceReceipt](GuidanceReceipt.md) | 15 | Append-only validated disposition from the actual durable model request and response. |

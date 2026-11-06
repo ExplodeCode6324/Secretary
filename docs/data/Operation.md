@@ -24,6 +24,8 @@
 | `effect` | NOT_STARTED / APPLIED / NOT_APPLIED / PARTIAL / UNKNOWN | 是 |  |
 | `error` | string 或 null | 是 |  |
 | `process` | object | 否 |  {"additionalProperties": false} |
+| `generating_call_id` | ID | 否 |  关联：[ID](ID.md) |
+| `guidance_supersession` | object | 否 |  {"additionalProperties": false} 关联：[ID](ID.md), [ObjectRef](ObjectRef.md), [Time](Time.md) |
 
 ## 组合约束
 

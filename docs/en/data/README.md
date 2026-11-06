@@ -43,9 +43,9 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [FeedbackPolicy](FeedbackPolicy.md) | 5 |  |
 | [ExecutorSpec](ExecutorSpec.md) | 5 |  |
 | [Session](Session.md) | 16 | Logical main session; only the host writes state changes, which survive process shutdown. |
-| [Input](Input.md) | 17 | External input; tool returns do not create this object. |
+| [Input](Input.md) | 18 | External input; tool returns do not create this object. |
 | [Context](Context.md) | 32 | Immutable full CHECKPOINT for recovery; MODEL_REQUEST may be sent only after the full normalized request passes the capacity budget check. |
-| [ModelCall](ModelCall.md) | 17 | Model transport lifecycle; parse tool requests only after storing the full response. |
+| [ModelCall](ModelCall.md) | 18 | Model transport lifecycle; parse tool requests only after storing the full response. |
 | [WorkItem](WorkItem.md) | 12 | A work item is distinct from a task; an unfulfilled item with no assignee is not removed. |
 | [Consciousness](Consciousness.md) | 19 | Current working memory; all summary commits and carried-forward originals are saved together. |
 | [CompactionJob](CompactionJob.md) | 24 | Fixed-scope summary job; new inputs do not join its coverage set. |
@@ -58,9 +58,9 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [Artifact](Artifact.md) | 6 |  |
 | [TaskResult](TaskResult.md) | 17 | Full results become queryable before summary feedback; PARTIAL/UNKNOWN does not mean execution has ended. |
 | [Feedback](Feedback.md) | 16 | Short conclusion and execution reference; details are already saved when the main session reads them. |
-| [DecisionRequest](DecisionRequest.md) | 16 | Ordinary decisions use TaskControl; authorization has a separate interface. |
+| [DecisionRequest](DecisionRequest.md) | 18 | Ordinary decisions use TaskControl; authorization has a separate interface. |
 | [ActionScope](ActionScope.md) | 6 |  |
-| [Operation](Operation.md) | 18 | Unit of the final gate; permissions, cancellation, and object version are checked here. |
+| [Operation](Operation.md) | 20 | Unit of the final gate; permissions, cancellation, and object version are checked here. |
 | [AuthorizationRequest](AuthorizationRequest.md) | 17 | Private host/scheduler record; models cannot submit approval state. |
 | [ApprovalCommand](ApprovalCommand.md) | 8 | Only authenticated Master UI may call this; identity comes from the server session, not a trusted body field. |
 | [AuthorizationRule](AuthorizationRule.md) | 13 | Manually confirmed persistent rule; the main session has no write entry point. Each operation matches the current revision. |
@@ -113,3 +113,6 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [AttachmentImport](AttachmentImport.md) | 12 |  |
 | [FailureAction](FailureAction.md) | 3 |  |
 | [FailureHandling](FailureHandling.md) | 20 |  |
+| [Guidance](Guidance.md) | 21 | Durable exact-execution guidance; independent sent, received and adopted milestones. |
+| [GuidanceInjection](GuidanceInjection.md) | 13 | Host-only injection provenance. A queued message is not reception or model consumption. |
+| [GuidanceReceipt](GuidanceReceipt.md) | 15 | Append-only validated disposition from the actual durable model request and response. |
