@@ -8,6 +8,7 @@ import { failuresFor } from "../../../src/pi_secretary/src/failure-handling.ts";
 import type {
   Input,
   Execution,
+  TaskPlan,
 } from "../../../src/pi_secretary/src/contracts.ts";
 
 test("terminal cancel is not dismissal; Main intent is atomic, exact-ID replay and durable dismissal preserve FAILED", () =>
@@ -119,6 +120,69 @@ test("redo cannot weaken requirements; failed attempt is durable and a new inten
         .all<Execution>("Execution")
         .filter((x) => x.task_id === e.task_id).length,
       1,
+    );
+  }));
+
+test("REDO rejects a new title without allocating identity; null keeps the original task title", () =>
+  fixture(async (f) => {
+    const e = await execution(f);
+    f.app.scheduler.finish(e.id, "FAILED", { error: "failure" });
+    const x = await intent(f, e, "REDO");
+    const original = f.app.store.get<TaskPlan>("TaskPlan", e.task_id);
+    const call = id();
+    const args = {
+      reuse_task_id: e.task_id,
+      parent_execution_id: e.id,
+      title_candidate: "rename through REDO",
+    };
+    const rejected = x.service.perform(
+      x.sid,
+      x.loop,
+      call,
+      "task_propose",
+      args,
+      f.app.scheduler,
+    );
+    assert.equal(rejected.accepted, false);
+    assert.match(
+      String(rejected.error),
+      /FAILURE_REQUIREMENTS_CHANGED:title_candidate/,
+    );
+    assert.deepEqual(
+      x.service.perform(
+        x.sid,
+        x.loop,
+        call,
+        "task_propose",
+        args,
+        f.app.scheduler,
+      ),
+      rejected,
+    );
+    assert.deepEqual(
+      f.app.store.get<TaskPlan>("TaskPlan", e.task_id),
+      original,
+    );
+    assert.equal(
+      f.app.store
+        .all<Execution>("Execution")
+        .filter((v) => v.task_id === e.task_id).length,
+      1,
+    );
+    const accepted = x.service.perform(
+      x.sid,
+      x.loop,
+      id(),
+      "task_propose",
+      { ...args, title_candidate: null },
+      f.app.scheduler,
+    );
+    assert.equal(accepted.accepted, true);
+    const plan = f.app.store.get<TaskPlan>("TaskPlan", e.task_id);
+    assert.equal(plan.title, original.title);
+    assert.equal(
+      plan.execution_round_high_water,
+      original.execution_round_high_water,
     );
   }));
 

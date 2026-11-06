@@ -92,6 +92,19 @@ test("pinned Pi dispatch requires consumed hotspot press and rejects selection f
     release();
     await wait();
     assert.deepEqual(opened, ["A"]);
+    // The second click is a double-click gesture, not another navigation.
+    press();
+    release();
+    await wait();
+    assert.deepEqual(opened, ["A"]);
+    // SGR mouse modifier bits: Shift, Alt, Ctrl; then right/middle buttons.
+    for (const code of [4, 8, 16, 2, 1]) {
+      await new Promise((r) => setTimeout(r, 550));
+      press(1, 1, code);
+      release(1, 1, code);
+      await wait();
+      assert.deepEqual(opened, ["A"], `unexpected navigation for code ${code}`);
+    }
     // Let click counter reset before the next independent gesture.
     await new Promise((r) => setTimeout(r, 550));
     press(15, 2);
