@@ -456,7 +456,7 @@ export class DraftEditor extends Editor {
       const paste = this.bridge.document.paste(data.slice(6, -6));
       this.bridge.insert(paste.text, paste.ranges);
     } else if (matchesKey(data, "shift+enter")) {
-      // An open menu consumes the gesture as completion, never as a send.
+      // Complete commands submit as typed; an incomplete command accepts the menu item.
       if (this.isShowingAutocomplete() && !isCompleteLocalCommand(before))
         super.handleInput("\r");
       else {

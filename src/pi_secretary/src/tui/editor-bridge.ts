@@ -275,7 +275,7 @@ export class EditorBridge {
     }
   }
   claimCompletion(oldLength: number, newLength: number, start = 0) {
-    this.document.splice(start, oldLength, newLength);
+    this.document.splice(start, start + oldLength, newLength);
     this.claimed = true;
   }
   restore(

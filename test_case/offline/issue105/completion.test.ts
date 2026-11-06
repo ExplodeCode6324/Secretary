@@ -2,8 +2,15 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { TuiAltScreen } from "@earendil-works/pi-tui";
 import { VirtualTerminal } from "../../../src/pi_resource/packages/tui/test/virtual-terminal.ts";
-import { DraftEditor } from "../../../src/pi_secretary/src/tui/input.ts";
-import { originAt } from "../../../src/pi_secretary/src/tui/draft.ts";
+import {
+  DraftEditor,
+  parseDraft,
+} from "../../../src/pi_secretary/src/tui/input.ts";
+import {
+  originAt,
+  expandSnapshot,
+  validateSnapshot,
+} from "../../../src/pi_secretary/src/tui/draft.ts";
 import { Fixture, until } from "../issue9/helpers.ts";
 import { TerminalApp } from "../../../src/pi_secretary/src/tui/app.ts";
 import { id } from "../../../src/pi_secretary/src/store.ts";
@@ -18,6 +25,59 @@ async function type(editor: DraftEditor, text: string) {
   }
 }
 const titles = ["整理 本周报告", "整理 本周报告_1"];
+test("argument completion preserves pasted spans through selection, undo, restore and subsequent block paste", async () => {
+  const eid = "11111111-1111-4111-8111-111111111111";
+  for (const command of ["follow", "taskdetail", "search_task"]) {
+    for (const accept of ["\t", "\r"]) {
+      for (const empty of [false, true]) {
+        const value = command === "follow" ? eid : JSON.stringify(titles[0]);
+        const prefix = empty
+          ? ""
+          : command === "follow"
+            ? eid.slice(0, 8)
+            : "整";
+        const editor = new DraftEditor(
+          new TuiAltScreen(new VirtualTerminal()),
+          () => "Task",
+          async () => [value],
+          () => command === "follow",
+        );
+        await type(editor, `/${command} `);
+        editor.handleInput(`\x1b[200~${prefix}  \x1b[201~`);
+        const before = editor.snapshot();
+        validateSnapshot(before);
+        await until(() => editor.isShowingAutocomplete());
+        editor.handleInput(accept);
+        const selected = editor.snapshot();
+        validateSnapshot(selected);
+        assert.equal(expandSnapshot(selected), `/${command} ${value}  `);
+        assert.equal(
+          parseDraft(selected, "Task", command === "follow").kind,
+          command,
+        );
+        assert.equal(originAt(selected, 0), "typed");
+        assert.equal(
+          originAt(selected, selected.text.length - 1),
+          "paste",
+          "trailing pasted spaces retain provenance",
+        );
+        editor.handleInput("\x1f");
+        assert.equal(expandSnapshot(editor.snapshot()), before.text);
+        assert.deepEqual(editor.snapshot().ranges, before.ranges);
+        editor.restore(selected);
+        assert.equal(expandSnapshot(editor.snapshot()), selected.text);
+        editor.clearInput();
+        assert.deepEqual(editor.snapshot().ranges, []);
+        const payload = "多行粘贴正文\n第二行 /follow off";
+        editor.handleInput(`\x1b[200~${payload}\x1b[201~`);
+        assert.equal(expandSnapshot(editor.snapshot()), payload);
+        editor.clearInput();
+        editor.handleInput("\x1f");
+        assert.equal(expandSnapshot(editor.snapshot()), payload);
+      }
+    }
+  }
+});
 test("paced title entry keeps the first CJK prefix and arrow selection alive; completion never submits", async () => {
   const editor = new DraftEditor(
     new TuiAltScreen(new VirtualTerminal()),
@@ -152,11 +212,16 @@ test("actual TerminalApp routes title and follow picker arrows to the editor wit
       terminal.sendInput(char);
       await pause();
     }
+    const execution = f.app.store
+      .all<{ id: string; task_id: string }>("Execution")
+      .find((e) => e.task_id === p.id)!;
+    terminal.sendInput(`\x1b[200~${execution.id.slice(0, 8)}\x1b[201~`);
     await until(() => editor.isShowingAutocomplete());
-    terminal.sendInput("\x1b[B");
     assert(editor.isShowingAutocomplete());
     terminal.sendInput("\t");
     assert.match(editor.getText(), /^\/follow [0-9a-f-]{36}$/);
+    assert.equal(parseDraft(editor.snapshot(), "Task", true).kind, "follow");
+    assert.equal(expandSnapshot(editor.snapshot()), "/follow " + execution.id);
     assert.equal(ui.remote?.taskBrowser.selected, p.id);
     assert.equal(ui.remote?.taskBrowser.followTarget, undefined);
     terminal.sendInput("\x03");
