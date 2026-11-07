@@ -5,7 +5,7 @@
 - 唯一敏捷实例目录：`/Users/muy/Desktop/secretary-agile`。
 - 专用敏捷迭代分支：`agile`。本目录始终在此分支工作。
 - **只有获得 Master 明确许可，才能把 agile 并入 main；不得自动合并、直接推送 main 或重写基线。**
-- 固定基线：`baseline-20261108-pre-agile`，提交 `99053387c206a99faae828283f0e9f07741a2590`。
+- 正式敏捷基线：文档整理完成后的 main `6b33008f7f1daa010a05e3386b045bcdd1a873ec`，标签 `baseline-20261108-agile`。旧 `baseline-20261108-pre-agile` 仅记录整理前版本，保持不动。
 - 所有新的敏捷 fix 计划统一放在 `fix/fix_20261108start_敏捷迭代专题/`，覆盖一般工作流的默认计划路径；历史 `docs/fix/` 全量保留。
 - 本目录是唯一专用实例，不建立多轮次、rehearsal、隔离验收或临时替代实例。不运行会另建 Core 实例的历史在线验收脚本。
 - 敏捷期间全量保留数据：`data/core/`（journal、CAS、任务工作区、日志）、`data/postgres/`、`data/tui/`、外部 Scope 工作目录、附件、恢复材料、配置和凭据；不得 reset、清库、覆盖、裁剪、git clean -fdx 或按轮换目录。
