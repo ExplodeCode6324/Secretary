@@ -1,3 +1,5 @@
+import { GuidanceDelivery } from "./guidance-delivery.ts";
+import type { Guidance } from "../api/contracts.ts";
 import { randomUUID } from "node:crypto";
 import { openCurrentFile } from "./open.ts";
 import { readClipboard } from "./clipboard-read.ts";
@@ -68,6 +70,110 @@ export class TerminalApp {
   page: Page = "Main";
   viewing = false;
   delivery?: Delivery;
+  guidance?: GuidanceDelivery;
+  private guidancePanel?: {
+    index: number;
+    detail?: Guidance | "submission";
+    anchor: DocumentView["anchor"];
+    viewing: boolean;
+  };
+  private guidanceItems(): Guidance[] {
+    return [...(this.remote?.taskBrowser.guidance.values() ?? [])].flat();
+  }
+  private guidanceRows() {
+    const panel = this.guidancePanel!;
+    const p =
+      this.delivery?.state.guidancePending ?? this.delivery?.state.guidanceLast;
+    let text: string;
+    if (panel.detail) {
+      const selected = panel.detail;
+      const g =
+        selected === "submission"
+          ? p?.guidance
+          : (this.guidanceItems().find((g) => g.id === selected.id) ??
+            selected);
+      text = g
+        ? `${g.source} · ${g.id}\nSENT ${g.sent_at}\nRECEIVED ${g.received_at ?? "待确认"}\nGUIDED ${g.guided_at ?? "待确认"}\n${g.disposition} · ${g.reason ?? ""}\n\n${g.text}\n\n${JSON.stringify(g.receipt, null, 2).slice(0, 16384)}`
+        : p
+          ? `${p.target.title} #${p.target.execution_round}\n${p.status} · ${p.id}\n${p.path}\nsha256 ${p.sha256}\n${p.error ?? ""}\n\n${p.body.text}`
+          : "暂无提交";
+    } else {
+      const labels = [
+        p
+          ? `原始提交 · ${p.target.title} #${p.target.execution_round} · ${p.status}`
+          : "暂无本地提交",
+        "重试原请求（同 ID）",
+        "复制原始命令",
+        "恢复到空 Task 草稿",
+        "导出并释放冲突",
+        ...this.guidanceItems().map(
+          (g) =>
+            `${g.source} · ${g.id} · ${g.disposition}${g.guided_at ? " · GUIDED" : g.received_at ? " · RECEIVED" : " · SENT"}`,
+        ),
+      ];
+      text = labels
+        .map((label, i) => `${i === panel.index ? "> " : "  "}${label}`)
+        .slice(Math.max(0, panel.index - 7), Math.max(0, panel.index - 7) + 16)
+        .join("\n");
+    }
+    return [
+      {
+        id: "guidance-panel",
+        version: text,
+        component: new Text(safeText(text), 0, 0),
+      },
+    ];
+  }
+  private guidanceInput(data: string) {
+    const panel = this.guidancePanel!;
+    if (matchesKey(data, "escape")) {
+      if (panel.detail) {
+        panel.detail = undefined;
+        this.scrolls.Task.scrollTo(0);
+      } else {
+        this.guidancePanel = undefined;
+        this.remoteDirty = true;
+        this.viewing = panel.viewing;
+        if (panel.anchor) this.remote!.taskBrowser.restoreAnchor = panel.anchor;
+        this.tui.setFocus(this.viewing ? this.scrolls.Task : this.editors.Task);
+      }
+    } else if (panel.detail) {
+      if (matchesKey(data, "up") || matchesKey(data, "down"))
+        this.scrolls.Task.scrollBy(matchesKey(data, "up") ? -1 : 1);
+      if (matchesKey(data, "pageUp") || matchesKey(data, "pageDown"))
+        this.scrolls.Task.scrollBy(
+          (matchesKey(data, "pageUp") ? -1 : 1) *
+            Math.max(1, this.scrolls.Task.viewportHeight - 1),
+        );
+    } else if (matchesKey(data, "up") || matchesKey(data, "down")) {
+      const count = 5 + this.guidanceItems().length;
+      panel.index =
+        (panel.index + (matchesKey(data, "up") ? -1 : 1) + count) % count;
+    } else if (matchesKey(data, "enter")) {
+      if (panel.index === 0) panel.detail = "submission";
+      else if (panel.index >= 5)
+        panel.detail = this.guidanceItems()[panel.index - 5];
+    } else if (matchesKey(data, "shift+enter")) {
+      const p =
+        this.delivery?.state.guidancePending ??
+        this.delivery?.state.guidanceLast;
+      const job =
+        panel.index === 1
+          ? this.guidance?.retry()
+          : panel.index === 2 && p
+            ? copySelection(p.raw).then((r) => {
+                this.localNotice(r === true ? "已复制原始命令" : String(r));
+              })
+            : panel.index === 3
+              ? this.guidance?.restore()
+              : panel.index === 4
+                ? this.guidance?.exportConflict()
+                : undefined;
+      void job?.catch((e) => this.localNotice(String(e)));
+    }
+    this.draw();
+    return { consume: true };
+  }
   remote?: RemoteViews;
   private files?: LocalFiles;
   private imageImports?: ImageImports;
@@ -251,6 +357,7 @@ export class TerminalApp {
       editor.onEdited = (raw, snapshot, changed) => {
         if (changed) this.clearHint();
         this.delivery?.edit(page, raw, snapshot);
+        if (page === "Task") this.guidance?.previewDraft(raw);
         if (this.delivery)
           this.renderedDraft[page] =
             this.delivery.state.drafts[page].generation;
@@ -307,6 +414,34 @@ export class TerminalApp {
       }
       if (this.matters.current || this.matters.loading)
         return this.matterInput(data);
+      if (this.page === "Task" && this.guidancePanel)
+        return this.guidanceInput(data);
+      if (this.page === "Task" && matchesKey(data, "f6")) {
+        this.guidancePanel = {
+          index: 0,
+          anchor: this.documents.Task.anchor,
+          viewing: this.viewing,
+        };
+        this.remote?.taskBrowser.stopFollowing();
+        this.tui.setFocus(null);
+        this.draw();
+        return { consume: true };
+      }
+      if (this.page === "Task" && this.viewing && matchesKey(data, "enter")) {
+        const id = this.documents.Task.anchor?.item_id;
+        const g = this.guidanceItems().find((g) => id === "guidance:" + g.id);
+        if (g) {
+          this.guidancePanel = {
+            index: 0,
+            detail: g,
+            anchor: this.documents.Task.anchor,
+            viewing: true,
+          };
+          this.tui.setFocus(null);
+          this.draw();
+          return { consume: true };
+        }
+      }
       if (this.page === "Main" && this.remote?.attention.selected) {
         if (matchesKey(data, "escape")) {
           this.remote.attention.exit();
@@ -568,6 +703,7 @@ export class TerminalApp {
     this.tui.start();
     void this.attach();
     this.statusTimer = setInterval(() => {
+      void this.guidance?.reconcile();
       void this.imageImports?.reconcile().catch(() => {});
       void this.cancellation.reconcile();
       void this.recovery.reconcile();
@@ -811,6 +947,18 @@ export class TerminalApp {
       this.submitMessage(pending.raw, pending.body.text, pending.snapshot);
       return;
     }
+    const gp = this.delivery.state.guidancePending,
+      gd = this.delivery.state.drafts.Task;
+    if (
+      this.page === "Task" &&
+      gp &&
+      gd.binding === gp.id &&
+      raw === gp.raw &&
+      equalSnapshotContent(snapshot, gp.snapshot)
+    ) {
+      void this.guidance?.retry();
+      return;
+    }
     const action = parseDraft(
       snapshot,
       this.page,
@@ -844,6 +992,10 @@ export class TerminalApp {
     }
     if (action.kind === "resume") {
       void this.recovery.submit();
+      return;
+    }
+    if (action.kind === "guide") {
+      void this.guidance?.submit(raw, snapshot, action);
       return;
     }
     if (action.kind === "cancel") {
@@ -882,7 +1034,7 @@ export class TerminalApp {
     }
     if (action.kind === "help")
       this.uiHint =
-        "/m /t /back /help · Main: /open <路径> /paste（剪贴板） Ctrl+V 图片 · Tab 图片行/Delete 移除 · /resume（继续原批次及排队输入） /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /follow [Execution ID|off] /search_task <标题|ID> /taskdetail <标题|ID>（带空格标题加双引号；--id 强制 ID） /show <事项完整ID> /cancel --request <完整ID> 或 --execution <完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
+        "/m /t /back /help · Main: /open <路径> /paste（剪贴板） Ctrl+V 图片 · Tab 图片行/Delete 移除 · /resume（继续原批次及排队输入） /send <正文> /rawmessage <正文> /cotvisible /cotv · Task: /guide <精确标题> <执行轮次> <正文> · F6（Mac 可用 Fn+F6）引导回执/重试 · /follow [Execution ID|off] /search_task <标题|ID> /taskdetail <标题|ID>（带空格标题加双引号；--id 强制 ID） /show <事项完整ID> /cancel --request <完整ID> 或 --execution <完整ID> · Ctrl+C 有内容清空/空输入退出 · Ctrl+- 撤销";
     this.draw();
   }
   private localNotice(message: string) {
@@ -1064,6 +1216,10 @@ export class TerminalApp {
           return;
         }
         this.delivery = new Delivery(state, this.files);
+        this.guidance = new GuidanceDelivery(state, this.files);
+        this.guidance.onChange = () => this.draw();
+        this.guidance.knownGuidance = (id) =>
+          this.remote?.taskBrowser.guidance.get(id);
         this.imageImports = new ImageImports(this.delivery, this.files);
         this.delivery.onChange = () => this.draw();
         this.delivery.onEvent = (event) => {
@@ -1074,6 +1230,7 @@ export class TerminalApp {
         };
       }
       await this.delivery.connect(client);
+      await this.guidance!.connect(client);
       if (this.stopped || this.stopping) return;
       const previous = this.remote;
       previous?.stop();
@@ -1099,6 +1256,7 @@ export class TerminalApp {
       this.remote.onDisconnect = (e) => {
         this.uiHint = "连接中断，保留草稿/阅读位置：" + String(e);
         this.remote?.stop();
+        this.guidance?.disconnect();
         this.draw();
         this.retry = setTimeout(() => void this.attach(), 1000);
       };
@@ -1112,6 +1270,8 @@ export class TerminalApp {
         this.uiHint = String(e);
         this.draw();
       });
+      void this.guidance?.reconcile();
+      this.guidance?.previewDraft(this.delivery.state.drafts.Task.raw);
       await this.remote.start();
       void this.files?.collect(this.delivery.state).catch(() => {});
     } catch (e) {
@@ -1153,12 +1313,14 @@ export class TerminalApp {
           this.editors[page].restore(
             d.snapshot ?? plainSnapshot(d.raw),
             !(
-              page === "Main" &&
-              !d.raw &&
-              this.delivery.state.pending?.status === "UNKNOWN"
+              page === "Task" ||
+              (page === "Main" &&
+                !d.raw &&
+                this.delivery.state.pending?.status === "UNKNOWN")
             ),
           );
           this.renderedDraft[page] = d.generation;
+          if (page === "Task") this.guidance?.previewDraft(d.raw);
         }
       }
     }
@@ -1248,6 +1410,7 @@ export class TerminalApp {
         this.remote!.taskBrowser.restoreAnchor = undefined;
       }
     }
+    if (this.guidancePanel) this.documents.Task.entries = this.guidanceRows();
     const active = !!this.matters.current || this.matters.loading;
     const attention = this.page === "Main" ? this.remote?.attention : undefined;
     const pane =
@@ -1298,6 +1461,15 @@ export class TerminalApp {
       this.tui.requestRender();
       return;
     }
+    if (this.guidancePanel && this.page === "Task") {
+      this.footer.setText(
+        safeText(
+          `引导回执 · ↑↓ 选择/滚动 · Enter 查看 · Shift+Enter 执行动作 · Esc 返回\n${this.uiHint || this.guidance?.hint || ""}`,
+        ),
+      );
+      this.tui.requestRender();
+      return;
+    }
     const pending = this.delivery?.state.pending;
     const recovery = this.delivery?.state.recovery;
     const preview = Array.from(
@@ -1310,6 +1482,9 @@ export class TerminalApp {
         : "";
     const hint =
       this.uiHint ||
+      (this.page === "Task"
+        ? this.guidance?.preview || this.guidance?.hint
+        : "") ||
       this.delivery?.hint ||
       this.matters.hint ||
       (this.page === "Task" ? this.cancellation.hint : this.recovery.hint) ||
@@ -1333,6 +1508,7 @@ export class TerminalApp {
     this.stopping = true;
     this.editors.Main.enabled = this.editors.Task.enabled = false;
     try {
+      this.guidance?.close();
       await this.delivery?.close();
       this.stopped = true;
       clearTimeout(this.retry);

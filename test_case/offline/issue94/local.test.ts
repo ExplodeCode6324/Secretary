@@ -171,7 +171,7 @@ test("v3 immutable images persist and v2 migrates with backup; downgrade refuses
       mode: 0o600,
     });
     const loaded = await files.open("d", "fixture");
-    assert.equal(loaded.version, 3);
+    assert.equal(loaded.version, 4);
     assert(
       (await fs.readdir(root)).some((f) => f.startsWith("v2-before-upgrade")),
     );

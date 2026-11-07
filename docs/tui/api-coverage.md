@@ -6,7 +6,7 @@
 
 每项实施 Issue 完成时，按当时的 [操作清单](../api/v1/operations.json) 更新本表，并在完成报告链接本次版本、说明使用变化和仍未使用的 API。测试对本地接口的调用不计为 TUI 已消费。未用 API 不要求补齐菜单，也不自动成为结项阻塞。
 
-状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。API inventory: 96 operations (61 GET, 35 POST); TUI consumes 31, with 65 unused.
+状态可记为：已用（列对应命令/功能）、未用（列原因）；新增/删除端点随操作清单同步。API inventory: 96 operations (61 GET, 35 POST); TUI consumes 35, with 61 unused.
 
 #94 consumes the existing attachment import/message contracts; withdrawal remains unused. 下表的“已用”代表终端客户端实际调用，完整产品原生验收另列。
 
@@ -116,12 +116,15 @@
 
 | Method | Path | 新 TUI 状态 | 对应功能或未用原因 |
 | --- | --- | --- | --- |
-| POST | /api/v1/executions/{id}/guidance | 未用 | #106 will submit the exact frozen execution target. |
-| GET | /api/v1/guidance/{id} | 未用 | #106 will reconcile durable guidance receipts. |
-| GET | /api/v1/executions/{id}/guidance | 未用 | Backend paginated query; frontend receipt history remains later scope. |
+| POST | /api/v1/executions/{id}/guidance | 已用 | #106 /guide；持久化冻结目标、正文及 request_id 后提交，同 ID 重试。 |
+| GET | /api/v1/guidance/{id} | 已用 | #106 核验 MASTER 来源、目标与正文字节；F6 查看回执。 |
+| GET | /api/v1/executions/{id}/guidance | 已用 | #106 每页 20，最多 64 条；刷新从第一页重读，展示 MASTER/MAIN 阶段和处置。 |
+| GET | /api/v1/task-browser/resolve | 已用 | #106 精确 title + execution_round；guidance 预检与提交时解析。 |
 
 #104 adds `/follow [execution_id|off]` in Task detail. The frozen AGENT execution follows targeted SSE metadata and durable changes, with a final tail before stopping. Reading, selection, paging and navigation stop following. Reconnect/resize/CoT preserve only a still-valid exact target. Transient output is visibly unsaved; lost formatting prefixes render literally with a boundary label. Main and Task follow states are independent. The 200-message/4 MiB Task budget includes serialized metadata, body/thinking text and released render-cache references. No token-driven root-list or whole-window reread is added. Physical terminal acceptance is separate from HTTP/SSE and headless tests.
 
 ### #105 identity additions
 
 Task navigation uses the discriminated `task-browser/locate` selector and typed `task-browser/suggestions` endpoint. The generated read-only `task-browser/resolve` endpoint supplies exact Task/Execution identity for the later #106 integration. #105 does not submit `/guide`. Titles and permanent rounds are shown alongside retained UUIDs; mouse/Esc navigation remains read-only.
+
+#106 implements the previously deferred guidance UI. No additional Core operations or business schema are introduced. GET executions/{id} also supports ordered terminal/nonacceptance proof; reconnect never posts automatically. Guidance rendering issues reads only.

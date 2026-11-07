@@ -2,6 +2,8 @@ import { type SelectorKind } from "../task-locator.ts";
 import { Text } from "@earendil-works/pi-tui";
 import type { CoreClient } from "../core-client.ts";
 import type {
+  Guidance,
+  GuidancePage,
   TaskBrowserPage,
   TaskLocatorSuggestions,
   TaskBrowserDetail,
@@ -77,6 +79,7 @@ export class TaskBrowserWindow {
   detailAnchor?: ReadingAnchor;
   restoreAnchor?: ReadingAnchor;
   groups = new Map<string, Group>();
+  guidance = new Map<string, Guidance[]>();
   bodies = new Map<string, MessageBody>();
   notices = new Map<string, string>();
   error = "";
@@ -452,6 +455,23 @@ export class TaskBrowserWindow {
   }
   async suggest(id: string, command?: string) {
     const epoch = this.epoch;
+    if (command === "guide-round") {
+      try {
+        const { title, prefix } = JSON.parse(id);
+        const page = await this.client.query<TaskLocatorSuggestions>(
+          `task-browser/suggestions?selector_kind=title&limit=20&selector=${encodeURIComponent(title)}`,
+        );
+        if (this.stopped || epoch !== this.epoch) return [];
+        return (page.items.find((t) => t.title === title)?.executions ?? [])
+          .filter((e) => String(e.execution_round).startsWith(prefix))
+          .map((e) => ({
+            value: String(e.execution_round),
+            label: `#${e.execution_round} · ${e.state} · 仅本次执行`,
+          }));
+      } catch {
+        return [];
+      }
+    }
     if (command === "follow")
       return [
         { value: "off", label: "off" },
@@ -469,7 +489,7 @@ export class TaskBrowserWindow {
         value = value.replace(/\\(["\\])/g, "$1");
       }
       const page = await this.client.query<TaskLocatorSuggestions>(
-        `task-browser/suggestions?selector_kind=${forcedID ? "id" : "auto"}&limit=20&selector=${encodeURIComponent(value)}`,
+        `task-browser/suggestions?selector_kind=${command === "guide-title" ? "title" : forcedID ? "id" : "auto"}&limit=20&selector=${encodeURIComponent(value)}`,
       );
       if (this.stopped || epoch !== this.epoch) return [];
       return page.items.map((t) => ({
@@ -587,6 +607,8 @@ export class TaskBrowserWindow {
       this.notice = "跟随目标已不可用；已停止跟随";
     }
     const retained = new Set(detail.executions.map((e) => e.id));
+    for (const id of this.guidance.keys())
+      if (!retained.has(id)) this.guidance.delete(id);
     let removed = false;
     for (const eid of this.groups.keys())
       if (!retained.has(eid)) {
@@ -604,6 +626,18 @@ export class TaskBrowserWindow {
     }
     if (removed) this.changed();
     for (const execution of detail.executions) {
+      const receipts: Guidance[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < 4; page++) {
+        const result: GuidancePage = await this.client.query(
+          `executions/${execution.id}/guidance?limit=20${cursor ? "&cursor=" + encodeURIComponent(cursor) : ""}`,
+        );
+        if (this.stopped || epoch !== this.epoch) return;
+        receipts.push(...result.items);
+        cursor = result.next_cursor;
+        if (!cursor) break;
+      }
+      this.guidance.set(execution.id, receipts.slice(0, 64));
       const group = this.groups.get(execution.id);
       const anchor =
         group?.items.find((m) => key(m) === this.detailAnchor?.item_id) ??
@@ -1025,6 +1059,13 @@ export class TaskBrowserWindow {
           taskExecutionText(e, index, detail.executions.length),
         ),
       );
+      for (const g of this.guidance.get(e.id) ?? [])
+        entries.push(
+          textEntry(
+            "guidance:" + g.id,
+            `引导 ${g.source} · ${g.id} · SENT ${g.sent_at}${g.received_at ? " · RECEIVED " + g.received_at : ""}${g.guided_at ? " · GUIDED " + g.guided_at : ""} · ${g.disposition}${g.reason ? " · " + g.reason : ""} · F6 查看回执`,
+          ),
+        );
       const g = this.groups.get(e.id);
       if (!g) {
         entries.push(textEntry("loading:" + e.id, "正在读取 Agent 消息…"));

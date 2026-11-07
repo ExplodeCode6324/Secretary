@@ -135,3 +135,11 @@ verify は型チェック、Git 管理下 Markdown のリンク検証、`test_ca
 Core は正確な execution_id を指定する永続 Guidance API を提供します。使い方と制限は [API 指示の契約](api/v1/README.md#実行を指定した指示103) を参照してください。Main は `task_control(action=guide, id=execution_id, task_id, text)` で実行方法を調整できますが、承認の代行や Master 専用の質問への回答はできません。
 
 永続的な受理、checkpoint での受信、実際の ModelCall による採用を個別に確認してください。キューに入った指示は黙って破棄できず、成功前に有効な処置が必要です。競合は明示的な質問になります。新しい指示は開始済みの外部効果を取り消さず、結果不明の操作も再実行しません。障害後は元の要求識別子と実行で照合し、次のラウンドへ転送しないでください。端末は現在の承認・質問画面を使い、`/guide` 入力操作は #106 の対象です。
+
+### Issue #106 isolated real-model acceptance
+
+The acceptance-only launcher is [issue106-acceptance.ts](../../test_case/online/issue106-acceptance.ts). It creates an owned PostgreSQL cluster, World projection, loopback Core, separate rehearsal/Master draft roots and private command scripts under `.demo-data/issue106/acceptance/`. It never inherits `SECRETARY_*` production settings. Both roles use the existing checked private DeepSeek credential file; secrets are not copied into arguments, evidence or child environment.
+
+The shared fsynced ledger counts physical provider attempts and proposed tools across roles and restarts (100 / 300). Preparation has its own two-hour wall-clock deadline. ARMED_FOR_MASTER keeps HTTP/SSE available with business pumping off. Only the first explicit Master connect starts the two-hour manual deadline; sleep counts. ACTIVE automatically resumes pumping after Core restart until the actual budget/deadline is exhausted. Reconnect never resets limits or requires the initial 60-attempt/180-tool reserve. EXHAUSTED retains history access. Budget extensions require explicit authorization and an atomic extension event; the launcher has no automatic reset.
+
+Use the generated absolute commands in the handoff record. `prepare-task.command` creates a fresh directory scope with writes requiring approval, waits for a genuine model-generated pending authorization, and preserves prior scenarios. Native Terminal and Master's acceptance remain separate from automated HTTP/headless evidence.
