@@ -101,6 +101,18 @@ test("receipt pages refresh old revisions, preserve chronological SENT body and 
           .includes("MAIN"),
       );
       assert.equal(f.app.store.all<Guidance>("Guidance").length, 44);
+      const originalQuery = f.client.query.bind(f.client);
+      let messageReads = 0;
+      f.client.query = async (route, options) => {
+        if (route.includes("/guidance?")) throw Error("RECEIPTS_OFFLINE");
+        if (route.includes("/messages?")) messageReads++;
+        return originalQuery(route, options);
+      };
+      await window.refresh();
+      assert(messageReads > 0);
+      assert.match(window.notice, /RECEIPTS_OFFLINE/);
+      assert.equal(window.guidance.get(e.id)?.length, 44);
+      f.client.query = originalQuery;
     } finally {
       window.stop();
     }

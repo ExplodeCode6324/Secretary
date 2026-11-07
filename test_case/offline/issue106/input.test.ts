@@ -25,6 +25,10 @@ test("guide grammar preserves body bytes, normalizes only title, rejects ambiguo
     "/guide x 1.0 body",
     "/guide x 1e2 body",
     "/guide x ９ body",
+    "/guide　x 1 body",
+    "/guide x　1 body",
+    "/guide x 1　body",
+    "/guide “quoted title” 1 body",
     "/guide x 9007199254740992 body",
     "/guide x 1\nbody",
     "/guide x 1 \n\t",
@@ -39,6 +43,11 @@ test("guide grammar preserves body bytes, normalizes only title, rejects ambiguo
   );
   assert.equal(parseGuide("/guide x 1 " + "界".repeat(5461) + "xx"), undefined);
   assert.equal(parseInput("/guide x 1 body", "Main").kind, "error");
+  const bad = parseInput("/guide x 1\nbody", "Task");
+  assert(bad.kind === "error");
+  assert.match(bad.message, /不能直接换行/);
+  assert.match(bad.message, /ASCII/);
+  assert.match(bad.message, /无前导零/);
 });
 test("real editor ingestion provenance and multiple paste blocks: only typed slash dispatches", () => {
   const e = new DraftEditor(
@@ -114,4 +123,45 @@ test("paced title/round completion preserves provenance, accepts without send, S
   assert.equal(submits, 1);
   assert.equal(originAt(e.snapshot(), 0), "typed");
   assert.equal(parseDraft(e.snapshot(), "Task").kind, "guide");
+});
+
+test("damaged paste with an open picker submits a local error without throwing on either page", async () => {
+  for (const page of ["Main", "Task"] as const) {
+    const e = new DraftEditor(
+      new TuiAltScreen(new VirtualTerminal()),
+      () => page,
+    );
+    e.handleInput("/guide x 1 ");
+    e.handleInput("\x1b[200~first\nsecond\x1b[201~");
+    // Model a partial label edit, preserving the actual pasted payload and provenance.
+    const damaged = { ...e.snapshot(), damaged: true };
+    e.restore(damaged);
+    e.isShowingAutocomplete = () => true;
+    let action: ReturnType<typeof parseDraft> | undefined;
+    e.onExplicitSubmit = (_, snapshot) => {
+      assert(snapshot);
+      action = parseDraft(snapshot, page);
+    };
+    assert.doesNotThrow(() => e.handleInput("\x1b[13;2u"));
+    assert.equal(action?.kind, "error");
+    if (action?.kind === "error")
+      assert.match(action.message, /PASTE_BLOCK_DAMAGED/);
+    assert.equal(e.snapshot().damaged, true);
+  }
+});
+test("unfinished title with a suffix cannot consume that suffix during completion", async () => {
+  const text = '/guide "old 1 preserved body';
+  const c = commandCompletion(
+    () => "Task",
+    () => true,
+    undefined,
+    async () => ['"replacement"'],
+    () => true,
+  );
+  assert.equal(
+    await c.getSuggestions([text], 0, 10, {
+      signal: new AbortController().signal,
+    }),
+    null,
+  );
 });

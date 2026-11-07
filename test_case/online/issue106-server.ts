@@ -238,7 +238,11 @@ function status() {
   }
   return {
     running: !closing,
-    readiness,
+    readiness:
+      budget.value.manual_started_at &&
+      readiness === "SCENARIO_NOT_READY_RUN_PREPARE_TASK"
+        ? "SESSION_ACTIVE_SCENARIO_CONSUMED"
+        : readiness,
     phase: budget.value.phase,
     pid: process.pid,
     instance_id: server.endpoint.instance_id,

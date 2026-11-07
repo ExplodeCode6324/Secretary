@@ -7,7 +7,7 @@ Master approved the R4 bilingual plan on 2026-11-07. This record distinguishes p
 - `/guide <exact title> <permanent round> <body>` is restricted to ordinary Task input with a typed leading slash. The body is preserved after existing editor ingestion, including multiple paste blocks; title/round completion splices only its token.
 - A v4 private local outbox freezes task/execution IDs, path, request UUID, full body, hash and original rich draft before dispatch. Main delivery remains independent. Reconnect only reads. Explicit retry uses the original request; authoritative terminal/nonacceptance proofs or a preserved conflict export release the slot. An accepted receipt awaiting a detail read cannot resend.
 - F6 exposes receipts and explicit retry/copy/restore/conflict actions. Current MASTER and MAIN receipt metadata sits outside paged historical messages, with no duplicate full body. Old pages are reread to obtain revised dispositions. Latest local submission remains inspectable outside recent-three browsing.
-- An isolated acceptance launcher owns its PostgreSQL cluster, World projection, Core, data, state roots, shared atomic budget and phase/deadline. ACTIVE restart resumes pumping without another handshake. ARMED leaves the service queryable until Master's first explicit connect.
+- An isolated acceptance launcher owns its socket-only PostgreSQL cluster, World projection, Core, data, state roots, shared atomic budget and phase/deadline. ACTIVE restart resumes pumping without another handshake. ARMED leaves the service queryable until Master's first explicit connect.
 
 ## Automated evidence
 
@@ -29,4 +29,4 @@ Private evidence lives in `.demo-data/issue106/acceptance/`: `provider.jsonl`, `
 
 Computer Use rejected access to `com.apple.Terminal`; no alternative OS-input route was used. VirtualTerminal demonstrates product integration and rendering but does **not** establish native IME, clipboard, keyboard or daily-use acceptance. Native acceptance and Master G106-01–08 remain **PENDING**. No merge or issue closure is authorized by implementation approval alone.
 
-[Prepared handoff instructions](handoff.md) · [Bilingual plan](../../fix_20261107_issue106_guide.en.md) · [Plan review](plan-review.md)
+[Implementation review dispositions](implementation-review.md) · [Prepared handoff instructions](handoff.md) · [Bilingual plan](../../fix_20261107_issue106_guide.en.md) · [Plan review](plan-review.md)

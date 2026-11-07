@@ -131,6 +131,7 @@ test("product TerminalApp over HTTP/SSE: Task draft, header preview, guide, SENT
     assert.match(rendered, /GUIDED/);
     assert(!rendered.includes("Only report"));
     const before = ui.editors.Task.snapshot();
+    ui.remote!.taskBrowser.followTarget = e.id;
     terminal.sendInput("\x1b[17~");
     await terminal.waitForRender();
     assert(
@@ -143,6 +144,7 @@ test("product TerminalApp over HTTP/SSE: Task draft, header preview, guide, SENT
     terminal.sendInput("\x1b");
     terminal.sendInput("\x1b");
     assert.deepEqual(ui.editors.Task.snapshot(), before);
+    assert.equal(ui.remote!.taskBrowser.followTarget, e.id);
     await ui.close();
     ui = undefined;
   } finally {

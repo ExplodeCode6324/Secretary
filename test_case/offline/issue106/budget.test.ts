@@ -110,3 +110,28 @@ test("late model proposals are charged durably even when execution is refused af
     x.clean();
   }
 });
+
+test("corrupt phase/clock/counter ledger fails closed instead of resetting manual time or budget", () => {
+  const x = setup();
+  try {
+    x.b.arm();
+    x.b.connect(() => {});
+    const original = JSON.parse(fs.readFileSync(x.file, "utf8"));
+    for (const mutate of [
+      (v: any) => (v.phase = "ARMED_FOR_MASTER"),
+      (v: any) => delete v.manual_deadline,
+      (v: any) => v.physical++,
+      (v: any) => v.limits.physical++,
+    ]) {
+      const v = structuredClone(original);
+      mutate(v);
+      fs.writeFileSync(x.file, JSON.stringify(v));
+      assert.throws(
+        () => new AcceptanceBudget(x.file, () => 1000),
+        /INVALID_BUDGET_LEDGER/,
+      );
+    }
+  } finally {
+    x.clean();
+  }
+});

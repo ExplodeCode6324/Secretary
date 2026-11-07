@@ -626,18 +626,23 @@ export class TaskBrowserWindow {
     }
     if (removed) this.changed();
     for (const execution of detail.executions) {
-      const receipts: Guidance[] = [];
-      let cursor: string | null = null;
-      for (let page = 0; page < 4; page++) {
-        const result: GuidancePage = await this.client.query(
-          `executions/${execution.id}/guidance?limit=20${cursor ? "&cursor=" + encodeURIComponent(cursor) : ""}`,
-        );
+      try {
+        const receipts: Guidance[] = [];
+        let cursor: string | null = null;
+        for (let page = 0; page < 4; page++) {
+          const result: GuidancePage = await this.client.query(
+            `executions/${execution.id}/guidance?limit=20${cursor ? "&cursor=" + encodeURIComponent(cursor) : ""}`,
+          );
+          if (this.stopped || epoch !== this.epoch) return;
+          receipts.push(...result.items);
+          cursor = result.next_cursor;
+          if (!cursor) break;
+        }
+        this.guidance.set(execution.id, receipts.slice(0, 64));
+      } catch (e) {
         if (this.stopped || epoch !== this.epoch) return;
-        receipts.push(...result.items);
-        cursor = result.next_cursor;
-        if (!cursor) break;
+        this.notice = `引导回执暂不可读：${code(e)}；保留已有回执，继续读取消息`;
       }
-      this.guidance.set(execution.id, receipts.slice(0, 64));
       const group = this.groups.get(execution.id);
       const anchor =
         group?.items.find((m) => key(m) === this.detailAnchor?.item_id) ??

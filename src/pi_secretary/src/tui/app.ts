@@ -29,7 +29,7 @@ import {
   equalSnapshotContent,
   type DraftSnapshot,
 } from "./draft.ts";
-import { LocalFiles } from "./state.ts";
+import { LocalFiles, draftEmpty } from "./state.ts";
 import { Delivery } from "./delivery.ts";
 import { RemoteViews } from "./remote.ts";
 import {
@@ -74,11 +74,30 @@ export class TerminalApp {
   private guidancePanel?: {
     index: number;
     detail?: Guidance | "submission";
+    following: boolean;
     anchor: DocumentView["anchor"];
     viewing: boolean;
   };
   private guidanceItems(): Guidance[] {
     return [...(this.remote?.taskBrowser.guidance.values() ?? [])].flat();
+  }
+  private guidanceActionEnabled(index: number) {
+    const state = this.delivery?.state;
+    const p = state?.guidancePending ?? state?.guidanceLast;
+    if (index === 1)
+      return (
+        !!this.guidance?.client &&
+        !this.guidance.busy &&
+        state?.guidancePending?.status === "UNKNOWN" &&
+        !state.guidancePending.receipt
+      );
+    if (index === 2) return !!p;
+    if (index === 3) return !!p && !!state && draftEmpty(state.drafts.Task);
+    if (index === 4)
+      return (
+        !this.guidance?.busy && state?.guidancePending?.status === "CONFLICT"
+      );
+    return true;
   }
   private guidanceRows() {
     const panel = this.guidancePanel!;
@@ -112,7 +131,10 @@ export class TerminalApp {
         ),
       ];
       text = labels
-        .map((label, i) => `${i === panel.index ? "> " : "  "}${label}`)
+        .map(
+          (label, i) =>
+            `${i === panel.index ? "> " : "  "}${label}${this.guidanceActionEnabled(i) ? "" : "（不可用）"}`,
+        )
         .slice(Math.max(0, panel.index - 7), Math.max(0, panel.index - 7) + 16)
         .join("\n");
     }
@@ -134,6 +156,7 @@ export class TerminalApp {
         this.guidancePanel = undefined;
         this.remoteDirty = true;
         this.viewing = panel.viewing;
+        this.scrolls.Task.following = panel.following;
         if (panel.anchor) this.remote!.taskBrowser.restoreAnchor = panel.anchor;
         this.tui.setFocus(this.viewing ? this.scrolls.Task : this.editors.Task);
       }
@@ -154,6 +177,7 @@ export class TerminalApp {
       else if (panel.index >= 5)
         panel.detail = this.guidanceItems()[panel.index - 5];
     } else if (matchesKey(data, "shift+enter")) {
+      if (!this.guidanceActionEnabled(panel.index)) return { consume: true };
       const p =
         this.delivery?.state.guidancePending ??
         this.delivery?.state.guidanceLast;
@@ -324,8 +348,12 @@ export class TerminalApp {
       );
       this.remote?.focus([...new Set(rows.map((row) => row.item_id))]);
     };
-    this.scrolls.Task.onReading = () => this.stopFollowing();
-    this.documents.Task.onPointerRead = () => this.stopFollowing();
+    this.scrolls.Task.onReading = () => {
+      if (!this.guidancePanel) this.stopFollowing();
+    };
+    this.documents.Task.onPointerRead = () => {
+      if (!this.guidancePanel) this.stopFollowing();
+    };
     this.documents.Task.navigationEnabled = () =>
       this.page === "Task" &&
       !this.remote?.taskBrowser.selected &&
@@ -419,10 +447,11 @@ export class TerminalApp {
       if (this.page === "Task" && matchesKey(data, "f6")) {
         this.guidancePanel = {
           index: 0,
+          following: this.scrolls.Task.following,
           anchor: this.documents.Task.anchor,
           viewing: this.viewing,
         };
-        this.remote?.taskBrowser.stopFollowing();
+        this.scrolls.Task.following = false;
         this.tui.setFocus(null);
         this.draw();
         return { consume: true };
@@ -434,9 +463,11 @@ export class TerminalApp {
           this.guidancePanel = {
             index: 0,
             detail: g,
+            following: this.scrolls.Task.following,
             anchor: this.documents.Task.anchor,
             viewing: true,
           };
+          this.scrolls.Task.following = false;
           this.tui.setFocus(null);
           this.draw();
           return { consume: true };
@@ -1402,7 +1433,8 @@ export class TerminalApp {
           component: new Text(safeText(this.remote.error), 0, 0),
         });
       this.documents.Main.entries = entries;
-      this.scrolls.Task.following = !!this.remote?.taskBrowser.followTarget;
+      this.scrolls.Task.following =
+        !this.guidancePanel && !!this.remote?.taskBrowser.followTarget;
       this.documents.Task.entries = this.remote?.taskBrowser.entries() ?? [];
       const taskRestore = this.remote?.taskBrowser.restoreAnchor;
       if (taskRestore) {

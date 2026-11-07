@@ -83,7 +83,7 @@ export function parseInput(
       : {
           kind: "error",
           message:
-            "/guide <精确标题> <执行轮次> <正文>：仅 Task；带空格标题加双引号，正文 1–16384 UTF-8 字节，原稿保留",
+            '仅 Task：/guide "精确 标题" 1 正文。使用 ASCII 双引号、半角空格和无前导零的正整数轮次；轮次后必须先输入半角空格，不能直接换行开始正文。正文可多行，1–16384 UTF-8 字节；原稿保留',
         };
   }
   if (command === "follow") {
@@ -527,11 +527,13 @@ export class DraftEditor extends Editor {
       this.bridge.insert(paste.text, paste.ranges);
     } else if (matchesKey(data, "shift+enter")) {
       // Complete commands submit as typed; an incomplete command accepts the menu item.
-      if (
-        this.isShowingAutocomplete() &&
-        !isCompleteLocalCommand(this.getExpandedText())
-      )
-        super.handleInput("\r");
+      let complete = true;
+      try {
+        complete = isCompleteLocalCommand(this.getExpandedText());
+      } catch {
+        // Submit the preserved snapshot so parseDraft reports damaged paste.
+      }
+      if (this.isShowingAutocomplete() && !complete) super.handleInput("\r");
       else {
         if (this.isShowingAutocomplete()) super.handleInput("\x1b");
         const snapshot = this.snapshot();

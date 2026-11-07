@@ -186,6 +186,7 @@ export class GuidanceDelivery {
     this.hint = `SENT · ${p.target.title} #${p.target.execution_round} · ${g.id}；后续阶段以 Core 回执为准`;
   }
   private async release(p: GuidanceEnvelope, hint: string, accepted = false) {
+    const previousStatus = p.status;
     const file = await this.files.recoverGuidance(p);
     if (this.state.guidancePending !== p) return;
     if (!accepted && p.status !== "CONFLICT") p.status = "NOT_ACCEPTED";
@@ -196,6 +197,7 @@ export class GuidanceDelivery {
       await this.save();
     } catch (e) {
       this.state.guidancePending = p;
+      p.status = previousStatus;
       throw e;
     }
     this.hint = hint + " · " + file;

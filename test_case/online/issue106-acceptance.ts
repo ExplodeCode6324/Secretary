@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { Client } from "pg";
-import { CoreClient } from "../../src/pi_secretary/src/core-client.ts";
+import { attachCore } from "../../src/pi_secretary/src/core-client.ts";
 import { TerminalApp } from "../../src/pi_secretary/src/tui/app.ts";
 const repo = path.resolve(import.meta.dirname, "../..");
 const root = path.join(repo, ".demo-data/issue106/acceptance");
@@ -45,13 +45,19 @@ function safe(file: string) {
     "UNSAFE_ACCEPTANCE_PATH",
   );
 }
+const socketDSN = (
+  socket: string,
+  port: number,
+  database = "issue106_acceptance",
+) =>
+  `postgresql:///${database}?host=${encodeURIComponent(socket)}&port=${port}`;
 const config = () => {
   safe(configFile);
   const c = JSON.parse(fs.readFileSync(configFile, "utf8"));
   assert(
     c.root === root &&
       c.cluster === path.join(root, "postgres") &&
-      c.dsn === `postgresql://127.0.0.1:${c.port}/issue106_acceptance`,
+      c.dsn === socketDSN(c.socket, c.port),
     "ISOLATED_CONFIG_MISMATCH",
   );
   return c;
@@ -92,10 +98,10 @@ async function control(route: string) {
 }
 async function status() {
   const s = await control("status");
-  const endpoint = JSON.parse(
-    fs.readFileSync(path.join(root, "core/core-endpoint.json"), "utf8"),
-  );
-  const core = await new CoreClient(endpoint).core();
+  const client = await attachCore(path.join(root, "core"));
+  assert(client, "CORE_NOT_RUNNING");
+  const endpoint = client.endpoint;
+  const core = await client.core();
   assert(
     core.instance_id === s.instance_id &&
       core.data_domain_id === s.data_domain_id &&
@@ -128,7 +134,7 @@ async function initialize() {
     cluster,
     socket,
     port,
-    dsn: `postgresql://127.0.0.1:${port}/issue106_acceptance`,
+    dsn: socketDSN(socket, port),
     sha: execFileSync("git", ["rev-parse", "HEAD"], {
       cwd: repo,
       encoding: "utf8",
@@ -137,7 +143,7 @@ async function initialize() {
   fs.writeFileSync(configFile, JSON.stringify(c, null, 2), { mode: 0o600 });
   startPG();
   const admin = new Client({
-    connectionString: `postgresql://127.0.0.1:${port}/postgres`,
+    connectionString: socketDSN(socket, port, "postgres"),
   });
   await admin.connect();
   try {
@@ -183,7 +189,7 @@ function startPG() {
         "-l",
         path.join(root, "postgres.log"),
         "-o",
-        `-p ${c.port} -h 127.0.0.1 -k ${c.socket}`,
+        `-p ${c.port} -h '' -k ${c.socket}`,
         "-w",
         "start",
       ],
@@ -221,15 +227,15 @@ async function start() {
 }
 async function stop(stopPG: boolean) {
   const s = await status();
-  const endpoint = JSON.parse(
-    fs.readFileSync(path.join(root, "core/core-endpoint.json"), "utf8"),
-  );
+  const client = await attachCore(path.join(root, "core"));
+  assert(client, "CORE_NOT_RUNNING");
+  const endpoint = client.endpoint;
   assert(
     endpoint.pid === s.pid && endpoint.instance_id === s.instance_id,
     "STOP_IDENTITY_MISMATCH",
   );
   try {
-    await new CoreClient(endpoint).command("core/stop", {
+    await client.command("core/stop", {
       request_id: randomUUID(),
     });
   } catch (e) {

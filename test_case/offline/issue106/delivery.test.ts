@@ -15,6 +15,7 @@ import {
   freshState,
   exportLegacyState,
 } from "../../../src/pi_secretary/src/tui/state.ts";
+import { plainSnapshot } from "../../../src/pi_secretary/src/tui/draft.ts";
 import { DraftEditor } from "../../../src/pi_secretary/src/tui/input.ts";
 import { TuiAltScreen } from "@earendil-works/pi-tui";
 import { VirtualTerminal } from "../../../src/pi_resource/packages/tui/test/virtual-terminal.ts";
@@ -275,7 +276,12 @@ test("integrity mismatch exports and frees slot but tombstones same original sub
       assert(x.state.guidanceRecovery);
       await x.send();
       assert.equal(posts, 1);
-      x.state.drafts.Task.generation++; // Explicit editing creates a new submission.
+      const revised = x.raw + " revised";
+      x.state.drafts.Task = {
+        raw: revised,
+        snapshot: plainSnapshot(revised),
+        generation: 3,
+      };
       await x.d.connect(
         x.wrap({
           command: async () => {
@@ -284,7 +290,7 @@ test("integrity mismatch exports and frees slot but tombstones same original sub
           },
         }),
       );
-      await x.send();
+      await x.d.submit(revised, plainSnapshot(revised), parseGuide(revised)!);
       assert.equal(
         (x.state.guidancePending as { status: string } | undefined)?.status,
         "CONFLICT",
@@ -300,7 +306,7 @@ test("integrity mismatch exports and frees slot but tombstones same original sub
         ),
       );
       assert.equal(evidence.status, "CONFLICT");
-      assert.equal(evidence.raw, x.raw);
+      assert.equal(evidence.raw, revised);
     } finally {
       x.d.close();
       await x.files.close();
@@ -419,12 +425,94 @@ test("captured title/body cannot retarget when editor changes during resolver aw
       assert.equal(x.state.guidanceLast?.target.execution_id, x.e.id);
       assert.equal(x.state.drafts.Task.raw, "/guide other 9 newer");
       assert.equal(posts, 1);
-      x.state.drafts.Task = { raw: x.raw, snapshot: x.snapshot, generation: 3 };
+      const revised = x.raw + " revised";
+      x.state.drafts.Task = {
+        raw: revised,
+        snapshot: plainSnapshot(revised),
+        generation: 3,
+      };
       x.d.knownGuidance = () =>
         Array.from({ length: 64 }, () => ({ text: "x" }) as any);
-      await x.send();
+      await x.d.submit(revised, plainSnapshot(revised), parseGuide(revised)!);
       assert.equal(posts, 1);
       assert.match(x.d.hint, /GUIDANCE_LIMIT_REACHED/);
+    } finally {
+      x.d.close();
+      await x.files.close();
+    }
+  }));
+
+for (const committed of [false, true])
+  test(`same-content edit/undo, ${committed ? "late acceptance" : "explicit retry"}: one Guidance and one Main input`, () =>
+    fixture(async (f) => {
+      const x = await setup(f);
+      let posts = 0;
+      try {
+        await x.d.connect(
+          x.wrap({
+            command: async (route, body) => {
+              posts++;
+              if (committed) await f.client.command(route, body);
+              throw Error("NETWORK_LOST");
+            },
+          }),
+        );
+        await x.send();
+        x.state.drafts.Task.generation += 2;
+        await x.d.connect(
+          x.wrap({
+            command: async (route, body) => {
+              posts++;
+              return f.client.command(route, body);
+            },
+          }),
+        );
+        if (committed) await x.d.reconcile();
+        else await x.send();
+        assert.equal(x.state.drafts.Task.raw, "");
+        // Undo can resurrect the accepted snapshot with a different generation.
+        x.state.drafts.Task = {
+          raw: x.raw,
+          snapshot: x.snapshot,
+          generation: 9,
+        };
+        await x.send();
+        assert.match(x.d.hint, /已被 Core 接收/);
+        assert.equal(posts, committed ? 1 : 2);
+        assert.equal(f.app.store.all<Guidance>("Guidance").length, 1);
+        assert.equal(
+          f.app.store.all<Input>("Input").filter((i) => i.guidance_id).length,
+          1,
+        );
+      } finally {
+        x.d.close();
+        await x.files.close();
+      }
+    }));
+test("failed release save restores pending status and permits later definitive release", () =>
+  fixture(async (f) => {
+    const x = await setup(f);
+    try {
+      await x.d.connect(
+        x.wrap({
+          command: async () => {
+            throw Error("NETWORK_LOST");
+          },
+        }),
+      );
+      await x.send();
+      f.app.scheduler.cancel(x.e.id);
+      const save = x.files.save.bind(x.files);
+      x.files.save = async (state) => {
+        if (!state.guidancePending) throw Error("DISK_FULL");
+        return save(state);
+      };
+      await x.d.reconcile();
+      assert.equal(x.state.guidancePending?.status, "UNKNOWN");
+      x.files.save = save;
+      await x.d.reconcile();
+      assert.equal(x.state.guidancePending, undefined);
+      assert.equal(x.state.guidanceLast?.status, "NOT_ACCEPTED");
     } finally {
       x.d.close();
       await x.files.close();

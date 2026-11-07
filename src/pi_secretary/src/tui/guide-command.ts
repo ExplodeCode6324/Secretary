@@ -29,6 +29,9 @@ export function parseGuide(raw: string): GuideCommand | undefined {
 export function guideArgument(text: string, col: number) {
   if (!/^\/guide /i.test(text) || col < 7) return;
   const token = new RegExp("^/guide " + titleToken, "i").exec(text);
+  // An unfinished quote has no reliable token end. Never consume text after
+  // the cursor; suppress completion until the ambiguous suffix is resolved.
+  if (!token && text.slice(col).trim()) return;
   if (!token || col <= token[0].length) {
     // An unfinished quoted title can contain spaces, but never a physical newline.
     const end = token?.[0].length ?? text.indexOf("\n");

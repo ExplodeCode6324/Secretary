@@ -53,6 +53,34 @@ export class AcceptanceBudget {
         !Number.isFinite(v.automatic_deadline) ||
         !Number.isSafeInteger(v.limits.physical) ||
         !Number.isSafeInteger(v.limits.tools) ||
+        v.limits.physical < 100 ||
+        v.limits.tools < 300 ||
+        !v.roles ||
+        Object.values(v.roles).some((n) => !Number.isSafeInteger(n) || n < 0) ||
+        Object.values(v.roles).reduce((n, value) => n + value, 0) !==
+          v.physical ||
+        !Array.isArray(v.refusals) ||
+        !Array.isArray(v.extensions) ||
+        v.extensions.some(
+          (e) =>
+            !e.reason ||
+            !Number.isFinite(e.at) ||
+            [e.physical, e.tools, e.milliseconds].some(
+              (n) => !Number.isSafeInteger(n) || n < 0,
+            ),
+        ) ||
+        v.limits.physical !==
+          100 + v.extensions.reduce((n, e) => n + e.physical, 0) ||
+        v.limits.tools !==
+          300 + v.extensions.reduce((n, e) => n + e.tools, 0) ||
+        (v.manual_started_at === undefined) !==
+          (v.manual_deadline === undefined) ||
+        (v.manual_started_at !== undefined &&
+          (!Number.isFinite(v.manual_started_at) ||
+            !Number.isFinite(v.manual_deadline) ||
+            v.manual_deadline! <= v.manual_started_at)) ||
+        (["PREPARING", "ARMED_FOR_MASTER"].includes(v.phase) &&
+          v.manual_started_at !== undefined) ||
         (v.phase === "ACTIVE" && (!v.manual_started_at || !v.manual_deadline))
       )
         throw Error("INVALID_BUDGET_LEDGER");
@@ -190,6 +218,8 @@ export class AcceptanceBudget {
       this.admit();
       return;
     }
+    if (this.value.phase === "EXHAUSTED")
+      throw Error("ACCEPTANCE_BUDGET_EXHAUSTED");
     if (this.value.phase !== "ARMED_FOR_MASTER")
       throw Error("ACCEPTANCE_NOT_ARMED");
     ready();

@@ -121,9 +121,5 @@ export function sameGuidanceDraft(
     binding?: string;
   },
 ) {
-  return (
-    d.raw === p.raw &&
-    equalSnapshotContent(d.snapshot, p.snapshot) &&
-    (d.generation === p.generation || d.binding === p.id)
-  );
+  return d.raw === p.raw && equalSnapshotContent(d.snapshot, p.snapshot);
 }
