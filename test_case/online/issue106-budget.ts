@@ -148,18 +148,23 @@ export class AcceptanceBudget {
     });
   }
   proposals(count: number) {
-    // An already admitted final response may use the last physical attempt.
-    const v = this.value,
-      deadline =
-        v.phase === "ACTIVE" ? v.manual_deadline : v.automatic_deadline;
-    if (!["PREPARING", "ACTIVE"].includes(v.phase) || this.now() >= deadline!) {
-      this.admit();
-      throw Error("ACCEPTANCE_PHASE_CHANGED");
-    }
+    if (!Number.isSafeInteger(count) || count < 0)
+      throw Error("INVALID_TOOL_COUNT");
+    const previous = this.value;
+    const deadline = previous.manual_deadline ?? previous.automatic_deadline;
+    const allowed =
+      ["PREPARING", "ACTIVE"].includes(previous.phase) && this.now() < deadline;
+    // Every observed proposal is charged, even a late/aborted response. Execution
+    // is withheld until this durable update and the phase check both succeed.
     this.update((v) => {
       v.tools += count;
-      if (v.tools > v.limits.tools) v.phase = "EXHAUSTED";
+      if (
+        v.tools > v.limits.tools ||
+        (!allowed && v.phase !== "ARMED_FOR_MASTER")
+      )
+        v.phase = "EXHAUSTED";
     });
+    if (!allowed) throw Error("ACCEPTANCE_PHASE_CHANGED");
     if (this.value.tools > this.value.limits.tools)
       throw Error("ACCEPTANCE_TOOL_LIMIT");
   }

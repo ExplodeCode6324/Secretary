@@ -95,3 +95,18 @@ test("ARMED refuses out-of-band model attempts, records truthful evidence withou
     x.clean();
   }
 });
+
+test("late model proposals are charged durably even when execution is refused after deadline/exhaustion", () => {
+  const x = setup();
+  try {
+    x.b.arm();
+    x.b.connect(() => {});
+    x.set(8000000);
+    x.b.expire();
+    assert.throws(() => x.b.proposals(3), /PHASE_CHANGED/);
+    assert.equal(x.b.value.tools, 3);
+    assert.equal(new AcceptanceBudget(x.file, () => 8000000).value.tools, 3);
+  } finally {
+    x.clean();
+  }
+});

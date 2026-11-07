@@ -1,3 +1,4 @@
+import { AcceptanceLifecycle } from "./issue106-lifecycle.ts";
 import { TerminalApp } from "../../src/pi_secretary/src/tui/app.ts";
 /** Isolated acceptance only. Product Core, model adapters and TerminalApp are unchanged. */
 import fs from "node:fs";
@@ -66,13 +67,17 @@ process.env.SECRETARY_MODE = "live";
 process.env.SECRETARY_DATA = path.join(root, "core");
 let app: App,
   inflight = 0,
-  closing = false,
-  pumpEnabled = budget.value.phase === "ACTIVE",
-  pumpJob: Promise<void> | undefined;
+  closing = false;
 let onPhysical: ((role: string) => Promise<void>) | undefined;
 const evidence = path.join(root, "provider.jsonl");
 const record = (v: unknown) =>
   fs.appendFileSync(evidence, JSON.stringify(v) + "\n", { mode: 0o600 });
+const lifecycle = new AcceptanceLifecycle(
+  budget,
+  () => app.pump(),
+  () => modelLifetime(app.store).abort(Error("ACCEPTANCE_BUDGET_EXHAUSTED")),
+  (e) => record({ kind: "pump-error", message: String(e) }),
+);
 const configs = Object.fromEntries(
   (["main", "task"] as const).map((role) => {
     const adapter = roleModel(model, key, role);
@@ -244,7 +249,7 @@ function status() {
     root,
     world: app.world?.memorySearch.status(),
     inflight,
-    pumpEnabled,
+    pumpEnabled: lifecycle.enabled,
     budget: budget.value,
     remaining: budget.remaining(),
     manual_deadline_hkt: budget.value.manual_deadline
@@ -259,8 +264,8 @@ function status() {
   };
 }
 async function drain() {
-  pumpEnabled = false;
-  await pumpJob;
+  lifecycle.enabled = false;
+  await lifecycle.job;
   await app.scheduler.idle();
   await app.host.drain();
   await until(() => inflight === 0);
@@ -268,7 +273,7 @@ async function drain() {
 }
 async function prepare() {
   budget.prepare();
-  pumpEnabled = false;
+  lifecycle.enabled = false;
   assert(!inflight, "MODEL_BUSY");
   const project = path.join(root, "projects", id());
   fs.mkdirSync(project, { recursive: true, mode: 0o700 });
@@ -335,13 +340,13 @@ async function prepare() {
   });
   await drain();
   if (!budget.value.manual_started_at) budget.arm();
-  else pumpEnabled = true;
+  else lifecycle.enabled = true;
   ready();
   return status();
 }
 async function rehearse() {
   assert(budget.value.phase === "PREPARING", "REHEARSAL_PREPARATION_ONLY");
-  pumpEnabled = false;
+  lifecycle.enabled = false;
   const startUsage = structuredClone(budget.value);
   await client.command("messages", {
     request_id: id(),
@@ -494,7 +499,7 @@ async function rehearse() {
 }
 async function tuiRehearse() {
   assert(budget.value.phase === "PREPARING", "REHEARSAL_PREPARATION_ONLY");
-  pumpEnabled = false;
+  lifecycle.enabled = false;
   const terminal = new VirtualTerminal(110, 32);
   const ui = new TerminalApp(
     path.join(root, "core"),
@@ -639,7 +644,7 @@ const control = http.createServer((req, res) => {
     try {
       if (action === "/master-connect") {
         budget.connect(ready);
-        pumpEnabled = true;
+        lifecycle.enabled = true;
         return status();
       }
       if (action === "/prepare") return await prepare();
@@ -683,27 +688,15 @@ const migrate = await client.command("admin/world/migrate", {
 await until(() => app.world?.memorySearch.status().status === "ready");
 record({ kind: "world-ready", request: migrate.request_id });
 const timer = setInterval(() => {
-  if (closing) return;
-  if (budget.expire()) {
-    pumpEnabled = false;
-    if (inflight)
-      modelLifetime(app.store).abort(Error("ACCEPTANCE_BUDGET_EXHAUSTED"));
-  }
-  if (pumpEnabled && budget.enabled() && !pumpJob)
-    pumpJob = app
-      .pump()
-      .catch((e) => record({ kind: "pump-error", message: String(e) }))
-      .finally(() => {
-        pumpJob = undefined;
-      });
+  if (!closing) lifecycle.tick();
 }, 250);
 async function shutdown() {
   if (closing) return;
   closing = true;
-  pumpEnabled = false;
+  lifecycle.enabled = false;
   clearInterval(timer);
   modelLifetime(app.store).abort(Error("CORE_STOPPING"));
-  await pumpJob;
+  await lifecycle.job;
   await server.close();
   await new Promise<void>((r) => control.close(() => r()));
   if (
