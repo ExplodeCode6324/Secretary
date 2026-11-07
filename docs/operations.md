@@ -91,6 +91,8 @@ npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 
 先在隔离副本验证新版本重放，再切换运行目录。未完成 Settings 使用原配置恢复；迁移目录时核对程序入口和 Execution 绑定。回退使用匹配版本的完整备份，并对账升级期间已经发生的外部作用。存储实现见[架构](architecture.md#数据与提交)。
 
+备份前退出 TUI，并将其状态目录与 Core 数据一起保存；默认位置为 `~/Library/Application Support/Secretary/tui/v1/<domain>/`，自定义启动入口以实际 `stateRoot` 为准（敏捷实例为 `data/tui`）。保留整个目录中的未发送请求、原 request_id 和恢复材料，不只复制可重建缓存。
+
 ## 故障排查
 
 | 状态 | 处理 |

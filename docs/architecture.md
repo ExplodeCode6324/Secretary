@@ -62,3 +62,9 @@ Store 先写 CAS 对象，再校验并追加哈希链 journal 事务，收到 fs
 - Store 启动完整重放 journal，历史帧与日志常驻内存，尚无快照加速与历史回收。
 - Context 已共享消息对象，模型请求及供应商 payload 仍保存完整快照，长循环总存储量可能平方增长。
 - shell/program 使用本机用户权限；Scope 提供目录绑定、调度及文件工具约束。
+
+## 数据保留与归档边界
+
+Execution 的 `retention_state=RETIRED` 与终态 `state` 分开，不是删除许可。[retention](../src/pi_secretary/src/retention.ts) 仅在执行终结、无等待请求、无未知操作、无待处理接续、Feedback 均为 `HANDLED`/`SUPPRESSED`，且距 `max(ended_at, last_activity_at)` 达到 `retire_after_seconds`（创建时 172800 秒）后，读取事件与结果详情的 CAS 字节，保存 ArchiveManifest 并标记退役；不删除 journal、CAS 或工作目录。列表、详情和 Task 浏览不续期；显式 `viewed` 仅在退役前重置期限。退役后详情只返回身份与清单，产物为 `archived`，不能作为接续父执行（`PARENT_NOT_RESUMABLE`）。
+
+备份和恢复必须同时考虑 Core 数据目录、配套 PostgreSQL、客户端草稿/恢复材料及外部 Scope 工作根。CAS 产物快照与当前工作文件是不同对象，不能互相替代；混用不同时点的数据库和 journal 也不能视为完整恢复。操作步骤见[运行手册](operations.md#备份与升级)，保留行为的回归用例见[运行时测试](../test_case/offline/runtime/runtime.test.ts)。

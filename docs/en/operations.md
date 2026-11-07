@@ -95,6 +95,8 @@ npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 
 Validate replay with the new version on an isolated copy before switching the active directory. Recover unfinished Settings with the original configuration. When moving directories, verify program entrypoints and Execution bindings. Roll back with a complete backup matching the code version and reconcile external effects that occurred during the upgrade. See [architecture](architecture.md#data-and-commits) for storage implementation.
 
+Quit the TUI before backup and save its state directory together with Core data. The default is `~/Library/Application Support/Secretary/tui/v1/<domain>/`; custom launchers use their actual `stateRoot` (`data/tui` for agile). Preserve the entire directory, including unsent requests, original request_id values and recovery material, not only rebuildable caches.
+
 ## Troubleshooting
 
 | Status | Action |

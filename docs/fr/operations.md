@@ -95,6 +95,8 @@ npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 
 Validez la relecture avec la nouvelle version sur une copie isolée avant de changer de répertoire actif. Restaurez les Settings inachevés avec leur configuration d’origine. Lors d’un déplacement, vérifiez les points d’entrée des programmes et les liaisons Execution. Pour revenir en arrière, utilisez une sauvegarde complète correspondant à la version et rapprochez les effets externes survenus pendant la mise à niveau. L’implémentation du stockage figure dans l’[architecture](architecture.md#données-et-commits).
 
+Quitter le TUI avant sauvegarde et conserver son répertoire d’état avec les données Core. Par défaut : `~/Library/Application Support/Secretary/tui/v1/<domain>/` ; les lanceurs personnalisés utilisent leur `stateRoot` effectif (`data/tui` pour agile). Conserver tout le répertoire, y compris requêtes non envoyées, request_id d’origine et éléments de récupération, pas seulement les caches reconstructibles.
+
 ## Dépannage
 
 | État | Action |

@@ -41,6 +41,6 @@ Core baseline: `5f73c23`; files were inspected during documentation consolidatio
 | [docs/ja/README.md](../../../../docs/ja/README.md) | 23 | Generated language view | Regenerate from current source; inherited evidence unchanged |
 | [docs/ja/desktop/README.md](https://github.com/ExplodeCode6324/Secretary/blob/4f1f052e071a58dbbc3b00fe3f28accb4be87247/docs/ja/desktop/README.md) | 1, 7, 22, 62, 64, 100 | Generated language view | Regenerate from current source; inherited evidence unchanged |
 | [docs/ja/operations.md](../../../../docs/ja/operations.md) | 124 | Generated language view | Regenerate from current source; inherited evidence unchanged |
-| [docs/old/native-client-design-v0.3.md](../../../../docs/old/native-client-design-v0.3.md) | 5, 92 | Historical / concept | Retain original body; superseded navigation via historical index |
+| [docs/old/native-client-design-v0.3.md](https://github.com/ExplodeCode6324/Secretary/blob/99053387c206a99faae828283f0e9f07741a2590/docs/old/native-client-design-v0.3.md) | 5, 92 | Historical / concept | Retain original body; superseded navigation via historical index |
 | [docs/operations.md](../../../../docs/operations.md) | 122 | Current guide | Link current frontend entry; update stale desktop status |
 | [src/secretary_desktop/README.md](https://github.com/ExplodeCode6324/Secretary/blob/4f1f052e071a58dbbc3b00fe3f28accb4be87247/src/secretary_desktop/README.md) | 1, 3, 18, 58, 60, 96 | Current guide | Link current frontend entry; update stale desktop status |

@@ -95,6 +95,8 @@ npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 
 稼働ディレクトリを切り替える前に、隔離コピーで新バージョンのリプレイを検証します。未完了の Settings は元の設定で復旧します。ディレクトリ移動時はプログラムのエントリーポイントと Execution のバインドを確認します。ロールバックには該当バージョンの完全バックアップを使い、アップグレード中に発生した外部作用を照合します。ストレージ実装は[アーキテクチャ](architecture.md#データとコミット)を参照してください。
 
+バックアップ前に TUI を終了し、その状態ディレクトリを Core データと一緒に保存します。既定は `~/Library/Application Support/Secretary/tui/v1/<domain>/` で、独自の起動入口では実際の `stateRoot`（アジャイルでは `data/tui`）を使います。再構築可能なキャッシュだけでなく、未送信要求、元の request_id、復旧資料を含む全体を保持します。
+
 ## トラブルシューティング
 
 | 状態 | 対処 |

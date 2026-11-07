@@ -20,3 +20,13 @@ Joint acceptance for #21/#28 will extend live-model memory scenarios: facts deve
 Each scenario preserves original evidence and expected state, exercises the normal memory pipeline, and records the first answer, search results, derived memory, and model configuration. On failure, the correct original evidence can be inserted directly into the same model’s context for a second check, distinguishing missing sources, retrieval omissions, memory generation/removal, and reading/reasoning errors. Model or memory-structure upgrades compare direct reads of old memory with rebuilding from original records.
 
 Live compaction and cross-process continuity scenarios already exist; framework extensions ship with the related features. Offline tests verify state and protocols; live-model tests record semantic quality and sample variation.
+
+## Verification evidence and runtime boundaries
+
+Reports distinguish documentation/source review, offline protocol tests, actual PostgreSQL, real models, PTY/virtual terminals, physical terminals and Master acceptance. Source review, simulated models and SIGKILL recovery do not replace runtime evidence, real-model quality or power-loss durability checks, respectively. Record pass, failure, untested cases and environment blockers per case; one passing case does not prove a whole group.
+
+Fault regressions check durable state, request identity and actual side-effect counts together. Reconcile a lost response with the original request; do not repeat an unknown external effect to verify it. Record the source commit, configuration, first failure and subsequent correction. Publish redacted reports and keep raw evidence in controlled storage. Use [system invariants](../invariants.md) to locate state guards, commit boundaries and existing tests.
+
+Agile experience work uses only the single instance and fixed data domain designated by Master, retaining all runtime data. Historical online scripts kept here may create domains/databases or clean test resources and must not be used directly for that instance. Temporary fixtures in ordinary offline/CI tests do not define agile deployment and must never connect to its database. Explain any required fault injection or destructive validation to Master and obtain an arrangement first.
+
+Never point `SECRETARY_TEST_DATABASE_URL` at the agile cluster or run `test:db:clean -- --apply` against it. A model’s self-assessment does not prove task completion. Control race ordering with explicit barriers rather than sleeps; test multi-condition guards by breaking one condition at a time; report total cases and counts per status, not just pass rates.
