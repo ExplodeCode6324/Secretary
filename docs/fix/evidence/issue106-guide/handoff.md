@@ -41,3 +41,32 @@
 ```
 
 `prepare-task.command` 输出新实际标题、轮次和完整 guide 命令；不要假定旧标题/轮次仍是目标。若预算或期限不足，它会明确拒绝，而不会静默扩额。status 将运行状态、场景是否仍可引导、模型、数据域、PID、路径、预算及香港时间期限分开显示。API、只读历史和证据保留到明确清理，不随停止删除。
+
+
+## 重复提交、回退与长期停止后的恢复
+
+相同原始引导被确认接收后，即使撤销清空、编辑再撤销，也会拒绝创建第二个请求。若确实需要再次提醒，请明确修改正文（例如追加“再次提醒，请按当前状态重新确认”）再提交；原文可由 F6 复制。不要通过删除本地受理记录绕过提示。
+
+v4 状态含任何引导记录时，旧版导出会明确拒绝。请保留/导出引导证据，使用**另一个旧版客户端状态目录**回退，并保留原 v4 目录供恢复新版使用；不要让旧版打开 v4 目录。
+
+私有 PostgreSQL socket 目录位于 `/tmp`。若实例停止多日后系统清理了空目录，先读取本实例配置中的 `socket` 路径；确认路径属于本实例且不存在，再用 `mkdir -m 700 <该路径>` 恢复，之后执行 `start.command`。已有目录权限或属主不正确时应停止排查，不要放宽权限。
+
+## 显式扩额（仅 Master 另行批准后执行）
+
+本次 100 次物理请求 / 300 次工具提案及两小时人工窗口不自动扩展。额度或期限不足时，先向 Master 说明当前用量、拟增加的额度/分钟数及原因。获得明确批准后，由操作员执行以下顺序；不能在服务运行时直接改 `budget.json`，否则会被内存账本覆盖。
+
+1. 执行上面的 `stop.command`；必须看到停止确认。保留账本、数据域和 Master 草稿。
+2. 在仓库目录运行下列命令，将占位值换成**实际批准**的原因、增量和毫秒数。该操作追加一个原子扩额事件，不重置已用次数或原始开始时间。
+
+```sh
+cd /Users/muy/Desktop/Codex_Work/secretary-core
+node --import tsx --input-type=module -e '
+import { AcceptanceBudget } from "./test_case/online/issue106-budget.ts";
+const budget = new AcceptanceBudget(".demo-data/issue106/acceptance/budget.json");
+budget.extend({ reason: "替换为 Master 批准的原因", physical: APPROVED_REQUESTS, tools: APPROVED_TOOLS, milliseconds: APPROVED_MILLISECONDS });
+'
+```
+
+3. 执行 `start.command`，再执行 `status.command`，核对额度增量、扩额事件和香港时间期限。人工窗口已开始时，重启后的新生命周期会恢复 ACTIVE 并重新建立中止状态；首次人工窗口尚未开始时，扩额会回到 PREPARING，应重新完成准备/预留检查后才交接。
+
+这是一份操作流程，不代表当前已获扩额授权；本次交接仍保留原额度和未启动的人工计时。

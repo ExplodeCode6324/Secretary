@@ -134,7 +134,7 @@ Image attachments reserve capacity in a separate import ledger and bind immutabl
 
 Core provides a durable Guidance API targeting an exact execution_id; see the [API guidance contract](api/v1/README.md#exact-execution-guidance-103) for usage and limits. Main can adjust execution through `task_control(action=guide, id=execution_id, task_id, text)`; this cannot approve authorization or answer Master-only questions.
 
-Assess durable acceptance, checkpoint receipt and actual ModelCall adoption separately. Queued guidance cannot be silently dropped and must have a valid disposition before success; conflicts create explicit questions. New guidance does not undo started external effects or replay operations with unknown outcomes. After failure reconcile the original request identity and execution, never the next round. The terminal currently uses existing authorization/question interfaces; `/guide` input belongs to #106.
+Assess durable acceptance, checkpoint receipt and actual ModelCall adoption separately. Queued guidance cannot be silently dropped and must have a valid disposition before success; conflicts create explicit questions. New guidance does not undo started external effects or replay operations with unknown outcomes. After failure reconcile the original request identity and execution, never the next round. Ordinary Task input supports `/guide <exact title> <execution round> <body>`; authorization and questions still use the existing matter interface.
 
 ### Issue #106 isolated real-model acceptance
 
@@ -143,3 +143,7 @@ The acceptance-only launcher is [issue106-acceptance.ts](../../test_case/online/
 The shared fsynced ledger counts physical provider attempts and proposed tools across roles and restarts (100 / 300). Preparation has its own two-hour wall-clock deadline. ARMED_FOR_MASTER keeps HTTP/SSE available with business pumping off. Only the first explicit Master connect starts the two-hour manual deadline; sleep counts. ACTIVE automatically resumes pumping after Core restart until the actual budget/deadline is exhausted. Reconnect never resets limits or requires the initial 60-attempt/180-tool reserve. EXHAUSTED retains history access. Budget extensions require explicit authorization and an atomic extension event; the launcher has no automatic reset.
 
 Use the generated absolute commands in the handoff record. `prepare-task.command` creates a fresh directory scope with writes requiring approval, waits for a genuine model-generated pending authorization, and preserves prior scenarios. Native Terminal and Master's acceptance remain separate from automated HTTP/headless evidence.
+
+The v4 legacy exporter intentionally rejects guidance-bearing state, including an accepted tombstone. Preserve/export the guidance evidence and use a **separate older-client state directory** for rollback; never point an older client at the v4 directory or delete the accepted binding to force export. Keep the original directory for returning to this version.
+
+The [acceptance handoff](../fix/evidence/issue106-guide/handoff.md) documents explicit stop → authorized offline extension → start, private socket-directory recovery after long inactivity, and intentionally resubmitting revised guidance. Never edit a live in-memory budget ledger from outside its owner.
