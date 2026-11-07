@@ -5,6 +5,7 @@ import type {
   Execution,
   Feedback,
   TaskResult,
+  TaskPlan,
 } from "./contracts.ts";
 import { scopeOf, terminal } from "./execution-utils.ts";
 import type { SchedulerContext } from "./scheduler-context.ts";
@@ -14,8 +15,15 @@ type RetentionContext = Pick<SchedulerContext, "store">;
 
 export function detail(this: RetentionContext, eid: string) {
   const e = this.store.get<Execution>("Execution", eid);
+  const identity = {
+    task_id: e.task_id,
+    title: this.store.get<TaskPlan>("TaskPlan", e.task_id).title!,
+    execution_id: e.id,
+    execution_round: e.execution_round!,
+  };
   if (e.retention_state === "RETIRED")
     return {
+      ...identity,
       status: "RETIRED",
       archive: this.store
         .all<ArchiveManifest>("ArchiveManifest")
@@ -26,6 +34,7 @@ export function detail(this: RetentionContext, eid: string) {
     : null;
   const guidance = guidanceFor(this.store).summary(eid);
   return {
+    ...identity,
     execution: e,
     ...(guidance.length ? { guidance } : {}),
     result: result

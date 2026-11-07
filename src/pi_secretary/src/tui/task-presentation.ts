@@ -99,8 +99,10 @@ export function taskCardText(
 ) {
   const goal = oneLine(t.goal, 100);
   const lines = [
+    ...(!detail ? ["[详情]"] : []),
+    (selected ? pink : goalInk)((selected ? "▶ 已定位 · " : "● ") + t.title),
     (selected ? pink : goalInk)(
-      (selected ? "▶ 已定位 · " : "● ") +
+      "  目标  " +
         goal.text +
         (goal.clipped || t.goal_truncated
           ? " …（目标预览；详情查看全文）"
@@ -113,7 +115,7 @@ export function taskCardText(
   ];
   for (const e of t.active_executions)
     lines.push(
-      `  ${muted("执行")}  ${tone(e.state)(name(e.state))} ${muted("· " + invocation(e))}`,
+      `  ${muted(`执行 · 第 ${e.execution_round} 次`)}  ${tone(e.state)(name(e.state))} ${muted("· " + invocation(e))}`,
     );
   if (!t.active_executions.length)
     lines.push(
@@ -157,7 +159,7 @@ export function taskCardText(
   const latest = t.latest_execution;
   if (latest && !t.active_executions.some((e) => e.id === latest.id)) {
     lines.push(
-      `  ${muted("最近")}  ${tone(latest.state)(name(latest.state))} ${muted("· " + invocation(latest))}`,
+      `  ${muted(`最近 · 第 ${latest.execution_round} 次`)}  ${tone(latest.state)(name(latest.state))} ${muted("· " + invocation(latest))}`,
     );
     if (latest.ended_at)
       lines.push(`  ${muted("      结束: " + latest.ended_at)}`);
@@ -185,7 +187,7 @@ export function taskExecutionText(
   return [
     "",
     heading(
-      `── 最近执行 ${index + 1}/${count} · ${e.kind === "AGENT" ? "Agent" : "程序"}`,
+      `── 第 ${e.execution_round} 次执行 · ${e.kind === "AGENT" ? "Agent" : "程序"}`,
     ),
     `  ${tone(e.state)(name(e.state))} ${muted("· " + invocation(e))}`,
     ...(e.ended_at ? [muted("  结束: " + e.ended_at)] : []),

@@ -1,3 +1,4 @@
+import { parseTaskSelector, type SelectorKind } from "../task-locator.ts";
 import {
   Editor,
   CURSOR_MARKER,
@@ -39,7 +40,11 @@ export const commands = commandRegistry.map((c) => c.name);
 export type Action =
   | { kind: "navigate"; page: Page }
   | { kind: "help" | "back" | "noop" | "draft" | "cot" | "resume" }
-  | { kind: "search_task" | "taskdetail" | "show"; id: string }
+  | {
+      kind: "search_task" | "taskdetail" | "show";
+      id: string;
+      selectorKind?: SelectorKind;
+    }
   | { kind: "cancel"; target: "request" | "execution"; id: string }
   | { kind: "follow"; id?: string }
   | { kind: "open"; path: string }
@@ -106,6 +111,16 @@ export function parseInput(
             ? "/search_task 仅在 Task 列表根视图可用"
             : `/${command} 仅在 Task 可用`,
       };
+    if (command !== "show") {
+      const selector = parseTaskSelector(rest);
+      return selector
+        ? { kind: command, ...selector }
+        : {
+            kind: "error",
+            message:
+              '需要精确标题、"带空格标题" 或 --id <ID>；引号内只支持 \" 和 \\，不接受额外参数或换行',
+          };
+    }
     const token = /^ ([0-9A-Za-z-]+)[ \t]*$/.exec(rest);
     return token && token[0] === rest
       ? { kind: command, id: token[1] }
@@ -195,13 +210,28 @@ export function parseDraft(
 function isCompleteLocalCommand(raw: string) {
   return (
     !/[\r\n]/.test(raw) &&
-    (/^\/(?:m|t|back|help|cotvisible|cotv|resume|paste|follow)[ \t]*$/i.test(
-      raw,
+    (!!(
+      /^\/(?:search_task|taskdetail)([\s\S]*)$/i.exec(raw)?.[1] &&
+      parseTaskSelector(
+        /^\/(?:search_task|taskdetail)([\s\S]*)$/i.exec(raw)![1],
+      )
     ) ||
+      /^\/(?:m|t|back|help|cotvisible|cotv|resume|paste|follow)[ \t]*$/i.test(
+        raw,
+      ) ||
       /^\/(?:search_task|taskdetail|show|follow) [0-9A-Za-z-]+[ \t]*$/i.test(
         raw,
       ))
   );
+}
+function taskArgumentContext(text: string, page: Page, detail: boolean) {
+  const match = /^\/(search_task|taskdetail|follow) ([^\r\n]*)$/i.exec(text);
+  return match &&
+    page === "Task" &&
+    !(match[1].toLowerCase() === "search_task" && detail) &&
+    !(match[1].toLowerCase() === "follow" && !detail)
+    ? match
+    : null;
 }
 export function commandCompletion(
   page: () => Page,
@@ -210,7 +240,7 @@ export function commandCompletion(
   suggestIDs: (
     prefix: string,
     command?: string,
-  ) => Promise<string[]> = async () => [],
+  ) => Promise<(string | AutocompleteItem)[]> = async () => [],
   current: (text: string) => boolean = () => true,
   taskDetail: () => boolean = () => false,
 ): AutocompleteProvider {
@@ -224,25 +254,32 @@ export function commandCompletion(
         head = lines[0].slice(0, col);
       argumentContext = undefined;
       if (!typedSlash() || line !== 0 || lines.length !== 1) return null;
-      const argument =
-        /^\/(search_task|taskdetail|follow) ([0-9A-Za-z-]*)$/i.exec(head);
-      if (
-        argument &&
-        page() === "Task" &&
-        !(argument[1].toLowerCase() === "search_task" && taskDetail()) &&
-        !(argument[1].toLowerCase() === "follow" && !taskDetail())
-      ) {
-        if (
-          !/^\/(search_task|taskdetail|follow) [0-9A-Za-z-]*[ \t]*$/i.test(text)
-        )
+      const requestedPage = page(),
+        requestedDetail = taskDetail();
+      const argument = taskArgumentContext(
+        head,
+        requestedPage,
+        requestedDetail,
+      );
+      if (argument) {
+        if (!/^\/(search_task|taskdetail|follow) [^\r\n]*$/i.test(text))
           return null;
         const ids = await suggestIDs(argument[2], argument[1].toLowerCase());
-        if (gen !== generation || !current(text) || !typedSlash()) return null;
+        if (
+          gen !== generation ||
+          !current(text) ||
+          !typedSlash() ||
+          page() !== requestedPage ||
+          taskDetail() !== requestedDetail
+        )
+          return null;
         argumentContext = text;
         return ids.length
           ? {
               prefix: argument[2],
-              items: ids.map((id) => ({ value: id, label: id })),
+              items: ids.map((id) =>
+                typeof id === "string" ? { value: id, label: id } : id,
+              ),
             }
           : null;
       }
@@ -273,14 +310,14 @@ export function commandCompletion(
       if (!typedSlash()) return { lines, cursorLine: line, cursorCol: col };
       if (!item.value.startsWith("/")) {
         const match =
-          /^(\/(?:search_task|taskdetail|follow) )([0-9A-Za-z-]*)([ \t]*)$/i.exec(
+          /^(\/(?:search_task|taskdetail|follow) )([^\r\n]*?)([ \t]*)$/i.exec(
             lines[0],
           );
         if (
           !match ||
           lines.join("\n") !== argumentContext ||
           !current(argumentContext) ||
-          !/^[0-9A-Za-z-]+$/.test(item.value)
+          !parseTaskSelector(" " + item.value)
         )
           return { lines, cursorLine: line, cursorCol: col };
         applied?.(match[2].length, item.value.length, match[1].length);
@@ -316,6 +353,8 @@ export class DraftEditor extends Editor {
   readonly bridge: EditorBridge;
   enabled = true;
   private hiddenRows = 0;
+  private appliedArgument = false;
+  private requestArguments?: () => boolean;
   protected override renderTopBorder(width: number, hidden: number) {
     this.hiddenRows = hidden;
     return super.renderTopBorder(width, hidden);
@@ -330,24 +369,41 @@ export class DraftEditor extends Editor {
   constructor(
     tui: TUI,
     page: () => Page,
-    suggestIDs?: (prefix: string, command?: string) => Promise<string[]>,
+    suggestIDs?: (
+      prefix: string,
+      command?: string,
+    ) => Promise<(string | AutocompleteItem)[]>,
     taskDetail?: () => boolean,
     completionEnabled = true,
   ) {
     super(tui, editorTheme, { autocompleteMaxVisible: 6 });
     this.bridge = new EditorBridge(this);
     this.disableSubmit = true;
-    if (completionEnabled)
+    if (completionEnabled) {
+      this.requestArguments = () => {
+        if (
+          this.getCursor().line !== 0 ||
+          originAt(this.bridge.document, 0) !== "typed" ||
+          !taskArgumentContext(this.getText(), page(), taskDetail?.() ?? false)
+        )
+          return false;
+        this.bridge.requestAutocomplete();
+        return true;
+      };
       this.setAutocompleteProvider(
         commandCompletion(
           page,
           () => originAt(this.bridge.document, 0) === "typed",
-          (a, b, start) => this.bridge.claimCompletion(a, b, start),
+          (a, b, start) => {
+            this.appliedArgument = !!start;
+            this.bridge.claimCompletion(a, b, start);
+          },
           suggestIDs,
           (text) => this.getText() === text,
           taskDetail,
         ),
       );
+    }
   }
   snapshot() {
     return this.bridge.document.snapshot(this.getText(), this.getCursor());
@@ -393,13 +449,14 @@ export class DraftEditor extends Editor {
     this.onOperation?.();
     const before = this.getText();
     const beforeSnapshot = this.snapshot();
+    this.appliedArgument = false;
     this.bridge.begin(true);
     if (data.startsWith("\x1b[200~")) {
       if (!data.endsWith("\x1b[201~")) return;
       const paste = this.bridge.document.paste(data.slice(6, -6));
       this.bridge.insert(paste.text, paste.ranges);
     } else if (matchesKey(data, "shift+enter")) {
-      // An open menu consumes the gesture as completion, never as a send.
+      // Complete commands submit as typed; an incomplete command accepts the menu item.
       if (this.isShowingAutocomplete() && !isCompleteLocalCommand(before))
         super.handleInput("\r");
       else {
@@ -414,6 +471,12 @@ export class DraftEditor extends Editor {
         this.onExplicitSubmit?.(raw, snapshot);
         return;
       }
+    } else if (
+      matchesKey(data, "tab") &&
+      !this.isShowingAutocomplete() &&
+      this.requestArguments?.()
+    ) {
+      // Explicit Tab reopens only a command argument picker, never file completion.
     } else if (this.isShowingAutocomplete() && matchesKey(data, "enter"))
       super.handleInput(data);
     else if (
@@ -425,8 +488,9 @@ export class DraftEditor extends Editor {
     else super.handleInput(data);
     this.bridge.finish(matchesKey(data, "left") || matchesKey(data, "right"));
     const after = this.getText();
-    if (isCompleteLocalCommand(after) && this.isShowingAutocomplete())
-      super.handleInput("\x1b");
+    // Query after edits (including a separator or IME commit), not selection keys.
+    // Accepting an argument closes the picker until another edit or explicit Tab.
+    if (after !== before && !this.appliedArgument) this.requestArguments?.();
     const snapshot = this.snapshot();
     let raw = after;
     try {

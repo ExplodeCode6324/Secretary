@@ -1,3 +1,4 @@
+import { nextExecutionRound } from "../../../src/pi_secretary/src/task-identity.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -203,15 +204,21 @@ test("run acquires synchronously, and all active DIRECTORY states exclude a comp
     ] as const) {
       // Each occupancy case is a separate historical snapshot, not a jump
       // between unrelated live execution states.
+      const plan = a.store.get<
+        import("../../../src/pi_secretary/src/contracts.ts").TaskPlan
+      >("TaskPlan", first.task_id);
+      const round = nextExecutionRound(plan);
       const occupying: Execution = {
         ...first,
         id: id(),
+        execution_round: round,
         revision: 1,
         state,
         started_at: now(),
       };
       a.store.commit([
         occupying,
+        revise(plan, { execution_round_high_water: round }),
         revise(a.store.get<Execution>("Execution", second.id), {
           state: "READY",
         }),

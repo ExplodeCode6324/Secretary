@@ -3603,5 +3603,30 @@
     "SSETransient/SSEPreview define the public transient shape; Preview.version remains a number and the event has no durable cursor. The short preview is computed before retention clipping. Redaction, including done/error snapshots, revokes retained reasoning and advances revision; old content cursors return CURSOR_EXPIRED. Main retains at most 8 previews; Task independently retains at most 32 previews and 1 MiB of text in total. Each preview permits 128 blocks and 32,768 UTF-16 units. Normal redacted-only/tool-only durable replies may still omit a row, so transient expiry does not prove the absence of a durable event.",
     "SSETransient/SSEPreview は transient の公開形式を定義します。Preview.version は number のままで、イベントに永続 cursor はありません。短いプレビューは保持容量による切り詰め前に計算します。done/error スナップショットを含む redaction は保持中の推論を取り消して revision を進め、古い内容カーソルには CURSOR_EXPIRED を返します。Main は最大 8 プレビュー、Task は独立に最大 32 プレビュー、合計 1 MiB のテキストを保持します。各プレビューは最大 128 ブロック、32,768 UTF-16 単位です。正常な redacted-only/tool-only の永続応答は行が省略される場合があるため、transient の期限切れは永続イベントの不在を意味しません。",
     "SSETransient/SSEPreview définissent la structure publique de transient ; Preview.version reste un number et l’événement n’a pas de cursor durable. L’aperçu court est calculé avant la limitation de conservation. La redaction, y compris dans les instantanés done/error, révoque le raisonnement conservé et avance revision ; les anciens curseurs de contenu renvoient CURSOR_EXPIRED. Main conserve au plus 8 aperçus ; Task conserve indépendamment au plus 32 aperçus et 1 MiB de texte au total. Chaque aperçu est limité à 128 blocs et 32,768 unités UTF-16. Une réponse durable normale redacted-only/tool-only peut toujours être omise ; l’expiration d’un transient ne prouve donc pas l’absence d’événement durable."
+  ],
+  "Task 内永久创建轮次；恢复保留，旧记录启动补齐。": [
+    "Permanent creation round within a Task; retained on recovery and backfilled at startup for legacy records.",
+    "Task 内の永続的な作成番号。復旧時も保持し、旧レコードは起動時に補完します。",
+    "Numéro de création permanent dans une Task ; conservé après reprise et complété au démarrage pour les anciens enregistrements."
+  ],
+  "Core 数据域唯一且永久保留的标题；旧记录由启动迁移补齐。": [
+    "Unique permanent title within the Core data domain; legacy records are backfilled during startup migration.",
+    "Core データ領域で一意かつ永続的なタイトル。旧レコードは起動時の移行で補完します。",
+    "Titre unique et permanent dans le domaine de données Core ; les anciens enregistrements sont complétés au démarrage."
+  ],
+  "标题与固定轮次迁移完成版本。": [
+    "Completed title and permanent round migration version.",
+    "タイトルと固定実行番号の移行完了バージョン。",
+    "Version achevée de migration des titres et numéros permanents."
+  ],
+  "永久轮次高水位，不随退役或窗口变化降低。": [
+    "Permanent round high-water mark, never reduced by retirement or window changes.",
+    "退役や表示範囲の変更で減少しない永続的な実行番号の上限。",
+    "Maximum permanent des numéros, jamais réduit par retrait ou changement de fenêtre."
+  ],
+  "仅新建任务的建议标题；Core 规范化分配，非身份。": [
+    "Advisory title for new tasks only; normalized and allocated by Core, not an identity.",
+    "新規タスク専用の推奨タイトル。Core が正規化して割り当て、識別子として扱いません。",
+    "Titre suggéré pour les nouvelles tâches uniquement ; normalisé et attribué par Core, sans constituer une identité."
   ]
 }

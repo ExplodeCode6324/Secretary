@@ -30,6 +30,7 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
 | `reuse_task_id` | ID or null | Yes | null creates a plan; otherwise creates a new execution in the same task using this round’s formal requirements. parent must be that task’s latest finished execution. The plan baseline stays unchanged. Related: [ID](ID.md) |
 | `source_context_refs` | array<ObjectRef> | No | Formally supplied source-material references. Continuations inherit only these sources, then add the direct parent’s execution evidence. context_refs contains all current sources and derived historical evidence. Legacy proposal provenance is identified through original checkpoint/result associations. Related: [ObjectRef](ObjectRef.md) |
 | `scope_id` | ID or null | No |  Related: [ID](ID.md) |
+| `title_candidate` | string | No | Advisory title for new tasks only; normalized and allocated by Core, not an identity. |
 
 ## Combined constraints
 

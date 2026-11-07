@@ -49,9 +49,9 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [WorkItem](WorkItem.md) | 12 | Un élément de travail se distingue d’une tâche ; un élément non accompli et sans responsable n’est pas retiré. |
 | [Consciousness](Consciousness.md) | 19 | Mémoire de travail courante ; tous les résumés validés et l’ensemble des originaux repris sont conservés ensemble. |
 | [CompactionJob](CompactionJob.md) | 24 | Travail de résumé à périmètre fixe ; les nouvelles entrées ne rejoignent pas sa couverture. |
-| [TaskProposal](TaskProposal.md) | 20 | La session principale propose seulement des tâches ; les déclarations du modèle telles que authorized ou grant ne sont pas acceptées. |
-| [TaskPlan](TaskPlan.md) | 21 | id est task_id ; enregistrer le plan avant de créer son répertoire de façon idempotente. dispatch lance l’agent quand il est exécutable. |
-| [Execution](Execution.md) | 28 | Cycle de vie et rétention courte sont indépendants ; un historique terminal ne peut revenir à RUNNING. |
+| [TaskProposal](TaskProposal.md) | 21 | La session principale propose seulement des tâches ; les déclarations du modèle telles que authorized ou grant ne sont pas acceptées. |
+| [TaskPlan](TaskPlan.md) | 24 | id est task_id ; enregistrer le plan avant de créer son répertoire de façon idempotente. dispatch lance l’agent quand il est exécutable. |
+| [Execution](Execution.md) | 29 | Cycle de vie et rétention courte sont indépendants ; un historique terminal ne peut revenir à RUNNING. |
 | [Dispatch](Dispatch.md) | 15 | Dispatch fixe Scheduler -> worker ; un attempt_id répété renvoie l’accusé existant sans relancer de processus. |
 | [WorkerReceipt](WorkerReceipt.md) | 15 | Le PID n’est qu’un indice ; vérifier worker_instance/attempt, jamais l’identité du processus à partir du seul PID. |
 | [Checkpoint](Checkpoint.md) | 18 | L’hôte conserve le contexte original et les instructions de continuation ; la reprise n’exécute pas les anciens outils. |

@@ -57,6 +57,9 @@ export function proposeTask(
   if (!args.goal) throw Error("TASK_GOAL_REQUIRED");
   return result({
     ...this.scheduler.propose(args.goal, call, this.sessionID, {
+      ...(args.title_candidate != null
+        ? { title_candidate: args.title_candidate }
+        : {}),
       scopeID: args.scope_id,
       reuse: args.reuse_task_id ?? undefined,
       programID: args.program_id ?? undefined,
@@ -178,8 +181,11 @@ export function tools(
       name: "task_propose",
       label: "Propose task",
       description:
-        "Choose scope_id when the request clearly belongs to an available scope; ask Master when uncertain. Conversation and pure explanations do not need tasks. Only Master manages scopes. Submit new AGENT task by default; PROGRAM only with a registered program_id. For revisions of existing work, use reuse_task_id and its latest ended parent_execution_id; query tasks when identity or requirements are unclear. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace that field, so preserve unchanged requirements. goal is this round's complete goal. In a structured failure REDO input, supply reuse_task_id and parent_execution_id from failure query, omit goal and every requirements override: Core preserves all original requirements. No at/interval on reuse. Independent deliverables use a new task. Scheduler generates the executor packet. Include all relevant constraints and materials. Use null for unspecified optional fields; do not invent program IDs, dates or deadlines.",
+        "New tasks: supply a short title_candidate; omit on reuse/REDO. Choose an available scope_id when clear; otherwise ask Master. Only Master manages scopes. Conversation/explanation needs no task. Default AGENT; PROGRAM requires registered program_id. For revisions use reuse_task_id and its latest ended parent_execution_id; query unclear identity/requirements. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace fields. Preserve unchanged requirements; goal is this round's complete goal. Structured failure REDO: use IDs from failure query; omit goal and all overrides. Core preserves original requirements. No at/interval on reuse. Separate deliverables need new tasks. Include relevant constraints/materials; Scheduler builds executor packet. Use null for unspecified options; never invent program IDs, dates or deadlines.",
       parameters: Type.Object({
+        title_candidate: Type.Optional(
+          Type.Union([Type.String(), Type.Null()]),
+        ),
         scope_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         goal:
           bound?.failure_action?.action === "REDO"

@@ -1,3 +1,4 @@
+import { nextExecutionRound } from "../../../src/pi_secretary/src/task-identity.ts";
 import { approvalScope, taskRoot } from "../helpers/approval-scope.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import test from "node:test";
@@ -335,6 +336,8 @@ for (const state of [
   test(`A08: ${state} blocks reuse without a substitute`, () =>
     fixture(async (app) => {
       const { p, e } = await first(app);
+      const currentPlan = plan(app, p.id);
+      const round = nextExecutionRound(currentPlan);
       const busy: Execution = {
         ...e,
         ...base(),
@@ -343,7 +346,11 @@ for (const state of [
         ended_at: null,
         result_id: null,
       };
-      app.store.commit([busy]);
+      busy.execution_round = round;
+      app.store.commit([
+        revise(currentPlan, { execution_round_high_water: round }),
+        busy,
+      ]);
       assert.throws(
         () =>
           app.scheduler.propose("revision", id(), app.host.sessionID, {
@@ -648,6 +655,19 @@ test("A14: v1 once/journal/receipt migrate without replay and allow E2; historic
       assert.equal(
         restored.scheduler.propose("legacy", request, session).id,
         p.id,
+      );
+      assert.equal(
+        restored.scheduler.propose("legacy", request, session, {
+          title_candidate: null,
+        }).id,
+        p.id,
+      );
+      assert.throws(
+        () =>
+          restored.scheduler.propose("legacy", request, session, {
+            title_candidate: "different",
+          }),
+        /CONFLICT/,
       );
       assert.throws(
         () =>

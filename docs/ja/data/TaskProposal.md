@@ -30,6 +30,7 @@
 | `reuse_task_id` | ID または null | はい | null は計画を新規作成し、それ以外は今回の正式要件で同じタスクに新規実行を作ります。parent はそのタスクの最新の終了済み実行が必要です。計画の基準は変更しません。 関連：[ID](ID.md) |
 | `source_context_refs` | array<ObjectRef> | いいえ | 正式に提供された資料参照。継続ではこの出典だけを継承し、直接の parent の実行証拠を追加します。context_refs は今回の全出典と派生した履歴証拠を含みます。旧提案の出典は checkpoint/result 原本との関連で識別します。 関連：[ObjectRef](ObjectRef.md) |
 | `scope_id` | ID または null | いいえ |  関連：[ID](ID.md) |
+| `title_candidate` | string | いいえ | 新規タスク専用の推奨タイトル。Core が正規化して割り当て、識別子として扱いません。 |
 
 ## 組み合わせ制約
 

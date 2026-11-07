@@ -1,5 +1,6 @@
 import type { ArtifactTail } from "./artifact-tail.ts";
 import {
+  visibleWidth,
   Markdown,
   ScrollView,
   stripTerminalSequences,
@@ -509,6 +510,7 @@ export type ViewEntry = {
   revision?: string;
   instance_id?: string;
   timeline_generation?: string;
+  taskAction?: string;
 };
 export class DocumentView implements Component {
   entries: ViewEntry[] = [];
@@ -528,9 +530,87 @@ export class DocumentView implements Component {
   selectionActive = () => false;
   selectionDragging = false;
   onPointerRead = () => {};
+  onTaskOpen = (_id: string) => {};
+  navigationEnabled = () => false;
+  navigationGeneration = () => 0;
+  private layoutGeneration = 0;
+  private hotspots = new Map<
+    number,
+    { task: string; entry: string; width: number }
+  >();
+  private gesture?: {
+    task: string;
+    entry: string;
+    x: number;
+    y: number;
+    screenX: number;
+    screenY: number;
+    layout: number;
+    navigation: number;
+    scroll: number;
+    width: number;
+    height: number;
+  };
+  cancelNavigationGesture() {
+    this.gesture = undefined;
+  }
   handleMouse(event: TuiMouseEvent) {
-    if (event.type === "press") this.selectionDragging = true;
-    if (event.type === "release") this.selectionDragging = false;
+    const plain =
+      event.button === "left" && !event.shift && !event.alt && !event.ctrl;
+    const hit = this.hotspots.get(event.y);
+    const enabled = this.navigationEnabled();
+    const within = hit && event.x >= 0 && event.x < hit.width;
+    if (event.type === "press") {
+      this.gesture = undefined;
+      if (plain && enabled && within) {
+        this.selectionDragging = false;
+        this.gesture = {
+          task: hit.task,
+          entry: hit.entry,
+          x: event.x,
+          y: event.y,
+          screenX: event.screenX,
+          screenY: event.screenY,
+          layout: this.layoutGeneration,
+          navigation: this.navigationGeneration(),
+          scroll: this.scroll?.scrollTop ?? 0,
+          width: event.width,
+          height: event.height,
+        };
+        return { handled: true };
+      }
+      this.selectionDragging = true;
+    }
+    const g = this.gesture;
+    const valid =
+      g &&
+      plain &&
+      enabled &&
+      within &&
+      hit.task === g.task &&
+      hit.entry === g.entry &&
+      event.x === g.x &&
+      event.y === g.y &&
+      event.screenX === g.screenX &&
+      event.screenY === g.screenY &&
+      event.width === g.width &&
+      event.height === g.height &&
+      this.layoutGeneration === g.layout &&
+      this.navigationGeneration() === g.navigation &&
+      (this.scroll?.scrollTop ?? 0) === g.scroll;
+    if (g && (!valid || ["drag", "wheel", "move"].includes(event.type)))
+      this.gesture = undefined;
+    if (event.type === "release") {
+      this.selectionDragging = false;
+      if (this.gesture) return { handled: true };
+    }
+    if (event.type === "click" && this.gesture) {
+      this.gesture = undefined;
+      if (event.clickCount === 1) {
+        this.onTaskOpen(g!.task);
+        return { handled: true };
+      }
+    }
     if (event.type === "press" || event.type === "wheel") this.onPointerRead();
     return undefined;
   }
@@ -552,6 +632,7 @@ export class DocumentView implements Component {
   invalidate() {
     for (const e of this.entries) e.component.invalidate();
     this.signature = "";
+    this.gesture = undefined;
   }
   render(width: number) {
     // Keep Pi's document-row selection stable while background body reads settle.
@@ -561,8 +642,13 @@ export class DocumentView implements Component {
       width === this.width
     )
       return this.lines;
-    const sig = this.entries.map((e) => `${e.id}:${e.version}`).join("|");
+    const sig = this.entries
+      .map((e) => `${e.id}:${e.version}:${e.taskAction ?? ""}`)
+      .join("|");
     if (width === this.width && sig === this.signature) return this.lines;
+    this.layoutGeneration++;
+    this.gesture = undefined;
+    this.hotspots.clear();
     const anchor = this.restoredAnchor ?? this.anchor,
       lines: string[] = [],
       rows: ReadingAnchor[] = [];
@@ -570,6 +656,14 @@ export class DocumentView implements Component {
       const result = e.component.renderMapped?.(Math.max(1, width));
       const rendered = result?.lines ?? e.component.render(Math.max(1, width));
       rendered.forEach((line, index) => {
+        // The fixed action is a separate first line; never infer a target from title text.
+        const actionWidth = visibleWidth("[详情]");
+        if (e.taskAction && index === 0 && width >= actionWidth)
+          this.hotspots.set(lines.length, {
+            task: e.taskAction,
+            entry: e.id,
+            width: actionWidth,
+          });
         lines.push(line);
         rows.push({
           item_id: e.id,

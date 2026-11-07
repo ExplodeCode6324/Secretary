@@ -30,6 +30,7 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `reuse_task_id` | ID ou null | Oui | null crée un plan ; sinon crée une exécution dans la même tâche selon les exigences formelles du tour. parent doit être sa dernière exécution terminée. La référence du plan reste inchangée. Références : [ID](ID.md) |
 | `source_context_refs` | array<ObjectRef> | Non | Références de sources formellement fournies. Les continuations n’héritent que de ces sources puis ajoutent les preuves d’exécution du parent direct. context_refs contient toutes les sources du tour et les preuves historiques dérivées. La provenance des anciennes propositions est identifiée par leurs liens aux originaux checkpoint/result. Références : [ObjectRef](ObjectRef.md) |
 | `scope_id` | ID ou null | Non |  Références : [ID](ID.md) |
+| `title_candidate` | string | Non | Titre suggéré pour les nouvelles tâches uniquement ; normalisé et attribué par Core, sans constituer une identité. |
 
 ## Contraintes combinées
 

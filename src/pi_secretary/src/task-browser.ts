@@ -1,3 +1,9 @@
+import { guidanceFor } from "./guidance.ts";
+import {
+  selectorValue,
+  executionRound,
+  type SelectorKind,
+} from "./task-locator.ts";
 import { taskMessagesFor } from "./task-messages.ts";
 import { failuresFor } from "./failure-handling.ts";
 import type { App } from "./app.ts";
@@ -13,6 +19,9 @@ import type {
 } from "./contracts.ts";
 import type {
   Message,
+  TaskTargetResolution,
+  TaskLocatorSuggestion,
+  TaskLocatorSuggestions,
   TaskBrowserTask,
   TaskBrowserGroup,
   TaskBrowserRow,
@@ -97,7 +106,28 @@ export function applicableDecision(
 }
 
 /** Rebuildable indexes follow existing journal frames; authoritative data stays in Store. */
+function lowerBound(keys: string[], value: string) {
+  let lo = 0,
+    hi = keys.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if (keys[mid] < value) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo;
+}
+function* prefixKeys(keys: string[], value: string) {
+  for (
+    let i = lowerBound(keys, value);
+    i < keys.length && keys[i].startsWith(value);
+    i++
+  )
+    yield keys[i];
+}
 export class TaskBrowser {
+  private locatorIDs: string[] = [];
+  private locatorTitles: string[] = [];
+  private titles = new Map<string, string>();
   private frame = 0;
   private plans = new Map<string, TaskPlan>();
   private scopes = new Map<string, WorkScope>();
@@ -123,8 +153,19 @@ export class TaskBrowser {
   private sync() {
     for (; this.frame < this.store.projectionFrames.length; this.frame++) {
       for (const m of this.store.projectionFrames[this.frame].mutations) {
-        if (m.object_type === "TaskPlan")
-          this.plans.set(m.object_id, this.store.get("TaskPlan", m.object_id));
+        if (m.object_type === "TaskPlan") {
+          const p = this.store.get<TaskPlan>("TaskPlan", m.object_id);
+          if (!this.plans.has(p.id)) {
+            this.locatorIDs.splice(lowerBound(this.locatorIDs, p.id), 0, p.id);
+            this.locatorTitles.splice(
+              lowerBound(this.locatorTitles, p.title!),
+              0,
+              p.title!,
+            );
+            this.titles.set(p.title!, p.id);
+          }
+          this.plans.set(p.id, p);
+        }
         if (m.object_type === "Scope")
           this.scopes.set(m.object_id, this.store.get("Scope", m.object_id));
         if (m.object_type === "Execution") {
@@ -132,6 +173,7 @@ export class TaskBrowser {
           let bucket = this.executions.get(e.task_id);
           if (!bucket) this.executions.set(e.task_id, (bucket = new Map()));
           const signature = fingerprint([
+            e.execution_round,
             e.state,
             e.started_at,
             e.ended_at,
@@ -252,6 +294,7 @@ export class TaskBrowser {
     const kind = this.store.taskPlanAt(p.id, e.plan_revision).executor.kind;
     return {
       id: e.id,
+      execution_round: e.execution_round!,
       state: e.state,
       kind,
       retention_state: e.retention_state,
@@ -313,6 +356,7 @@ export class TaskBrowser {
       .sort();
     return {
       id: p.id,
+      title: p.title!,
       scope_id: p.scope_id ?? null,
       scope_name: p.scope_id ? this.scopes.get(p.scope_id)!.name : "Shared",
       revision: String(p.revision),
@@ -510,10 +554,66 @@ export class TaskBrowser {
           : null,
     };
   }
+  private select(q: URLSearchParams, suggest = false): TaskPlan[] {
+    if (
+      q.has("task_id") ||
+      q.has("match") ||
+      !["title", "id", "auto"].includes(q.get("selector_kind") ?? "") ||
+      !q.has("selector")
+    )
+      throw new ApiError("INVALID_LOCATOR");
+    const kind = q.get("selector_kind") as SelectorKind;
+    let value: string;
+    try {
+      value = selectorValue(q.get("selector")!);
+    } catch {
+      throw new ApiError("INVALID_LOCATOR");
+    }
+    if (
+      (!value && !suggest) ||
+      (kind === "id" && !/^[0-9A-Za-z-]*$/.test(value))
+    )
+      throw new ApiError("INVALID_LOCATOR");
+    const hits: TaskPlan[] = [];
+    const limit = Math.min(20, q.has("limit") ? limitOf(q) : 20);
+    const candidates = function* (self: TaskBrowser) {
+      if (kind !== "id") {
+        if (suggest) {
+          for (const title of prefixKeys(self.locatorTitles, value))
+            yield self.titles.get(title)!;
+        } else {
+          const exact = self.titles.get(value);
+          if (exact) yield exact;
+        }
+      }
+      if (kind !== "title") yield* prefixKeys(self.locatorIDs, value);
+    };
+    const seen = new Set<string>();
+    for (const id of candidates(this)) {
+      if (seen.has(id)) continue;
+      seen.add(id);
+      const p = this.plans.get(id)!;
+      if (!this.browsable(p)) continue;
+      hits.push(p);
+      if (hits.length === (suggest ? limit : 2)) break;
+    }
+    if (!suggest && hits.length !== 1)
+      throw new ApiError(
+        hits.length ? "AMBIGUOUS_TASK_SELECTOR" : "TASK_NOT_BROWSABLE",
+        hits.length ? 409 : 404,
+      );
+    return hits;
+  }
   query(
     path: string,
     q: URLSearchParams,
-  ): TaskBrowserPage | TaskBrowserDetail | TaskBrowserMessages | Message {
+  ):
+    | TaskBrowserPage
+    | TaskBrowserDetail
+    | TaskBrowserMessages
+    | Message
+    | TaskTargetResolution
+    | TaskLocatorSuggestions {
     this.sync();
     let parts: string[];
     try {
@@ -525,19 +625,30 @@ export class TaskBrowser {
       parts.length === 1
         ? ["limit", "cursor", "direction"]
         : parts[1] === "locate"
-          ? ["task_id", "match", "suggest", "limit"]
-          : parts.length === 2
-            ? ["cursor", "thinking"]
-            : parts.length === 5
-              ? [
-                  "limit",
-                  "cursor",
-                  "direction",
-                  "message_id",
-                  "thinking",
-                  "position",
-                ]
-              : ["cursor", "thinking", "position"];
+          ? [
+              "task_id",
+              "match",
+              "suggest",
+              "limit",
+              "selector_kind",
+              "selector",
+            ]
+          : parts[1] === "suggestions"
+            ? ["selector_kind", "selector", "limit"]
+            : parts[1] === "resolve"
+              ? ["selector_kind", "selector", "execution_round", "purpose"]
+              : parts.length === 2
+                ? ["cursor", "thinking"]
+                : parts.length === 5
+                  ? [
+                      "limit",
+                      "cursor",
+                      "direction",
+                      "message_id",
+                      "thinking",
+                      "position",
+                    ]
+                  : ["cursor", "thinking", "position"];
     if (
       q.has("position") &&
       (q.get("position") !== "latest" ||
@@ -557,40 +668,121 @@ export class TaskBrowser {
       throw new ApiError("INVALID_QUERY");
     if (q.has("limit")) limitOf(q);
     const at = new Date().toISOString();
+    if (parts[1] === "suggestions") {
+      if (parts.length !== 2) throw new ApiError("NOT_FOUND", 404);
+      return {
+        items: this.select(q, true).map((p) => ({
+          task_id: p.id,
+          title: p.title!,
+          state: p.state,
+          executions: this.rounds(p)
+            .slice(0, 3)
+            .map((e) => ({
+              id: e.id,
+              execution_round: e.execution_round!,
+              state: e.state,
+            })),
+        })),
+      };
+    }
+    if (parts[1] === "resolve") {
+      if (
+        parts.length !== 2 ||
+        !["browse", "guidance"].includes(q.get("purpose") ?? "")
+      )
+        throw new ApiError("INVALID_QUERY");
+      const p = this.select(q)[0];
+      let round: number;
+      try {
+        round = executionRound(q.get("execution_round") ?? "");
+      } catch {
+        throw new ApiError("INVALID_EXECUTION_ROUND");
+      }
+      const e = this.store.indexed<Execution>("Execution", "task_round", [
+        JSON.stringify([p.id, round]),
+      ])[0];
+      if (!e) throw new ApiError("EXECUTION_ROUND_NOT_FOUND", 404);
+      if (
+        !this.rounds(p)
+          .slice(0, 3)
+          .some((r) => r.id === e.id)
+      )
+        throw new ApiError("EXECUTION_OUTSIDE_RECENT_THREE", 404);
+      if (q.get("purpose") === "guidance") {
+        try {
+          guidanceFor(this.store).target(this.app.host.sessionID, p.id, e.id);
+        } catch (error) {
+          throw new ApiError((error as Error).message, 409);
+        }
+      }
+      return {
+        task_id: p.id,
+        title: p.title!,
+        execution_id: e.id,
+        execution_round: round,
+        state: e.state,
+        task_revision: String(p.revision),
+        execution_revision: String(e.revision),
+        version: String(this.store.sequence),
+      };
+    }
     if (parts.length === 1 || parts[1] === "locate") {
       const list = this.listing(at);
       let target: string | null = null,
         historical: TaskBrowserTask | null = null,
         suggestions: string[] = [];
+      let locator_suggestions: TaskLocatorSuggestion[] | undefined;
       if (parts[1] === "locate") {
         if (parts.length !== 2) throw new ApiError("NOT_FOUND", 404);
-        const token = q.get("task_id") ?? "";
-        if (
-          (!token && q.get("suggest") !== "true") ||
-          !/^[0-9A-Za-z-]*$/.test(token ?? "") ||
-          !["exact", "prefix"].includes(q.get("match") ?? "exact")
-        )
-          throw new ApiError("INVALID_LOCATOR");
-        const matches = list.tasks.filter(
-          (t) =>
-            t.id === token ||
-            (q.get("match") === "prefix" && t.id.startsWith(token)),
-        );
-        if (q.get("suggest") === "true")
-          suggestions = matches
-            .map((t) => t.id)
-            .sort(compareID)
-            .slice(0, q.has("limit") ? limitOf(q) : 20);
-        else {
-          const exact = matches.find((t) => t.id === token);
-          if (!exact && matches.length !== 1)
-            throw new ApiError(
-              matches.length ? "AMBIGUOUS_TASK_ID" : "TASK_NOT_BROWSABLE",
-              matches.length ? 409 : 404,
-            );
-          const hit = exact ?? matches[0];
-          target = hit.id;
-          if (!hit.current) historical = hit;
+        if (q.has("selector_kind") || q.has("selector")) {
+          const matches = this.select(q, q.get("suggest") === "true");
+          if (q.get("suggest") === "true")
+            locator_suggestions = matches.map((p) => ({
+              task_id: p.id,
+              title: p.title!,
+              state: p.state,
+              executions: this.rounds(p)
+                .slice(0, 3)
+                .map((e) => ({
+                  id: e.id,
+                  execution_round: e.execution_round!,
+                  state: e.state,
+                })),
+            }));
+          else {
+            const hit = list.tasks.find((t) => t.id === matches[0].id)!;
+            target = hit.id;
+            if (!hit.current) historical = hit;
+          }
+        } else {
+          const token = q.get("task_id") ?? "";
+          if (
+            (!token && q.get("suggest") !== "true") ||
+            !/^[0-9A-Za-z-]*$/.test(token ?? "") ||
+            !["exact", "prefix"].includes(q.get("match") ?? "exact")
+          )
+            throw new ApiError("INVALID_LOCATOR");
+          const matches = list.tasks.filter(
+            (t) =>
+              t.id === token ||
+              (q.get("match") === "prefix" && t.id.startsWith(token)),
+          );
+          if (q.get("suggest") === "true")
+            suggestions = matches
+              .map((t) => t.id)
+              .sort(compareID)
+              .slice(0, q.has("limit") ? limitOf(q) : 20);
+          else {
+            const exact = matches.find((t) => t.id === token);
+            if (!exact && matches.length !== 1)
+              throw new ApiError(
+                matches.length ? "AMBIGUOUS_TASK_ID" : "TASK_NOT_BROWSABLE",
+                matches.length ? 409 : 404,
+              );
+            const hit = exact ?? matches[0];
+            target = hit.id;
+            if (!hit.current) historical = hit;
+          }
         }
       }
       const page = this.page(
@@ -619,6 +811,7 @@ export class TaskBrowser {
         target,
         historical,
         suggestions,
+        ...(locator_suggestions ? { locator_suggestions } : {}),
       };
     }
     const p = this.task(parts[1]);

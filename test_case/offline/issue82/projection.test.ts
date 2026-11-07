@@ -30,7 +30,7 @@ test("Task summary projects actual waiting execution separately from ACTIVE plan
     assert.equal(task.latest_execution_id, execution.id);
     assert.equal(task.latest_execution_state, execution.state);
     assert.deepEqual(task.active_executions, [
-      { id: execution.id, state: execution.state },
+      { id: execution.id, state: execution.state, execution_round: 1 },
     ]);
     assert.equal(task.pending_request_count, 0);
   }));

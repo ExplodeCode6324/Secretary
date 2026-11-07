@@ -1,3 +1,4 @@
+import { nextExecutionRound } from "../../../src/pi_secretary/src/task-identity.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture, until } from "../issue9/helpers.ts";
@@ -23,11 +24,16 @@ test("prefix uniqueness scans authorized history; archives and cursors cannot by
       scopeID: one.id,
       at: "2099-01-01T00:00:00.000Z",
     });
-    const a = { ...p, ...base("abcdef00-0000-4000-8000-000000000001") },
+    const a = {
+        ...p,
+        ...base("abcdef00-0000-4000-8000-000000000001"),
+        title: "seed a",
+      },
       b = {
         ...p,
         ...base("abcdef00-0000-4000-8000-000000000002"),
         scope_id: two.id,
+        title: "seed b",
       };
     f.app.store.commit([a, b]);
     await assert.rejects(
@@ -234,12 +240,16 @@ test("oversized graphemes cannot poison list, history lookup or message bodies",
         summary: huge,
         observed_at: observedAt,
       };
+      const plan = f.app.store.get<TaskPlan>("TaskPlan", e.task_id);
+      const round = nextExecutionRound(plan);
       // TaskResult is immutable: seed a new consistent result/execution pair.
       f.app.store.commit([
+        revise(plan, { execution_round_high_water: round }),
         result,
         {
           ...e,
           ...base(executionID),
+          execution_round: round,
           state: "FAILED",
           started_at: observedAt,
           ended_at: observedAt,

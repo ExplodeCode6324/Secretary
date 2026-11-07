@@ -38,6 +38,7 @@ Source: [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$d
 | `recovery_call_id` | ID | No |  Related: [ID](ID.md) |
 | `scope_id` | ID or null | No |  Related: [ID](ID.md) |
 | `workspace_binding` | object | No |  {"additionalProperties": false} |
+| `execution_round` | integer | No | Permanent creation round within a Task; retained on recovery and backfilled at startup for legacy records. {"minimum": 1, "maximum": 9007199254740991} |
 
 ## Combined constraints
 

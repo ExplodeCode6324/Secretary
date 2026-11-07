@@ -1,3 +1,4 @@
+import { ensureTaskIdentities } from "./task-identity-migration.ts";
 import { taskMessagesFor } from "./task-messages.ts";
 import { Pushes, type PushDelivery } from "./push-service.ts";
 import { modelLifetime } from "./model-retry.ts";
@@ -37,6 +38,7 @@ export class App {
   ) {
     const store = await Store.open(directory);
     try {
+      ensureTaskIdentities(store);
       const chosen =
         config && "main" in config
           ? config.main

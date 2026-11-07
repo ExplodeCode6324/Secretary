@@ -34,6 +34,7 @@
 | `recovery_call_id` | ID | 否 |  关联：[ID](ID.md) |
 | `scope_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
 | `workspace_binding` | object | 否 |  {"additionalProperties": false} |
+| `execution_round` | integer | 否 | Task 内永久创建轮次；恢复保留，旧记录启动补齐。 {"minimum": 1, "maximum": 9007199254740991} |
 
 ## 组合约束
 

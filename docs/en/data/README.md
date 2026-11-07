@@ -49,9 +49,9 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [WorkItem](WorkItem.md) | 12 | A work item is distinct from a task; an unfulfilled item with no assignee is not removed. |
 | [Consciousness](Consciousness.md) | 19 | Current working memory; all summary commits and carried-forward originals are saved together. |
 | [CompactionJob](CompactionJob.md) | 24 | Fixed-scope summary job; new inputs do not join its coverage set. |
-| [TaskProposal](TaskProposal.md) | 20 | The main session only proposes tasks; model claims such as authorized or grant are not accepted. |
-| [TaskPlan](TaskPlan.md) | 21 | id is task_id; save the plan before idempotently creating its directory. dispatch starts the agent when runnable. |
-| [Execution](Execution.md) | 28 | Execution lifecycle and short-term retention are independent; terminal history cannot return to RUNNING. |
+| [TaskProposal](TaskProposal.md) | 21 | The main session only proposes tasks; model claims such as authorized or grant are not accepted. |
+| [TaskPlan](TaskPlan.md) | 24 | id is task_id; save the plan before idempotently creating its directory. dispatch starts the agent when runnable. |
+| [Execution](Execution.md) | 29 | Execution lifecycle and short-term retention are independent; terminal history cannot return to RUNNING. |
 | [Dispatch](Dispatch.md) | 15 | Fixed Scheduler -> worker dispatch; a repeated attempt_id returns the existing receipt without starting another process. |
 | [WorkerReceipt](WorkerReceipt.md) | 15 | PID is only a clue; check worker_instance/attempt, never infer process identity from PID alone. |
 | [Checkpoint](Checkpoint.md) | 18 | The host saves original context plus continuation instructions; recovery does not execute historical tools. |

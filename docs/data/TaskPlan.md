@@ -27,6 +27,9 @@ id 即 task_id；先保存计划再建幂等目录，agent 在可执行时由 di
 | `initialization_error` | string 或 null | 是 |  |
 | `pending_requests` | array<object> | 否 | 已受理即时请求的唯一待执行表示；旧记录缺省为空。周期时间点仍使用 pending_occurrences。 关联：[ID](ID.md), [ObjectRef](ObjectRef.md), [Time](Time.md) |
 | `scope_id` | ID 或 null | 否 |  关联：[ID](ID.md) |
+| `title` | string | 否 | Core 数据域唯一且永久保留的标题；旧记录由启动迁移补齐。 {"minLength": 1, "maxLength": 64} |
+| `identity_version` | 1 | 否 | 标题与固定轮次迁移完成版本。 |
+| `execution_round_high_water` | integer | 否 | 永久轮次高水位，不随退役或窗口变化降低。 {"minimum": 0, "maximum": 9007199254740991} |
 
 ## 组合约束
 

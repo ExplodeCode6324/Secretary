@@ -1,3 +1,4 @@
+import { nextExecutionRound } from "../../../src/pi_secretary/src/task-identity.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { fixture } from "../issue9/helpers.ts";
@@ -44,8 +45,16 @@ test("warm attention reads do not scale with successful history; ownership is ca
     for (let i = 0; i < 128; i++) {
       const executionID = id(),
         resultID = id();
+      const plan = f.app.store.get<TaskPlan>("TaskPlan", template.task_id);
+      const round = nextExecutionRound(plan);
       f.app.store.commit([
-        { ...template, ...base(executionID), result_id: resultID },
+        revise(plan, { execution_round_high_water: round }),
+        {
+          ...template,
+          ...base(executionID),
+          result_id: resultID,
+          execution_round: round,
+        },
         { ...result, ...base(resultID), execution_id: executionID },
       ]);
     }
@@ -185,17 +194,24 @@ test("rejected authorization failures and actual execution failures coexist; new
       error: "seeded tool process exited 7",
     });
     const old = f.app.store.get<Execution>("Execution", rejected.id);
+    const plan = f.app.store.get<TaskPlan>("TaskPlan", old.task_id);
+    const round = nextExecutionRound(plan);
     const newer: Execution = {
       ...old,
       ...base(),
       state: "RUNNING",
       retention_state: "HOT",
       continuation_of: old.id,
+      execution_round: round,
       occurrence_key: id(),
       result_id: null,
       ended_at: null,
     };
-    f.app.store.commit([revise(old, { retention_state: "RETIRED" }), newer]);
+    f.app.store.commit([
+      revise(plan, { execution_round_high_water: round }),
+      revise(old, { retention_state: "RETIRED" }),
+      newer,
+    ]);
     f.app.scheduler.finish(newer.id, "SUCCEEDED", {
       summary: "new success is not disposition",
     });

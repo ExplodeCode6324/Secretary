@@ -54,6 +54,7 @@ export class Scheduler {
     requestID = id(),
     sessionID: string,
     options: {
+      title_candidate?: string | null;
       scopeID?: string | null;
       reuse?: string | null;
       programID?: string | null;
