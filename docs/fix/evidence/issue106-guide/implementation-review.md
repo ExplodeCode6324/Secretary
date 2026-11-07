@@ -29,3 +29,5 @@ Claude inspected the PR at `bcc56c6ebc53e53bd8f6fcfbeceb00e496cd634b` against `c
 Late tool proposals are charged durably even if the response arrives after the budget deadline. Corrupt ledger phase/clock/counter/limit combinations fail closed. Launcher status/stop reuse `attachCore` ownership, permission and loopback checks before sending the endpoint token. The persistent manual clock and shared budget survive all candidate restarts without new model calls.
 
 Native Terminal/IME acceptance and Master G106-01–08 remain **PENDING**. Implementation review is not merge permission or issue-closure permission.
+
+The full-suite run on `cf6d38b7` exposed a race in the restart test: after writing the gate file, the automatic pump could already complete the execution before the test called `ready()` again. That redundant test-only transition was removed; the test now relies exclusively on the restarted pump to discover readiness and reach GUIDED. The focused test passed. The interrupted full run is retained separately; a fresh final full run and CI are required on the subsequent head.

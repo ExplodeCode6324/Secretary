@@ -143,7 +143,8 @@ test("persisted ACTIVE restarts the actual Core pump; already-open TerminalApp r
       5000,
     );
     await fs.writeFile(path.join(f.app.scheduler.rootFor(e), "gate"), "ready");
-    f.app.scheduler.ready(e.id);
+    // The restored lifecycle pump observes the resource and advances the task.
+    // Do not race it with a second explicit READY transition after the await.
     await until(
       () => !!guidanceFor(f.app.store).list(e.id)[0]?.guided_at,
       10000,
