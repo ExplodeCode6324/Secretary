@@ -65,4 +65,4 @@ npm run test:live -- gpt-5.6-luna missing
 npm run test:live -- deepseek-v4.1-flash chain gpt-5.6-luna
 ```
 
-start:live 默认主会话 DeepSeek、执行者 Luna。模型调用会使用 API 配额；测试运行资料位于被忽略的 .demo-data/live，界面运行资料位于 .demo-data/interactive-live。凭据文件位置和停机方法见 [README.md](../../../docs/old/implementation-notes/README.md)。
+start:live 默认主会话 DeepSeek、执行者 Luna。模型调用会使用 API 配额；测试运行资料位于被忽略的 .demo-data/live，界面运行资料位于 .demo-data/interactive-live。凭据文件位置和停机方法见 [现行运行手册](../../../docs/operations.md)。

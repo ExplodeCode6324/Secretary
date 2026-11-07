@@ -66,3 +66,9 @@ The [state catalog](../../src/state_machine/catalog.json) retains Execution, Ope
 - Store replays the entire journal at startup and keeps historical frames and logs in memory. Snapshot acceleration and history reclamation are not yet implemented.
 - Context shares message objects, but model requests and provider payloads still retain full snapshots; total storage may grow quadratically in long loops.
 - shell/program runs with local-user privileges; Scope supplies directory binding, scheduling, and file-tool constraints.
+
+## Data retention and retirement boundaries
+
+Execution `retention_state=RETIRED` is separate from terminal `state` and is not permission to delete data. [retention](../../src/pi_secretary/src/retention.ts) requires a terminal execution, no pending requests, unknown operations or pending follow-ups, all Feedback `HANDLED`/`SUPPRESSED`, and elapsed time since `max(ended_at, last_activity_at)` reaching `retire_after_seconds` (172800 seconds at creation). It reads event and result-detail CAS bytes, saves ArchiveManifest and marks retirement; it deletes no journal, CAS or workspace. Lists, details and Task browsing do not renew retention; explicit `viewed` resets the period only before retirement. Retired detail returns identity and manifest only, artifacts are `archived`, and continuation rejects this parent (`PARENT_NOT_RESUMABLE`).
+
+Backup and recovery must cover the Core directory, its PostgreSQL database, client drafts/recovery material and external Scope roots together. A CAS artifact snapshot and the current workspace file are distinct and cannot replace each other; mixing a database and journal from different points is not a complete recovery. See [operations](operations.md#backup-and-upgrades) and the retention regression in [runtime tests](../../test_case/offline/runtime/runtime.test.ts).

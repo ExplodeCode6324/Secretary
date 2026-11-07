@@ -66,3 +66,9 @@ Store は最初に CAS オブジェクトを書き込み、ハッシュチェー
 - Store は起動時に journal 全体をリプレイし、過去のフレームとログをメモリに常駐させます。スナップショットによる高速化と履歴回収は未実装です。
 - Context はメッセージオブジェクトを共有しますが、モデルリクエストとプロバイダーの payload は完全なスナップショットを保持するため、長いループでは総保存量が二次的に増える可能性があります。
 - shell/program はローカルユーザー権限で動作し、Scope がディレクトリのバインド、スケジューリング、ファイルツールの制約を提供します。
+
+## データ保持と退役の境界
+
+Execution の `retention_state=RETIRED` は終端の `state` と別であり、削除許可ではありません。[retention](../../src/pi_secretary/src/retention.ts) は実行終了、待機要求・不明な操作・未処理接続の不在、全 Feedback が `HANDLED`/`SUPPRESSED`、および `max(ended_at, last_activity_at)` から `retire_after_seconds`（作成時172800秒）の経過を要求します。イベントと結果詳細の CAS バイトを読み、ArchiveManifest と退役状態を保存しますが、journal・CAS・作業ディレクトリを削除しません。一覧・詳細・Task 閲覧では延長せず、明示的な `viewed` は退役前のみ期限をリセットします。退役後の詳細は識別情報と清単のみ、成果物は `archived` となり、接続の親にはできません（`PARENT_NOT_RESUMABLE`）。
+
+バックアップと復元では Core ディレクトリ、対応する PostgreSQL、クライアントの草稿と復旧資料、外部 Scope の作業ルートを一緒に扱います。CAS の成果物スナップショットと現在の作業ファイルは別物で、相互に代替できません。異なる時点のデータベースと journal を組み合わせても完全な復元にはなりません。手順は[運用手順](operations.md#バックアップとアップグレード)、保持動作の回帰は[実行時テスト](../../test_case/offline/runtime/runtime.test.ts)を参照してください。

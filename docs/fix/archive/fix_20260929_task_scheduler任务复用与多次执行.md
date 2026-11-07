@@ -51,7 +51,7 @@ Master 补充要求 → 查询 T1 → 指定 reuse_task_id=T1、parent_execution
 
 当前 [TaskProposal 契约](../../data/TaskProposal.md) 已有 `reuse_task_id`，但说明仍限定“同目标/约束”。本轮既补实现缺口，也要明确“同一工作收到正式修改”时的要求快照语义，并同步契约，不能宣称只加一个字段就已完成。
 
-[历史接口设计](../../old/demo_design/API.md) 可用于追溯原有接续意图；该目录已标为归档，不能代替当前代码和本轮更新后的规范。
+[历史接口设计](https://github.com/ExplodeCode6324/Secretary/blob/99053387c206a99faae828283f0e9f07741a2590/docs/old/demo_design/API.md) 可用于追溯原有接续意图；该目录已标为归档，不能代替当前代码和本轮更新后的规范。
 
 ## 3. 修复方案
 

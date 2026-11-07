@@ -19,6 +19,6 @@
 | #27 | [按代码重写文档](fix_20261018_issue27_按代码重写文档.md) | PR #55 已合并，main CI 通过 |
 | #10 | [删除废弃 SwiftUI 客户端](fix_20261019_issue10_删除废弃SwiftUI客户端.md) | 计划复核通过，实施与验证中 |
 
-Core 计划统一放在本目录，文件名为 `fix_YYYYMMDD_issueN_说明.md`。当前行为以[现行手册](../README.md)为准。
+既有 Core 计划在本目录全量保留。自 2026-11-08 起，敏捷迭代计划统一放在根目录 `fix/fix_20261108start_敏捷迭代专题/`；入口为[文档收敛与敏捷基线](../../fix/fix_20261108start_敏捷迭代专题/001-文档收敛与敏捷基线.md)及其 [English](../../fix/fix_20261108start_敏捷迭代专题/001-document-consolidation-and-agile-baseline.en.md)。当前行为以[现行手册](../README.md)为准。
 
 

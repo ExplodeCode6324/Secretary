@@ -4,7 +4,7 @@ import json,re,subprocess,sys
 ROOT=Path(__file__).resolve().parents[3]
 errors=[];links=0
 tracked=subprocess.check_output(['git','ls-files','-z'],cwd=ROOT).decode().split('\0')
-files=[ROOT/name for name in tracked if name.endswith('.md') and (name.startswith('README') or name.startswith(('docs/','test_case/')))]
+files=[ROOT/name for name in tracked if name.endswith('.md') and (name.startswith('README') or name.startswith(('docs/','test_case/','fix/')))]
 for p in files:
  if not p.is_file():
   errors.append(f'missing tracked document: {p.relative_to(ROOT)}');continue

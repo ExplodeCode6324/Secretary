@@ -59,7 +59,7 @@ B1 对工具链准备的要求成立，但“VoiceOver/窗口验收都依赖 Xco
 
 ## 4. 简洁界面与页面行为
 
-以 [v0.3 设计](../../old/native-client-design-v0.3.md) 的布局、交互和可访问性为底线；本轮最新要求与 Issue #10 优先于其中尚未更新的文字。
+以 [v0.3 设计](https://github.com/ExplodeCode6324/Secretary/blob/99053387c206a99faae828283f0e9f07741a2590/docs/old/native-client-design-v0.3.md) 的布局、交互和可访问性为底线；本轮最新要求与 Issue #10 优先于其中尚未更新的文字。
 
 顶部仅普通文字助手名称和“任务、记忆、设备、产物、设置”；名称来自 assistant/profile，空白回退 secretary，点击返回对话。无头像、徽标、品牌副标题或“主会话”标题。顶部不够宽时收进“更多”，跨页待审批/待回答短入口始终可达。设备禁用并说明冻结原因，不能进入可点击空白页。
 
