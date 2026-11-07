@@ -1,3 +1,8 @@
+import {
+  parseGuide,
+  guideArgument,
+  type GuideCommand,
+} from "./guide-command.ts";
 import { parseTaskSelector, type SelectorKind } from "../task-locator.ts";
 import {
   Editor,
@@ -32,12 +37,14 @@ export const commandRegistry = [
   { name: "cotv", pages: ["Main"] },
   { name: "search_task", pages: ["Task"] },
   { name: "taskdetail", pages: ["Task"] },
+  { name: "guide", pages: ["Task"] },
   { name: "follow", pages: ["Task"] },
   { name: "show", pages: ["Task"] },
   { name: "cancel", pages: ["Task"] },
 ] as const;
 export const commands = commandRegistry.map((c) => c.name);
 export type Action =
+  | ({ kind: "guide" } & GuideCommand)
   | { kind: "navigate"; page: Page }
   | { kind: "help" | "back" | "noop" | "draft" | "cot" | "resume" }
   | {
@@ -69,6 +76,16 @@ export function parseInput(
     command = name.toLowerCase();
   if (!commands.some((name) => name.toLowerCase() === command))
     return { kind: "error", message: "未知或尚未实现的命令；/help 查看范围" };
+  if (command === "guide") {
+    const guide = page === "Task" ? parseGuide(raw) : undefined;
+    return guide
+      ? { kind: "guide", ...guide }
+      : {
+          kind: "error",
+          message:
+            '仅 Task：/guide "精确 标题" 1 正文。使用 ASCII 双引号、半角空格和无前导零的正整数轮次；轮次后必须先输入半角空格，不能直接换行开始正文。正文可多行，1–16384 UTF-8 字节；原稿保留',
+        };
+  }
   if (command === "follow") {
     if (page !== "Task" || !taskDetail)
       return { kind: "error", message: "/follow 仅在 Task 普通详情可用" };
@@ -208,6 +225,7 @@ export function parseDraft(
   }
 }
 function isCompleteLocalCommand(raw: string) {
+  if (parseGuide(raw)) return true;
   return (
     !/[\r\n]/.test(raw) &&
     (!!(
@@ -246,6 +264,7 @@ export function commandCompletion(
 ): AutocompleteProvider {
   let generation = 0;
   let argumentContext: string | undefined;
+  let guideRange: ReturnType<typeof guideArgument>;
   return {
     triggerCharacters: ["/"],
     async getSuggestions(lines, line, col) {
@@ -253,7 +272,32 @@ export function commandCompletion(
         text = lines.join("\n"),
         head = lines[0].slice(0, col);
       argumentContext = undefined;
-      if (!typedSlash() || line !== 0 || lines.length !== 1) return null;
+      guideRange = undefined;
+      if (!typedSlash() || line !== 0) return null;
+      const range = page() === "Task" ? guideArgument(text, col) : undefined;
+      if (range) {
+        const detail = taskDetail();
+        const items = await suggestIDs(range.prefix, range.command);
+        if (
+          gen !== generation ||
+          !current(text) ||
+          !typedSlash() ||
+          page() !== "Task" ||
+          taskDetail() !== detail
+        )
+          return null;
+        argumentContext = text;
+        guideRange = range;
+        return items.length
+          ? {
+              prefix: text.slice(range.start, col),
+              items: items.map((item) =>
+                typeof item === "string" ? { value: item, label: item } : item,
+              ),
+            }
+          : null;
+      }
+      if (lines.length !== 1) return null;
       const requestedPage = page(),
         requestedDetail = taskDetail();
       const argument = taskArgumentContext(
@@ -308,6 +352,24 @@ export function commandCompletion(
     },
     applyCompletion(lines, line, col, item: AutocompleteItem) {
       if (!typedSlash()) return { lines, cursorLine: line, cursorCol: col };
+      if (
+        guideRange &&
+        argumentContext === lines.join("\n") &&
+        current(argumentContext) &&
+        page() === "Task"
+      ) {
+        const { start, end } = guideRange;
+        applied?.(end - start, item.value.length, start);
+        const text =
+          argumentContext.slice(0, start) +
+          item.value +
+          argumentContext.slice(end);
+        return {
+          lines: text.split("\n"),
+          cursorLine: 0,
+          cursorCol: start + item.value.length,
+        };
+      }
       if (!item.value.startsWith("/")) {
         const match =
           /^(\/(?:search_task|taskdetail|follow) )([^\r\n]*?)([ \t]*)$/i.exec(
@@ -384,7 +446,15 @@ export class DraftEditor extends Editor {
         if (
           this.getCursor().line !== 0 ||
           originAt(this.bridge.document, 0) !== "typed" ||
-          !taskArgumentContext(this.getText(), page(), taskDetail?.() ?? false)
+          !(
+            taskArgumentContext(
+              this.getText(),
+              page(),
+              taskDetail?.() ?? false,
+            ) ||
+            (page() === "Task" &&
+              guideArgument(this.getText(), this.getCursor().col))
+          )
         )
           return false;
         this.bridge.requestAutocomplete();
@@ -457,8 +527,13 @@ export class DraftEditor extends Editor {
       this.bridge.insert(paste.text, paste.ranges);
     } else if (matchesKey(data, "shift+enter")) {
       // Complete commands submit as typed; an incomplete command accepts the menu item.
-      if (this.isShowingAutocomplete() && !isCompleteLocalCommand(before))
-        super.handleInput("\r");
+      let complete = true;
+      try {
+        complete = isCompleteLocalCommand(this.getExpandedText());
+      } catch {
+        // Submit the preserved snapshot so parseDraft reports damaged paste.
+      }
+      if (this.isShowingAutocomplete() && !complete) super.handleInput("\r");
       else {
         if (this.isShowingAutocomplete()) super.handleInput("\x1b");
         const snapshot = this.snapshot();

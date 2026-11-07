@@ -130,4 +130,16 @@ verify 依次执行类型检查、Git 跟踪 Markdown 链接检查及 `test_case
 
 Core 提供精确 execution_id 的持久 Guidance API，使用方法与限制见 [API 指导合同](api/v1/README.md#精确执行指导103)。Main 可通过 `task_control(action=guide, id=execution_id, task_id, text)` 调整执行方式；该入口不能代批授权或回答 Master 专属问题。
 
-核对指导是否生效时，分别查看持久受理、checkpoint 接收和真实 ModelCall 采用证据。已进入队列的指导不能被静默丢弃，成功结束前必须有有效处理结论；冲突会进入明确待回答事项。新指导不会撤销已启动的外部效果，也不会自动重放结果未知的操作。故障后按原请求身份与原执行对账，禁止改投下一轮。当前终端仍使用既有授权/问题界面；`/guide` 输入交互属于后续 #106。
+核对指导是否生效时，分别查看持久受理、checkpoint 接收和真实 ModelCall 采用证据。已进入队列的指导不能被静默丢弃，成功结束前必须有有效处理结论；冲突会进入明确待回答事项。新指导不会撤销已启动的外部效果，也不会自动重放结果未知的操作。故障后按原请求身份与原执行对账，禁止改投下一轮。终端普通 Task 输入支持 `/guide <精确标题> <执行轮次> <正文>`；授权和问题仍通过既有事项界面处理。
+
+### Issue #106 isolated real-model acceptance
+
+The acceptance-only launcher is [issue106-acceptance.ts](../test_case/online/issue106-acceptance.ts). It creates an owned PostgreSQL cluster, World projection, loopback Core, separate rehearsal/Master draft roots and private command scripts under `.demo-data/issue106/acceptance/`. It never inherits `SECRETARY_*` production settings. Both roles use the existing checked private DeepSeek credential file; secrets are not copied into arguments, evidence or child environment.
+
+The shared fsynced ledger counts physical provider attempts and proposed tools across roles and restarts (100 / 300). Preparation has its own two-hour wall-clock deadline. ARMED_FOR_MASTER keeps HTTP/SSE available with business pumping off. Only the first explicit Master connect starts the two-hour manual deadline; sleep counts. ACTIVE automatically resumes pumping after Core restart until the actual budget/deadline is exhausted. Reconnect never resets limits or requires the initial 60-attempt/180-tool reserve. EXHAUSTED retains history access. Budget extensions require explicit authorization and an atomic extension event; the launcher has no automatic reset.
+
+Use the generated absolute commands in the handoff record. `prepare-task.command` creates a fresh directory scope with writes requiring approval, waits for a genuine model-generated pending authorization, and preserves prior scenarios. Native Terminal and Master's acceptance remain separate from automated HTTP/headless evidence.
+
+The v4 legacy exporter intentionally rejects guidance-bearing state, including an accepted tombstone. Preserve/export the guidance evidence and use a **separate older-client state directory** for rollback; never point an older client at the v4 directory or delete the accepted binding to force export. Keep the original directory for returning to this version.
+
+The [acceptance handoff](fix/evidence/issue106-guide/handoff.md) documents explicit stop → authorized offline extension → start, private socket-directory recovery after long inactivity, and intentionally resubmitting revised guidance. Never edit a live in-memory budget ledger from outside its owner.

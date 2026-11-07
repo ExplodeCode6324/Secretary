@@ -121,3 +121,13 @@ Task cards display the permanent title and execution round. Use `/search_task "�
 The list card's `[详情]` hotspot opens that exact task; its title and goal remain ordinary selectable text. Esc first respects a matter or completion menu, then returns ordinary Task detail to the list and its saved anchor. Mouse/Esc navigation preserves the shared Task draft, undo and paste provenance. Explicitly submitted local commands consume their own command text. No guidance command is added by #105.
 
 Automated coverage: `npx tsx --test test_case/offline/issue105/*.test.ts`. This includes the pinned Pi dispatch path; headless results do not establish native-terminal acceptance. Back up a real data root before its first upgraded start as described in the API guide.
+
+## #106 Task 引导
+
+在普通 Task 根视图或详情中手敲 `/`，输入 `/guide "任务标题" 1 正文`，用 Shift+Enter 提交。任务标题为 NFC 精确标题，轮次是实际正整数；标题补全后输入空格可补全执行轮次。Tab/Enter 仅接受补全。正文支持多行及粘贴块，最后一个语法空格后的内容原样提交；单条上限 16384 UTF-8 字节。整条粘贴保留为 Task 草稿；Main 不支持此命令，事项回答中的命令文字仍按回答处理。
+
+页脚显示目标标题、轮次、状态及“仅本次执行”。提交期间可编辑和切页，只有仍匹配原提交的 Task 草稿在可靠接收后清空。F6（Mac 可能需要 Fn+F6）打开引导回执：Enter 只读详情，↑↓ 选择动作，Shift+Enter 明确执行同 ID 重试、复制、恢复到空草稿或导出并释放冲突，Esc 返回。一次只保留一个未解决引导；Main 发送独立可用。重启只查询原请求，绝不自动重发或解析成新目标。
+
+执行标题下的回执区展示 MASTER/MAIN、SENT/RECEIVED/GUIDED 的实际时间和处置原因。GUIDED 是 Agent 的可归因采纳回执，最终行为仍需检查。历史 SENT 消息保留原正文，不会因后来的处置被改写。最新本地提交可从根视图 F6 查看，旧执行不在最近三轮时也可对账。
+
+本地状态升级到 v4，升级前保留私有备份；未知/冲突材料不自动删除。有引导 outbox、最新记录或恢复文件时，旧格式导出拒绝执行，避免丢失请求身份。

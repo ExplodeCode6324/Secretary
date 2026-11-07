@@ -56,6 +56,7 @@ test("custom completion never offers paths, leading-space commands or wrong scop
       "/help",
       "/search_task",
       "/taskdetail",
+      "/guide",
       "/show",
       "/cancel",
     ],

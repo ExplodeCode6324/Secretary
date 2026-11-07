@@ -1,3 +1,4 @@
+import { validateGuidance, type GuidanceEnvelope } from "./guidance-state.ts";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
@@ -48,15 +49,18 @@ export type Pending = {
   snapshot?: DraftSnapshot;
 };
 export type LocalState = {
-  version: 1 | 2 | 3;
+  version: 1 | 2 | 3 | 4;
   domain: string;
   mode: string;
   drafts: Record<Page, Draft>;
   pending?: Pending;
+  guidancePending?: GuidanceEnvelope;
+  guidanceLast?: GuidanceEnvelope;
+  guidanceRecovery?: { id: string; file: string };
   recovery?: { file: string; id: string; images?: boolean };
 };
 export const freshState = (domain: string, mode: string): LocalState => ({
-  version: 3,
+  version: 4,
   domain,
   mode,
   drafts: {
@@ -128,7 +132,7 @@ export class LocalFiles implements StatePersistence {
         const original = await fs.readFile(filename, "utf8");
         const s = JSON.parse(original) as LocalState;
         if (
-          ![1, 2, 3].includes(s.version) ||
+          ![1, 2, 3, 4].includes(s.version) ||
           s.domain !== domain ||
           s.mode !== mode ||
           !s.drafts ||
@@ -146,7 +150,7 @@ export class LocalFiles implements StatePersistence {
             !Array.isArray(s.pending.attempts))
         )
           throw Error("INVALID_PENDING_STATE");
-        const legacy = s.version < 3;
+        const legacy = s.version < 4;
         const priorVersion = s.version;
         for (const d of Object.values(s.drafts)) {
           if (
@@ -185,12 +189,14 @@ export class LocalFiles implements StatePersistence {
           )
             throw Error("PENDING_RAW_SNAPSHOT_MISMATCH");
         }
+        for (const p of [s.guidancePending, s.guidanceLast])
+          if (p) validateGuidance(p, domain, mode);
         if (legacy) {
           await this.atomic(
             `v${priorVersion}-before-upgrade-${randomUUID()}.json`,
             original,
           );
-          s.version = 3;
+          s.version = 4;
           await this.save(s);
         }
         return s;
@@ -217,7 +223,7 @@ export class LocalFiles implements StatePersistence {
     });
     const snapshot: LocalState = {
       ...state,
-      version: 3,
+      version: 4,
       drafts: Object.fromEntries(
         Object.entries(state.drafts).map(([page, draft]) => [
           page,
@@ -245,6 +251,15 @@ export class LocalFiles implements StatePersistence {
             },
           }
         : {}),
+      ...(state.guidancePending
+        ? { guidancePending: structuredClone(state.guidancePending) }
+        : {}),
+      ...(state.guidanceLast
+        ? { guidanceLast: structuredClone(state.guidanceLast) }
+        : {}),
+      ...(state.guidanceRecovery
+        ? { guidanceRecovery: { ...state.guidanceRecovery } }
+        : {}),
       ...(state.recovery ? { recovery: { ...state.recovery } } : {}),
     };
     const job = this.tail
@@ -252,6 +267,11 @@ export class LocalFiles implements StatePersistence {
       .then(() => this.atomic("state.json", snapshot));
     this.tail = job;
     return job;
+  }
+  async recoverGuidance(p: GuidanceEnvelope) {
+    const file = `recovery-${randomUUID()}.json`;
+    await this.atomic(file, JSON.stringify(p));
+    return file;
   }
   async recover(p: Pending) {
     const file = `recovery-${randomUUID()}.json`;
@@ -338,6 +358,7 @@ export class LocalFiles implements StatePersistence {
         const value = JSON.parse(await fs.readFile(full, "utf8"));
         if (
           name === state.recovery?.file ||
+          name === state.guidanceRecovery?.file ||
           !expired(value.created_at ?? st.mtime.toISOString(), now)
         )
           protect(value);
@@ -367,7 +388,8 @@ export class LocalFiles implements StatePersistence {
       const temporary = /^\.tmp-[a-f0-9-]+$/.test(file);
       if (
         (!temporary && !/^recovery-[a-f0-9-]+\.json$/.test(file)) ||
-        file === state.recovery?.file
+        file === state.recovery?.file ||
+        file === state.guidanceRecovery?.file
       )
         continue;
       const full = path.join(this.directory, file),
@@ -375,6 +397,16 @@ export class LocalFiles implements StatePersistence {
       if (!st.isFile() || st.isSymbolicLink()) continue;
       try {
         const r = JSON.parse(await fs.readFile(full, "utf8"));
+        if (
+          r.guidancePending ||
+          (state.guidancePending &&
+            (r.id === state.guidancePending.id ||
+              r.guidanceLast?.id === state.guidancePending.id)) ||
+          (state.guidanceLast && r.id === state.guidanceLast.id) ||
+          (state.guidanceRecovery &&
+            r.guidanceRecovery?.id === state.guidanceRecovery.id)
+        )
+          continue;
         if (
           state.pending &&
           (state.pending.id === r.id || state.pending.id === r.pending?.id)
@@ -389,11 +421,15 @@ export class LocalFiles implements StatePersistence {
         if (
           temporary &&
           !(
-            ([1, 2, 3].includes(r.version) && r.drafts) ||
+            ([1, 2, 3, 4].includes(r.version) && r.drafts) ||
             (typeof r.raw === "string" && r.body)
           )
         )
           continue;
+        for (const p of [r.guidancePending, r.guidanceLast])
+          if (p) validateGuidance(p, r.domain, r.mode);
+        if (r.version === 1 && r.target && r.fingerprint)
+          validateGuidance(r, r.domain, r.mode);
         if (expired(temporary ? st.mtime.toISOString() : r.created_at, now))
           await fs.unlink(full);
       } catch {
@@ -443,6 +479,8 @@ function* jsonChunks(value: unknown): Generator<string> {
 }
 /** Export current content, never use a stale upgrade backup as a rollback shortcut. */
 export function exportLegacyState(state: LocalState): LocalState {
+  if (state.guidancePending || state.guidanceLast || state.guidanceRecovery)
+    throw Error("LEGACY_EXPORT_HAS_GUIDANCE");
   if (
     Object.values(state.drafts).some((d) => d.materials?.length) ||
     state.pending?.materials?.length ||
