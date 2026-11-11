@@ -191,6 +191,11 @@ export async function serveCore(
       } catch {
         throw new ApiError("INVALID_JSON");
       }
+      if (route === "world/preview")
+        return send(200, {
+          api_version: "1",
+          data: service.worldPreview(service.principal, body),
+        });
       const data = service.command(service.principal, route, body);
       send(202, { api_version: "1", data });
     } catch (error) {

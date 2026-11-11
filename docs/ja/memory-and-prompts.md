@@ -36,7 +36,7 @@ Consciousness は現在の作業要約、コミットメント、カバー範囲
 | memory_read source=log | [journal/CAS の分割読み取り](../../src/pi_secretary/src/main-tools.ts)：event_id で指定。offset/length は Unicode コードポイント単位、デフォルト 2000、最大 4000。next_offset をたどって全文と hash を取得 |
 | memory_read source=consciousness | 現在のワーキングメモリ |
 | memory_read source=world | subject（ID、名前、別名）と predicate で事実を検索し、曖昧なら候補を返す。デフォルト 20 件、最大 100 件、cursor で次ページへ |
-| memory_propose_change | 出典イベントと ASSERT/CORRECT/RETRACT を提出。訂正・撤回には target_fact_id を付け、ホストが契約を組み立てて認可と Settings に進める |
+| memory_propose_change | One changes array with 1–20 entity/fact edits and evidence; exact approval commits atomically without Settings. Read world_batch before claiming COMMITTED. |
 
 検索状態は not_configured、未マイグレーション、再構築中、障害、タイムアウトを区別します。遅延した結果には partial と処理済み位置を付けます。ツール結果は今回の残予算に制約され、短縮時には truncated と継続オフセットを返します。World の source_note は説明用であり、証拠の識別は出典イベントに基づきます。
 

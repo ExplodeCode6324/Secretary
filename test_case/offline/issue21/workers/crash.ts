@@ -40,10 +40,14 @@ export const proposalStream: StreamFn = (model, context, options) => {
           id: "durable-world-proposal",
           name: "memory_propose_change",
           arguments: {
-            intent: "ASSERT",
-            subject: "Crash subject",
-            predicate: "person.height",
-            value: 170,
+            changes: [
+              {
+                intent: "ASSERT",
+                subject: "role:master",
+                predicate: "preference.statement",
+                value: "Prefers tea",
+              },
+            ],
           },
         },
       ],
@@ -63,7 +67,13 @@ if (mode === "world") {
   const commit = app.store.commit.bind(app.store);
   app.store.commit = (...args: Parameters<typeof commit>) => {
     const result = commit(...args);
-    if (args[0].some((record) => record.record_type === "WorldCommand"))
+    if (
+      args[0].some(
+        (record) =>
+          record.record_type === "Operation" &&
+          record.action.action === "world.change",
+      )
+    )
       process.kill(process.pid, "SIGKILL");
     return result;
   };

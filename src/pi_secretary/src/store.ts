@@ -1,3 +1,4 @@
+import { validateWorldFrame } from "./world-invariants.ts";
 import { TaskIdentityIndex, IDENTITY_ACTIVATED } from "./task-identity.ts";
 import { EVIDENCE_MEDIA, hydrateEvidence } from "./evidence.ts";
 import { createHash, randomUUID } from "node:crypto";
@@ -444,6 +445,8 @@ export class Store {
       throw error;
     }
     for (const r of records) {
+      if (r.record_type === "WorldCommand")
+        throw Error("LEGACY_WORLD_COMMAND_READ_ONLY");
       shape(r);
       const old = this.records.get(r.record_type + ":" + r.id);
       if (r.revision !== (old?.revision ?? 0) + 1)
@@ -860,6 +863,7 @@ export class Store {
       )
         throw Error("MISSING_SESSION");
     }
+    validateWorldFrame(this, txn, staged);
     const identityEvents = txn.log_records.filter(
       (e) => e.event_type === IDENTITY_ACTIVATED,
     );

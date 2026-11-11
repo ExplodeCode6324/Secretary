@@ -794,7 +794,7 @@
           "enum": [
             "entities",
             "predicates",
-            "sources"
+            "roles"
           ],
           "default": "entities"
         }
@@ -831,8 +831,7 @@
         "in": "query",
         "required": false,
         "schema": {
-          "type": "string",
-          "format": "uuid"
+          "type": "string"
         }
       },
       {
@@ -851,26 +850,9 @@
           "type": "boolean",
           "default": false
         }
-      }
-    ]
-  },
-  {
-    "method": "GET",
-    "path": "/api/v1/world/slot",
-    "response": "WorldSlot",
-    "status": 200,
-    "parameters": [
-      {
-        "name": "subject",
-        "in": "query",
-        "required": false,
-        "schema": {
-          "type": "string",
-          "format": "uuid"
-        }
       },
       {
-        "name": "predicate",
+        "name": "topic",
         "in": "query",
         "required": false,
         "schema": {
@@ -878,7 +860,7 @@
         }
       },
       {
-        "name": "scope",
+        "name": "fact_id",
         "in": "query",
         "required": false,
         "schema": {
@@ -1686,5 +1668,36 @@
     "path": "/api/v1/executions/{id}/guidance",
     "response": "GuidancePage",
     "status": 200
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/world/changes",
+    "request": "WorldBatchCommand",
+    "response": "Receipt",
+    "status": 202
+  },
+  {
+    "method": "POST",
+    "path": "/api/v1/world/preview",
+    "request": "WorldPreviewRequest",
+    "response": "WorldRecallPreview",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "path": "/api/v1/world/batches/{id}",
+    "response": "WorldBatchResult",
+    "status": 200,
+    "parameters": [
+      {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      }
+    ]
   }
 ]

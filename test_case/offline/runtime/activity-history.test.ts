@@ -151,7 +151,7 @@ test("tool failure and authorization wait are not reported as successful executi
                 type: "toolCall",
                 id: id(),
                 name: "memory_read",
-                arguments: { source: "world" },
+                arguments: { source: "world", cursor: "malformed-cursor" },
               },
             ]),
     },

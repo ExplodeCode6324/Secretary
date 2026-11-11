@@ -88,7 +88,7 @@
 | [JournalTransaction](JournalTransaction.md) | 10 | 単一 writer のトランザクション。frame は元の payload バイト列の checksum を包み、全体が適用されるか全く適用されないかです。 |
 | [MemoryCommitment](MemoryCommitment.md) | 7 |  |
 | [UserInstructions](UserInstructions.md) | 7 | 現在有効な Master の指示。UI は先に草稿を保存し、完全な要約と context 再構築後に適用状態と一括コミットします。 |
-| [MainPromptSnapshot](MainPromptSnapshot.md) | 11 |  |
+| [MainPromptSnapshot](MainPromptSnapshot.md) | 12 |  |
 | [SettingsDraft](SettingsDraft.md) | 6 | Master の適用待ち変更。payload は SettingsPayload で、有効設定ではありません。 |
 | [SettingsApplication](SettingsApplication.md) | 17 | 固定バッチの設定適用。DB コミット後は再構築が完了するまでメインセッションを続行できません。 |
 | [WorldEdit](WorldEdit.md) | 20 |  |
@@ -116,3 +116,6 @@
 | [Guidance](Guidance.md) | 21 | Durable exact-execution guidance; independent sent, received and adopted milestones. |
 | [GuidanceInjection](GuidanceInjection.md) | 13 | Host-only injection provenance. A queued message is not reception or model consumption. |
 | [GuidanceReceipt](GuidanceReceipt.md) | 15 | Append-only validated disposition from the actual durable model request and response. |
+| [WorldEntity](WorldEntity.md) | 11 |  |
+| [WorldAssertion](WorldAssertion.md) | 21 |  |
+| [WorldGenesis](WorldGenesis.md) | 10 |  |

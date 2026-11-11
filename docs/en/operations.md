@@ -6,7 +6,7 @@
 
 See [terminal operation and verification](../tui/run-and-test.md) for client startup, keys and validation. The commands below manage the independent Core; exiting TUI does not stop Core.
 
-Run commands from the repository root. Requires Node.js ≥22.19, npm, Python 3, and the pinned Pi submodule. World and history search use PostgreSQL.
+Run from the repository root with Node.js ≥22.19, npm, Python 3 and the pinned Pi submodule. World uses the journal; PostgreSQL provides log search and one-time legacy import.
 
 ## Installation, startup, and shutdown
 
@@ -45,10 +45,10 @@ After upgrading, manually configured `opencode` and `opencode-go` providers fail
 | SECRETARY_MAIN_MODEL / SECRETARY_TASK_MODEL | Role models |
 | SECRETARY_MAIN_API_KEY / SECRETARY_TASK_API_KEY | Role credentials |
 | SECRETARY_PROVIDER / SECRETARY_MODEL | Shared defaults for direct Core startup |
-| SECRETARY_DATABASE_URL | PostgreSQL DSN for World and search |
+| SECRETARY_DATABASE_URL | Log-search and legacy-import PostgreSQL DSN |
 | SECRETARY_MAX_WORKERS | Concurrent executor limit, default 2 |
 
-The default live directory optionally reads `.demo-data/live-runtime.json`; `database_url` provides the DSN, with the environment DSN taking precedence. If no environment DSN is supplied and `local_postgres_data` is configured, the wrapper starts the existing cluster with pg_ctl. After database configuration, initialize through `admin/world/migrate`. Stopping Core closes connections but leaves PostgreSQL running. See [memory and prompts](memory-and-prompts.md#capacity-and-configuration) for budget parameters.
+The live directory optionally reads `.demo-data/live-runtime.json`; `database_url` supplies a DSN, overridden by the environment. With `local_postgres_data` and no environment DSN, the wrapper starts the existing cluster using pg_ctl. The mem-only schema initializes at startup; `admin/world/migrate` retries initialization/import.Core stop closes connections while PostgreSQL stays running. Budget settings: [Memory and prompts](memory-and-prompts.md#Capacity and configuration).
 
 ## Common administration tasks
 
@@ -93,7 +93,7 @@ Stop Core and back up the full data directory, associated PostgreSQL database, c
 npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 ```
 
-Validate replay with the new version on an isolated copy before switching the active directory. Recover unfinished Settings with the original configuration. When moving directories, verify program entrypoints and Execution bindings. Roll back with a complete backup matching the code version and reconcile external effects that occurred during the upgrade. See [architecture](architecture.md#data-and-commits) for storage implementation.
+Verify replay on an isolated copy before switching directories. Recover unfinished Settings with the original configuration and check program paths and Execution bindings when moving directories. After the first World record or new prompt snapshot, old binaries cannot replay the journal: use a forward fix. Never overwrite newer writes with an older backup.Storage implementation: [Architecture](architecture.md#Data and commits).
 
 Quit the TUI before backup and save its state directory together with Core data. The default is `~/Library/Application Support/Secretary/tui/v1/<domain>/`; custom launchers use their actual `stateRoot` (`data/tui` for agile). Preserve the entire directory, including unsent requests, original request_id values and recovery material, not only rebuildable caches.
 
@@ -106,7 +106,7 @@ Quit the TUI before backup and save its state directory together with Core data.
 | CAPACITY_BLOCKED / INPUT_EXIT_DISABLED | Check memory status, model budget, and PostgreSQL search watermark; restore the index, then retry maintenance |
 | RECOVERY_BLOCKED | Check the checkpoint, call, and tool receipts in the recovery error, then use session/resume |
 | RESULT_UNKNOWN | Verify the file write or resolve the effect from actual evidence; finalize after confirming controlled-process termination |
-| Settings BLOCKED | Recover with the original configuration, check World batch receipts, and retry bridging |
+| Settings BLOCKED | Retry Settings with the exact compatible runtime; World facts have no SQL receipt bridge |
 | RESYNC_REQUIRED | Obtain a new sync watermark, load resources, then catch up changes; reconcile original commands by request_id |
 | SECRET_UNAVAILABLE / Push FAILED | Check private target configuration or stable error codes and inspect dispatch attempt records |
 | journal/CAS corruption or append acknowledgment failure | Preserve a full copy and locate the recovery error; reopen and reconcile committed results against the journal |

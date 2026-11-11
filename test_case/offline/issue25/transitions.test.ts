@@ -149,7 +149,12 @@ for (const kind of ["Execution", "Operation", "Input"] as const) {
             });
           if (
             from === to ||
-            machine.transitions.some((e) => e.from === from && e.to === to)
+            (machine.transitions.some((e) => e.from === from && e.to === to) &&
+              !(
+                kind === "Operation" &&
+                from === "AUTHORIZED" &&
+                to === "SUCCEEDED"
+              ))
           ) {
             commit();
             assert.equal(
@@ -161,7 +166,9 @@ for (const kind of ["Execution", "Operation", "Input"] as const) {
           } else {
             assert.throws(
               commit,
-              new RegExp(`INVALID_${kind.toUpperCase()}_TRANSITION`),
+              new RegExp(
+                `INVALID_${kind.toUpperCase()}_TRANSITION|JOURNAL_APPLY_ACTION_FORBIDDEN`,
+              ),
               `${kind} ${from} -> ${to}`,
             );
             assert.equal(store.sequence, sequence);

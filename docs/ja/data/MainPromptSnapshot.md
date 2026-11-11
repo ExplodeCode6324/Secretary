@@ -21,6 +21,7 @@
 | `system_prompt_hash` | Digest | はい |  関連：[Digest](Digest.md) |
 | `system_message` | ObjectRef | はい |  関連：[ObjectRef](ObjectRef.md) |
 | `settings_application_id` | ID または null | いいえ |  関連：[ID](ID.md) |
+| `recall_ref` | ObjectRef | いいえ |  関連：[ObjectRef](ObjectRef.md) |
 
 ## 組み合わせ制約
 

@@ -1,3 +1,4 @@
+import { recall, worldSnapshot } from "./world-recall.ts";
 import { guidanceFor, GUIDANCE_CONTEXT } from "./guidance.ts";
 import { failuresFor, type FailureProposal } from "./failure-handling.ts";
 import { Type } from "typebox";
@@ -95,10 +96,13 @@ export function tools(
               .filter((i) => i.loop_id === loopID);
             if (
               bound &&
-              ([
-                "memory_propose_change",
-                "schedule_wakeup",
-                "cancel_wakeup",
+              (![
+                "task_query",
+                "memory_search",
+                "memory_read",
+                "MasterInteract",
+                "task_propose",
+                "task_control",
               ].includes(t.name) ||
                 (t.name === "task_control" &&
                   (args as { action: string }).action !== "dismiss_failure"))
@@ -298,19 +302,34 @@ export function tools(
               Type.Literal("reply"),
               Type.Literal("task"),
               Type.Literal("notification"),
+              Type.Literal("fact"),
             ]),
           ),
         ),
+        history: Type.Optional(Type.Boolean()),
         scope_id: Type.Optional(Type.String()),
         task_id: Type.Optional(Type.String()),
         limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
       }),
-      execute: async (_call, args) =>
-        this.memoryToolResult(
-          this.world
-            ? await this.world.memorySearch.search(args)
-            : { status: "not_configured", hits: [] },
-        ),
+      execute: async (_call, args) => {
+        if (!this.world)
+          return this.memoryToolResult({ status: "not_configured", hits: [] });
+        const at = new Date().toISOString();
+        const facts = args.kinds?.includes("fact")
+          ? recall(
+              worldSnapshot(this.store, at),
+              args.query,
+              { history: args.history },
+              at,
+            )
+          : undefined;
+        const kinds = args.kinds?.filter(
+          (k): k is import("./memory-search.ts").SearchKind => k !== "fact",
+        );
+        if (facts && !kinds?.length) return this.memoryToolResult(facts);
+        const logs = await this.world.memorySearch.search({ ...args, kinds });
+        return this.memoryToolResult(facts ? { facts, logs } : logs);
+      },
     }),
     tool({
       name: "memory_read",
@@ -320,9 +339,15 @@ export function tools(
       parameters: Type.Object({
         source: Type.Union([
           Type.Literal("world"),
+          Type.Literal("world_batch"),
           Type.Literal("consciousness"),
           Type.Literal("log"),
         ]),
+        batch_id: Type.Optional(Type.String()),
+        fact_id: Type.Optional(Type.String()),
+        topic: Type.Optional(Type.String()),
+        history: Type.Optional(Type.Boolean()),
+        catalog: Type.Optional(Type.String()),
         subject_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         subject: Type.Optional(Type.String()),
         predicate: Type.Optional(Type.String()),
@@ -333,6 +358,13 @@ export function tools(
         length: Type.Optional(Type.Integer({ minimum: 1, maximum: 4000 })),
       }),
       execute: async (_call, args) => {
+        if (args.source === "world_batch") {
+          if (!this.world || !args.batch_id)
+            throw Error("WORLD_BATCH_REQUIRED");
+          return this.memoryToolResult(
+            this.world.batch(args.batch_id, this.sessionID),
+          );
+        }
         if (args.source === "world") {
           if (!this.world)
             throw Error("WORLD_UNAVAILABLE: PostgreSQL not configured");
@@ -342,6 +374,10 @@ export function tools(
             );
           return this.memoryToolResult(
             await readWorld(this.world, {
+              fact_id: args.fact_id,
+              topic: args.topic,
+              history: args.history,
+              catalog: args.catalog,
               subject: args.subject ?? args.subject_id,
               predicate: args.predicate,
               cursor: args.cursor,
@@ -364,23 +400,79 @@ export function tools(
       name: "memory_propose_change",
       label: "Propose World Model change",
       description:
-        "Propose ASSERT, CORRECT or RETRACT facts using subject ID/name/alias and predicate key. ENTITY values use an entity selector. Correction/retraction requires target_fact_id. source_event_ids must reference real evidence; source_note is explanation only. Source registration and fact changes require owner authorization; use Settings to create missing entities.",
-      parameters: Type.Object({
-        intent: Type.Union([
-          Type.Literal("ASSERT"),
-          Type.Literal("CORRECT"),
-          Type.Literal("RETRACT"),
-        ]),
-        subject: Type.String(),
-        predicate: Type.String(),
-        value: Type.Optional(Type.Unknown()),
-        valid_from: Type.Optional(Type.String()),
-        target_fact_id: Type.Optional(Type.String()),
-        source_event_ids: Type.Optional(
-          Type.Array(Type.String(), { maxItems: 20 }),
-        ),
-        source_note: Type.Optional(Type.String({ maxLength: 2000 })),
-      }),
+        "Propose ASSERT, CORRECT or RETRACT facts using subject ID/name/alias and predicate key. ENTITY values use an entity selector. Correction/retraction requires target_fact_id. source_event_ids must reference real evidence; source_note is explanation only. Each changes batch needs one exact owner approval. Mix entity creation with facts using local $references. ASSERT preserves existing facts; CORRECT names the replaced target. Use role:master and role:secretary. Proposal/approval is not recording: query memory_read world_batch for COMMITTED.",
+      parameters: Type.Object(
+        {
+          changes: Type.Array(
+            Type.Object(
+              {
+                intent: Type.Union(
+                  [
+                    "CREATE_ENTITY",
+                    "EDIT_ENTITY",
+                    "RETIRE_ENTITY",
+                    "ASSERT",
+                    "CORRECT",
+                    "RETRACT",
+                  ].map((x) => Type.Literal(x)),
+                ),
+                local_ref: Type.Optional(Type.String()),
+                subject: Type.Optional(Type.String()),
+                entity_kind: Type.Optional(
+                  Type.Union(
+                    [
+                      "PERSON",
+                      "ORGANIZATION",
+                      "PROJECT",
+                      "DEVICE",
+                      "SERVICE",
+                      "RESOURCE",
+                      "GOAL",
+                    ].map((x) => Type.Literal(x)),
+                  ),
+                ),
+                display_name: Type.Optional(Type.String()),
+                rename: Type.Optional(
+                  Type.Object(
+                    { from: Type.String(), to: Type.String() },
+                    { additionalProperties: false },
+                  ),
+                ),
+                aliases: Type.Optional(
+                  Type.Object(
+                    {
+                      add: Type.Optional(Type.Array(Type.String())),
+                      remove: Type.Optional(Type.Array(Type.String())),
+                    },
+                    { additionalProperties: false },
+                  ),
+                ),
+                predicate: Type.Optional(Type.String()),
+                topic: Type.Optional(Type.String()),
+                value: Type.Optional(Type.Unknown()),
+                keywords: Type.Optional(
+                  Type.Array(Type.String(), { maxItems: 20 }),
+                ),
+                target_fact_id: Type.Optional(Type.String()),
+                source_event_ids: Type.Optional(
+                  Type.Array(Type.String(), { maxItems: 20 }),
+                ),
+                valid_from: Type.Optional(Type.String()),
+                valid_to: Type.Optional(
+                  Type.Union([Type.String(), Type.Null()]),
+                ),
+                fresh_until: Type.Optional(
+                  Type.Union([Type.String(), Type.Null()]),
+                ),
+                source_note: Type.Optional(Type.String({ maxLength: 2000 })),
+              },
+              { additionalProperties: false },
+            ),
+            { minItems: 1, maxItems: 20 },
+          ),
+        },
+        { additionalProperties: false },
+      ),
       execute: async (call, args) => {
         if (!this.world) throw Error("WORLD_UNAVAILABLE");
         const inputs = new Set(
@@ -406,7 +498,7 @@ export function tools(
           await proposeWorld(
             this.world,
             { session_id: this.sessionID, task_id: null, execution_id: null },
-            args,
+            args as import("./world-memory.ts").ProposalIntent,
             call,
             events,
           ),

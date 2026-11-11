@@ -1,3 +1,6 @@
+import { stableID } from "./execution-utils.ts";
+import { recall, worldSnapshot } from "./world-recall.ts";
+import { validateWorldLabel } from "./world-catalog.ts";
 import { guidanceFor } from "./guidance.ts";
 import { deliveriesFor } from "./artifact-delivery.ts";
 import { sessionRecovery } from "./session-recovery.ts";
@@ -70,21 +73,8 @@ export type OwnerPrincipal = Readonly<{
   kind: "local-owner";
   owner_id: string;
 }>;
-const IDENTITY = "995e1b45-b9e8-43e7-b0df-460814f2c7f1";
-/** The API and in-process terminal share the same durable local owner. */
-export function coreIdentity(store: Store): CoreIdentity {
-  const existing = store.find<CoreIdentity>("CoreIdentity", IDENTITY);
-  if (existing) return existing;
-  const identity: CoreIdentity = {
-    ...base(IDENTITY),
-    schema_version: 1,
-    record_type: "CoreIdentity",
-    owner_id: id(),
-  };
-  store.commit([identity]);
-  return identity;
-}
-const PROFILE = "1c5e07dd-0519-4266-8208-b00e9cbd997a";
+export { coreIdentity } from "./core-identity.ts";
+import { coreIdentity, assistantProfile, PROFILE } from "./core-identity.ts";
 const longRoutes = new Set([
   "task-requests/:id/cancel",
   "executions/:id/cancel",
@@ -150,15 +140,7 @@ export class ApplicationService {
       kind: "local-owner",
       owner_id: identity.owner_id,
     });
-    if (!store.find("AssistantProfile", PROFILE))
-      store.commit([
-        {
-          ...base(PROFILE),
-          schema_version: 1,
-          record_type: "AssistantProfile",
-          name: "",
-        },
-      ]);
+    assistantProfile(store);
     // An interrupted dispatch is reconciled through domain resources, never replayed.
     for (const request of store.all<ApiCommand>("ApiCommand")) {
       if (request.command === "attachments/import") continue;
@@ -237,6 +219,17 @@ export class ApplicationService {
       resource_ids: r.resource_ids,
       error_code: r.error_code,
     };
+  }
+  worldPreview(principal: OwnerPrincipal, body: unknown) {
+    this.authorize(principal);
+    validate("WorldPreviewRequest", body);
+    const at = now();
+    return recall(
+      worldSnapshot(this.app.store, at),
+      body.text as string,
+      {},
+      at,
+    );
   }
   command(principal: OwnerPrincipal, path: string, body: unknown): Receipt {
     this.authorize(principal);
@@ -440,11 +433,30 @@ export class ApplicationService {
       }
       case "scopes/:id/archive":
         return scheduler.scopes.archive(target!, revision(b.expected_revision));
+      case "world/changes":
+        return this.app.world!.ownerChange(
+          {
+            version: 1,
+            batch_id: stableID((b.request_id as string) + ":world"),
+            changes: b.changes as import("./world-accept.ts").WorldEdit[],
+          },
+          { session_id: host.sessionID, task_id: null, execution_id: null },
+        );
       case "assistant/profile": {
         const p = store.get<AssistantProfile>("AssistantProfile", PROFILE);
         if (p.revision !== revision(b.expected_revision))
           throw new ApiError("REVISION_CONFLICT", 409);
-        store.commit([revise(p, { name: (b.name as string).trim() })]);
+        const name = (b.name as string).trim();
+        if (name) validateWorldLabel(name);
+        const anchor = store
+          .all<import("./contracts.ts").WorldEntity>("WorldEntity")
+          .find((e) => e.role === "SECRETARY");
+        store.commit([
+          revise(p, { name }),
+          ...(anchor
+            ? [revise(anchor, { display_name: name || "Secretary" })]
+            : []),
+        ]);
         return;
       }
       case "clients":
@@ -757,7 +769,7 @@ export class ApplicationService {
       ...(path === "push-dispatches" ? ["state", "target_id"] : []),
       ...(/^operations\/[^/]+\/content$/.test(path) ? ["part"] : []),
       ...(path.startsWith("world/")
-        ? ["subject", "predicate", "scope", "kind", "history"]
+        ? ["subject", "predicate", "topic", "fact_id", "kind", "history"]
         : []),
     ]);
     for (const key of q.keys())
@@ -876,9 +888,13 @@ export class ApplicationService {
           ),
           core: { state: "supported", allowed: true, reason: null },
           world: {
-            state: this.app.world ? "supported" : "not_configured",
-            allowed: !!this.app.world,
-            reason: this.app.world ? null : "WORLD_NOT_CONFIGURED",
+            state: this.app.world?.ready
+              ? "supported"
+              : "temporarily_unavailable",
+            allowed: !!this.app.world?.ready,
+            reason: this.app.world?.ready
+              ? null
+              : "WORLD_LEGACY_IMPORT_PENDING",
           },
           devices: {
             state: "not_supported",
@@ -1172,7 +1188,23 @@ export class ApplicationService {
       const a = this.authorization(target);
       return project({
         ...a,
-        display: store.read(a.display_ref),
+        display: {
+          ...(store.read(a.display_ref) as object),
+          ...(a.action.action === "world.change"
+            ? {
+                world_preview: (() => {
+                  try {
+                    return this.app.world!.preview(
+                      store.read(a.action.parameters_ref),
+                      a.scope,
+                    );
+                  } catch (e) {
+                    return { error: String(e), preview_at: now() };
+                  }
+                })(),
+              }
+            : {}),
+        },
         guidance_warning:
           a.scope.execution_id &&
           guidanceFor(store).obsolete(store.get("Operation", a.operation_id))
@@ -1413,12 +1445,8 @@ export class ApplicationService {
     if (parts[0] === "world") {
       const world = this.app.world;
       if (!world) throw new ApiError("WORLD_UNAVAILABLE", 503);
-      if (path === "world/slot")
-        return world.slot(
-          q.get("subject") ?? "",
-          q.get("predicate") ?? "",
-          q.get("scope") ?? "",
-        );
+      if (parts[1] === "batches" && parts.length === 3)
+        return this.app.world!.batch(parts[2], sid);
       if (path === "world/catalog") {
         const kind = q.get("kind") ?? "entities",
           scope = path + ":" + kind;
@@ -1440,10 +1468,18 @@ export class ApplicationService {
         const scope =
           path +
           ":" +
-          fingerprint([q.get("subject"), q.get("predicate"), q.get("history")]);
+          fingerprint([
+            q.get("subject"),
+            q.get("predicate"),
+            q.get("history"),
+            q.get("topic"),
+            q.get("fact_id"),
+          ]);
         const page = await world.browse({
           subject: q.get("subject") ?? undefined,
           predicate: q.get("predicate") ?? undefined,
+          topic: q.get("topic") ?? undefined,
+          fact_id: q.get("fact_id") ?? undefined,
           history: q.get("history") === "true",
           cursor: q.get("cursor")
             ? this.cursors.decode<string>(scope, q.get("cursor")!)
@@ -1452,7 +1488,6 @@ export class ApplicationService {
         });
         return {
           items: project(page.rows),
-          world_version: page.version,
           next_cursor: page.next_cursor
             ? this.cursors.encode(scope, page.next_cursor)
             : null,

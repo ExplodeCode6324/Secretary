@@ -11,7 +11,8 @@ test("E7: explicitly unconfigured PG retains raw Inputs until a descriptive capa
         app.host.accept(`No-PG-${n} ` + "x".repeat(3500));
         await app.host.drain();
       }
-      assert.equal(app.world, undefined);
+      assert.equal(app.world!.configured, false);
+      assert.equal(app.world!.ready, true);
       assert.equal(app.host.session.state, "CAPACITY_BLOCKED");
       assert.match(app.host.session.recovery_error!, /INPUT_EXIT_DISABLED/);
       assert.equal(memory(app).input_projection_ref, undefined);

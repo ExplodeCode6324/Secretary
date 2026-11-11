@@ -58,11 +58,10 @@ flowchart LR
   Extract --> Ledger[Fusionner le registre courant d’engagements]
   Memory --> Projection[Vérifier couverture et progression / projeter les entrées]
   Draft[Brouillon Settings] --> Source
-  Summary --> World[Transaction World facultative / accusé / outbox]
-  World --> Applied[Instructions actives + mémoire + Context + APPLIED]
+  Summary --> Applied[Instructions actives + mémoire + Context + APPLIED]
 ```
 
-La [maintenance mémoire](../../src/pi_secretary/src/memory-maintenance.ts) valide séparément les résumés et la progression d’extraction, et réessaie les segments en échec selon les compteurs persistés. [Settings](../../src/pi_secretary/src/settings.ts) fige le brouillon et les sources, puis suspend la session principale et la prise de nouvelles tâches. Il termine le résumé et les contrôles de capacité, valide le lot World et transfère son accusé, puis bascule atomiquement la configuration locale. Un changement d’instructions seul reconstruit directement Context. Les nouvelles entrées attendent ; les tâches en cours peuvent finir. Un redémarrage en COMMITTING/REBUILDING rapproche les accusés de la base ; les lots manuels FAILED peuvent restaurer leur brouillon, tandis que BLOCKED poursuit la consultation des résultats validés. Voir [mémoire et prompts](memory-and-prompts.md) pour les règles de retrait et de provenance.
+[Maintenance de la mémoire](../../src/pi_secretary/src/memory-maintenance.ts) enregistre séparément le résumé et l’extraction et réessaie les segments échoués selon les tentatives enregistrées. [Settings](../../src/pi_secretary/src/settings.ts) fige le brouillon et les sources, puis suspend Main et la prise de nouvelles tâches. World edits are rejected by Settings. Settings validates its summary and budget, then atomically activates instructions, memory and Context. Les nouvelles entrées attendent et les tâches en cours peuvent finir. Settings recovery reuses its saved summary and journal records. Historical World applications must finish on old code before genesis. Règles de retrait des entrées et de provenance : [Mémoire et prompts](memory-and-prompts.md).
 
 ## Synchronisation, rappels et notifications
 

@@ -82,10 +82,14 @@ testPostgres(
                 id: "durable-world-proposal",
                 name: "memory_propose_change",
                 arguments: {
-                  intent: "ASSERT",
-                  subject: "Crash subject",
-                  predicate: "person.height",
-                  value: 170,
+                  changes: [
+                    {
+                      intent: "ASSERT",
+                      subject: "role:master",
+                      predicate: "preference.statement",
+                      value: "Prefers tea",
+                    },
+                  ],
                 },
               },
             ],
@@ -95,23 +99,6 @@ testPostgres(
     let app = await App.open(dir, { model: fixtureModel, stream }, dsn);
     try {
       await app.world!.migrate();
-      app.settings.save(
-        {
-          ...emptySettings(),
-          edits: [
-            {
-              kind: "ENTITY",
-              entity_id: id(),
-              entity_kind: "PERSON",
-              display_name: "Crash subject",
-              expected_revision: 0,
-            },
-          ],
-        },
-        app.settings.draft().revision,
-      );
-      app.settings.request(app.settings.draft().revision, id());
-      await app.settings.tick();
       app.host.accept("The synthetic height is 170");
       await app.close();
       const child = spawnSync(
@@ -131,11 +118,17 @@ testPostgres(
         "IDLE",
         app.host.session.recovery_error ?? "",
       );
-      assert.equal(app.store.all<WorldCommand>("WorldCommand").length, 1);
       assert.equal(
-        (await app.world!.pool.query("SELECT count(*) FROM wm.assertion"))
-          .rows[0].count,
-        "0",
+        app.store
+          .all<import("../../../src/pi_secretary/src/contracts.ts").Operation>(
+            "Operation",
+          )
+          .filter((o) => o.action.action === "world.change").length,
+        1,
+      );
+      assert.equal(
+        app.store.all("WorldAssertion").length,
+        0,
         "recovery does not approve the proposal",
       );
     } finally {

@@ -19,29 +19,13 @@ app.settings.save(
       content: "After crash use this setting",
       expected_revision: 1,
     },
-    edits: [
-      {
-        kind: "ENTITY",
-        entity_id: entity,
-        entity_kind: "PERSON",
-        display_name: "Crash test",
-        expected_revision: 0,
-      },
-    ],
+    edits: [],
     command_ids: [],
   },
   app.settings.draft().revision,
 );
 const crashStage = process.argv[4] ?? "after-database";
-if (crashStage === "after-database")
-  app.world!.export = async () => {
-    process.kill(process.pid, "SIGKILL");
-  };
-else if (crashStage === "before-database")
-  app.world!.applyBatch = async () => {
-    process.kill(process.pid, "SIGKILL");
-  };
-else {
+{
   const commit = app.store.commit.bind(app.store);
   app.store.commit = (records, events, receipt) => {
     const final = records.some(

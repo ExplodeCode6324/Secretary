@@ -592,6 +592,14 @@
           "from": "RESULT_UNKNOWN",
           "event": "resume_world_transaction",
           "to": "DISPATCHED"
+        },
+        {
+          "id": "Operation-journal-apply",
+          "from": "AUTHORIZED",
+          "event": "journal_apply",
+          "to": "SUCCEEDED",
+          "guard": "exact_action_specific_atomic_bundle_and_current_owner",
+          "commit": "消费一次授权并原子提交内部World或Scope变更及回执；外部动作禁止"
         }
       ]
     },

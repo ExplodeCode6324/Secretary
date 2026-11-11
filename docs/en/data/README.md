@@ -88,7 +88,7 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [JournalTransaction](JournalTransaction.md) | 10 | Single-writer transaction; frame wraps the checksum of raw payload bytes; the entire frame applies or none does. |
 | [MemoryCommitment](MemoryCommitment.md) | 7 |  |
 | [UserInstructions](UserInstructions.md) | 7 | Currently active Master instructions. The UI saves a draft first; after full summarization and context rebuilding, commit it together with application state. |
-| [MainPromptSnapshot](MainPromptSnapshot.md) | 11 |  |
+| [MainPromptSnapshot](MainPromptSnapshot.md) | 12 |  |
 | [SettingsDraft](SettingsDraft.md) | 6 | Master’s pending changes; payload is SettingsPayload, not active settings. |
 | [SettingsApplication](SettingsApplication.md) | 17 | Fixed-batch settings application; after database commit, rebuilding must finish before the main session can continue. |
 | [WorldEdit](WorldEdit.md) | 20 |  |
@@ -116,3 +116,6 @@ Runtime source: [contracts.schema.json](../../../src/contracts/contracts.schema.
 | [Guidance](Guidance.md) | 21 | Durable exact-execution guidance; independent sent, received and adopted milestones. |
 | [GuidanceInjection](GuidanceInjection.md) | 13 | Host-only injection provenance. A queued message is not reception or model consumption. |
 | [GuidanceReceipt](GuidanceReceipt.md) | 15 | Append-only validated disposition from the actual durable model request and response. |
+| [WorldEntity](WorldEntity.md) | 11 |  |
+| [WorldAssertion](WorldAssertion.md) | 21 |  |
+| [WorldGenesis](WorldGenesis.md) | 10 |  |

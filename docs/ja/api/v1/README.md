@@ -29,7 +29,7 @@ POST は application/json を使い、body は最大 1 MiB、UUID の request_id
 
 ## クエリ、ページング、コンテンツ
 
-応答は `{api_version:"1",data:...}`、エラーは `{api_version:"1",error:{code,message}}` です。revision、イベント sequence、World version、バイト長は十進文字列、件数と limit は上限付き整数、時刻は UTC ISO 8601 です。リクエストは schema で検証し、クライアントは既知のフィールドをデコードします。
+応答は `{api_version:"1",data:...}`、エラーは `{api_version:"1",error:{code,message}}` です。revision、イベント番号、バイト数は十進文字列、件数と limit は有界整数、時刻は UTC ISO 8601 です。要求を schema 検証し、クライアントは既知フィールドを解釈します。
 
 Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
 
@@ -53,11 +53,11 @@ Operation の bytes/hash は公開テキスト全体を指します。source_tru
 | tasks、task-requests、executions | タスク基準、各回の提案、待機・キャンセル、結果、継続。tasks は scope_id で絞り込みでき、none は範囲未指定 |
 | scopes、authorizations、authorization-rules、decisions、operations | 作業範囲、承認・ルール、作業回答、作用検証 |
 | settings、memory、memory/summary、memory/commitments | 草稿の適用、保守の進捗、要約、コミットメントの出典 |
-| world/catalog、world/facts、world/slot | エンティティ・predicate・source、現在と過去の事実、slot revision |
+| world/catalog, world/facts, world/batches/{id}, world/changes, world/preview | Store entities/roles/predicates, facts/history, batch status, owner edits and read-only recall preview |
 | related、attention | 関連リソース、未処理件数、有界一覧。attention は version/as_of/valid_until を提供 |
 | requests、clients、core、admin | 受領記録、クライアント登録、サービス起動・停止、World マイグレーション、プログラム登録 |
 
-PublicTaskCommand は文字列配列の `acceptance` を使います。継続では reuse_task_id と parent_execution_id の両方を渡します。[タスクのデータフロー](../../data-flow.md#タスクの提案から結果まで)を参照してください。Settings は完全な instructions/edits/command_ids を保存し、expected_revision でバージョン管理します。World の新規リソースの revision は "0"、業務バッチは最大 50 件です（公開構造上は最大 100 件）。
+PublicTaskCommand は `acceptance` 文字列配列を使用し、継続には reuse_task_id と parent_execution_id を渡します。詳細：[タスクのデータフロー](../../data-flow.md#タスクの提案から結果まで)。Settings uses expected_revision for instructions and rejects nonempty edits/command_ids. World changes contain 1–20 edits with field deltas and explicit fact targets; no client World revision or slot endpoint. POST world/preview accepts text only and performs no journal/model activity.
 
 ## Master attention (#92)
 

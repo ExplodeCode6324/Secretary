@@ -5748,7 +5748,10 @@
             "FailureHandling",
             "Guidance",
             "GuidanceInjection",
-            "GuidanceReceipt"
+            "GuidanceReceipt",
+            "WorldEntity",
+            "WorldAssertion",
+            "WorldGenesis"
           ],
           "description": ""
         },
@@ -5992,6 +5995,9 @@
               "type": "null"
             }
           ]
+        },
+        "recall_ref": {
+          "$ref": "#/$defs/ObjectRef"
         }
       },
       "required": [
@@ -8243,6 +8249,290 @@
       ],
       "additionalProperties": false,
       "description": "Append-only validated disposition from the actual durable model request and response."
+    },
+    "WorldEntity": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "WorldEntity"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "kind": {
+          "enum": [
+            "PERSON",
+            "ORGANIZATION",
+            "DEVICE",
+            "SERVICE",
+            "RESOURCE",
+            "PROJECT",
+            "GOAL"
+          ]
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "maxItems": 32
+        },
+        "role": {
+          "enum": [
+            "MASTER",
+            "SECRETARY",
+            null
+          ]
+        },
+        "external_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retired_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "kind",
+        "display_name",
+        "aliases",
+        "role",
+        "external_key",
+        "retired_at"
+      ]
+    },
+    "WorldAssertion": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "WorldAssertion"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "subject_id": {
+          "$ref": "#/$defs/ID"
+        },
+        "predicate_key": {
+          "type": "string"
+        },
+        "topic": {
+          "type": "string"
+        },
+        "value": {},
+        "object_entity_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "keywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20
+        },
+        "source_kind": {
+          "enum": [
+            "MASTER",
+            "OBSERVATION",
+            "TASK_REPORT",
+            "MODEL_INFERENCE",
+            "UNRESOLVED"
+          ]
+        },
+        "evidence_event_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ID"
+          }
+        },
+        "valid_from": {
+          "$ref": "#/$defs/Time"
+        },
+        "valid_to": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "observed_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "fresh_until": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "note": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "status": {
+          "enum": [
+            "LIVE",
+            "SUPERSEDED",
+            "RETRACTED"
+          ]
+        },
+        "replaces_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ID"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "change_id": {
+          "$ref": "#/$defs/ID"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "subject_id",
+        "predicate_key",
+        "topic",
+        "value",
+        "object_entity_id",
+        "keywords",
+        "source_kind",
+        "evidence_event_ids",
+        "valid_from",
+        "valid_to",
+        "observed_at",
+        "fresh_until",
+        "note",
+        "status",
+        "replaces_id",
+        "change_id"
+      ]
+    },
+    "WorldGenesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "record_type": {
+          "const": "WorldGenesis"
+        },
+        "id": {
+          "$ref": "#/$defs/ID"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "updated_at": {
+          "$ref": "#/$defs/Time"
+        },
+        "manifest_ref": {
+          "$ref": "#/$defs/ObjectRef"
+        },
+        "entity_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "assertion_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mode": {
+          "enum": [
+            "FRESH",
+            "LEGACY"
+          ]
+        },
+        "owner_id": {
+          "$ref": "#/$defs/ID"
+        }
+      },
+      "required": [
+        "schema_version",
+        "record_type",
+        "id",
+        "revision",
+        "updated_at",
+        "manifest_ref",
+        "entity_count",
+        "assertion_count",
+        "mode",
+        "owner_id"
+      ]
     }
   },
   "oneOf": [
@@ -8422,6 +8712,15 @@
     },
     {
       "$ref": "#/$defs/GuidanceReceipt"
+    },
+    {
+      "$ref": "#/$defs/WorldEntity"
+    },
+    {
+      "$ref": "#/$defs/WorldAssertion"
+    },
+    {
+      "$ref": "#/$defs/WorldGenesis"
     }
   ]
 }

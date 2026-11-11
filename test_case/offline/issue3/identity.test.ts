@@ -154,8 +154,8 @@ test("failed settings extraction remains queued independently through Settings, 
     await app.host.extractPending();
     assert.equal(
       calls.sources.length,
-      3,
-      "failed first segment plus both complete source segments on retry",
+      2,
+      "failed extraction plus the complete source segment on retry",
     );
     assert.equal(app.host.memoryStatus().extraction.length, 0);
   }));

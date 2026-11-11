@@ -35,6 +35,7 @@ export const commands = [
   ["push-targets/:id", "PushTargetUpdateCommand"],
   ["attachments/import", "AttachmentImportCommand"],
   ["inputs/:id/withdraw", "RevisionCommand"],
+  ["world/changes", "WorldBatchCommand"],
 ] as const;
 export function commandRoute(path: string) {
   for (const [route, schema] of commands) {
