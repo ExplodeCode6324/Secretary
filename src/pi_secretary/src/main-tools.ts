@@ -400,7 +400,7 @@ export function tools(
       name: "memory_propose_change",
       label: "Propose World Model change",
       description:
-        "Propose one mixed entity/fact batch. For facts just stated by Master, OMIT source_event_ids: Host binds the current eligible Master input automatically; no source registration or log-ID lookup is needed. Discover allowed predicate keys and topics with memory_read source='world', catalog='predicates'; never invent a predicate. To create a person and facts together, CREATE_ENTITY uses local_ref='$iris' and later ASSERT uses subject='$iris': both include the literal dollar sign. Existing subjects accept ID/name/alias or role:master/role:secretary. ENTITY values use an entity selector. ASSERT preserves existing facts; CORRECT/RETRACT require target_fact_id. Explicit source_event_ids must identify verified source events; a main.message log ID is not a Master input.accepted event. source_note is explanation only. Each batch needs one exact owner approval. Proposal/approval is not recording: query memory_read source='world_batch', batch_id for COMMITTED.",
+        "Propose one mixed entity/fact batch. Omit source_event_ids only for non-guideline information explicitly stated in the current Master message; Host binds its eligible input.accepted event. entity.guideline always requires explicit Master evidence IDs. Cite execution.finished/feedback.delivered for task results (TASK_REPORT), and main.message for Main conclusions (MODEL_INFERENCE). Never omit evidence to classify an inference as MASTER. Discover allowed predicate keys and topics with memory_read source='world', catalog='predicates'; never invent a predicate. To create a person and facts together, CREATE_ENTITY uses local_ref='$iris' and later ASSERT uses subject='$iris': both include the literal dollar sign. Existing subjects accept ID/name/alias or role:master/role:secretary. ENTITY values use an entity selector. ASSERT preserves existing facts; CORRECT/RETRACT require target_fact_id. Explicit source_event_ids must identify verified source events; source_note is explanation only. Each batch needs one exact owner approval. Proposal/approval is not recording: query memory_read source='world_batch', batch_id for COMMITTED.",
       parameters: Type.Object(
         {
           changes: Type.Array(
@@ -463,7 +463,7 @@ export function tools(
                   Type.Array(Type.String(), {
                     maxItems: 20,
                     description:
-                      "Omit for the current Master statement; Host automatically binds its eligible input.accepted events. Only provide IDs for verified historical evidence, never guessed log IDs.",
+                      "Omit only for non-guideline information explicitly stated by Master now. Guidelines require explicit Master event IDs. Cite task-result or main.message events for reports/inferences; never guess IDs or omit them to promote an inference to MASTER.",
                   }),
                 ),
                 valid_from: Type.Optional(Type.String()),

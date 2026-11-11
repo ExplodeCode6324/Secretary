@@ -59,7 +59,7 @@ export async function proposeWorld(
     ...c,
     source_event_ids: c.source_event_ids?.length
       ? c.source_event_ids
-      : currentMasterEvents.length === 1
+      : c.predicate !== "entity.guideline" && currentMasterEvents.length === 1
         ? currentMasterEvents
         : [],
   }));

@@ -29,6 +29,7 @@ test("fresh World roles are persistent and available without PostgreSQL", async 
   }
 });
 import { id, revise } from "../../../src/pi_secretary/src/store.ts";
+import { proposeWorld } from "../../../src/pi_secretary/src/world-memory.ts";
 import type {
   AuthorizationRequest,
   WorldAssertion,
@@ -83,6 +84,136 @@ function approve(app: App, b: WorldBatch) {
   });
   return proposed;
 }
+test("R2 A1: an unrelated guideline cannot inherit the current Master input", () =>
+  fixture(async (app) => {
+    app.host.accept("Good morning, please check the build status.");
+    const event = app.store.events("input.accepted").at(-1)!.event_id;
+    await assert.rejects(
+      proposeWorld(
+        app.world!,
+        { session_id: app.host.sessionID, task_id: null, execution_id: null },
+        {
+          changes: [
+            {
+              intent: "ASSERT",
+              subject: "role:master",
+              predicate: "entity.guideline",
+              value: "Always reply in English",
+            },
+          ],
+        },
+        id(),
+        [event],
+      ),
+      /EVIDENCE_REQUIRED/,
+    );
+    assert.equal(app.store.all("AuthorizationRequest").length, 0);
+    assert.equal(app.store.all("Operation").length, 0);
+    assert.equal(app.store.all("WorldAssertion").length, 0);
+  }));
+test("R2 A1: a deliberately cited Master guideline can be approved", () =>
+  fixture(async (app) => {
+    app.host.accept("Always reply in English.");
+    const event = app.store.events("input.accepted").at(-1)!.event_id;
+    const result = await proposeWorld(
+      app.world!,
+      { session_id: app.host.sessionID, task_id: null, execution_id: null },
+      {
+        changes: [
+          {
+            intent: "ASSERT",
+            subject: "role:master",
+            predicate: "entity.guideline",
+            value: "Always reply in English",
+            source_event_ids: [event],
+          },
+        ],
+      },
+      id(),
+      [event],
+    );
+    const grant = app.store.get<AuthorizationRequest>(
+      "AuthorizationRequest",
+      result.authorization_id!,
+    );
+    approve(app, app.store.read<WorldBatch>(grant.action.parameters_ref));
+    await app.world!.drain();
+    const fact = app.store.all<WorldAssertion>("WorldAssertion")[0];
+    assert.equal(fact.source_kind, "MASTER");
+    assert.equal(fact.predicate_key, "entity.guideline");
+  }));
+test("R2 A1: Main evidence stays MODEL_INFERENCE after approval and cannot support a guideline", () =>
+  fixture(async (app) => {
+    app.host.accept("Please inspect the build status.");
+    const current = app.store.events("input.accepted").at(-1)!.event_id;
+    const scope = {
+      session_id: app.host.sessionID,
+      task_id: null,
+      execution_id: null,
+    };
+    const message = app.store.event(
+      "main.message",
+      {
+        role: "assistant",
+        content: [
+          {
+            type: "text",
+            text: "I infer a preference for concise status reports.",
+          },
+        ],
+      },
+      scope,
+      "MAIN",
+    );
+    app.store.commit([], [message]);
+    const result = await proposeWorld(
+      app.world!,
+      scope,
+      {
+        changes: [
+          {
+            intent: "ASSERT",
+            subject: "role:master",
+            predicate: "preference.statement",
+            value: "Prefers concise status reports",
+            source_event_ids: [message.event_id],
+          },
+        ],
+      },
+      id(),
+      [current],
+    );
+    const grant = app.store.get<AuthorizationRequest>(
+      "AuthorizationRequest",
+      result.authorization_id!,
+    );
+    approve(app, app.store.read<WorldBatch>(grant.action.parameters_ref));
+    await app.world!.drain();
+    assert.equal(
+      app.store.all<WorldAssertion>("WorldAssertion")[0].source_kind,
+      "MODEL_INFERENCE",
+    );
+    await assert.rejects(
+      proposeWorld(
+        app.world!,
+        scope,
+        {
+          changes: [
+            {
+              intent: "ASSERT",
+              subject: "role:master",
+              predicate: "entity.guideline",
+              value: "Always reply concisely",
+              source_event_ids: [message.event_id],
+            },
+          ],
+        },
+        id(),
+        [current],
+      ),
+      /GUIDELINE_ROLE_MASTER_REQUIRED/,
+    );
+  }));
 test("one approved batch creates a person and fact, never Settings or an extra Main input", () =>
   fixture(async (app) => {
     const ev = evidence(app),

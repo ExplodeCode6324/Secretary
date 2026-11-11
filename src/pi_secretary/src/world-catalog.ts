@@ -1,4 +1,6 @@
-/** Versioned, closed ontology. Legacy SQL catalogs remain archival only. */
+/** Versioned, closed ontology. Legacy SQL catalogs remain archival only.
+ * Retire catalog entries; never delete their keys, which historical facts retain.
+ */
 export const WORLD_POLICY = "world-store-v1";
 export const ENTITY_KINDS = [
   "PERSON",
