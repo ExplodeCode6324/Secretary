@@ -179,3 +179,11 @@ test("profile omits a whole conflict when source restrictions hide one member; o
   assert(r.bytes <= 1536);
   assert.equal(r.status, "hit");
 });
+test("empty role profiles still expose host-owned Master and Secretary identities", () => {
+  const snapshot = recallFixture();
+  snapshot.facts = [];
+  const p = profiles(snapshot, asOf);
+  assert.match(p.text, /MASTER derived profile: Master/);
+  assert.match(p.text, /SECRETARY derived profile: Secretary/);
+  assert.deepEqual(p.fact_ids, []);
+});
