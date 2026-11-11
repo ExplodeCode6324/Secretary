@@ -335,7 +335,7 @@ export function tools(
       name: "memory_read",
       label: "Read memory",
       description:
-        "Read working memory, original event text slices, or paginated World facts. Log offsets/lengths are Unicode code points; follow next_offset for full text. World subject accepts ID, name or alias; ambiguity returns candidates. Provide only one non-null subject or legacy subject_id selector. Use predicate and cursor to reach facts beyond the first page.",
+        "Read working memory, original event text slices, or paginated World facts. For allowed predicates/topics use source='world', catalog='predicates'. For a proposed batch's actual status use source='world_batch' and its returned batch_id. Log offsets/lengths are Unicode code points; follow next_offset for full text. World subject accepts ID, name or alias; ambiguity returns candidates. Provide only one non-null subject or legacy subject_id selector. Use predicate and cursor to reach facts beyond the first page.",
       parameters: Type.Object({
         source: Type.Union([
           Type.Literal("world"),
@@ -400,7 +400,7 @@ export function tools(
       name: "memory_propose_change",
       label: "Propose World Model change",
       description:
-        "Propose ASSERT, CORRECT or RETRACT facts using subject ID/name/alias and predicate key. ENTITY values use an entity selector. Correction/retraction requires target_fact_id. source_event_ids must reference real evidence; source_note is explanation only. Each changes batch needs one exact owner approval. Mix entity creation with facts using local $references. ASSERT preserves existing facts; CORRECT names the replaced target. Use role:master and role:secretary. Proposal/approval is not recording: query memory_read world_batch for COMMITTED.",
+        "Propose one mixed entity/fact batch. Discover allowed predicate keys and topics with memory_read source='world', catalog='predicates'; never invent a predicate. To create a person and facts together, CREATE_ENTITY uses local_ref='$iris' and later ASSERT uses subject='$iris': both include the literal dollar sign. Existing subjects accept ID/name/alias or role:master/role:secretary. ENTITY values use an entity selector. ASSERT preserves existing facts; CORRECT/RETRACT require target_fact_id. source_event_ids must reference real evidence; source_note is explanation only. Each changes batch needs one exact owner approval. Proposal/approval is not recording: query memory_read source='world_batch', batch_id for COMMITTED.",
       parameters: Type.Object(
         {
           changes: Type.Array(
@@ -416,7 +416,12 @@ export function tools(
                     "RETRACT",
                   ].map((x) => Type.Literal(x)),
                 ),
-                local_ref: Type.Optional(Type.String()),
+                local_ref: Type.Optional(
+                  Type.String({
+                    description:
+                      "CREATE_ENTITY batch-local name including the dollar prefix, e.g. $iris. Later changes use this exact string as subject.",
+                  }),
+                ),
                 subject: Type.Optional(Type.String()),
                 entity_kind: Type.Optional(
                   Type.Union(
