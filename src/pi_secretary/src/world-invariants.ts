@@ -39,6 +39,17 @@ export function validateWorldFrame(
     (r) =>
       r.record_type === "WorldEntity" || r.record_type === "WorldAssertion",
   );
+  const applying = staged.filter(
+    (r): r is Operation =>
+      r.record_type === "Operation" &&
+      r.state === "SUCCEEDED" &&
+      store.find<Operation>("Operation", r.id)?.state === "AUTHORIZED",
+  );
+  if (
+    txn.log_records.some((e) => e.event_type === "operation.journal_applied") &&
+    applying.length !== 1
+  )
+    throw Error("WORLD_APPLY_BUNDLE_REQUIRED");
   const genesis = staged.find((r) => r.record_type === "WorldGenesis");
   const ownerEvent = txn.log_records.find(
     (e) => e.event_type === "world.owner_requested",
@@ -215,11 +226,17 @@ export function validateWorldFrame(
     )
       throw Error("WORLD_GRANT_NOT_ATOMIC");
     if (
-      staged.some((x) =>
-        ["Input", "SettingsApplication", "WorldCommand", "Scope"].includes(
-          x.record_type,
-        ),
-      )
+      staged.length !== worldMutations.length + 2 ||
+      staged.some(
+        (x) =>
+          ![
+            "WorldEntity",
+            "WorldAssertion",
+            "AuthorizationRequest",
+            "Operation",
+          ].includes(x.record_type),
+      ) ||
+      applying.length !== 1
     )
       throw Error("WORLD_FRAME_UNEXPECTED_MUTATION");
     const receipt = store.read<any>(r.receipt);

@@ -342,3 +342,33 @@ test("24-hour expiry and stale owner have durable failure without Main wake", ()
       /STALE_OWNER/,
     );
   }));
+test("a journal_applied event cannot bypass the exact operation and grant bundle", () =>
+  fixture(async (app) => {
+    const ev = evidence(app),
+      b = batch(
+        [
+          {
+            intent: "ASSERT",
+            subject: "role:master",
+            predicate: "preference.statement",
+            value: "Synthetic forged fact",
+          },
+        ],
+        ev,
+      ),
+      preview = app.world!.preview(b, {
+        session_id: app.host.sessionID,
+        task_id: null,
+        execution_id: null,
+      });
+    const sequence = app.store.sequence;
+    assert.throws(
+      () =>
+        app.store.commit(preview.records, [
+          app.store.event("operation.journal_applied", { synthetic: true }),
+        ]),
+      /WORLD_APPLY_BUNDLE_REQUIRED/,
+    );
+    assert.equal(app.store.sequence, sequence);
+    assert.equal(app.store.all("WorldAssertion").length, 0);
+  }));
