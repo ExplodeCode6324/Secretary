@@ -400,7 +400,7 @@ export function tools(
       name: "memory_propose_change",
       label: "Propose World Model change",
       description:
-        "Propose one mixed entity/fact batch. Discover allowed predicate keys and topics with memory_read source='world', catalog='predicates'; never invent a predicate. To create a person and facts together, CREATE_ENTITY uses local_ref='$iris' and later ASSERT uses subject='$iris': both include the literal dollar sign. Existing subjects accept ID/name/alias or role:master/role:secretary. ENTITY values use an entity selector. ASSERT preserves existing facts; CORRECT/RETRACT require target_fact_id. source_event_ids must reference real evidence; source_note is explanation only. Each changes batch needs one exact owner approval. Proposal/approval is not recording: query memory_read source='world_batch', batch_id for COMMITTED.",
+        "Propose one mixed entity/fact batch. For facts just stated by Master, OMIT source_event_ids: Host binds the current eligible Master input automatically; no source registration or log-ID lookup is needed. Discover allowed predicate keys and topics with memory_read source='world', catalog='predicates'; never invent a predicate. To create a person and facts together, CREATE_ENTITY uses local_ref='$iris' and later ASSERT uses subject='$iris': both include the literal dollar sign. Existing subjects accept ID/name/alias or role:master/role:secretary. ENTITY values use an entity selector. ASSERT preserves existing facts; CORRECT/RETRACT require target_fact_id. Explicit source_event_ids must identify verified source events; a main.message log ID is not a Master input.accepted event. source_note is explanation only. Each batch needs one exact owner approval. Proposal/approval is not recording: query memory_read source='world_batch', batch_id for COMMITTED.",
       parameters: Type.Object(
         {
           changes: Type.Array(
@@ -460,7 +460,11 @@ export function tools(
                 ),
                 target_fact_id: Type.Optional(Type.String()),
                 source_event_ids: Type.Optional(
-                  Type.Array(Type.String(), { maxItems: 20 }),
+                  Type.Array(Type.String(), {
+                    maxItems: 20,
+                    description:
+                      "Omit for the current Master statement; Host automatically binds its eligible input.accepted events. Only provide IDs for verified historical evidence, never guessed log IDs.",
+                  }),
                 ),
                 valid_from: Type.Optional(Type.String()),
                 valid_to: Type.Optional(
