@@ -19,7 +19,7 @@ Implementation follows the approved R5 World portion; Scope and Shared are separ
 
 Historical SQL-authority tests are preserved verbatim under `test_case/historical/offline/world-sql-pre112/`. Retired assertions covered `wm` write locks, slot revisions, SQL outbox export, World-through-Settings summaries and WorldCommand recovery. Those paths must no longer be asserted as current behavior. Mixed files retain their independent Settings, log-search, transport, attachment and instruction tests in the active suite. Original versions remain in the historical directory for comparison; original SQL migrations are unchanged.
 
-The offline synthetic model context window increases from 32,768 to 65,536 to cover the complete World reserve and batch-tool schema. Tests specifically about extraction segmentation pin their extraction-only budget; the main-loop log-slice fixture remains near its budget boundary. This does not change any real provider's model limits.
+The offline synthetic model context window increases from 32,768 to 65,536 to cover the complete World reserve and batch-tool schema. Tests specifically about extraction segmentation pin their extraction-only budget; the main-loop log-slice fixture remains near its budget boundary. The 200-round 64 KiB integration fixture preserves all fixed anchors: its full World/tool/system floor is approximately 21.5k estimated tokens, above the 30% compaction target (16.2k) but below the 54k usable input budget. The test verifies the explicit target-not-reached reason and bounded requests instead of requiring deletion of mandatory context. This does not change any real provider's model limits.
 
 ## Acceptance boundaries
 
