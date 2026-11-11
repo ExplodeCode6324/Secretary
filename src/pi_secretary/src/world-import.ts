@@ -15,7 +15,11 @@ import type {
 } from "./contracts.ts";
 import { acceptWorldChange } from "./world-accept.ts";
 export function worldStartupPreflight(store: Store) {
-  if (store.all("WorldGenesis").length) return;
+  if (
+    store.all("WorldGenesis").length ||
+    store.events("world.upgrade_preflight_passed").length
+  )
+    return;
   if (
     store
       .all<SettingsApplication>("SettingsApplication")
@@ -43,6 +47,29 @@ export function worldStartupPreflight(store: Store) {
     store.all<Input>("Input").some((i) => i.state === "CLAIMED")
   )
     throw Error("SETTINGS_UPGRADE_REQUIRES_IDLE_MAIN");
+  // Commit before identities, provider configuration or any new-format loop.
+  // A configured database still has to confirm absence (or import wm) later.
+  const noWorldHistory =
+    !store.all("WorldCommand").length &&
+    !store.logs.some((e) => e.event_type.startsWith("world.")) &&
+    !store
+      .all<Operation>("Operation")
+      .some((o) => o.action.action === "world.change");
+  store.commit(
+    [],
+    [
+      store.event("world.upgrade_preflight_passed", { version: 1 }),
+      ...(noWorldHistory
+        ? [
+            store.event("world.bootstrap_selected", {
+              fresh: true,
+              version: 1,
+              reason: store.sequence === 0 ? "new-domain" : "no-world-history",
+            }),
+          ]
+        : []),
+    ],
+  );
 }
 /** One read-only repeatable snapshot; all legacy rows stay in a protected CAS manifest. */
 export async function importLegacyWorld(

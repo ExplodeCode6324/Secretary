@@ -109,9 +109,56 @@ test("40 development retrieval probes preserve evidence, conflict groups and bud
     for (const id of p.expected)
       assert(r.fact_ids.includes(id), p.query + " missing " + id);
     if ("empty" in p) assert.equal(r.status, "no_hit", p.query);
-    if ("ambiguous" in p)
+    if ("ambiguous" in p) {
       assert.equal(r.ambiguities[0]?.entity_ids.length, 2, p.query);
+      assert.match(r.text, /Ambiguous names:/);
+    }
   }
+});
+test("10000 entities and facts report warm lookup cost with cached label matchers", () => {
+  const snapshot = recallFixture(),
+    entity = snapshot.entities[0],
+    fact = snapshot.facts[0];
+  for (let i = 0; i < 10000; i++) {
+    const id = fid("scale-entity-" + i);
+    snapshot.entities.push({
+      ...entity,
+      id,
+      role: null,
+      display_name: "Synthetic Entity " + i,
+      aliases: ["Synthetic Alias " + i],
+    });
+    snapshot.facts.push({
+      ...fact,
+      id: fid("scale-fact-" + i),
+      subject_id: id,
+      value: "Synthetic measurement " + i,
+    });
+  }
+  const start = performance.now(),
+    index = prepareRecall(snapshot),
+    buildMs = performance.now() - start;
+  for (let i = 0; i < 5; i++) recall(snapshot, "Alice beverage", {}, asOf);
+  const times: number[] = [];
+  for (let i = 0; i < 30; i++) {
+    const start = performance.now(),
+      result = recall(snapshot, "Alice beverage", {}, asOf);
+    times.push(performance.now() - start);
+    assert(result.fact_ids.includes(fid("tea")));
+  }
+  times.sort((a, b) => a - b);
+  assert.equal(prepareRecall(snapshot), index);
+  console.log(
+    JSON.stringify({
+      scale_entities: snapshot.entities.length,
+      scale_facts: snapshot.facts.length,
+      build_ms: buildMs,
+      p95_ms: times[Math.floor(times.length * 0.95)],
+      rss: process.memoryUsage().rss,
+      arch: process.arch,
+      platform: process.platform,
+    }),
+  );
 });
 test("profile keeps conflicting directives together and full negation is never truncated", () => {
   const snapshot = recallFixture(),

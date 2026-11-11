@@ -16,6 +16,7 @@ Implementation follows the approved R5 World portion; Scope and Shared are separ
 | Independent Settings summary/rebuild/crash and instruction authority | `test_case/offline/runtime/settings.test.ts`, `test_case/offline/issue3/*.test.ts` |
 | Attachment history and live evidence withdrawal | `test_case/offline/issue81/history.test.ts` |
 | Guarded internal journal_apply versus external Operation edges | `test_case/offline/issue25/transitions.test.ts` |
+| Opus R1: interrupted upgrade restart, first-frame bootstrap, old empty domains, historical policy replay, status/time labels, idle decision I/O | `test_case/offline/issue112/review-r1.test.ts` |
 
 Historical SQL-authority tests are preserved verbatim under `test_case/historical/offline/world-sql-pre112/`. Retired assertions covered `wm` write locks, slot revisions, SQL outbox export, World-through-Settings summaries and WorldCommand recovery. Those paths must no longer be asserted as current behavior. Mixed files retain their independent Settings, log-search, transport, attachment and instruction tests in the active suite. Original versions remain in the historical directory for comparison; original SQL migrations are unchanged.
 

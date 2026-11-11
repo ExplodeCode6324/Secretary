@@ -5,6 +5,7 @@ import { modelLifetime } from "./model-retry.ts";
 import { activitiesFor } from "./activity.ts";
 import { activityHistoryFor } from "./activity-history.ts";
 import { worldStartupPreflight } from "./world-import.ts";
+import { worldContextModes } from "./main-system.ts";
 import { coreIdentity, assistantProfile } from "./core-identity.ts";
 import { Settings } from "./settings.ts";
 import type { TaskPlan, Execution } from "./contracts.ts";
@@ -38,10 +39,10 @@ export class App {
     dsn?: string,
     options: { clock?: () => number; pushDelivery?: PushDelivery } = {},
   ) {
+    worldContextModes();
     const store = await Store.open(directory);
     let openingWorld: World | undefined;
     try {
-      const freshDomain = store.sequence === 0;
       worldStartupPreflight(store);
       ensureTaskIdentities(store);
       coreIdentity(store);
@@ -55,18 +56,8 @@ export class App {
           ? config.task
           : (config ?? modelConfig("task"));
       const auth = new Authorization(store);
-      if (freshDomain)
-        store.commit(
-          [],
-          [
-            store.event("world.bootstrap_selected", {
-              fresh: true,
-              version: 1,
-            }),
-          ],
-        );
       const world = (openingWorld = new World(store, auth, dsn));
-      await world.initialize(freshDomain);
+      await world.initialize();
       auth.recover();
       const scheduler = new Scheduler(store, auth, task.model, task.stream);
       await scheduler.recover();

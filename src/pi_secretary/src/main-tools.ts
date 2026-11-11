@@ -367,7 +367,7 @@ export function tools(
         }
         if (args.source === "world") {
           if (!this.world)
-            throw Error("WORLD_UNAVAILABLE: PostgreSQL not configured");
+            throw Error("WORLD_UNAVAILABLE: World service is not initialized");
           if (args.subject !== undefined && args.subject_id != null)
             throw Error(
               "SELECTOR_CONFLICT: use only one World subject selector",

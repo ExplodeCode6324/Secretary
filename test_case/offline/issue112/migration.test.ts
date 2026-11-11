@@ -12,6 +12,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import { Client } from "pg";
 import { testPostgres } from "../helpers/postgres.ts";
 import {
@@ -34,6 +36,46 @@ testPostgres(
 testPostgres(
   "unexported outbox blocks genesis without mutating old tables",
   (dsn) => legacy(dsn, true),
+);
+testPostgres(
+  "R1/R2: interrupted pending genesis retries after PostgreSQL becomes available",
+  async (dsn) => {
+    const dir = fs.mkdtempSync(
+      path.join(os.tmpdir(), "issue112-upgrade-retry-"),
+    );
+    let app: App | undefined;
+    try {
+      const store = await Store.open(dir);
+      store.commit([], [store.event("synthetic.old_without_world", {})]);
+      await store.close();
+      const child = spawnSync(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          fileURLToPath(new URL("./workers/upgrade-crash.ts", import.meta.url)),
+          dir,
+          "postgresql://synthetic:synthetic@127.0.0.1:1/synthetic",
+        ],
+        { encoding: "utf8", timeout: 20000 },
+      );
+      assert.equal(child.signal, "SIGKILL", child.stderr);
+      app = await App.open(
+        dir,
+        { model: fixtureModel, stream: fixtureStream },
+        dsn,
+      );
+      assert(app.world!.ready, app.world!.error ?? "");
+      assert.equal(app.store.all<any>("WorldGenesis")[0].mode, "FRESH");
+      await app.host.drain();
+      assert.equal(app.host.session.state, "IDLE");
+      const count = app.store.events("world.upgrade_preflight_passed").length;
+      assert.equal(count, 1);
+    } finally {
+      await app?.close();
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  },
 );
 async function legacy(dsn: string, pending: boolean) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "issue112-import-"));

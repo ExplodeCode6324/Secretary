@@ -1,6 +1,16 @@
 import { composeInstructions, FAILURE_SYSTEM } from "./instructions.ts";
 import { worldSnapshot, profiles, recall } from "./world-recall.ts";
 import { now, type Store } from "./store.ts";
+export function worldContextModes() {
+  const profileMode = process.env.SECRETARY_WORLD_PROFILE ?? "on",
+    recallMode = process.env.SECRETARY_WORLD_RECALL ?? "shadow";
+  if (
+    !["on", "off"].includes(profileMode) ||
+    !["off", "shadow", "on"].includes(recallMode)
+  )
+    throw Error("INVALID_WORLD_CONTEXT_MODE");
+  return { profileMode, recallMode };
+}
 export function assembleMainSystem(
   store: Store,
   instructions: string,
@@ -10,13 +20,7 @@ export function assembleMainSystem(
 ) {
   const at = now(),
     snapshot = worldSnapshot(store, at);
-  const profileMode = process.env.SECRETARY_WORLD_PROFILE ?? "on",
-    recallMode = process.env.SECRETARY_WORLD_RECALL ?? "shadow";
-  if (
-    !["on", "off"].includes(profileMode) ||
-    !["off", "shadow", "on"].includes(recallMode)
-  )
-    throw Error("INVALID_WORLD_CONTEXT_MODE");
+  const { profileMode, recallMode } = worldContextModes();
   const profile =
     profileMode === "on" && snapshot.ready
       ? profiles(snapshot, at)

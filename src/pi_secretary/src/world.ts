@@ -24,7 +24,7 @@ import {
 import { coreIdentity, assistantProfile } from "./core-identity.ts";
 import { stableID } from "./execution-utils.ts";
 import { PREDICATES, predicate } from "./world-catalog.ts";
-import { importLegacyWorld, worldStartupPreflight } from "./world-import.ts";
+import { importLegacyWorld } from "./world-import.ts";
 export class World {
   readonly pool: Pool;
   readonly memorySearch: MemorySearch;
@@ -62,7 +62,6 @@ export class World {
     if (this.ready) return;
     if (this.initializing) return this.initializing;
     this.initializing = (async () => {
-      worldStartupPreflight(this.store);
       fresh =
         fresh ||
         this.store
@@ -96,7 +95,7 @@ export class World {
           manifest_ref: this.store.put({
             version: 1,
             mode: "FRESH",
-            verified: "new-domain-without-postgres",
+            verified: "no-world-history-without-postgres",
           }),
         };
         this.store.commit(
@@ -306,26 +305,33 @@ export class World {
       if (Date.now() >= this.retryAt) await this.initialize(false);
       return;
     }
-    const order = new Map(
-      this.store
-        .events("authorization.decided")
-        .map((e) => [
-          (this.store.read<any>(e.payload).result as AuthorizationRequest).id,
-          e.sequence,
-        ]),
-    );
     const operations = this.store
-      .all<Operation>("Operation")
+      .indexed<Operation>("Operation", "state", ["WAIT_AUTH", "AUTHORIZED"])
       .filter(
         (o) =>
           o.action.action === "world.change" &&
           ["WAIT_AUTH", "AUTHORIZED"].includes(o.state),
-      )
-      .sort(
-        (a, b) =>
-          (order.get(a.authorization_id!) ?? Infinity) -
-          (order.get(b.authorization_id!) ?? Infinity),
       );
+    if (!operations.length) return;
+    const order = new Map(
+      operations.map((o) => {
+        const grant = this.store.get<AuthorizationRequest>(
+          "AuthorizationRequest",
+          o.authorization_id!,
+        );
+        return [
+          grant.id,
+          grant.decision_id
+            ? this.store.receiptSequence(grant.decision_id)
+            : Infinity,
+        ];
+      }),
+    );
+    operations.sort(
+      (a, b) =>
+        (order.get(a.authorization_id!) ?? Infinity) -
+        (order.get(b.authorization_id!) ?? Infinity),
+    );
     for (const op of operations) {
       const a = this.store.get<AuthorizationRequest>(
         "AuthorizationRequest",

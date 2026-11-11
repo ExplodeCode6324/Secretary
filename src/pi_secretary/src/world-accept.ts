@@ -392,7 +392,7 @@ export function acceptWorldChange(
       (!subject.role || source.kind !== "MASTER")
     )
       throw Error("GUIDELINE_ROLE_MASTER_REQUIRED");
-    const topic = c.topic ?? "other";
+    const topic = c.topic ?? target?.topic ?? "other";
     if (!pred.topics.includes(topic)) throw Error("INVALID_TOPIC");
     let object: string | null = null,
       value = c.value ?? null;
@@ -448,7 +448,9 @@ export function acceptWorldChange(
   return {
     records: [...mutations.values()],
     result_ids: results,
-    conflicts: worldConflicts([...facts.values()], at),
+    conflicts: worldConflicts([...facts.values()], at).filter((group) =>
+      group.fact_ids.some((id) => mutations.has("WorldAssertion:" + id)),
+    ),
   };
 }
 function canonical(value: unknown): unknown {

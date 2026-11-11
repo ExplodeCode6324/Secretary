@@ -16,6 +16,7 @@ export function validateWorldFrame(
   store: Store,
   txn: JournalTransaction,
   staged: Stored[],
+  replay = false,
 ) {
   const relevant = staged.some(
     (r) =>
@@ -99,19 +100,21 @@ export function validateWorldFrame(
     } else if (ownerEvent) {
       if (ownerEvent.actor !== "MASTER_UI")
         throw Error("WORLD_OWNER_EVIDENCE_REQUIRED");
-      const expected = acceptWorldChange(
-        store,
-        store.read<WorldBatch>(ownerEvent.payload),
-        {
-          kind: "OWNER",
-          scope: ownerEvent.scope,
-          event: ownerEvent,
-          owner_epoch: store.epoch,
-        },
-        worldMutations[0].updated_at,
-      );
-      if (!isDeepStrictEqual(expected.records, worldMutations))
-        throw Error("WORLD_OWNER_MUTATIONS_MISMATCH");
+      if (!replay) {
+        const expected = acceptWorldChange(
+          store,
+          store.read<WorldBatch>(ownerEvent.payload),
+          {
+            kind: "OWNER",
+            scope: ownerEvent.scope,
+            event: ownerEvent,
+            owner_epoch: store.epoch,
+          },
+          worldMutations[0].updated_at,
+        );
+        if (!isDeepStrictEqual(expected.records, worldMutations))
+          throw Error("WORLD_OWNER_MUTATIONS_MISMATCH");
+      }
     } else throw Error("WORLD_ACCEPTOR_REQUIRED");
   }
   const owner = store.all<CoreIdentity>("CoreIdentity")[0];
@@ -122,8 +125,10 @@ export function validateWorldFrame(
     if (r.record_type === "WorldGenesis" && store.find("WorldGenesis", r.id))
       throw Error("WORLD_GENESIS_IMMUTABLE");
     if (r.record_type === "WorldEntity") {
-      validateWorldLabel(r.display_name);
-      r.aliases.forEach(validateWorldLabel);
+      if (!replay) {
+        validateWorldLabel(r.display_name);
+        r.aliases.forEach(validateWorldLabel);
+      }
       const old = store.find<WorldEntity>("WorldEntity", r.id);
       if (
         old &&
@@ -154,7 +159,7 @@ export function validateWorldFrame(
       r.record_type === "AssistantProfile" &&
       store.all("WorldGenesis").length
     ) {
-      if (r.name.trim()) validateWorldLabel(r.name);
+      if (!replay && r.name.trim()) validateWorldLabel(r.name);
       const e = entities.find((e) => e.role === "SECRETARY");
       if (!e || e.display_name !== (r.name.trim() || "Secretary"))
         throw Error("SECRETARY_PROFILE_NOT_ATOMIC");
@@ -253,20 +258,15 @@ export function validateWorldFrame(
       )
     )
       throw Error("WORLD_RESULT_NOT_ATOMIC");
-    // Replay validates against the frame's owner epoch, without modifying live ownership.
-    const oldEpoch = store.epoch;
-    let expected;
-    try {
-      store.epoch = txn.owner_epoch;
-      expected = acceptWorldChange(
-        store,
-        store.read<WorldBatch>(old.action.parameters_ref),
-        { kind: "MODEL", scope: old.scope, owner_epoch: txn.owner_epoch },
-        receipt.applied_at,
-      );
-    } finally {
-      store.epoch = oldEpoch;
-    }
+    // Historical frames retain structural integrity checks above, but never
+    // re-run today's catalog, provenance policy or conflict algorithm.
+    if (replay) continue;
+    const expected = acceptWorldChange(
+      store,
+      store.read<WorldBatch>(old.action.parameters_ref),
+      { kind: "MODEL", scope: old.scope, owner_epoch: txn.owner_epoch },
+      receipt.applied_at,
+    );
     const actual = staged.filter((x) =>
       ["WorldEntity", "WorldAssertion"].includes(x.record_type),
     );
