@@ -1,0 +1,293 @@
+{
+  "policy_freeze_commit": "2daba9d5d60971e91419268971b55e71c755e107",
+  "authorship": "Codex authored after policy freeze, before first execution; not independent authorship",
+  "probes": [
+    {
+      "category": "name",
+      "query": "Ask ALICE about her drink",
+      "expected": [
+        "tea"
+      ]
+    },
+    {
+      "category": "name",
+      "query": "小艾的习惯",
+      "expected": [
+        "tea"
+      ]
+    },
+    {
+      "category": "name",
+      "query": "Bob wants focus",
+      "expected": [
+        "quiet"
+      ]
+    },
+    {
+      "category": "name",
+      "query": "小波的工作",
+      "expected": [
+        "quiet"
+      ]
+    },
+    {
+      "category": "name",
+      "query": "Atlas constraints",
+      "expected": [
+        "atlas"
+      ]
+    },
+    {
+      "category": "name",
+      "query": "星图项目",
+      "expected": [
+        "atlas"
+      ]
+    },
+    {
+      "category": "name",
+      "query": "Orion location",
+      "expected": [
+        "orion"
+      ]
+    },
+    {
+      "category": "name",
+      "query": "猎户地址",
+      "expected": [
+        "orion"
+      ]
+    },
+    {
+      "category": "name",
+      "query": "Cedar organization",
+      "expected": [
+        "cedar"
+      ]
+    },
+    {
+      "category": "name",
+      "query": "雪松组织",
+      "expected": [
+        "cedar"
+      ]
+    },
+    {
+      "category": "ambiguity",
+      "query": "Researcher routines",
+      "expected": [
+        "tea",
+        "quiet"
+      ],
+      "ambiguity": 2
+    },
+    {
+      "category": "ambiguity",
+      "query": "RESEARCHER preferences",
+      "expected": [
+        "tea",
+        "quiet"
+      ],
+      "ambiguity": 2
+    },
+    {
+      "category": "ambiguity",
+      "query": "Researcher drinks and music",
+      "expected": [
+        "tea",
+        "quiet"
+      ],
+      "ambiguity": 2
+    },
+    {
+      "category": "ambiguity",
+      "query": "Researcher identity",
+      "expected": [
+        "tea",
+        "quiet"
+      ],
+      "ambiguity": 2
+    },
+    {
+      "category": "paraphrase",
+      "query": "warm beverage",
+      "expected": [
+        "tea"
+      ]
+    },
+    {
+      "category": "paraphrase",
+      "query": "workplace silence",
+      "expected": [
+        "quiet"
+      ]
+    },
+    {
+      "category": "paraphrase",
+      "query": "unreleased cartography",
+      "expected": [
+        "atlas"
+      ]
+    },
+    {
+      "category": "cross_language",
+      "query": "茶饮选择",
+      "expected": [
+        "tea"
+      ]
+    },
+    {
+      "category": "cross_language",
+      "query": "安静工作",
+      "expected": [
+        "quiet"
+      ]
+    },
+    {
+      "category": "cross_language",
+      "query": "地图保密",
+      "expected": [
+        "atlas"
+      ]
+    },
+    {
+      "category": "negation",
+      "query": "Alice avoids coffee",
+      "expected": [
+        "tea"
+      ],
+      "text": "does not drink coffee"
+    },
+    {
+      "category": "negation",
+      "query": "Atlas refuses publication",
+      "expected": [
+        "atlas"
+      ],
+      "text": "Do not publish"
+    },
+    {
+      "category": "history",
+      "query": "Alice used to drink coffee",
+      "expected": [
+        "tea"
+      ]
+    },
+    {
+      "category": "history",
+      "query": "Bob previous music preference",
+      "expected": [
+        "quiet"
+      ]
+    },
+    {
+      "category": "history",
+      "query": "Alice withdrawn report",
+      "expected": [
+        "tea"
+      ]
+    },
+    {
+      "category": "time",
+      "query": "Orion outdated observation",
+      "expected": [
+        "stale"
+      ],
+      "stale": "stale"
+    },
+    {
+      "category": "time",
+      "query": "Alice future appointment status",
+      "expected": [
+        "tea"
+      ]
+    },
+    {
+      "category": "time",
+      "query": "Bob expired assignment status",
+      "expected": [
+        "quiet"
+      ]
+    },
+    {
+      "category": "conflict",
+      "query": "Master instructions",
+      "expected": [
+        "conflict-a",
+        "conflict-b"
+      ],
+      "text": "POSSIBLY-CONFLICTING"
+    },
+    {
+      "category": "conflict",
+      "query": "老板 communication",
+      "expected": [
+        "conflict-a",
+        "conflict-b"
+      ],
+      "text": "POSSIBLY-CONFLICTING"
+    },
+    {
+      "category": "onehop",
+      "query": "小艾所在的组织",
+      "expected": [
+        "cedar"
+      ]
+    },
+    {
+      "category": "onehop",
+      "query": "星图依赖服务",
+      "expected": [
+        "orion"
+      ]
+    },
+    {
+      "category": "empty",
+      "query": "aardvark taxonomy",
+      "expected": [],
+      "empty": true
+    },
+    {
+      "category": "empty",
+      "query": "黑洞蒸发",
+      "expected": [],
+      "empty": true
+    },
+    {
+      "category": "empty",
+      "query": "tropical cyclones",
+      "expected": [],
+      "empty": true
+    },
+    {
+      "category": "empty",
+      "query": "sourdough fermentation",
+      "expected": [],
+      "empty": true
+    },
+    {
+      "category": "empty",
+      "query": "volcanic geology",
+      "expected": [],
+      "empty": true
+    },
+    {
+      "category": "empty",
+      "query": "ocean salinity",
+      "expected": [],
+      "empty": true
+    },
+    {
+      "category": "empty",
+      "query": "lunar eclipse",
+      "expected": [],
+      "empty": true
+    },
+    {
+      "category": "empty",
+      "query": "copper metallurgy",
+      "expected": [],
+      "empty": true
+    }
+  ]
+}
