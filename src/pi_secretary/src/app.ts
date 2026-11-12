@@ -1,3 +1,4 @@
+import { ScopeImports } from "./scope-import.ts";
 import { ensureTaskIdentities } from "./task-identity-migration.ts";
 import { taskMessagesFor } from "./task-messages.ts";
 import { Pushes, type PushDelivery } from "./push-service.ts";
@@ -19,6 +20,7 @@ import type { Model, Api } from "@earendil-works/pi-ai";
 export class App {
   private worldWork?: Promise<void>;
   readonly settings: Settings;
+  readonly scopeImports: ScopeImports;
   readonly pushes: Pushes;
   private constructor(
     readonly store: Store,
@@ -28,6 +30,11 @@ export class App {
     readonly world?: World,
     options: { clock?: () => number; pushDelivery?: PushDelivery } = {},
   ) {
+    this.scopeImports = new ScopeImports(
+      store,
+      authorization,
+      scheduler.scopes,
+    );
     this.pushes = new Pushes(store, options.clock, options.pushDelivery);
     this.settings = new Settings(store, host, world);
     // Initialize durable configuration before any query is accepted.
@@ -70,6 +77,7 @@ export class App {
         options.clock,
       );
       const app = new App(store, auth, scheduler, host, world, options);
+      app.scopeImports.drain();
       if (world.configured)
         await world
           .initializeMemorySearchSchema()
@@ -92,6 +100,7 @@ export class App {
     return activitiesFor(this.store).snapshot(this);
   }
   async pump() {
+    this.scopeImports.drain();
     void this.pushes.tick().catch(() => {});
     void this.world?.memorySearch.advance();
     if (this.world && !this.worldWork)

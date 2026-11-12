@@ -115,3 +115,5 @@
 | [WorldEntity](WorldEntity.md) | 11 |  |
 | [WorldAssertion](WorldAssertion.md) | 21 |  |
 | [WorldGenesis](WorldGenesis.md) | 10 |  |
+| [ScopeImportProposal](ScopeImportProposal.md) | 6 |  |
+| [ScopeImportParameters](ScopeImportParameters.md) | 5 |  |

@@ -1,3 +1,4 @@
+import { ScopeImports } from "./scope-import.ts";
 import { recall, worldSnapshot } from "./world-recall.ts";
 import { guidanceFor, GUIDANCE_CONTEXT } from "./guidance.ts";
 import { failuresFor, type FailureProposal } from "./failure-handling.ts";
@@ -98,6 +99,7 @@ export function tools(
               bound &&
               (![
                 "task_query",
+                "scope_query",
                 "memory_search",
                 "memory_read",
                 "MasterInteract",
@@ -108,6 +110,17 @@ export function tools(
                   (args as { action: string }).action !== "dismiss_failure"))
             )
               throw Error("FAILURE_ACTION_SCOPE_ONLY");
+            if (
+              (batch ?? claimed).some((i) => i.producer === "ENVIRONMENT") &&
+              ![
+                "task_query",
+                "scope_query",
+                "memory_search",
+                "memory_read",
+                "MasterInteract",
+              ].includes(t.name)
+            )
+              throw Error("ENVIRONMENT_READ_ONLY");
             const uncertainFeedback = claimed.some(
               (i) =>
                 i.feedback_id &&
@@ -180,12 +193,79 @@ export function tools(
           },
         }) as AgentTool,
     );
+  const sourceInputs = new Set(
+    (batch ?? failures.inputContext(this.sessionID, loopID).inputs)
+      .filter(
+        (i) =>
+          i.producer === "MASTER" &&
+          !i.attachments?.length &&
+          !i.failure_action &&
+          i.state !== "WITHDRAWN",
+      )
+      .map((i) => i.id),
+  );
+  const sourceEvents = this.store
+    .events("input.accepted")
+    .filter((e) => sourceInputs.has(this.store.read<Input>(e.payload).id))
+    .map((e) => e.event_id);
+  const imports = new ScopeImports(
+    this.store,
+    this.scheduler.auth,
+    this.scheduler.scopes,
+  );
   return wrap([
+    tool({
+      name: "scope_import",
+      label: "Scope import",
+      description:
+        "Propose a logical NONE scope or import an existing physical DIRECTORY. Requires explicit source_event_ids from attachment-free Master input.accepted events in this current turn. Does not create directories. Every proposal requires exact owner approval; proposed/approved is not imported. DIRECTORY defaults to ask. Symlink ancestors (including macOS /tmp and /var aliases) are rejected; use the physical path. Query imports by operation ID for durable status. Results trigger one read-only report turn; only a later Master turn may delegate to the scope. Current eligible Master event IDs: " +
+        JSON.stringify(sourceEvents),
+      parameters: Type.Object({
+        name: Type.String({ minLength: 1, maxLength: 256 }),
+        description: Type.Optional(Type.String({ maxLength: 4000 })),
+        kind: Type.Union([Type.Literal("NONE"), Type.Literal("DIRECTORY")]),
+        root_path: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        notes_path: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        default_write: Type.Optional(
+          Type.Union([Type.Literal("allow"), Type.Literal("ask")]),
+        ),
+        source_event_ids: Type.Array(Type.String(), {
+          minItems: 1,
+          maxItems: 20,
+        }),
+      }),
+      execute: async (call, { source_event_ids, ...proposal }) =>
+        result(
+          imports.propose(
+            proposal,
+            source_event_ids,
+            { session_id: this.sessionID, task_id: null, execution_id: null },
+            loopID,
+            call,
+          ),
+        ),
+    }),
+    tool({
+      name: "scope_query",
+      label: "Scope query",
+      description:
+        "Read active scopes with pagination, exact scope ID (including archived), or this session's import operation statuses. kind=imports id is operation_id. No filesystem discovery.",
+      parameters: Type.Object({
+        kind: Type.Optional(
+          Type.Union([Type.Literal("scopes"), Type.Literal("imports")]),
+        ),
+        id: Type.Optional(Type.String()),
+        cursor: Type.Optional(Type.String()),
+        limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100 })),
+      }),
+      execute: async (_call, options) =>
+        result(imports.query(this.sessionID, options)),
+    }),
     tool({
       name: "task_propose",
       label: "Propose task",
       description:
-        "New tasks: supply a short title_candidate; omit on reuse/REDO. Choose an available scope_id when clear; otherwise ask Master. Only Master manages scopes. Conversation/explanation needs no task. Default AGENT; PROGRAM requires registered program_id. For revisions use reuse_task_id and its latest ended parent_execution_id; query unclear identity/requirements. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace fields. Preserve unchanged requirements; goal is this round's complete goal. Structured failure REDO: use IDs from failure query; omit goal and all overrides. Core preserves original requirements. No at/interval on reuse. Separate deliverables need new tasks. Include relevant constraints/materials; Scheduler builds executor packet. Use null for unspecified options; never invent program IDs, dates or deadlines.",
+        "New tasks: supply a short title_candidate; omit on reuse/REDO. Choose an available scope_id when clear; otherwise ask Master. Use scope_import for owner-approved creation/import and scope_query for status; only Master edits/archives scopes. Conversation/explanation needs no task. Default AGENT; PROGRAM requires registered program_id. For revisions use reuse_task_id and its latest ended parent_execution_id; query unclear identity/requirements. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace fields. Preserve unchanged requirements; goal is this round's complete goal. Structured failure REDO: use IDs from failure query; omit goal and all overrides. Core preserves original requirements. No at/interval on reuse. Separate deliverables need new tasks. Include relevant constraints/materials; Scheduler builds executor packet. Use null for unspecified options; never invent program IDs, dates or deadlines.",
       parameters: Type.Object({
         title_candidate: Type.Optional(
           Type.Union([Type.String(), Type.Null()]),

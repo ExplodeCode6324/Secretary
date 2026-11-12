@@ -1,3 +1,4 @@
+import { validateScopeImportFrame } from "./scope-import-invariants.ts";
 import { validateWorldFrame } from "./world-invariants.ts";
 import { TaskIdentityIndex, IDENTITY_ACTIVATED } from "./task-identity.ts";
 import { EVIDENCE_MEDIA, hydrateEvidence } from "./evidence.ts";
@@ -870,6 +871,7 @@ export class Store {
         throw Error("MISSING_SESSION");
     }
     validateWorldFrame(this, txn, staged, replay);
+    validateScopeImportFrame(this, txn, staged, replay);
     const identityEvents = txn.log_records.filter(
       (e) => e.event_type === IDENTITY_ACTIVATED,
     );

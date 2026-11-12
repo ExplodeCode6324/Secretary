@@ -18,7 +18,7 @@ import type {
 } from "./contracts.ts";
 import { stableID } from "./execution-utils.ts";
 import type { HostContext } from "./host-context.ts";
-import { isTimerMessage } from "./input-origin.ts";
+import { isHostNoticeMessage } from "./input-origin.ts";
 import { enqueueExtractions } from "./memory-extraction.ts";
 import { migrateCommitments, reconcileCommitments } from "./memory.ts";
 import { maintenanceRetryAt, retryNow } from "./model-retry.ts";
@@ -283,7 +283,7 @@ export async function maintain(
       completeMessages: delta.flatMap((l) => {
         const m = this.store.read<AgentMessage>(l.payload);
         return (m.role === "user" || m.role === "assistant") &&
-          !isTimerMessage(this.store, m) &&
+          !isHostNoticeMessage(this.store, m) &&
           !!typedMessageText(this.store, m)
           ? [
               {

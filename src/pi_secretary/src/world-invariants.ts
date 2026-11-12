@@ -195,7 +195,12 @@ export function validateWorldFrame(
     if (r.record_type !== "Operation") continue;
     const old = store.find<Operation>("Operation", r.id);
     if (old?.state !== "AUTHORIZED" || r.state !== "SUCCEEDED") continue;
-    // Scope import remains closed until #113 supplies its exact frame validator.
+    // Scope imports have their own strict whole-frame validator.
+    if (r.action.action === "scope.import") {
+      if (worldMutations.length || genesis || ownerEvent)
+        throw Error("WORLD_FRAME_UNEXPECTED_MUTATION");
+      continue;
+    }
     if (r.action.action !== "world.change")
       throw Error("JOURNAL_APPLY_ACTION_FORBIDDEN");
     if (old.owner_epoch !== txn.owner_epoch) throw Error("STALE_OWNER");

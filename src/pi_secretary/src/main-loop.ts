@@ -175,7 +175,11 @@ export function accept(
         "input.accepted",
         input,
         { session_id: this.sessionID, task_id: null, execution_id: null },
-        producer === "MASTER" ? "MASTER_UI" : "SCHEDULER",
+        producer === "MASTER"
+          ? "MASTER_UI"
+          : producer === "ENVIRONMENT"
+            ? "HOST"
+            : "SCHEDULER",
       ),
     ],
     { request: requestID, hash: digest, value: input.id },
@@ -486,6 +490,7 @@ export async function run(this: MainLoopContext) {
       const accepted = pending.filter((i) => i.state === "ACCEPTED");
       const boundary = accepted.findIndex(
         (i) =>
+          i.producer === "ENVIRONMENT" ||
           i.attachments?.length ||
           i.failure_action ||
           failuresFor(this.store).isolatedFeedback(i),
@@ -623,7 +628,9 @@ export async function run(this: MainLoopContext) {
           "MAIN",
           {
             generation: this.session.model_retry_generation ?? 0,
-            activityPhase: batch.some((i) => i.producer === "SCHEDULER")
+            activityPhase: batch.some((i) =>
+              ["SCHEDULER", "ENVIRONMENT"].includes(i.producer),
+            )
               ? "正在整理回复"
               : undefined,
             requestMetadata: () => ({

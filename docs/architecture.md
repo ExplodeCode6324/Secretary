@@ -69,3 +69,9 @@ Store 先写 CAS 对象，再校验并追加哈希链 journal 事务，收到 fs
 Execution 的 `retention_state=RETIRED` 与终态 `state` 分开，不是删除许可。[retention](../src/pi_secretary/src/retention.ts) 仅在执行终结、无等待请求、无未知操作、无待处理接续、Feedback 均为 `HANDLED`/`SUPPRESSED`，且距 `max(ended_at, last_activity_at)` 达到 `retire_after_seconds`（创建时 172800 秒）后，读取事件与结果详情的 CAS 字节，保存 ArchiveManifest 并标记退役；不删除 journal、CAS 或工作目录。列表、详情和 Task 浏览不续期；显式 `viewed` 仅在退役前重置期限。退役后详情只返回身份与清单，产物为 `archived`，不能作为接续父执行（`PARENT_NOT_RESUMABLE`）。
 
 备份和恢复必须同时考虑 Core 数据目录、配套 PostgreSQL、客户端草稿/恢复材料及外部 Scope 工作根。CAS 产物快照与当前工作文件是不同对象，不能互相替代；混用不同时点的数据库和 journal 也不能视为完整恢复。操作步骤见[运行手册](operations.md#备份与升级)，保留行为的回归用例见[运行时测试](../test_case/offline/runtime/runtime.test.ts)。
+
+## Scope import transactions
+
+Main-originated `scope.import` uses the same restricted `AUTHORIZED --journal_apply--> SUCCEEDED` transition as `world.change`, with a separate whole-frame guard. The Scope frame contains exactly the consumed grant, deterministic new Scope, Operation receipt and HOST-produced ENVIRONMENT Input. World frames retain their own guard and create no automatic result Input; external-effect operations cannot use this transition. Expiry and definite failure cancel without effect, and rejection/revocation notification reconciliation runs on startup and every pump.
+
+ENVIRONMENT result Inputs are isolated at their original input-order position and have a read/query/report tool allowlist. They are excluded from Master quote/commitment extraction, kept as HOST notices in summaries and conversation history, and excluded from Master-input search. Scope status remains queryable through `scope_query`. No Task, Execution or Feedback is fabricated for the report.
