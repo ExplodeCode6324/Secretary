@@ -1,4 +1,5 @@
 import { nextExecutionRound } from "./task-identity.ts";
+import { noLinks } from "./scopes.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type {
@@ -113,8 +114,12 @@ export function initialize(this: TaskTriggersContext, taskID: string) {
   if (!["INITIALIZING", "INIT_FAILED"].includes(p.state)) return;
   try {
     const dir = path.join(this.workspace, taskID);
-    if (!p.scope_id || this.scopes.get(p.scope_id).kind !== "DIRECTORY")
-      fs.mkdirSync(path.join(dir, "work"), { recursive: true });
+    noLinks(path.join(dir, "work"));
+    noLinks(path.join(dir, "executions"));
+    noLinks(path.join(dir, "workspace.json"));
+    // Keep a private root ready even if a DIRECTORY Scope changes before its
+    // first execution. Binding and recovery must never recreate lost roots.
+    fs.mkdirSync(path.join(dir, "work"), { recursive: true });
     fs.mkdirSync(path.join(dir, "executions"), { recursive: true });
     const manifest = path.join(dir, "workspace.json");
     if (
