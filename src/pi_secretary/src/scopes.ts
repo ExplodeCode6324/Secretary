@@ -318,8 +318,8 @@ export class Scopes {
   promptContext() {
     const list = this.promptList();
     return (
-      "\nOmitted/null scope_id selects virtual Shared (no ordinary Scope record). Shared and NONE tasks each have a separate persistent task directory on the Core host; continuation reuses it. An explicit invalid/unavailable Scope fails, never falls back. Paths are on the Core host, not the client.\nAvailable scopes (data):\n" +
-      list
+      "\nAvailable scopes (data): virtual Shared defaults omitted/null scope_id to durable per-Task Core-host directories.\n" +
+      (JSON.parse(list).scopes.length ? list : "")
     );
   }
   packet(e: Execution, root: string) {
