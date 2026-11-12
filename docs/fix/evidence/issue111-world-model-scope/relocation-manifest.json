@@ -1,0 +1,31 @@
+{
+  "revision": "R5 regular-iteration handoff",
+  "date": "2026-11-12",
+  "review_scope": "Technical R5 PASS; workflow reclassification directed by Master, not a new review",
+  "originals": {
+    "004-first-iteration.en.md": "2d39fd1ea06acd853613a9365c85245c59df9364f245d6f134290a71032a0006",
+    "004-第一次迭代计划.md": "da089d4a2dcfc4f1a22166034226212ca4862388eabd5c100a26c423011abcfb"
+  },
+  "files": {
+    "plan.en.md": "4425e7741b5220138ed0cf603e431c4d1f7ab3a3e479c1ce9d3ca4476f674fe1",
+    "plan.md": "6e7325709ddf638671e02ba703663fdb95c4e22e0ecfee7c6b30e2f58b9e4c77",
+    "README.md": "8d6b33fb75459fd20fd2962691df860c6a8c87a69cdc669b8e052c36805668f7",
+    "issues/111-tracking.md": "24bcb507f8e23da9aeac9d2084764d592fe849ad34b8df5483f8f475f8066c2c",
+    "issues/113-scope.md": "e1e0b22c117278701f942557457b107b2a30812d1eaa290aeb75c04774ad3ba1",
+    "issues/112-world.md": "8c96fe24621a23e94a2c941b17fff68088d78b031f6d5f027860258bd1ea5fd4",
+    "issues/114-shared.md": "e9ad0ccd18ba3270bfb0c03fbf6dd1e82eefd75022ba65fa71cb9a55023535d1"
+  },
+  "issues": {
+    "111": "https://github.com/ExplodeCode6324/Secretary/issues/111",
+    "112": "https://github.com/ExplodeCode6324/Secretary/issues/112",
+    "113": "https://github.com/ExplodeCode6324/Secretary/issues/113",
+    "114": "https://github.com/ExplodeCode6324/Secretary/issues/114"
+  },
+  "verification": {
+    "technical_sections_2_to_8_unchanged": true,
+    "archived_original_hashes_match": true,
+    "relative_markdown_links_resolve": true,
+    "github_bodies_read_back_match": true,
+    "implementation_started": false
+  }
+}
