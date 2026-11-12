@@ -74,3 +74,10 @@ During #114 implementation, Master explicitly directed a hard compatibility cut:
 ### Continuation budget regression
 
 The amended full run found #21 S2 CAPACITY_BLOCKED (input 54123 versus usable 54067) after the expanded default-Shared prompt. The first two shorter wordings admitted the initial request but left too little space for the minimum memory page, so the original nonempty-page assertion still failed. The final correction removes the redundant empty Scope-list envelope and compresses task_propose wording while retaining each instruction. No context limit, reserve, page assertion, fixture input or memory-tool budget rule changed. Targeted #21 read plus #114 regressions passed 17/17; typecheck and docs checks passed before restarting full verification. Raw first failures remain in the private evidence directory.
+
+
+### Claude implementation R1 disposition
+
+Fable 5.2 Medium requested changes: a scheduled DIRECTORY task changed to NONE before its first execution entered WAIT_PRECONDITION because no private directory had been initialized. The new regression reproduced that exact failure before the fix. Every new task now initializes its private directory once, including DIRECTORY tasks; DIRECTORY executions still bind only their approved external root. Binding no longer creates directories or scans prior executions. Two #16 assertions now expect the deliberately initialized private directory; external-root execution, immutable binding, authorization and CAS assertions remain intact. Existing queued/historical missing-root and symlink failures remain strict. This supersedes the earlier first-transition creation workaround. Old pre-cut data needs no compatibility adapter under Master's hard-cut decision.
+
+The first review independently passed 67/68 targeted tests; its lone frozen-wrapper SIGKILL also reproduced on the earlier baseline in the review sandbox and was reported separately as environmental. Final validation and the exact-head re-review are recorded in the PR; no approval or full-suite PASS is inferred from that partial review.

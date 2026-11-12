@@ -224,7 +224,6 @@ export class Scopes {
   binding(
     scopeID: string | null,
     fallback: string,
-    createPrivate = false,
   ): NonNullable<Execution["workspace_binding"]> {
     const scope = scopeID ? this.get(scopeID) : null;
     if (scope?.kind === "DIRECTORY")
@@ -233,12 +232,7 @@ export class Scopes {
         root_path: scope.root_path!,
         notes_path: scope.notes_path,
       };
-    // Initialization creates new task roots. Only a first DIRECTORY -> NONE
-    // transition may create one here; missing historical roots stay missing.
-    if (createPrivate) {
-      noLinks(fallback);
-      fs.mkdirSync(fallback, { recursive: true });
-    }
+    // Only initialization creates private roots; binding is read-only.
     return {
       kind: "NONE",
       root_path: path.resolve(fallback),

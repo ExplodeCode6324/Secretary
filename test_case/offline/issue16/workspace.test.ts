@@ -117,7 +117,7 @@ test("authorized notes write retains bound root across update/archive and captur
     assert.equal(fs.existsSync(path.join(next, ".secretary")), false);
     assert.equal(
       fs.existsSync(path.join(a.scheduler.workspace, p.id, "work")),
-      false,
+      true,
     );
     const r = a.store.get<TaskResult>("TaskResult", e.result_id!);
     assert.equal(r.scope_id, s.id);

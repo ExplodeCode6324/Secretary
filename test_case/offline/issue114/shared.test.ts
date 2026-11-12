@@ -262,6 +262,38 @@ test("two populated Shared tasks retain distinct files, bindings and CAS through
     }
   }, write));
 
+test("scheduled DIRECTORY to NONE before first execution uses initialized private workspace", () =>
+  fixture(async (app, _api, root) => {
+    const external = directory(root);
+    const scope = app.scheduler.scopes.save({
+      name: "Change before first run",
+      kind: "DIRECTORY",
+      root_path: external,
+    });
+    const due = Date.now() + 60_000;
+    const p = app.scheduler.propose("scheduled", id(), app.host.sessionID, {
+      scopeID: scope.id,
+      at: new Date(due).toISOString(),
+    });
+    app.scheduler.tick();
+    assert.equal(executions(app).length, 0);
+    app.scheduler.scopes.save(
+      { kind: "NONE", root_path: null },
+      scope.id,
+      scope.revision,
+    );
+    app.scheduler.tick(due + 1);
+    await app.scheduler.idle();
+    const e = executions(app)[0];
+    assert.equal(e.state, "SUCCEEDED");
+    assert.equal(e.workspace_binding?.kind, "NONE");
+    assert.equal(
+      app.scheduler.rootFor(e),
+      path.join(app.scheduler.workspace, p.id, "work"),
+    );
+    assert.deepEqual(fs.readdirSync(external), []);
+  }));
+
 test("missing queued/periodic or historical workspace is diagnosed without empty recreation", () =>
   fixture(async (app, api) => {
     const p = app.scheduler.propose("queued", id(), app.host.sessionID);

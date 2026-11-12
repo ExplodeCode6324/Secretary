@@ -117,8 +117,9 @@ export function initialize(this: TaskTriggersContext, taskID: string) {
     noLinks(path.join(dir, "work"));
     noLinks(path.join(dir, "executions"));
     noLinks(path.join(dir, "workspace.json"));
-    if (!p.scope_id || this.scopes.get(p.scope_id).kind !== "DIRECTORY")
-      fs.mkdirSync(path.join(dir, "work"), { recursive: true });
+    // Keep a private root ready even if a DIRECTORY Scope changes before its
+    // first execution. Binding and recovery must never recreate lost roots.
+    fs.mkdirSync(path.join(dir, "work"), { recursive: true });
     fs.mkdirSync(path.join(dir, "executions"), { recursive: true });
     const manifest = path.join(dir, "workspace.json");
     if (
@@ -364,15 +365,6 @@ export function tick(this: TaskTriggersContext, at = Date.now()) {
       workspace_binding: this.scopes.binding(
         p.scope_id ?? null,
         path.join(this.workspace, p.id, "work"),
-        // Preserve owner-managed DIRECTORY -> NONE behavior, but never
-        // recreate a private directory which this task previously used.
-        this.store.indexed<Execution>("Execution", "task_id", [p.id]).length >
-          0 &&
-          this.store
-            .indexed<Execution>("Execution", "task_id", [p.id])
-            .every(
-              (previous) => previous.workspace_binding?.kind === "DIRECTORY",
-            ),
       ),
       task_id: p.id,
       execution_round: round,
