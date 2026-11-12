@@ -1,3 +1,4 @@
+import { messageProducer } from "./input-origin.ts";
 import type { Input, ObjectRef, Context } from "./contracts.ts";
 import type { AgentMessage } from "./model.ts";
 import { hash, type Store } from "./store.ts";
@@ -352,7 +353,19 @@ export function summaryMessage(
 ): AgentMessage | null {
   if (withdrawnSource(store, message)) return null;
   const form = attachmentForm(store, message);
-  if (!form) return message;
+  if (!form) {
+    if (
+      message.role === "user" &&
+      messageProducer(store, message) === "ENVIRONMENT"
+    )
+      return {
+        ...message,
+        content:
+          "[HOST ENVIRONMENT notification; not Master evidence]\n" +
+          contentText(message.content),
+      } as AgentMessage;
+    return message;
+  }
   if (form.input.state === "WITHDRAWN") return null;
   return {
     ...message,

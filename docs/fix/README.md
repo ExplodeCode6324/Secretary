@@ -6,6 +6,10 @@
 
 | Issue | 计划 | 状态 |
 | --- | --- | --- |
+| #111 | [World / Scope 总计划（中文）](fix_20261112_issue111_world_model_scope.md) · [English](fix_20261112_issue111_world_model_scope.en.md) · [交接与历史档案](evidence/issue111-world-model-scope/README.md) | 完整 R5 总计划；子项分别维护执行计划；系列真实记忆验收留待全部完成后在 agile 进行 |
+| #112 | [World 实施计划（中文）](fix_20261112_issue112_world.md) · [English](fix_20261112_issue112_world.en.md) · [验收记录](evidence/issue112-world/acceptance.md) | [PR #115](https://github.com/ExplodeCode6324/Secretary/pull/115) 已合并；隔离后端验证与 main CI 通过；系列真实验收后置 |
+| #113 | [Scope 导入执行计划（中文）](fix_20261112_issue113_scope.md) · [English](fix_20261112_issue113_scope.en.md) | 待实施；精确授权、原子 Scope 创建及独立环境报告轮次 |
+| #114 | [Shared 执行计划（中文）](fix_20261112_issue114_shared.md) · [English](fix_20261112_issue114_shared.en.md) | 待实施；默认虚拟 Shared、持久任务目录及路径可见性 |
 | #105 | [稳定标题、固定轮次与导航（中文）](fix_20261107_issue105_identity.md) · [English](fix_20261107_issue105_identity.en.md) | R2 Claude Opus 5.5 Extra 计划复核 PASS；非阻塞细化已纳入；[复核记录](evidence/issue105-identity/plan-review.md)；实施待 Master 批准 |
 | #82 | [终端双入口计划（中文）](fix_20261030_issue82_terminal.md) · [English](fix_20261030_issue82_terminal.en.md) | R3 Claude Opus 5.5 Extra 三轮计划复核 PASS；[复核记录](evidence/issue82-rebuild/plan-review.md)；实施待 Master 批准 |
 | #81 | [附件闭环（中文）](fix_20261023_issue81_附件闭环.md) · [English](fix_20261023_issue81_附件闭环.en.md) | R3；协调已批准实施，Claude Opus 5.5 Extra 三轮计划复核 PASS；[复核记录](evidence/issue81-attachments/plan-review.md)，[实施证据](evidence/issue81-attachments/implementation-review.md)；待准确 HEAD 复核与 CI |
@@ -19,6 +23,8 @@
 | #27 | [按代码重写文档](fix_20261018_issue27_按代码重写文档.md) | PR #55 已合并，main CI 通过 |
 | #10 | [删除废弃 SwiftUI 客户端](fix_20261019_issue10_删除废弃SwiftUI客户端.md) | 计划复核通过，实施与验证中 |
 
-既有 Core 计划在本目录全量保留。自 2026-11-08 起，敏捷迭代计划统一放在根目录 `fix/fix_20261108start_敏捷迭代专题/`；入口为[文档收敛与敏捷基线](../../fix/fix_20261108start_敏捷迭代专题/001-文档收敛与敏捷基线.md)及其 [English](../../fix/fix_20261108start_敏捷迭代专题/001-document-consolidation-and-agile-baseline.en.md)。当前行为以[现行手册](../README.md)为准。
+既有 Core 计划在本目录全量保留。自 2026-11-08 起，敏捷迭代计划统一放在本目录下的 `docs/fix/fix_20261108start_敏捷迭代专题/`；入口为[文档收敛与敏捷基线](fix_20261108start_敏捷迭代专题/001-文档收敛与敏捷基线.md)及其 [English](fix_20261108start_敏捷迭代专题/001-document-consolidation-and-agile-baseline.en.md)。当前行为以[现行手册](../README.md)为准。
 
 
+
+命名约定：常规修复计划使用 `fix_YYYYMMDD_issue编号_主题.md`，英文版使用同名 `.en.md`；配套交接、验收与历史快照放在 `evidence/issue编号-主题/`。专题目录保留专题内的编号文件。

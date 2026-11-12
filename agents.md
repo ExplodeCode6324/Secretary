@@ -5,8 +5,8 @@
 - 唯一敏捷实例目录：`/Users/muy/Desktop/secretary-agile`。
 - 专用敏捷迭代分支：`agile`。本目录始终在此分支工作。
 - **只有获得 Master 明确许可，才能把 agile 并入 main；不得自动合并、直接推送 main 或重写基线。**
-- 正式敏捷基线：文档整理完成后的 main `6b33008f7f1daa010a05e3386b045bcdd1a873ec`，标签 `baseline-20261108-agile`。旧 `baseline-20261108-pre-agile` 仅记录整理前版本，保持不动。
-- 所有新的敏捷 fix 计划统一放在 `fix/fix_20261108start_敏捷迭代专题/`，覆盖一般工作流的默认计划路径；历史 `docs/fix/` 全量保留。
+- 当前代码基线：2026-11-12 经 Master 授权同步的 main `c94daf29c379dad99921b09142ad36eac2db2aa5`（PR #117）。历史标签 `baseline-20261108-agile` 与 `baseline-20261108-pre-agile` 保持不动。
+- 所有新的敏捷 fix 计划统一放在 `docs/fix/fix_20261108start_敏捷迭代专题/`，覆盖一般工作流的默认计划路径；历史 `docs/fix/` 全量保留。
 - 本目录是唯一专用实例，不建立多轮次、rehearsal、隔离验收或临时替代实例。不运行会另建 Core 实例的历史在线验收脚本。
 - 2026-11-09 Master 明确要求：从现在起持续运行，不设实例级总请求预算、工具调用总额或运行截止时间，不在验收结束后停机。仅敏捷变更时允许短暂停机，完成后立即恢复。单请求模型容量与故障重试规则不属于实例总额度。
 - 用户级 launchd 服务 `com.secretary.agile` 登录自启并常驻守护，每 30 秒检查同一 Core/PostgreSQL；caffeinate 防空闲睡眠。维护停机使用 `npm run stop` 写入 `.local/maintenance.json`，完成后 `npm start` 清除维护标记并恢复。不得留下维护标记而结束工作。

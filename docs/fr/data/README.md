@@ -88,7 +88,7 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [JournalTransaction](JournalTransaction.md) | 10 | Transaction à writer unique ; la trame enveloppe le checksum des octets bruts du payload ; elle s’applique entièrement ou pas du tout. |
 | [MemoryCommitment](MemoryCommitment.md) | 7 |  |
 | [UserInstructions](UserInstructions.md) | 7 | Instructions Master actuellement actives. L’interface sauvegarde d’abord un brouillon ; après résumé complet et reconstruction du contexte, les valider avec l’état d’application. |
-| [MainPromptSnapshot](MainPromptSnapshot.md) | 11 |  |
+| [MainPromptSnapshot](MainPromptSnapshot.md) | 12 |  |
 | [SettingsDraft](SettingsDraft.md) | 6 | Modifications de Master en attente ; payload est SettingsPayload, non les paramètres actifs. |
 | [SettingsApplication](SettingsApplication.md) | 17 | Application de paramètres par lot fixe ; après commit de la base, la reconstruction doit finir avant de poursuivre la session principale. |
 | [WorldEdit](WorldEdit.md) | 20 |  |
@@ -116,3 +116,8 @@ Sources d’exécution : [contracts.schema.json](../../../src/contracts/contract
 | [Guidance](Guidance.md) | 21 | Durable exact-execution guidance; independent sent, received and adopted milestones. |
 | [GuidanceInjection](GuidanceInjection.md) | 13 | Host-only injection provenance. A queued message is not reception or model consumption. |
 | [GuidanceReceipt](GuidanceReceipt.md) | 15 | Append-only validated disposition from the actual durable model request and response. |
+| [WorldEntity](WorldEntity.md) | 11 |  |
+| [WorldAssertion](WorldAssertion.md) | 21 |  |
+| [WorldGenesis](WorldGenesis.md) | 10 |  |
+| [ScopeImportProposal](ScopeImportProposal.md) | 6 |  |
+| [ScopeImportParameters](ScopeImportParameters.md) | 5 |  |

@@ -608,7 +608,7 @@ test("extraction resumes only the failed segment and retains frozen task associa
     );
     const options = {
       store: app.store,
-      model: fixtureModel,
+      model: { ...fixtureModel, contextWindow: 32768 },
       stream,
       existing: [],
       consciousnessRevision: cs.revision,

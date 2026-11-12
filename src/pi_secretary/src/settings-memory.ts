@@ -1,4 +1,4 @@
-import { isTimerMessage } from "./input-origin.ts";
+import { isHostNoticeMessage } from "./input-origin.ts";
 import { contentText } from "@earendil-works/pi-ai";
 import { activitiesFor } from "./activity.ts";
 import { enqueueExtractions } from "./memory-extraction.ts";
@@ -193,7 +193,7 @@ export function settingsSource(host: Host, changes: unknown): SettingsSource {
       .filter(
         ([, m]) =>
           (m.role === "user" || m.role === "assistant") &&
-          !isTimerMessage(store, m) &&
+          !isHostNoticeMessage(store, m) &&
           !!typedMessageText(store, m),
       )
       .map(([id, m]) => ({
@@ -267,7 +267,7 @@ export function settingsExtractionEvidence(
   const messages = raw.filter(
     (m) =>
       (m.role === "user" || m.role === "assistant") &&
-      !isTimerMessage(host.store, m) &&
+      !isHostNoticeMessage(host.store, m) &&
       !!typedMessageText(host.store, m),
   );
   const events = new Map(

@@ -1,3 +1,5 @@
+import { validateScopeImportFrame } from "./scope-import-invariants.ts";
+import { validateWorldFrame } from "./world-invariants.ts";
 import { TaskIdentityIndex, IDENTITY_ACTIVATED } from "./task-identity.ts";
 import { EVIDENCE_MEDIA, hydrateEvidence } from "./evidence.ts";
 import { createHash, randomUUID } from "node:crypto";
@@ -15,6 +17,7 @@ import type {
   OperationLogRecord,
   JournalTransaction,
   ModelCall,
+  Input,
 } from "./contracts.ts";
 
 export const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -91,7 +94,7 @@ const indexFields: Record<string, string[]> = {
     "task_round",
   ],
   TaskPlan: ["state", "pending_requests.length", "title"],
-  Operation: ["process.state", "scope.execution_id"],
+  Operation: ["state", "process.state", "scope.execution_id"],
   ModelCall: ["scope.execution_id"],
   SettingsApplication: ["state"],
   CompactionJob: ["state"],
@@ -125,6 +128,7 @@ export class Store {
   private indexes = new Map<string, Map<unknown, Map<string, Stored>>>();
   private eventByID = new Map<string, OperationLogRecord>();
   private eventsByType = new Map<string, OperationLogRecord[]>();
+  private acceptedInputEvents = new Map<string, string[]>();
   private eventsByExecution = new Map<string, OperationLogRecord[]>();
   readonly logs: OperationLogRecord[] = [];
   indexed<T extends Stored>(
@@ -155,6 +159,9 @@ export class Store {
   }
   eventById(eventID: string) {
     return this.eventByID.get(eventID);
+  }
+  inputAcceptedEventIDs(inputID: string): readonly string[] {
+    return this.acceptedInputEvents.get(inputID) ?? [];
   }
   events(type: string): readonly OperationLogRecord[] {
     return this.eventsByType.get(type) ?? [];
@@ -198,7 +205,13 @@ export class Store {
     if (!ref) throw Error("MISSING_HISTORICAL_PLAN");
     return this.read<import("./contracts.ts").TaskPlan>(ref);
   }
-  private receipts = new Map<string, { hash: string; value: unknown }>();
+  private receipts = new Map<
+    string,
+    { hash: string; value: unknown; sequence: number }
+  >();
+  receiptSequence(requestID: string) {
+    return this.receipts.get(requestID)?.sequence ?? Infinity;
+  }
   // Scheduler.answer historically binds identity in DecisionRequest rather
   // than CommandReceipt. Rebuild this index on every journal replay, retaining
   // identities from all committed revisions without changing receipt semantics.
@@ -444,6 +457,8 @@ export class Store {
       throw error;
     }
     for (const r of records) {
+      if (r.record_type === "WorldCommand")
+        throw Error("LEGACY_WORLD_COMMAND_READ_ONLY");
       shape(r);
       const old = this.records.get(r.record_type + ":" + r.id);
       if (r.revision !== (old?.revision ?? 0) + 1)
@@ -505,7 +520,7 @@ export class Store {
     }
     this.install(txn, digest, staged);
   }
-  private stage(txn: JournalTransaction): Stored[] {
+  private stage(txn: JournalTransaction, replay = false): Stored[] {
     const staged: Stored[] = [];
     const keys = new Set<string>();
     for (const m of txn.mutations) {
@@ -860,6 +875,8 @@ export class Store {
       )
         throw Error("MISSING_SESSION");
     }
+    validateWorldFrame(this, txn, staged, replay);
+    validateScopeImportFrame(this, txn, staged, replay);
     const identityEvents = txn.log_records.filter(
       (e) => e.event_type === IDENTITY_ACTIVATED,
     );
@@ -960,6 +977,14 @@ export class Store {
       this.eventSequence = e.sequence;
       this.logs.push(e);
       this.eventByID.set(e.event_id, e);
+      if (e.event_type === "input.accepted") {
+        const inputID = this.read<Input>(e.payload).id;
+        if (inputID) {
+          let accepted = this.acceptedInputEvents.get(inputID);
+          if (!accepted) this.acceptedInputEvents.set(inputID, (accepted = []));
+          accepted.push(e.event_id);
+        }
+      }
       let events = this.eventsByType.get(e.event_type);
       if (!events) this.eventsByType.set(e.event_type, (events = []));
       events.push(e);
@@ -975,6 +1000,7 @@ export class Store {
       this.receipts.set(r.request_id, {
         hash: r.request_hash,
         value: r.object_id,
+        sequence: txn.sequence,
       });
     this.sequence = txn.sequence;
     this.digest = digest;
@@ -1028,7 +1054,7 @@ export class Store {
         txn.previous_digest !== this.digest
       )
         throw Error("CORRUPT_CHAIN");
-      this.install(txn, frame.sha256, this.stage(txn));
+      this.install(txn, frame.sha256, this.stage(txn, true));
       this.epoch = Math.max(this.epoch, txn.owner_epoch + 1);
     }
   }

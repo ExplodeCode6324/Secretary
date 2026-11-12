@@ -1,3 +1,5 @@
+import { ScopeImports } from "./scope-import.ts";
+import { recall, worldSnapshot } from "./world-recall.ts";
 import { guidanceFor, GUIDANCE_CONTEXT } from "./guidance.ts";
 import { failuresFor, type FailureProposal } from "./failure-handling.ts";
 import { Type } from "typebox";
@@ -95,15 +97,30 @@ export function tools(
               .filter((i) => i.loop_id === loopID);
             if (
               bound &&
-              ([
-                "memory_propose_change",
-                "schedule_wakeup",
-                "cancel_wakeup",
+              (![
+                "task_query",
+                "scope_query",
+                "memory_search",
+                "memory_read",
+                "MasterInteract",
+                "task_propose",
+                "task_control",
               ].includes(t.name) ||
                 (t.name === "task_control" &&
                   (args as { action: string }).action !== "dismiss_failure"))
             )
               throw Error("FAILURE_ACTION_SCOPE_ONLY");
+            if (
+              (batch ?? claimed).some((i) => i.producer === "ENVIRONMENT") &&
+              ![
+                "task_query",
+                "scope_query",
+                "memory_search",
+                "memory_read",
+                "MasterInteract",
+              ].includes(t.name)
+            )
+              throw Error("ENVIRONMENT_READ_ONLY");
             const uncertainFeedback = claimed.some(
               (i) =>
                 i.feedback_id &&
@@ -176,12 +193,63 @@ export function tools(
           },
         }) as AgentTool,
     );
+  const imports = new ScopeImports(
+    this.store,
+    this.scheduler.auth,
+    this.scheduler.scopes,
+  );
   return wrap([
+    tool({
+      name: "scope_import",
+      label: "Scope import",
+      description:
+        "Request owner-approved NONE or existing DIRECTORY (default ask). Cite current Master event IDs. Physical absolute root only; no symlink ancestors or mkdir. Query operation_id for result.",
+      parameters: Type.Object({
+        name: Type.String({ minLength: 1, maxLength: 256 }),
+        description: Type.Optional(Type.String({ maxLength: 4000 })),
+        kind: Type.Union([Type.Literal("NONE"), Type.Literal("DIRECTORY")]),
+        root_path: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        notes_path: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        default_write: Type.Optional(
+          Type.Union([Type.Literal("allow"), Type.Literal("ask")]),
+        ),
+        source_event_ids: Type.Array(Type.String(), {
+          minItems: 1,
+          maxItems: 20,
+        }),
+      }),
+      execute: async (call, { source_event_ids, ...proposal }) =>
+        result(
+          imports.propose(
+            proposal,
+            source_event_ids,
+            { session_id: this.sessionID, task_id: null, execution_id: null },
+            loopID,
+            call,
+          ),
+        ),
+    }),
+    tool({
+      name: "scope_query",
+      label: "Scope query",
+      description:
+        "Page active scopes or read exact ID; kind=imports reads this session's Operation statuses.",
+      parameters: Type.Object({
+        kind: Type.Optional(
+          Type.Union([Type.Literal("scopes"), Type.Literal("imports")]),
+        ),
+        id: Type.Optional(Type.String()),
+        cursor: Type.Optional(Type.String()),
+        limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100 })),
+      }),
+      execute: async (_call, options) =>
+        result(imports.query(this.sessionID, options)),
+    }),
     tool({
       name: "task_propose",
       label: "Propose task",
       description:
-        "New tasks: supply a short title_candidate; omit on reuse/REDO. Choose an available scope_id when clear; otherwise ask Master. Only Master manages scopes. Conversation/explanation needs no task. Default AGENT; PROGRAM requires registered program_id. For revisions use reuse_task_id and its latest ended parent_execution_id; query unclear identity/requirements. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace fields. Preserve unchanged requirements; goal is this round's complete goal. Structured failure REDO: use IDs from failure query; omit goal and all overrides. Core preserves original requirements. No at/interval on reuse. Separate deliverables need new tasks. Include relevant constraints/materials; Scheduler builds executor packet. Use null for unspecified options; never invent program IDs, dates or deadlines.",
+        "New: title_candidate required, AGENT default, PROGRAM needs registered program_id. scope_id: omit/null=Shared; explicit must be available; scope_import needs owner approval. Reuse: reuse_task_id + latest ended parent_execution_id (query if unsure), no title/at/interval; complete revised goal, omitted/null requirements inherit, arrays replace. Failure REDO: query IDs, no title/goal/overrides. Separate tasks per deliverable; none for chat. Include materials/constraints; never invent IDs/dates/deadlines.",
       parameters: Type.Object({
         title_candidate: Type.Optional(
           Type.Union([Type.String(), Type.Null()]),
@@ -298,31 +366,52 @@ export function tools(
               Type.Literal("reply"),
               Type.Literal("task"),
               Type.Literal("notification"),
+              Type.Literal("fact"),
             ]),
           ),
         ),
+        history: Type.Optional(Type.Boolean()),
         scope_id: Type.Optional(Type.String()),
         task_id: Type.Optional(Type.String()),
         limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })),
       }),
-      execute: async (_call, args) =>
-        this.memoryToolResult(
-          this.world
-            ? await this.world.memorySearch.search(args)
-            : { status: "not_configured", hits: [] },
-        ),
+      execute: async (_call, args) => {
+        if (!this.world)
+          return this.memoryToolResult({ status: "not_configured", hits: [] });
+        const at = new Date().toISOString();
+        const facts = args.kinds?.includes("fact")
+          ? recall(
+              worldSnapshot(this.store, at),
+              args.query,
+              { history: args.history },
+              at,
+            )
+          : undefined;
+        const kinds = args.kinds?.filter(
+          (k): k is import("./memory-search.ts").SearchKind => k !== "fact",
+        );
+        if (facts && !kinds?.length) return this.memoryToolResult(facts);
+        const logs = await this.world.memorySearch.search({ ...args, kinds });
+        return this.memoryToolResult(facts ? { facts, logs } : logs);
+      },
     }),
     tool({
       name: "memory_read",
       label: "Read memory",
       description:
-        "Read working memory, original event text slices, or paginated World facts. Log offsets/lengths are Unicode code points; follow next_offset for full text. World subject accepts ID, name or alias; ambiguity returns candidates. Provide only one non-null subject or legacy subject_id selector. Use predicate and cursor to reach facts beyond the first page.",
+        "Read working memory, original event text slices, or paginated World facts. For allowed predicates/topics use source='world', catalog='predicates'. For a proposed batch's actual status use source='world_batch' and its returned batch_id. Log offsets/lengths are Unicode code points; follow next_offset for full text. World subject accepts ID, name or alias; ambiguity returns candidates. Provide only one non-null subject or legacy subject_id selector. Use predicate and cursor to reach facts beyond the first page.",
       parameters: Type.Object({
         source: Type.Union([
           Type.Literal("world"),
+          Type.Literal("world_batch"),
           Type.Literal("consciousness"),
           Type.Literal("log"),
         ]),
+        batch_id: Type.Optional(Type.String()),
+        fact_id: Type.Optional(Type.String()),
+        topic: Type.Optional(Type.String()),
+        history: Type.Optional(Type.Boolean()),
+        catalog: Type.Optional(Type.String()),
         subject_id: Type.Optional(Type.Union([Type.String(), Type.Null()])),
         subject: Type.Optional(Type.String()),
         predicate: Type.Optional(Type.String()),
@@ -333,15 +422,26 @@ export function tools(
         length: Type.Optional(Type.Integer({ minimum: 1, maximum: 4000 })),
       }),
       execute: async (_call, args) => {
+        if (args.source === "world_batch") {
+          if (!this.world || !args.batch_id)
+            throw Error("WORLD_BATCH_REQUIRED");
+          return this.memoryToolResult(
+            this.world.batch(args.batch_id, this.sessionID),
+          );
+        }
         if (args.source === "world") {
           if (!this.world)
-            throw Error("WORLD_UNAVAILABLE: PostgreSQL not configured");
+            throw Error("WORLD_UNAVAILABLE: World service is not initialized");
           if (args.subject !== undefined && args.subject_id != null)
             throw Error(
               "SELECTOR_CONFLICT: use only one World subject selector",
             );
           return this.memoryToolResult(
             await readWorld(this.world, {
+              fact_id: args.fact_id,
+              topic: args.topic,
+              history: args.history,
+              catalog: args.catalog,
               subject: args.subject ?? args.subject_id,
               predicate: args.predicate,
               cursor: args.cursor,
@@ -364,23 +464,88 @@ export function tools(
       name: "memory_propose_change",
       label: "Propose World Model change",
       description:
-        "Propose ASSERT, CORRECT or RETRACT facts using subject ID/name/alias and predicate key. ENTITY values use an entity selector. Correction/retraction requires target_fact_id. source_event_ids must reference real evidence; source_note is explanation only. Source registration and fact changes require owner authorization; use Settings to create missing entities.",
-      parameters: Type.Object({
-        intent: Type.Union([
-          Type.Literal("ASSERT"),
-          Type.Literal("CORRECT"),
-          Type.Literal("RETRACT"),
-        ]),
-        subject: Type.String(),
-        predicate: Type.String(),
-        value: Type.Optional(Type.Unknown()),
-        valid_from: Type.Optional(Type.String()),
-        target_fact_id: Type.Optional(Type.String()),
-        source_event_ids: Type.Optional(
-          Type.Array(Type.String(), { maxItems: 20 }),
-        ),
-        source_note: Type.Optional(Type.String({ maxLength: 2000 })),
-      }),
+        "Propose one mixed entity/fact batch; exact owner approval required. Omit source_event_ids only for non-guideline facts explicitly stated in the current Master message. entity.guideline needs explicit Master evidence IDs. Cite execution.finished/feedback.delivered (TASK_REPORT) or main.message (MODEL_INFERENCE); never relabel inference as MASTER. Discover predicates/topics via memory_read world catalog=predicates. CREATE_ENTITY local_ref='$iris' can be referenced by ASSERT subject='$iris' in this batch. Entities accept ID/name/alias/role:master/role:secretary. ASSERT preserves facts; CORRECT/RETRACT require target_fact_id. source_note is not evidence. Query world_batch for COMMITTED; proposal/approval is not recording.",
+      parameters: Type.Object(
+        {
+          changes: Type.Array(
+            Type.Object(
+              {
+                intent: Type.Union(
+                  [
+                    "CREATE_ENTITY",
+                    "EDIT_ENTITY",
+                    "RETIRE_ENTITY",
+                    "ASSERT",
+                    "CORRECT",
+                    "RETRACT",
+                  ].map((x) => Type.Literal(x)),
+                ),
+                local_ref: Type.Optional(
+                  Type.String({
+                    description:
+                      "CREATE_ENTITY batch-local name including the dollar prefix, e.g. $iris. Later changes use this exact string as subject.",
+                  }),
+                ),
+                subject: Type.Optional(Type.String()),
+                entity_kind: Type.Optional(
+                  Type.Union(
+                    [
+                      "PERSON",
+                      "ORGANIZATION",
+                      "PROJECT",
+                      "DEVICE",
+                      "SERVICE",
+                      "RESOURCE",
+                      "GOAL",
+                    ].map((x) => Type.Literal(x)),
+                  ),
+                ),
+                display_name: Type.Optional(Type.String()),
+                rename: Type.Optional(
+                  Type.Object(
+                    { from: Type.String(), to: Type.String() },
+                    { additionalProperties: false },
+                  ),
+                ),
+                aliases: Type.Optional(
+                  Type.Object(
+                    {
+                      add: Type.Optional(Type.Array(Type.String())),
+                      remove: Type.Optional(Type.Array(Type.String())),
+                    },
+                    { additionalProperties: false },
+                  ),
+                ),
+                predicate: Type.Optional(Type.String()),
+                topic: Type.Optional(Type.String()),
+                value: Type.Optional(Type.Unknown()),
+                keywords: Type.Optional(
+                  Type.Array(Type.String(), { maxItems: 20 }),
+                ),
+                target_fact_id: Type.Optional(Type.String()),
+                source_event_ids: Type.Optional(
+                  Type.Array(Type.String(), {
+                    maxItems: 20,
+                    description:
+                      "Omit only for non-guideline information explicitly stated by Master now. Guidelines require explicit Master event IDs. Cite task-result or main.message events for reports/inferences; never guess IDs or omit them to promote an inference to MASTER.",
+                  }),
+                ),
+                valid_from: Type.Optional(Type.String()),
+                valid_to: Type.Optional(
+                  Type.Union([Type.String(), Type.Null()]),
+                ),
+                fresh_until: Type.Optional(
+                  Type.Union([Type.String(), Type.Null()]),
+                ),
+                source_note: Type.Optional(Type.String({ maxLength: 2000 })),
+              },
+              { additionalProperties: false },
+            ),
+            { minItems: 1, maxItems: 20 },
+          ),
+        },
+        { additionalProperties: false },
+      ),
       execute: async (call, args) => {
         if (!this.world) throw Error("WORLD_UNAVAILABLE");
         const inputs = new Set(
@@ -406,7 +571,7 @@ export function tools(
           await proposeWorld(
             this.world,
             { session_id: this.sessionID, task_id: null, execution_id: null },
-            args,
+            args as import("./world-memory.ts").ProposalIntent,
             call,
             events,
           ),
@@ -491,17 +656,33 @@ export function tools(
 }
 
 export function memoryToolResult(this: MainToolsContext, value: unknown) {
-  const budget = requestBudget(
-    this.model,
-    this.agent?.state.messages ?? this.history(),
-  );
-  const remaining = Math.max(
-    0,
-    budget.usable_input_tokens - budget.estimated_tokens - 512,
-  );
+  const messages = this.agent?.state.messages ?? this.history();
+  const assistant = messages.findLast((m) => m.role === "assistant");
+  const call =
+    assistant?.role === "assistant"
+      ? assistant.content.findLast(
+          (c) =>
+            c.type === "toolCall" &&
+            ["memory_read", "memory_search"].includes(c.name),
+        )
+      : undefined;
   const payload = structuredClone(value) as Record<string, any>;
-  const fits = () =>
-    Buffer.byteLength(JSON.stringify(payload)) + 256 <= remaining;
+  // Budget the serialized continuation, including escaped JSON inside the tool
+  // envelope. Do not estimate the raw payload with a fixed 512-byte deduction.
+  const fits = () => {
+    const next = requestBudget(this.model, [
+      ...messages,
+      {
+        role: "toolResult",
+        toolCallId: call?.type === "toolCall" ? call.id : "memory",
+        toolName: call?.type === "toolCall" ? call.name : "memory_read",
+        content: result(payload).content,
+        isError: false,
+        timestamp: Date.now(),
+      },
+    ]);
+    return next.estimated_tokens + 128 <= next.usable_input_tokens;
+  };
   while (!fits()) {
     if (
       typeof payload.body === "string" &&

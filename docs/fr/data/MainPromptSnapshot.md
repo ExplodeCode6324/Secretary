@@ -21,6 +21,7 @@ Source : [contracts.schema.json](../../../src/contracts/contracts.schema.json#/$
 | `system_prompt_hash` | Digest | Oui |  Références : [Digest](Digest.md) |
 | `system_message` | ObjectRef | Oui |  Références : [ObjectRef](ObjectRef.md) |
 | `settings_application_id` | ID ou null | Non |  Références : [ID](ID.md) |
+| `recall_ref` | ObjectRef | Non |  Références : [ObjectRef](ObjectRef.md) |
 
 ## Contraintes combinées
 

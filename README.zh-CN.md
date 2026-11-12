@@ -6,7 +6,7 @@ Secretary 是面向 Master 的持续个人助理。Core 保存主会话与工作
 
 ## 快速开始
 
-需要 Node.js ≥22.19、npm 和 Python 3。World 与历史检索使用 PostgreSQL。
+需要 Node.js ≥22.19、npm 和 Python 3。World facts use the local journal; history search uses PostgreSQL.
 
 ```sh
 git submodule update --init --recursive

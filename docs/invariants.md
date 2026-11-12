@@ -39,10 +39,10 @@
     实现：[memory-summary](../src/pi_secretary/src/memory-summary.ts)、[memory-extraction](../src/pi_secretary/src/memory-extraction.ts)。测试：[retry](../test_case/offline/issue19/retry.test.ts)，`summary coverage and Settings commit survive extraction failure`。
 
 13. **旧输入退出需要成功覆盖与检索水位。** 只有身份明确、完整覆盖且位于当前轮次和工具协议保护区之外的原文可退出；索引不可用时保留原退出回执并暂停新增退出。
-    实现：[selectInputProjection](../src/pi_secretary/src/input-projection.ts)。测试：[projection](../test_case/offline/issue28/projection.test.ts)，`FAILED/STALE, uncovered and current Inputs survive`、`unavailable search freezes previous coverage`；[settings](../test_case/offline/issue28/settings.test.ts)，`in-flight search outage after World commit`。
+    实现：[selectInputProjection](../src/pi_secretary/src/input-projection.ts)。测试：[projection](../test_case/offline/issue28/projection.test.ts)，`FAILED/STALE, uncovered and current Inputs survive`、`unavailable search freezes previous coverage`；[settings](../test_case/offline/issue28/settings.test.ts)，`E4: repeated Settings and restart authenticate a bounded wrapper`。
 
-14. **Settings 以回执连接两个存储。** World 批次原子提交事实与回执；本地有效说明、Consciousness、Context 与 APPLIED 同事务提交，重试先确认已提交批次。
-    实现：[Settings](../src/pi_secretary/src/settings.ts)、[World](../src/pi_secretary/src/world.ts)。测试：[settings](../test_case/offline/runtime/settings.test.ts)，`draft is durable and inactive; application summarizes both reference sets`；同文件 `database commit followed by SIGKILL restores the same batch`。
+14. **World uses one atomic journal frame.** Exact one-shot approval consumes the grant and writes facts, Operation and durable result together; no SQL dispatch gap and no Main result Input. Settings remains independent. The Store validates protected roles, immutable assertion bodies and action-specific bundles on commit and replay.
+    Tests: [World](../test_case/offline/issue112/world.test.ts), [migration](../test_case/offline/issue112/migration.test.ts).
 
 15. **持久同步游标标识 journal 前缀。** cursor 绑定 owner、sequence、digest，重启可续传，分叉或截短历史要求重新加载；changes 按完整事务交付，超大事务转为类别失效通知。
     实现：[SyncService.position / changes](../src/pi_secretary/src/sync-service.ts)。测试：[cursor](../test_case/offline/issue9/cursor.test.ts)，`same identity restored backup rejects divergent digest`；[changes](../test_case/offline/issue9/changes.test.ts)，`oversized complete transaction falls back`。

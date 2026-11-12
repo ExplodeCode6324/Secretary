@@ -23,8 +23,9 @@ flowchart TD
   Settings --> Store
   Push --> Store
   Host --> World[World / History search]
-  Settings --> World
-  World --> PG[(PostgreSQL)]
+  Settings --> Store
+  World --> Store
+  History[Log search] --> PG[(PostgreSQL)]
 ```
 
 ## Modules and dependencies
@@ -39,7 +40,7 @@ Source lives in `src/pi_secretary/src`; [App.open / pump](../../src/pi_secretary
 | [scheduler](../../src/pi_secretary/src/scheduler.ts), [task-planning](../../src/pi_secretary/src/task-planning.ts), [task-triggers](../../src/pi_secretary/src/task-triggers.ts) | Task proposals, continuations, due work, preconditions, and execution slots |
 | [execution-runner](../../src/pi_secretary/src/execution-runner.ts), [executor-tools](../../src/pi_secretary/src/executor-tools.ts), [effects](../../src/pi_secretary/src/effects.ts) | Execution models, file and process effects, results; execution-recovery and retention handle recovery and archiving |
 | [authorization](../../src/pi_secretary/src/authorization.ts), [scopes](../../src/pi_secretary/src/scopes.ts) | Operation permissions, persistent rules, effect resolution, workspace roots, and directory occupancy |
-| [settings](../../src/pi_secretary/src/settings.ts), [world](../../src/pi_secretary/src/world.ts) | Configuration switching, structured facts, and PostgreSQL receipt bridging |
+| [settings](../../src/pi_secretary/src/settings.ts), [world](../../src/pi_secretary/src/world.ts) | Settings activation; Store-backed World facts and independent PostgreSQL log search |
 | [sync-service](../../src/pi_secretary/src/sync-service.ts), [notification-service](../../src/pi_secretary/src/notification-service.ts), [push-service](../../src/pi_secretary/src/push-service.ts) | Incremental changes, presentation/read tracking, and independent push delivery; wakeups handles scheduled inputs |
 | [transport](../../src/pi_secretary/src/transport.ts), [store](../../src/pi_secretary/src/store.ts) | Persist model requests/responses; commit domain state and object references |
 
@@ -49,7 +50,7 @@ Pi Agent and model adapters use pinned dependencies; see [UPSTREAM.json](../../s
 
 One lock-owning Core writer manages each data directory and its single main session. Host processes input batches serially. Scheduler allows two executors by default; `SECRETARY_MAX_WORKERS` changes the limit. Executions in the same DIRECTORY Scope occupy the bound root serially. Tasks with NONE or no Scope use their own `workspaces/<task_id>/work`.
 
-Startup opens Store, recovers Authorization and Scheduler, then constructs Host and Settings and warms read indexes. The API calls pump every 300 ms to advance push delivery, search, World, settings, tasks, feedback, wakeups, and the main session. Each module manages its in-flight work. Shutdown closes models, executors, database connections, and the writer.
+Core opens Store, checks upgrade readiness and establishes identity/profile, then imports or seeds World genesis before recovering Authorization/Scheduler and constructing Host/Settings. It initializes the independent log-search schema and warms read indexes. The API pumps every 300 ms to advance pushes, search, World, Settings, tasks, feedback, wakeups and Main. Each module manages its in-flight work; shutdown closes models, executors, database connections and the writer.
 
 [process-control](../../src/pi_secretary/src/process-control.ts) starts shell/program through a Python wrapper: it reports process identity first and accepts the start frame only after that identity is persisted. Effect results and process termination are recorded separately. bash runs as the local user in the bound directory; file read/write and artifact reads validate paths within the root. Registered programs verify entrypoint revision and SHA-256 and exchange ProgramInvocation/ProgramResult over stdin/stdout.
 
@@ -59,7 +60,7 @@ Startup opens Store, recovers Authorization and Scheduler, then constructs Host 
 
 Store writes CAS objects first, then validates and appends a hash-chained journal transaction. It installs in-memory state and indexes after receiving the fsync ACK. A worker connects to the lock-owning Python helper through anonymous pipes; request ID, sequence, and digest bind the append acknowledgment. Commit and replay check referenced files and lengths; content reads verify the full hash. New Context objects use ordered message-reference manifests; `Store.read` supports both manifests and legacy message arrays.
 
-The [state catalog](../../src/state_machine/catalog.json) retains Execution, Operation, Input, and Authorization. Store checks transitions for the first three during commit and replay; Authorization advances by events. Domain modules manage other records. World commits facts, receipts, and the outbox in a PostgreSQL transaction, then imports them into the journal using receipts. Search, timeline, and activity indexes can all be rebuilt from authoritative records. See [system invariants](invariants.md) for constraints.
+[State catalog](../../src/state_machine/catalog.json) defines Execution, Operation, Input and Authorization. Store validates the first three during commit/replay; Authorization advances by events and other records by domain modules. World commits records, grants and results atomically to the journal; legacy SQL is imported read-only once. Search, timeline and activity indexes can be rebuilt from authoritative records. See [System invariants](invariants.md).
 
 ## Current limitations
 
@@ -72,3 +73,17 @@ The [state catalog](../../src/state_machine/catalog.json) retains Execution, Ope
 Execution `retention_state=RETIRED` is separate from terminal `state` and is not permission to delete data. [retention](../../src/pi_secretary/src/retention.ts) requires a terminal execution, no pending requests, unknown operations or pending follow-ups, all Feedback `HANDLED`/`SUPPRESSED`, and elapsed time since `max(ended_at, last_activity_at)` reaching `retire_after_seconds` (172800 seconds at creation). It reads event and result-detail CAS bytes, saves ArchiveManifest and marks retirement; it deletes no journal, CAS or workspace. Lists, details and Task browsing do not renew retention; explicit `viewed` resets the period only before retirement. Retired detail returns identity and manifest only, artifacts are `archived`, and continuation rejects this parent (`PARENT_NOT_RESUMABLE`).
 
 Backup and recovery must cover the Core directory, its PostgreSQL database, client drafts/recovery material and external Scope roots together. A CAS artifact snapshot and the current workspace file are distinct and cannot replace each other; mixing a database and journal from different points is not a complete recovery. See [operations](operations.md#backup-and-upgrades) and the retention regression in [runtime tests](../../test_case/offline/runtime/runtime.test.ts).
+
+## Scope import transactions
+
+Main-originated `scope.import` uses the same restricted `AUTHORIZED --journal_apply--> SUCCEEDED` transition as `world.change`, with a separate whole-frame guard. The Scope frame contains exactly the consumed grant, deterministic new Scope, Operation receipt and HOST-produced ENVIRONMENT Input. World frames retain their own guard and create no automatic result Input; external-effect operations cannot use this transition. Expiry and definite failure cancel without effect, and rejection/revocation notification reconciliation runs on startup and every pump.
+
+ENVIRONMENT result Inputs are isolated at their original input-order position and have a read/query/report tool allowlist. They are excluded from Master quote/commitment extraction, kept as HOST notices in summaries and conversation history, and excluded from Master-input search. Scope status remains queryable through `scope_query`. No Task, Execution or Feedback is fabricated for the report.
+
+Historical import replay checks the stored atomic bundle, deterministic IDs, grant transition and HOST provenance without regenerating notice text, current Scope content or CAS objects. Exact content and current filesystem checks remain live-commit admission rules. Directory identity uses device/inode: delete/recreate with inode reuse is not distinguishable by this check and is not an adversarial filesystem lock.
+
+## Shared workspace projections
+
+Omitted or null `scope_id` selects the built-in virtual Shared group; it never creates a Scope record. Explicit invalid, archived or unavailable Scopes fail. A named NONE Scope remains distinct. Shared and NONE use independent durable `<data/core>/workspaces/<task_id>/work` directories; task continuation retains these files, and completion/retirement never deletes them. Existing owner-managed DIRECTORY root changes still affect future executions, while historical Execution bindings remain immutable.
+
+Task query/acceptance, API task/execution/result details and terminal Task details expose `scope_kind`, `scope_name` and `workspace_info` (absolute `path`, `root_kind`, `location=CORE_HOST`, `availability`, `reason`). An unbound path is `planned`, even if initialization has already created it; `verified` means the bound directory passed the current read-only filesystem check, not a permanent guarantee. Missing or unsafe bound roots are `unavailable` with a diagnostic reason. They are never recreated as empty historical recovery. Paths belong to the Core host, not a remote client. Artifact CAS delivery and remote `/open` restrictions are unchanged; a path display does not authorize another Task's files or provide an OS sandbox.

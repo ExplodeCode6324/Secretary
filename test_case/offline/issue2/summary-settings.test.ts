@@ -268,7 +268,7 @@ test("fixed previous memory and ledger cannot be dropped to fit a fragment", () 
     () =>
       createSummaryPlan({
         refs: [],
-        model: fixtureModel,
+        model: { ...fixtureModel, contextWindow: 32768 },
         items: [],
         commitments: [{ text: "x".repeat(40000) } as any],
         sources: [{ id: "source", text: "must survive" }],

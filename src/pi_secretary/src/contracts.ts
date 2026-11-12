@@ -59,7 +59,10 @@ export type SecretaryDemoV1 =
   | FailureHandling
   | Guidance
   | GuidanceInjection
-  | GuidanceReceipt;
+  | GuidanceReceipt
+  | WorldEntity
+  | WorldAssertion
+  | WorldGenesis;
 /**
  * 宿主产生的 UUID；模型不可冒充宿主或 Master 身份。
  */
@@ -1794,7 +1797,10 @@ export interface Mutation {
     | "FailureHandling"
     | "Guidance"
     | "GuidanceInjection"
-    | "GuidanceReceipt";
+    | "GuidanceReceipt"
+    | "WorldEntity"
+    | "WorldAssertion"
+    | "WorldGenesis";
   object_id: ID;
   expected_revision: number;
   new_revision: number;
@@ -1830,6 +1836,7 @@ export interface MainPromptSnapshot {
   system_prompt_hash: Digest;
   system_message: ObjectRef;
   settings_application_id?: ID | null;
+  recall_ref?: ObjectRef;
 }
 /**
  * Master 待应用修改；payload 为 SettingsPayload，不是有效设置。
@@ -2281,6 +2288,99 @@ export interface GuidanceReceipt {
    */
   resolution_refs: ID[];
   observed_at: Time;
+}
+export interface WorldEntity {
+  schema_version: 1;
+  record_type: "WorldEntity";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  kind:
+    | "PERSON"
+    | "ORGANIZATION"
+    | "DEVICE"
+    | "SERVICE"
+    | "RESOURCE"
+    | "PROJECT"
+    | "GOAL";
+  display_name: string;
+  /**
+   * @maxItems 32
+   */
+  aliases: string[];
+  role: "MASTER" | "SECRETARY" | null;
+  external_key: string | null;
+  retired_at: Time | null;
+}
+export interface WorldAssertion {
+  schema_version: 1;
+  record_type: "WorldAssertion";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  subject_id: ID;
+  predicate_key: string;
+  topic: string;
+  value: unknown;
+  object_entity_id: ID | null;
+  /**
+   * @maxItems 20
+   */
+  keywords: string[];
+  source_kind:
+    "MASTER" | "OBSERVATION" | "TASK_REPORT" | "MODEL_INFERENCE" | "UNRESOLVED";
+  evidence_event_ids: ID[];
+  valid_from: Time;
+  valid_to: Time | null;
+  observed_at: Time;
+  fresh_until: Time | null;
+  note: string | null;
+  status: "LIVE" | "SUPERSEDED" | "RETRACTED";
+  replaces_id: ID | null;
+  change_id: ID;
+}
+export interface WorldGenesis {
+  schema_version: 1;
+  record_type: "WorldGenesis";
+  id: ID;
+  revision: number;
+  updated_at: Time;
+  manifest_ref: ObjectRef;
+  entity_count: number;
+  assertion_count: number;
+  mode: "FRESH" | "LEGACY";
+  owner_id: ID;
+}
+
+export interface ScopeImportParameters {
+  version: 1;
+  request: ScopeImportProposal;
+  proposal: {
+    name: string;
+    description: string;
+    kind: "NONE" | "DIRECTORY";
+    root_path: string | null;
+    notes_path: string | null;
+    default_write: "allow" | "ask";
+    identity: null | {
+      device: string;
+      inode: string;
+    };
+  };
+  /**
+   * @minItems 1
+   * @maxItems 20
+   */
+  source_event_ids: string[];
+  loop_id: string;
+}
+export interface ScopeImportProposal {
+  name: string;
+  description?: string;
+  kind: "NONE" | "DIRECTORY";
+  root_path?: string | null;
+  notes_path?: string | null;
+  default_write?: "allow" | "ask";
 }
 
 export type Contract = SecretaryDemoV1;

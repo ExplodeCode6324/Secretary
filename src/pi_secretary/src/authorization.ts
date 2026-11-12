@@ -118,7 +118,9 @@ export class Authorization {
       error: null,
     };
     const prepared = this.store.event("operation.prepared", op, scope);
-    const rule = this.match(op);
+    const rule = ["world.change", "scope.import"].includes(action)
+      ? undefined
+      : this.match(op);
     if (rule) {
       const ready: Operation = {
         ...op,
@@ -133,6 +135,24 @@ export class Authorization {
       scope,
       action: op.action,
       parameters: params,
+      ...(action === "scope.import"
+        ? {
+            evidence: (
+              params as { source_event_ids: string[] }
+            ).source_event_ids.map((event_id) => {
+              const event = this.store.eventById(event_id)!;
+              const input = this.store.read<import("./contracts.ts").Input>(
+                event.payload,
+              );
+              const text = this.store.bytes(input.payload).toString();
+              return {
+                event_id,
+                quote: Array.from(text).slice(0, 2000).join(""),
+                truncated: Array.from(text).length > 2000,
+              };
+            }),
+          }
+        : {}),
     });
     const auth: AuthorizationRequest = {
       schema_version: 1,
@@ -144,7 +164,9 @@ export class Authorization {
       scope,
       display_ref: display,
       display_hash: display.sha256,
-      expires_at: null,
+      expires_at: ["world.change", "scope.import"].includes(action)
+        ? new Date(Date.now() + 86400000).toISOString()
+        : null,
       decision_id: null,
       decided_at: null,
       decided_by: null,
@@ -178,9 +200,13 @@ export class Authorization {
     validFrom = now(),
   ) {
     if (
-      !["file.write", "shell.run", "program.run", "world.change"].includes(
-        action,
-      )
+      ![
+        "file.write",
+        "shell.run",
+        "program.run",
+        "world.change",
+        "scope.import",
+      ].includes(action)
     )
       throw Error("UNREGISTERED_ACTION");
     if (
@@ -190,6 +216,8 @@ export class Authorization {
           Date.parse(expiresAt) <= Math.max(Date.now(), Date.parse(validFrom))))
     )
       throw Error("INVALID_RULE_TIME");
+    if (["world.change", "scope.import"].includes(action))
+      throw Error("EXPLICIT_APPROVAL_REQUIRED");
     const c = constraints as RuleConstraints;
     if (!c || !this.validConstraints(action, c))
       throw Error("INVALID_RULE_CONSTRAINTS");
@@ -408,6 +436,8 @@ export class Authorization {
     return execution ? { ...params, execution } : params;
   }
   remember(op: Operation, value: NonNullable<ApprovalCommand["remember"]>) {
+    if (["world.change", "scope.import"].includes(op.action.action))
+      throw Error("EXPLICIT_APPROVAL_REQUIRED");
     const root = this.root(op);
     const params = this.store.read<{ command?: string; path?: string }>(
       op.action.parameters_ref,
@@ -578,6 +608,8 @@ export class Authorization {
   }
   dispatch(operationID: string, extra: Stored[] = []): Operation {
     const op = this.store.get<Operation>("Operation", operationID);
+    if (["world.change", "scope.import"].includes(op.action.action))
+      throw Error("JOURNAL_APPLY_REQUIRED");
     if (op.state !== "AUTHORIZED") throw Error("NOT_AUTHORIZED");
     if (op.owner_epoch !== this.store.epoch) throw Error("STALE_OWNER");
     if (op.scope.execution_id) {
@@ -642,63 +674,6 @@ export class Authorization {
       [this.store.event("operation.dispatched", dispatched, op.scope)],
     );
     return dispatched;
-  }
-  // Only for the same idempotent World batch, after its locked receipt lookup proved no commit.
-  resumeWorldDispatch(operationID: string) {
-    const op = this.store.get<Operation>("Operation", operationID);
-    if (
-      op.action.action !== "world.change" ||
-      !["DISPATCHED", "RESULT_UNKNOWN"].includes(op.state)
-    )
-      throw Error("NOT_WORLD_DISPATCH");
-    if (op.scope.execution_id) {
-      const execution = this.store.get<Execution>(
-        "Execution",
-        op.scope.execution_id,
-      );
-      if (
-        execution.cancel_requested ||
-        execution.attempt_id !== op.attempt_id ||
-        !["RUNNING", "READY", "WAIT_AUTH", "DISPATCHING"].includes(
-          execution.state,
-        )
-      )
-        throw Error("EXECUTION_NOT_ACTIVE");
-    }
-    this.store.bytes(op.action.parameters_ref);
-    if (op.action.parameters_ref.sha256 !== op.action.parameters_hash)
-      throw Error("PARAMETER_CHANGED");
-    if (op.authorization_id) {
-      const grant = this.store.get<AuthorizationRequest>(
-        "AuthorizationRequest",
-        op.authorization_id,
-      );
-      if (
-        grant.state !== "CONSUMED" ||
-        JSON.stringify(grant.action) !== JSON.stringify(op.action) ||
-        (grant.expires_at && Date.parse(grant.expires_at) <= Date.now())
-      )
-        throw Error("GRANT_INVALID");
-    } else {
-      const rule = this.match(op);
-      if (!rule || rule.id !== op.rule_id || rule.revision !== op.rule_revision)
-        throw Error("RULE_CHANGED");
-    }
-    const next = revise(op, {
-      state: "DISPATCHED",
-      owner_epoch: this.store.epoch,
-    });
-    this.store.commit(
-      [next],
-      [
-        this.store.event(
-          "world.dispatch_reconciled",
-          { operation_id: op.id, receipt_absent: true },
-          op.scope,
-        ),
-      ],
-    );
-    return next;
   }
   finish(
     operationID: string,

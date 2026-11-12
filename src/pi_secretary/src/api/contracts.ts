@@ -196,7 +196,11 @@ export interface Core {
  * via the `definition` "Capability".
  */
 export interface Capability {
-  state: "supported" | "not_supported" | "not_configured";
+  state:
+    | "supported"
+    | "not_supported"
+    | "not_configured"
+    | "temporarily_unavailable";
   allowed: boolean;
   reason: string | null;
 }
@@ -608,7 +612,21 @@ export interface TaskSummary {
   pending_request_count: number;
   title: string;
   latest_execution_round: number | null;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY";
+  scope_name?: string;
+  workspace_info?: TaskWorkspace;
   [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskWorkspace".
+ */
+export interface TaskWorkspace {
+  path: string;
+  root_kind: "NONE" | "DIRECTORY";
+  location: "CORE_HOST";
+  availability: "planned" | "verified" | "unavailable";
+  reason: string | null;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -625,6 +643,9 @@ export interface Result {
   verified_by: string;
   observed_at: string;
   scope_id?: string | null;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY";
+  scope_name?: string;
+  workspace_info?: TaskWorkspace;
   [k: string]: unknown;
 }
 /**
@@ -666,6 +687,9 @@ export interface TaskDetail {
   scope_id?: string | null;
   title: string;
   latest_execution_round: number | null;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY";
+  scope_name?: string;
+  workspace_info?: TaskWorkspace;
   [k: string]: unknown;
 }
 /**
@@ -710,6 +734,9 @@ export interface Execution {
   };
   execution_round: number;
   title: string;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY";
+  scope_name?: string;
+  workspace_info?: TaskWorkspace;
   [k: string]: unknown;
 }
 /**
@@ -1142,7 +1169,6 @@ export interface RequestStatus {
  */
 export interface WorldPage {
   items: Json[];
-  world_version: string;
   next_cursor: string | null;
   [k: string]: unknown;
 }
@@ -1658,6 +1684,8 @@ export interface TaskBrowserTask {
   unresolved_failure_count?: number;
   failure_summary?: string | null;
   title: string;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY";
+  workspace_info?: TaskWorkspace;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -1917,4 +1945,92 @@ export interface TaskLocatorSuggestions {
    * @maxItems 20
    */
   items: TaskLocatorSuggestion[];
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "WorldBatchCommand".
+ */
+export interface WorldBatchCommand {
+  request_id: string;
+  /**
+   * @minItems 1
+   * @maxItems 20
+   */
+  changes: {
+    intent:
+      | "CREATE_ENTITY"
+      | "EDIT_ENTITY"
+      | "RETIRE_ENTITY"
+      | "ASSERT"
+      | "CORRECT"
+      | "RETRACT";
+    local_ref?: string;
+    subject?: string;
+    entity_kind?:
+      | "PERSON"
+      | "ORGANIZATION"
+      | "DEVICE"
+      | "SERVICE"
+      | "RESOURCE"
+      | "PROJECT"
+      | "GOAL";
+    display_name?: string;
+    rename?: {
+      from: string;
+      to: string;
+    };
+    aliases?: {
+      /**
+       * @maxItems 32
+       */
+      add?: string[];
+      /**
+       * @maxItems 32
+       */
+      remove?: string[];
+    };
+    predicate?: string;
+    topic?: string;
+    value?: unknown;
+    /**
+     * @maxItems 20
+     */
+    keywords?: string[];
+    target_fact_id?: string;
+    valid_from?: string;
+    valid_to?: string | null;
+    fresh_until?: string | null;
+    source_note?: string;
+  }[];
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "WorldPreviewRequest".
+ */
+export interface WorldPreviewRequest {
+  text: string;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "WorldRecallPreview".
+ */
+export interface WorldRecallPreview {
+  status: "hit" | "no_hit" | "unavailable";
+  text: string;
+  fact_ids: string[];
+  bytes: number;
+  [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "WorldBatchResult".
+ */
+export interface WorldBatchResult {
+  batch_id: string;
+  operation_id: string;
+  authorization_id: string | null;
+  status:
+    "PENDING" | "APPROVED" | "COMMITTED" | "FAILED" | "EXPIRED" | "REJECTED";
+  error: string | null;
+  result: unknown;
 }

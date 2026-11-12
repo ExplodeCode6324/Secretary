@@ -131,6 +131,24 @@ export function requestBudget(
           getCurrentTools(messages as Parameters<typeof getCurrentTools>[0]),
           options.tools.map(toToolDeclaration),
         );
+  // Reserve the complete resident World caps even when the current view is empty.
+  const mainSystem = messages
+    .filter((m) => m.role === "system")
+    .map((m) =>
+      typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+    )
+    .find((s) => s.includes("sole main session"));
+  const renderedWorld = mainSystem
+    ? [
+        ...mainSystem.matchAll(
+          /<(?:derived-world-profile|world-recall-data)>[\s\S]*?<\/(?:derived-world-profile|world-recall-data)>/g,
+        ),
+      ].reduce((n, m) => n + Buffer.byteLength(m[0]), 0)
+    : 0;
+  const worldReserve =
+    options.role !== "task" && mainSystem
+      ? Math.max(0, 6144 - renderedWorld)
+      : 0;
   const context = {
     messages:
       changes && (changes.toolsAdded.length || changes.toolsRemoved.length)
@@ -184,7 +202,10 @@ export function requestBudget(
     (config.inputLimit ?? capacity) - reserve - safety,
   );
   const estimated =
-    requestTokens(vision.value) + vision.surcharge + 32 * messages.length;
+    requestTokens(vision.value) +
+    vision.surcharge +
+    32 * messages.length +
+    worldReserve;
   return {
     count_method: "utf8_bytes_upper_estimate_v1",
     ...(vision.profile

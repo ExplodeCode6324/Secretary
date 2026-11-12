@@ -58,11 +58,10 @@ flowchart LR
   Extract --> Ledger[現在のコミットメント台帳にマージ]
   Memory --> Projection[カバー範囲と検索位置の検証 / 入力投影]
   Draft[Settings 草稿] --> Source
-  Summary --> World[任意の World バッチ処理 / 受領記録 / outbox]
-  World --> Applied[有効指示 + メモリ + Context + APPLIED]
+  Summary --> Applied[有効指示 + メモリ + Context + APPLIED]
 ```
 
-[メモリ保守](../../src/pi_secretary/src/memory-maintenance.ts)は要約と抽出進捗を独立してコミットし、失敗した分割を保存済み試行回数に従って再試行します。[Settings](../../src/pi_secretary/src/settings.ts) は草稿と出典を固定し、メインセッションと新規タスク取得を一時停止します。要約と容量確認を終えてから World バッチをコミットして受領記録を橋渡しし、最後にローカル設定をアトミックに切り替えます。指示のみの変更は Context を直接再構築します。この間も新規入力はキューに入り、実行中タスクは完了できます。COMMITTING/REBUILDING で再起動した場合は DB 受領記録と照合します。FAILED の手動バッチは草稿に戻せ、BLOCKED はコミット済み結果の照会を続けます。入力の除外と出典ルールは[メモリとプロンプト](memory-and-prompts.md)を参照してください。
+[メモリー保守](../../src/pi_secretary/src/memory-maintenance.ts) は要約と抽出の進捗を個別に記録し、保存された試行回数で失敗区間を再試行します。[Settings](../../src/pi_secretary/src/settings.ts) は草稿と出典を固定し、Main と新規タスクの取得を停止します。World edits are rejected by Settings. Settings validates its summary and budget, then atomically activates instructions, memory and Context. 新しい入力は待機し、実行中タスクは完了できます。Settings recovery reuses its saved summary and journal records. Historical World applications must finish on old code before genesis. 入力の退役と出典規則：[メモリとプロンプト](memory-and-prompts.md)。
 
 ## 同期、リマインダー、通知
 

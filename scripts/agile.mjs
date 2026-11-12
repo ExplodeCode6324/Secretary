@@ -37,8 +37,8 @@ if (action === "start" || action === "ensure") {
     await client.command("core/stop", { request_id: randomUUID() });
     process.exit(0);
   }
-  const receipt = await client.command("admin/world/migrate", { request_id: randomUUID() });
-  console.log(JSON.stringify({ world_migration: receipt }));
+  // World genesis/import and memory schema initialization belong to Core startup.
+  // Do not replay the retired legacy migration command on every watchdog start.
 } else if (action === "tui") {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw Error("TUI_REQUIRES_TERMINAL");
   if (!await attachCore(process.env.SECRETARY_DATA)) throw Error("Start the agile Core first");

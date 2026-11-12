@@ -3658,5 +3658,95 @@
     "Never point `SECRETARY_TEST_DATABASE_URL` at the agile cluster or run `test:db:clean -- --apply` against it. A model’s self-assessment does not prove task completion. Control race ordering with explicit barriers rather than sleeps; test multi-condition guards by breaking one condition at a time; report total cases and counts per status, not just pass rates.",
     "`SECRETARY_TEST_DATABASE_URL` をアジャイルクラスタに向けず、そこで `test:db:clean -- --apply` を実行しません。モデルの自己評価は完了の証明になりません。競合順序は sleep ではなく明示的なバリアで制御し、複数条件のガードは一条件ずつ破って検証し、成功率だけでなく総件数と状態別件数を報告します。",
     "Ne jamais diriger `SECRETARY_TEST_DATABASE_URL` vers le cluster agile ni y exécuter `test:db:clean -- --apply`. L’autoévaluation du modèle ne prouve pas l’achèvement. Contrôler les courses par barrières explicites plutôt que par temporisations ; invalider une condition à la fois pour tester les gardes multiples ; publier les nombres total et par état, pas seulement un taux de réussite."
+  ],
+  "需要 Node.js ≥22.19、npm 和 Python 3。": [
+    "Requires Node.js ≥22.19, npm and Python 3. ",
+    "Node.js ≥22.19、npm、Python 3 が必要です。",
+    "Nécessite Node.js ≥22.19, npm et Python 3. "
+  ],
+  "状态目录": [
+    "State catalog",
+    "状態カタログ",
+    "Catalogue des états"
+  ],
+  "保留 Execution、Operation、Input、Authorization：Store 在提交与重放时检查前三者的状态变化，Authorization 按事件推进；其余记录由领域模块管理。": [
+    "defines Execution, Operation, Input and Authorization. Store validates the first three during commit/replay; Authorization advances by events and other records by domain modules. ",
+    "は Execution、Operation、Input、Authorization を定義します。Store はコミットと再生で最初の三つを検証し、Authorization はイベントで、他の記録は領域モジュールで進みます。",
+    "définit Execution, Operation, Input et Authorization. Store valide les trois premiers lors du commit et du rejeu ; Authorization progresse par événements, les autres enregistrements par modules métier. "
+  ],
+  "检索、timeline 和活动索引均可从权威记录重建。具体约束见": [
+    "Search, timeline and activity indexes can be rebuilt from authoritative records. See ",
+    "検索、timeline、活動索引は正本から再構築できます。詳細：",
+    "Les index de recherche, timeline et activité sont reconstructibles depuis les sources de référence. Voir "
+  ],
+  "记忆维护": [
+    "Memory maintenance",
+    "メモリー保守",
+    "Maintenance de la mémoire"
+  ],
+  "独立提交摘要和提取进度，失败分段按保存的次数补试。": [
+    "commits summary and extraction progress independently, retrying failed segments with persisted attempt counts. ",
+    "は要約と抽出の進捗を個別に記録し、保存された試行回数で失敗区間を再試行します。",
+    "enregistre séparément le résumé et l’extraction et réessaie les segments échoués selon les tentatives enregistrées. "
+  ],
+  "固定草稿与来源、暂停主会话和新任务领取，": [
+    "freezes the draft/sources and pauses Main and new task claims. ",
+    "は草稿と出典を固定し、Main と新規タスクの取得を停止します。",
+    "fige le brouillon et les sources, puis suspend Main et la prise de nouvelles tâches. "
+  ],
+  "期间新输入继续排队，已运行任务可完成。": [
+    "New inputs queue while existing tasks can finish. ",
+    "新しい入力は待機し、実行中タスクは完了できます。",
+    "Les nouvelles entrées attendent et les tâches en cours peuvent finir. "
+  ],
+  "输入退出和来源规则见": [
+    "Input retirement and provenance rules: ",
+    "入力の退役と出典規則：",
+    "Règles de retrait des entrées et de provenance : "
+  ],
+  "从仓库根目录执行命令。需要 Node.js ≥22.19、npm、Python 3 和固定 Pi 子模块；": [
+    "Run from the repository root with Node.js ≥22.19, npm, Python 3 and the pinned Pi submodule. ",
+    "リポジトリのルートで Node.js ≥22.19、npm、Python 3、固定 Pi サブモジュールを使用します。",
+    "Exécuter depuis la racine avec Node.js ≥22.19, npm, Python 3 et le sous-module Pi fixé. "
+  ],
+  "默认 live 目录读取可选 `.demo-data/live-runtime.json`，`database_url` 提供 DSN，环境 DSN 优先；未给环境 DSN 且配置 `local_postgres_data` 时，wrapper 用 pg_ctl 启动已有集群。": [
+    "The live directory optionally reads `.demo-data/live-runtime.json`; `database_url` supplies a DSN, overridden by the environment. With `local_postgres_data` and no environment DSN, the wrapper starts the existing cluster using pg_ctl. ",
+    "live ディレクトリは任意の `.demo-data/live-runtime.json` を読みます。`database_url` の DSN より環境設定が優先され、環境 DSN がなく `local_postgres_data` があれば pg_ctl で既存クラスタを起動します。",
+    "Le répertoire live lit éventuellement `.demo-data/live-runtime.json` ; `database_url` fournit le DSN, remplacé par celui de l’environnement. Avec `local_postgres_data` sans DSN d’environnement, le wrapper démarre le cluster existant via pg_ctl. "
+  ],
+  "Core stop 关闭连接，PostgreSQL 保持运行。预算参数见": [
+    "Core stop closes connections while PostgreSQL stays running. Budget settings: ",
+    "Core stop は接続を閉じ、PostgreSQL は稼働を続けます。予算設定：",
+    "Core stop ferme les connexions ; PostgreSQL continue. Paramètres de budget : "
+  ],
+  "先在隔离副本验证新版本重放，再切换运行目录。未完成 Settings 使用原配置恢复；迁移目录时核对程序入口和 Execution 绑定。": [
+    "Verify replay on an isolated copy before switching directories. Recover unfinished Settings with the original configuration and check program paths and Execution bindings when moving directories. ",
+    "切替前に隔離コピーで再生を検証します。未完了 Settings は元の設定で復旧し、移動時にプログラムパスと Execution の結合を確認します。",
+    "Vérifier le rejeu sur une copie isolée avant de changer de répertoire. Récupérer les Settings inachevés avec la configuration d’origine ; vérifier les chemins et liaisons Execution lors du déplacement. "
+  ],
+  "存储实现见": [
+    "Storage implementation: ",
+    "ストレージ実装：",
+    "Implémentation du stockage : "
+  ],
+  "响应为 `{api_version:\"1\",data:...}`，错误为 `{api_version:\"1\",error:{code,message}}`。revision、事件 sequence 和字节长度使用十进制字符串，数量与 limit 使用有界整数，时间为 UTC ISO 8601。请求按 schema 校验，客户端按已知字段解码响应。": [
+    "Responses use `{api_version:\"1\",data:...}`; errors use `{api_version:\"1\",error:{code,message}}`. Revisions, event sequences and byte sizes are decimal strings; counts and limits are bounded integers; timestamps use UTC ISO 8601. Requests are schema-validated and clients decode known fields. ",
+    "応答は `{api_version:\"1\",data:...}`、エラーは `{api_version:\"1\",error:{code,message}}` です。revision、イベント番号、バイト数は十進文字列、件数と limit は有界整数、時刻は UTC ISO 8601 です。要求を schema 検証し、クライアントは既知フィールドを解釈します。",
+    "Réponses : `{api_version:\"1\",data:...}` ; erreurs : `{api_version:\"1\",error:{code,message}}`. Révisions, séquences et tailles sont des chaînes décimales ; nombres et limites sont des entiers bornés ; dates en UTC ISO 8601. Les requêtes sont validées par schéma et les clients décodent les champs connus. "
+  ],
+  "PublicTaskCommand 使用 `acceptance` 字符串数组；接续同时传 reuse_task_id 和 parent_execution_id，规则见": [
+    "PublicTaskCommand accepts an `acceptance` string array; continuation supplies reuse_task_id and parent_execution_id. See ",
+    "PublicTaskCommand は `acceptance` 文字列配列を使用し、継続には reuse_task_id と parent_execution_id を渡します。詳細：",
+    "PublicTaskCommand reçoit un tableau de chaînes `acceptance` ; la continuation fournit reuse_task_id et parent_execution_id. Voir "
+  ],
+  "任务数据流": [
+    "Task data flow",
+    "タスクのデータフロー",
+    "Flux des tâches"
+  ],
+  "Core 启动时先打开 Store、检查升级条件并建立身份与档案，再导入或初始化 World genesis，随后恢复 Authorization/Scheduler 并构造 Host/Settings，最后初始化独立的日志检索 schema 并预热读索引。API 每 300 ms 调用 pump，推进推送、检索、World、设置、任务、反馈、唤醒和主会话。模块各自管理进行中的工作；停止时关闭模型、执行者、数据库连接和 writer。": [
+    "Core opens Store, checks upgrade readiness and establishes identity/profile, then imports or seeds World genesis before recovering Authorization/Scheduler and constructing Host/Settings. It initializes the independent log-search schema and warms read indexes. The API pumps every 300 ms to advance pushes, search, World, Settings, tasks, feedback, wakeups and Main. Each module manages its in-flight work; shutdown closes models, executors, database connections and the writer.",
+    "Core は Store を開き、アップグレード条件と識別情報を確認してから World genesis を取り込みまたは初期化し、Authorization/Scheduler を復旧して Host/Settings を構築します。続いて独立したログ検索スキーマと読み取り索引を初期化します。API は 300 ms ごとに pump を呼び、通知、検索、World、設定、タスク、フィードバック、起床と Main を進めます。各モジュールが実行中の処理を管理し、停止時にモデル、実行者、DB 接続と writer を閉じます。",
+    "Core ouvre Store, vérifie les conditions de mise à niveau et établit les identités et profils, puis importe ou initialise World genesis avant de restaurer Authorization/Scheduler et de construire Host/Settings. Il initialise ensuite le schéma indépendant de recherche des journaux et les index de lecture. L’API appelle pump toutes les 300 ms pour faire avancer notifications, recherche, World, paramètres, tâches, retours, réveils et Main. Chaque module gère ses traitements en cours ; l’arrêt ferme modèles, exécuteurs, connexions SQL et writer."
   ]
 }

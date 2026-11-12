@@ -8,7 +8,7 @@ Secretary は Master のための継続型パーソナルアシスタントで�
 
 ## クイックスタート
 
-Node.js ≥22.19、npm、Python 3 が必要です。World と履歴検索には PostgreSQL を使用します。
+Node.js ≥22.19、npm、Python 3 が必要です。World facts use the local journal; history search uses PostgreSQL.
 
 ```sh
 git submodule update --init --recursive

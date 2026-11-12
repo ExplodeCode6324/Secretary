@@ -6,7 +6,7 @@
 
 起動、キー操作、検証は[端末の実行と検証](../tui/run-and-test.md)を参照してください。以下のコマンドは独立した Core を管理します。TUI を終了しても Core は停止しません。
 
-コマンドはリポジトリのルートで実行します。Node.js ≥22.19、npm、Python 3、バージョン固定の Pi サブモジュールが必要です。World と履歴検索には PostgreSQL を使用します。
+リポジトリのルートで Node.js ≥22.19、npm、Python 3、固定 Pi サブモジュールを使用します。World uses the journal; PostgreSQL provides log search and one-time legacy import.
 
 ## インストール・起動・停止
 
@@ -45,10 +45,10 @@ wrapper のデフォルトは認証情報 `.demo-data/deepseek-credentials.json`
 | SECRETARY_MAIN_MODEL / SECRETARY_TASK_MODEL | 役割別モデル |
 | SECRETARY_MAIN_API_KEY / SECRETARY_TASK_API_KEY | 役割別認証情報 |
 | SECRETARY_PROVIDER / SECRETARY_MODEL | Core 直接起動時の共通デフォルト |
-| SECRETARY_DATABASE_URL | World と検索用の PostgreSQL DSN |
+| SECRETARY_DATABASE_URL | Log-search and legacy-import PostgreSQL DSN |
 | SECRETARY_MAX_WORKERS | 同時実行者の上限、デフォルト 2 |
 
-デフォルトの live ディレクトリでは任意の `.demo-data/live-runtime.json` を読みます。`database_url` が DSN を指定し、環境 DSN が優先します。環境 DSN がなく `local_postgres_data` が設定されていれば、wrapper は pg_ctl で既存クラスタを起動します。DB 設定後に `admin/world/migrate` で初期化します。Core を停止すると接続は閉じますが PostgreSQL は動作を続けます。予算パラメーターは[メモリとプロンプト](memory-and-prompts.md#容量と設定)を参照してください。
+live ディレクトリは任意の `.demo-data/live-runtime.json` を読みます。`database_url` の DSN より環境設定が優先され、環境 DSN がなく `local_postgres_data` があれば pg_ctl で既存クラスタを起動します。The mem-only schema initializes at startup; `admin/world/migrate` retries initialization/import.Core stop は接続を閉じ、PostgreSQL は稼働を続けます。予算設定：[メモリとプロンプト](memory-and-prompts.md#容量と設定)。
 
 ## 主な管理操作
 
@@ -93,7 +93,7 @@ Core を停止し、データディレクトリ全体、対応する PostgreSQL�
 npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 ```
 
-稼働ディレクトリを切り替える前に、隔離コピーで新バージョンのリプレイを検証します。未完了の Settings は元の設定で復旧します。ディレクトリ移動時はプログラムのエントリーポイントと Execution のバインドを確認します。ロールバックには該当バージョンの完全バックアップを使い、アップグレード中に発生した外部作用を照合します。ストレージ実装は[アーキテクチャ](architecture.md#データとコミット)を参照してください。
+切替前に隔離コピーで再生を検証します。未完了 Settings は元の設定で復旧し、移動時にプログラムパスと Execution の結合を確認します。After the first World record or new prompt snapshot, old binaries cannot replay the journal: use a forward fix. Never overwrite newer writes with an older backup.ストレージ実装：[アーキテクチャ](architecture.md#データとコミット)。
 
 バックアップ前に TUI を終了し、その状態ディレクトリを Core データと一緒に保存します。既定は `~/Library/Application Support/Secretary/tui/v1/<domain>/` で、独自の起動入口では実際の `stateRoot`（アジャイルでは `data/tui`）を使います。再構築可能なキャッシュだけでなく、未送信要求、元の request_id、復旧資料を含む全体を保持します。
 
@@ -106,7 +106,7 @@ npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 | CAPACITY_BLOCKED / INPUT_EXIT_DISABLED | memory の状態、モデル予算、PostgreSQL 検索の処理済み位置を確認し、インデックス復旧後に保守処理を再試行 |
 | RECOVERY_BLOCKED | 復旧エラーの checkpoint、呼び出し、ツール受領記録を確認し、session/resume で対処 |
 | RESULT_UNKNOWN | ファイル書き込みを検証するか実際の証拠から作用を判定し、管理対象プロセスの停止確認後に完了 |
-| Settings BLOCKED | 元の設定で復旧し、World バッチの受領記録を確認して橋渡しを再試行 |
+| Settings BLOCKED | Retry Settings with the exact compatible runtime; World facts have no SQL receipt bridge |
 | RESYNC_REQUIRED | 同期の処理済み位置を再取得し、リソースを読み込んで変更を追跡。元のコマンドは request_id で照合 |
 | SECRET_UNAVAILABLE / プッシュ FAILED | 配信先の非公開設定や固定エラーコードを確認し、dispatch の試行記録と照合 |
 | journal/CAS の破損または追記確認の失敗 | 完全コピーを保存して復旧エラーを特定し、開き直した後に journal とコミット済み結果を照合 |

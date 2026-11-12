@@ -29,7 +29,7 @@ Les erreurs métier après admission conservent l’accusé. Les règles de reje
 
 ## Requêtes, pagination et contenu
 
-Les réponses utilisent `{api_version:"1",data:...}` ; les erreurs, `{api_version:"1",error:{code,message}}`. revision, sequence d’événement, version World et longueurs en octets sont des chaînes décimales ; les nombres d’éléments et limit sont des entiers bornés ; les dates sont en UTC ISO 8601. Les requêtes sont validées par schéma ; les clients décodent les champs connus.
+Réponses : `{api_version:"1",data:...}` ; erreurs : `{api_version:"1",error:{code,message}}`. Révisions, séquences et tailles sont des chaînes décimales ; nombres et limites sont des entiers bornés ; dates en UTC ISO 8601. Les requêtes sont validées par schéma et les clients décodent les champs connus.
 
 Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
 
@@ -53,11 +53,11 @@ Les bytes/hash d’Operation concernent le texte public complet. source_truncate
 | tasks, task-requests, executions | Référence de tâche, propositions par tour, file/annulation, résultats et continuations ; tasks accepte scope_id, none indiquant l’absence de Scope lié |
 | scopes, authorizations, authorization-rules, decisions, operations | Périmètres de travail, approbations/règles, réponses de travail et vérification des effets |
 | settings, memory, memory/summary, memory/commitments | Application des brouillons, progression de maintenance, résumés et provenance des engagements |
-| world/catalog, world/facts, world/slot | Entités/predicate/source, faits actuels et historiques, slot revision |
+| world/catalog, world/facts, world/batches/{id}, world/changes, world/preview | Store entities/roles/predicates, facts/history, batch status, owner edits and read-only recall preview |
 | related, attention | Ressources associées, compteurs et listes bornées ; attention fournit version/as_of/valid_until |
 | requests, clients, core, admin | Accusés, enregistrement des clients, démarrage/arrêt du service, migrations World et enregistrement des programmes |
 
-PublicTaskCommand utilise un tableau de chaînes `acceptance`. Une continuation fournit reuse_task_id et parent_execution_id ; voir le [flux des tâches](../../data-flow.md#de-la-proposition-de-tâche-au-résultat). Settings conserve instructions/edits/command_ids complets et utilise expected_revision pour le contrôle de version. Les nouvelles ressources World ont revision "0" ; un lot métier est limité à 50 éléments (la structure publique en autorise 100).
+PublicTaskCommand reçoit un tableau de chaînes `acceptance` ; la continuation fournit reuse_task_id et parent_execution_id. Voir [Flux des tâches](../../data-flow.md#De la proposition de tâche au résultat). Settings uses expected_revision for instructions and rejects nonempty edits/command_ids. World changes contain 1–20 edits with field deltas and explicit fact targets; no client World revision or slot endpoint. POST world/preview accepts text only and performs no journal/model activity.
 
 ## Master attention (#92)
 
@@ -163,3 +163,15 @@ Task and Execution projections expose `title` and permanent `execution_round` va
 - `GET task-browser/resolve?selector_kind=title&selector=...&execution_round=7&purpose=browse|guidance` returns exact immutable IDs and snapshot revisions. Rounds must be positive ASCII integers without leading zeros. No latest fallback, business command or liveness reservation is created. Session, active-scope and recent-three visibility apply. Guidance purpose also rejects ended, cancelling, PROGRAM and RESULT_UNKNOWN targets. Final guidance admission rechecks the frozen IDs; existing accepted receipt replay is retained. Already-started archived work keeps its existing exact-ID guidance capability.
 
 Startup performs a resumable, append-only identity migration before business recovery. This is a one-way format upgrade. Before starting an upgraded binary on a real root, stop its writer, back up the complete root, and verify an isolated copy can reopen. Preserve the backup; never run an older binary against the upgraded root or overwrite newer work automatically. Migration uses committed creation order, preserves old references and assigned identities, and emits a durable completion event. No migration of a live user root is part of automated verification.
+
+## Main Scope import
+
+Main tools `scope_import` and `scope_query` supplement the existing owner Scope routes. A proposal cites current-turn, same-session Master event IDs and produces an exact `scope.import` approval; it creates no visible Scope. Approval details include normalized parameters, physical root device/inode, source quotes, and a 24-hour expiry. No remembered rule or wildcard can authorize an import. DIRECTORY defaults to `ask`; NONE has no filesystem root. Scope query paginates active Scopes, reads an exact ID, or reads this session's imports by Operation ID.
+
+Approval consumption, revision-1 Scope, successful Operation receipt and deterministic ENVIRONMENT Input commit together. Failure leaves no imported Scope. Each result starts one isolated read/query/report turn; this consumes a Main model invocation and provides no new authority. Delegation requires a subsequent Master turn. Owner rejection/revocation results are repaired on each pump and startup; online expiry records a HOST reason while retaining the original approver. Owner Scope edit/archive APIs remain unchanged.
+
+Roots must be existing physical absolute directories without symlink ancestors, Core-data overlap or active/busy Scope overlap. Use the physical path instead of macOS `/tmp` or `/var` aliases. Final synchronous identity/path checks detect replacements before journal commit, but cannot make the filesystem and journal one transaction or prevent an external rename immediately afterwards. No recursive discovery or arbitrary directory creation is provided. API/source/fixture verification does not prove native TUI or real-provider acceptance; the #111 series tracks that combined acceptance separately.
+
+### Task workspace location
+
+Task details, execution/result views and task-request status include additive `scope_kind` (`SHARED`, `NONE`, `DIRECTORY`), `scope_name` and `workspace_info`. The latter reports an absolute Core-host `path`, `root_kind`, `location=CORE_HOST`, `availability` (`planned`, `verified`, `unavailable`) and diagnostic `reason`. Before an Execution binds the directory, its path remains planned. These read-only observations never create or repair directories. Shared keeps `scope_id=null`; clients must not interpret a Core-host path as a local file. Task lists expose the Scope labels; Task-browser detail adds workspace observations without filesystem scans for every list row.

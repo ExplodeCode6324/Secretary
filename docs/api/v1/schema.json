@@ -704,7 +704,8 @@
           "enum": [
             "supported",
             "not_supported",
-            "not_configured"
+            "not_configured",
+            "temporarily_unavailable"
           ]
         },
         "allowed": {
@@ -1152,6 +1153,19 @@
           ],
           "minimum": 1,
           "maximum": 9007199254740991
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY"
+          ]
+        },
+        "scope_name": {
+          "type": "string"
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -1210,6 +1224,19 @@
             "string",
             "null"
           ]
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY"
+          ]
+        },
+        "scope_name": {
+          "type": "string"
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -1377,6 +1404,19 @@
           ],
           "minimum": 1,
           "maximum": 9007199254740991
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY"
+          ]
+        },
+        "scope_name": {
+          "type": "string"
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -1531,6 +1571,19 @@
         },
         "title": {
           "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY"
+          ]
+        },
+        "scope_name": {
+          "type": "string"
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -2928,9 +2981,6 @@
             "$ref": "#/$defs/Json"
           }
         },
-        "world_version": {
-          "type": "string"
-        },
         "next_cursor": {
           "anyOf": [
             {
@@ -2944,7 +2994,6 @@
       },
       "required": [
         "items",
-        "world_version",
         "next_cursor"
       ],
       "additionalProperties": true
@@ -5362,6 +5411,16 @@
         },
         "title": {
           "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY"
+          ]
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -6666,6 +6725,262 @@
           }
         }
       },
+      "additionalProperties": false
+    },
+    "WorldBatchCommand": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "intent": {
+                "enum": [
+                  "CREATE_ENTITY",
+                  "EDIT_ENTITY",
+                  "RETIRE_ENTITY",
+                  "ASSERT",
+                  "CORRECT",
+                  "RETRACT"
+                ]
+              },
+              "local_ref": {
+                "type": "string"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "entity_kind": {
+                "enum": [
+                  "PERSON",
+                  "ORGANIZATION",
+                  "DEVICE",
+                  "SERVICE",
+                  "RESOURCE",
+                  "PROJECT",
+                  "GOAL"
+                ]
+              },
+              "display_name": {
+                "type": "string"
+              },
+              "rename": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "from": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "from",
+                  "to"
+                ]
+              },
+              "aliases": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "add": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 32
+                  },
+                  "remove": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "maxItems": 32
+                  }
+                }
+              },
+              "predicate": {
+                "type": "string"
+              },
+              "topic": {
+                "type": "string"
+              },
+              "value": {},
+              "keywords": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 20
+              },
+              "target_fact_id": {
+                "type": "string"
+              },
+              "valid_from": {
+                "type": "string"
+              },
+              "valid_to": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "fresh_until": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source_note": {
+                "type": "string",
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "intent"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 20
+        }
+      },
+      "required": [
+        "request_id",
+        "changes"
+      ]
+    },
+    "WorldPreviewRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "maxLength": 4096
+        }
+      },
+      "required": [
+        "text"
+      ]
+    },
+    "WorldRecallPreview": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "status": {
+          "enum": [
+            "hit",
+            "no_hit",
+            "unavailable"
+          ]
+        },
+        "text": {
+          "type": "string"
+        },
+        "fact_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "status",
+        "text",
+        "fact_ids",
+        "bytes"
+      ]
+    },
+    "WorldBatchResult": {
+      "type": "object",
+      "properties": {
+        "batch_id": {
+          "type": "string"
+        },
+        "operation_id": {
+          "type": "string"
+        },
+        "authorization_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "status": {
+          "enum": [
+            "PENDING",
+            "APPROVED",
+            "COMMITTED",
+            "FAILED",
+            "EXPIRED",
+            "REJECTED"
+          ]
+        },
+        "error": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "result": {}
+      },
+      "required": [
+        "batch_id",
+        "operation_id",
+        "authorization_id",
+        "status",
+        "error",
+        "result"
+      ],
+      "additionalProperties": false
+    },
+    "TaskWorkspace": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "root_kind": {
+          "enum": [
+            "NONE",
+            "DIRECTORY"
+          ]
+        },
+        "location": {
+          "const": "CORE_HOST"
+        },
+        "availability": {
+          "enum": [
+            "planned",
+            "verified",
+            "unavailable"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "root_kind",
+        "location",
+        "availability",
+        "reason"
+      ],
       "additionalProperties": false
     }
   },

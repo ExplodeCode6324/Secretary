@@ -609,6 +609,10 @@ export function requestStatus(this: TaskPlanningContext, requestID: string) {
   return {
     ...accepted,
     title: this.store.get<TaskPlan>("TaskPlan", accepted.task_id).title!,
+    ...this.scopes.workspaceView(
+      this.store.get<TaskPlan>("TaskPlan", accepted.task_id),
+      e,
+    ),
     execution_round: e?.execution_round ?? null,
     execution_id: e?.id ?? null,
     state: e?.state ?? (stopped ? "CANCELLED_OR_REJECTED" : "ACCEPTED"),
@@ -662,7 +666,7 @@ export function query(
     return {
       task_id: p.id,
       title: p.title!,
-      scope_id: p.scope_id ?? null,
+      ...this.scopes.workspaceView(p, latest),
       state: p.state,
       goal: baseline.goal,
       latest_execution_id: latest?.id ?? null,

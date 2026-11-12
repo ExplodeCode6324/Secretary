@@ -101,10 +101,19 @@ test("new turns replace historical system; empty instructions disable injection;
     await applyInstructions(app, "", 2);
     app.host.accept("third");
     await app.host.drain();
-    assert.equal(
-      systemText(app.store.read<any[]>(latest(app).raw_context)),
-      BASE_SYSTEM,
+    const emptySystem = systemText(
+      app.store.read<any[]>(latest(app).raw_context),
     );
+    assert(emptySystem.startsWith(BASE_SYSTEM));
+    assert(
+      !emptySystem.includes(
+        "Current Master defaults override historical style",
+      ),
+    );
+    assert(!emptySystem.includes("NEW_CONFIG_ENGLISH"));
+    assert(!emptySystem.includes(DEFAULT_INSTRUCTIONS));
+    assert.match(emptySystem, /MASTER derived profile: Master/);
+    assert.match(emptySystem, /SECRETARY derived profile: Secretary/);
     assert.equal(
       app.store.all<MainPromptSnapshot>("MainPromptSnapshot").length,
       5,

@@ -6,7 +6,7 @@
 
 Voir [exécution et vérification du terminal](../tui/run-and-test.md) pour le démarrage, les touches et la validation. Les commandes ci-dessous gèrent Core indépendamment ; quitter le TUI n’arrête pas Core.
 
-Exécutez les commandes à la racine du dépôt. Node.js ≥22.19, npm, Python 3 et le sous-module Pi à version fixe sont requis. World et la recherche dans l’historique utilisent PostgreSQL.
+Exécuter depuis la racine avec Node.js ≥22.19, npm, Python 3 et le sous-module Pi fixé. World uses the journal; PostgreSQL provides log search and one-time legacy import.
 
 ## Installation, démarrage et arrêt
 
@@ -45,10 +45,10 @@ Après la mise à jour, les fournisseurs `opencode` et `opencode-go` configurés
 | SECRETARY_MAIN_MODEL / SECRETARY_TASK_MODEL | Modèles par rôle |
 | SECRETARY_MAIN_API_KEY / SECRETARY_TASK_API_KEY | Identifiants par rôle |
 | SECRETARY_PROVIDER / SECRETARY_MODEL | Valeurs par défaut communes au lancement direct de Core |
-| SECRETARY_DATABASE_URL | DSN PostgreSQL pour World et la recherche |
+| SECRETARY_DATABASE_URL | Log-search and legacy-import PostgreSQL DSN |
 | SECRETARY_MAX_WORKERS | Plafond d’exécuteurs simultanés, 2 par défaut |
 
-Le répertoire live par défaut lit éventuellement `.demo-data/live-runtime.json` ; `database_url` fournit le DSN, celui de l’environnement étant prioritaire. Sans DSN d’environnement et si `local_postgres_data` est configuré, le wrapper démarre le cluster existant avec pg_ctl. Après configuration de la base, initialisez-la via `admin/world/migrate`. L’arrêt de Core ferme les connexions mais laisse PostgreSQL actif. Les paramètres de budget figurent dans [mémoire et prompts](memory-and-prompts.md#capacité-et-configuration).
+Le répertoire live lit éventuellement `.demo-data/live-runtime.json` ; `database_url` fournit le DSN, remplacé par celui de l’environnement. Avec `local_postgres_data` sans DSN d’environnement, le wrapper démarre le cluster existant via pg_ctl. The mem-only schema initializes at startup; `admin/world/migrate` retries initialization/import.Core stop ferme les connexions ; PostgreSQL continue. Paramètres de budget : [Mémoire et prompts](memory-and-prompts.md#Capacité et configuration).
 
 ## Opérations d’administration courantes
 
@@ -93,7 +93,7 @@ Arrêtez Core puis sauvegardez l’intégralité du répertoire de données, la 
 npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 ```
 
-Validez la relecture avec la nouvelle version sur une copie isolée avant de changer de répertoire actif. Restaurez les Settings inachevés avec leur configuration d’origine. Lors d’un déplacement, vérifiez les points d’entrée des programmes et les liaisons Execution. Pour revenir en arrière, utilisez une sauvegarde complète correspondant à la version et rapprochez les effets externes survenus pendant la mise à niveau. L’implémentation du stockage figure dans l’[architecture](architecture.md#données-et-commits).
+Vérifier le rejeu sur une copie isolée avant de changer de répertoire. Récupérer les Settings inachevés avec la configuration d’origine ; vérifier les chemins et liaisons Execution lors du déplacement. After the first World record or new prompt snapshot, old binaries cannot replay the journal: use a forward fix. Never overwrite newer writes with an older backup.Implémentation du stockage : [Architecture](architecture.md#Données et commits).
 
 Quitter le TUI avant sauvegarde et conserver son répertoire d’état avec les données Core. Par défaut : `~/Library/Application Support/Secretary/tui/v1/<domain>/` ; les lanceurs personnalisés utilisent leur `stateRoot` effectif (`data/tui` pour agile). Conserver tout le répertoire, y compris requêtes non envoyées, request_id d’origine et éléments de récupération, pas seulement les caches reconstructibles.
 
@@ -106,7 +106,7 @@ Quitter le TUI avant sauvegarde et conserver son répertoire d’état avec les 
 | CAPACITY_BLOCKED / INPUT_EXIT_DISABLED | Vérifier l’état memory, le budget du modèle et la progression de recherche PostgreSQL ; restaurer l’index puis relancer la maintenance |
 | RECOVERY_BLOCKED | Vérifier le checkpoint, l’appel et les accusés d’outils signalés par l’erreur de reprise, puis utiliser session/resume |
 | RESULT_UNKNOWN | Vérifier l’écriture du fichier ou déterminer l’effet à partir de preuves réelles ; finaliser après confirmation de l’arrêt du processus contrôlé |
-| Settings BLOCKED | Reprendre avec la configuration d’origine, vérifier les accusés de lot World et réessayer le transfert |
+| Settings BLOCKED | Retry Settings with the exact compatible runtime; World facts have no SQL receipt bridge |
 | RESYNC_REQUIRED | Obtenir un nouveau point de synchronisation, charger les ressources puis rattraper les changements ; rapprocher les commandes d’origine par request_id |
 | SECRET_UNAVAILABLE / Push FAILED | Vérifier la configuration privée de la destination ou les codes d’erreur stables et examiner les tentatives dispatch |
 | Corruption journal/CAS ou échec de confirmation d’ajout | Conserver une copie complète et identifier l’erreur de reprise ; rouvrir puis rapprocher les résultats validés avec le journal |

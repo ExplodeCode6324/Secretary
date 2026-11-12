@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Store, base, revise } from "./store.ts";
-import type { WorkScope, Execution, Operation } from "./contracts.ts";
+import type { WorkScope, Execution, Operation, TaskPlan } from "./contracts.ts";
 
 export function overlaps(a: string, b: string) {
   const inside = (root: string, target: string) => {
@@ -15,7 +15,7 @@ export function overlaps(a: string, b: string) {
   };
   return inside(a, b) || inside(b, a);
 }
-function noLinks(target: string) {
+export function noLinks(target: string) {
   for (let p = target; ; p = path.dirname(p)) {
     try {
       if (fs.lstatSync(p).isSymbolicLink()) throw Error("SYMLINK_REJECTED");
@@ -89,10 +89,64 @@ export class Scopes {
     return { ...scope, default_write: scope.default_write ?? "allow" };
   }
   active(id?: string | null) {
-    if (!id) return null;
+    if (id == null) return null;
     const scope = this.get(id);
     if (scope.state !== "ACTIVE") throw Error("SCOPE_ARCHIVED");
+    if (scope.kind === "DIRECTORY") directoryRoot(this.store, scope.root_path!);
     return scope;
+  }
+  label(id?: string | null, binding?: Execution["workspace_binding"]) {
+    const scope = id == null ? null : this.get(id);
+    return {
+      scope_id: id ?? null,
+      scope_name: scope?.name ?? "Shared",
+      scope_kind: scope ? (binding?.kind ?? scope.kind) : ("SHARED" as const),
+    };
+  }
+  workspaceView(p: TaskPlan, e?: Execution | null) {
+    const label = this.label(e ? e.scope_id : p.scope_id, e?.workspace_binding);
+    const scope = p.scope_id == null ? null : this.get(p.scope_id);
+    const root =
+      e?.workspace_binding?.root_path ??
+      (!e && scope?.kind === "DIRECTORY"
+        ? scope.root_path!
+        : path.join(
+            fs.realpathSync(this.store.dir),
+            "workspaces",
+            p.id,
+            "work",
+          ));
+    const kind =
+      e?.workspace_binding?.kind ?? (!e ? scope?.kind : null) ?? "NONE";
+    let availability: "planned" | "verified" | "unavailable" = "planned";
+    let reason: string | null = null;
+    try {
+      // Observation only: an unbound derivation is never a verified binding.
+      noLinks(root);
+      if (e) {
+        this.rootFor(e, root);
+        availability = "verified";
+      } else if (p.state === "ACTIVE" && !fs.statSync(root).isDirectory()) {
+        throw Error("WORKSPACE_MISSING_OR_UNSAFE");
+      }
+    } catch (error) {
+      availability = "unavailable";
+      reason = ["ENOENT", "ENOTDIR"].includes(
+        (error as NodeJS.ErrnoException).code ?? "",
+      )
+        ? "WORKSPACE_MISSING_OR_UNSAFE"
+        : (error as Error).message;
+    }
+    return {
+      ...label,
+      workspace_info: {
+        path: path.resolve(root),
+        root_kind: kind,
+        location: "CORE_HOST" as const,
+        availability,
+        reason,
+      },
+    };
   }
   conflict(root: string, scopeID: string | null, executionID?: string) {
     return (
@@ -178,11 +232,10 @@ export class Scopes {
         root_path: scope.root_path!,
         notes_path: scope.notes_path,
       };
-    fs.mkdirSync(fallback, { recursive: true });
-    noLinks(fallback);
+    // Only initialization creates private roots; binding is read-only.
     return {
       kind: "NONE",
-      root_path: fs.realpathSync(fallback),
+      root_path: path.resolve(fallback),
       notes_path: null,
     };
   }
@@ -258,16 +311,23 @@ export class Scopes {
   }
   promptContext() {
     const list = this.promptList();
-    return JSON.parse(list).scopes.length
-      ? "\nAvailable scopes (data):\n" + list
-      : "";
+    return (
+      "\nAvailable scopes (data): virtual Shared defaults omitted/null scope_id to durable per-Task Core-host directories.\n" +
+      (JSON.parse(list).scopes.length ? list : "")
+    );
   }
   packet(e: Execution, root: string) {
-    if (!e.scope_id) return null;
+    const workspace = this.workspaceView(
+      this.store.get<TaskPlan>("TaskPlan", e.task_id),
+      e,
+    );
+    if (!e.scope_id)
+      return { id: null, name: "Shared", kind: "SHARED", ...workspace };
     const scope = this.get(e.scope_id),
       b = e.workspace_binding;
     if (b?.kind !== "DIRECTORY")
       return {
+        ...workspace,
         id: scope.id,
         name: scope.name,
         kind: "NONE",
@@ -294,6 +354,7 @@ export class Scopes {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
     return {
+      ...workspace,
       id: scope.id,
       name: scope.name,
       kind: b.kind,

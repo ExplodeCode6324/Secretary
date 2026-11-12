@@ -130,7 +130,7 @@ test("Execution freezes root, rejects binding edits and exposes queued old-root 
     assert.equal(a.scheduler.rootFor(e), oldRoot);
     assert.equal(
       fs.existsSync(path.join(a.scheduler.workspace, e.task_id, "work")),
-      false,
+      true,
     );
     assert.throws(
       () =>

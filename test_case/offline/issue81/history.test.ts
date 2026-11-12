@@ -135,20 +135,15 @@ testPostgres(
       );
       assert.equal(imageLeaves(messages).length, 0);
       for (const message of messages) attachmentForm(app.store, message);
-      const subject = id();
+      const subject = "role:master";
       app.settings.save(
         {
           ...emptySettings(),
-          edits: [
-            {
-              kind: "ENTITY",
-              entity_id: subject,
-              entity_kind: "PERSON",
-              display_name: "Synthetic image subject",
-              aliases: [],
-              expected_revision: 0,
-            },
-          ],
+          instructions: {
+            content: "Keep image history",
+            expected_revision:
+              app.settings.status().effective_instructions.revision,
+          },
         },
         app.settings.draft().revision,
       );
@@ -192,21 +187,32 @@ testPostgres(
           execution_id: null,
         };
         const args = {
-          intent: "ASSERT" as const,
-          subject,
-          predicate: "person.height",
-          value: 170,
-          source_event_ids: [event.event_id],
+          changes: [
+            {
+              intent: "ASSERT" as const,
+              subject,
+              predicate: "preference.statement",
+              value: "Synthetic attachment description",
+              source_event_ids: [event.event_id],
+            },
+          ],
         };
         const proposal = await proposeWorld(app.world!, scope, args, id(), []);
-        assert.ok("command_id" in proposal);
-        const change = app.store.get<WorldCommand>(
-          "WorldCommand",
-          proposal.command_id!,
-        ).change;
-        assert.equal(change.record_type, "WorldCatalogChange");
-        if (change.record_type === "WorldCatalogChange")
-          assert.equal(change.source_kind, "MODEL_INFERENCE");
+        const op = app.store.get<
+          import("../../../src/pi_secretary/src/contracts.ts").Operation
+        >("Operation", proposal.operation_id);
+        const preview = app.world!.preview(
+          app.store.read(op.action.parameters_ref),
+          scope,
+        );
+        assert.equal(
+          (
+            preview.records.find(
+              (r) => r.record_type === "WorldAssertion",
+            ) as any
+          ).source_kind,
+          "MODEL_INFERENCE",
+        );
         await app.world!.memorySearch.catchUp();
         assert.equal(
           (
@@ -228,7 +234,7 @@ testPostgres(
         assert.ok(!hits.hits.some((h) => h.event_id === event.event_id));
         await assert.rejects(
           proposeWorld(app.world!, scope, args, id(), []),
-          /ATTACHMENT_SOURCE_WITHDRAWN/,
+          /ATTACHMENT_SOURCE_WITHDRAWN|EVIDENCE_WITHDRAWN/,
         );
         await app.world!.memorySearch.catchUp();
         for (const table of ["document", "chunk"])

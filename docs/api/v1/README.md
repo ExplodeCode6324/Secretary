@@ -25,7 +25,7 @@ POST 使用 application/json，body 最大 1 MiB，包含 UUID request_id。owne
 
 ## 查询、分页与内容
 
-响应为 `{api_version:"1",data:...}`，错误为 `{api_version:"1",error:{code,message}}`。revision、事件 sequence、World version 和字节长度使用十进制字符串，数量与 limit 使用有界整数，时间为 UTC ISO 8601。请求按 schema 校验，客户端按已知字段解码响应。
+响应为 `{api_version:"1",data:...}`，错误为 `{api_version:"1",error:{code,message}}`。revision、事件 sequence 和字节长度使用十进制字符串，数量与 limit 使用有界整数，时间为 UTC ISO 8601。请求按 schema 校验，客户端按已知字段解码响应。
 
 Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
 
@@ -49,11 +49,11 @@ Operation 的 bytes/hash 指完整公开文本；source_truncated 表示执行�
 | tasks、task-requests、executions | 任务基线、每轮提案、排队/取消、结果与接续；tasks 可按 scope_id 筛选，none 表示无范围绑定 |
 | scopes、authorizations、authorization-rules、decisions、operations | 工作范围、审批/规则、工作回答与效果核验 |
 | settings、memory、memory/summary、memory/commitments | 草稿应用、维护进度、摘要与承诺来源 |
-| world/catalog、world/facts、world/slot | 实体/predicate/source、当前和历史事实、slot revision |
+| world/catalog, world/facts, world/batches/{id}, world/changes, world/preview | Store entities/roles/predicates, facts/history, batch status, owner edits and read-only recall preview |
 | related、attention | 关联资源、待办计数及有界列表，attention 提供 version/as_of/valid_until |
 | requests、clients、core、admin | 回执、客户端登记、服务启停、World 迁移与程序登记 |
 
-PublicTaskCommand 使用 `acceptance` 字符串数组；接续同时传 reuse_task_id 和 parent_execution_id，规则见[任务数据流](../../data-flow.md#任务从提案到结果)。Settings 保存完整 instructions/edits/command_ids，使用 expected_revision 控制版本；World 新资源 revision 为 "0"，单次领域批次最多 50 项（公开结构上限 100）。
+PublicTaskCommand 使用 `acceptance` 字符串数组；接续同时传 reuse_task_id 和 parent_execution_id，规则见[任务数据流](../../data-flow.md#任务从提案到结果)。Settings uses expected_revision for instructions and rejects nonempty edits/command_ids. World changes contain 1–20 edits with field deltas and explicit fact targets; no client World revision or slot endpoint. POST world/preview accepts text only and performs no journal/model activity.
 
 ## Master attention (#92)
 
@@ -159,3 +159,15 @@ Task and Execution projections expose `title` and permanent `execution_round` va
 - `GET task-browser/resolve?selector_kind=title&selector=...&execution_round=7&purpose=browse|guidance` returns exact immutable IDs and snapshot revisions. Rounds must be positive ASCII integers without leading zeros. No latest fallback, business command or liveness reservation is created. Session, active-scope and recent-three visibility apply. Guidance purpose also rejects ended, cancelling, PROGRAM and RESULT_UNKNOWN targets. Final guidance admission rechecks the frozen IDs; existing accepted receipt replay is retained. Already-started archived work keeps its existing exact-ID guidance capability.
 
 Startup performs a resumable, append-only identity migration before business recovery. This is a one-way format upgrade. Before starting an upgraded binary on a real root, stop its writer, back up the complete root, and verify an isolated copy can reopen. Preserve the backup; never run an older binary against the upgraded root or overwrite newer work automatically. Migration uses committed creation order, preserves old references and assigned identities, and emits a durable completion event. No migration of a live user root is part of automated verification.
+
+## Main Scope import
+
+Main tools `scope_import` and `scope_query` supplement the existing owner Scope routes. A proposal cites current-turn, same-session Master event IDs and produces an exact `scope.import` approval; it creates no visible Scope. Approval details include normalized parameters, physical root device/inode, source quotes, and a 24-hour expiry. No remembered rule or wildcard can authorize an import. DIRECTORY defaults to `ask`; NONE has no filesystem root. Scope query paginates active Scopes, reads an exact ID, or reads this session's imports by Operation ID.
+
+Approval consumption, revision-1 Scope, successful Operation receipt and deterministic ENVIRONMENT Input commit together. Failure leaves no imported Scope. Each result starts one isolated read/query/report turn; this consumes a Main model invocation and provides no new authority. Delegation requires a subsequent Master turn. Owner rejection/revocation results are repaired on each pump and startup; online expiry records a HOST reason while retaining the original approver. Owner Scope edit/archive APIs remain unchanged.
+
+Roots must be existing physical absolute directories without symlink ancestors, Core-data overlap or active/busy Scope overlap. Use the physical path instead of macOS `/tmp` or `/var` aliases. Final synchronous identity/path checks detect replacements before journal commit, but cannot make the filesystem and journal one transaction or prevent an external rename immediately afterwards. No recursive discovery or arbitrary directory creation is provided. API/source/fixture verification does not prove native TUI or real-provider acceptance; the #111 series tracks that combined acceptance separately.
+
+### Task workspace location
+
+Task details, execution/result views and task-request status include additive `scope_kind` (`SHARED`, `NONE`, `DIRECTORY`), `scope_name` and `workspace_info`. The latter reports an absolute Core-host `path`, `root_kind`, `location=CORE_HOST`, `availability` (`planned`, `verified`, `unavailable`) and diagnostic `reason`. Before an Execution binds the directory, its path remains planned. These read-only observations never create or repair directories. Shared keeps `scope_id=null`; clients must not interpret a Core-host path as a local file. Task lists expose the Scope labels; Task-browser detail adds workspace observations without filesystem scans for every list row.

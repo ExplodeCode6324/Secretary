@@ -250,5 +250,6 @@ test("API replacement: advanced task, programs, rules, operations and unavailabl
     assert.equal(tasks.items[0].goal, "scheduled synthetic");
     const task: any = await c.query(`tasks/${tasks.items[0].id}`);
     assert.deepEqual(task.baseline.constraints, ["read only"]);
-    await assert.rejects(c.query("world/subjects"), /WORLD_UNAVAILABLE/);
+    const world: any = await c.query("world/catalog?kind=entities");
+    assert.equal(world.items.length, 2);
   }));
