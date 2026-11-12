@@ -8,7 +8,13 @@ import {
   fixtureModel,
   fixtureStream,
 } from "../../../src/pi_secretary/src/model.ts";
-import { base, id, now, revise } from "../../../src/pi_secretary/src/store.ts";
+import {
+  Store,
+  base,
+  id,
+  now,
+  revise,
+} from "../../../src/pi_secretary/src/store.ts";
 import {
   checkImport,
   importNotice,
@@ -91,6 +97,78 @@ export function decide(
 }
 const notices = (app: App) =>
   app.store.all<Input>("Input").filter((i) => i.producer === "ENVIRONMENT");
+for (const outcome of ["success", "expired", "rejected"] as const)
+  test(`historical ${outcome} import notice replays after wording/serialization changes without CAS writes`, async () => {
+    const root = fs.realpathSync(
+      fs.mkdtempSync(path.join(os.tmpdir(), "secretary-issue113-replay-")),
+    );
+    let app: App | undefined;
+    let reopened: Store | undefined;
+    const originalPut = Store.prototype.put;
+    try {
+      app = await App.open(root, {
+        model: fixtureModel,
+        stream: fixtureStream,
+      });
+      const x = propose(app);
+      if (outcome === "success") decide(app, x.status.operation_id, "APPROVE");
+      else if (outcome === "rejected")
+        decide(app, x.status.operation_id, "REJECT");
+      else {
+        const grant = app.store.get<AuthorizationRequest>(
+          "AuthorizationRequest",
+          x.status.authorization_id,
+        );
+        app.store.commit(
+          [
+            revise(grant, {
+              expires_at: new Date(Date.now() - 1000).toISOString(),
+            }),
+          ],
+          [],
+        );
+      }
+      // Simulate a prior writer's notice format, including different key order.
+      app.store.put = function (value, media) {
+        if (
+          typeof value === "string" &&
+          value.startsWith('{"type":"scope.import.result"')
+        ) {
+          const old = JSON.parse(value);
+          value = JSON.stringify({
+            legacy_display: "v0",
+            ...Object.fromEntries(Object.entries(old).reverse()),
+            authority: "Historical HOST notice wording",
+          });
+        }
+        return originalPut.call(this, value, media);
+      };
+      app.scopeImports.drain();
+      const notice = notices(app)[0];
+      assert.match(
+        app.store.bytes(notice.payload).toString(),
+        /Historical HOST notice wording/,
+      );
+      await app.close();
+      app = undefined;
+      Store.prototype.put = function () {
+        throw Error("REPLAY_MUST_NOT_WRITE_CAS");
+      };
+      reopened = await Store.open(root);
+      assert.deepEqual(reopened.inputAcceptedEventIDs(x.input.id), [x.event]);
+      assert.deepEqual(reopened.get<Input>("Input", notice.id), notice);
+      assert.equal(reopened.all("Scope").length, outcome === "success" ? 1 : 0);
+      assert.equal(
+        reopened.get<Operation>("Operation", x.status.operation_id).state,
+        outcome === "success" ? "SUCCEEDED" : "CANCELLED",
+      );
+    } finally {
+      Store.prototype.put = originalPut;
+      await reopened?.close();
+      await app?.close();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 for (const kind of ["NONE", "DIRECTORY"] as const)
   test(`${kind}: exact approval creates one atomic scope and durable receipt, retries retain result`, () =>
     fixture(async (app, root) => {
@@ -425,6 +503,21 @@ test("whole-frame guard rejects incomplete and parameter-tampered apply", () =>
           events,
         ),
       /SCOPE_APPLY_BUNDLE_REQUIRED/,
+    );
+    const changedInput = {
+      ...input,
+      payload: app.store.put("Changed HOST notice", "text/plain"),
+    };
+    assert.throws(
+      () =>
+        app.store.commit(
+          [...records.slice(0, 3), changedInput],
+          [
+            ...events.slice(0, 2),
+            app.store.event("input.accepted", changedInput, op.scope, "HOST"),
+          ],
+        ),
+      /SCOPE_RESULT_NOT_ATOMIC/,
     );
     assert.equal(
       app.store.get<AuthorizationRequest>("AuthorizationRequest", a.id).state,

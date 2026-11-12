@@ -8,7 +8,7 @@
   "source_sha256": {
     "README.zh-CN.md": "8e82cf9551d878a5d52b815277e4d94ca2d6d70923bb42f5b54dea8044e4c7e5",
     "docs/README.md": "0b0e0cf2378f8079983ca572906a626d78d0ece8a6007728f726b622414b7445",
-    "docs/architecture.md": "38085f952dce6122abdf69f8f264222078bf741a8cf245a7528c9a915e2b9ca6",
+    "docs/architecture.md": "f9794c5fabd4773678854d88300bb50ba26f951992e162628003be21d98e1d3d",
     "docs/data-flow.md": "9588be2dfe0884be3b5f563836826524223c290bf42579000b3e303ae155bde5",
     "docs/invariants.md": "57858a2033d687d8be627bd2ded339bc5f5453832ec3e8378f75908ce6f428cc",
     "docs/memory-and-prompts.md": "ea247da230fde93a37dad7c63810e46ee8c321239be495c67759b021070427bc",

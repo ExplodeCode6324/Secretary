@@ -46,6 +46,10 @@ test("Main tool → owner HTTP approval → isolated report → next Master dele
         const event = app.store
           .events("input.accepted")
           .find((e) => app.store.read<Input>(e.payload).id === claimed[0].id)!;
+        assert.match(
+          JSON.stringify(context.messages[0]),
+          new RegExp(event.event_id),
+        );
         return replyStream(
           [
             {

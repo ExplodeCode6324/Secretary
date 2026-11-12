@@ -12,6 +12,7 @@ import {
   importedScope,
   importNotice,
   importResultKey,
+  importScopeID,
 } from "./scope-import.ts";
 import { stableID } from "./execution-utils.ts";
 
@@ -23,6 +24,18 @@ export function validateScopeImportFrame(
   replay: boolean,
 ) {
   const events = txn.log_records;
+  const validNotice = (input: Input, op: Operation, result: unknown) =>
+    input.id === stableID(importResultKey(op.id)) &&
+    input.dedupe_key === importResultKey(op.id) &&
+    input.session_id === op.scope.session_id &&
+    input.producer === "ENVIRONMENT" &&
+    input.state === "ACCEPTED" &&
+    input.loop_id === null &&
+    input.feedback_id === null &&
+    // Replay validates durable structure, never regenerates versioned content
+    // or writes to CAS using today's notice wording/serialization.
+    (replay ||
+      equal(input, importNotice(store, op, result, input.received_at)));
   const hasEvent = (type: string, value: unknown, op: Operation) =>
     events.some(
       (e) =>
@@ -96,7 +109,7 @@ export function validateScopeImportFrame(
     );
     if (
       !input ||
-      !equal(input, importNotice(store, r, result, input.received_at)) ||
+      !validNotice(input, r, result) ||
       !hasEvent("input.accepted", input, r)
     )
       throw Error("SCOPE_RESULT_NOT_ATOMIC");
@@ -115,24 +128,33 @@ export function validateScopeImportFrame(
       )
         throw Error("SCOPE_GRANT_NOT_ATOMIC");
       const params = store.read<ScopeImportParameters>(r.action.parameters_ref);
-      const scope = importedScope(r, params, result.applied_at);
       const actual = staged.find((v) => v.record_type === "Scope");
+      const scopeID = importScopeID(r.id);
       if (
         staged.length !== 4 ||
-        !equal(scope, actual) ||
-        store.find("Scope", scope.id) ||
-        !equal(result, {
-          status: "SUCCEEDED",
-          operation_id: r.id,
-          scope_id: scope.id,
-          applied_at: scope.updated_at,
-          actor: "HOST",
-        }) ||
+        !actual ||
+        actual.id !== scopeID ||
+        actual.revision !== 1 ||
+        store.find("Scope", scopeID) ||
+        result.status !== "SUCCEEDED" ||
+        result.operation_id !== r.id ||
+        result.scope_id !== scopeID ||
+        result.actor !== "HOST" ||
+        (!replay &&
+          !equal(actual, importedScope(r, params, result.applied_at))) ||
+        (!replay &&
+          !equal(result, {
+            status: "SUCCEEDED",
+            operation_id: r.id,
+            scope_id: scopeID,
+            applied_at: actual.updated_at,
+            actor: "HOST",
+          })) ||
         !hasEvent("operation.journal_applied", r, r) ||
         !hasEvent(
           "scope.imported",
           {
-            scope,
+            scope: actual,
             operation_id: r.id,
             source_event_ids: params.source_event_ids,
           },
@@ -153,12 +175,16 @@ export function validateScopeImportFrame(
         (next.state === "EXPIRED" &&
           (!a.expires_at ||
             Date.parse(a.expires_at) > Date.parse(txn.committed_at))) ||
-        !equal(result, {
-          status: next.state === "EXPIRED" ? "EXPIRED" : "FAILED",
-          operation_id: r.id,
-          reason: r.error,
-          actor: "HOST",
-        }) ||
+        result.operation_id !== r.id ||
+        result.actor !== "HOST" ||
+        result.status !== (next.state === "EXPIRED" ? "EXPIRED" : "FAILED") ||
+        (!replay &&
+          !equal(result, {
+            status: next.state === "EXPIRED" ? "EXPIRED" : "FAILED",
+            operation_id: r.id,
+            reason: r.error,
+            actor: "HOST",
+          })) ||
         !hasEvent("scope.import_failed", result, r)
       )
         throw Error("SCOPE_FAILURE_NOT_ATOMIC");
@@ -196,7 +222,7 @@ export function validateScopeImportFrame(
           actor: grant.decided_by ?? "HOST",
         };
     if (
-      !equal(input, importNotice(store, op, result, input.received_at)) ||
+      !validNotice(input, op, result) ||
       !hasEvent("input.accepted", input, op)
     )
       throw Error("SCOPE_RESULT_MISMATCH");

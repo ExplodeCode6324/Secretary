@@ -534,19 +534,15 @@ export async function run(this: MainLoopContext) {
               assembled.system +
               "\nCurrent Master source event IDs: " +
               JSON.stringify(
-                this.store
-                  .events("input.accepted")
-                  .filter((e) =>
-                    batch.some(
-                      (i) =>
-                        i.producer === "MASTER" &&
-                        !i.attachments?.length &&
-                        !i.failure_action &&
-                        i.state !== "WITHDRAWN" &&
-                        this.store.read<Input>(e.payload).id === i.id,
-                    ),
+                batch
+                  .filter(
+                    (i) =>
+                      i.producer === "MASTER" &&
+                      !i.attachments?.length &&
+                      !i.failure_action &&
+                      i.state !== "WITHDRAWN",
                   )
-                  .map((e) => e.event_id),
+                  .flatMap((i) => this.store.inputAcceptedEventIDs(i.id)),
               ),
             tools: this.tools(loopID, batch),
           },
