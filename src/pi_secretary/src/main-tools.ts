@@ -1,3 +1,4 @@
+import { ScopeImports } from "./scope-import.ts";
 import { recall, worldSnapshot } from "./world-recall.ts";
 import { guidanceFor, GUIDANCE_CONTEXT } from "./guidance.ts";
 import { failuresFor, type FailureProposal } from "./failure-handling.ts";
@@ -98,6 +99,7 @@ export function tools(
               bound &&
               (![
                 "task_query",
+                "scope_query",
                 "memory_search",
                 "memory_read",
                 "MasterInteract",
@@ -108,6 +110,17 @@ export function tools(
                   (args as { action: string }).action !== "dismiss_failure"))
             )
               throw Error("FAILURE_ACTION_SCOPE_ONLY");
+            if (
+              (batch ?? claimed).some((i) => i.producer === "ENVIRONMENT") &&
+              ![
+                "task_query",
+                "scope_query",
+                "memory_search",
+                "memory_read",
+                "MasterInteract",
+              ].includes(t.name)
+            )
+              throw Error("ENVIRONMENT_READ_ONLY");
             const uncertainFeedback = claimed.some(
               (i) =>
                 i.feedback_id &&
@@ -180,12 +193,63 @@ export function tools(
           },
         }) as AgentTool,
     );
+  const imports = new ScopeImports(
+    this.store,
+    this.scheduler.auth,
+    this.scheduler.scopes,
+  );
   return wrap([
+    tool({
+      name: "scope_import",
+      label: "Scope import",
+      description:
+        "Request owner-approved NONE or existing DIRECTORY (default ask). Cite current Master event IDs. Physical absolute root only; no symlink ancestors or mkdir. Query operation_id for result.",
+      parameters: Type.Object({
+        name: Type.String({ minLength: 1, maxLength: 256 }),
+        description: Type.Optional(Type.String({ maxLength: 4000 })),
+        kind: Type.Union([Type.Literal("NONE"), Type.Literal("DIRECTORY")]),
+        root_path: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        notes_path: Type.Optional(Type.Union([Type.String(), Type.Null()])),
+        default_write: Type.Optional(
+          Type.Union([Type.Literal("allow"), Type.Literal("ask")]),
+        ),
+        source_event_ids: Type.Array(Type.String(), {
+          minItems: 1,
+          maxItems: 20,
+        }),
+      }),
+      execute: async (call, { source_event_ids, ...proposal }) =>
+        result(
+          imports.propose(
+            proposal,
+            source_event_ids,
+            { session_id: this.sessionID, task_id: null, execution_id: null },
+            loopID,
+            call,
+          ),
+        ),
+    }),
+    tool({
+      name: "scope_query",
+      label: "Scope query",
+      description:
+        "Page active scopes or read exact ID; kind=imports reads this session's Operation statuses.",
+      parameters: Type.Object({
+        kind: Type.Optional(
+          Type.Union([Type.Literal("scopes"), Type.Literal("imports")]),
+        ),
+        id: Type.Optional(Type.String()),
+        cursor: Type.Optional(Type.String()),
+        limit: Type.Optional(Type.Number({ minimum: 1, maximum: 100 })),
+      }),
+      execute: async (_call, options) =>
+        result(imports.query(this.sessionID, options)),
+    }),
     tool({
       name: "task_propose",
       label: "Propose task",
       description:
-        "New tasks: supply a short title_candidate; omit on reuse/REDO. Choose an available scope_id when clear; otherwise ask Master. Only Master manages scopes. Conversation/explanation needs no task. Default AGENT; PROGRAM requires registered program_id. For revisions use reuse_task_id and its latest ended parent_execution_id; query unclear identity/requirements. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace fields. Preserve unchanged requirements; goal is this round's complete goal. Structured failure REDO: use IDs from failure query; omit goal and all overrides. Core preserves original requirements. No at/interval on reuse. Separate deliverables need new tasks. Include relevant constraints/materials; Scheduler builds executor packet. Use null for unspecified options; never invent program IDs, dates or deadlines.",
+        "New tasks need title_candidate; omit on reuse/REDO. Pick an available scope_id or ask Master; scope_import requires owner approval. Conversation needs no task. Default AGENT; PROGRAM needs registered program_id. Revision: reuse_task_id + latest ended parent_execution_id (query if unclear). Reuse inherits omitted/null requirements; explicit arrays replace. goal is the complete revised goal; preserve requirements. Structured failure REDO uses IDs from failure query; omit goal/overrides. No at/interval on reuse. Separate deliverables need separate tasks. Include materials/constraints; never invent IDs, dates or deadlines.",
       parameters: Type.Object({
         title_candidate: Type.Optional(
           Type.Union([Type.String(), Type.Null()]),
@@ -400,7 +464,7 @@ export function tools(
       name: "memory_propose_change",
       label: "Propose World Model change",
       description:
-        "Propose one mixed entity/fact batch. Omit source_event_ids only for non-guideline information explicitly stated in the current Master message; Host binds its eligible input.accepted event. entity.guideline always requires explicit Master evidence IDs. Cite execution.finished/feedback.delivered for task results (TASK_REPORT), and main.message for Main conclusions (MODEL_INFERENCE). Never omit evidence to classify an inference as MASTER. Discover allowed predicate keys and topics with memory_read source='world', catalog='predicates'; never invent a predicate. To create a person and facts together, CREATE_ENTITY uses local_ref='$iris' and later ASSERT uses subject='$iris': both include the literal dollar sign. Existing subjects accept ID/name/alias or role:master/role:secretary. ENTITY values use an entity selector. ASSERT preserves existing facts; CORRECT/RETRACT require target_fact_id. Explicit source_event_ids must identify verified source events; source_note is explanation only. Each batch needs one exact owner approval. Proposal/approval is not recording: query memory_read source='world_batch', batch_id for COMMITTED.",
+        "Propose one mixed entity/fact batch; exact owner approval required. Omit source_event_ids only for non-guideline facts explicitly stated in the current Master message. entity.guideline needs explicit Master evidence IDs. Cite execution.finished/feedback.delivered (TASK_REPORT) or main.message (MODEL_INFERENCE); never relabel inference as MASTER. Discover predicates/topics via memory_read world catalog=predicates. CREATE_ENTITY local_ref='$iris' can be referenced by ASSERT subject='$iris' in this batch. Entities accept ID/name/alias/role:master/role:secretary. ASSERT preserves facts; CORRECT/RETRACT require target_fact_id. source_note is not evidence. Query world_batch for COMMITTED; proposal/approval is not recording.",
       parameters: Type.Object(
         {
           changes: Type.Array(
@@ -592,17 +656,33 @@ export function tools(
 }
 
 export function memoryToolResult(this: MainToolsContext, value: unknown) {
-  const budget = requestBudget(
-    this.model,
-    this.agent?.state.messages ?? this.history(),
-  );
-  const remaining = Math.max(
-    0,
-    budget.usable_input_tokens - budget.estimated_tokens - 512,
-  );
+  const messages = this.agent?.state.messages ?? this.history();
+  const assistant = messages.findLast((m) => m.role === "assistant");
+  const call =
+    assistant?.role === "assistant"
+      ? assistant.content.findLast(
+          (c) =>
+            c.type === "toolCall" &&
+            ["memory_read", "memory_search"].includes(c.name),
+        )
+      : undefined;
   const payload = structuredClone(value) as Record<string, any>;
-  const fits = () =>
-    Buffer.byteLength(JSON.stringify(payload)) + 256 <= remaining;
+  // Budget the serialized continuation, including escaped JSON inside the tool
+  // envelope. Do not estimate the raw payload with a fixed 512-byte deduction.
+  const fits = () => {
+    const next = requestBudget(this.model, [
+      ...messages,
+      {
+        role: "toolResult",
+        toolCallId: call?.type === "toolCall" ? call.id : "memory",
+        toolName: call?.type === "toolCall" ? call.name : "memory_read",
+        content: result(payload).content,
+        isError: false,
+        timestamp: Date.now(),
+      },
+    ]);
+    return next.estimated_tokens + 128 <= next.usable_input_tokens;
+  };
   while (!fits()) {
     if (
       typeof payload.body === "string" &&

@@ -135,6 +135,24 @@ export class Authorization {
       scope,
       action: op.action,
       parameters: params,
+      ...(action === "scope.import"
+        ? {
+            evidence: (
+              params as { source_event_ids: string[] }
+            ).source_event_ids.map((event_id) => {
+              const event = this.store.eventById(event_id)!;
+              const input = this.store.read<import("./contracts.ts").Input>(
+                event.payload,
+              );
+              const text = this.store.bytes(input.payload).toString();
+              return {
+                event_id,
+                quote: Array.from(text).slice(0, 2000).join(""),
+                truncated: Array.from(text).length > 2000,
+              };
+            }),
+          }
+        : {}),
     });
     const auth: AuthorizationRequest = {
       schema_version: 1,
@@ -182,9 +200,13 @@ export class Authorization {
     validFrom = now(),
   ) {
     if (
-      !["file.write", "shell.run", "program.run", "world.change"].includes(
-        action,
-      )
+      ![
+        "file.write",
+        "shell.run",
+        "program.run",
+        "world.change",
+        "scope.import",
+      ].includes(action)
     )
       throw Error("UNREGISTERED_ACTION");
     if (
@@ -414,6 +436,8 @@ export class Authorization {
     return execution ? { ...params, execution } : params;
   }
   remember(op: Operation, value: NonNullable<ApprovalCommand["remember"]>) {
+    if (["world.change", "scope.import"].includes(op.action.action))
+      throw Error("EXPLICIT_APPROVAL_REQUIRED");
     const root = this.root(op);
     const params = this.store.read<{ command?: string; path?: string }>(
       op.action.parameters_ref,

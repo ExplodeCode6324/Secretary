@@ -466,14 +466,18 @@ function canonical(value: unknown): unknown {
 }
 export function worldConflicts(facts: WorldAssertion[], asOf: string) {
   const groups = new Map<string, WorldAssertion[]>();
+  const at = Date.parse(asOf);
   for (const f of facts) {
     const p = predicate(f.predicate_key);
     if (
       f.status !== "LIVE" ||
-      Date.parse(f.valid_from) > Date.parse(asOf) ||
-      (f.valid_to && Date.parse(f.valid_to) <= Date.parse(asOf)) ||
       !p ||
-      p.retired
+      p.retired ||
+      // MULTI/other is never a conflict. Reject it before allocating groups
+      // and canonicalizing every unrelated value on each recall.
+      (p.cardinality !== "SINGLE" && f.topic === "other") ||
+      Date.parse(f.valid_from) > at ||
+      (f.valid_to && Date.parse(f.valid_to) <= at)
     )
       continue;
     const key = JSON.stringify([
@@ -494,11 +498,6 @@ export function worldConflicts(facts: WorldAssertion[], asOf: string) {
             JSON.stringify([canonical(f.value), f.object_entity_id]),
           ),
         ).size > 1,
-    )
-    .filter(
-      (g) =>
-        predicate(g[0].predicate_key)!.cardinality === "SINGLE" ||
-        g[0].topic !== "other",
     )
     .map((g) => ({
       status:

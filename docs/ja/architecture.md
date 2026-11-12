@@ -73,3 +73,11 @@ Store は最初に CAS オブジェクトを書き込み、ハッシュチェー
 Execution の `retention_state=RETIRED` は終端の `state` と別であり、削除許可ではありません。[retention](../../src/pi_secretary/src/retention.ts) は実行終了、待機要求・不明な操作・未処理接続の不在、全 Feedback が `HANDLED`/`SUPPRESSED`、および `max(ended_at, last_activity_at)` から `retire_after_seconds`（作成時172800秒）の経過を要求します。イベントと結果詳細の CAS バイトを読み、ArchiveManifest と退役状態を保存しますが、journal・CAS・作業ディレクトリを削除しません。一覧・詳細・Task 閲覧では延長せず、明示的な `viewed` は退役前のみ期限をリセットします。退役後の詳細は識別情報と清単のみ、成果物は `archived` となり、接続の親にはできません（`PARENT_NOT_RESUMABLE`）。
 
 バックアップと復元では Core ディレクトリ、対応する PostgreSQL、クライアントの草稿と復旧資料、外部 Scope の作業ルートを一緒に扱います。CAS の成果物スナップショットと現在の作業ファイルは別物で、相互に代替できません。異なる時点のデータベースと journal を組み合わせても完全な復元にはなりません。手順は[運用手順](operations.md#バックアップとアップグレード)、保持動作の回帰は[実行時テスト](../../test_case/offline/runtime/runtime.test.ts)を参照してください。
+
+## Scope import transactions
+
+Main-originated `scope.import` uses the same restricted `AUTHORIZED --journal_apply--> SUCCEEDED` transition as `world.change`, with a separate whole-frame guard. The Scope frame contains exactly the consumed grant, deterministic new Scope, Operation receipt and HOST-produced ENVIRONMENT Input. World frames retain their own guard and create no automatic result Input; external-effect operations cannot use this transition. Expiry and definite failure cancel without effect, and rejection/revocation notification reconciliation runs on startup and every pump.
+
+ENVIRONMENT result Inputs are isolated at their original input-order position and have a read/query/report tool allowlist. They are excluded from Master quote/commitment extraction, kept as HOST notices in summaries and conversation history, and excluded from Master-input search. Scope status remains queryable through `scope_query`. No Task, Execution or Feedback is fabricated for the report.
+
+Historical import replay checks the stored atomic bundle, deterministic IDs, grant transition and HOST provenance without regenerating notice text, current Scope content or CAS objects. Exact content and current filesystem checks remain live-commit admission rules. Directory identity uses device/inode: delete/recreate with inode reuse is not distinguishable by this check and is not an adversarial filesystem lock.

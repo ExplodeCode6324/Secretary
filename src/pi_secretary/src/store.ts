@@ -1,3 +1,4 @@
+import { validateScopeImportFrame } from "./scope-import-invariants.ts";
 import { validateWorldFrame } from "./world-invariants.ts";
 import { TaskIdentityIndex, IDENTITY_ACTIVATED } from "./task-identity.ts";
 import { EVIDENCE_MEDIA, hydrateEvidence } from "./evidence.ts";
@@ -16,6 +17,7 @@ import type {
   OperationLogRecord,
   JournalTransaction,
   ModelCall,
+  Input,
 } from "./contracts.ts";
 
 export const root = fileURLToPath(new URL("../../../", import.meta.url));
@@ -126,6 +128,7 @@ export class Store {
   private indexes = new Map<string, Map<unknown, Map<string, Stored>>>();
   private eventByID = new Map<string, OperationLogRecord>();
   private eventsByType = new Map<string, OperationLogRecord[]>();
+  private acceptedInputEvents = new Map<string, string[]>();
   private eventsByExecution = new Map<string, OperationLogRecord[]>();
   readonly logs: OperationLogRecord[] = [];
   indexed<T extends Stored>(
@@ -156,6 +159,9 @@ export class Store {
   }
   eventById(eventID: string) {
     return this.eventByID.get(eventID);
+  }
+  inputAcceptedEventIDs(inputID: string): readonly string[] {
+    return this.acceptedInputEvents.get(inputID) ?? [];
   }
   events(type: string): readonly OperationLogRecord[] {
     return this.eventsByType.get(type) ?? [];
@@ -870,6 +876,7 @@ export class Store {
         throw Error("MISSING_SESSION");
     }
     validateWorldFrame(this, txn, staged, replay);
+    validateScopeImportFrame(this, txn, staged, replay);
     const identityEvents = txn.log_records.filter(
       (e) => e.event_type === IDENTITY_ACTIVATED,
     );
@@ -970,6 +977,14 @@ export class Store {
       this.eventSequence = e.sequence;
       this.logs.push(e);
       this.eventByID.set(e.event_id, e);
+      if (e.event_type === "input.accepted") {
+        const inputID = this.read<Input>(e.payload).id;
+        if (inputID) {
+          let accepted = this.acceptedInputEvents.get(inputID);
+          if (!accepted) this.acceptedInputEvents.set(inputID, (accepted = []));
+          accepted.push(e.event_id);
+        }
+      }
       let events = this.eventsByType.get(e.event_type);
       if (!events) this.eventsByType.set(e.event_type, (events = []));
       events.push(e);

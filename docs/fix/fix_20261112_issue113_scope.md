@@ -60,3 +60,25 @@ Main 可提议创建 NONE 分组或导入已存在 DIRECTORY，Master 对精确�
 完成通知复用 `Input.producer=ENVIRONMENT`，稳定去重键 `scope-import-result:<operation_id>`，携带结果和原 Master 事件引用，以 HOST 审计；成功/应用失败通知同帧落盘。owner 路径拒绝/撤销/到期后，由每次 pump 和启动时运行的幂等协调步骤补齐恰好一条终态通知，正常运行即可送达，重启亦可恢复。不能冒造 Task/Execution 来套用 Feedback。该 Input 唤醒 Main 做查询和报告；独立轮次仅允许读/报告，不能导入、改实体或创建 Task，下一次明确 Master 输入才可委派到新 Scope。在 main-loop 的批次边界按原有输入顺序隔离该通知，不能与新 Master 输入混批；BASE_SYSTEM 明确 ENVIRONMENT 通知不是 Master 授权。
 
 将失败处理工具限制由黑名单改为明确白名单，避免新增变更工具默认放行；完成通知也采用读/报告白名单。scope_query 仅提供分页活动 Scope、精确 ID 和本会话导入状态，覆盖 prompt 列表上限之外的项目，不扫描文件系统。错误说明 macOS /tmp、/var 为符号链接时须提供真实路径。新增 HOST 到期步骤，每次 pump 和启动时检查 scope.import：超出 expires_at 的 PENDING 或未消费 APPROVED grant → EXPIRED，同帧取消 WAIT_AUTH/AUTHORIZED Operation、effect=NOT_STARTED、写入明确到期结果 Input。已消费/终态跳过，通知只生成一次；拒绝/撤销后的缺失通知在下次 pump 补齐，不等重启。到期不能只从界面消失却永留 WAIT_AUTH。决定/到期/应用由版本和同步事务裁决。decided_by 保留原 MASTER_UI 批准者或 null，HOST 作废原因写审计及 UI，不显示成 Master 撤销。journal_apply 还必须检查 owner_epoch，拒绝 STALE_OWNER。MasterAttention/TUI 已支持 Main 授权，实施时验证整条链路。
+
+## 实施记录（2026-11-12）
+
+Master 已授权评估后直接实施、提交 PR/CI，并指定 Claude Fable 5.2 Medium 复核。基于 main `0fc46dd8509e270c58d31afbeb4dfd6c2b462d67`（已合入 #112）评估，R5 合同继续适用；分支为 `codex/issue113-scope-import`，#113 已分配并领取。原仓库外计划目录已不存在，本仓库保留的完整 R5 与子项计划作为当前交接依据。沿用原 Claude 会话，界面已核实 Fable 5.2 Medium。
+
+实现包括 Main 导入/分页查询、逐次精确授权与证据展示、Scope 整帧原子校验和结果 Input、pump/启动恢复及在线到期、通知只读轮次与来源消费审计。WorkScope 不添加伪造来源字段，不需要新增 owner API 路由；内部参数由 `src/contracts/contracts.schema.json` 生成，现有通用授权/Scope DTO 保持有效。macOS CI 显式纳入 #113 测试。
+
+首次失败私有留存：类型检查发现工具 label 和独立 schema 类型导出缺失，已修复生成器；过期 owner 测试最初用了合同禁止的 epoch 0，已改为合法但不匹配的值；闭环测试误查不存在的 Task 记录，已改查实际 TaskPlan。未使用生产数据、provider 凭据或敏捷实例配置/服务；隔离测试 PG 使用本任务独占的临时目录和 loopback 端口。原生 TUI、真实 provider 和 #111 敏捷组合验收仍按 Master 系列决定记为 NOT_TESTED/延后。冻结代码后在 PR 记录最终测试、精确 SHA/CI 和复核结论。
+
+首次完整 verify 暴露两个既有回归合同：新增工具/提示开销耗尽固定 65k 续接场景，空闲 pump 遍历历史 Operation。两项首次失败均保留。协调器现按新增 journal 帧维护待处理 ID；当前来源元数据冻结进每轮 system 快照，不再改变工具 schema。精简工具说明但保留来源/授权规则；读取结果改按完整序列化续接请求计算预算，替代原始 payload 估算。原测试与容量限制不变，针对性预算及空闲回归已通过；最终完整验证与 CI 将重跑。
+
+### Claude 实施复核 R1 处置
+
+Fable 5.2 Medium 独立获取准确提交并运行 42 项专项测试通过，但复现了必须修复的重放兼容问题：历史通知会被当前文案与序列化规则重新生成校验。已采纳并修复：重放仅校验原子帧、授权迁移、稳定 ID 和 HOST 来源；当前内容和文件系统的严格检查只用于实时提交。新增成功、过期、拒绝历史通知的重放测试，覆盖旧文案、键顺序、显示元数据变化及禁止重放写 CAS；实时篡改通知仍被拒绝。
+
+非阻断意见：补充设备号/inode 复用的局限；将每轮历史输入载荷扫描替换为重放时重建的 Store 接收事件索引。复核未找到协调器异常的自然触发方式；简单吞异常重试可能隐藏不变量失败，因此逐操作异常隔离及内部异常撤权策略列为后续限制。极窄过期边界的结果分类、原生 HOST 失效显示仍待后续处理（原生验收按 Master 决定延后）。最终验证证据记录于 PR。
+
+### CI 性能问题后续处理
+
+R2 复核独立通过 49 项测试，并以 PASS_PENDING_CI 接受重放修复。`862cdb95` 的本地完整验证通过 1155/1155；Linux CI 通过 1153 项、平台相关跳过 2 项。macOS 的既有 #112 recall p95 <= 50 ms 测试连续失败两次（118.137 ms、50.835 ms），每次其余 568 项均通过。两次原始日志均保留，未调整性能门槛或断言。本机独立复现通过，p95 为 19.062 ms。
+
+后续修复把原有 MULTI/other 排除条件提前到冲突分组与规范化序列化之前，并只解析一次共同的 as-of 时间。这些记录按既有规则永远不会产生冲突，原先仍建立并序列化大组，产生了无效工作。语义回归覆盖 SINGLE/other 冲突、有明确主题的 MULTI 冲突、过期边界和对象键顺序等价。初步优化后本机 p95 为 9.208 ms。这是连续失败后的实际代码优化，不将无解释的重复重跑视为处置。当前提交仍须通过专项测试、完整 CI verify 和同一会话复核；最终证据记录于 PR。

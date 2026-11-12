@@ -1,5 +1,5 @@
 import { attachmentMessage, attachmentForm } from "./attachment-form.ts";
-import { isTimerMessage } from "./input-origin.ts";
+import { isHostNoticeMessage } from "./input-origin.ts";
 import { contentText, type Api, type Model } from "@earendil-works/pi-ai";
 import type { AgentMessage } from "./model.ts";
 import type {
@@ -192,7 +192,7 @@ function coveredInputs(
       .filter(
         (m) =>
           (m.role === "user" || m.role === "assistant") &&
-          !isTimerMessage(store, m) &&
+          !isHostNoticeMessage(store, m) &&
           !!typedMessageText(store, m),
       );
     if (raw.length !== source.extraction_messages.length)

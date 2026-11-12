@@ -2352,4 +2352,35 @@ export interface WorldGenesis {
   owner_id: ID;
 }
 
+export interface ScopeImportParameters {
+  version: 1;
+  request: ScopeImportProposal;
+  proposal: {
+    name: string;
+    description: string;
+    kind: "NONE" | "DIRECTORY";
+    root_path: string | null;
+    notes_path: string | null;
+    default_write: "allow" | "ask";
+    identity: null | {
+      device: string;
+      inode: string;
+    };
+  };
+  /**
+   * @minItems 1
+   * @maxItems 20
+   */
+  source_event_ids: string[];
+  loop_id: string;
+}
+export interface ScopeImportProposal {
+  name: string;
+  description?: string;
+  kind: "NONE" | "DIRECTORY";
+  root_path?: string | null;
+  notes_path?: string | null;
+  default_write?: "allow" | "ask";
+}
+
 export type Contract = SecretaryDemoV1;

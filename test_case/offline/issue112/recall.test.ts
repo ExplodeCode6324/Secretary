@@ -7,9 +7,47 @@ import {
   prepareRecall,
 } from "../../../src/pi_secretary/src/world-recall.ts";
 import { asOf, fid, recallFixture } from "./recall-fixture.ts";
+import { worldConflicts } from "../../../src/pi_secretary/src/world-accept.ts";
 const forbidden = ["old", "retracted", "future", "expired", "withdrawn"].map(
   fid,
 );
+test("conflict policy keeps SINGLE/other and named MULTI groups, excluding unrelated MULTI/other", () => {
+  const fixture = recallFixture();
+  const sample = fixture.facts[0];
+  const pair = (name: string, predicate_key: string, topic: string) =>
+    ["a", "b"].map((value) => ({
+      ...sample,
+      id: fid(name + value),
+      subject_id: fid(name),
+      predicate_key,
+      topic,
+      value,
+    }));
+  const single = pair("single", "resource.location", "other");
+  const named = pair("named", "preference.statement", "work");
+  const unrelated = pair("unrelated", "preference.statement", "other");
+  const expired = pair("expired-pair", "resource.location", "other").map(
+    (f) => ({ ...f, valid_to: asOf }),
+  );
+  const equivalent = pair("equivalent", "person.contact", "email").map(
+    (f, i) => ({
+      ...f,
+      value: i
+        ? { kind: "email", value: "synthetic@example.invalid" }
+        : { value: "synthetic@example.invalid", kind: "email" },
+    }),
+  );
+  assert.deepEqual(
+    worldConflicts(
+      [...single, ...named, ...unrelated, ...expired, ...equivalent],
+      asOf,
+    ),
+    [
+      { status: "CONTESTED", fact_ids: single.map((f) => f.id) },
+      { status: "POSSIBLY-CONFLICTING", fact_ids: named.map((f) => f.id) },
+    ],
+  );
+});
 const probes = [
   ...[
     "Alice",

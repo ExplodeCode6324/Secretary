@@ -11,12 +11,29 @@ for (const name of ["WorldChange", "WorldFact"])
   schema.$defs[name].properties.value = {
     type: ["string", "number", "boolean", "null", "object", "array"],
   };
+const scopeImports = await compile(
+  {
+    ...structuredClone(schema.$defs.ScopeImportParameters),
+    title: "ScopeImportParameters",
+    $defs: {
+      ScopeImportProposal: structuredClone(schema.$defs.ScopeImportProposal),
+    },
+  },
+  "ScopeImportParameters",
+  { bannerComment: "", ignoreMinAndMaxItems: true },
+);
 fs.writeFileSync(
   new URL("../src/contracts.ts", import.meta.url),
-  await format((await compile(schema, "Contract", {
-    bannerComment:
-      "/* Generated from src/contracts/contracts.schema.json. Do not hand-edit. */",
-    unreachableDefinitions: true,
-    ignoreMinAndMaxItems: true,
-  })) + "\nexport type Contract = SecretaryDemoV1;\n", { parser: "typescript" }),
+  await format(
+    (await compile(schema, "Contract", {
+      bannerComment:
+        "/* Generated from src/contracts/contracts.schema.json. Do not hand-edit. */",
+      unreachableDefinitions: true,
+      ignoreMinAndMaxItems: true,
+    })) +
+      "\n" +
+      scopeImports +
+      "\nexport type Contract = SecretaryDemoV1;\n",
+    { parser: "typescript" },
+  ),
 );
