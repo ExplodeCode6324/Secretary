@@ -357,8 +357,7 @@ export class TaskBrowser {
     return {
       id: p.id,
       title: p.title!,
-      scope_id: p.scope_id ?? null,
-      scope_name: p.scope_id ? this.scopes.get(p.scope_id)!.name : "Shared",
+      ...this.app.scheduler.scopes.label(p.scope_id),
       revision: String(p.revision),
       goal: fragment(goal),
       goal_truncated: fragment(goal).length < goal.length,
@@ -819,6 +818,7 @@ export class TaskBrowser {
       const task = this.projection(p, at),
         proposal = this.proposal(p);
       const latest = this.rounds(p)[0];
+      Object.assign(task, this.app.scheduler.scopes.workspaceView(p, latest));
       const result = latest?.result_id
         ? this.store.find<TaskResult>("TaskResult", latest.result_id)
         : null;

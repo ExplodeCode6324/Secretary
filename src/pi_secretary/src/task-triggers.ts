@@ -1,4 +1,5 @@
 import { nextExecutionRound } from "./task-identity.ts";
+import { noLinks } from "./scopes.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type {
@@ -113,6 +114,9 @@ export function initialize(this: TaskTriggersContext, taskID: string) {
   if (!["INITIALIZING", "INIT_FAILED"].includes(p.state)) return;
   try {
     const dir = path.join(this.workspace, taskID);
+    noLinks(path.join(dir, "work"));
+    noLinks(path.join(dir, "executions"));
+    noLinks(path.join(dir, "workspace.json"));
     if (!p.scope_id || this.scopes.get(p.scope_id).kind !== "DIRECTORY")
       fs.mkdirSync(path.join(dir, "work"), { recursive: true });
     fs.mkdirSync(path.join(dir, "executions"), { recursive: true });
@@ -360,6 +364,15 @@ export function tick(this: TaskTriggersContext, at = Date.now()) {
       workspace_binding: this.scopes.binding(
         p.scope_id ?? null,
         path.join(this.workspace, p.id, "work"),
+        // Preserve owner-managed DIRECTORY -> NONE behavior, but never
+        // recreate a private directory which this task previously used.
+        this.store.indexed<Execution>("Execution", "task_id", [p.id]).length >
+          0 &&
+          this.store
+            .indexed<Execution>("Execution", "task_id", [p.id])
+            .every(
+              (previous) => previous.workspace_binding?.kind === "DIRECTORY",
+            ),
       ),
       task_id: p.id,
       execution_round: round,

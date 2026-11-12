@@ -1051,6 +1051,14 @@ export class TaskBrowserWindow {
         ),
       ),
       this.taskEntry(detail.task),
+      ...(detail.task.workspace_info
+        ? [
+            textEntry(
+              "task-workspace",
+              `Core 主机工作目录 · ${detail.task.scope_kind ?? "UNKNOWN"} · ${detail.task.workspace_info.availability}\n${detail.task.workspace_info.path ?? "路径未知"}${detail.task.workspace_info.reason ? "\n不可用原因: " + detail.task.workspace_info.reason : ""}\n此路径属于 Core 所在主机；planned 为尚未绑定的计划路径。`,
+            ),
+          ]
+        : []),
       this.messageEntry(detail),
     ];
     if (!detail.executions.length)

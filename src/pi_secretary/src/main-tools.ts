@@ -249,7 +249,7 @@ export function tools(
       name: "task_propose",
       label: "Propose task",
       description:
-        "New tasks need title_candidate; omit on reuse/REDO. Pick an available scope_id or ask Master; scope_import requires owner approval. Conversation needs no task. Default AGENT; PROGRAM needs registered program_id. Revision: reuse_task_id + latest ended parent_execution_id (query if unclear). Reuse inherits omitted/null requirements; explicit arrays replace. goal is the complete revised goal; preserve requirements. Structured failure REDO uses IDs from failure query; omit goal/overrides. No at/interval on reuse. Separate deliverables need separate tasks. Include materials/constraints; never invent IDs, dates or deadlines.",
+        "New tasks need title_candidate; omit on reuse/REDO. Omitted/null scope_id defaults to Shared with a separate persistent task directory on the Core host. Explicit scope_id must be available; scope_import requires owner approval. Conversation needs no task. Default AGENT; PROGRAM needs registered program_id. Revision: reuse_task_id + latest ended parent_execution_id (query if unclear). Reuse inherits omitted/null requirements; explicit arrays replace. goal is the complete revised goal; preserve requirements. Structured failure REDO uses IDs from failure query; omit goal/overrides. No at/interval on reuse. Separate deliverables need separate tasks. Include materials/constraints; never invent IDs, dates or deadlines.",
       parameters: Type.Object({
         title_candidate: Type.Optional(
           Type.Union([Type.String(), Type.Null()]),

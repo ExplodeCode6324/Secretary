@@ -14,7 +14,7 @@
 
 v1.6 已确认的五项决定继续有效：失败行的取消表示不再重试本次失败，处置完成后退出待处理，历史 Execution 仍为 FAILED；无活跃 Task 的普通 Scope 按创建时间倒序，组内 Task 按最近执行时间倒序，页头 Scope 总数不计空、Shared 和历史；一级页面 `/back` 无操作；授权或问题处理期间所有命令均不适用；不建设 Task 详情独立草稿。已确定的 Main/Task 整屏切换、直接图片粘贴及其余要求继续有效。
 
-v1.4 的 Shared 取舍继续有效：Shared Scope 只作逻辑归组，各 Task 使用独立临时工作目录，完成后交付明确登记的产物，目录清理后续添加。此前已定的 `/taskdetail`、事项级 `/show`、规范命令拼写、Main 发起任务、Enter/Esc 流程、历史内存缓存及 Agent 最近三轮展示继续有效。
+v1.4 的 Shared 取舍继续有效：Shared Scope 只作逻辑归组，各 Task 使用独立持久工作目录，完成后交付明确登记的产物，目录清理后续添加。此前已定的 `/taskdetail`、事项级 `/show`、规范命令拼写、Main 发起任务、Enter/Esc 流程、历史内存缓存及 Agent 最近三轮展示继续有效。
 
 v1.7 在上述决定上再固定两项：没有未终结执行、排队或待处理事项的暂停计划不默认展示；旧失败不满足现有继续前提时明确报出不可继续，允许 Master 结束这次失败提示，仍需重做则由 Master 经 Main 明确提出新的工作，不自动延长留存或偷偷新建任务。第 8 节保留 U01 至 U09 的裁定记录和实施参数；第 13 节保留评审取舍。第 10 节仍为 34 项验收，当前全部**未执行**；需求与 issue 写入不等于 TUI 已实现或运行验收通过。
 
@@ -53,7 +53,7 @@ v1.7 在上述决定上再固定两项：没有未终结执行、排队或待处
 | Main | 唯一主会话的界面 |
 | Task | 一项任务 |
 | Scope | 任务所属工作范围，可关联工作目录 |
-| Shared Scope | 无特定 Scope 任务的共同逻辑分组，各 Task 使用独立临时工作目录 |
+| Shared Scope | 无特定 Scope 任务的共同逻辑分组，各 Task 使用独立持久工作目录 |
 | TaskPlan | 后端任务计划对象，计划有效不等于当前正在执行 |
 | TaskRequest | 提交给调度器的任务请求 |
 | Execution | 某项任务的一次执行轮次 |
@@ -126,7 +126,7 @@ Task 主界面展示当前 Scope 的数量、每个 Scope 下的当前任务数�
 | 分组 | 展示要求 |
 | --- | --- |
 | 普通 Scope | Scope 名称、当前任务数量及默认展开的任务条目；有名称且 kind 为 NONE 的实体 Scope 仍是普通 Scope |
-| Shared Scope | `scope_id: null` 的任务统一放在同一逻辑组，显示该组自己的当前任务数；各 Task 使用独立临时工作目录 |
+| Shared Scope | `scope_id: null` 的任务统一放在同一逻辑组，显示该组自己的当前任务数；各 Task 使用独立持久工作目录 |
 | Archived Scope | 单独展示已归档 Scope 的数量，不展开其任务；归档 Scope 检索后置 |
 
 批注中的 Scope1、Scope2、Shared Scope、Archived Scope 示例用于确定逻辑层次，不作为最终字符画或固定像素布局。
@@ -972,3 +972,7 @@ B10 必须补充可由 Main 完成的失败事项处置，并将结果关联到�
 [S40]: https://github.com/ExplodeCode6324/Secretary/blob/f01076e6f5efad437d64b2a2890ae1af43ce97d7/package.json
 
 Issue #94 implementation: Ctrl+V is the native image gesture; /paste probes file references before image/text reading. Tab selects draft image rows, Delete/Backspace removes unsent references, Enter/Esc returns to editing. Native acceptance is separately recorded in the [#94 ledger](../fix/evidence/issue94-delivery/acceptance.md).
+
+## Issue #114：Shared 工作目录
+
+未指定或显式 null Scope 默认 Shared；任务详情显示类型、Core 主机绝对路径及 planned/verified/unavailable。planned 尚未绑定；verified 只表示本次检查通过；unavailable 显示缺失或不安全原因，不补建空历史目录。路径属于 Core 主机，远程客户端不能将它当作本机路径。完成和退役保留目录，现有 /open 与固定 CAS 产物语义不变。

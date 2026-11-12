@@ -1153,6 +1153,20 @@
           ],
           "minimum": 1,
           "maximum": 9007199254740991
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY",
+            null
+          ]
+        },
+        "scope_name": {
+          "type": "string"
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -1211,6 +1225,20 @@
             "string",
             "null"
           ]
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY",
+            null
+          ]
+        },
+        "scope_name": {
+          "type": "string"
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -1378,6 +1406,20 @@
           ],
           "minimum": 1,
           "maximum": 9007199254740991
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY",
+            null
+          ]
+        },
+        "scope_name": {
+          "type": "string"
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -1532,6 +1574,20 @@
         },
         "title": {
           "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY",
+            null
+          ]
+        },
+        "scope_name": {
+          "type": "string"
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -5359,6 +5415,17 @@
         },
         "title": {
           "type": "string"
+        },
+        "scope_kind": {
+          "enum": [
+            "SHARED",
+            "NONE",
+            "DIRECTORY",
+            null
+          ]
+        },
+        "workspace_info": {
+          "$ref": "#/$defs/TaskWorkspace"
         }
       },
       "required": [
@@ -6880,6 +6947,48 @@
         "status",
         "error",
         "result"
+      ],
+      "additionalProperties": false
+    },
+    "TaskWorkspace": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "root_kind": {
+          "enum": [
+            "NONE",
+            "DIRECTORY",
+            null
+          ]
+        },
+        "location": {
+          "const": "CORE_HOST"
+        },
+        "availability": {
+          "enum": [
+            "planned",
+            "verified",
+            "unavailable"
+          ]
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "root_kind",
+        "location",
+        "availability",
+        "reason"
       ],
       "additionalProperties": false
     }

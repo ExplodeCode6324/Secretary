@@ -1,5 +1,6 @@
 import { guidanceFor } from "./guidance.ts";
 import { currentArtifactPath } from "./artifact-path.ts";
+import { Scopes } from "./scopes.ts";
 import type {
   ArchiveManifest,
   Execution,
@@ -16,6 +17,10 @@ type RetentionContext = Pick<SchedulerContext, "store">;
 export function detail(this: RetentionContext, eid: string) {
   const e = this.store.get<Execution>("Execution", eid);
   const identity = {
+    ...new Scopes(this.store).workspaceView(
+      this.store.get<TaskPlan>("TaskPlan", e.task_id),
+      e,
+    ),
     task_id: e.task_id,
     title: this.store.get<TaskPlan>("TaskPlan", e.task_id).title!,
     execution_id: e.id,

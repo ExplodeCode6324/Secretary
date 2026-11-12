@@ -612,7 +612,21 @@ export interface TaskSummary {
   pending_request_count: number;
   title: string;
   latest_execution_round: number | null;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY" | null;
+  scope_name?: string;
+  workspace_info?: TaskWorkspace;
   [k: string]: unknown;
+}
+/**
+ * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
+ * via the `definition` "TaskWorkspace".
+ */
+export interface TaskWorkspace {
+  path: string | null;
+  root_kind: "NONE" | "DIRECTORY" | null;
+  location: "CORE_HOST";
+  availability: "planned" | "verified" | "unavailable";
+  reason: string | null;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema
@@ -629,6 +643,9 @@ export interface Result {
   verified_by: string;
   observed_at: string;
   scope_id?: string | null;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY" | null;
+  scope_name?: string;
+  workspace_info?: TaskWorkspace;
   [k: string]: unknown;
 }
 /**
@@ -670,6 +687,9 @@ export interface TaskDetail {
   scope_id?: string | null;
   title: string;
   latest_execution_round: number | null;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY" | null;
+  scope_name?: string;
+  workspace_info?: TaskWorkspace;
   [k: string]: unknown;
 }
 /**
@@ -714,6 +734,9 @@ export interface Execution {
   };
   execution_round: number;
   title: string;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY" | null;
+  scope_name?: string;
+  workspace_info?: TaskWorkspace;
   [k: string]: unknown;
 }
 /**
@@ -1661,6 +1684,8 @@ export interface TaskBrowserTask {
   unresolved_failure_count?: number;
   failure_summary?: string | null;
   title: string;
+  scope_kind?: "SHARED" | "NONE" | "DIRECTORY" | null;
+  workspace_info?: TaskWorkspace;
 }
 /**
  * This interface was referenced by `ApiV1Definitions`'s JSON-Schema

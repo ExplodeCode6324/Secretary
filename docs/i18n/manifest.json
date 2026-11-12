@@ -8,7 +8,7 @@
   "source_sha256": {
     "README.zh-CN.md": "8e82cf9551d878a5d52b815277e4d94ca2d6d70923bb42f5b54dea8044e4c7e5",
     "docs/README.md": "0b0e0cf2378f8079983ca572906a626d78d0ece8a6007728f726b622414b7445",
-    "docs/architecture.md": "f9794c5fabd4773678854d88300bb50ba26f951992e162628003be21d98e1d3d",
+    "docs/architecture.md": "21b24722d37090968edd5c483ca67b58e44cf70378f5f6a3c8b0e128aeb391cc",
     "docs/data-flow.md": "9588be2dfe0884be3b5f563836826524223c290bf42579000b3e303ae155bde5",
     "docs/invariants.md": "57858a2033d687d8be627bd2ded339bc5f5453832ec3e8378f75908ce6f428cc",
     "docs/memory-and-prompts.md": "ea247da230fde93a37dad7c63810e46ee8c321239be495c67759b021070427bc",
@@ -16,7 +16,7 @@
     "docs/data-model.md": "d055b24ae5e4d9b4cc73024ad4764a14d436fe64b12e73b35c8d30e54c314dff",
     "docs/state-machines.md": "58241b4b18edd40f38576059cd56261a52f35c6b3df94dbc944085b623b153f6",
     "docs/database.md": "5a7a0eb8e814058af1affac4192afd7da4199618540c8b9bcef9e3b9629e8b9e",
-    "docs/api/v1/README.md": "44958d8bbfa8ca9cff8c329f9c1fdb031f32f5f494e51efc901db1f4fb1c0feb",
+    "docs/api/v1/README.md": "050de4e85c761f34fa0ba46f8fc1edf205cd9c6a616cadf8e96a04395b0a698e",
     "docs/api/v1/push.md": "6e111f4fc509fb8f79b4a99ccad03235e10fc414d52af51dcab1ae9b08bb905b",
     "docs/api/v1/attachments.md": "070368c1d6b05190d3f8ee29f5492f6be8db9d56a8f724bcd690c685177b22da",
     "docs/frontend/README.md": "e7c71237b2db23be76a27db6ce39abeecbc19537aea115b92367d7554fdb3eab",

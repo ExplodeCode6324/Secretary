@@ -1046,7 +1046,7 @@ export class ApplicationService {
           return {
             id: p.id,
             title: p.title!,
-            scope_id: p.scope_id ?? null,
+            ...scheduler.scopes.label(p.scope_id),
             revision: String(p.revision),
             state: p.state,
             goal: store.read<TaskProposal>(p.proposal_ref).goal,
@@ -1077,7 +1077,7 @@ export class ApplicationService {
       return project({
         id: p.id,
         title: p.title!,
-        scope_id: p.scope_id ?? null,
+        ...scheduler.scopes.workspaceView(p, e),
         revision: p.revision,
         state: p.state,
         goal: baseline.goal,
@@ -1594,7 +1594,10 @@ export class ApplicationService {
     const r = this.app.store.get<TaskResult>("TaskResult", resultID);
     return {
       id: r.id,
-      scope_id: r.scope_id ?? null,
+      ...this.app.scheduler.scopes.workspaceView(
+        this.task(r.task_id),
+        this.execution(r.execution_id),
+      ),
       revision: String(r.revision),
       outcome: r.outcome,
       summary: r.summary,
@@ -1613,7 +1616,7 @@ export class ApplicationService {
       task_id: e.task_id,
       title: this.task(e.task_id).title!,
       execution_round: e.execution_round!,
-      scope_id: e.scope_id ?? null,
+      ...this.app.scheduler.scopes.workspaceView(this.task(e.task_id), e),
       condition_results: e.condition_results,
       state: e.state,
       retention_state: e.retention_state,

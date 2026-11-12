@@ -271,7 +271,7 @@ export async function execute(
     owner_epoch: this.store.epoch,
     plan_revision: p.revision,
     executor: p.executor,
-    workspace: e.workspace_binding ? this.rootFor(e) : p.id + "/work",
+    workspace: this.rootFor(e),
     resume_checkpoint_id: e.checkpoint_id,
     operation_ids: [],
     issued_at: now(),
