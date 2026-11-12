@@ -295,14 +295,14 @@ test("Master evidence is explicit, same loop/session and no ENVIRONMENT or failu
     const tools = (app.host as any).tools(loop);
     for (const name of [
       "scope_import",
-      "memory_write",
+      "memory_propose_change",
       "task_propose",
       "task_control",
       "schedule_wakeup",
     ]) {
       const tool = tools.find((t: any) => t.name === name);
-      if (tool)
-        await assert.rejects(tool.execute(id(), {}), /ENVIRONMENT_READ_ONLY/);
+      assert.ok(tool, "mutation tool is present for guard test: " + name);
+      await assert.rejects(tool.execute(id(), {}), /ENVIRONMENT_READ_ONLY/);
     }
     assert.ok(isHostNoticeMessage(app.store, inputMessage(app.store, env)));
     assert.equal(searchDocument(app.store, event), null);

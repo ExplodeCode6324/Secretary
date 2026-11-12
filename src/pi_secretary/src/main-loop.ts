@@ -530,7 +530,24 @@ export async function run(this: MainLoopContext) {
           streamFn: this.stream,
           initialState: {
             model: this.model,
-            systemPrompt: assembled.system,
+            systemPrompt:
+              assembled.system +
+              "\nCurrent Master source event IDs: " +
+              JSON.stringify(
+                this.store
+                  .events("input.accepted")
+                  .filter((e) =>
+                    batch.some(
+                      (i) =>
+                        i.producer === "MASTER" &&
+                        !i.attachments?.length &&
+                        !i.failure_action &&
+                        i.state !== "WITHDRAWN" &&
+                        this.store.read<Input>(e.payload).id === i.id,
+                    ),
+                  )
+                  .map((e) => e.event_id),
+              ),
             tools: this.tools(loopID, batch),
           },
         }).state.messages[0];

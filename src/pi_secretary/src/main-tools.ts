@@ -193,21 +193,6 @@ export function tools(
           },
         }) as AgentTool,
     );
-  const sourceInputs = new Set(
-    (batch ?? failures.inputContext(this.sessionID, loopID).inputs)
-      .filter(
-        (i) =>
-          i.producer === "MASTER" &&
-          !i.attachments?.length &&
-          !i.failure_action &&
-          i.state !== "WITHDRAWN",
-      )
-      .map((i) => i.id),
-  );
-  const sourceEvents = this.store
-    .events("input.accepted")
-    .filter((e) => sourceInputs.has(this.store.read<Input>(e.payload).id))
-    .map((e) => e.event_id);
   const imports = new ScopeImports(
     this.store,
     this.scheduler.auth,
@@ -218,8 +203,7 @@ export function tools(
       name: "scope_import",
       label: "Scope import",
       description:
-        "Propose a logical NONE scope or import an existing physical DIRECTORY. Requires explicit source_event_ids from attachment-free Master input.accepted events in this current turn. Does not create directories. Every proposal requires exact owner approval; proposed/approved is not imported. DIRECTORY defaults to ask. Symlink ancestors (including macOS /tmp and /var aliases) are rejected; use the physical path. Query imports by operation ID for durable status. Results trigger one read-only report turn; only a later Master turn may delegate to the scope. Current eligible Master event IDs: " +
-        JSON.stringify(sourceEvents),
+        "Request owner-approved NONE or existing DIRECTORY (default ask). Cite current Master event IDs. Physical absolute root only; no symlink ancestors or mkdir. Query operation_id for result.",
       parameters: Type.Object({
         name: Type.String({ minLength: 1, maxLength: 256 }),
         description: Type.Optional(Type.String({ maxLength: 4000 })),
@@ -249,7 +233,7 @@ export function tools(
       name: "scope_query",
       label: "Scope query",
       description:
-        "Read active scopes with pagination, exact scope ID (including archived), or this session's import operation statuses. kind=imports id is operation_id. No filesystem discovery.",
+        "Page active scopes or read exact ID; kind=imports reads this session's Operation statuses.",
       parameters: Type.Object({
         kind: Type.Optional(
           Type.Union([Type.Literal("scopes"), Type.Literal("imports")]),
@@ -265,7 +249,7 @@ export function tools(
       name: "task_propose",
       label: "Propose task",
       description:
-        "New tasks: supply a short title_candidate; omit on reuse/REDO. Choose an available scope_id when clear; otherwise ask Master. Use scope_import for owner-approved creation/import and scope_query for status; only Master edits/archives scopes. Conversation/explanation needs no task. Default AGENT; PROGRAM requires registered program_id. For revisions use reuse_task_id and its latest ended parent_execution_id; query unclear identity/requirements. Reuse inherits omitted/null constraints, acceptance, deadline and executor; explicit arrays replace fields. Preserve unchanged requirements; goal is this round's complete goal. Structured failure REDO: use IDs from failure query; omit goal and all overrides. Core preserves original requirements. No at/interval on reuse. Separate deliverables need new tasks. Include relevant constraints/materials; Scheduler builds executor packet. Use null for unspecified options; never invent program IDs, dates or deadlines.",
+        "New tasks need title_candidate; omit on reuse/REDO. Pick an available scope_id or ask Master; scope_import requires owner approval. Conversation needs no task. Default AGENT; PROGRAM needs registered program_id. Revision: reuse_task_id + latest ended parent_execution_id (query if unclear). Reuse inherits omitted/null requirements; explicit arrays replace. goal is the complete revised goal; preserve requirements. Structured failure REDO uses IDs from failure query; omit goal/overrides. No at/interval on reuse. Separate deliverables need separate tasks. Include materials/constraints; never invent IDs, dates or deadlines.",
       parameters: Type.Object({
         title_candidate: Type.Optional(
           Type.Union([Type.String(), Type.Null()]),
@@ -480,7 +464,7 @@ export function tools(
       name: "memory_propose_change",
       label: "Propose World Model change",
       description:
-        "Propose one mixed entity/fact batch. Omit source_event_ids only for non-guideline information explicitly stated in the current Master message; Host binds its eligible input.accepted event. entity.guideline always requires explicit Master evidence IDs. Cite execution.finished/feedback.delivered for task results (TASK_REPORT), and main.message for Main conclusions (MODEL_INFERENCE). Never omit evidence to classify an inference as MASTER. Discover allowed predicate keys and topics with memory_read source='world', catalog='predicates'; never invent a predicate. To create a person and facts together, CREATE_ENTITY uses local_ref='$iris' and later ASSERT uses subject='$iris': both include the literal dollar sign. Existing subjects accept ID/name/alias or role:master/role:secretary. ENTITY values use an entity selector. ASSERT preserves existing facts; CORRECT/RETRACT require target_fact_id. Explicit source_event_ids must identify verified source events; source_note is explanation only. Each batch needs one exact owner approval. Proposal/approval is not recording: query memory_read source='world_batch', batch_id for COMMITTED.",
+        "Propose one mixed entity/fact batch; exact owner approval required. Omit source_event_ids only for non-guideline facts explicitly stated in the current Master message. entity.guideline needs explicit Master evidence IDs. Cite execution.finished/feedback.delivered (TASK_REPORT) or main.message (MODEL_INFERENCE); never relabel inference as MASTER. Discover predicates/topics via memory_read world catalog=predicates. CREATE_ENTITY local_ref='$iris' can be referenced by ASSERT subject='$iris' in this batch. Entities accept ID/name/alias/role:master/role:secretary. ASSERT preserves facts; CORRECT/RETRACT require target_fact_id. source_note is not evidence. Query world_batch for COMMITTED; proposal/approval is not recording.",
       parameters: Type.Object(
         {
           changes: Type.Array(
@@ -672,17 +656,33 @@ export function tools(
 }
 
 export function memoryToolResult(this: MainToolsContext, value: unknown) {
-  const budget = requestBudget(
-    this.model,
-    this.agent?.state.messages ?? this.history(),
-  );
-  const remaining = Math.max(
-    0,
-    budget.usable_input_tokens - budget.estimated_tokens - 512,
-  );
+  const messages = this.agent?.state.messages ?? this.history();
+  const assistant = messages.findLast((m) => m.role === "assistant");
+  const call =
+    assistant?.role === "assistant"
+      ? assistant.content.findLast(
+          (c) =>
+            c.type === "toolCall" &&
+            ["memory_read", "memory_search"].includes(c.name),
+        )
+      : undefined;
   const payload = structuredClone(value) as Record<string, any>;
-  const fits = () =>
-    Buffer.byteLength(JSON.stringify(payload)) + 256 <= remaining;
+  // Budget the serialized continuation, including escaped JSON inside the tool
+  // envelope. Do not estimate the raw payload with a fixed 512-byte deduction.
+  const fits = () => {
+    const next = requestBudget(this.model, [
+      ...messages,
+      {
+        role: "toolResult",
+        toolCallId: call?.type === "toolCall" ? call.id : "memory",
+        toolName: call?.type === "toolCall" ? call.name : "memory_read",
+        content: result(payload).content,
+        isError: false,
+        timestamp: Date.now(),
+      },
+    ]);
+    return next.estimated_tokens + 128 <= next.usable_input_tokens;
+  };
   while (!fits()) {
     if (
       typeof payload.body === "string" &&

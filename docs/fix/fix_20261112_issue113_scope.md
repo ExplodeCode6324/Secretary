@@ -68,3 +68,5 @@ Master 已授权评估后直接实施、提交 PR/CI，并指定 Claude Fable 5.
 实现包括 Main 导入/分页查询、逐次精确授权与证据展示、Scope 整帧原子校验和结果 Input、pump/启动恢复及在线到期、通知只读轮次与来源消费审计。WorkScope 不添加伪造来源字段，不需要新增 owner API 路由；内部参数由 `src/contracts/contracts.schema.json` 生成，现有通用授权/Scope DTO 保持有效。macOS CI 显式纳入 #113 测试。
 
 首次失败私有留存：类型检查发现工具 label 和独立 schema 类型导出缺失，已修复生成器；过期 owner 测试最初用了合同禁止的 epoch 0，已改为合法但不匹配的值；闭环测试误查不存在的 Task 记录，已改查实际 TaskPlan。未使用生产数据、provider 凭据或敏捷实例配置/服务；隔离测试 PG 使用本任务独占的临时目录和 loopback 端口。原生 TUI、真实 provider 和 #111 敏捷组合验收仍按 Master 系列决定记为 NOT_TESTED/延后。冻结代码后在 PR 记录最终测试、精确 SHA/CI 和复核结论。
+
+首次完整 verify 暴露两个既有回归合同：新增工具/提示开销耗尽固定 65k 续接场景，空闲 pump 遍历历史 Operation。两项首次失败均保留。协调器现按新增 journal 帧维护待处理 ID；当前来源元数据冻结进每轮 system 快照，不再改变工具 schema。精简工具说明但保留来源/授权规则；读取结果改按完整序列化续接请求计算预算，替代原始 payload 估算。原测试与容量限制不变，针对性预算及空闲回归已通过；最终完整验证与 CI 将重跑。

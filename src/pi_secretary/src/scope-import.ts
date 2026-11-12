@@ -143,6 +143,23 @@ export function importNotice(
   };
 }
 export class ScopeImports {
+  private frameOffset = 0;
+  private pending = new Set<string>();
+  private collect() {
+    // Read each committed frame once. Startup replays the index; warmed idle pumps
+    // do no history traversal, including when thousands of imports are terminal.
+    while (this.frameOffset < this.store.projectionFrames.length) {
+      const frame = this.store.projectionFrames[this.frameOffset++];
+      for (const mutation of frame.mutations) {
+        if (mutation.object_type !== "Operation") continue;
+        const op = this.store.get<Operation>("Operation", mutation.object_id);
+        if (op.action.action !== "scope.import") continue;
+        if (this.store.find("Input", stableID(importResultKey(op.id))))
+          this.pending.delete(op.id);
+        else this.pending.add(op.id);
+      }
+    }
+  }
   constructor(
     readonly store: Store,
     readonly auth: Authorization,
@@ -299,10 +316,13 @@ export class ScopeImports {
     };
   }
   drain() {
-    for (const op of this.store
-      .all<Operation>("Operation")
-      .filter((o) => o.action.action === "scope.import")) {
-      if (this.store.find("Input", stableID(importResultKey(op.id)))) continue;
+    this.collect();
+    for (const operationID of this.pending) {
+      const op = this.store.get<Operation>("Operation", operationID);
+      if (this.store.find("Input", stableID(importResultKey(op.id)))) {
+        this.pending.delete(op.id);
+        continue;
+      }
       const grant = this.store.get<AuthorizationRequest>(
         "AuthorizationRequest",
         op.authorization_id!,
