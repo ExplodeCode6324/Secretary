@@ -64,3 +64,8 @@ Scopes 统一 Scope 标签和工作目录只读投影，Shared 保持 null 身�
 首次失败均保留：新测试使用了不存在的命令/结果路由（修正测试入口）；API 通用投影过滤保留字 workspace（改用类型化 workspace_info，保留原过滤规则）；完整检查遇到历史 fixture 引用不存在的 Scope（修复读取诊断，未放宽准入）；终端测试暴露 macOS /var 别名与 Scheduler 物理路径不一致（计划路径统一用物理 Core 根）。48 项定向检查原为 47 通过、1 项终端失败，修正后该项 1/1 通过。13 项 Shared/Main/PROGRAM/保留测试通过，并增加终端投影回归。完整检查已在历史兼容与路径修复后重启；最终测试、精确 HEAD CI 和 reviewer 结果在 PR 记录，当前不冒称完成。
 
 隔离 PostgreSQL fixture Core 已用真实 package scripts 启动，达到 IDLE 且 World supported；两个已批准 PROGRAM 任务经 HTTP 写入同名不同内容文件。受控重启/接续验证进行中。自动终端渲染不等于原生键盘验收。真实 provider、原生 TUI 及 #111 敏捷真实记忆组合验收按既定决定保留 NOT_TESTED/延后；未修改敏捷配置、数据或进程。原始复核与首次失败等证据位于忽略目录 `.demo-data/issue114/`。
+
+
+## Master 范围修订：旧 Scope 外任务硬切换
+
+#114 实施期间 Master 明确要求兼容问题硬切换：目前无需要保留的正式数据，旧 Scope 外任务数据可直接丢弃。本修订取代该类旧任务的兼容/保留要求；新实现创建任务的持久性、隔离和缺目录诊断要求仍有效。不增加迁移适配、虚构 Scope 或容错悬空 Scope 投影。初版兼容分支已撤销，显式 Scope 缺失仍为 SCOPE_NOT_FOUND；分页 fixture 改为通过正式准入创建真实 NONE Scope，原过滤、分页和 cursor 断言全部保留。本次源码修改未部署或清理既有实例。按修订后的源码重新运行完整检查；之前中断的运行仅作首次失败证据，不计最终 PASS。

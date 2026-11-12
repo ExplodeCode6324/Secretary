@@ -1158,8 +1158,7 @@
           "enum": [
             "SHARED",
             "NONE",
-            "DIRECTORY",
-            null
+            "DIRECTORY"
           ]
         },
         "scope_name": {
@@ -1230,8 +1229,7 @@
           "enum": [
             "SHARED",
             "NONE",
-            "DIRECTORY",
-            null
+            "DIRECTORY"
           ]
         },
         "scope_name": {
@@ -1411,8 +1409,7 @@
           "enum": [
             "SHARED",
             "NONE",
-            "DIRECTORY",
-            null
+            "DIRECTORY"
           ]
         },
         "scope_name": {
@@ -1579,8 +1576,7 @@
           "enum": [
             "SHARED",
             "NONE",
-            "DIRECTORY",
-            null
+            "DIRECTORY"
           ]
         },
         "scope_name": {
@@ -5420,8 +5416,7 @@
           "enum": [
             "SHARED",
             "NONE",
-            "DIRECTORY",
-            null
+            "DIRECTORY"
           ]
         },
         "workspace_info": {
@@ -6954,16 +6949,12 @@
       "type": "object",
       "properties": {
         "path": {
-          "type": [
-            "string",
-            "null"
-          ]
+          "type": "string"
         },
         "root_kind": {
           "enum": [
             "NONE",
-            "DIRECTORY",
-            null
+            "DIRECTORY"
           ]
         },
         "location": {

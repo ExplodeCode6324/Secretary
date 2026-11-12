@@ -300,15 +300,12 @@ test("world business JSON keys survive while evidence locator paths are omitted"
   }));
 test("task scope filtering occurs before stable pagination and binds cursors", () =>
   fixture(async (app, api) => {
-    const scope = id(),
-      other = id();
+    const scope = app.scheduler.scopes.save({ name: "First", kind: "NONE" }).id,
+      other = app.scheduler.scopes.save({ name: "Second", kind: "NONE" }).id;
     for (const scope_id of [null, scope, other, scope, null]) {
-      const task = app.scheduler.propose(
-        "Synthetic scope query",
-        id(),
-        app.host.sessionID,
-      );
-      app.store.commit([revise(task, { scope_id })]);
+      app.scheduler.propose("Synthetic scope query", id(), app.host.sessionID, {
+        scopeID: scope_id,
+      });
     }
     const query = (q: Record<string, string>) =>
       api.query(api.principal, "tasks", new URLSearchParams(q)) as Promise<any>;

@@ -196,3 +196,8 @@ Fable 5.2 High 对 R5 给出 **PASS for plan readiness**：十项必改关闭，
 Fable 跨轮次核查了 World 写入、Settings、prompt 快照、Store commit、memory-search schema 和撤回。Scope 导入内部、Shared、部署只检查相互影响，沿用此前 Opus 窄范围 PASS，不宣称两次独立穷尽审计。它未独立核实中文或 live 状态。Codex 已同步中文，并只读确认同一 Core 仍 IDLE、域/实例 ID 未变；没有产品测试、CI、迁移或重启。
 
 下一步由 Master 按交接说明与关联 issue 新开会话。本次仅迁移/改类计划及登记 issue，未开始实现；按第十节执行常规实现与测试。合 main 和持久实例部署分别决定。原始复核证据保留在原私有忽略目录。
+
+
+## Master 范围修订：旧 Scope 外任务硬切换
+
+#114 实施期间 Master 明确要求兼容问题硬切换：目前无需要保留的正式数据，旧 Scope 外任务数据可直接丢弃。本修订取代该类旧任务的兼容/保留要求；新实现创建任务的持久性、隔离和缺目录诊断要求仍有效。不增加迁移适配、虚构 Scope 或容错悬空 Scope 投影。初版兼容分支已撤销，显式 Scope 缺失仍为 SCOPE_NOT_FOUND；分页 fixture 改为通过正式准入创建真实 NONE Scope，原过滤、分页和 cursor 断言全部保留。本次源码修改未部署或清理既有实例。按修订后的源码重新运行完整检查；之前中断的运行仅作首次失败证据，不计最终 PASS。

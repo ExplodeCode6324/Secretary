@@ -96,33 +96,16 @@ export class Scopes {
     return scope;
   }
   label(id?: string | null, binding?: Execution["workspace_binding"]) {
-    const scope = id == null ? null : this.store.find<WorkScope>("Scope", id);
+    const scope = id == null ? null : this.get(id);
     return {
       scope_id: id ?? null,
-      scope_name: id == null ? "Shared" : (scope?.name ?? "Unavailable Scope"),
-      scope_kind:
-        id == null
-          ? ("SHARED" as const)
-          : (binding?.kind ?? scope?.kind ?? null),
+      scope_name: scope?.name ?? "Shared",
+      scope_kind: scope ? (binding?.kind ?? scope.kind) : ("SHARED" as const),
     };
   }
   workspaceView(p: TaskPlan, e?: Execution | null) {
     const label = this.label(e ? e.scope_id : p.scope_id, e?.workspace_binding);
-    const scope =
-      p.scope_id == null
-        ? null
-        : this.store.find<WorkScope>("Scope", p.scope_id);
-    if (p.scope_id != null && !scope && !e?.workspace_binding)
-      return {
-        ...label,
-        workspace_info: {
-          path: null,
-          root_kind: null,
-          location: "CORE_HOST" as const,
-          availability: "unavailable" as const,
-          reason: "SCOPE_NOT_FOUND",
-        },
-      };
+    const scope = p.scope_id == null ? null : this.get(p.scope_id);
     const root =
       e?.workspace_binding?.root_path ??
       (!e && scope?.kind === "DIRECTORY"
