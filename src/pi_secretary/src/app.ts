@@ -4,6 +4,9 @@ import { Pushes, type PushDelivery } from "./push-service.ts";
 import { modelLifetime } from "./model-retry.ts";
 import { activitiesFor } from "./activity.ts";
 import { activityHistoryFor } from "./activity-history.ts";
+import { worldStartupPreflight } from "./world-import.ts";
+import { worldContextModes } from "./main-system.ts";
+import { coreIdentity, assistantProfile } from "./core-identity.ts";
 import { Settings } from "./settings.ts";
 import type { TaskPlan, Execution } from "./contracts.ts";
 import { Store } from "./store.ts";
@@ -36,9 +39,14 @@ export class App {
     dsn?: string,
     options: { clock?: () => number; pushDelivery?: PushDelivery } = {},
   ) {
+    worldContextModes();
     const store = await Store.open(directory);
+    let openingWorld: World | undefined;
     try {
+      worldStartupPreflight(store);
       ensureTaskIdentities(store);
+      coreIdentity(store);
+      assistantProfile(store);
       const chosen =
         config && "main" in config
           ? config.main
@@ -48,8 +56,9 @@ export class App {
           ? config.task
           : (config ?? modelConfig("task"));
       const auth = new Authorization(store);
+      const world = (openingWorld = new World(store, auth, dsn));
+      await world.initialize();
       auth.recover();
-      const world = dsn ? new World(store, auth, dsn) : undefined;
       const scheduler = new Scheduler(store, auth, task.model, task.stream);
       await scheduler.recover();
       const host = new Host(
@@ -61,7 +70,10 @@ export class App {
         options.clock,
       );
       const app = new App(store, auth, scheduler, host, world, options);
-      void world?.memorySearch.advance();
+      if (world.configured)
+        await world
+          .initializeMemorySearchSchema()
+          .catch((e) => world.memorySearch.unavailable(e));
       // Warm the disposable read index once, before accepting UI requests.
       try {
         activityHistoryFor(store);
@@ -71,6 +83,7 @@ export class App {
       }
       return app;
     } catch (error) {
+      await openingWorld?.close();
       await store.close();
       throw error;
     }
@@ -81,7 +94,7 @@ export class App {
   async pump() {
     void this.pushes.tick().catch(() => {});
     void this.world?.memorySearch.advance();
-    if (this.world && !this.worldWork && !this.settings.blocked)
+    if (this.world && !this.worldWork)
       this.worldWork = this.world
         .drain()
         .catch((error) => console.error(String(error)))

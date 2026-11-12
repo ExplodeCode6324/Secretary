@@ -8,7 +8,7 @@ Secretary est un assistant personnel persistant au service de Master. Core conse
 
 ## Démarrage rapide
 
-Node.js ≥22.19, npm et Python 3 sont requis. World et la recherche dans l’historique utilisent PostgreSQL.
+Nécessite Node.js ≥22.19, npm et Python 3. World facts use the local journal; history search uses PostgreSQL.
 
 ```sh
 git submodule update --init --recursive

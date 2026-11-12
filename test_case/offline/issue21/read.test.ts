@@ -80,7 +80,7 @@ test("S2: actual Host tool slice shrinks to the remaining request budget with a 
       const event = app.store.event("synthetic.evidence", "😀中".repeat(5000));
       app.store.commit([], [event]);
       eventID = event.event_id;
-      app.host.accept("Read evidence, then say done. " + "x".repeat(40000));
+      app.host.accept("Read evidence, then say done. " + "x".repeat(33000));
       await app.host.drain();
       assert.equal(
         app.host.session.state,

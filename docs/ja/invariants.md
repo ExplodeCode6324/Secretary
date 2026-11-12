@@ -43,10 +43,10 @@
     実装：[memory-summary](../../src/pi_secretary/src/memory-summary.ts)、[memory-extraction](../../src/pi_secretary/src/memory-extraction.ts)。テスト：[retry](../../test_case/offline/issue19/retry.test.ts)、`summary coverage and Settings commit survive extraction failure`。
 
 13. **古い入力の除外には成功したカバー範囲と検索の処理済み位置が必要。** 識別が明確で完全にカバーされ、現在ターンとツールプロトコルの保護範囲外にある原文のみ除外できます。インデックス利用不可では元の除外記録を維持し、新たな除外を停止します。
-    実装：[selectInputProjection](../../src/pi_secretary/src/input-projection.ts)。テスト：[projection](../../test_case/offline/issue28/projection.test.ts)、`FAILED/STALE, uncovered and current Inputs survive`、`unavailable search freezes previous coverage`、[settings](../../test_case/offline/issue28/settings.test.ts)、`in-flight search outage after World commit`。
+    実装：[selectInputProjection](../../src/pi_secretary/src/input-projection.ts)。テスト：[projection](../../test_case/offline/issue28/projection.test.ts)、`FAILED/STALE, uncovered and current Inputs survive`、`unavailable search freezes previous coverage`、[settings](../../test_case/offline/issue28/settings.test.ts)、`E4: repeated Settings and restart authenticate a bounded wrapper`。
 
-14. **Settings は受領記録で二つのストアを結ぶ。** World バッチは事実と受領記録をアトミックに保存します。ローカルの有効指示、Consciousness、Context、APPLIED は同時にコミットし、再試行では既にコミット済みのバッチを先に確認します。
-    実装：[Settings](../../src/pi_secretary/src/settings.ts)、[World](../../src/pi_secretary/src/world.ts)。テスト：[settings](../../test_case/offline/runtime/settings.test.ts)、`draft is durable and inactive; application summarizes both reference sets`、同じファイルの `database commit followed by SIGKILL restores the same batch`。
+14. **World uses one atomic journal frame.** Exact one-shot approval consumes the grant and writes facts, Operation and durable result together; no SQL dispatch gap and no Main result Input. Settings remains independent. The Store validates protected roles, immutable assertion bodies and action-specific bundles on commit and replay.
+    Tests: [World](../../test_case/offline/issue112/world.test.ts), [migration](../../test_case/offline/issue112/migration.test.ts).
 
 15. **永続同期カーソルは journal のプレフィックスを識別する。** cursor は owner、sequence、digest に結び付き、再起動後も継続します。履歴の分岐・切り詰めは再読み込みを要求します。changes は完全なトランザクションを配信し、大きすぎるものはカテゴリ無効化通知にします。
     実装：[SyncService.position / changes](../../src/pi_secretary/src/sync-service.ts)。テスト：[cursor](../../test_case/offline/issue9/cursor.test.ts)、`same identity restored backup rejects divergent digest`、[changes](../../test_case/offline/issue9/changes.test.ts)、`oversized complete transaction falls back`。

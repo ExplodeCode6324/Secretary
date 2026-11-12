@@ -36,7 +36,7 @@ Les accusés de retrait conservent les références figées de couverture et les
 | memory_read source=log | [Fragments journal/CAS](../../src/pi_secretary/src/main-tools.ts) : par event_id ; offset/length en points de code Unicode ; 2000 par défaut, 4000 au maximum ; suivre next_offset pour le texte complet et le hash |
 | memory_read source=consciousness | Mémoire de travail courante |
 | memory_read source=world | Rechercher les faits par subject (ID, nom ou alias) et predicate ; renvoyer les candidats en cas d’ambiguïté ; 20 par défaut, 100 au maximum ; pagination par cursor |
-| memory_propose_change | Soumettre ASSERT/CORRECT/RETRACT avec les événements sources ; les corrections et retraits incluent target_fact_id ; l’hôte assemble le contrat puis le fait passer par l’autorisation et Settings |
+| memory_propose_change | One changes array with 1–20 entity/fact edits and evidence; exact approval commits atomically without Settings. Read world_batch before claiming COMMITTED. |
 
 L’état de recherche distingue not_configured, absence de migration, reconstruction, panne et expiration du délai ; les résultats en retard incluent partial et un point de progression. Les retours d’outils respectent le budget restant du tour ; les résultats raccourcis incluent truncated et un décalage de continuation. Le source_note de World est explicatif ; l’identité des preuves vient des événements sources.
 

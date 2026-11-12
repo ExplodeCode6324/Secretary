@@ -54,11 +54,10 @@ flowchart LR
   Extract --> Ledger[合并当前承诺账本]
   Memory --> Projection[覆盖与检索水位校验 / 输入投影]
   Draft[Settings 草稿] --> Source
-  Summary --> World[可选 World 批次事务 / 回执 / outbox]
-  World --> Applied[有效说明 + 记忆 + Context + APPLIED]
+  Summary --> Applied[有效说明 + 记忆 + Context + APPLIED]
 ```
 
-[记忆维护](../src/pi_secretary/src/memory-maintenance.ts) 独立提交摘要和提取进度，失败分段按保存的次数补试。[Settings](../src/pi_secretary/src/settings.ts) 固定草稿与来源、暂停主会话和新任务领取，先完成摘要与容量检查，再提交 World 批次并桥接回执，最后原子切换本地配置；只改说明时直接重建 Context。期间新输入继续排队，已运行任务可完成。COMMITTING/REBUILDING 重启按数据库回执对账，FAILED 的人工批次可恢复草稿，BLOCKED 继续查询已提交结果。输入退出和来源规则见[记忆与提示词](memory-and-prompts.md)。
+[记忆维护](../src/pi_secretary/src/memory-maintenance.ts) 独立提交摘要和提取进度，失败分段按保存的次数补试。[Settings](../src/pi_secretary/src/settings.ts) 固定草稿与来源、暂停主会话和新任务领取，World edits are rejected by Settings. Settings validates its summary and budget, then atomically activates instructions, memory and Context. 期间新输入继续排队，已运行任务可完成。Settings recovery reuses its saved summary and journal records. Historical World applications must finish on old code before genesis. 输入退出和来源规则见[记忆与提示词](memory-and-prompts.md)。
 
 ## 同步、提醒与通知
 

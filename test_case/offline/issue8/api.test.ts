@@ -524,7 +524,7 @@ test("public DTO definitions and synthetic Swift examples validate without inter
       await import("../../../src/pi_secretary/src/api/routes.ts");
     assert.deepEqual(
       operations
-        .filter((o: any) => o.method === "POST")
+        .filter((o: any) => o.method === "POST" && o.status === 202)
         .map((o: any) => [
           o.path.replace("/api/v1/", "").replace("{id}", ":id"),
           o.request,

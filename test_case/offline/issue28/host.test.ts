@@ -38,7 +38,18 @@ testPostgres(
           .all<CompactionJob>("CompactionJob")
           .filter((j) => j.mode === "CONTEXT_COMPACTION");
         assert(jobs.length > 0);
-        assert.equal(jobs.at(-1)!.target_reached, true);
+        // The required World reserve plus system/tool anchors exceed the old
+        // 30% target at 64 KiB. Preserve those anchors and report the limit.
+        assert.equal(jobs.at(-1)!.target_reached, false);
+        const last = app.store.read<any>(
+          app.store.events("context.compacted").at(-1)!.payload,
+        );
+        assert.equal(
+          last.reason,
+          "PRESERVED_INPUT_OR_ACTIVE_PROTOCOL_EXCEEDS_TARGET",
+        );
+        assert(last.after.occupancy > 0.3 && last.after.occupancy < 0.6);
+        assert(last.after.estimated_tokens < last.before.estimated_tokens);
         assert(sends >= 200);
       },
       stream,

@@ -25,7 +25,7 @@ POST 使用 application/json，body 最大 1 MiB，包含 UUID request_id。owne
 
 ## 查询、分页与内容
 
-响应为 `{api_version:"1",data:...}`，错误为 `{api_version:"1",error:{code,message}}`。revision、事件 sequence、World version 和字节长度使用十进制字符串，数量与 limit 使用有界整数，时间为 UTC ISO 8601。请求按 schema 校验，客户端按已知字段解码响应。
+响应为 `{api_version:"1",data:...}`，错误为 `{api_version:"1",error:{code,message}}`。revision、事件 sequence 和字节长度使用十进制字符串，数量与 limit 使用有界整数，时间为 UTC ISO 8601。请求按 schema 校验，客户端按已知字段解码响应。
 
 Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
 
@@ -49,11 +49,11 @@ Operation 的 bytes/hash 指完整公开文本；source_truncated 表示执行�
 | tasks、task-requests、executions | 任务基线、每轮提案、排队/取消、结果与接续；tasks 可按 scope_id 筛选，none 表示无范围绑定 |
 | scopes、authorizations、authorization-rules、decisions、operations | 工作范围、审批/规则、工作回答与效果核验 |
 | settings、memory、memory/summary、memory/commitments | 草稿应用、维护进度、摘要与承诺来源 |
-| world/catalog、world/facts、world/slot | 实体/predicate/source、当前和历史事实、slot revision |
+| world/catalog, world/facts, world/batches/{id}, world/changes, world/preview | Store entities/roles/predicates, facts/history, batch status, owner edits and read-only recall preview |
 | related、attention | 关联资源、待办计数及有界列表，attention 提供 version/as_of/valid_until |
 | requests、clients、core、admin | 回执、客户端登记、服务启停、World 迁移与程序登记 |
 
-PublicTaskCommand 使用 `acceptance` 字符串数组；接续同时传 reuse_task_id 和 parent_execution_id，规则见[任务数据流](../../data-flow.md#任务从提案到结果)。Settings 保存完整 instructions/edits/command_ids，使用 expected_revision 控制版本；World 新资源 revision 为 "0"，单次领域批次最多 50 项（公开结构上限 100）。
+PublicTaskCommand 使用 `acceptance` 字符串数组；接续同时传 reuse_task_id 和 parent_execution_id，规则见[任务数据流](../../data-flow.md#任务从提案到结果)。Settings uses expected_revision for instructions and rejects nonempty edits/command_ids. World changes contain 1–20 edits with field deltas and explicit fact targets; no client World revision or slot endpoint. POST world/preview accepts text only and performs no journal/model activity.
 
 ## Master attention (#92)
 

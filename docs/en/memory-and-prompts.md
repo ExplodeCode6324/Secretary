@@ -36,7 +36,7 @@ Removal receipts retain frozen coverage references and bounded-window IDs. Remov
 | memory_read source=log | [journal/CAS chunks](../../src/pi_secretary/src/main-tools.ts): by event_id; offset/length use Unicode code points; default 2000, maximum 4000; follow next_offset for full text and hash |
 | memory_read source=consciousness | Current working memory |
 | memory_read source=world | Query facts by subject (ID, name, or alias) and predicate; ambiguities return candidates; default 20, maximum 100; paginate with cursor |
-| memory_propose_change | Submit ASSERT/CORRECT/RETRACT with source events; corrections/retractions include target_fact_id; the host assembles the contract and routes it through authorization and Settings |
+| memory_propose_change | One changes array with 1–20 entity/fact edits and evidence; exact approval commits atomically without Settings. Read world_batch before claiming COMMITTED. |
 
 Search status distinguishes not_configured, unmigrated, rebuilding, failed, and timed-out states; lagging results include partial and a watermark. Tool results are bounded by the turn’s remaining budget; shortened results include truncated and a continuation offset. World source_note is explanatory; evidence identity comes from source events.
 

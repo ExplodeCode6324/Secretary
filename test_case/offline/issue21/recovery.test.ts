@@ -81,6 +81,10 @@ testPostgres(
   (dsn) =>
     scenario(dsn, async (app) => {
       await app.world!.memorySearch.idle();
+      // Startup now initializes mem; simulate a missing disposable projection explicitly.
+      await app.world!.pool.query("DROP SCHEMA mem CASCADE");
+      app.world!.memorySearch.invalidate();
+      await app.world!.memorySearch.catchUp();
       assert.equal(
         (await app.world!.memorySearch.search({ query: "杭州" })).status,
         "not_migrated",

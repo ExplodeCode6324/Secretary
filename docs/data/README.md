@@ -84,7 +84,7 @@
 | [JournalTransaction](JournalTransaction.md) | 10 | 单写事务，frame 原始 payload 字节 checksum 外包；同帧全生效或全不生效。 |
 | [MemoryCommitment](MemoryCommitment.md) | 7 |  |
 | [UserInstructions](UserInstructions.md) | 7 | 当前有效的 Master 说明；UI 先保存草稿，完整摘要并重建 context 后与应用状态一次提交。 |
-| [MainPromptSnapshot](MainPromptSnapshot.md) | 11 |  |
+| [MainPromptSnapshot](MainPromptSnapshot.md) | 12 |  |
 | [SettingsDraft](SettingsDraft.md) | 6 | Master 待应用修改；payload 为 SettingsPayload，不是有效设置。 |
 | [SettingsApplication](SettingsApplication.md) | 17 | 固定批次的设置应用；数据库提交后必须完成重建才可继续主会话。 |
 | [WorldEdit](WorldEdit.md) | 20 |  |
@@ -112,3 +112,6 @@
 | [Guidance](Guidance.md) | 21 | Durable exact-execution guidance; independent sent, received and adopted milestones. |
 | [GuidanceInjection](GuidanceInjection.md) | 13 | Host-only injection provenance. A queued message is not reception or model consumption. |
 | [GuidanceReceipt](GuidanceReceipt.md) | 15 | Append-only validated disposition from the actual durable model request and response. |
+| [WorldEntity](WorldEntity.md) | 11 |  |
+| [WorldAssertion](WorldAssertion.md) | 21 |  |
+| [WorldGenesis](WorldGenesis.md) | 10 |  |

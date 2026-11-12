@@ -29,7 +29,7 @@ Les erreurs métier après admission conservent l’accusé. Les règles de reje
 
 ## Requêtes, pagination et contenu
 
-Les réponses utilisent `{api_version:"1",data:...}` ; les erreurs, `{api_version:"1",error:{code,message}}`. revision, sequence d’événement, version World et longueurs en octets sont des chaînes décimales ; les nombres d’éléments et limit sont des entiers bornés ; les dates sont en UTC ISO 8601. Les requêtes sont validées par schéma ; les clients décodent les champs connus.
+Réponses : `{api_version:"1",data:...}` ; erreurs : `{api_version:"1",error:{code,message}}`. Révisions, séquences et tailles sont des chaînes décimales ; nombres et limites sont des entiers bornés ; dates en UTC ISO 8601. Les requêtes sont validées par schéma et les clients décodent les champs connus.
 
 Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
 
@@ -53,11 +53,11 @@ Les bytes/hash d’Operation concernent le texte public complet. source_truncate
 | tasks, task-requests, executions | Référence de tâche, propositions par tour, file/annulation, résultats et continuations ; tasks accepte scope_id, none indiquant l’absence de Scope lié |
 | scopes, authorizations, authorization-rules, decisions, operations | Périmètres de travail, approbations/règles, réponses de travail et vérification des effets |
 | settings, memory, memory/summary, memory/commitments | Application des brouillons, progression de maintenance, résumés et provenance des engagements |
-| world/catalog, world/facts, world/slot | Entités/predicate/source, faits actuels et historiques, slot revision |
+| world/catalog, world/facts, world/batches/{id}, world/changes, world/preview | Store entities/roles/predicates, facts/history, batch status, owner edits and read-only recall preview |
 | related, attention | Ressources associées, compteurs et listes bornées ; attention fournit version/as_of/valid_until |
 | requests, clients, core, admin | Accusés, enregistrement des clients, démarrage/arrêt du service, migrations World et enregistrement des programmes |
 
-PublicTaskCommand utilise un tableau de chaînes `acceptance`. Une continuation fournit reuse_task_id et parent_execution_id ; voir le [flux des tâches](../../data-flow.md#de-la-proposition-de-tâche-au-résultat). Settings conserve instructions/edits/command_ids complets et utilise expected_revision pour le contrôle de version. Les nouvelles ressources World ont revision "0" ; un lot métier est limité à 50 éléments (la structure publique en autorise 100).
+PublicTaskCommand reçoit un tableau de chaînes `acceptance` ; la continuation fournit reuse_task_id et parent_execution_id. Voir [Flux des tâches](../../data-flow.md#De la proposition de tâche au résultat). Settings uses expected_revision for instructions and rejects nonempty edits/command_ids. World changes contain 1–20 edits with field deltas and explicit fact targets; no client World revision or slot endpoint. POST world/preview accepts text only and performs no journal/model activity.
 
 ## Master attention (#92)
 

@@ -28,7 +28,8 @@ export const fixtureModel: Model<Api> = {
   reasoning: false,
   input: ["text"],
   cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-  contextWindow: 32768,
+  // Fixture capacity accommodates the complete World context reserve and batch tool.
+  contextWindow: 65536,
   maxTokens: 4096,
 };
 export function replyStream(

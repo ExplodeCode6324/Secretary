@@ -32,7 +32,7 @@ Consciousness 保存当前工作摘要、承诺和覆盖引用；MemoryExtractio
 | memory_read source=log | [journal/CAS 分片](../src/pi_secretary/src/main-tools.ts)：按 event_id，offset/length 使用 Unicode 码点，默认 2000、最多 4000，沿 next_offset 读取全文及 hash |
 | memory_read source=consciousness | 当前工作记忆 |
 | memory_read source=world | 按 subject（ID、名称或别名）、predicate 查询事实，歧义返回候选；默认 20、最多 100，cursor 续页 |
-| memory_propose_change | 提交 ASSERT/CORRECT/RETRACT 与来源事件；更正/撤回携带 target_fact_id，由宿主组装合同并进入授权与 Settings |
+| memory_propose_change | One changes array with 1–20 entity/fact edits and evidence; exact approval commits atomically without Settings. Read world_batch before claiming COMMITTED. |
 
 检索状态区分 not_configured、未迁移、重建、故障和超时；落后结果提供 partial 与水位。工具返回受本轮剩余预算约束，缩短时带 truncated 和后续偏移。World 的 source_note 是解释，证据身份来自来源事件。
 

@@ -1,3 +1,4 @@
+import { assembleMainSystem } from "./main-system.ts";
 import { attachmentTag } from "./attachment-form.ts";
 import { putEvidence } from "./evidence.ts";
 import { contentText } from "@earendil-works/pi-ai";
@@ -182,11 +183,15 @@ export function prepareSettingsInputs(
   messages: AgentMessage[],
   content: string,
 ) {
+  const assembled = assembleMainSystem(
+    this.store,
+    content,
+    this.scheduler.scopes.promptContext(),
+  );
   const agent = new Agent({
     initialState: {
       model: this.model,
-      systemPrompt:
-        composeInstructions(content) + this.scheduler.scopes.promptContext(),
+      systemPrompt: assembled.system,
       tools: this.tools(id()),
     },
     streamFn: this.stream,
@@ -215,12 +220,16 @@ export function prepareSettingsContext(
   memoryRevision: number,
 ) {
   const loopID = id();
+  const assembled = assembleMainSystem(
+    this.store,
+    content,
+    this.scheduler.scopes.promptContext(),
+  );
   const agent = new Agent({
     streamFn: this.stream,
     initialState: {
       model: this.model,
-      systemPrompt:
-        composeInstructions(content) + this.scheduler.scopes.promptContext(),
+      systemPrompt: assembled.system,
       tools: this.tools(loopID),
     },
   });
@@ -236,6 +245,7 @@ export function prepareSettingsContext(
     system_prompt_hash: hash(contentText(system.content)),
     system_message: this.store.put(system),
     settings_application_id: applicationID,
+    recall_ref: this.store.put(assembled.recall),
   };
   assertRequestBudget(this.model, [system, ...messages]);
   this.store.commit([snapshot]);

@@ -58,11 +58,10 @@ flowchart LR
   Extract --> Ledger[Merge current commitment ledger]
   Memory --> Projection[Check coverage and search watermark / project inputs]
   Draft[Settings draft] --> Source
-  Summary --> World[Optional World batch transaction / receipt / outbox]
-  World --> Applied[Active instructions + memory + Context + APPLIED]
+  Summary --> Applied[Active instructions + memory + Context + APPLIED]
 ```
 
-[Memory maintenance](../../src/pi_secretary/src/memory-maintenance.ts) commits summaries and extraction progress independently, retrying failed segments using persisted attempt counts. [Settings](../../src/pi_secretary/src/settings.ts) freezes drafts and sources and pauses the main session and new task claims. It completes summary and capacity checks, commits the World batch and bridges its receipt, then switches local configuration atomically. Instruction-only changes rebuild Context directly. New inputs queue while running tasks may finish. Restarts in COMMITTING/REBUILDING reconcile database receipts; FAILED manual batches can restore their drafts, while BLOCKED continues querying committed results. See [memory and prompts](memory-and-prompts.md) for input removal and provenance rules.
+[Memory maintenance](../../src/pi_secretary/src/memory-maintenance.ts) commits summary and extraction progress independently, retrying failed segments with persisted attempt counts. [Settings](../../src/pi_secretary/src/settings.ts) freezes the draft/sources and pauses Main and new task claims. World edits are rejected by Settings. Settings validates its summary and budget, then atomically activates instructions, memory and Context. New inputs queue while existing tasks can finish. Settings recovery reuses its saved summary and journal records. Historical World applications must finish on old code before genesis. Input retirement and provenance rules: [Memory and prompts](memory-and-prompts.md).
 
 ## Sync, reminders, and notifications
 

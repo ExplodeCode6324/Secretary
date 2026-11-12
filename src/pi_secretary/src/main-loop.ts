@@ -1,3 +1,4 @@
+import { assembleMainSystem } from "./main-system.ts";
 import { next } from "./state-transitions.ts";
 import { authorizationActionable } from "./task-feedback.ts";
 import { guidanceFor } from "./guidance.ts";
@@ -511,18 +512,20 @@ export async function run(this: MainLoopContext) {
           : [];
       const legacySystem = legacyMessages.find((m) => m.role === "system");
       const settings = getInstructions(this.store);
+      const assembled = assembleMainSystem(
+        this.store,
+        settings.content,
+        this.scheduler.scopes.promptContext(),
+        batch.map((i) => this.store.bytes(i.payload).toString()).join("\n"),
+        batch.some((i) => !!i.failure_action),
+      );
       const systemMessage =
         legacySystem ??
         new Agent({
           streamFn: this.stream,
           initialState: {
             model: this.model,
-            systemPrompt:
-              composeInstructions(settings.content) +
-              this.scheduler.scopes.promptContext() +
-              (batch.some((i) => i.failure_action)
-                ? "\n\n" + FAILURE_SYSTEM
-                : ""),
+            systemPrompt: assembled.system,
             tools: this.tools(loopID, batch),
           },
         }).state.messages[0];
@@ -540,6 +543,9 @@ export async function run(this: MainLoopContext) {
         instructions_revision: legacySystem ? 0 : settings.revision,
         system_prompt_hash: hash(contentText(systemMessage.content)),
         system_message: this.store.put(systemMessage),
+        ...(!legacySystem
+          ? { recall_ref: this.store.put(assembled.recall) }
+          : {}),
       };
       newSnapshots.push(snapshot);
     }

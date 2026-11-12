@@ -2,7 +2,7 @@
 
 原生客户端的启动、键位和验证见[终端运行与验证](tui/run-and-test.md)。以下命令管理独立 Core；退出 TUI 不会停止 Core。
 
-从仓库根目录执行命令。需要 Node.js ≥22.19、npm、Python 3 和固定 Pi 子模块；World 与历史检索使用 PostgreSQL。
+从仓库根目录执行命令。需要 Node.js ≥22.19、npm、Python 3 和固定 Pi 子模块；World uses the journal; PostgreSQL provides log search and one-time legacy import.
 
 ## 安装与启停
 
@@ -41,10 +41,10 @@ wrapper 默认凭据 `.demo-data/deepseek-credentials.json`、数据 `.demo-data
 | SECRETARY_MAIN_MODEL / SECRETARY_TASK_MODEL | 角色模型 |
 | SECRETARY_MAIN_API_KEY / SECRETARY_TASK_API_KEY | 角色凭据 |
 | SECRETARY_PROVIDER / SECRETARY_MODEL | 直接 Core 的共享默认值 |
-| SECRETARY_DATABASE_URL | World 与检索 PostgreSQL DSN |
+| SECRETARY_DATABASE_URL | Log-search and legacy-import PostgreSQL DSN |
 | SECRETARY_MAX_WORKERS | 并发执行者上限，默认 2 |
 
-默认 live 目录读取可选 `.demo-data/live-runtime.json`，`database_url` 提供 DSN，环境 DSN 优先；未给环境 DSN 且配置 `local_postgres_data` 时，wrapper 用 pg_ctl 启动已有集群。配置数据库后通过 `admin/world/migrate` 初始化。Core stop 关闭连接，PostgreSQL 保持运行。预算参数见[记忆与提示词](memory-and-prompts.md#容量与配置)。
+默认 live 目录读取可选 `.demo-data/live-runtime.json`，`database_url` 提供 DSN，环境 DSN 优先；未给环境 DSN 且配置 `local_postgres_data` 时，wrapper 用 pg_ctl 启动已有集群。The mem-only schema initializes at startup; `admin/world/migrate` retries initialization/import.Core stop 关闭连接，PostgreSQL 保持运行。预算参数见[记忆与提示词](memory-and-prompts.md#容量与配置)。
 
 ## 常用管理
 
@@ -89,7 +89,7 @@ JS
 npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 ```
 
-先在隔离副本验证新版本重放，再切换运行目录。未完成 Settings 使用原配置恢复；迁移目录时核对程序入口和 Execution 绑定。回退使用匹配版本的完整备份，并对账升级期间已经发生的外部作用。存储实现见[架构](architecture.md#数据与提交)。
+先在隔离副本验证新版本重放，再切换运行目录。未完成 Settings 使用原配置恢复；迁移目录时核对程序入口和 Execution 绑定。After the first World record or new prompt snapshot, old binaries cannot replay the journal: use a forward fix. Never overwrite newer writes with an older backup.存储实现见[架构](architecture.md#数据与提交)。
 
 备份前退出 TUI，并将其状态目录与 Core 数据一起保存；默认位置为 `~/Library/Application Support/Secretary/tui/v1/<domain>/`，自定义启动入口以实际 `stateRoot` 为准（敏捷实例为 `data/tui`）。保留整个目录中的未发送请求、原 request_id 和恢复材料，不只复制可重建缓存。
 
@@ -102,7 +102,7 @@ npx tsx src/pi_secretary/scripts/verify-cas.ts DATA_DIRECTORY
 | CAPACITY_BLOCKED / INPUT_EXIT_DISABLED | 查看 memory 状态、模型预算与 PostgreSQL 检索水位，恢复索引后重试维护 |
 | RECOVERY_BLOCKED | 核对恢复错误中的 checkpoint、调用及工具回执，再通过 session/resume 处理 |
 | RESULT_UNKNOWN | 核验文件写入或按实际证据裁定效果；确认受控进程停止后收束 |
-| Settings BLOCKED | 使用原配置恢复，检查 World 批次回执并重试桥接 |
+| Settings BLOCKED | Retry Settings with the exact compatible runtime; World facts have no SQL receipt bridge |
 | RESYNC_REQUIRED | 重新取同步水位、加载资源，再追赶变更；原命令按 request_id 对账 |
 | SECRET_UNAVAILABLE / 推送 FAILED | 检查目标私密配置或固定错误码，核对 dispatch 尝试记录 |
 | journal/CAS 损坏或追加确认失败 | 保存完整副本，定位恢复错误；重新打开后以 journal 核对已提交结果 |

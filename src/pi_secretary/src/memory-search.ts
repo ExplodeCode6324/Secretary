@@ -226,7 +226,8 @@ export function searchQuery(sourceID: string, options: SearchOptions) {
 
 /** Disposable SQL projection. The journal and CAS remain the only history authority. */
 export class MemorySearch {
-  state: "not_migrated" | "rebuilding" | "ready" | "unavailable" =
+  state:
+    "not_configured" | "not_migrated" | "rebuilding" | "ready" | "unavailable" =
     "not_migrated";
   indexedSequence = 0;
   private initialized = false;
@@ -234,8 +235,10 @@ export class MemorySearch {
   private error?: string;
   constructor(
     readonly store: Store,
-    readonly pool: Pool,
-  ) {}
+    readonly pool: Pool | undefined,
+  ) {
+    if (!pool) this.state = "not_configured";
+  }
   get sourceID() {
     return this.store.projectionFrames[0]?.digest ?? hash("empty-journal");
   }
@@ -248,6 +251,10 @@ export class MemorySearch {
     };
   }
   async advance() {
+    if (!this.pool) {
+      this.state = "not_configured";
+      return;
+    }
     if (this.work) return this.work;
     this.work = this.project()
       .catch((error) => {
@@ -264,7 +271,7 @@ export class MemorySearch {
     return this.work;
   }
   private async project() {
-    const db = await this.pool.connect();
+    const db = await this.pool!.connect();
     try {
       if (!this.initialized) {
         const { rows } = await db.query(
@@ -389,7 +396,7 @@ export class MemorySearch {
       return { ...this.status(), hits: [] };
     let db: PoolClient | undefined;
     try {
-      db = await this.pool.connect();
+      db = await this.pool!.connect();
       await db.query("BEGIN READ ONLY");
       await db.query("SET LOCAL statement_timeout=5000");
       const { rows } = await db.query(query);

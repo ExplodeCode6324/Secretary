@@ -29,7 +29,7 @@ Domain errors after admission retain the receipt. The rejection rules above appl
 
 ## Queries, pagination, and content
 
-Responses use `{api_version:"1",data:...}`; errors use `{api_version:"1",error:{code,message}}`. revision, event sequence, World version, and byte lengths are decimal strings; counts and limit are bounded integers; timestamps are UTC ISO 8601. Requests are schema-validated; clients decode known response fields.
+Responses use `{api_version:"1",data:...}`; errors use `{api_version:"1",error:{code,message}}`. Revisions, event sequences and byte sizes are decimal strings; counts and limits are bounded integers; timestamps use UTC ISO 8601. Requests are schema-validated and clients decode known fields.
 
 Assistant names are trimmed for display. An empty name projects as `Secretary`; an explicitly configured `secretary` keeps its lowercase spelling. This is a projection default, not a stored-profile migration.
 
@@ -53,11 +53,11 @@ Operation bytes/hash refer to the full public text. source_truncated means the e
 | tasks, task-requests, executions | Task baseline, per-round proposals, queuing/cancellation, results, and continuations; tasks supports scope_id filtering, with none for no scope binding |
 | scopes, authorizations, authorization-rules, decisions, operations | Work scopes, approvals/rules, work-related answers, and effect verification |
 | settings, memory, memory/summary, memory/commitments | Draft application, maintenance progress, summaries, and commitment provenance |
-| world/catalog, world/facts, world/slot | Entities/predicate/source, current and historical facts, slot revision |
+| world/catalog, world/facts, world/batches/{id}, world/changes, world/preview | Store entities/roles/predicates, facts/history, batch status, owner edits and read-only recall preview |
 | related, attention | Related resources, pending counts, and bounded lists; attention provides version/as_of/valid_until |
 | requests, clients, core, admin | Receipts, client registration, service lifecycle, World migrations, and program registration |
 
-PublicTaskCommand uses an `acceptance` string array. Continuations supply both reuse_task_id and parent_execution_id; see [task data flow](../../data-flow.md#from-task-proposal-to-result). Settings stores full instructions/edits/command_ids and uses expected_revision for version control. New World resources have revision "0"; a domain batch allows at most 50 items (the public structure allows 100).
+PublicTaskCommand accepts an `acceptance` string array; continuation supplies reuse_task_id and parent_execution_id. See [Task data flow](../../data-flow.md#From task proposal to result). Settings uses expected_revision for instructions and rejects nonempty edits/command_ids. World changes contain 1–20 edits with field deltas and explicit fact targets; no client World revision or slot endpoint. POST world/preview accepts text only and performs no journal/model activity.
 
 ## Master attention (#92)
 
