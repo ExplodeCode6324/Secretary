@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="440" viewBox="0 0 400 440">
+  <!-- Character-grid adaptation of Master's Secretary sheet, 2026-11-13.
+       Deliberately broad hair locks and natural eyelids survive 96 x 104 dots.
+       Source vector: no runtime image decoding or external file required. -->
+  <rect width="400" height="440" fill="#000000"/>
+  <defs>
+    <linearGradient id="hair" x2="0.7" y2="1">
+      <stop stop-color="#cdd0e7"/><stop offset=".5" stop-color="#8e91b4"/>
+      <stop offset="1" stop-color="#333b62"/>
+    </linearGradient>
+    <linearGradient id="face" x2="0" y2="1">
+      <stop stop-color="#c5bdcd"/><stop offset="1" stop-color="#eee1e0"/>
+    </linearGradient>
+    <linearGradient id="hood" x2="0.8" y2="1">
+      <stop stop-color="#c0c5de"/><stop offset="1" stop-color="#4d5677"/>
+    </linearGradient>
+  </defs>
+  <!-- Three interlaced ribbons: open centre, quiet moonlight. -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M91 55 C67 24 130 12 172 33 S256 79 301 54 S275 14 229 31 S122 87 91 55Z" stroke="#8f96bc" stroke-width="6"/>
+    <path d="M84 45 C104 14 157 60 204 62 S291 9 312 41 S260 80 221 57 S124 12 84 45Z" stroke="#d1d2e8" stroke-width="6"/>
+    <path d="M109 65 C72 53 137 29 190 27 S309 45 287 64 S213 37 167 42 S146 78 109 65Z" stroke="#aeb7d9" stroke-width="5"/>
+  </g>
+  <!-- Long hair silhouette, tapering into separated locks. -->
+  <path d="M194 94 C139 65 79 111 65 168 C45 232 58 296 24 365
+    C41 363 47 346 54 333 C40 379 51 409 83 409 L77 378
+    C89 414 112 427 136 413 L128 384 C159 421 237 424 271 388
+    L260 421 C294 421 311 399 318 377 L315 408 C350 406 363 383 351 347
+    C366 369 377 372 381 363 C346 298 355 214 331 157 C308 99 249 76 211 100Z"
+    fill="url(#hair)" stroke="#b6bfdc" stroke-width="3"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M119 132 C62 214 111 316 63 390 M96 165 C72 263 123 341 96 409
+      M281 132 C338 214 289 316 337 390 M306 167 C332 263 282 341 305 406"
+      stroke="#d5daed" stroke-width="4"/>
+    <path d="M65 243 C68 310 50 338 38 359 M334 237 C334 302 352 338 367 360
+      M127 291 C111 355 144 381 125 407 M270 292 C287 350 254 383 277 409"
+      stroke="#707ca4" stroke-width="4"/>
+  </g>
+  <!-- Face is separated from hair, with a soft chin instead of a black disk. -->
+  <path d="M107 202 C106 171 293 166 294 207 L291 275
+    C283 318 239 343 201 348 C161 343 119 319 109 280Z"
+    fill="url(#face)" stroke="#8b829b" stroke-width="3"/>
+  <!-- Hoodie shoulders and folded collar. -->
+  <path d="M160 337 L143 349 C111 355 102 383 99 419 Q200 445 301 419
+    C298 383 288 355 257 349 L240 337 L201 355Z" fill="url(#hood)" stroke="#b7c0d9" stroke-width="3"/>
+  <path d="M146 348 Q168 346 200 368 Q233 346 256 348 L237 380 L202 365 L167 380Z"
+    fill="#bfc5db" stroke="#77819e" stroke-width="3"/>
+  <g fill="none" stroke="#d5d9e5" stroke-width="3" stroke-linecap="round">
+    <path d="M178 375 L174 404 M224 375 L228 404 M125 385 L132 412 M278 384 L269 412"/>
+  </g>
+  <!-- Natural almond-shaped eyes. Dark areas are only lids and small pupils. -->
+  <path d="M122 265 Q148 243 177 263 Q167 288 149 289 Q132 286 122 265Z" fill="#e6e2e8"/>
+  <ellipse cx="151" cy="269" rx="16" ry="20" fill="#8da9db"/>
+  <ellipse cx="152" cy="267" rx="6" ry="11" fill="#414d77"/>
+  <path d="M225 263 Q254 242 280 263 Q270 285 252 289 Q234 287 225 263Z" fill="#eee3de"/>
+  <ellipse cx="252" cy="269" rx="16" ry="20" fill="#eab264"/>
+  <ellipse cx="252" cy="267" rx="5" ry="10" fill="#9b632d"/>
+  <g fill="none" stroke="#292c45" stroke-linecap="round">
+    <path d="M119 259 Q146 242 178 260 M223 260 Q252 241 281 257" stroke-width="7"/>
+    <path d="M126 260 L118 251 M276 259 L284 251" stroke-width="4"/>
+  </g>
+  <g fill="#faf4ef"><circle cx="146" cy="260" r="5"/><circle cx="247" cy="260" r="5"/>
+    <circle cx="156" cy="279" r="2.5"/><circle cx="257" cy="279" r="2.5"/></g>
+  <path d="M196 317 Q201 320 207 316" fill="none" stroke="#a88d9f" stroke-width="3" stroke-linecap="round"/>
+  <path d="M124 297 L138 301 M268 297 L280 293" stroke="#c898ac" stroke-width="3" stroke-linecap="round"/>
+  <!-- Overlapping fringe: fewer, larger locks preserve the character's bangs. -->
+  <path d="M195 102 C129 82 88 150 91 218 L111 303
+    C119 274 118 232 136 213 Q130 239 143 246 C164 226 173 209 178 188
+    Q176 227 192 242 C210 222 216 198 215 174 Q223 216 245 235
+    L247 212 Q264 227 281 231 L289 294 C302 265 309 230 309 196
+    C306 132 266 93 216 109 L204 116Z"
+    fill="url(#hair)" stroke="#3e4568" stroke-width="5"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M195 113 Q134 110 113 187 M200 121 Q162 142 150 205
+      M207 127 Q189 162 190 210 M219 119 Q267 134 282 194"
+      stroke="#e0e2f0" stroke-width="5"/>
+    <path d="M186 107 Q124 130 105 223 M224 116 Q258 159 261 211
+      M239 111 Q298 157 294 230" stroke="#737da7" stroke-width="4"/>
+  </g>
+  <!-- Small moon on the hoodie; no floating UI clutter. -->
+  <path d="M149 388 A10 10 0 1 0 160 402 A10 10 0 0 1 149 388" fill="#d4d9ee"/>
+</svg>

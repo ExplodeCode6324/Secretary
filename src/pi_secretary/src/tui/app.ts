@@ -20,6 +20,7 @@ import {
   matchesKey,
   getKeybindings,
   isKeyRelease,
+  parseKey,
   type Terminal,
 } from "@earendil-works/pi-tui";
 import { attachCore } from "../core-client.ts";
@@ -42,6 +43,29 @@ import {
 } from "./view.ts";
 import { visibleItem } from "./history.ts";
 import { copySelection } from "./clipboard.ts";
+import {
+  ACTIVITY_FRAME_MS,
+  ActivityIndicator,
+  mainActivity,
+} from "./activity-indicator.ts";
+import { Splash } from "./splash.ts";
+import type { Core } from "../api/contracts.ts";
+import { theme } from "./theme.ts";
+
+export type TerminalAppOptions = {
+  /** Show the startup splash until the first real input. Off unless the CLI asks for it. */
+  splash?: boolean;
+  /** Animate the activity indicator. false = static glyph, no timer. */
+  motion?: boolean;
+};
+// Keys, paste, IME text, clicks and wheel count as "Master did something".
+// Mouse motion, focus reports and terminal query replies do not.
+function isUserInput(data: string) {
+  const mouse = /^\x1b\[<(\d+);/.exec(data);
+  if (mouse) return (Number(mouse[1]) & 32) === 0;
+  if (!data.startsWith("\x1b")) return true;
+  return data.startsWith("\x1b[200~") || parseKey(data) !== undefined;
+}
 
 export class TerminalApp {
   readonly tui: TuiAltScreen;
@@ -67,6 +91,12 @@ export class TerminalApp {
   private attentionSelecting = false;
   readonly recoveryNotice = new Text("", 0, 0);
   readonly footer = new Text("连接 Core… Ctrl+C 退出", 0, 0);
+  readonly indicator = new ActivityIndicator();
+  readonly splash = new Splash();
+  private splashOpen: boolean;
+  private indicatorTimer?: ReturnType<typeof setInterval>;
+  private core?: Core;
+  private connected = false;
   page: Page = "Main";
   viewing = false;
   delivery?: Delivery;
@@ -237,7 +267,10 @@ export class TerminalApp {
     ),
     clipboard: (text: string) => Promise<boolean | string> = copySelection,
     private readonly clipboardRead: typeof readClipboard = readClipboard,
+    options: TerminalAppOptions = {},
   ) {
+    this.splashOpen = options.splash ?? false;
+    this.indicator.motion = options.motion ?? false;
     configureKeys();
     const keybindings = getKeybindings();
     // Pi's viewport listener runs first; route page keys through our mode
@@ -404,6 +437,11 @@ export class TerminalApp {
       if (!data.startsWith("\x1b[<"))
         this.documents.Task.cancelNavigationGesture();
       if (isKeyRelease(data)) return { consume: true };
+      // The splash yields to the first real input and never swallows it.
+      if (this.splashOpen && isUserInput(data)) {
+        this.splashOpen = false;
+        this.draw();
+      }
       if (this.localNoticeTimer) {
         clearTimeout(this.localNoticeTimer);
         this.localNoticeTimer = undefined;
@@ -891,11 +929,16 @@ export class TerminalApp {
     const attention = this.page === "Main" ? this.remote?.attention : undefined;
     const pane =
       attention && (!!attention.head?.counts.total || !!attention.error);
-    this.layoutMode = `${active}:${this.page}:${!!pane}:${!!this.mainRecoveryNotice}:${!!this.delivery?.state.drafts.Main.materials?.length}`;
+    const splash = this.splashVisible;
+    this.layoutMode = `${active}:${this.page}:${!!pane}:${!!this.mainRecoveryNotice}:${!!this.delivery?.state.drafts.Main.materials?.length}:${splash}`;
     this.tui.setLayoutRoot(
       new VStack([
         {
-          component: active ? this.matterScroll : this.scrolls[this.page],
+          component: active
+            ? this.matterScroll
+            : splash
+              ? this.splash
+              : this.scrolls[this.page],
           basis: 0,
           grow: 1,
           minSize: 1,
@@ -909,6 +952,11 @@ export class TerminalApp {
                 maxSize: 8,
               },
             ]
+          : []),
+        // Always present on Main, blank when idle: the transcript never jumps
+        // by a row when Secretary starts or stops working.
+        ...(this.page === "Main" && !active
+          ? [{ component: this.indicator, basis: 1, minSize: 0, maxSize: 1 }]
           : []),
         {
           component: active ? this.matterEditor : this.editors[this.page],
@@ -950,6 +998,87 @@ export class TerminalApp {
             ? this.scrolls[this.page]
             : this.editors[this.page],
       );
+  }
+  private get splashVisible() {
+    return (
+      this.splashOpen &&
+      this.page === "Main" &&
+      !this.matters.current &&
+      !this.matters.loading &&
+      !this.mainRecoveryNotice &&
+      !this.delivery?.state.recovery &&
+      !this.delivery?.state.pending &&
+      !this.delivery?.failedSave
+    );
+  }
+  /** Runs only while something is animating; each tick repaints, it never recomputes state. */
+  private syncIndicator() {
+    const pending = this.delivery?.state.pending;
+    this.indicator.activity =
+      this.page === "Main" &&
+      this.remote &&
+      this.connected &&
+      this.remote.timelineReady &&
+      !this.remote.error &&
+      !this.matters.current &&
+      !this.matters.loading
+        ? mainActivity(this.remote.messages.values(), pending)
+        : undefined;
+    // Secretary starting to work is also a reason to leave the splash.
+    if (this.splashOpen && this.indicator.activity?.kind !== undefined)
+      if (this.indicator.activity.kind !== "sending") this.splashOpen = false;
+    const animate =
+      !!this.indicator.activity &&
+      this.indicator.motion &&
+      !this.stopping &&
+      !this.stopped;
+    if (animate && !this.indicatorTimer)
+      this.indicatorTimer = setInterval(() => {
+        if (!this.documents[this.page].selectionDragging)
+          this.tui.requestRender();
+      }, ACTIVITY_FRAME_MS);
+    else if (!animate && this.indicatorTimer) {
+      clearInterval(this.indicatorTimer);
+      this.indicatorTimer = undefined;
+    }
+  }
+  private syncSplash() {
+    if (!this.splashOpen) return;
+    const pane = this.remote?.attention;
+    // Match the bounded sibling allocations in layout(), including resize and
+    // multiline drafts. A fixed six-row subtraction cuts portraits in half.
+    this.splash.height = () => {
+      const width = this.tui.terminal.columns;
+      const bounded = (n: number, min: number, max: number) =>
+        Math.min(max, Math.max(min, n));
+      const editor = bounded(this.editors.Main.render(width).length, 3, 10);
+      const attention =
+        pane && (pane.head?.counts.total || pane.error)
+          ? bounded(pane.render(width).length, 1, 8)
+          : 0;
+      const materials = this.delivery?.state.drafts.Main.materials?.length
+        ? bounded(this.materialRows.render(width).length, 0, 6)
+        : 0;
+      return Math.max(
+        1,
+        this.tui.terminal.rows - editor - attention - materials - 3,
+      );
+    };
+    this.splash.info = {
+      connection:
+        this.connected && this.remote?.timelineReady && !this.remote.error
+          ? "ready"
+          : this.attaching
+            ? "connecting"
+            : "unavailable",
+      detail: safeText(this.remote?.error || this.uiHint),
+      mode: this.core ? safeText(this.core.mode) : undefined,
+      session: this.remote?.session
+        ? safeText(this.remote.session.state)
+        : undefined,
+      attention: pane?.head?.counts.total || undefined,
+      reasoningShown: this.remote?.history.thinking,
+    };
   }
   private clearHint() {
     this.uiHint = "";
@@ -1233,6 +1362,7 @@ export class TerminalApp {
       if (!client) throw Error("Core 未运行/暂不可用；请单独启动 Core");
       const core = await client.core();
       if (this.stopped || this.stopping) return;
+      this.core = core;
       if (
         !/^[a-zA-Z0-9_-]+$/.test(core.data_domain_id) ||
         !/^[a-zA-Z0-9_-]+$/.test(core.mode)
@@ -1284,7 +1414,9 @@ export class TerminalApp {
         this.remoteDirty = true;
         this.draw();
       };
+      this.connected = true;
       this.remote.onDisconnect = (e) => {
+        this.connected = false;
         this.uiHint = "连接中断，保留草稿/阅读位置：" + String(e);
         this.remote?.stop();
         this.guidance?.disconnect();
@@ -1306,6 +1438,7 @@ export class TerminalApp {
       await this.remote.start();
       void this.files?.collect(this.delivery.state).catch(() => {});
     } catch (e) {
+      this.connected = false;
       this.uiHint = String(e);
       this.retry = setTimeout(() => void this.attach(), 2000);
     } finally {
@@ -1443,6 +1576,8 @@ export class TerminalApp {
       }
     }
     if (this.guidancePanel) this.documents.Task.entries = this.guidanceRows();
+    this.syncIndicator();
+    this.syncSplash();
     const active = !!this.matters.current || this.matters.loading;
     const attention = this.page === "Main" ? this.remote?.attention : undefined;
     const pane =
@@ -1457,7 +1592,7 @@ export class TerminalApp {
     this.attentionSelecting = !!attention?.selected;
     if (
       this.layoutMode !==
-      `${active}:${this.page}:${pane}:${!!this.mainRecoveryNotice}:${!!this.delivery?.state.drafts.Main.materials?.length}`
+      `${active}:${this.page}:${pane}:${!!this.mainRecoveryNotice}:${!!this.delivery?.state.drafts.Main.materials?.length}:${this.splashVisible}`
     )
       this.layout();
     if (active) {
@@ -1529,8 +1664,10 @@ export class TerminalApp {
       persistentHint ||
       "/help · Shift+Enter 提交 · ↑ 事项 · PageUp 历史 · Ctrl+C 清空/空框退出";
     this.footer.setText(
-      safeText(
-        `${this.page} · ${this.viewing ? "查看：↑/↓ 滚动 · 输入/粘贴或 Esc 返回" : this.page === "Main" ? "发送到 Main" : "普通草稿，不发送"} ${this.tui.terminal.rows < 8 ? "（窗口过小，请增高）" : ""}\n${hint}`,
+      theme.hint(
+        safeText(
+          `${this.page} · ${this.viewing ? "查看：↑/↓ 滚动 · 输入/粘贴或 Esc 返回" : this.page === "Main" ? "发送到 Main" : "普通草稿，不发送"} ${this.tui.terminal.rows < 8 ? "（窗口过小，请增高）" : ""}\n${hint}`,
+        ),
       ),
     );
     this.tui.requestRender();
@@ -1545,6 +1682,7 @@ export class TerminalApp {
       this.stopped = true;
       clearTimeout(this.retry);
       clearInterval(this.statusTimer);
+      clearInterval(this.indicatorTimer);
       clearTimeout(this.localNoticeTimer);
       this.remote?.stop();
       this.matters.stop();

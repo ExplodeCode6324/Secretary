@@ -1,3 +1,4 @@
+import { setColorDepth } from "../../../src/pi_secretary/src/tui/theme.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs/promises";
@@ -100,13 +101,14 @@ test("real Core timeline renders Master blue, assistant white, system neutral an
       (i) => i.kind === "activity" && i.activity.kind === "tool",
     );
     assert(master && assistant && tool, JSON.stringify(items));
+    setColorDepth("256");
     const rendered = (i: typeof master) =>
       timelineComponent(i).render(100).join("\n");
-    assert.match(rendered(master), /\x1b\[38;5;117m/);
+    assert.match(rendered(master), /\x1b\[38;5;153m/);
     assert.match(rendered(master), /Master/);
     assert.match(rendered(master), /─{10}/);
     assert.match(rendered(assistant), /\x1b\[37m/);
-    assert.match(rendered(tool), /\x1b\[38;5;218m/);
+    assert.match(rendered(tool), /\x1b\[38;5;215m/);
     const system = { ...master, role: "system" };
     assert.match(rendered(system), /系统/);
     assert.doesNotMatch(rendered(system), /工具/);
