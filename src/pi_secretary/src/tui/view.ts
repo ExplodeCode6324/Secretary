@@ -18,6 +18,7 @@ import {
 } from "./markdown-window.ts";
 import { renderBlocks } from "./markdown-block-render.ts";
 import { color } from "./input.ts";
+import { theme, type Paint } from "./theme.ts";
 import type { MessageBody, RegionWindow } from "./body.ts";
 
 export function safeText(text: string) {
@@ -34,26 +35,50 @@ export function visibleMatterText(text: string) {
       `\\u{${character.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}}`,
   );
 }
-const white = color("37"),
-  gray = color("90"),
-  blue = color("38;5;117"),
-  pink = color("38;5;218");
+const white = theme.body,
+  gray = theme.reasoning,
+  blue = theme.masterText,
+  pink = theme.tool;
 export const markdownTheme: MarkdownTheme = {
-  heading: color("1;37"),
-  link: white,
-  linkUrl: gray,
-  code: white,
+  heading: theme.heading,
+  link: theme.link,
+  linkUrl: theme.hint,
+  code: theme.selected,
   codeBlock: white,
-  codeBlockBorder: gray,
+  codeBlockBorder: theme.rule,
   quote: white,
-  quoteBorder: gray,
-  hr: gray,
-  listBullet: white,
+  quoteBorder: theme.rule,
+  hr: theme.rule,
+  listBullet: theme.link,
   bold: color("1"),
   italic: color("3"),
   strikethrough: color("9"),
   underline: color("4"),
 };
+/** Rounded box around lines that were rendered at `inner` columns; result is inner + 4 wide. */
+export function boxLines(
+  lines: string[],
+  inner: number,
+  label: string,
+  border: Paint = theme.masterBorder,
+  title: Paint = theme.masterLabel,
+): string[] {
+  const name = ` ${label} `,
+    fill = Math.max(0, inner + 1 - visibleWidth(name));
+  return [
+    border("╭─") + title(name) + border("─".repeat(fill) + "╮"),
+    ...lines.map(
+      (line) =>
+        border("│") +
+        " " +
+        line +
+        " ".repeat(Math.max(0, inner - visibleWidth(line))) +
+        " " +
+        border("│"),
+    ),
+    border("╰" + "─".repeat(inner + 2) + "╯"),
+  ];
+}
 export type SourceRow = {
   region: "body" | "thinking" | "header" | "activity" | "artifacts";
   block_start_utf16: number;
@@ -285,16 +310,16 @@ export function messageComponent(
         : role === "toolResult" || role === "tool"
           ? pink
           : white;
-  const title =
-    role === "master" || role === "user"
-      ? assistantLabel === "Agent"
-        ? "── 任务输入 ──"
-        : "── Master ──"
-      : role === "assistant"
-        ? assistantLabel
-        : role === "system"
-          ? "系统"
-          : `工具 ${m.tool_name ?? role}${m.call_id ? " · " + m.call_id : ""}`;
+  const fromMaster = role === "master" || role === "user";
+  const title = fromMaster
+    ? assistantLabel === "Agent"
+      ? "任务输入"
+      : "Master"
+    : role === "assistant"
+      ? assistantLabel
+      : role === "system"
+        ? "系统"
+        : `工具 ${m.tool_name ?? role}${m.call_id ? " · " + m.call_id : ""}`;
   const md = new SourceMarkdown(
     m.text,
     paint,
@@ -315,7 +340,11 @@ export function messageComponent(
       thought.invalidate();
     },
     render: (width) => component.renderMapped!(width).lines,
-    renderMapped: (width) => {
+    renderMapped: (outer) => {
+      // Master messages are boxed; everything inside renders 4 columns narrower.
+      // Below 16 columns the box would cost more than it gives, so fall back to rules.
+      const boxed = fromMaster && outer >= 16,
+        width = boxed ? outer - 4 : outer;
       const lines: string[] = [],
         rows: SourceRow[] = [];
       const add = (
@@ -366,7 +395,13 @@ export function messageComponent(
             "after",
           );
       };
-      text(paint(safeText(title)));
+      if (!boxed)
+        add(
+          new Text(safeText(fromMaster ? `── ${title} ──` : title), 0, 0)
+            .render(width)
+            .map(role === "assistant" ? theme.assistantLabel : paint),
+          "header",
+        );
       if (assistantLabel === "Agent" && m.persistence === "transient") {
         text(
           gray(
@@ -396,7 +431,7 @@ export function messageComponent(
         !m.next_cursor &&
         !body?.body.after
       ) {
-        const cyan = color("36");
+        const cyan = theme.artifact;
         let artifactRow = 0;
         const artifactText = (value: string, boundary?: "before" | "after") => {
           for (const line of new Text(
@@ -438,7 +473,17 @@ export function messageComponent(
         }
       }
       if (m.next_cursor) text(gray("正文片段读取中…"));
-      if (role === "master" || role === "user")
+      const edge = (): SourceRow => ({
+        region: "header",
+        block_start_utf16: 0,
+        row_in_block: 0,
+      });
+      if (boxed) {
+        // Decoration only: one border row above and below, source rows untouched.
+        lines.splice(0, lines.length, ...boxLines(lines, width, title));
+        rows.unshift(edge());
+        rows.push(edge());
+      } else if (fromMaster)
         add([blue("─".repeat(Math.max(1, width)))], "header");
       add([""], "header");
       return { lines, rows };

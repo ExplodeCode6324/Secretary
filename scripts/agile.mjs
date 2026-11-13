@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { visualEnvironment, visualOptions } from "../src/pi_secretary/src/tui/options.ts";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 process.chdir(root);
 process.umask(0o077);
@@ -13,9 +14,10 @@ fs.mkdirSync(path.dirname(maintenance), { recursive: true, mode: 0o700 });
 if (action === "stop") fs.writeFileSync(maintenance, JSON.stringify({ since: new Date().toISOString(), reason: "agile maintenance" }), { mode: 0o600 });
 if (action === "start") fs.rmSync(maintenance, { force: true });
 if (action === "ensure" && fs.existsSync(maintenance)) process.exit(0);
+const visual = visualEnvironment(process.env);
 // The deployment has one stable domain; inherited settings cannot redirect it.
 for (const key of Object.keys(process.env)) if (key.startsWith("SECRETARY_")) delete process.env[key];
-Object.assign(process.env, {
+Object.assign(process.env, visual, {
   SECRETARY_DATA: path.join(root, "data/core"),
   SECRETARY_MODE: "live",
   SECRETARY_CREDENTIALS_FILE: path.join(root, ".local/deepseek-credentials.json"),
@@ -43,7 +45,7 @@ if (action === "start" || action === "ensure") {
   if (!process.stdin.isTTY || !process.stdout.isTTY) throw Error("TUI_REQUIRES_TERMINAL");
   if (!await attachCore(process.env.SECRETARY_DATA)) throw Error("Start the agile Core first");
   const { TerminalApp } = await import("../src/pi_secretary/src/tui/app.ts");
-  const app = new TerminalApp(process.env.SECRETARY_DATA, undefined, path.join(root, "data/tui"));
+  const app = new TerminalApp(process.env.SECRETARY_DATA, undefined, path.join(root, "data/tui"), undefined, undefined, visualOptions());
   for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => void app.close());
   app.start();
 } else {

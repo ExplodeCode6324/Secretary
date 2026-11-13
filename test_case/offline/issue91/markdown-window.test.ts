@@ -1,3 +1,6 @@
+import { setColorDepth } from "../../../src/pi_secretary/src/tui/theme.ts";
+// These formatting assertions compare ANSI bytes, independently of the runner environment.
+setColorDepth("256");
 import test from "node:test";
 import assert from "node:assert/strict";
 import { Markdown, stripTerminalSequences } from "@earendil-works/pi-tui";
