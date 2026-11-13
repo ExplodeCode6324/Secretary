@@ -222,3 +222,39 @@ test("a disposable hung child cannot trap the recovery coordinator after its com
   );
   assert(Date.now() - at < 3000);
 });
+
+test("inert archive verification supports retained symbolic and hard links", async () => {
+  const f = fixture();
+  try {
+    const { tree, digestFile } =
+      await import("../../../scripts/agile-diagnostics/capture-files.mjs");
+    const dir = path.join(f.root, "source");
+    fs.mkdirSync(dir);
+    fs.writeFileSync(path.join(dir, "a"), "synthetic", { mode: 0o600 });
+    fs.linkSync(path.join(dir, "a"), path.join(dir, "b"));
+    fs.symlinkSync("a", path.join(dir, "c"));
+    const files = {};
+    for (const name of ["a", "b"])
+      files[name] = {
+        sha256: await digestFile(path.join(dir, name)),
+        bytes: 9,
+        mode: 0o600,
+      };
+    const manifest = path.join(f.root, "source.json"),
+      archive = path.join(f.root, "source.tar");
+    fs.writeFileSync(manifest, JSON.stringify({ tree: tree(dir), files }));
+    await command("/usr/bin/tar", ["-cf", archive, "-C", dir, "."], {
+      env: { PATH: "/usr/bin:/bin", COPYFILE_DISABLE: "1" },
+    });
+    const script = new URL(
+      "../../../scripts/agile-diagnostics/verify-archive.py",
+      import.meta.url,
+    ).pathname;
+    assert.match(
+      await command("/usr/bin/python3", [script, archive, manifest]),
+      /ARCHIVE_VERIFIED/,
+    );
+  } finally {
+    f.cleanup();
+  }
+});

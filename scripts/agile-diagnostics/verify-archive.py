@@ -18,11 +18,13 @@ with tarfile.open(sys.argv[1], 'r:') as archive:
         meta = expected['tree'][name]
         if member.isfile() or member.islnk():
             h = hashlib.sha256()
+            size = 0
             with archive.extractfile(member) as source:
                 for b in iter(lambda: source.read(1024 * 1024), b''):
                     h.update(b)
+                    size += len(b)
             file = expected['files'][name]
-            if (h.hexdigest(), member.size, member.mode & 0o777) != (file['sha256'], file['bytes'], file['mode']):
+            if (h.hexdigest(), size, member.mode & 0o777) != (file['sha256'], file['bytes'], file['mode']):
                 raise RuntimeError('ARCHIVE_FILE_MISMATCH')
         elif member.issym():
             if meta['kind'] != 'symlink' or member.linkname != meta['target']:
