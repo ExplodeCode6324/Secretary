@@ -42,3 +42,20 @@ candidate. No main merge is authorized.
 PR 当前提交的 CI、待审部署清单和实际终端结果在 PR/本地私有证据中追加。
 物理键盘中文输入法与 Master 审美验收未由自动测试替代。首次待审部署不前移 agile
 分支引用，不停止 Core，也不创建第二实例；若本地已有 TUI 占用，不终止 Master 的进程。
+
+
+## R2 · Master supplied Luna v0.1 replacement
+
+Master directly requested replacing the custom character with the supplied
+`luna-braille-v01` package, then updating the local preview for inspection.
+All ten package-manifest checksums were verified. The two source character grids
+are copied unchanged and packaged losslessly, preserving all original characters
+and 73/90 RGB colors respectively. The full 56×28 and 72×36 compositions are
+selected by available space; small slots fall back to text. The prior custom
+SVG/halo and their image-conversion script are retired from the active source.
+Conversation styling, input behavior and Core/data handling are unchanged.
+
+This supersedes R1's custom character direction. Continue on PR #118; refresh CI
+before updating the existing local candidate overlay. Master review remains the
+merge gate. The original work package, prior commit and private deployment
+preimages are retained.

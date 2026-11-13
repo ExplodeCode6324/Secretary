@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 import type {
   Message,
@@ -172,16 +173,39 @@ test("splash: picks a tier that fits, never exceeds the slot, works without colo
   assert.doesNotMatch(splash.render(20).join("\n"), /[⠁-⣿]/);
 });
 
-test("splash art asset is rectangular and its ink only references its palette", async () => {
+test("splash assets preserve every supplied Luna character and RGB value", async () => {
   const art = await import("../../../src/pi_secretary/src/tui/splash-art.ts");
-  for (const asset of [art.SPLASH_PORTRAIT, art.SPLASH_HALO]) {
+  for (const asset of [art.SPLASH_PORTRAIT, art.SPLASH_PORTRAIT_LARGE]) {
+    const source = JSON.parse(
+      fs.readFileSync(
+        new URL(
+          `../../../docs/tui/assets/luna-braille-v01/luna-${asset.cols}x${asset.cells.length}-v01.cells.json`,
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
     assert.equal(asset.cells.length, asset.ink.length);
     asset.cells.forEach((row, i) => {
       assert.equal(Array.from(row).length, asset.cols);
-      assert.equal(asset.ink[i].length, asset.cols);
-      assert.match(row, /^[⠀-⣿]+$/);
-      for (const slot of asset.ink[i].replace(/ /g, ""))
+      assert.equal(asset.ink[i].length, asset.cols * 2);
+      assert.match(row, /^[ ⠀-⣿]+$/);
+      for (const slot of asset.ink[i].match(/.{2}/g)!.filter((s) => s !== "  "))
         assert(parseInt(slot, 16) < asset.palette.length);
+      Array.from(row).forEach((char, x) => {
+        const original = source.rows[i][x];
+        assert.equal(char, original.char);
+        const slot = asset.ink[i].slice(x * 2, x * 2 + 2);
+        assert.equal(
+          slot === "  " ? null : asset.palette[parseInt(slot, 16)],
+          original.fg === null
+            ? null
+            : "#" +
+                original.fg
+                  .map((v: number) => v.toString(16).padStart(2, "0"))
+                  .join(""),
+        );
+      });
     });
   }
 });

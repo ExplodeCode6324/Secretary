@@ -1,15 +1,28 @@
 # Startup character assets
 
-The 2026-11-13 agile visual refresh adapts Master's Secretary character sheet
-(`FC16A300-46C4-4EAA-A7B2-43C5612414F1.PNG`) into the checked-in
-`splash-character.svg`. This vector is a deliberately simplified character-grid
-interpretation, not a pixel-faithful crop or an edited copy of the original sheet.
-It retains silver/lavender long hair, a woven halo, a hoodie collar, natural eye
-shapes, and small moon-blue/sun-gold accents. The original sheet remains local.
+The current startup character is Master's supplied **Luna Braille v0.1** package.
+The two original `*.cells.json` files in `luna-braille-v01/` are preserved byte for
+byte. They replace the earlier custom SVG portrait and halo. No redraw, color
+quantization, point edits, row trimming or runtime resizing is applied.
 
-`src/pi_secretary/src/tui/splash-art.ts` contains the generated 48-column portrait
-and 30-column halo. The TUI only loads those text constants; no raster decoding,
-external source file, image protocol or generation service runs at startup.
+| Source | Grid | Original SHA-256 |
+| --- | --- | --- |
+| `luna-56x28-v01.cells.json` | 56 × 28 | `fc46c7430f85b313637866995d713b1979d681517fa6577f71608f33b4cf1347` |
+| `luna-72x36-v01.cells.json` | 72 × 36 | `f25bfa7bedbb1c60e2d5d247ab18cb185ef917f3ed1181bb99022eb0494f0541` |
+
+`generate-splash.mjs` packages each exact character and RGB value into static
+TypeScript constants, using a lossless palette with two-digit indices. The TUI
+renders foreground color runs through its existing truecolor / 256-color /
+no-color support. It does not print the supplied ANSI files outside the renderer
+and does not require Python or access to Downloads at runtime. The package's
+background reference is #171921; the TUI retains the terminal's own background.
+
+The largest complete grid that fits beside the information panel is selected.
+Narrow, tall windows can stack the whole portrait above the panel; smaller slots
+show text only. With the ordinary five-row input/footer and one-row activity
+area, approximately 120 × 36 terminal cells show the 56 × 28 version and
+140 × 44 show the 72 × 36 version. Additional attention/attachment rows need more
+height. The old custom halo is no longer used as a fallback.
 
 From the repository root:
 
@@ -17,15 +30,13 @@ From the repository root:
 node src/pi_secretary/scripts/generate-splash.mjs
 node src/pi_secretary/scripts/generate-splash.mjs --check
 npx tsx src/pi_secretary/scripts/tui-preview.ts splash 120 30
+npx tsx src/pi_secretary/scripts/tui-preview.ts splash 140 38
 npx tsx src/pi_secretary/scripts/tui-preview.ts splash 80 18
-npx tsx src/pi_secretary/scripts/tui-preview.ts chat 100
 ```
 
-The preview height is the available splash slot, excluding the input/footer area.
-Previews use synthetic data and start no Core. `braille-art.ts` performs a
-deterministic build-time conversion; `generate-splash.mjs` records the exact
-palette, crop, contrast and size parameters for both assets. Actual glyph weight
-and spacing depend on the terminal font.
+Preview height is the available splash slot, excluding the input/footer area.
+Previews use synthetic data and start no Core. The supplied PNGs use Noto Sans
+Symbols 2; the real terminal's font/fallback and line spacing may differ.
 
 Both the generic CLI and agile launcher enable the startup splash and activity
 motion by default. `SECRETARY_TUI_SPLASH=off` skips the splash;

@@ -3,7 +3,7 @@ import {
   visibleWidth,
   type Component,
 } from "@earendil-works/pi-tui";
-import { SPLASH_HALO, SPLASH_PORTRAIT } from "./splash-art.ts";
+import { SPLASH_PORTRAIT, SPLASH_PORTRAIT_LARGE } from "./splash-art.ts";
 import { paintHex, theme } from "./theme.ts";
 
 /** Everything the splash shows. All values are display-only and already sanitised by the caller. */
@@ -33,18 +33,18 @@ function artRow(art: Art, row: number): string {
     ink = art.ink[row];
   let out = "",
     run = "",
-    slot = " ";
+    slot = "  ";
   const flush = () => {
     if (run)
       out +=
-        slot === " " ? run : paintHex(art.palette[parseInt(slot, 16)])(run);
+        slot === "  " ? run : paintHex(art.palette[parseInt(slot, 16)])(run);
     run = "";
   };
   for (let i = 0; i < art.cols; i++) {
-    const next = ink[i] ?? " ";
+    const next = ink.slice(i * 2, i * 2 + 2);
     if (next !== slot) flush();
     slot = next;
-    run += slot === " " ? " " : cells[i];
+    run += slot === "  " ? " " : cells[i];
   }
   flush();
   return out;
@@ -130,24 +130,25 @@ export class Splash implements Component {
     const fits = (art: Art) =>
       width >= art.cols + gap + panelWidth + 2 &&
       available >= Math.max(art.cells.length, panel.length);
-    const portrait: Art = SPLASH_PORTRAIT,
-      halo: Art = SPLASH_HALO;
+    const portraits: Art[] = [SPLASH_PORTRAIT_LARGE, SPLASH_PORTRAIT];
+    const beside = portraits.find(fits);
+    const stacked = portraits.find(
+      (art) =>
+        width >= Math.max(art.cols, panelWidth) + 2 &&
+        available >= art.cells.length + 1 + panel.length,
+    );
     let lines: string[];
-    if (fits(portrait)) lines = this.beside(portrait, panel, gap);
-    else if (fits(halo)) lines = this.beside(halo, panel, gap);
-    else if (
-      width >= Math.max(halo.cols, panelWidth) + 2 &&
-      available >= halo.cells.length + 1 + panel.length
-    ) {
-      // Narrow but tall: halo above the panel.
-      const inner = Math.max(halo.cols, panelWidth);
+    if (beside) lines = this.beside(beside, panel, gap);
+    else if (stacked) {
+      const inner = Math.max(stacked.cols, panelWidth);
       lines = [
-        ...halo.cells.map((_, r) => centre(artRow(halo, r), inner)),
+        ...stacked.cells.map((_, r) => centre(artRow(stacked, r), inner)),
         "",
         ...panel,
       ];
     }
-    // Text only. Never wrap; clip instead.
+    // Supplied grids are indivisible: never crop or resample the character.
+    // Small slots use text until a complete portrait fits.
     else lines = panel.map((line) => truncateToWidth(line, Math.max(1, width)));
     const block = Math.max(...lines.map(visibleWidth)),
       left = " ".repeat(Math.max(0, Math.floor((width - block) / 2))),
