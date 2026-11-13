@@ -22,6 +22,7 @@ export async function command(
     timeout = 30000,
     output,
     max = 4 * 1024 ** 2,
+    killGrace = 2000,
   } = {},
 ) {
   if (!path.isAbsolute(file)) fail("BINARY_NOT_ABSOLUTE");
@@ -34,31 +35,46 @@ export async function command(
     });
     let data = [],
       size = 0,
-      failed = false;
-    const timer = setTimeout(() => {
-      failed = true;
-      child.kill("SIGTERM");
-    }, timeout);
-    child.stdout?.on("data", (b) => {
-      size += b.length;
-      if (size > max) {
-        failed = true;
-        child.kill("SIGTERM");
-      } else data.push(b);
-    });
-    child.stderr.on("data", () => {}); // Never expose command errors containing private config/SQL/paths.
-    child.on("error", () => {
-      failed = true;
-    });
-    child.on("close", (code) => {
+      failed = false,
+      hardTimer,
+      settled = false;
+    const settle = (code) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(timer);
+      clearTimeout(hardTimer);
       if (fd !== undefined) {
         fs.fsyncSync(fd);
         fs.closeSync(fd);
       }
       if (failed || code !== 0) reject(Error("COMMAND_FAILED"));
       else resolve(Buffer.concat(data).toString());
+    };
+    const terminate = () => {
+      failed = true;
+      child.kill("SIGTERM");
+      if (!hardTimer)
+        hardTimer = setTimeout(() => {
+          child.kill("SIGKILL");
+          child.stdout?.destroy();
+          child.stderr.destroy();
+          settle(-1);
+        }, killGrace);
+    };
+    const timer = setTimeout(() => {
+      terminate();
+    }, timeout);
+    child.stdout?.on("data", (b) => {
+      size += b.length;
+      if (size > max) {
+        terminate();
+      } else data.push(b);
     });
+    child.stderr.on("data", () => {}); // Never expose command errors containing private config/SQL/paths.
+    child.on("error", () => {
+      failed = true;
+    });
+    child.on("close", settle);
   });
 }
 export async function holdLocks(python, files) {

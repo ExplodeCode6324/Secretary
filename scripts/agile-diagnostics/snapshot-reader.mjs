@@ -55,6 +55,10 @@ export async function readSnapshot(input, overrides = {}) {
     frames = new Map(),
     events = [];
   const touched = new Map();
+  for (const name of ["manifest.json", "contracts.schema.json"]) {
+    const p = safePath(root, name);
+    touched.set(p, JSON.stringify(stamp(fs.statSync(p, { bigint: true }))));
+  }
   let casBytes = 0,
     journalBytes = 0,
     mutations = 0,
@@ -231,6 +235,7 @@ export async function readSnapshot(input, overrides = {}) {
   }
   if (pending.length) fail("TRUNCATED_JOURNAL");
   const journalHash = hash.digest("hex");
+  touched.set(journal, JSON.stringify(stamp(initial)));
   if (
     JSON.stringify(stamp(initial)) !==
     JSON.stringify(stamp(fs.statSync(journal, { bigint: true })))

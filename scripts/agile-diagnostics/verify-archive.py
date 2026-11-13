@@ -16,7 +16,7 @@ with tarfile.open(sys.argv[1], 'r:') as archive:
             raise RuntimeError('ARCHIVE_UNEXPECTED_MEMBER')
         seen.add(name)
         meta = expected['tree'][name]
-        if member.isfile():
+        if member.isfile() or member.islnk():
             h = hashlib.sha256()
             with archive.extractfile(member) as source:
                 for b in iter(lambda: source.read(1024 * 1024), b''):

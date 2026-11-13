@@ -13,7 +13,10 @@ import {
   assertNoFrozenWriters,
 } from "../../../scripts/agile-diagnostics/capture-guards.mjs";
 import { pgEnvironment } from "../../../scripts/agile-diagnostics/capture.mjs";
-import { holdLocks } from "../../../scripts/agile-diagnostics/process.mjs";
+import {
+  holdLocks,
+  command,
+} from "../../../scripts/agile-diagnostics/process.mjs";
 import { fixture, at } from "./fixtures.mjs";
 const actions = [
   "prepare",
@@ -205,4 +208,17 @@ test("open frozen writer blocks capture; read locks and operational log writers 
     "p1\nf4\nar\nn/synthetic/data/core/owner.lock\nf5\naw\nn/synthetic/.local/supervisor.log",
     roots,
   );
+});
+
+test("a disposable hung child cannot trap the recovery coordinator after its command deadline", async () => {
+  const at = Date.now();
+  await assert.rejects(
+    command(
+      process.execPath,
+      ["-e", "process.on('SIGTERM',()=>{});setInterval(()=>{},1000)"],
+      { timeout: 300, killGrace: 200 },
+    ),
+    /COMMAND_FAILED/,
+  );
+  assert(Date.now() - at < 3000);
 });
