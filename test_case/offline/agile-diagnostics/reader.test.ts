@@ -153,3 +153,68 @@ test("forbidden output refuses before creating directories", () =>
     assert.throws(() => privateJSON(p, {}, { forbidden: [f.core] }));
     assert(!fs.existsSync(path.dirname(p)));
   }));
+
+test("manifest publication stays non-positive on validation failure or crash window", () =>
+  using(async (f) => {
+    const { publishCapture } =
+      await import("../../../scripts/agile-diagnostics/publish.mjs");
+    f.seal();
+    const file = path.join(f.root, "manifest.json"),
+      manifest = JSON.parse(fs.readFileSync(file));
+    fs.unlinkSync(file);
+    await assert.rejects(
+      publishCapture(f.root, manifest, async () => {
+        await assert.rejects(readSnapshot(f.root), /NOT_OFFLINE_CAPTURE/);
+        throw Error("INJECTED_VALIDATION_FAILURE");
+      }),
+      /INJECTED_VALIDATION_FAILURE/,
+    );
+    assert.equal(JSON.parse(fs.readFileSync(file)).status, "VALIDATING");
+    await assert.rejects(readSnapshot(f.root), /NOT_OFFLINE_CAPTURE/);
+    fs.unlinkSync(file);
+    await publishCapture(f.root, manifest, () =>
+      readSnapshot(f.root, {}, { allowValidating: true }),
+    );
+    assert.equal((await readSnapshot(f.root)).manifest.status, "CAPTURED");
+  }));
+test("copy preserves and verifies directory modes beneath private outer root", () =>
+  using(async (f) => {
+    const { verifyMetadata } =
+      await import("../../../scripts/agile-diagnostics/capture-files.mjs");
+    fs.mkdirSync(path.join(f.core, "public-shape"));
+    fs.chmodSync(path.join(f.core, "public-shape"), 0o755);
+    f.commit();
+    const dest = path.join(f.root, "copy"),
+      previous = process.umask(0o077);
+    let result;
+    try {
+      result = await copyTree(f.core, dest);
+    } finally {
+      process.umask(previous);
+    }
+    verifyMetadata(dest, result.before);
+    assert.equal(
+      fs.statSync(path.join(dest, "public-shape")).mode & 0o777,
+      0o755,
+    );
+    fs.chmodSync(path.join(dest, "public-shape"), 0o700);
+    assert.throws(
+      () => verifyMetadata(dest, result.before),
+      /COPY_METADATA_MISMATCH/,
+    );
+  }));
+
+test("unmapped source links are refused before archive or stop", () =>
+  using(async (f) => {
+    const { tree, assertSourceLinks } =
+      await import("../../../scripts/agile-diagnostics/capture-files.mjs");
+    fs.symlinkSync("/unmapped-external-root", path.join(f.core, "external"));
+    assert.throws(
+      () => assertSourceLinks(f.core, tree(f.core)),
+      /UNMAPPED_SOURCE_LINK/,
+    );
+    fs.unlinkSync(path.join(f.core, "external"));
+    fs.writeFileSync(path.join(f.core, "target"), "synthetic");
+    fs.symlinkSync("target", path.join(f.core, "internal"));
+    assertSourceLinks(f.core, tree(f.core));
+  }));

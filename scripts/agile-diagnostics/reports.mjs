@@ -119,10 +119,11 @@ export function usageReport(s, options = {}) {
       identity_unavailable: rows.some((c) => c.identity_unavailable),
     };
   });
-  const payloads = new Set();
+  const payloads = new Set(),
+    selectedIds = new Set(selected.map((c) => c.id));
   for (const e of s.events.filter((e) => e.event_type === "model.payload")) {
     const p = s.json(e.payload);
-    if (selected.some((c) => c.id === p.call_id)) payloads.add(p.call_id);
+    if (selectedIds.has(p.call_id)) payloads.add(p.call_id);
   }
   const auths = s.all("AuthorizationRequest").filter(selectedScope),
     authRows = [],
@@ -185,7 +186,7 @@ export function usageReport(s, options = {}) {
       kind: o.rule_id.startsWith("builtin:")
         ? "builtin"
         : s.get("AuthorizationRule", o.rule_id)
-          ? "remembered"
+          ? "user_rule"
           : "unclassified",
     }));
   const repeated = [...repeats]
@@ -205,6 +206,16 @@ export function usageReport(s, options = {}) {
     ),
     saved_successes: rows.filter((r) => r.state === "RESPONSE_SAVED").length,
     usage: tokens(rows),
+    usage_by_state_response: Object.fromEntries(
+      [...new Set(rows.map((r) => r.state + ":" + r.response_present))].map(
+        (key) => [
+          key,
+          tokens(
+            rows.filter((r) => r.state + ":" + r.response_present === key),
+          ),
+        ],
+      ),
+    ),
     usage_by_state: Object.fromEntries(
       [...new Set(rows.map((r) => r.state))].map((state) => [
         state,
@@ -247,17 +258,15 @@ export function usageReport(s, options = {}) {
       (x) => x.selected_attempts && x.successes > 1,
     ).length,
     unclassified_time_calls: calls.filter((c) => c.at === null).length,
-    groups: [...groups.values()]
-      .slice(0, detailLimit)
-      .map((rows) => ({
-        day: rows[0].day,
-        task_id: rows[0].task,
-        execution_id: rows[0].execution,
-        role: rows[0].role,
-        model: rows[0].model,
-        provider: rows[0].provider,
-        ...aggregate(rows),
-      })),
+    groups: [...groups.values()].slice(0, detailLimit).map((rows) => ({
+      day: rows[0].day,
+      task_id: rows[0].task,
+      execution_id: rows[0].execution,
+      role: rows[0].role,
+      model: rows[0].model,
+      provider: rows[0].provider,
+      ...aggregate(rows),
+    })),
     group_count: groups.size,
     groups_truncated: groups.size > detailLimit,
     authorization: {

@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { createInterface } from "node:readline";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { fail } from "./io.mjs";
@@ -81,18 +82,37 @@ export async function holdLocks(python, files) {
   const child = spawn(
     python,
     [fileURLToPath(new URL("./lock-guard.py", import.meta.url)), ...files],
-    { env: environment(), stdio: ["pipe", "pipe", "ignore"] },
+    { env: environment(), detached: true, stdio: ["pipe", "pipe", "ignore"] },
   );
-  let release = false;
+  let release = false,
+    identities,
+    exited = false;
+  const exitPromise = new Promise((resolve) =>
+    child.once("exit", () => {
+      exited = true;
+      resolve();
+    }),
+  );
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
       child.stdin.end();
       reject(Error("LOCK_TIMEOUT"));
     }, 5000);
-    child.stdout.once("data", (b) => {
+    createInterface({ input: child.stdout }).once("line", (line) => {
       clearTimeout(timer);
-      if (b.toString().trim() === "LOCKED") resolve();
-      else reject(Error("LOCK_FAILED"));
+      try {
+        const result = JSON.parse(line);
+        if (
+          result.status !== "LOCKED" ||
+          !Array.isArray(result.identities) ||
+          result.identities.length !== files.length
+        )
+          throw Error();
+        identities = result.identities;
+        resolve();
+      } catch {
+        reject(Error("LOCK_FAILED"));
+      }
     });
     child.once("error", () => {
       clearTimeout(timer);
@@ -105,39 +125,70 @@ export async function holdLocks(python, files) {
   });
   return {
     pid: child.pid,
-    alive: () => child.exitCode === null && !release,
+    identities,
+    alive: () => !exited && !release,
+    assertHeld: () => {
+      if (exited || release) fail("WRITER_LOCK_LOST");
+      for (const i of identities) {
+        const st = fs.lstatSync(i.file, { bigint: true });
+        if (
+          !st.isFile() ||
+          st.isSymbolicLink() ||
+          String(st.dev) !== i.dev ||
+          String(st.ino) !== i.ino ||
+          Number(st.mode) !== i.mode ||
+          Number(st.uid) !== i.uid
+        )
+          fail("LOCK_REPLACED");
+      }
+    },
     release: async () => {
       release = true;
       child.stdin.end();
-      if (child.exitCode === null)
-        await new Promise((r) => child.once("exit", r));
+      if (!exited) {
+        let timer;
+        try {
+          await Promise.race([
+            exitPromise,
+            new Promise((_, reject) => {
+              timer = setTimeout(
+                () => reject(Error("LOCK_RELEASE_TIMEOUT")),
+                3000,
+              );
+            }),
+          ]);
+        } finally {
+          clearTimeout(timer);
+        }
+      }
     },
   };
 }
-export async function processes() {
-  const lines = (
-    await command("/bin/ps", ["-axo", "pid=,ppid=,lstart=,command="])
-  )
+export function parseProcessLine(line) {
+  const m = line
     .trim()
-    .split("\n");
-  return lines
-    .map((line) => {
-      const m = line
-        .trim()
-        .match(
-          /^(\d+)\s+(\d+)\s+(\w+\s+\w+\s+\d+\s+\d+:\d+:\d+\s+\d+)\s+(.*)$/,
-        );
-      return (
-        m && {
-          pid: +m[1],
-          ppid: +m[2],
-          started: Date.parse(m[3]),
-          command: m[4],
-        }
-      );
-    })
-    .filter(Boolean);
+    .match(/^(\d+)\s+(\d+)\s+(\w+\s+\w+\s+\d+\s+\d+:\d+:\d+\s+\d+)\s+(.*)$/);
+  if (!m || !Number.isFinite(Date.parse(m[3] + " UTC")))
+    fail("PROCESS_ROW_UNPARSEABLE");
+  return {
+    pid: +m[1],
+    ppid: +m[2],
+    started: Date.parse(m[3] + " UTC"),
+    command: m[4],
+  };
 }
+export async function processes() {
+  const out = await command(
+    "/bin/ps",
+    ["-axo", "pid=,ppid=,lstart=,command="],
+    { env: { ...environment(), TZ: "UTC" } },
+  );
+  return out
+    .split("\n")
+    .filter((line) => line.trim())
+    .map(parseProcessLine);
+}
+
 export function descendants(rows, pid) {
   const ids = new Set([pid]);
   let changed = true;

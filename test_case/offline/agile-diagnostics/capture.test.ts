@@ -258,3 +258,212 @@ test("inert archive verification supports retained symbolic and hard links", asy
     f.cleanup();
   }
 });
+
+test("held-lock identity detects a replaced path and dead helper", async () => {
+  const f = fixture(),
+    file = path.join(f.root, "state.lock");
+  fs.writeFileSync(file, "", { mode: 0o600 });
+  let lock;
+  try {
+    lock = await holdLocks("/usr/bin/python3", [file]);
+    lock.assertHeld();
+    fs.renameSync(file, file + ".original");
+    fs.writeFileSync(file, "", { mode: 0o600 });
+    assert.throws(() => lock.assertHeld(), /LOCK_REPLACED/);
+    await lock.release();
+    lock = await holdLocks("/usr/bin/python3", [file]);
+    process.kill(lock.pid, "SIGTERM");
+    await new Promise((r) => setTimeout(r, 100));
+    assert(!lock.alive());
+    assert.throws(() => lock.assertHeld(), /WRITER_LOCK_LOST/);
+  } finally {
+    await lock?.release();
+    f.cleanup();
+  }
+});
+test("same domain/session with unexpected Core replacement invalidates pre-stop identity", () => {
+  const before = {
+    data_domain_id: "d",
+    session_id: "s",
+    mode: "live",
+    instance_id: "old",
+  };
+  assert.throws(
+    () => sameIdentity(before, { ...before, instance_id: "new" }),
+    /RESTART_IDENTITY_MISMATCH/,
+  );
+  sameIdentity(before, { ...before, instance_id: "new" }, true);
+});
+
+test("phase persistence failure still enters recovery rather than skipping it", async () => {
+  const calls = [],
+    s = {};
+  const a = Object.fromEntries(
+    actions.map((k) => [
+      k,
+      async () => {
+        calls.push(k);
+      },
+    ]),
+  );
+  await assert.rejects(
+    captureFlow(a, s, async () => {
+      if (s.phase === "P2" || s.phase === "P4" || s.phase === "FAILED")
+        throw Error("INJECTED_DISK_FAILURE");
+    }),
+    /INJECTED_DISK_FAILURE/,
+  );
+  assert(calls.includes("recover"));
+  assert(!calls.includes("exportDatabase"));
+  assert.equal(s.recovered, true);
+  assert.equal(s.state_write_failed, true);
+});
+
+for (const scenario of [
+  "never_started",
+  "failed",
+  "orphan",
+  "succeeded",
+  "endpoint_gone",
+  "foreign_marker",
+])
+  test("undelivered stop recovery: " + scenario, async () => {
+    const { restoreUndeliveredStop } =
+      await import("../../../scripts/agile-diagnostics/recovery.mjs");
+    let removed = 0;
+    const state = {
+      stop_command_outcome:
+        scenario === "succeeded"
+          ? "SUCCEEDED"
+          : scenario === "never_started"
+            ? "IN_PROGRESS"
+            : "FAILED",
+    };
+    const io = {
+      stopCommandsRunning: async () => scenario === "orphan",
+      originalCoreAlive: async () => true,
+      originalEndpointAnswers: async () => scenario !== "endpoint_gone",
+      marker: () => ({
+        owned: scenario !== "foreign_marker",
+        original: scenario === "never_started",
+      }),
+      removeOwnedMarker: () => removed++,
+    };
+    if (scenario === "orphan")
+      await assert.rejects(
+        restoreUndeliveredStop(state, io),
+        /STOP_COMMAND_STILL_RUNNING/,
+      );
+    else
+      assert.equal(
+        await restoreUndeliveredStop(state, io),
+        ["never_started", "failed"].includes(scenario),
+      );
+    assert.equal(
+      removed,
+      ["never_started", "failed"].includes(scenario) ? 1 : 0,
+    );
+  });
+for (const signal of ["SIGTERM", "SIGINT"])
+  test(
+    "detached helper " + signal + " exit is observed and release returns",
+    async () => {
+      const f = fixture(),
+        file = path.join(f.root, "state.lock");
+      fs.writeFileSync(file, "", { mode: 0o600 });
+      let lock;
+      try {
+        lock = await holdLocks("/usr/bin/python3", [file]);
+        process.kill(lock.pid, signal);
+        await new Promise((r) => setTimeout(r, 100));
+        assert(!lock.alive());
+        const start = Date.now();
+        await lock.release();
+        assert(Date.now() - start < 1000);
+      } finally {
+        await lock?.release();
+        f.cleanup();
+      }
+    },
+  );
+test("process observations use explicit UTC and refuse malformed rows", async () => {
+  const { parseProcessLine } =
+    await import("../../../scripts/agile-diagnostics/process.mjs");
+  assert.equal(
+    parseProcessLine("1 0 Thu Nov  5 01:02:03 2026 /synthetic/core").started,
+    Date.parse("2026-11-05T01:02:03Z"),
+  );
+  assert.throws(
+    () => parseProcessLine("1 0 unknown /core"),
+    /PROCESS_ROW_UNPARSEABLE/,
+  );
+});
+
+test("post-restart evidence reads only a complete bounded journal prefix", async () => {
+  const { journalPrefix } =
+    await import("../../../scripts/agile-diagnostics/journal-prefix.mjs");
+  const f = fixture();
+  try {
+    const file = path.join(f.root, "evidence.jsonl");
+    fs.writeFileSync(file, '{"a":1}\n{"partial":');
+    assert.equal(journalPrefix(file).toString(), '{"a":1}\n');
+    assert.throws(() => journalPrefix(file, 2), /JOURNAL_PREFIX_LIMIT/);
+    fs.writeFileSync(file, "unfinished");
+    assert.throws(() => journalPrefix(file), /JOURNAL_PREFIX_NO_FRAME/);
+  } finally {
+    f.cleanup();
+  }
+});
+test("failed static validation can be retried without a second capture", async () => {
+  const { publishCapture } =
+    await import("../../../scripts/agile-diagnostics/publish.mjs");
+  const f = fixture();
+  try {
+    const manifest = { capture_id: "retry", status: "CAPTURED" };
+    await assert.rejects(
+      publishCapture(f.root, manifest, async () => {
+        throw Error("INJECTED");
+      }),
+      /INJECTED/,
+    );
+    assert.equal(
+      JSON.parse(fs.readFileSync(path.join(f.root, "manifest.json"))).status,
+      "VALIDATING",
+    );
+    await publishCapture(f.root, manifest, async () => {});
+    assert.equal(
+      JSON.parse(fs.readFileSync(path.join(f.root, "manifest.json"))).status,
+      "CAPTURED",
+    );
+    await assert.rejects(
+      publishCapture(
+        f.root,
+        { ...manifest, capture_id: "other" },
+        async () => {},
+      ),
+      /FOREIGN_MANIFEST/,
+    );
+  } finally {
+    f.cleanup();
+  }
+});
+test("nested TUI lock discovery tolerates Finder metadata but validates lock permissions", async () => {
+  const { lockPaths } =
+    await import("../../../scripts/agile-diagnostics/capture.mjs");
+  const f = fixture();
+  try {
+    const root = path.join(f.root, "live");
+    fs.mkdirSync(path.join(root, "data/core"), { recursive: true });
+    fs.mkdirSync(path.join(root, "data/tui/domain/live"), { recursive: true });
+    const a = path.join(root, "data/core/owner.lock"),
+      b = path.join(root, "data/tui/domain/live/state.lock");
+    fs.writeFileSync(a, "", { mode: 0o600 });
+    fs.writeFileSync(b, "", { mode: 0o600 });
+    fs.writeFileSync(path.join(root, "data/tui/.DS_Store"), "");
+    assert.deepEqual(lockPaths(root, "domain"), [a, b]);
+    fs.chmodSync(b, 0o644);
+    assert.throws(() => lockPaths(root, "domain"), /UNSAFE_PRIVATE_FILE/);
+  } finally {
+    f.cleanup();
+  }
+});

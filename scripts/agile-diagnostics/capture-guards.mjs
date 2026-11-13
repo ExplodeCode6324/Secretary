@@ -104,7 +104,9 @@ export function sameIdentity(before, after, restarted = false) {
     after.session_id !== before.session_id ||
     after.mode !== before.mode ||
     after.capabilities?.world?.state !== before.capabilities?.world?.state ||
-    (restarted && after.instance_id === before.instance_id)
+    (restarted
+      ? after.instance_id === before.instance_id
+      : after.instance_id !== before.instance_id)
   )
     fail("RESTART_IDENTITY_MISMATCH");
 }

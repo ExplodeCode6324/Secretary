@@ -66,6 +66,8 @@ test("attempts, logical calls, equal response bodies, replay revisions, missing 
     assert.equal(r.usage.output.recorded_zero, 3);
     assert.equal(r.usage.cacheRead.sum, null);
     assert.equal(r.usage_by_state.INTERRUPTED.input.sum, 10);
+    assert.equal(r.usage_by_state_response["INTERRUPTED:true"].input.sum, 10);
+    assert.equal(r.usage_by_state_response["FAILED:false"].input.missing, 1);
     assert.equal(r.physical_sends.availability, "unavailable");
     assert.equal(r.estimated_cost.availability, "unavailable");
   }));

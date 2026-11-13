@@ -18,6 +18,8 @@ After approval: create source-only worktree `/Users/muy/Desktop/Codex_Work/secre
 
 ## 2. Expected files and commands
 
+**Implementation supersedes the illustrative commands below:** use the exact CLI and detached launch recipe in the [operator guide](005-operator-guide.en.md). The source directory is an independent clone, not a linked Git worktree. Master has approved execution.
+
 New scripts under `scripts/agile-diagnostics/`: `capture.mjs` (explicit capture coordinator), `lock-guard.py` (existing-file advisory locks only), `snapshot-reader.mjs` (pure file reader), `report.mjs` (usage/memory CLI), `README.md` (commands, limits, recovery draft). Pure synthetic tests under `test_case/offline/agile-diagnostics/`; add that list to macOS CI. Add bilingual `005-prompt-inventory*.md` and execution evidence summary beside this plan. No production Core, schema, API, prompts, TUI, package dependency or accounting changes. Existing `scripts/agile.mjs` and verify-cas remain the production entry points.
 
 Proposed exact entry points (implemented only after approval):

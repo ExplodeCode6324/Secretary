@@ -15,8 +15,8 @@ Use canonical absolute paths. `ROOT` below is the sole live agile directory; `TO
 3. Run fresh preflight. It reads bounded existing APIs (one memory GET), checks TUI/startup processes, PG identity/version and root classification. Use its capture ID within five minutes:
 
 ```sh
-node "$TOOL/scripts/agile-diagnostics/capture.mjs" preflight --root "$ROOT" --inventory "$CONTROL/inventory.json" --output "$CONTROL/preflight.json"
-node "$TOOL/scripts/agile-diagnostics/capture.mjs" capture --preflight "$CONTROL/preflight.json" --capture-id "$CAPTURE_ID" --inventory "$CONTROL/inventory.json" --backup "$BACKUP" --state "$CONTROL/phase.json"
+node "$TOOL/scripts/agile-diagnostics/capture.mjs" preflight --expected-tool-sha "$REVIEWED_SHA" --root "$ROOT" --inventory "$CONTROL/inventory.json" --output "$CONTROL/preflight.json"
+node "$TOOL/scripts/agile-diagnostics/capture.mjs" capture --expected-tool-sha "$REVIEWED_SHA" --preflight "$CONTROL/preflight.json" --capture-id "$CAPTURE_ID" --inventory "$CONTROL/inventory.json" --backup "$BACKUP" --state "$CONTROL/phase.json"
 ```
 
 Run the second command as a supervised detached process with private stdout/stderr, retaining the PID. Do not let a tool timeout terminate it. Inspect `phase.json`; it is fsynced before and after transitions. P0 holds the owned marker for at least 35 quiet seconds, then repeats the bounded quiescence gate. Same-second ensure processes count as pre-marker. Later start-live/core-cli/start processes remain mutation-capable. P1 stops Core and waits for its owner/helper tree, then locks the existing Core and actual nested TUI lock files. P2 dumps the still-running database; P3 copies/seals; P4 releases locks and restores the original service. Source files are archived before interruption. Existing startup code, source Git/dependencies and untracked static files are retained in `source.tar`; no launchers are unpacked into `instance/`.
@@ -29,7 +29,7 @@ node "$TOOL/scripts/agile-diagnostics/capture.mjs" recover --state "$CONTROL/pha
 
 The exclusive coordinator lock prevents recovery while the original coordinator is alive. P0 recovery removes only its owned marker and checks the existing instance. After stop, it waits for original owners to exit and never starts a competing Core. A foreign marker or changed PG identity blocks automatic restart. The narrow existing stop-command marker rewrite is accepted only with recorded inode, timestamp and expected payload. SIGINT/TERM/HUP take the same recovery path; SIGKILL requires the persisted-state command. No failure is a reason to restore older journal/database state. Target capture work is 180 seconds after stop, followed by a 90-second recovery budget; these are operational deadlines, not a guarantee that an unresponsive process cannot extend downtime. `RECOVERY_FAILED` needs operator attention before any manual start.
 
-5. A completed capture has `manifest.json` status `CAPTURED`, original data domain/session, a new Core instance identity, unchanged PG process/binary, journal-prefix continuity, static CAS/source archive/file checks and `pg_restore --list`. `maintenance-transitions.json` privately lists failure/cancellation/interruption records added during the window; temporal association does not establish causation. Backup marker `instance/.local/maintenance.json` is immutable (`uchg`) and code is archived; intentional bypass is still possible.
+5. A completed capture has `manifest.json` status `CAPTURED`, original data domain/session, a new Core instance identity, unchanged PG process/binary, journal-prefix continuity, static CAS/source archive/file checks and `pg_restore --list`. `maintenance-transitions-<UUID>.json` privately lists failure/cancellation/interruption records added during the window; temporal association does not establish causation. Backup marker `instance/.local/maintenance.json` is immutable (`uchg`) and code is archived; intentional bypass is still possible.
 
 6. Generate explicit offline reports outside the captured directory and production data roots:
 
@@ -54,8 +54,43 @@ Keep newer live writes. Obtain separate authorization for the restore target and
 
 ## Checks and first-failure record
 
-Local file-only checks: `npm run check`, `npm run docs:check`, Node syntax for new mjs, Python compilation, and `node --import tsx --test test_case/offline/agile-diagnostics/*.test.ts`. The first runs exposed fixture issues: macOS `/var` alias, invalid synthetic Digest/UserInstructions/approval values and a message-envelope fixture placed in the wrong Context field. Fixtures were corrected to actual contracts; no production contract was relaxed. The pure suite currently has 47 tests covering aggregation/selection, invalid input/budgets/output paths, envelope references, phase failures/recovery ordering, idle gates, startup race classification and real OS lock exclusion on synthetic files.
+Local file-only checks: `npm run check`, `npm run docs:check`, Node syntax for new mjs, Python compilation, and `node --import tsx --test test_case/offline/agile-diagnostics/*.test.ts`. The first runs exposed fixture issues: macOS `/var` alias, invalid synthetic Digest/UserInstructions/approval values and a message-envelope fixture placed in the wrong Context field. Fixtures were corrected to actual contracts; no production contract was relaxed. The pure suite currently has 65 tests covering aggregation/selection, invalid input/budgets/output paths, envelope references, phase failures/recovery ordering, idle gates, startup race classification and real OS lock exclusion on synthetic files.
 
 CI additionally runs the full Linux suite and the macOS regression list. Real Store differential tests live separately in `test_case/offline/agile-diagnostics-ci/` and skip without `CI`; they never use the agile domain. The local suite does not simulate a real PostgreSQL failure or prove all macOS supervisor race interleavings. Full restore, real-model connectivity, native IME/UI and the memory benchmark remain NOT_TESTED. Exact executed capture/report results are recorded after CI and implementation review, not presumed here.
 
 [Wholly synthetic usage sample / 完全合成用量样例](005-synthetic-usage.json)
+
+## Implementation review R1 dispositions
+
+Claude Opus 5.5 Extra requested changes on candidate `1d0b311e`: B1, a stop command not delivered could leave maintenance forever; B2, signal-exited lock helpers could appear alive and hang release. Both are addressed. Stop outcome is persisted; `STOP_NOT_DELIVERED` requires no surviving stop command, original PID/start and endpoint identity, and an unchanged owned marker (or explicit stop failure). A successful stop never uses this shortcut. Lock children are in separate process groups with spawn-time exit observation and bounded release. Tests include never-launched, failed, orphan/succeeded/foreign-marker cases and SIGTERM/SIGINT.
+
+Additional self-review fixes preserve directory modes, verify snapshot metadata, reject external source links, derive SEARCH_POLICY from captured source, and still recover after state-write failures. Preflight checks nested lock metadata, log size, lsof completion, PG configuration/role-read privileges, macOS seal tools and a synthetic verify-cas invocation. It enforces an explicit exact tool SHA and a clean source checkout. Settings applications returned by the API are capped at 30; the existing global blocked flag is also required false. `user_rule` includes remembered and administratively created rules; explicit remembered-rule creation counts keep their narrower meaning.
+
+Recovery and evidence are separate: post-restart transition evidence reads a bounded newline-complete journal prefix, and failures record INCOMPLETE without marking a healthy service RECOVERY_FAILED. A copied and recovered snapshot can be finalized repeatedly, without another stop:
+
+```sh
+node "$TOOL/scripts/agile-diagnostics/capture.mjs" verify --state "$CONTROL/phase.json"
+```
+
+Verification logs use unique names; VALIDATING is published before static validation, CAPTURED only after success. Full restore remains NOT_TESTED. The CI Store differential additionally covers a durable payload event, Context insertion order across revision/reopen, and first-frame digest.
+
+### Concrete macOS detached launch
+
+Use Python `subprocess.Popen(..., start_new_session=True)` with `stdin=DEVNULL`, private exclusive log output, and the pinned minimal environment. `nohup` alone does not create a new process group on macOS. Example (replace the explicit values before running):
+
+```python
+import os, subprocess
+node = "/opt/homebrew/opt/node@22/bin/node"
+tool, control, backup = "/absolute/tool", "/absolute/control", "/absolute/backup"
+reviewed_sha, capture_id = "<40-hex-reviewed-SHA>", "<fresh-capture-id>"
+env = {k: os.environ[k] for k in ("HOME", "USER", "LOGNAME", "TMPDIR") if k in os.environ}
+env.update(PATH="/opt/homebrew/opt/node@22/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin", LANG="en_US.UTF-8")
+os.umask(0o077)
+with open(control + "/capture.log", "xb") as log:
+    child = subprocess.Popen([node, tool + "/scripts/agile-diagnostics/capture.mjs", "capture",
+        "--expected-tool-sha", reviewed_sha, "--preflight", control + "/preflight.json",
+        "--capture-id", capture_id, "--inventory", control + "/inventory.json",
+        "--backup", backup, "--state", control + "/phase.json"],
+        cwd=tool, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
+    print(child.pid)
+```

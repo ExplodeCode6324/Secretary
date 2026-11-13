@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { fail, stamp, safePath } from "./io.mjs";
+import { fail, stamp, safePath, inside } from "./io.mjs";
 export async function digestFile(file) {
   const hash = createHash("sha256");
   for await (const b of fs.createReadStream(file, {
@@ -52,9 +52,10 @@ export async function copyTree(
     if (Date.now() > deadline) fail("COPY_DEADLINE");
     const from = path.join(source, rel),
       to = path.join(destination, rel);
-    if (info.kind === "directory")
+    if (info.kind === "directory") {
       fs.mkdirSync(to, { mode: info.stat[2] & 0o777 });
-    else if (info.kind === "symlink") fail("UNMAPPED_SYMLINK");
+      fs.chmodSync(to, info.stat[2] & 0o777);
+    } else if (info.kind === "symlink") fail("UNMAPPED_SYMLINK");
     else if (info.kind === "file") {
       const hash = createHash("sha256"),
         output = fs.openSync(to, "wx", info.stat[2] & 0o777);
@@ -97,4 +98,36 @@ export async function verifyFiles(root, files) {
     )
       fail("COPY_HASH_OR_MODE");
   }
+}
+
+export function verifyMetadata(root, before) {
+  const actual = tree(root);
+  const expected = Object.entries(before).filter(
+    ([, v]) => !["socket", "fifo"].includes(v.kind),
+  );
+  if (Object.keys(actual).length !== expected.length)
+    fail("COPY_ENTRY_MISMATCH");
+  for (const [rel, v] of expected) {
+    const a = actual[rel];
+    if (
+      !a ||
+      a.kind !== v.kind ||
+      (a.stat[2] & 0o777) !== (v.stat[2] & 0o777) ||
+      (v.kind === "symlink" && a.target !== v.target)
+    )
+      fail("COPY_METADATA_MISMATCH");
+  }
+}
+
+export function assertSourceLinks(root, entries) {
+  for (const [rel, v] of Object.entries(entries))
+    if (v.kind === "symlink") {
+      const link = path.join(root, rel),
+        target = path.resolve(path.dirname(link), v.target);
+      if (
+        !inside(target, root) ||
+        (fs.existsSync(link) && !inside(fs.realpathSync(link), root))
+      )
+        fail("UNMAPPED_SOURCE_LINK");
+    }
 }

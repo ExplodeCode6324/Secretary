@@ -28,28 +28,48 @@ export async function captureFlow(a, state, save) {
     error = e;
     state.failure =
       e.code ?? (/^[A-Z_]+$/.test(e.message) ? e.message : "CAPTURE_FAILED");
-    await save();
+    try {
+      await save();
+    } catch {
+      state.state_write_failed = true;
+    }
   }
   try {
     const prior = state.phase;
     state.recovering_from = prior;
     state.phase = "P4";
-    await save();
+    try {
+      await save();
+    } catch {
+      state.state_write_failed = true;
+    }
     await a.recover(state);
     state.recovered = true;
-    await save();
+    try {
+      await save();
+    } catch {
+      state.state_write_failed = true;
+    }
   } catch (e) {
     state.phase = "RECOVERY_FAILED";
     state.recovery_failure = /^[A-Z_]+$/.test(e.message)
       ? e.message
       : "RECOVERY_FAILED";
-    await save();
+    try {
+      await save();
+    } catch {
+      state.state_write_failed = true;
+    }
     throw e;
   }
-  if (error) {
+  if (error || state.state_write_failed) {
     state.phase = "FAILED";
-    await save();
-    throw error;
+    try {
+      await save();
+    } catch {
+      state.state_write_failed = true;
+    }
+    throw error ?? Error("STATE_PERSISTENCE_FAILED");
   }
   state.phase = "VERIFY";
   await save();

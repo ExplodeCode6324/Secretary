@@ -23,7 +23,11 @@ export const DEFAULT_LIMITS = Object.freeze({
   milliseconds: 30000,
   details: 200,
 });
-export async function readSnapshot(input, overrides = {}) {
+export async function readSnapshot(
+  input,
+  overrides = {},
+  { allowValidating = false } = {},
+) {
   const root = rootPath(input),
     limits = { ...DEFAULT_LIMITS, ...overrides };
   for (const [k, v] of Object.entries(limits))
@@ -33,7 +37,10 @@ export async function readSnapshot(input, overrides = {}) {
     manifest = readJSON(safePath(root, "manifest.json"), 1024 ** 2);
   if (
     manifest.format !== "secretary-agile-capture-v1" ||
-    manifest.status !== "CAPTURED" ||
+    !(
+      manifest.status === "CAPTURED" ||
+      (allowValidating && manifest.status === "VALIDATING")
+    ) ||
     !manifest.source_root ||
     inside(root, path.resolve(manifest.source_root))
   )

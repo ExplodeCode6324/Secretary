@@ -26,7 +26,12 @@ test(
           logical_key: "1".repeat(64),
         }),
         ctx = f.make("Context", { id: c.context_id });
-      store.commit([ctx, c]);
+      const ctx2 = f.make("Context");
+      store.commit(
+        [ctx, ctx2, c],
+        [f.event("model.payload", { call_id: c.id, synthetic: true })],
+      );
+      store.commit([revise(ctx, {})]);
       const started = revise(c, {
         state: "IN_FLIGHT",
         started_at: new Date().toISOString(),
@@ -45,6 +50,8 @@ test(
       await store.close();
       store = await Store.open(f.core);
       const expected = store.all("ModelCall"),
+        contexts = store.all("Context"),
+        events = store.events("model.payload"),
         sequence = store.sequence,
         digest = store.digest;
       await store.close();
@@ -63,8 +70,15 @@ test(
       );
       const s = await readSnapshot(f.root);
       assert.deepEqual(s.all("ModelCall"), expected);
+      assert.deepEqual(s.all("Context"), contexts);
+      assert.deepEqual(s.events, events);
+      assert.equal(
+        s.frames.get(1),
+        JSON.parse(b.toString().split("\n")[0]).sha256,
+      );
       assert.equal(s.metrics().sequence, sequence);
       const report = usageReport(s);
+      assert.equal(report.payload_prepared_count, 1);
       assert.equal(report.attempts, 1);
       assert.equal(report.saved_successes, 1);
       assert.equal(report.usage.input.sum, 4);

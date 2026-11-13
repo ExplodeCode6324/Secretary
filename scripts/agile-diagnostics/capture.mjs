@@ -16,7 +16,14 @@ import {
   sha,
   stamp,
 } from "./io.mjs";
-import { tree, digestFile, copyTree, verifyFiles } from "./capture-files.mjs";
+import {
+  tree,
+  digestFile,
+  copyTree,
+  verifyFiles,
+  verifyMetadata,
+  assertSourceLinks,
+} from "./capture-files.mjs";
 import { captureFlow } from "./capture-state.mjs";
 import {
   assertIdle,
@@ -34,6 +41,9 @@ import {
   descendants,
   wait,
 } from "./process.mjs";
+import { journalPrefix } from "./journal-prefix.mjs";
+import { restoreUndeliveredStop } from "./recovery.mjs";
+import { publishCapture } from "./publish.mjs";
 import { readSnapshot } from "./snapshot-reader.mjs";
 const toolRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -230,6 +240,40 @@ export function pgEnvironment(dsn) {
   );
 }
 
+async function stopCommandsRunning(root) {
+  for (const p of await processes())
+    if (
+      p.pid !== process.pid &&
+      /agile\.mjs stop|core-cli\.ts(?:\s+\S+)*\s+stop(?:\s|$)/.test(p.command)
+    ) {
+      if (p.command.includes(root)) return true;
+      try {
+        if (
+          (
+            await command("/usr/sbin/lsof", [
+              "-a",
+              "-p",
+              String(p.pid),
+              "-d",
+              "cwd",
+              "-Fn",
+            ])
+          )
+            .split("\n")
+            .includes("n" + root)
+        )
+          return true;
+      } catch {
+        if (
+          (await processes()).some(
+            (x) => x.pid === p.pid && x.started === p.started,
+          )
+        )
+          fail("STOP_PROCESS_CWD_UNKNOWN");
+      }
+    }
+  return false;
+}
 async function database(root, fn) {
   const runtimeFile = safePath(root, ".local/runtime.json");
   privateStat(runtimeFile);
@@ -322,27 +366,93 @@ function journalInfo(file) {
     digest: last.sha256,
   };
 }
-function lockPaths(root, domain) {
+export function lockPaths(root, domain) {
   const result = [safePath(root, "data/core/owner.lock")],
     tui = safePath(root, "data/tui");
-  for (const d of fs.readdirSync(tui))
+  for (const d of fs.readdirSync(tui)) {
+    if (d === ".DS_Store" && fs.lstatSync(safePath(tui, d)).isFile()) continue;
+    if (d !== domain || !fs.lstatSync(safePath(tui, d)).isDirectory())
+      fail("UNKNOWN_TUI_DOMAIN");
     for (const mode of fs.readdirSync(safePath(tui, d))) {
-      if (d !== domain || mode !== "live") fail("UNKNOWN_TUI_DOMAIN");
+      if (
+        mode === ".DS_Store" &&
+        fs.lstatSync(safePath(tui, path.join(d, mode))).isFile()
+      )
+        continue;
+      if (mode !== "live") fail("UNKNOWN_TUI_DOMAIN");
       result.push(safePath(tui, path.join(d, mode, "state.lock")));
     }
+  }
+  result.forEach(privateStat);
   return result;
 }
-async function preflight(root, inventoryFile, destination) {
+async function preflight(root, inventoryFile, destination, expectedToolSha) {
   if (process.platform !== "darwin") fail("MACOS_ONLY");
   root = rootPath(root);
   outside(root, destination);
   if (fs.existsSync(path.join(root, ".local/maintenance.json")))
     fail("EXISTING_MAINTENANCE");
-  inventory(root, inventoryFile);
+  await reviewedTool(expectedToolSha);
+  const inv = inventory(root, inventoryFile);
+  for (const [r, names] of Object.entries(inv)) {
+    for (const [name, kind] of Object.entries(names)) {
+      const f = safePath(root, path.join(r, name));
+      if (kind === "operational") {
+        const st = fs.statSync(f);
+        if (!st.isFile() || st.size > 64 * 1024 ** 2)
+          fail("OPERATIONAL_FILE_LIMIT");
+      }
+    }
+    const frozen = tree(
+      path.join(root, r),
+      Object.entries(names)
+        .filter(([, k]) => k !== "frozen")
+        .map(([n]) => n),
+    );
+    if (Object.values(frozen).some((v) => v.kind === "symlink"))
+      fail("UNMAPPED_SYMLINK");
+  }
   await checkProcesses(root);
   const g = await gate(root),
     pg = await pgInfo(root),
     owners = await coreProcesses(root);
+  lockPaths(root, g.core.data_domain_id);
+  await command("/usr/sbin/lsof", ["-nP", "-F", "pfan"], {
+    max: 32 * 1024 ** 2,
+  });
+  await database(root, async (db) => {
+    for (const table of [
+      "pg_file_settings",
+      "pg_hba_file_rules",
+      "pg_ident_file_mappings",
+    ])
+      await db.query("SELECT * FROM " + table + " LIMIT 1");
+    await db.query("SELECT rolname, rolpassword FROM pg_authid LIMIT 1");
+  });
+  const probe = fs.mkdtempSync(
+    path.join(path.dirname(destination), ".preflight-probe-"),
+  );
+  const seal = path.join(probe, "seal");
+  try {
+    fs.writeFileSync(seal, "synthetic", { mode: 0o600 });
+    await command("/usr/bin/chflags", ["uchg", seal]);
+    if (!(await command("/usr/bin/stat", ["-f", "%Sf", seal])).includes("uchg"))
+      fail("BACKUP_SEAL_FAILED");
+    fs.mkdirSync(path.join(probe, "objects"));
+    await command(
+      NODE,
+      [
+        "--import",
+        "tsx",
+        path.join(toolRoot, "src/pi_secretary/scripts/verify-cas.ts"),
+        probe,
+      ],
+      { cwd: toolRoot },
+    );
+  } finally {
+    await command("/usr/bin/chflags", ["nouchg", seal]);
+    fs.rmSync(probe, { recursive: true });
+  }
   const source = await command(
     "/usr/bin/git",
     ["--no-optional-locks", "rev-parse", "HEAD"],
@@ -359,6 +469,7 @@ async function preflight(root, inventoryFile, destination) {
     pg,
     owners,
     source_sha: source.trim(),
+    tool_sha: expectedToolSha,
     node: fs.realpathSync(NODE),
   };
   privateJSON(destination, s);
@@ -433,7 +544,10 @@ async function adapter(s, save) {
       s.pg = await pgInfo(root);
       if (s.pg.pid !== s.preflight.pg.pid || s.pg.bin !== s.preflight.pg.bin)
         fail("PG_CHANGED");
+      if (!fs.lstatSync(path.join(root, ".git")).isDirectory())
+        fail("LINKED_INSTANCE_GIT_UNSUPPORTED");
       const t = tree(root, ["data", ".local"]);
+      assertSourceLinks(root, t);
       const hashes = {};
       for (const [rel, v] of Object.entries(t)) {
         check();
@@ -474,6 +588,13 @@ async function adapter(s, save) {
         mode: 0o600,
       });
       s.schema_sha = sha(schema);
+      const policy = readFile(
+        safePath(root, "src/pi_secretary/src/memory-search.ts"),
+      )
+        .toString()
+        .match(/export const SEARCH_POLICY = (\d+);/);
+      if (!policy) fail("UNKNOWN_SEARCH_POLICY");
+      s.search_policy = Number(policy[1]);
       requireFresh(s.preflight);
       check();
     },
@@ -533,6 +654,7 @@ async function adapter(s, save) {
       check();
       s.deadline = Date.now() + 180000;
       s.stop_invoked = true;
+      s.stop_command_outcome = "IN_PROGRESS";
       s.stop_marker_inode = fs.statSync(marker).ino;
       await save();
       // The existing stop command rewrites the same marker inode. Persist intent before invoking it.
@@ -546,16 +668,24 @@ async function adapter(s, save) {
       } catch (e) {
         stopError = e;
       }
+      s.stop_command_outcome = stopError ? "FAILED" : "SUCCEEDED";
+      await save();
+      if (sameMarker(s) && sha(readFile(marker)) === s.marker_intent_sha) {
+        if (stopError) throw stopError;
+        fail("STOP_DID_NOT_REWRITE_MARKER");
+      }
       const m = readJSON(marker);
       if (
         fs.statSync(marker).ino !== s.stop_marker_inode ||
         m.reason !== "agile maintenance" ||
+        !Number.isFinite(Date.parse(m.since)) ||
         Date.parse(m.since) < Date.parse(s.stop_requested_at)
       )
         fail("FOREIGN_STOP_MARKER");
       s.marker = markerIdentity(marker);
       s.stop_marker_adopted = true;
       await save();
+      if (stopError) throw stopError;
       while (await aliveOwners()) {
         check();
         markerCheck();
@@ -568,6 +698,8 @@ async function adapter(s, save) {
         PYTHON,
         lockPaths(root, s.preflight.gate.core.data_domain_id),
       );
+      locks.assertHeld();
+      s.lock_identities = locks.identities;
       s.writer_locks = true;
       s.stopped_at = iso();
       await save();
@@ -578,6 +710,7 @@ async function adapter(s, save) {
       check();
       markerCheck();
       if (!locks?.alive()) fail("WRITER_LOCK_LOST");
+      locks.assertHeld();
       await noClients();
       const p = await pgInfo(root);
       if (p.pid !== s.pg.pid || p.bin !== s.pg.bin) fail("PG_CHANGED");
@@ -605,6 +738,7 @@ async function adapter(s, save) {
           ).rows.map((r) => r.sourcefile),
         ]);
         configs.add(path.join(p.data_directory, "postgresql.auto.conf"));
+        configs.add(path.join(p.data_directory, "PG_VERSION"));
         for (const table of ["pg_hba_file_rules", "pg_ident_file_mappings"])
           for (const row of (
             await db.query("SELECT DISTINCT file_name FROM " + table)
@@ -653,6 +787,7 @@ async function adapter(s, save) {
       check();
       markerCheck();
       if (!locks?.alive()) fail("WRITER_LOCK_LOST");
+      locks.assertHeld();
       await checkProcesses(root, s.marker_created_ms);
       await noClients();
       const inv = inventory(root, s.inventory_path),
@@ -713,11 +848,47 @@ async function adapter(s, save) {
       privateJSON(path.join(backup, "captured-files.json"), copies, {
         max: 64 * 1024 ** 2,
       });
+      const represented = [];
+      for (const [r, entries] of Object.entries(inv))
+        for (const [name, kind] of Object.entries(entries))
+          if (kind === "socket_metadata") {
+            const p = safePath(root, path.join(r, name));
+            represented.push({
+              source: path.join(r, name),
+              kind,
+              observed_at: iso(),
+              root_stat: stamp(fs.lstatSync(p, { bigint: true })),
+              entries: tree(p),
+              atomic: false,
+            });
+          }
+      const runtime = readJSON(path.join(root, ".local/runtime.json")),
+        livePaths = [];
+      function paths(v, key) {
+        if (typeof v === "string" && path.isAbsolute(v))
+          livePaths.push({ field: key, path: v });
+        else if (v && typeof v === "object")
+          for (const [k, x] of Object.entries(v)) paths(x, key + "." + k);
+      }
+      paths(runtime, "runtime");
+      const pgEnv = pgEnvironment(runtime.database_url);
+      if (pgEnv.PGHOST?.startsWith("/"))
+        livePaths.push({
+          field: "runtime.database_url.host",
+          path: pgEnv.PGHOST,
+        });
+      privateJSON(path.join(backup, "representation-metadata.json"), {
+        socket_metadata: represented,
+        live_directed_paths: livePaths,
+        scope:
+          "active runtime configuration and separately listed PG config sources; historical evidence unchanged",
+      });
       s.operational = operations;
       s.inventory = inv;
       await noClients();
       await noWriters();
       markerCheck();
+      locks.assertHeld();
       check();
     },
     async recover() {
@@ -757,7 +928,7 @@ async function adapter(s, save) {
         sameIdentity(
           s.preflight.gate.core,
           await query(endpoint(root), "core"),
-          !!s.stop_invoked,
+          !!s.stop_invoked && s.stop_delivery !== "STOP_NOT_DELIVERED",
         );
         return;
       }
@@ -772,6 +943,50 @@ async function adapter(s, save) {
         );
         return;
       }
+      if (
+        await restoreUndeliveredStop(s, {
+          stopCommandsRunning: () => stopCommandsRunning(root),
+          originalCoreAlive: async () => {
+            const original = s.owners.find((p) =>
+              p.command.includes(
+                path.join(root, "src/pi_secretary/src/backend.ts"),
+              ),
+            );
+            if (!original) fail("ORIGINAL_CORE_UNKNOWN");
+            return (await processes()).some(
+              (p) => p.pid === original.pid && p.started === original.started,
+            );
+          },
+          originalEndpointAnswers: async () => {
+            try {
+              const current = await query(endpoint(root), "core");
+              return (
+                current.instance_id === s.preflight.gate.core.instance_id &&
+                current.data_domain_id === s.preflight.gate.core.data_domain_id
+              );
+            } catch {
+              return false;
+            }
+          },
+          marker: () => ({
+            owned: sameMarker(s),
+            original:
+              fs.existsSync(marker) &&
+              sha(readFile(marker)) === s.marker_intent_sha,
+          }),
+          removeOwnedMarker: () => {
+            markerCheck();
+            fs.unlinkSync(marker);
+            const fd = fs.openSync(path.dirname(marker), "r");
+            try {
+              fs.fsyncSync(fd);
+            } finally {
+              fs.closeSync(fd);
+            }
+          },
+        })
+      )
+        return;
       const end = Date.now() + 90000;
       while (await aliveOwners()) {
         if (Date.now() > end) fail("STOP_INCOMPLETE_NO_COMPETING_START");
@@ -819,60 +1034,80 @@ async function adapter(s, save) {
       }
       s.restarted_at = iso();
       s.restart_identity = current;
-      savePrivate("restart-identity.json", current);
-      const data = readFile(file),
-        changes = [];
-      let previous = s.pre_stop_journal.digest;
-      for (const line of data
-        .subarray(s.pre_stop_journal.bytes)
-        .toString()
-        .split("\n")
-        .filter(Boolean)) {
-        const frame = JSON.parse(line),
-          payload = Buffer.from(frame.payload_b64, "base64"),
-          tx = JSON.parse(payload);
-        if (sha(payload) !== frame.sha256 || tx.previous_digest !== previous)
-          fail("POST_RESTART_CHAIN_CHANGED");
-        previous = frame.sha256;
-        for (const m of tx.mutations)
-          if (
-            [
-              "ModelCall",
-              "Execution",
-              "CompactionJob",
-              "MemoryExtractionJob",
-              "SettingsApplication",
-            ].includes(m.object_type)
-          ) {
-            const bytes = readFile(
-              safePath(root, path.join("data/core", m.snapshot.path)),
-            );
-            if (sha(bytes) !== m.snapshot.sha256)
-              fail("POST_RESTART_CAS_CHANGED");
-            const record = JSON.parse(bytes);
-            if (["INTERRUPTED", "CANCELLED", "FAILED"].includes(record.state))
-              changes.push({
-                type: record.record_type,
-                id: record.id,
-                state: record.state,
-                sequence: tx.sequence,
-                committed_at: tx.committed_at,
-              });
-          }
-      }
-      savePrivate("maintenance-transitions.json", {
-        from: s.final_gate_at,
-        to: iso(),
-        changes,
-        causation:
-          "Temporal association only; restart may resume retries; not a causality claim",
-      });
+      savePrivate("restart-identity-" + randomUUID() + ".json", current);
     },
     async verify() {
+      const file = path.join(root, "data/core/journal.jsonl");
+      const changes = [];
+      let transitionEvidence;
+      try {
+        const data = journalPrefix(file);
+        let previous = s.pre_stop_journal.digest;
+        for (const line of data
+          .subarray(s.pre_stop_journal.bytes)
+          .toString()
+          .split("\n")
+          .filter(Boolean)) {
+          const frame = JSON.parse(line),
+            payload = Buffer.from(frame.payload_b64, "base64"),
+            tx = JSON.parse(payload);
+          if (sha(payload) !== frame.sha256 || tx.previous_digest !== previous)
+            fail("POST_RESTART_CHAIN_CHANGED");
+          previous = frame.sha256;
+          for (const m of tx.mutations)
+            if (
+              [
+                "ModelCall",
+                "Execution",
+                "CompactionJob",
+                "MemoryExtractionJob",
+                "SettingsApplication",
+              ].includes(m.object_type)
+            ) {
+              const bytes = readFile(
+                safePath(root, path.join("data/core", m.snapshot.path)),
+              );
+              if (sha(bytes) !== m.snapshot.sha256)
+                fail("POST_RESTART_CAS_CHANGED");
+              const record = JSON.parse(bytes);
+              if (["INTERRUPTED", "CANCELLED", "FAILED"].includes(record.state))
+                changes.push({
+                  type: record.record_type,
+                  id: record.id,
+                  state: record.state,
+                  sequence: tx.sequence,
+                  committed_at: tx.committed_at,
+                });
+            }
+        }
+        transitionEvidence = {
+          status: "COMPLETE",
+          from: s.final_gate_at,
+          to: iso(),
+          changes,
+          causation:
+            "Temporal association only; restart may resume retries; not a causality claim",
+        };
+      } catch (e) {
+        transitionEvidence = {
+          status: "INCOMPLETE",
+          code: /^[A-Z_]+$/.test(e.message)
+            ? e.message
+            : "EVIDENCE_READ_FAILED",
+          changes: [],
+          service_recovered: s.recovered === true,
+        };
+      }
+      savePrivate(
+        "maintenance-transitions-" + randomUUID() + ".json",
+        transitionEvidence,
+      );
       for (const [r, v] of Object.entries(
         readJSON(path.join(backup, "captured-files.json"), 64 * 1024 ** 2),
-      ))
+      )) {
         await verifyFiles(path.join(backup, "instance", r), v.files);
+        verifyMetadata(path.join(backup, "instance", r), v.before);
+      }
       if (
         (await digestFile(path.join(backup, "source.tar"))) !==
         s.source_archive_sha
@@ -891,10 +1126,14 @@ async function adapter(s, save) {
         "--list",
         path.join(backup, "postgres/database.dump"),
       ]);
-      fs.writeFileSync(path.join(backup, "postgres/restore-list.txt"), list, {
-        flag: "wx",
-        mode: 0o600,
-      });
+      fs.writeFileSync(
+        path.join(control, "restore-list-" + randomUUID() + ".txt"),
+        list,
+        {
+          flag: "wx",
+          mode: 0o600,
+        },
+      );
       await command(
         NODE,
         [
@@ -906,7 +1145,7 @@ async function adapter(s, save) {
         {
           cwd: toolRoot,
           timeout: 60000,
-          output: path.join(control, "verify-cas.log"),
+          output: path.join(control, "verify-cas-" + randomUUID() + ".log"),
         },
       );
       const artifacts = {};
@@ -915,6 +1154,7 @@ async function adapter(s, save) {
         "contracts.schema.json",
         "captured-files.json",
         "source-files.json",
+        "representation-metadata.json",
         "postgres/database.dump",
         "postgres/globals.sql",
         ...s.pg_configs.map((c) => c.file),
@@ -935,7 +1175,7 @@ async function adapter(s, save) {
         data_domain_id: s.preflight.gate.core.data_domain_id,
         schema_sha256: s.schema_sha,
         journal: s.journal,
-        search_policy: 1,
+        search_policy: s.search_policy,
         search_checkpoint: s.search_checkpoint,
         postgres: s.pg,
         pg_configs: s.pg_configs,
@@ -949,22 +1189,34 @@ async function adapter(s, save) {
         representation:
           "logical PostgreSQL; frozen Core/TUI/config; source archive; timestamped operational logs; sockets metadata only",
       };
-      privateJSON(path.join(backup, "manifest.json"), manifest);
-      try {
-        const snap = await readSnapshot(backup);
-        savePrivate("static-reader.json", snap.metrics());
-      } catch (e) {
-        manifest.status = "INCOMPLETE";
-        privateJSON(path.join(backup, "manifest.json"), manifest, {
-          replace: true,
-        });
-        throw e;
-      }
+      await publishCapture(backup, manifest, async () => {
+        const snap = await readSnapshot(backup, {}, { allowValidating: true });
+        savePrivate("static-reader-" + randomUUID() + ".json", snap.metrics());
+      });
     },
   };
 }
 function journalInfoFromStop(s) {
   return s.pre_stop_journal ?? null;
+}
+async function reviewedTool(expected) {
+  if (!/^[a-f0-9]{40}$/.test(expected ?? ""))
+    fail("EXPECTED_TOOL_SHA_REQUIRED");
+  const head = (
+    await command(
+      "/usr/bin/git",
+      ["--no-optional-locks", "rev-parse", "HEAD"],
+      { cwd: toolRoot },
+    )
+  ).trim();
+  const dirty = (
+    await command(
+      "/usr/bin/git",
+      ["--no-optional-locks", "status", "--porcelain"],
+      { cwd: toolRoot },
+    )
+  ).trim();
+  if (head !== expected || dirty) fail("UNREVIEWED_TOOL_TREE");
 }
 export async function main(argv) {
   process.umask(0o077);
@@ -976,16 +1228,22 @@ export async function main(argv) {
     "capture-id",
     "backup",
     "state",
+    "expected-tool-sha",
   ]);
   if (o.command === "preflight") {
     if (!o.root || !o.inventory || !o.output) fail("PREFLIGHT_ARGUMENTS");
-    const s = await preflight(o.root, o.inventory, o.output);
+    const s = await preflight(
+      o.root,
+      o.inventory,
+      o.output,
+      o["expected-tool-sha"],
+    );
     console.log(
       JSON.stringify({ status: "READY", capture_id: s.capture_id, at: s.at }),
     );
     return;
   }
-  if (o.command === "recover") {
+  if (["recover", "verify"].includes(o.command)) {
     if (!o.state) fail("RECOVER_REQUIRES_STATE");
     const file = path.resolve(o.state);
     privateStat(file);
@@ -998,11 +1256,19 @@ export async function main(argv) {
     const save = () =>
       privateJSON(file, s, { replace: true, max: 64 * 1024 ** 2 });
     try {
-      await (await adapter(s, save)).recover();
-      s.recovered = true;
-      s.phase = "RECOVERED";
+      const a = await adapter(s, save);
+      if (o.command === "verify") {
+        await reviewedTool(s.tool_sha);
+        if (!s.copied || !s.recovered) fail("VERIFY_REQUIRES_COPIED_RECOVERED");
+        await a.verify();
+        s.phase = "COMPLETE";
+      } else {
+        await a.recover();
+        s.recovered = true;
+        s.phase = "RECOVERED";
+      }
       await save();
-      console.log(JSON.stringify({ status: "RECOVERED" }));
+      console.log(JSON.stringify({ status: s.phase }));
     } finally {
       await guard.release();
     }
@@ -1020,7 +1286,9 @@ export async function main(argv) {
   const pre = readJSON(o.preflight),
     root = rootPath(pre.root);
   requireFresh(pre);
+  await reviewedTool(o["expected-tool-sha"]);
   if (
+    pre.tool_sha !== o["expected-tool-sha"] ||
     pre.capture_id !== o["capture-id"] ||
     pre.inventory_sha !== sha(readFile(o.inventory))
   )
@@ -1086,7 +1354,9 @@ if (
         status: "FAILED",
         code: /^[A-Z_]+$/.test(e.message) ? e.message : "CAPTURE_FAILED",
         action:
-          "Inspect private phase.json; run recover with the same state before any manual start",
+          process.argv[2] === "preflight"
+            ? "Resolve preflight reason; no maintenance action was attempted"
+            : "Inspect private phase.json; run recover with the same state before any manual start",
       }),
     );
     process.exitCode = 1;
