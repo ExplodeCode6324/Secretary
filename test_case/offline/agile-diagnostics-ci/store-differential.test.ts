@@ -31,7 +31,16 @@ test(
         [ctx, ctx2, c],
         [f.event("model.payload", { call_id: c.id, synthetic: true })],
       );
-      store.commit([revise(ctx, {})]);
+      const c2 = f.make("ModelCall", {
+        state: "PREPARED",
+        response: null,
+        started_at: null,
+        completed_at: null,
+        error: null,
+        context_id: ctx2.id,
+        logical_key: "2".repeat(64),
+      });
+      store.commit([c2]);
       const started = revise(c, {
         state: "IN_FLIGHT",
         started_at: new Date().toISOString(),
@@ -70,6 +79,10 @@ test(
       );
       const s = await readSnapshot(f.root);
       assert.deepEqual(s.all("ModelCall"), expected);
+      assert.deepEqual(
+        expected.map((r) => r.id),
+        [c.id, c2.id],
+      );
       assert.deepEqual(s.all("Context"), contexts);
       assert.deepEqual(s.events, events);
       assert.equal(
@@ -79,7 +92,7 @@ test(
       assert.equal(s.metrics().sequence, sequence);
       const report = usageReport(s);
       assert.equal(report.payload_prepared_count, 1);
-      assert.equal(report.attempts, 1);
+      assert.equal(report.attempts, 2);
       assert.equal(report.saved_successes, 1);
       assert.equal(report.usage.input.sum, 4);
     } finally {
