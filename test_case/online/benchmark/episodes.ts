@@ -137,6 +137,20 @@ export function durableTrace(run: Run) {
   writeJSON(path.join(run.evidence, "durable-trace.json"), trace);
   return trace;
 }
+/** Setup failure is evidence; only an unsafe/unsettled Core prevents the probe. */
+export async function settleProbeSetup<T>(
+  setup: () => Promise<T>,
+  settle: () => Promise<unknown>,
+  onFailure: (error: unknown) => void,
+): Promise<T | null> {
+  try {
+    return await setup();
+  } catch (error) {
+    onFailure(error);
+    await settle();
+    return null;
+  }
+}
 export async function runEpisode(
   d: Domains,
   episode: Episode,
@@ -199,11 +213,35 @@ export async function runEpisode(
         client = new CoreClient(live.endpoint!);
       }
       if (step.probe && !step.reminder && beforeProbe)
-        additionalEvidence = await beforeProbe(
-          live,
-          client,
-          Math.min(deadline, Date.now() + 12 * 60_000),
+        additionalEvidence = await settleProbeSetup(
+          () =>
+            beforeProbe(
+              live,
+              client,
+              Math.min(deadline, Date.now() + 12 * 60_000),
+            ),
+          () =>
+            quiet(
+              live,
+              client,
+              Math.min(deadline, Date.now() + 10 * 60_000),
+              count,
+            ),
+          (error) => {
+            failure ??=
+              error instanceof Error ? error.message : "PROBE_SETUP_FAILED";
+            const file = path.join(run.evidence, "first-failure.json");
+            if (!fs.existsSync(file))
+              writeJSON(file, {
+                at: new Date().toISOString(),
+                reason: failure,
+              });
+          },
         );
+      if (additionalEvidence === null) {
+        const partial = path.join(live.evidence, "additional-evidence.json");
+        if (fs.existsSync(partial)) additionalEvidence = readJSON(partial);
+      }
       setFutureInputs(
         d.root,
         run.lineage,
@@ -234,11 +272,19 @@ export async function runEpisode(
       writeJSON(path.join(run.evidence, `step-${index}.json`), o);
     }
   } catch (error) {
-    failure =
+    const reason =
       error instanceof Error ? error.message : "EPISODE_UNKNOWN_FAILURE";
-    writeJSON(path.join(run.evidence, "first-failure.json"), {
+    failure ??= reason;
+    const firstFailure = path.join(run.evidence, "first-failure.json");
+    if (!fs.existsSync(firstFailure))
+      writeJSON(firstFailure, {
+        at: new Date().toISOString(),
+        reason: failure,
+      });
+    writeJSON(path.join(run.evidence, "unexercised-remaining-steps.json"), {
       at: new Date().toISOString(),
-      reason: failure,
+      reason,
+      note: "Remaining driver steps were not safely deliverable; not PASS",
     });
     const partial = path.join(live.evidence, "additional-evidence.json");
     if (additionalEvidence === null && fs.existsSync(partial))

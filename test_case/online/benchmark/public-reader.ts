@@ -167,6 +167,54 @@ export function publicSearchHit(row: any, query: string) {
     offset: row.body_offset + start,
   };
 }
+export type PublicDocument = {
+  body: string;
+  at: string;
+  kind: "input" | "reply";
+  session: string;
+};
+/** Source-order listing and detail metadata follow product readLog; no Core journal insertion. */
+export function publicRead(docs: Map<string, PublicDocument>, args: any) {
+  const offset = args.offset ?? 0,
+    length = args.length ?? 2000;
+  requireThat(
+    Number.isSafeInteger(offset) &&
+      offset >= 0 &&
+      Number.isSafeInteger(length) &&
+      length > 0 &&
+      length <= 4000,
+    "INVALID_LOG_SLICE",
+  );
+  const metadata = (id: string, doc: PublicDocument) => ({
+    event_id: id,
+    event_type: doc.kind === "input" ? "input.accepted" : "main.message",
+    occurred_at: doc.at,
+    scope: { session_id: doc.session, task_id: null, execution_id: null },
+  });
+  if (!args.event_id)
+    return {
+      events: [...docs.entries()]
+        .slice(-20)
+        .map(([id, doc]) => metadata(id, doc)),
+      truncated: docs.size > 20,
+    };
+  const doc = docs.get(args.event_id);
+  requireThat(doc, "LOG_EVENT_NOT_FOUND");
+  const chars = Array.from(doc.body);
+  requireThat(offset <= chars.length, "INVALID_LOG_OFFSET");
+  const end = Math.min(chars.length, offset + length);
+  return {
+    ...metadata(args.event_id, doc),
+    kind: doc.kind,
+    body: chars.slice(offset, end).join(""),
+    offset,
+    total_length: chars.length,
+    body_hash: sha(doc.body),
+    next_offset: end < chars.length ? end : null,
+    truncated: end < chars.length,
+  };
+}
+
 export function publicAnswerDisposition(answer: unknown, error: unknown) {
   if (typeof error === "string" && /PUBLIC_(TOOL|REQUEST)_LIMIT/.test(error))
     return "SUT_NO_ANSWER";
@@ -308,50 +356,7 @@ export async function publicReader(
             };
           } else {
             requireThat(args.source === "log", "PUBLIC_WORLD_UNSUPPORTED");
-            if (!args.event_id)
-              output = {
-                events: [...docs.entries()]
-                  .sort(
-                    (a, b) =>
-                      b[1].at.localeCompare(a[1].at) ||
-                      b[0].localeCompare(a[0]),
-                  )
-                  .slice(0, 20)
-                  .map(([id, doc]) => ({
-                    event_id: id,
-                    occurred_at: doc.at,
-                    kind: doc.kind,
-                  })),
-                truncated: docs.size > 20,
-              };
-            else {
-              const doc = docs.get(args.event_id);
-              requireThat(doc, "LOG_EVENT_NOT_FOUND");
-              const chars = Array.from(doc.body),
-                offset = args.offset ?? 0,
-                length = args.length ?? 2000;
-              requireThat(
-                Number.isSafeInteger(offset) &&
-                  offset >= 0 &&
-                  offset <= chars.length &&
-                  Number.isSafeInteger(length) &&
-                  length > 0 &&
-                  length <= 4000,
-                "INVALID_LOG_SLICE",
-              );
-              const end = Math.min(chars.length, offset + length);
-              output = {
-                event_id: args.event_id,
-                occurred_at: doc.at,
-                kind: doc.kind,
-                body: chars.slice(offset, end).join(""),
-                offset,
-                total_length: chars.length,
-                body_hash: sha(doc.body),
-                next_offset: end < chars.length ? end : null,
-                truncated: end < chars.length,
-              };
-            }
+            output = publicRead(docs, args);
           }
         } catch (e) {
           output = {

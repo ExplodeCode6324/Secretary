@@ -182,6 +182,24 @@ export function eligibleAssertions(original: any, audit: any) {
     original.restart_observed === true &&
     original.decisions?.some(
       (d: any) =>
+        d.index === 0 &&
+        d.decision === "REJECT" &&
+        audit?.operations?.some(
+          (o: any) =>
+            o.record.id === d.operation_id &&
+            o.record.action?.action === "world.change" &&
+            o.record.state === "CANCELLED" &&
+            o.record.effect === "NOT_STARTED",
+        ) &&
+        original.trace?.records?.some(
+          (r: any) =>
+            r.record_type === "AuthorizationRequest" &&
+            r.operation_id === d.operation_id &&
+            r.state === "REJECTED",
+        ),
+    ) &&
+    original.decisions?.some(
+      (d: any) =>
         d.exact_batch &&
         d.decision === "APPROVE" &&
         audit?.operations?.some(
@@ -189,7 +207,16 @@ export function eligibleAssertions(original: any, audit: any) {
             o.record.id === d.operation_id &&
             o.record.state === "SUCCEEDED" &&
             o.record.effect === "APPLIED" &&
-            o.receipt?.status === "COMMITTED",
+            o.receipt?.status === "COMMITTED" &&
+            Array.isArray(o.receipt.result_ids) &&
+            o.receipt.result_ids.length > 0 &&
+            o.receipt.result_ids.every((id: string) =>
+              original.trace?.records?.some(
+                (r: any) =>
+                  r.id === id &&
+                  ["WorldEntity", "WorldAssertion"].includes(r.record_type),
+              ),
+            ),
         ),
     );
   const knownEffects = [
@@ -234,6 +261,21 @@ export function eligibleAssertions(original: any, audit: any) {
     };
   });
 }
+/** Semantic grading needs probe boundaries, not repeated provider contexts. Raw requests stay sealed locally. */
+export function gradingAudit(audit: any) {
+  return {
+    ...audit,
+    probe_intervals: audit.probe_intervals?.map((p: any) => ({
+      ...p,
+      requests: p.requests.map((r: any) => ({
+        ...r,
+        payload: null,
+        omission:
+          "Raw provider context retained in sealed local evidence; this grading packet cannot prove cold absence",
+      })),
+    })),
+  };
+}
 export function exportGradePacket(
   root: string,
   run: string,
@@ -268,8 +310,19 @@ export function exportGradePacket(
         }
       : null,
     source_artifact_sha256: sha(JSON.stringify(original)),
-    audit,
-    omitted: [...excluded],
+    ...(original.lifecycle
+      ? {
+          lifecycle: {
+            ...original.lifecycle,
+            audits: original.lifecycle.audits?.map((a: any) => ({
+              ...a,
+              audit: gradingAudit(a.audit),
+            })),
+          },
+        }
+      : {}),
+    audit: gradingAudit(audit),
+    omitted: [...excluded, "raw provider probe payloads (all nested audits)"],
     coverage:
       "Transcript, retained memory, verified journal/CAS, decoded operation evidence and probe intervals. Omitted or opaque state is not evidence of absence. Mechanical maintenance failures remain separate from semantic verdicts.",
   };

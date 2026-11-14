@@ -1,3 +1,7 @@
+import { settleProbeSetup } from "../../online/benchmark/episodes.ts";
+import { publicRead } from "../../online/benchmark/public-reader.ts";
+import { readLog } from "../../../src/pi_secretary/src/memory-search.ts";
+import { gradingAudit } from "../../online/benchmark/grading.ts";
 import {
   publicSearchHit,
   publicAnswerDisposition,
@@ -1571,4 +1575,161 @@ test("failed World batches restore only with matching host receipt, authorizatio
     );
     [event.payload.batch_id, receipt.actor, authorization.state] = saved;
   }
+});
+
+test("a failed pre-probe hook preserves failure but still reaches the probe after safe quiescence", async () => {
+  const seen: string[] = [];
+  const result = await settleProbeSetup(
+    async () => {
+      throw Error("TASK_UNEXERCISED");
+    },
+    async () => {
+      seen.push("quiescent");
+    },
+    (e) => seen.push(String(e)),
+  );
+  seen.push("probe");
+  assert.equal(result, null);
+  assert.deepEqual(seen, ["Error: TASK_UNEXERCISED", "quiescent", "probe"]);
+  await assert.rejects(
+    settleProbeSetup(
+      async () => {
+        throw Error("SETUP_FAILED");
+      },
+      async () => {
+        throw Error("UNSAFE_UNSETTLED");
+      },
+      () => {},
+    ),
+    /UNSAFE_UNSETTLED/,
+  );
+});
+
+test("public read adapter matches product listing order, metadata and Unicode slices", () => {
+  const docs = new Map(
+    Array.from({ length: 23 }, (_, i) => [
+      "event-" + i,
+      {
+        body: "文😀".repeat(150) + i,
+        at: new Date(1000000 - i * 1000).toISOString(),
+        kind: "reply" as const,
+        session: "session-" + i,
+      },
+    ]),
+  );
+  const logs = [...docs].map(([id, d]) => ({
+    event_id: id,
+    event_type: "main.message",
+    occurred_at: d.at,
+    scope: { session_id: d.session, task_id: null, execution_id: null },
+    payload: { id },
+  }));
+  const store: any = {
+    logs,
+    read: (ref: any) => ({
+      role: "assistant",
+      stopReason: "stop",
+      content: [{ type: "text", text: docs.get(ref.id)!.body }],
+    }),
+  };
+  assert.deepEqual(publicRead(docs, {}), readLog(store));
+  assert.deepEqual(
+    publicRead(docs, { event_id: "event-0", offset: 3, length: 11 }),
+    readLog(store, "event-0", 3, 11),
+  );
+  for (const args of [
+    { event_id: "missing" },
+    { event_id: "event-0", offset: 9000 },
+    { length: 4001 },
+    { offset: -1 },
+  ])
+    assert.throws(() => publicRead(docs, args));
+});
+
+test("positive World coverage needs actual denial and committed objects in post-restart state", () => {
+  const original: any = {
+    episode: syntheticEpisodes()[0],
+    world_approval_protocol: true,
+    restart_observed: true,
+    decisions: [
+      {
+        operation_id: "approved",
+        index: 1,
+        exact_batch: true,
+        decision: "APPROVE",
+      },
+    ],
+    trace: {
+      records: [{ id: "entity", record_type: "WorldEntity" }],
+      events: [],
+    },
+  };
+  const audit: any = {
+    probe_intervals: [],
+    operations: [
+      {
+        record: { id: "approved", state: "SUCCEEDED", effect: "APPLIED" },
+        receipt: { status: "COMMITTED", result_ids: ["entity"] },
+      },
+    ],
+  };
+  const allowed = () =>
+    eligibleAssertions(original, audit).find(
+      (a) => a.assertion_id === "committed-world-positive-coverage",
+    )!.allowed_labels;
+  assert(!allowed().includes("PASS"));
+  original.decisions.push({
+    operation_id: "denied",
+    index: 0,
+    decision: "REJECT",
+  });
+  original.trace.records.push({
+    record_type: "AuthorizationRequest",
+    operation_id: "denied",
+    state: "REJECTED",
+  });
+  audit.operations.push({
+    record: {
+      id: "denied",
+      action: { action: "world.change" },
+      state: "CANCELLED",
+      effect: "NOT_STARTED",
+    },
+  });
+  assert(allowed().includes("PASS"));
+  original.trace.records.shift();
+  assert(!allowed().includes("PASS"));
+});
+
+test("semantic packet projection retains effect proofs and context hashes but does not claim omitted payload absence", () => {
+  const input = {
+    operations: [{ receipt: { status: "COMMITTED" } }],
+    probe_intervals: [
+      {
+        requests: [
+          {
+            file: "send.json",
+            payload_sha256: "hash",
+            opaque_provider_state_present: true,
+            payload: { secretHistory: "full raw context" },
+          },
+        ],
+      },
+    ],
+  };
+  const output = gradingAudit(input);
+  assert.deepEqual(output.operations, input.operations);
+  assert.equal(output.probe_intervals[0].requests[0].payload, null);
+  assert.equal(output.probe_intervals[0].requests[0].payload_sha256, "hash");
+  assert.equal(
+    output.probe_intervals[0].requests[0].opaque_provider_state_present,
+    true,
+  );
+  assert.match(
+    output.probe_intervals[0].requests[0].omission,
+    /cannot prove cold absence/,
+  );
+  assert.deepEqual(input.probe_intervals[0].requests[0].payload, {
+    secretHistory: "full raw context",
+  });
 });
