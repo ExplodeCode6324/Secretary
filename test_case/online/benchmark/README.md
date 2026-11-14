@@ -1,13 +1,13 @@
-# 独立测试环境基础（#120）
+# 独立 benchmark（#120 基础 / #121 真实记忆开发）
 
-此入口建设可重建的 Core / PostgreSQL 环境，当前只接受 **fixture / correctness / infrastructure v1**，零次真实模型调用。真实记忆工作负载、数据集、语义 oracle、provider 台账和评分由 #121 接续。不要把这里的 PASS 当作记忆性能结论。
+同一入口管理可重建的 Core / PostgreSQL 环境。默认仍为 **fixture / correctness / infrastructure v1**，零次真实模型调用；显式 `memory-*` 命令可执行已授权的真实模型开发场景。程序检查通过不代表记忆质量通过，开发样本不冒充未见样本；错误容忍门槛仍待 Master 冻结。
 
 ## 前提与边界
 
 - 非部署的 main 开发 checkout，Node ≥22.19、Python 3、PG **18** 的完整服务端工具及 npm 依赖、固定子模块。macOS 使用 `pg_config --bindir`；Linux 优先 `/usr/lib/postgresql/18/bin`，否则由 pg_config 定位；每个工具均核验主版本。
 - macOS 可安装 `brew install postgresql@18` 并把其 bin 加入 PATH；Linux 使用 [PostgreSQL 官方 Apt 源](https://www.postgresql.org/download/linux/ubuntu/) 安装 postgresql-18。CI 两平台均安装并实际运行测试，不跳过 PG 恢复。
 - 只能使用本 checkout `.local/benchmark/` 内的规范绝对路径。敏捷 checkout、路径别名或带部署标记的副本在创建任何 benchmark 文件前拒绝。
-- 从不读取 `.env`；worker/PG 工具使用精简环境，不继承 SECRETARY、PG、NODE_OPTIONS 或 HOME 配置。无网络模型、无真实推送、无任意 shell/PROGRAM、无 DIRECTORY Scope、无自定义授权规则。
+- fixture 不读取模型凭据且拦截网络模型调用。live 仅由控制器读取本 checkout `.local/test-credentials/` 的指定文件（目录 0700、文件 0600）；通过 IPC 交给对应 worker，不写入模型上下文或报告。worker/PG 使用精简环境，不继承 SECRETARY、PG、NODE_OPTIONS 或 HOME 配置。无真实推送、无任意 shell/PROGRAM、无 DIRECTORY Scope、无自定义授权规则。
 - root `npm start` / `npm stop` 路由敏捷入口，**不用于此环境**。不得使用敏捷数据、数据库、凭据或 launchd。
 
 ## 精确命令
@@ -35,7 +35,31 @@ npm run benchmark -- report --run <report-id> --root "$BENCHMARK_ROOT"
 {"version":1,"mode":"fixture","track":"correctness","case_id":"infrastructure","seed":120}
 ```
 
-不支持 `--case` 或 live 参数；未知配置键拒绝。seed 是 fixture 描述信息，不表示真实 provider 确定性。代码、HEAD、依赖或相关源文件改变后不能重启/恢复旧冻结 run，需回到原代码审阅或新建 run；不要修改旧清单绕过检查。
+不支持 `--case`；未知配置键拒绝。live 使用下文专门的显式入口。seed 不表示真实 provider 确定性。代码、HEAD、依赖或相关源文件改变后不能重启/恢复旧冻结 run，需回到原代码审阅或新建 run；不要修改旧清单绕过检查。活动 campaign 期间不得修改指纹覆盖的源码。
+
+## 真实记忆开发命令（#121）
+
+每个有付费调用的 facility 使用唯一 `--approval` 标识并保留 fsync 的物理发送台账。它是已获授权的审计标识，不是传入任意字符串就取得授权。当前模型 ID 为 `gpt-6.1-sol,deepseek-flash,gpt-6-luna`，端点和凭据映射由受检配置限定。CLI 不以完成调用推导语义 PASS。
+
+```sh
+npm run benchmark -- memory-probe --root <new-owned-root> --approval <approved-id>
+npm run benchmark -- memory-pilot --root <new-owned-root> --approval <approved-id> --subset smoke --profiles DEP --models deepseek-flash,gpt-6.1-sol,gpt-6-luna
+npm run benchmark -- memory-private-prepare --root <new-owned-root> --source <private-replay.json> --provenance <private-provenance.json>
+npm run benchmark -- memory-pilot --root <same-root> --approval <approved-id> --subset private --profiles DEP
+npm run benchmark -- memory-repository-prepare --root <prepared-private-root> --source <pinned-snapshot.md> --provenance <pin.json>
+npm run benchmark -- memory-repository --root <same-root> --approval <approved-id>
+npm run benchmark -- memory-lifecycle --root <new-owned-root> --approval <approved-id>
+npm run benchmark -- memory-world --root <new-owned-root> --approval <approved-id>
+npm run benchmark -- memory-audit --root <stopped-root> --run <run-id>
+npm run benchmark -- memory-grade-export --root <stopped-root> --run <run-id>
+npm run benchmark -- memory-grade-import --root <stopped-root> --run <run-id> --verdict <private-verdict.json>
+```
+
+`memory-prepare` 下载并固定公共 LongMemEval 来源；`memory-public --subset dev|smoke` 只评估检索组件，不伪造 Core 对话导入。来源下载失败时保留诊断，不报告公共数据集已执行。`memory-private-prepare` 只接受脱敏/已获授权的重建开发场景和匹配来源哈希；它不建立未见样本。仓库 B 从较早的固定提交复制一个只读资料文件到已初始化的独立 Task 目录，保留真实 read 工具结果，原仓库未暴露给被测模型。A 与 B 分开报告。
+
+`memory-lifecycle` 在真实模型提出的独立工作目录写入 fsync 后注入一次 SIGKILL，使用正常 checkpoint/restore 和 `verify-write` 对账，再接续同一 Task 的新执行；对账不计为第二次写入。当前该场景尚不能单独证明多个不同 Task 的意图连续性。`memory-world` 先拒绝实际请求，再仅允许明确给定的合成实体与备注批次，重启后检查。未提出所需动作、工具证据缺失和错误效果都保留，不能用零效果推导通过。
+
+审计只读核验已停止 run 的 journal/CAS、操作参数/凭据、首轮失败历史及 probe 的实际发送上下文。V2 补充评分分别保留首答、提醒后、持久记忆、权限/效果、冷检索和正向 World 覆盖；旧 V1 分母和结果不覆盖。每批新评分使用新上下文和本版控制题，已暴露数据的补评分标为 exploratory。维护任务完成与回答正确分别报告；未完成或 opaque provider context 不得冒充冷记忆证明。
 
 ## 数据与恢复
 
@@ -53,11 +77,11 @@ npm run benchmark -- report --run <report-id> --root "$BENCHMARK_ROOT"
 
 `self-check` 通过真实 Core/PG 执行独立运行、PID 重启/API 幂等、完整备份恢复/原 Shared 任务接续、导入行 xmin 不变、工具越界拒绝和证据保留清理。输出私有 `reports/<report-id>/report.json` 与由其渲染的 Markdown；后续重跑创建新报告，保留首次失败。
 
-`npm test` / `npm run verify` 另运行 [离线基础测试](../../offline/benchmark/)，包括控制器切换/清理中断、真实 SIGKILL 的文件写入后对账、受控推送与错过/新建 AT 任务、所有权和危险恢复拒绝。fixture push sink 记录调用、dispatch/batch/attempt，不进行去重；真实推送服务未测试。现有 Core 的推送仍为 at-least-once；SENDING 或 sink/store 不一致 checkpoint 拒绝。恢复前的 Operation 能力白名单只允许工作区 file.write 与 builtin:readonly-shell，scope.import 等可能在 App.open 自动执行的操作一律拒绝。
+`npm test` / `npm run verify` 另运行 [离线基础测试](../../offline/benchmark/)，包括控制器切换/清理中断、真实 SIGKILL 的文件写入后对账、受控推送与错过/新建 AT 任务、所有权和危险恢复拒绝。fixture push sink 记录调用、dispatch/batch/attempt，不进行去重；真实推送服务未测试。现有 Core 的推送仍为 at-least-once；SENDING 或 sink/store 不一致 checkpoint 拒绝。fixture 恢复白名单保留工作区 file.write 与 builtin:readonly-shell；live 额外按状态核验被拒绝操作和已提交 World 的参数、凭据与 journal。scope.import 等可能在 App.open 自动执行的操作仍拒绝。
 
 [报告 schema](../../benchmarks/common/report.schema.json) 定义 correctness / memory 两个 track 和六种状态；[渲染/校验器](../../benchmarks/common/report.ts) 保留完整分母、首个失败、缺失用量 null 和证据类别。`self-check` 记录版本/配置/机器、耗时、最后 RSS 样本、文件字节、调用数及私有证据位置；RSS 不是精确峰值。源证据可能含测试内容和连接凭据，仅公开脱敏汇总。断电、任意时刻 PG 物理备份、敌对同用户 OS 沙箱和真实记忆质量均不在本次证据范围。
 
-后续功能逻辑变更测普通 correctness，记忆体系变更测 memory benchmark 并补相关普通回归；跨范围跑两类。具体真实模型矩阵为 GPT-6.1 Sol、DeepSeek Flash、GPT-6 Luna，Luna 失败可以作为能力边界记录，不能遗漏或伪造通过；模型 ID、路由、配置与缺失用量逐次固化，#121 才提供执行入口。
+后续功能逻辑变更测普通 correctness，记忆体系变更测 memory benchmark 并补相关普通回归；跨范围跑两类。具体真实模型矩阵为 GPT-6.1 Sol、DeepSeek Flash、GPT-6 Luna，模型 ID、路由、配置与缺失用量逐次固化。DeepSeek 为必需比较行，Sol/Luna 保留能力边界，不隐去失败。
 
 
 ## 用后归档
@@ -75,4 +99,4 @@ worker 仅接收 Core 的非超级用户连接凭据，启动时断言实际角�
 
 恢复来源通过独立 restoredFrom 元数据记录，不冒充新 run 自己生成的最新 checkpoint。导入行必须非空才执行 xmin 保留断言。只读预检遇到残缺 journal 尾部直接拒绝（PARTIAL_JOURNAL）；这一边界比产品正常 journal 恢复更严格。退休目录当前验证写入前后不变，尚未独立证明完全没有读取；旧索引测试覆盖空索引重建，具体陈旧行替换场景留待后续。AT 用例为停止留出 10 秒；若机器未能赶上窗口则明确失败，不报业务行为通过。
 
-归档的内容核验是 fsync 后的客户端读回；macOS 额外使用 F_NOCACHE，仍不声称验证了 NAS 断电持久性。receipt 明确记录验证方式。任意深度出现额外 facility.json/controller.lock 或 postmaster.pid 都拒绝，避免把嵌套活动实例当作报告/证据清理。普通本地套件完成后按上述命令逐个归档 `.local/benchmark/tests/` 的 facility；CI 使用一次性 runner，不要求连接 Master 的 NAS。#121 在引入真实模型前需扩展为按状态区分的 Operation 白名单，明确允许已结束的 world.change/被拒绝 shell 等合法记录；当前更严格的 fixture 限制不作真实 workload 可用性承诺。
+归档的内容核验是 fsync 后的客户端读回；macOS 额外使用 F_NOCACHE，仍不声称验证了 NAS 断电持久性。receipt 明确记录验证方式。任意深度出现额外 facility.json/controller.lock 或 postmaster.pid 都拒绝，避免把嵌套活动实例当作报告/证据清理。普通本地套件完成后按上述命令逐个归档 `.local/benchmark/tests/` 的 facility；CI 使用一次性 runner，不要求连接 Master 的 NAS。live 恢复已使用按状态区分的 Operation 核验；成功 World 必须有同批次提交凭据和 journal，终结拒绝必须有未派发证明，未知文件效果只能在独立目录内正常对账。

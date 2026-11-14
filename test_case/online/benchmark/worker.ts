@@ -15,7 +15,8 @@ import type {
   Operation,
   PushDispatch,
 } from "../../../src/pi_secretary/src/contracts.ts";
-import { appendJSON, readJSON, requireThat, writeJSON } from "./io.ts";
+import { appendJSON, readJSON, requireThat, writeJSON, read } from "./io.ts";
+import { completedFileWrite } from "./effect-proof.ts";
 import { validateConfiguration, type WorkerPermit } from "./domain.ts";
 import { configureProfile, liveRoles, meteredFetch } from "./live-model.ts";
 import { capacityForecast } from "./capacity.ts";
@@ -206,10 +207,29 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
     const finish = app.authorization.finish.bind(app.authorization);
     app.authorization.finish = ((id, receipt, outcome) => {
       const operation = app.store.get<Operation>("Operation", id);
+      const proof = receipt as any;
+      // applyWrite's successful return includes both result and CAS evidence.
+      // Its UNKNOWN error path also calls finish while DISPATCHED; it is not a
+      // completed write. verifyWrite is RESULT_UNKNOWN and is reconciliation.
+      const completedWrite = completedFileWrite(
+        operation,
+        receipt,
+        outcome,
+        () => read(operation.action.resource),
+        () => app.store.bytes(proof.evidence),
+      );
+      if (completedWrite && run.config.mode === "live")
+        appendJSON(path.join(run.evidence, "completed-file-writes.jsonl"), {
+          at: new Date().toISOString(),
+          operation_id: id,
+          execution_id: operation.scope.execution_id,
+          resource: operation.action.resource,
+          content_sha256: proof.evidence.sha256,
+          bytes: proof.evidence.bytes,
+        });
       if (
         run.config.fault_injection === "write-after-fsync" &&
-        operation.action.action === "file.write" &&
-        operation.state === "DISPATCHED" &&
+        completedWrite &&
         (run.config.mode === "fixture"
           ? app.store.read<any>(operation.action.parameters_ref).content ===
             "uncertain"
@@ -280,6 +300,12 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
           ? {
               sessions: app.store.all("Session"),
               input_records: app.store.all("Input"),
+              input_events: app.store
+                .events("input.accepted")
+                .map((event) => ({
+                  event_id: event.event_id,
+                  input_id: app.store.read<any>(event.payload).id,
+                })),
               calls: app.store.all("ModelCall"),
               compactions: app.store.all("CompactionJob"),
               extractions: app.store.all("MemoryExtractionJob"),

@@ -24,6 +24,10 @@ import { exportGradePacket, importGradePacket } from "./grading.ts";
 import { replaySummaryCapacity } from "./capacity.ts";
 import { preparePrivate } from "./private-replay.ts";
 import { publicPilot } from "./public-reader.ts";
+import { auditEpisode } from "./evidence-audit.ts";
+import { lifecyclePilot } from "./lifecycle.ts";
+import { prepareRepository, repositoryPilot } from "./repository-replay.ts";
+import { worldPilot } from "./world-replay.ts";
 
 async function main() {
   const [command, ...args] = process.argv.slice(2),
@@ -62,6 +66,10 @@ async function main() {
       "memory-pilot",
       "memory-private-prepare",
       "memory-public",
+      "memory-lifecycle",
+      "memory-repository-prepare",
+      "memory-repository",
+      "memory-world",
     ].includes(command)
   )
     requireThat(
@@ -129,6 +137,68 @@ async function main() {
     return;
   }
   await Domains.use(root, async (d) => {
+    if (command === "memory-repository-prepare") {
+      requireThat(
+        options["--source"] && options["--provenance"],
+        "REPOSITORY_SOURCE_AND_PIN_REQUIRED",
+      );
+      console.log(
+        JSON.stringify(
+          prepareRepository(
+            d,
+            path.resolve(options["--source"]),
+            path.resolve(options["--provenance"]),
+          ),
+        ),
+      );
+      return;
+    }
+    if (
+      command === "memory-lifecycle" ||
+      command === "memory-repository" ||
+      command === "memory-world"
+    ) {
+      requireThat(options["--approval"], "CAMPAIGN_APPROVAL_ID_REQUIRED");
+      const models = (options["--models"]?.split(",") ?? [
+        ...modelIDs,
+      ]) as ModelID[];
+      requireThat(
+        models.length > 0 &&
+          new Set(models).size === models.length &&
+          models.every((m) => modelIDs.includes(m)),
+        "MODEL_NOT_APPROVED",
+      );
+      const report =
+        command === "memory-lifecycle"
+          ? await lifecyclePilot(d, options["--approval"], models)
+          : command === "memory-world"
+            ? await worldPilot(d, options["--approval"], models)
+            : await repositoryPilot(d, options["--approval"], models);
+      console.log(
+        JSON.stringify(
+          {
+            report_id: report.run_id,
+            cases: report.cases,
+            first_failure: report.first_failure,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    if (command === "memory-audit") {
+      requireThat(options["--run"], "RUN_ID_REQUIRED");
+      const { file, audit } = auditEpisode(d.load(options["--run"]));
+      console.log(
+        JSON.stringify({
+          file,
+          maintenance: audit.maintenance.status,
+          first_failure: audit.maintenance.first_failure,
+        }),
+      );
+      return;
+    }
     if (command === "memory-private-prepare") {
       requireThat(
         options["--source"] && options["--provenance"],
@@ -241,7 +311,15 @@ async function main() {
       requireThat(options["--run"], "RUN_ID_REQUIRED");
       d.load(options["--run"]);
       if (command === "memory-grade-export")
-        console.log(JSON.stringify(exportGradePacket(root, options["--run"])));
+        console.log(
+          JSON.stringify(
+            exportGradePacket(
+              root,
+              options["--run"],
+              auditEpisode(d.load(options["--run"])).audit,
+            ),
+          ),
+        );
       else {
         requireThat(options["--verdict"], "GRADE_SUBMISSION_REQUIRED");
         const file = path.resolve(options["--verdict"]);

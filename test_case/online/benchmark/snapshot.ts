@@ -264,6 +264,10 @@ function validateLiveOperation(
     history?.length && history.at(-1)?.revision === r.revision,
     "OPERATION_HISTORY_REQUIRED",
   );
+  requireThat(
+    r.action.parameters_hash === r.action.parameters_ref.sha256,
+    "PARAMETER_CHANGED",
+  );
   if (kind === "T") {
     requireThat(
       !history.some(
@@ -343,10 +347,26 @@ function validateLiveOperation(
   );
   noLinks(r.action.resource);
   const parameters = proof.value(r.action.parameters_ref);
-  requireThat(
-    r.action.parameters_hash === r.action.parameters_ref.sha256,
-    "PARAMETER_CHANGED",
-  );
+  if (r.action.action === "file.write") {
+    requireThat(
+      typeof parameters.path === "string" && !path.isAbsolute(parameters.path),
+      "FILE_PARAMETER_PATH_INVALID",
+    );
+    const owner = proof.transactions
+      .flatMap((t) => t.records)
+      .filter(
+        (v: any) =>
+          v.record_type === "Execution" && v.id === r.scope.execution_id,
+      )
+      .at(-1) as any;
+    requireThat(
+      owner?.workspace_binding?.root_path &&
+        inside(work, owner.workspace_binding.root_path) &&
+        path.resolve(owner.workspace_binding.root_path, parameters.path) ===
+          r.action.resource,
+      "FILE_PARAMETER_RESOURCE_MISMATCH",
+    );
+  }
   if (r.action.action === "shell.run") {
     const execution = readonlyShell(
       r.action.resource,

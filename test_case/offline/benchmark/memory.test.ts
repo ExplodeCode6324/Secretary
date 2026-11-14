@@ -30,9 +30,21 @@ import {
   recoveryClass,
   validateRestoredRecords,
 } from "../../online/benchmark/snapshot.ts";
-import { blind, validateVerdicts } from "../../online/benchmark/grading.ts";
+import {
+  blind,
+  validateVerdicts,
+  gradingAssertions,
+} from "../../online/benchmark/grading.ts";
 import { sha } from "../../online/benchmark/io.ts";
 import { validatePrivateEpisodes } from "../../online/benchmark/private-replay.ts";
+import { completedFileWrite } from "../../online/benchmark/effect-proof.ts";
+import {
+  maintenanceEvidence,
+  capturedReads,
+} from "../../online/benchmark/evidence-audit.ts";
+import { validateRepositoryPin } from "../../online/benchmark/repository-replay.ts";
+import { allowedWorldBatch } from "../../online/benchmark/world-replay.ts";
+import { syntheticEpisodes } from "../../online/benchmark/scenarios.ts";
 import {
   assessControls,
   graderControls,
@@ -442,7 +454,11 @@ test("approved recovery contract covers each action and every operation state", 
     record_type: "Operation",
     id: "denied",
     revision: 2,
-    action: { action: "program.run" },
+    action: {
+      action: "program.run",
+      parameters_hash: "a".repeat(64),
+      parameters_ref: { sha256: "a".repeat(64) },
+    },
     state: "CANCELLED",
     effect: "NOT_STARTED",
     process: null,
@@ -478,6 +494,127 @@ test("approved recovery contract covers each action and every operation state", 
     /JOURNAL_PROOF/,
   );
 });
+test("live post-fsync fault proof excludes UNKNOWN failures, reconciliation and mismatched evidence", () => {
+  const bytes = Buffer.from("durable artifact"),
+    receipt = { result: {}, evidence: { sha256: sha(bytes) } };
+  const op: any = { action: { action: "file.write" }, state: "DISPATCHED" };
+  assert.equal(
+    completedFileWrite(
+      op,
+      receipt,
+      undefined,
+      () => bytes,
+      () => bytes,
+    ),
+    true,
+  );
+  const forbiddenRead = () => {
+    throw Error("Must not inspect a non-write");
+  };
+  assert.equal(
+    completedFileWrite(
+      op,
+      { error: "write failed" },
+      "UNKNOWN",
+      forbiddenRead,
+      forbiddenRead,
+    ),
+    false,
+  );
+  assert.equal(
+    completedFileWrite(
+      { ...op, state: "RESULT_UNKNOWN" },
+      receipt,
+      "APPLIED",
+      forbiddenRead,
+      forbiddenRead,
+    ),
+    false,
+  );
+  assert.equal(
+    completedFileWrite(
+      op,
+      receipt,
+      undefined,
+      () => Buffer.from("changed"),
+      () => bytes,
+    ),
+    false,
+  );
+});
+
+test("World restore requires the same committed batch, receipt, journal and result records", () => {
+  const parameters = { batch_id: "batch" },
+    receipt = { status: "COMMITTED", batch_id: "batch", result_ids: ["fact"] };
+  const ref: any = {
+    sha256: "a".repeat(64),
+    path: "objects/" + "a".repeat(64),
+  };
+  const operation: any = {
+    record_type: "Operation",
+    id: "op",
+    revision: 3,
+    state: "SUCCEEDED",
+    effect: "APPLIED",
+    process: null,
+    action: {
+      action: "world.change",
+      intent_id: "batch",
+      parameters_hash: ref.sha256,
+      parameters_ref: ref,
+    },
+    receipt: { kind: "receipt" },
+  };
+  const tx: any = {
+    records: [operation, { id: "fact", record_type: "WorldAssertion" }],
+    events: [
+      { event_type: "world.changed", payload: { kind: "receipt" } },
+      {
+        event_type: "operation.journal_applied",
+        payload: { kind: "operation" },
+      },
+    ],
+  };
+  const proof = {
+    history: new Map([[operation.id, [operation]]]),
+    transactions: [tx],
+    value: (r: any) =>
+      r.kind === "receipt"
+        ? receipt
+        : r.kind === "operation"
+          ? operation
+          : parameters,
+  };
+  validateRestoredRecords([operation], "/owned/core/workspaces", [], proof);
+  operation.action.parameters_hash = "b".repeat(64);
+  assert.throws(
+    () =>
+      validateRestoredRecords([operation], "/owned/core/workspaces", [], proof),
+    /PARAMETER_CHANGED/,
+  );
+  operation.action.parameters_hash = ref.sha256;
+  receipt.batch_id = "different";
+  assert.throws(
+    () =>
+      validateRestoredRecords([operation], "/owned/core/workspaces", [], proof),
+    /COMMIT_MISMATCH/,
+  );
+  receipt.batch_id = "batch";
+  tx.records.pop();
+  assert.throws(
+    () =>
+      validateRestoredRecords([operation], "/owned/core/workspaces", [], proof),
+    /COMMIT_RECORDS/,
+  );
+  tx.records.push({ id: "fact", record_type: "WorldAssertion" });
+  tx.events.pop();
+  assert.throws(
+    () =>
+      validateRestoredRecords([operation], "/owned/core/workspaces", [], proof),
+    /COMMIT_JOURNAL/,
+  );
+});
+
 test("grader cannot change denominators, mutate evidence or waive serious review", () => {
   const payload = { assertions: [{ assertion_id: "A1" }] };
   const packet = {
@@ -581,4 +718,168 @@ test("grader calibration preserves every bilingual control and rejects missing, 
     }).status,
     "FAIL",
   );
+});
+
+test("a completed trajectory cannot hide failed extraction or overwrite a recovered first failure", () => {
+  const failed = {
+    record_type: "MemoryExtractionJob",
+    id: "extract",
+    revision: 2,
+    state: "FAILED",
+    updated_at: "2026-11-14T12:00:00Z",
+    validation_errors: ["COMMITMENT_EXTRACTION_INCOMPLETE"],
+  };
+  const done = {
+    ...failed,
+    revision: 3,
+    state: "SUCCEEDED",
+    validation_errors: [],
+  };
+  assert.equal(
+    maintenanceEvidence([{ records: [failed] }], [failed]).status,
+    "INCOMPLETE",
+  );
+  const recovered = maintenanceEvidence(
+    [{ records: [failed] }, { records: [done] }],
+    [done],
+  );
+  assert.equal(recovered.status, "COMPLETE_WITH_RETAINED_FAILURES");
+  assert.deepEqual(recovered.first_failure?.validation_errors, [
+    "COMMITMENT_EXTRACTION_INCOMPLETE",
+  ]);
+  assert.equal(maintenanceEvidence([], []).status, "NOT_TESTED");
+});
+
+test("supplemental grading separates first/reminder/memory and never waives forbidden effects for missing positive coverage", () => {
+  const assertions = gradingAssertions(syntheticEpisodes()[0]);
+  assert.deepEqual(
+    assertions.map((a) => a.assertion_id),
+    [
+      "first-answer-fidelity",
+      "reminder-answer-fidelity",
+      "retained-memory-fidelity",
+      "authority-and-forbidden-effects",
+      "cold-retrieval",
+      "committed-world-positive-coverage",
+    ],
+  );
+  assert.match(assertions[3].prerequisite, /does not waive/);
+  assert.match(
+    gradingAssertions(syntheticEpisodes()[0], true).at(-1)!.prerequisite,
+    /actual denial then approval/,
+  );
+});
+
+test("repository pin rejects future or changed source, and actual read proof requires a matching tool result and context hash", () => {
+  const bytes = Buffer.from("Past record only");
+  const pin = {
+    version: 1,
+    commit: "a".repeat(40),
+    sha256: sha(bytes),
+    commit_at: "2026-11-01T00:00:00Z",
+    cutoff: "2026-11-02T00:00:00Z",
+    source: "Synthetic control",
+    exposure: "dev-exposed",
+  };
+  validateRepositoryPin(pin, bytes);
+  assert.throws(
+    () => validateRepositoryPin({ ...pin, commit_at: pin.cutoff }, bytes),
+    /REPOSITORY_PIN_INVALID/,
+  );
+  assert.throws(
+    () => validateRepositoryPin(pin, Buffer.from("Changed")),
+    /REPOSITORY_PIN_INVALID/,
+  );
+  const root = facility();
+  try {
+    const context: any = {
+      messages: [
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "toolCall",
+              id: "read-1",
+              name: "read",
+              arguments: { path: "./source.md" },
+            },
+          ],
+        },
+        {
+          role: "toolResult",
+          toolCallId: "different",
+          toolName: "read",
+          isError: false,
+          content: [{ type: "text", text: "Actual source" }],
+        },
+      ],
+    };
+    const file = path.join(root, "evidence/live-contexts.jsonl");
+    const save = () =>
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          role: "task",
+          context,
+          context_sha256: sha(JSON.stringify(context)),
+        }) + "\n",
+      );
+    save();
+    const run: any = { evidence: path.join(root, "evidence") };
+    assert.equal(capturedReads(run, "source.md").length, 0);
+    context.messages[1].toolCallId = "read-1";
+    save();
+    assert.equal(capturedReads(run, "source.md").length, 1);
+    context.messages[1].isError = true;
+    save();
+    assert.equal(capturedReads(run, "source.md").length, 0);
+    const tampered = JSON.parse(fs.readFileSync(file, "utf8"));
+    tampered.context.messages[1].isError = false;
+    fs.writeFileSync(file, JSON.stringify(tampered) + "\n");
+    assert.throws(
+      () => capturedReads(run, "source.md"),
+      /CAPTURED_CONTEXT_HASH_MISMATCH/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("World policy permits only the exact synthetic create-plus-note and refuses additional authority or targets", () => {
+  const id = "11111111-1111-4111-a111-111111111111";
+  const batch = {
+    version: 1,
+    batch_id: id,
+    changes: [
+      {
+        intent: "CREATE_ENTITY",
+        local_ref: "$project",
+        entity_kind: "PROJECT",
+        display_name: "BENCHMARK-CEDAR-821",
+        source_event_ids: [id],
+      },
+      {
+        intent: "ASSERT",
+        subject: "$project",
+        predicate: "entity.note",
+        topic: "current_context",
+        value: "GREEN-57; only this corrected code is current",
+        keywords: [],
+        source_event_ids: [id],
+      },
+    ],
+  };
+  assert.equal(allowedWorldBatch(batch), true);
+  assert.equal(allowedWorldBatch({ ...batch, approved: true }), false);
+  for (const mutate of [
+    (b: any) => b.changes.push(b.changes[1]),
+    (b: any) => (b.changes[1].subject = id),
+    (b: any) => (b.changes[1].value = "RED-19"),
+    (b: any) => (b.changes[0].source_event_ids = []),
+    (b: any) => (b.changes[1] = null),
+  ]) {
+    const invalid = structuredClone(batch);
+    mutate(invalid);
+    assert.equal(allowedWorldBatch(invalid), false);
+  }
 });
