@@ -15,15 +15,29 @@ import {
   assertArchiveTargetExternal,
 } from "./archive.ts";
 import { selfCheck } from "./self-check.ts";
+import { probeModels } from "./probe.ts";
+import { preparePublic } from "./dataset.ts";
+import { stopDatabase } from "./postgres.ts";
+import { pilot } from "./episodes.ts";
+import { modelIDs, type ModelID } from "./live-model.ts";
+import { exportGradePacket, importGradePacket } from "./grading.ts";
 
 async function main() {
   const [command, ...args] = process.argv.slice(2),
     options: Record<string, string> = {};
   for (let i = 0; i < args.length; i += 2) {
     requireThat(
-      ["--run", "--checkpoint", "--config", "--root", "--apply"].includes(
-        args[i],
-      ) &&
+      [
+        "--run",
+        "--checkpoint",
+        "--config",
+        "--root",
+        "--apply",
+        "--approval",
+        "--subset",
+        "--models",
+        "--verdict",
+      ].includes(args[i]) &&
         !!args[i + 1] &&
         !options[args[i]],
       "INVALID_ARGUMENTS",
@@ -33,7 +47,15 @@ async function main() {
   const root = options["--root"]
     ? path.resolve(options["--root"])
     : path.join(repository, ".local/benchmark");
-  if (["run", "self-check"].includes(command))
+  if (
+    [
+      "run",
+      "self-check",
+      "memory-probe",
+      "memory-prepare",
+      "memory-pilot",
+    ].includes(command)
+  )
     requireThat(
       options["--root"] && root !== path.join(repository, ".local/benchmark"),
       "BENCHMARK_EXPLICIT_FACILITY_ROOT_REQUIRED",
@@ -99,6 +121,84 @@ async function main() {
     return;
   }
   await Domains.use(root, async (d) => {
+    if (command === "memory-pilot") {
+      requireThat(options["--approval"], "CAMPAIGN_APPROVAL_ID_REQUIRED");
+      const subset = options["--subset"] ?? "smoke";
+      requireThat(
+        subset === "smoke" || subset === "synthetic",
+        "UNKNOWN_PILOT_SUBSET",
+      );
+      const models = (options["--models"]?.split(",") ?? [
+        ...modelIDs,
+      ]) as ModelID[];
+      requireThat(
+        models.length > 0 &&
+          new Set(models).size === models.length &&
+          models.every((m) => modelIDs.includes(m)),
+        "MODEL_NOT_APPROVED",
+      );
+      const report = await pilot(d, options["--approval"], subset, models);
+      console.log(
+        JSON.stringify(
+          {
+            report_id: report.run_id,
+            cases: report.cases,
+            first_failure: report.first_failure,
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
+    if (
+      command === "memory-grade-export" ||
+      command === "memory-grade-import"
+    ) {
+      requireThat(options["--run"], "RUN_ID_REQUIRED");
+      d.load(options["--run"]);
+      if (command === "memory-grade-export")
+        console.log(JSON.stringify(exportGradePacket(root, options["--run"])));
+      else {
+        requireThat(options["--verdict"], "GRADE_SUBMISSION_REQUIRED");
+        const file = path.resolve(options["--verdict"]);
+        noLinks(file);
+        requireThat(
+          inside(path.join(root, "oracles"), file),
+          "GRADE_SUBMISSION_OUTSIDE_FACILITY",
+        );
+        console.log(
+          JSON.stringify(importGradePacket(root, options["--run"], file)),
+        );
+      }
+      return;
+    }
+    if (command === "memory-prepare") {
+      const run = await d.create();
+      await stopDatabase(run.database);
+      console.log(JSON.stringify(await preparePublic(root)));
+      return;
+    }
+    if (command === "memory-probe") {
+      requireThat(options["--approval"], "CAMPAIGN_APPROVAL_ID_REQUIRED");
+      const result = await probeModels(d, options["--approval"]);
+      console.log(
+        JSON.stringify(
+          {
+            run_id: result.run_id,
+            evidence: result.evidence,
+            results: result.results.map((r: any) => ({
+              id: r.id,
+              listed: r.listed,
+              live_status: r.live_status,
+            })),
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
     const id = options["--run"];
     let result: unknown;
     if (command === "run") {

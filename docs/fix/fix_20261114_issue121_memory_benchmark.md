@@ -1,5 +1,13 @@
 # #121 真实模型记忆 benchmark：数据、工作负载与评分计划
 
+## 实施授权补充（2026-11-14）
+
+Master 在 R3 后确认实施，并明确允许复用本 checkout 现有 OpenAI/DeepSeek 凭据，以及将已提供场景和必要的冻结仓库片段交给私有 Claude 评分/复核。以下决定覆盖下文旧提案：DeepSeek Flash 为必需模型行，Sol、Luna 为对照行，缺失或未完成证据如实呈现；独立语义评委及实施 reviewer 使用 Claude Fable 5.2 Extra；取消总体金额/时间上限，但单请求、工具循环和 episode 仍有界，所有物理发送完整记账。原 $3 校准分配及 Sol/DeepSeek 双评委方案不再执行。必需模型的真实失败仍保留，基线失败不等于测试框架失效，也不授权在冻结前调优。
+
+两份已提供场景有重叠，归为已曝光开发/回归来源，不构成独立 held-out。材料中的历史邮件、提醒、委派请求只是测试数据，不是当前执行授权。填写答案及原始材料保持私有、未跟踪，仅模拟效果和符合截止时间的选定片段可进入被测模型。Master 已允许按现有流程归档 NAS。
+
+Master 追加要求 Claude 复核实际容错标准：六类问题都严重，但一律零错误不现实。R4 建议待回；旧 critical-zero 和 5/6 数值保留为历史提案，不视为已确认验收门槛。实现分别记录断言、后果、复发、分母及曝光状态，不把这些与某个门槛绑死。Pilot 只描述观察结果，正式资格验收/调优前仍由 Master 确认冻结表。目前没有已核实的同口径行业平均错误率。
+
 状态：R3 已获浏览器 Claude Opus 5.5 Extra **PASS**，待Master确认；实施 NOT_STARTED。复核后先交 Master 确认，之后才能实施。pilot 后冻结实验表是第二次独立决定。[English](fix_20261114_issue121_memory_benchmark.en.md)。
 
 仓库 https://github.com/ExplodeCode6324/Secretary ；[#121](https://github.com/ExplodeCode6324/Secretary/issues/121)，总路线 [#119](https://github.com/ExplodeCode6324/Secretary/issues/119)。main 基线 `6f3cd06327144d48960926af4ef90bbb24578bfd`（#133/#120 已合并）；分支 `codex/issue121-memory-benchmark-plan`。本轮不合并 agile、不部署、不实施生产记忆修复。

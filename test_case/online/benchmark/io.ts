@@ -254,13 +254,18 @@ export function binary(name: string): string {
   }
   throw Error("MISSING_BINARY_" + name);
 }
-export async function lease<T>(root: string, fn: () => Promise<T>): Promise<T> {
+export async function lease<T>(
+  root: string,
+  fn: () => Promise<T>,
+  lockName = "controller.lock",
+): Promise<T> {
+  requireThat(/^[a-z-]+\.lock$/.test(lockName), "INVALID_LOCK_NAME");
   mkdir(root);
   const child = spawn(
     binary("python3"),
     [
       path.join(repository, "test_case/online/benchmark/lease.py"),
-      path.join(root, "controller.lock"),
+      path.join(root, lockName),
     ],
     { env: cleanEnvironment(root), stdio: ["pipe", "pipe", "pipe"] },
   );

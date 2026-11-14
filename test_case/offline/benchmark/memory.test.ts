@@ -1,0 +1,460 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { normalizeContext } from "@earendil-works/pi-ai/utils/transcript";
+import { roleModel } from "../../../src/pi_secretary/src/model.ts";
+import {
+  assertCampaignClosed,
+  closeCampaign,
+  ledger,
+  reserve,
+  settle,
+} from "../../online/benchmark/campaign.ts";
+import {
+  descriptor,
+  meteredFetch,
+  modelIDs,
+} from "../../online/benchmark/live-model.ts";
+import { validateConfiguration } from "../../online/benchmark/domain.ts";
+import { writeJSON } from "../../online/benchmark/io.ts";
+import {
+  readerInput,
+  selectPublic,
+  questionTypes,
+  type PublicQuestion,
+} from "../../online/benchmark/dataset.ts";
+import {
+  recoveryClass,
+  validateRestoredRecords,
+} from "../../online/benchmark/snapshot.ts";
+import { blind, validateVerdicts } from "../../online/benchmark/grading.ts";
+import { sha } from "../../online/benchmark/io.ts";
+
+function facility(ceiling: number | null = null) {
+  const root = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "memory-accounting-")),
+  );
+  writeJSON(path.join(root, "campaign/manifest.json"), {
+    version: 1,
+    approval_id: "unit",
+    facility: root,
+    state: "OPEN",
+    ceiling_usd: ceiling,
+    created_at: new Date().toISOString(),
+  });
+  fs.mkdirSync(path.join(root, "evidence"), { mode: 0o700 });
+  return root;
+}
+const detail = {
+  model: "deepseek-flash",
+  run: "unit",
+  request_sha256: "a".repeat(64),
+  reserved_usd: 1,
+};
+test("physical accounting serializes concurrent senders and retains crash reservations", async () => {
+  const root = facility(3);
+  try {
+    const results = await Promise.allSettled(
+      Array.from({ length: 5 }, () => reserve(root, detail)),
+    );
+    assert.equal(results.filter((r) => r.status === "fulfilled").length, 3);
+    assert.equal(ledger(root).charged_usd, 3);
+    const ids = [...ledger(root).entries.keys()];
+    await settle(root, ids[0], "DONE", { input: 1 }, 0.25);
+    assert.equal(ledger(root).charged_usd, 2.25);
+    await assert.rejects(
+      settle(root, ids[0], "DUPLICATE", null, 0),
+      /INVALID_SETTLEMENT/,
+    );
+    assert.throws(() => assertCampaignClosed(root), /CAMPAIGN_OPEN/);
+    await closeCampaign(root);
+    assertCampaignClosed(root);
+    assert.equal(ledger(root).charged_usd, 2.25); // Two crashed/orphaned senders remain fully charged.
+    await assert.rejects(reserve(root, detail), /CAMPAIGN_CLOSED/);
+  } finally {
+    fs.rmSync(root, { recursive: true });
+  }
+});
+test("ledger corruption fails closed before any new reservation", async () => {
+  const root = facility();
+  try {
+    await reserve(root, detail);
+    const file = path.join(root, "campaign/attempts.jsonl");
+    const original = fs.readFileSync(file, "utf8");
+    fs.writeFileSync(
+      file,
+      original.replace('"reserved_usd":1', '"reserved_usd":0'),
+    );
+    await assert.rejects(reserve(root, detail), /CORRUPT_LEDGER/);
+    fs.writeFileSync(file, original.slice(0, -1));
+    assert.throws(() => ledger(root), /PARTIAL_LEDGER/);
+  } finally {
+    fs.rmSync(root, { recursive: true });
+  }
+});
+test("live config does not permit arbitrary provider, endpoint, credential or capacity fields", () => {
+  const c = {
+    version: 1,
+    mode: "live",
+    track: "memory",
+    case_id: "M1-dev",
+    seed: 121,
+    model: "deepseek-flash",
+    profile: "RC",
+    max_sends: 160,
+  } as const;
+  validateConfiguration(c);
+  for (const extra of [
+    { api_key: "secret" },
+    { endpoint: "http://local" },
+    { profile: "custom" },
+    { max_sends: 161 },
+    { fault_injection: "write-after-fsync" },
+  ])
+    assert.throws(() => validateConfiguration({ ...c, ...extra } as any));
+});
+test("metered transport refuses leakage, redirects and mismatched payloads before network", async () => {
+  const root = facility();
+  let sends = 0;
+  const fetcher = meteredFetch(
+    {
+      root,
+      run: "unit",
+      evidence: path.join(root, "evidence"),
+      model: "deepseek-flash",
+      key: "synthetic-private-key",
+      maxSends: 1,
+      forbidden: ["future-oracle-canary"],
+    },
+    async () => {
+      sends++;
+      throw Error("network failure with private headers");
+    },
+  );
+  const request = (url: string, content: string) =>
+    fetcher(url, {
+      method: "POST",
+      body: JSON.stringify({
+        model: "deepseek-flash",
+        stream: true,
+        max_tokens: 32,
+        messages: [{ role: "user", content }],
+      }),
+    });
+  try {
+    await assert.rejects(
+      request("https://example.com/chat/completions", "hi"),
+      /ENDPOINT_NOT_APPROVED/,
+    );
+    for (const text of ["synthetic-private-key", "future-oracle-canary"])
+      await assert.rejects(
+        request("https://api.deepseek.com/chat/completions", text),
+        /PAYLOAD_LEAK/,
+      );
+    assert.equal(sends, 0);
+    await assert.rejects(
+      request("https://api.deepseek.com/chat/completions", "hi"),
+      /^Error: PROVIDER_NETWORK_UNCERTAIN$/,
+    );
+    assert.equal(sends, 1);
+    assert.equal(ledger(root).entries.size, 1);
+    assert([...ledger(root).entries.values()][0].charged_usd > 0);
+    await assert.rejects(
+      request("https://api.deepseek.com/chat/completions", "hi"),
+      /SEND_LIMIT/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true });
+  }
+});
+test("all exact model descriptors traverse the product adapter and physical-send guard", async () => {
+  const native = globalThis.fetch;
+  for (const id of modelIDs) {
+    const root = facility(),
+      model = descriptor(id),
+      evidence = path.join(root, "evidence");
+    const bodies: any[] = [];
+    try {
+      globalThis.fetch = meteredFetch(
+        {
+          root,
+          run: "unit",
+          evidence,
+          model: id,
+          key: "synthetic-key",
+          maxSends: 1,
+        },
+        async (input) => {
+          const req = new Request(input);
+          bodies.push(await req.json());
+          assert.equal(req.redirect, "error");
+          const data =
+            model.api === "openai-completions"
+              ? [
+                  {
+                    id: "chatcmpl-unit",
+                    model: id,
+                    choices: [
+                      {
+                        index: 0,
+                        delta: { role: "assistant", content: "READY" },
+                        finish_reason: null,
+                      },
+                    ],
+                  },
+                  {
+                    id: "chatcmpl-unit",
+                    model: id,
+                    choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
+                    usage: { prompt_tokens: 10, completion_tokens: 2 },
+                  },
+                ]
+              : [
+                  {
+                    type: "response.created",
+                    response: {
+                      id: "resp_unit",
+                      model: id,
+                      status: "in_progress",
+                      output: [],
+                    },
+                  },
+                  {
+                    type: "response.output_item.added",
+                    output_index: 0,
+                    item: {
+                      type: "message",
+                      id: "msg_unit",
+                      role: "assistant",
+                      content: [],
+                    },
+                  },
+                  {
+                    type: "response.content_part.added",
+                    item_id: "msg_unit",
+                    output_index: 0,
+                    content_index: 0,
+                    part: { type: "output_text", text: "", annotations: [] },
+                  },
+                  {
+                    type: "response.output_text.delta",
+                    item_id: "msg_unit",
+                    output_index: 0,
+                    content_index: 0,
+                    delta: "READY",
+                  },
+                  {
+                    type: "response.completed",
+                    response: {
+                      id: "resp_unit",
+                      model: id,
+                      status: "completed",
+                      output: [],
+                      usage: {
+                        input_tokens: 10,
+                        output_tokens: 2,
+                        total_tokens: 12,
+                      },
+                    },
+                  },
+                ];
+          return new Response(
+            data.map((d) => "data: " + JSON.stringify(d) + "\n\n").join("") +
+              "data: [DONE]\n\n",
+            { headers: { "content-type": "text/event-stream" } },
+          );
+        },
+      );
+      const config = roleModel(model, "synthetic-key");
+      const answer = await (
+        await config.stream(
+          model,
+          normalizeContext({
+            messages: [{ role: "user", content: "Ready?", timestamp: 1 }],
+          }),
+          { maxTokens: 128 },
+        )
+      ).result();
+      assert.notEqual(answer.stopReason, "error", answer.errorMessage);
+      assert.equal(bodies.length, 1);
+      assert.equal(bodies[0].model, id);
+      assert.equal(ledger(root).entries.size, 1);
+      assert.equal([...ledger(root).entries.values()][0].settled, true);
+    } finally {
+      globalThis.fetch = native;
+      fs.rmSync(root, { recursive: true });
+    }
+  }
+});
+test("public corpus allowlist strips answer annotations and remaps every source identifier", () => {
+  const q: PublicQuestion = {
+    question_id: "answer-session-marked",
+    question_type: "single-session-user",
+    question: "Which color?",
+    question_date: "2023/05/21 (Sun) 10:00",
+    answer: 42,
+    answer_session_ids: ["answer-session"],
+    haystack_dates: ["2023/05/20 (Sat) 10:00"],
+    haystack_sessions: [
+      [
+        {
+          role: "user",
+          content: "The color is green.",
+          has_answer: true,
+          annotations: { answer: "oracle-canary" },
+        },
+      ],
+    ],
+  };
+  const sanitized = readerInput(q),
+    text = JSON.stringify(sanitized);
+  assert(!text.includes("oracle-canary"));
+  assert(!text.includes("answer-session"));
+  assert(!text.includes("has_answer"));
+  assert(!text.includes('"answer"'));
+  assert.equal(sanitized.sessions[0].turns[0].content, "The color is green.");
+  assert.equal(sanitized.sessions[0].at, "2023-05-20T10:00:00.000Z");
+  assert.deepEqual(readerInput(q), sanitized);
+  assert.throws(
+    () => readerInput({ ...q, haystack_dates: ["2023/05/22 10:00"] }),
+    /FUTURE_SESSION/,
+  );
+  const all = questionTypes
+    .flatMap<PublicQuestion>((type) =>
+      Array.from({ length: 10 }, (_, i) => ({
+        ...q,
+        question_type: type,
+        question_id: `${type}-${i}`,
+      })),
+    )
+    .concat(
+      Array.from({ length: 8 }, (_, i) => ({
+        ...q,
+        question_id: `q-${i}_abs`,
+      })),
+    );
+  const a = selectPublic(all),
+    b = selectPublic([...all].reverse());
+  assert.deepEqual(a, b);
+  assert.equal(a.dev.length, 6);
+  assert.equal(a.smoke.length, 50);
+  assert(
+    a.dev.every((d) => !a.smoke.some((s) => s.question_id === d.question_id)),
+  );
+});
+test("approved recovery contract covers each action and every operation state", () => {
+  const states = [
+    "PREPARED",
+    "WAIT_AUTH",
+    "AUTHORIZED",
+    "DISPATCHED",
+    "SUCCEEDED",
+    "FAILED",
+    "RESULT_UNKNOWN",
+    "CANCELLED",
+  ];
+  const cases: [string, boolean, string][] = [
+    ["file.write", false, "AAAUA AUA".replaceAll(" ", "")],
+    ["shell.run", true, "AAAXAAXA"],
+    ["shell.run", false, "XXXXXT XT".replaceAll(" ", "")],
+    ["world.change", false, "XXXXWTXT"],
+    ["scope.import", false, "XXXXXT XT".replaceAll(" ", "")],
+    ["program.run", false, "XXXXXT XT".replaceAll(" ", "")],
+  ];
+  for (const [action, readonly, expected] of cases)
+    for (const [i, state] of states.entries())
+      assert.equal(
+        recoveryClass(action, state, readonly),
+        expected[i],
+        `${action}/${state}`,
+      );
+  const operation: any = {
+    record_type: "Operation",
+    id: "denied",
+    revision: 2,
+    action: { action: "program.run" },
+    state: "CANCELLED",
+    effect: "NOT_STARTED",
+    process: null,
+  };
+  const proof = {
+    history: new Map([[operation.id, [operation]]]),
+    transactions: [
+      {
+        records: [operation],
+        events: [{ event_type: "authorization.decided", payload: {} }],
+      },
+    ],
+    value: () => ({
+      result: { operation_id: operation.id },
+      command: { decision: "REJECT" },
+    }),
+  };
+  validateRestoredRecords([operation], "/owned/core/workspaces", [], proof);
+  proof.history.set(operation.id, [
+    { ...operation, state: "DISPATCHED", revision: 1 },
+    operation,
+  ]);
+  assert.throws(
+    () =>
+      validateRestoredRecords([operation], "/owned/core/workspaces", [], proof),
+    /TERMINAL_EFFECT_UNPROVEN/,
+  );
+  proof.history.set(operation.id, [operation]);
+  proof.transactions[0].events = [];
+  assert.throws(
+    () =>
+      validateRestoredRecords([operation], "/owned/core/workspaces", [], proof),
+    /JOURNAL_PROOF/,
+  );
+});
+test("grader cannot change denominators, mutate evidence or waive serious review", () => {
+  const payload = { assertions: [{ assertion_id: "A1" }] };
+  const packet = {
+    packet_id: "packet",
+    payload,
+    payload_sha256: sha(JSON.stringify(payload)),
+    expected_judge: { model: "Fable 5.2", effort: "Extra" },
+  };
+  const verdict = {
+    packet_id: "packet",
+    payload_sha256: packet.payload_sha256,
+    judge: { model: "Fable 5.2", effort: "Extra" },
+    verdicts: [
+      {
+        assertion_id: "A1",
+        label: "FAIL",
+        severity: "S2",
+        evidence: ["event:1"],
+        rationale: "Explicit correction was ignored.",
+        human_review: true,
+      },
+    ],
+  };
+  validateVerdicts(packet, verdict);
+  assert.throws(
+    () => validateVerdicts(packet, { ...verdict, verdicts: [] }),
+    /DENOMINATOR/,
+  );
+  assert.throws(
+    () =>
+      validateVerdicts(packet, {
+        ...verdict,
+        verdicts: [{ ...verdict.verdicts[0], human_review: false }],
+      }),
+    /HUMAN_REVIEW/,
+  );
+  assert.throws(
+    () => validateVerdicts({ ...packet, payload: { assertions: [] } }, verdict),
+    /PACKET_CHANGED/,
+  );
+  assert.deepEqual(
+    blind({
+      model: "deepseek-flash",
+      nested: { provider: "deepseek", text: "gpt-6.1-sol says no" },
+    }),
+    { nested: { text: "[BLINDED_SUT] says no" } },
+  );
+});

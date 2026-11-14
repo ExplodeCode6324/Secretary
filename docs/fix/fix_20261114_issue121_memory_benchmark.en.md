@@ -1,5 +1,13 @@
 # #121 — Real-model memory benchmark: datasets, workload and scoring
 
+## Authorized implementation amendments (2026-11-14)
+
+Master approved implementation after R3 and explicitly confirmed reuse of the existing checkout-local OpenAI/DeepSeek credentials and private Claude grading/review for supplied scenarios and necessary frozen repository excerpts. These decisions supersede the earlier proposals below: DeepSeek Flash is the required model row; Sol and Luna are comparison rows with honest unavailable/incomplete evidence. Claude Fable 5.2 Extra is the independent semantic judge and implementation reviewer. Master removed the aggregate money/time ceilings; individual requests, tool loops and episodes remain bounded and all physical sends remain accounted. The earlier $3 calibration split and proposed dual Sol/DeepSeek judging are no longer operative. No model failure is concealed, and a required product row does not turn a baseline failure into a harness defect or authorize tuning before the freeze.
+
+Two supplied scenario summaries overlap and are exposed development/regression sources. They do not establish an independent held-out set. Historical requests embedded in them are test data, never current authority to send mail, change reminders or delegate real work. Raw answers and source files remain private and untracked; only frozen simulated effects and selected, cutoff-safe excerpts reach a SUT. Master authorized NAS retention under the established archive procedure.
+
+Master requested an additional Claude review of practical error tolerances: all six families matter, but blanket zero-error requirements are not realistic. R4 scoring advice is pending. Previous critical-zero and 5/6 proposals remain historical proposals, not approved qualification thresholds. The implementation records assertion outcomes, consequences, recurrence, denominators and exposure independently of thresholds. The pilot remains descriptive; Master approves the eventual freeze before qualification/tuning. No verified like-for-like industry error average is currently available.
+
 Status: R3 PASS — ready for Master confirmation; implementation NOT_STARTED. Master must approve implementation after browser Claude Opus 5.5 Extra review. A later pilot freeze is a separate decision. [中文](fix_20261114_issue121_memory_benchmark.md).
 
 Repository: https://github.com/ExplodeCode6324/Secretary ; [issue #121](https://github.com/ExplodeCode6324/Secretary/issues/121), [roadmap #119](https://github.com/ExplodeCode6324/Secretary/issues/119). Main baseline `6f3cd06327144d48960926af4ef90bbb24578bfd` (#133/#120 merged); branch `codex/issue121-memory-benchmark-plan`. No agile merge, deployment or production repair is authorized here.

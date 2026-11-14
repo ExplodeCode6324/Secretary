@@ -41,6 +41,12 @@ import {
   type Database,
 } from "./postgres.ts";
 import { restorePreflight } from "./snapshot.ts";
+import {
+  validateLiveConfiguration,
+  type LiveConfiguration,
+} from "./memory-config.ts";
+import { credential } from "./live-model.ts";
+import { assertCampaignClosed, loadCampaign } from "./campaign.ts";
 
 export type Run = {
   version: 1;
@@ -77,14 +83,16 @@ export type Run = {
     checkpointHash: string;
   };
 };
-export type Configuration = {
-  version: 1;
-  mode: "fixture";
-  track: "correctness";
-  case_id: "infrastructure";
-  seed: number;
-  fault_injection?: "write-after-fsync";
-};
+export type Configuration =
+  | LiveConfiguration
+  | {
+      version: 1;
+      mode: "fixture";
+      track: "correctness";
+      case_id: "infrastructure";
+      seed: number;
+      fault_injection?: "write-after-fsync";
+    };
 export const configuration: Configuration = {
   version: 1,
   mode: "fixture",
@@ -93,6 +101,7 @@ export const configuration: Configuration = {
   seed: 120,
 };
 export function validateConfiguration(config: Configuration) {
+  if (config.mode === "live") return validateLiveConfiguration(config);
   requireThat(
     JSON.stringify(
       Object.keys(config)
@@ -112,11 +121,12 @@ export function validateConfiguration(config: Configuration) {
 // The Core worker receives only its non-superuser DSN, never controller credentials.
 export type WorkerPermit = Pick<
   Run,
-  "id" | "nonce" | "active" | "evidence" | "config"
-> & { core_dsn: string };
+  "id" | "lineage" | "nonce" | "active" | "evidence" | "config"
+> & { core_dsn: string; live?: { key: string; facility: string } };
 export function workerPermit(run: Run): WorkerPermit {
   return {
     id: run.id,
+    lineage: run.lineage,
     nonce: run.nonce,
     active: run.active,
     evidence: run.evidence,
@@ -353,6 +363,12 @@ export class Domains {
   }
   async start(id: string) {
     const run = this.load(id);
+    const live =
+      run.config.mode === "live"
+        ? { key: credential(run.config.model), facility: this.root }
+        : undefined;
+    if (live)
+      requireThat(loadCampaign(this.root).state === "OPEN", "CAMPAIGN_CLOSED");
     this.assertLineageAvailable(run);
     requireThat(run.state === "STOPPED", "RUN_NOT_STOPPED");
     requireThat(
@@ -364,6 +380,7 @@ export class Domains {
         path.join(run.active, "core"),
         path.join(run.active, "core"),
         this.sink(run),
+        run.config.mode === "live",
       );
     if (!pgRunning(run.database)) startDatabase(run.database);
     await verifyDatabase(run.database);
@@ -397,7 +414,9 @@ export class Domains {
       requireThat(child.pid, "WORKER_NO_PID");
       run.process = processIdentity(child.pid, run.id);
       this.save(run);
-      child.send({ permit: workerPermit(run) }); // No Core opening before the durable ownership permit.
+      child.send({
+        permit: { ...workerPermit(run), ...(live ? { live } : {}) },
+      }); // Secrets only cross transient IPC; never enter the registry.
       await until(
         () =>
           fs.existsSync(readyFile) ||
@@ -490,6 +509,7 @@ export class Domains {
       path.join(run.active, "core"),
       path.join(run.active, "core"),
       this.sink(run),
+      run.config.mode === "live",
     );
     const cp = randomUUID(),
       dir = path.join(this.root, "checkpoints", cp);
@@ -556,6 +576,7 @@ export class Domains {
       path.join(cpDir, "state/core"),
       path.join(old.active, "core"),
       cp.sink,
+      old.config.mode === "live",
     );
     const run = await this.allocate(old.config, old.lineage);
     run.parent = id;
@@ -659,6 +680,7 @@ export class Domains {
       path.join(staged, "core"),
       path.join(run.active, "core"),
       this.sink(run),
+      run.config.mode === "live",
     );
     if (!pgRunning(run.database)) startDatabase(run.database);
     await verifyDatabase(run.database);
@@ -726,6 +748,7 @@ export class Domains {
     return run;
   }
   async clean(id: string) {
+    assertCampaignClosed(this.root);
     const run = this.load(id);
     this.assertLineageAvailable(run);
     requireThat(run.state === "STOPPED", "CLEAN_REQUIRES_STOPPED");
