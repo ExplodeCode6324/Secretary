@@ -1,6 +1,6 @@
 # #121 真实模型记忆 benchmark：数据、工作负载与评分计划
 
-状态：R2 修订版，待浏览器 Claude Opus 5.5 Extra 复核；实施 NOT_STARTED。复核后先交 Master 确认，之后才能实施。pilot 后冻结实验表是第二次独立决定。[English](fix_20261114_issue121_memory_benchmark.en.md)。
+状态：R3 修订版，待浏览器 Claude Opus 5.5 Extra 复核；实施 NOT_STARTED。复核后先交 Master 确认，之后才能实施。pilot 后冻结实验表是第二次独立决定。[English](fix_20261114_issue121_memory_benchmark.en.md)。
 
 仓库 https://github.com/ExplodeCode6324/Secretary ；[#121](https://github.com/ExplodeCode6324/Secretary/issues/121)，总路线 [#119](https://github.com/ExplodeCode6324/Secretary/issues/119)。main 基线 `6f3cd06327144d48960926af4ef90bbb24578bfd`（#133/#120 已合并）；分支 `codex/issue121-memory-benchmark-plan`。本轮不合并 agile、不部署、不实施生产记忆修复。
 
@@ -28,11 +28,11 @@ API 凭据只在本 checkout `.local/test-credentials/`，0700/0600，核对忽�
 
 模型解析明确选择：不升级锁定的 pi-ai。独立本地核对确认 Sol/Luna 缺条目、DeepSeek Flash 已有 openai-completions。为两个精确 OpenAI ID 增加 **benchmark 专用显式 Model 描述**，经 App.open/roleModel 使用；不回退旧模型、不改产品 registry。锁定描述 JSON/hash、官方来源/日期、API/low reasoning，先用 loopback 验请求/流/工具/usage。官方当前列两者 1.05M context/128K max output；每百万未缓存 input/output USD 分别 Sol 2/10、Luna 0.10/0.50。仅为当前资料，不是永久价格或消费许可，冻结前重核；未知 cache 价格按未缓存上界预留，不造折扣。DeepSeek 固定 registry 描述与实际 Chat Completions 端点并独立验证。适配不支持记 BLOCKED，不暗换5.6。
 
-预算分阶段：本次计划拟请 Master 批准 **总 USD 3 校准上限（每模型 USD 1）**，仅合成能力/续接校准，每行最多60物理发送、总墙钟两小时。36主运行 pilot 前，按实测请求大小、角色/episode、原产品重试/输出设置及有日期的价格/汇率，计算包含评分/启动调用的最坏预留表，再把具体 pilot 总额/时限/行预算交 Master 批准。USD 30 只是初稿估计，不保证足够也不自动消费。校准触限保留 INCOMPLETE，再提具体调整，不隐藏失败或挪用其他行余额。
+预算分阶段：本次计划拟请 Master 批准 **总USD 3校准上限（Sol 2.40、DeepSeek 0.45、Luna 0.15）**，仅合成能力/续接校准，每行最多60物理发送、总墙钟两小时。费用份额按价格差异，不代表不同对照工作量；上限不保证完成，Sol仍可能因真实维护INCOMPLETE，收费前先离线重核最坏成本。36主运行 pilot 前，按实测请求大小、角色/episode、原产品重试/输出设置及有日期的价格/汇率，计算包含评分/启动调用的最坏预留表，再把具体 pilot 总额/时限/行预算交 Master 批准。USD 30 只是初稿估计，不保证足够也不自动消费。校准触限保留 INCOMPLETE，再提具体调整，不隐藏失败或挪用其他行余额。
 
 pilot episode 拟60分钟/160物理发送、P单题10分钟，待校准及矩阵确认。产品 transport 保持120秒、最多3次尝试；维护退避仍5/30/120分钟，计数不压制，不再加第二套产品重试规则。SDK仍零自动重试。P reader/grader专用传输120秒，未接受的瞬时失败最多显式重试一次；不重放不确定已接受请求。普通/提取输出4096、整理首轮/重试16384/32768，遵守原容量裁剪。总限额停机不改产品策略；缺用量=null、触限=INCOMPLETE，保留已观察关键FAIL。
 
-**物理发送责任在实际发送的 worker/grader**：用 `<facility>/campaign/` 的跨进程锁及追加账本，位于slots/checkpoint外且SUT工具不可达。锁内预留最坏费用/唯一attempt ID并fsync，释放锁才发；完成后锁内追加。孤儿/未对账预留按全额占用。campaign身份跨run ID/重启/恢复不变，checkpoint不能回退；账本丢失/损坏拒发。不假设CLI一直运行，也不冒称旧controller ACK已实现；#120交付明确延后provider计量。逻辑调用复用ModelCall/Context/request_budget的MAIN/TASK/COMPACTION；新增物理attempt回执关联或明确关联缺失，不造第二套产品逻辑账本。没有ModelCall的提取使用真实call-site/context引用，不伪造ID。并发main/task/grader、发送前崩溃、半流、恢复/重复attempt都测；账本无provider secret。
+**物理发送责任在实际发送的 worker/grader**：用 `<facility>/campaign/` 的跨进程锁及追加账本，位于slots/checkpoint外且SUT工具不可达。锁内预留最坏费用/唯一attempt ID并fsync，释放锁才发；完成后锁内追加。孤儿/未对账预留按全额占用。`.local/benchmark/`小型持久campaign registry绑定审批ID/总额和唯一规范facility，保留spent/reserved或已核验回执；新建facility不能重置审批额度。默认拒重新绑定，明确获准迁移须带账本/预留不归零。OPEN campaign/活跃sender禁止archive/clean，关闭对账后才seal/归档，本机保留小型累计消费/archive-hash回执。campaign身份跨run ID/重启/恢复不变，checkpoint不能回退；账本丢失/损坏拒发。不假设CLI一直运行，也不冒称旧controller ACK已实现；#120交付明确延后provider计量。逻辑调用复用ModelCall/Context/request_budget的MAIN/TASK/COMPACTION；新增物理attempt回执关联或明确关联缺失，不造第二套产品逻辑账本。没有ModelCall的提取使用真实call-site/context引用，不伪造ID。并发main/task/grader、发送前崩溃、半流、恢复/重复attempt都测；账本无provider secret。
 
 按episode/repeat交错并轮换模型顺序，提前给各SUT与judge独立子预算，不暗挪余额。剩余不足该episode保守上界不启动；所有planned/attempted/未运行行及失败校准保留。测试限额不进入敏捷。
 
@@ -46,7 +46,7 @@ pilot episode 拟60分钟/160物理发送、P单题10分钟，待校准及矩阵
 
 输入仅允许question_id/question/question_date和原顺序、角色、文本、日期；session/turn ID先重映射为中性UUID，反向映射私有。递归剔除answer/has_answer/answer_session_ids/标签/未知字段。历史仅引用材料，不是Master新命令或live assistant事件。在自有PG的单独corpus/source_id直接复用已导出 `bodyChunks`/`searchQuery`，不称有tokenizer/ranker、不抽helper、不写产品journal。每历史turn映射source文档，occurred_at=原haystack_date，input/reply类型，固定排序映射并保留全文供读源。
 
-P主适配改为有界真实模型工具循环，沿用产品 `memory_search`/`memory_read` schema/description，handler明确绑定组件corpus。模型自己生成≤256字符query；保留转义ILIKE子串、时间倒序、最多20文档及每文档首个命中chunk。固定K=8个search/read工具调用，最多9个reader请求（含最终回答）；非法调用计K，并行批次不可绕过。记录每次query/hit/source slice/effective payload。不支持的world/consciousness参数显式返回component-unsupported，限制写入adapter manifest；question_date作本题截止时间，原日期不是伪造宿主时钟。不得gold选证据、按模型调query或机械把整个问题作字符串匹配。忠实适配下低分是有效基线。full-history/oracle reader单列诊断，不回退、不称全Core。
+P主适配改为有界真实模型工具循环，沿用产品 `memory_search`/`memory_read` schema/description，handler明确绑定组件corpus。模型自己生成≤256字符query；保留转义ILIKE子串、时间倒序、最多20文档及每文档首个命中chunk。adapter manifest锁定P reader系统prompt全文/hash。固定K=8个search/read工具调用，最多9个reader请求（含最终回答）；非法调用计K，并行批次不可绕过。记录每次query/hit/source slice/effective payload。不支持的world/consciousness参数显式返回component-unsupported，限制写入adapter manifest；question_date作本题截止时间，原日期不是伪造宿主时钟。不得gold选证据、按模型调query或机械把整个问题作字符串匹配。忠实适配下低分是有效基线。full-history/oracle reader单列诊断，不回退、不称全Core。
 
 锁定官方 `evaluate_qa.py`、`print_qa_metrics.py`、prompt/parser/dependencies/judge。官方 judge 实际可用且获单独批准时，原样评分，标注“50题子集／组件适配／官方评分器”，不称全套成绩。三种被测模型不隐含 judge 授权。Master若批准更换judge，锁定其身份＋官方prompt，属于明确 **judge variant**，不能填官方分数；官方栏保留 NOT_TESTED/BLOCKED。longmemeval_oracle.json仅在grader侧读取并锁hash，按官方合同保留answer整数/字符串类型，绝不交SUT。分question_type/abstention报告，分层总分不可直接对比公开非分层成绩。judge 错误/非法输出记未决，不能自动判正确或错误。P 不作为 Secretary 放行门槛。
 
@@ -69,11 +69,11 @@ P主适配改为有界真实模型工具循环，沿用产品 `memory_search`/`m
 
 #### 明确的缩小容量诊断 profile 与真实故障注入
 
-首轮S/R诊断配置：MAIN/TASK context window=65536、recent input max count=2、recent input budget ratio=0.05；compaction target/normal/forced=0.3/0.6/0.8，输出/重试不改。控制器传递验证后的数字profile，先构造clean env再仅允许 `SECRETARY_MAIN_CONTEXT_WINDOW`、`SECRETARY_TASK_CONTEXT_WINDOW`、`SECRETARY_RECENT_INPUT_MAX_COUNT`、`SECRETARY_RECENT_INPUT_BUDGET_RATIO`；拒任何ambient SECRETARY键及未知profile字段，fixture默认不变。每episode TZ=UTC，源日期明确offset，不改系统时钟。校准后变更须命名新profile并统一应用三模型，不逐行优化。
+首轮S/R缩小容量（RC）诊断配置：MAIN/TASK context window=65536、recent input max count=2、recent input budget ratio=0.05；compaction target/normal/forced=0.3/0.6/0.8，输出/重试不改。控制器传递验证后的数字profile，先构造clean env再仅允许 `SECRETARY_MAIN_CONTEXT_WINDOW`、`SECRETARY_TASK_CONTEXT_WINDOW`、`SECRETARY_RECENT_INPUT_MAX_COUNT`、`SECRETARY_RECENT_INPUT_BUDGET_RATIO`；拒任何ambient SECRETARY键及未知profile字段，fixture默认不变。每episode TZ=UTC，源日期明确offset，不改系统时钟。校准后变更须命名新profile并统一应用三模型，不逐行优化。
 
-每模型进入M类前，continuity校准须证明实际0.6 occupancy下真实维护提交/context crop，以及目标原输入**连同assistant/tool复述**确实不在effective request，而原历史仍可检索。max-count=2要求目标后至少三条已覆盖输入，但条数不能证明crop。作者按产品byte容量策略预先定填充序列，实际payload验收，不手动删轮次。24填充仍未退出则停止并归因；不伪造退出或用常驻答案通过。有效驱动后的产品失败与harness/setup阻断分开。此为**缩小容量诊断**G1/G2建议，#125仍需实际部署容量、时间及负载实证，不能替代G3。
+收费校准前，用真实产品prompt/tool/context及summary planner离线计算resident base、可用输入、crop阈值、recent-input字节额度、整理首轮/重试output clamp、segment固定开销及预计分段/发送次数；先发现SUMMARY_FIXED_INPUT_CAPACITY_BLOCKED或recent额度为0。count=2只是上界，不保证留两条。65536不容实际固定prompt时，先提统一修订profile和成本交Master，不逐模型暗改。每模型进入RC M类前，continuity校准须证明实际0.6 occupancy下真实维护提交/context crop，以及目标原输入**连同assistant/tool复述**确实不在effective request，而原历史仍可检索。max-count=2要求目标后至少三条已覆盖输入，但条数不能证明crop。作者按产品byte容量策略预先定填充序列，实际payload验收，不手动删轮次。24填充仍未退出则停止并归因；不伪造退出或用常驻答案通过。有效驱动后的产品失败与harness/setup阻断分开。此为**缩小容量诊断RC-G1/RC-G2**建议。**任何RC结果都不能满足#126的G1、G2或G3。**须使用下述独立DEP协议和Master确认的责任/冻结，不跨profile复制PASS。
 
-M5真实中断不用fixture正文“uncertain”：manifest指定单次故障，匹配自有精确相对路径、execution ID下首个获授权file.write，真实fsync后、结果持久化前记录fault intent/operation ID并消耗campaign中的一次性fault，然后SIGKILL。不依赖模型措辞/隐藏预期文件字节。保留回执/效果hash/次数，恢复走原UNKNOWN对账后续接；没有匹配写入记未覆盖，不注入假工具调用。其他run关闭故障，旧fixture测试保持。
+M5真实中断不用fixture正文“uncertain”：manifest指定单次故障，Master输入明确指定自有精确相对路径，运行时选择并绑定首个匹配获授权file.write的实际execution/operation ID，真实fsync后、结果持久化前记录fault intent/operation ID并消耗campaign中的一次性fault，然后SIGKILL。不依赖模型措辞/隐藏预期文件字节。保留回执/效果hash/次数，恢复走原UNKNOWN对账后续接；写错路径属于语义失败，不是跳过故障；没有匹配写入须归因并记fault未覆盖，不注入假工具调用。其他run关闭故障，旧fixture测试保持。
 
 ### R：Master 批准的私有/受控衍生场景
 
@@ -89,6 +89,8 @@ Master 已选先填[脱敏问卷](issue121_private_scenarios_questionnaire.md)�
 
 记录作者、看过输入/oracle/失败的人、曝光时间与冻结哈希。实施调试只看 dev；held-out 在框架/schema 验证后，由 Master 或明确授权且不做候选调参的独立策展者封存。作者不同本身不保证未见，held-out oracle 不进代理上下文/Git。无独立性则明确标“已曝光回归”，保留结果，泛化结论前补新未见事件。看过失败并据此调参后转回归，补全新保留集。本计划阶段不需擅自委派其他agent。held-out编写估计每episode30–60分钟＋独立oracle核验15分钟，十二例约9–15小时；这是工作量估计，不强加给Master。缩小矩阵或授权独立策展者由冻结决定；未满足则未见结论待办。
 
+must-retrieve子例须证明实际Context、常驻角色画像、Consciousness、自动召回均无证据，不能只看原turn。合法常驻不需重复检索，并有不盲搜对照。正常旧事实→纠正场景若维护已正确保留新纠正，则维护通过，后续按合法状态判使用；不删/污染有效记忆强造冷失败。冷检索前提未形成单列未覆盖，不能把正确维护判FAIL；后来检索成功不抹前次维护失败，直接损坏状态单列诊断。
+
 #120 是工具可达边界，不是 OS 沙箱。真实模型启用前，用完整真实工具集证明 canary 不可读：禁任意 shell/PROGRAM、DIRECTORY 导入、外部写入/真实推送；保留工具 schema，让危险请求走正常拒绝，不靠删工具或许可自定义规则。允许自有 Shared 文件、正常授权写入、journal/CAS World 提交和计数本地通知 sink。首次及恢复后 effective payload 均检测秘密/答案/未来 canary，逐条允许工具路径验证。
 
 恢复预检在 **start、checkpoint、restore** 都按下表。A=自有资源、进程已停、action/回执/history一致后允许；T=终态未派发证明（从未DISPATCHED、无进程/效果、有拒绝/取消journal）；W=完成的WorldBatch＋COMMITTED回执及journal/CAS一致；U=仅自有写入，原Core恢复UNKNOWN并在新效果前对账；X=拒绝。不存在“一切终态放行”；无状态/证据即X。
@@ -103,7 +105,7 @@ Master 已选先填[脱敏问卷](issue121_private_scenarios_questionnaire.md)�
 | scope.import DIRECTORY | X | X | X | X | X | T | X | T |
 | program.run | X | X | X | X | X | T | X | T |
 
-首轮保守地不支持成功Scope导入/program，只用新Shared。DIRECTORY Scope、ProgramRegistration、自定义AuthorizationRule、活的越界资源、未决进程始终独立拒绝。终态拒绝记录可保留外部路径作惰性历史，但须证明启动不会派发/访问该路径，否则X。World部分作用后失败不满足T，继续阻断。仅harness预检变更，不改Core授权。将 `recovery.test.ts` 现有external-capability测试扩为全状态矩阵；无状态、危险进程、DIRECTORY/registration、越界拒绝保留。新增真实完成World/已拒shell重启正例和错回执负例。预检拒绝记harness BLOCKED，不记产品语义FAIL。
+首轮保守地不支持成功Scope导入/program，只用新Shared。DIRECTORY Scope、ProgramRegistration、自定义AuthorizationRule、活的越界资源、未决进程始终独立拒绝。终态拒绝记录可保留外部路径作惰性历史，但须证明启动不会派发/访问该路径，否则X。World部分作用后失败不满足T，继续阻断。仅harness预检变更，不改Core授权。将 `recovery.test.ts` 现有external-capability测试扩为全状态矩阵；无状态、危险进程、DIRECTORY/registration、越界拒绝保留。新增真实完成World/已拒shell重启正例和错回执负例。预检拒绝记harness BLOCKED，不记产品语义FAIL。计划重启静止边界：World drain idle，无进行中X类操作、无pending world-change/scope-import审批、无活跃工具进程。预声明driver策略用原授权API拒绝场景外pending请求，全部 `remember=null`，不创建AuthorizationRule。范围内合法工作须先完成或按场景取消。readonly shell仍DISPATCHED可保守阻断并报告；M5刻意中断的U类是普通静止边界的明确例外，证明进程已停并沿原UNKNOWN对账。
 
 **首轮不做同checkpoint非干扰分叉**。#120恢复会退休源run，不支持反复恢复同checkpoint，且禁止回退已前进sink；保留self-check的CHECKPOINT_MISMATCH/SINK_ADVANCED_AFTER_CHECKPOINT测试。主探针都是明确闭环事件，留入后续记忆；每模型/重复新建域，单向真实重启恢复续接原lineage。同基线非干扰=NOT_TESTED，另立分叉设计后再做；是缩小首轮探针范围，不冒称#120已实现。oracle-reader只用保存输出/原证据另域诊断，不重放效果/旧工具结果。
 
@@ -117,9 +119,19 @@ G2：事实/限制、拒答、证据使用、检索、维护分别报告。P gol
 
 评分对照至少 12 个手工冻结合成样例（每M一正一负，含中英文正确改写/负例），并有成对丢义务、陈旧纠正、错误来源、虚假完成、冗长错误、正确改写、非法 JSON、judge 注入。要求确定性对照和关键负例全部正确拒绝、正例接受，非法输出未决；对真实效果做正负变异。对照失败则受影响评分无效，保留后只在 dev 修复。
 
-pilot 后待 Master 冻结的建议：缩小容量S held-out 12×3新域重复×3模型=**108 episode runs**。Sol、DeepSeek 各自要求 G0 全部计划必测运行有效；G1 全重复零关键违例；G2 每 M 类两个 episode×三次中至少 **5/6 整体成功**，且必要边界分支全部观察到。必要断言未决/不支持阻断资格，不缩分母。Luna 同样 workload/评分、完整报失败，但自身失败不阻断放行；未达同标准不称 Luna 合格。P 50×3×3=450新域题次（不称统计独立），仅参考。R 拟四 episode（2 dev/2 held-out），held-out 2×3×3=18次；Sol/DeepSeek 每个保留 episode 3/3 且零关键违例，按 Master 实际优先级冻结。P/S/R 和模型不混总分。
+pilot 后待 Master 冻结的建议：缩小容量S held-out 12×3新域重复×3模型=**108 episode runs**。Sol、DeepSeek各自要求RC全部计划必测运行有效；RC-G1全重复零关键违例；RC-G2每M类两个 episode×三次中至少 **5/6 整体成功**，且必要预声明边界subcase全部观察到。必要断言未决/不支持阻断资格，不缩分母。Luna同诊断workload/评分、完整报失败，其失败不阻断对照报告交付；未达同标准不报诊断PASS。放行只归#126和Master。P 50×3×3=450新域题次（不称统计独立），仅参考。R 拟四 episode（2 dev/2 held-out），held-out 2×3×3=18次；Sol/DeepSeek 每个保留 episode 3/3 且零关键违例，按 Master 实际优先级冻结。P/S/R 和模型不混总分。
 
-小样本只支持有限验收。pilot 可支持调整题数/分支/整数阈值，但候选调参前须 Master 确认，保留旧建议/旧结果。30模拟日、10k存储单位和完整容量是 #125 待确认范围；十二 S 场景不证明它们。G3 的语义、延迟/启动/恢复、内存、积压和成本边界与 #125 协同冻结；#121 实测报告不宣称 G3。#126 保留 G4 与放行权。
+小样本仅支持有界诊断证据。pilot 可支持调整题数/分支/整数阈值，但候选调参前须 Master 确认，保留旧建议/旧结果。30模拟日、10k存储单位和完整容量是 #125 待确认范围；十二 S 场景不证明它们。G3 的语义、延迟/启动/恢复、内存、积压和成本边界与 #125 协同冻结；#121 实测报告不宣称 G3。#126 保留 G4 与放行权。
+
+### 独立部署容量（DEP）协议与放行交接
+
+冻结表分为 **RC诊断** 和 **DEP放行证据** 两节，各自记录角色/容量/input-window/prompt/config hash、事件序列、数量/评分、成本/状态。DEP使用各已验证模型真实context window及产品默认recent-input count=12、ratio=0.15，原输出/维护策略；不读取agile配置。这是拟部署配置，非当前agile现状声明，由Master在冻结前确认目标部署profile。
+
+DEP复用相同冻结语义episode/断言及三次新域重复，保持语义输入序列、去掉RC专用填充；证据合法常驻时正常评分。固定短序列无法建立证据缺席前提的must-retrieve/crop断言，在DEP标 **NOT_TESTED＋具体缺口**：8–16条不保证百万级窗口crop，input projection不移除assistant/tool复述。绝不抄RC成绩；必测DEP缺口阻断对应放行gate，直到取得真实规模证据，或Master明确改变资格范围且保留缺口。不声称全窗口crop永远不可能，也不保证DEP更便宜，费用以实际payload/维护计。
+
+拟责任划分须Master在冻结前确认：#121定义两套协议/oracle/repeat/评分并交pilot；**#122执行DEP非时间语义基线**；**#125执行DEP M4/时间/负载及需要规模才可覆盖的crop子例**，复用#122探针及共同load工具；**#126汇总DEP G1/G2及G0/G3/G4并交Master放行**。DEP整数门槛从同一建议起步（每类两例×三次至少5/6、零关键违例），但确切case/coverage/time/load/resource和待办由Master单独冻结，不继承RC资格。Luna不强制通过的指定角色仍保留在独立DEP矩阵。
+
+校准后付费pilot新增**每模型一个DEP continuity smoke**，在另批预算内：14条语义输入、正常真实维护、静止重启续接、不加RC filler，观察原输入投影/assistant复述/派生常驻实际保留情况。基础continuity可通过而cold/crop仍NOT_TESTED，不能证明缺失的冷记忆资格。pilot因此为36个P/RC主运行＋最多3个RC和3个DEP smoke（校准已提供RC smoke可复用不重跑）。全部调用/失败smoke/评分都计总预算。Master确认前，DEP责任和必要缺口均保持待办，正式G1/G2待定。
 
 ### 失败链与报告状态映射
 
@@ -147,9 +159,9 @@ UNRESOLVED只用于断言层，不增加公共报告第七状态：
 3. live 前完成状态恢复拒绝和 oracle canary。合成事实→真实整理退出→真重启/恢复→续接的 continuity smoke，观测角色/效果；提取/退出失败保留，不用 fixture 替代。
 4. 实现 P 组件 loader/scorer、S dev 驱动/oracle/grader；R 只准备问卷与许可。离线正负验证来源、选题、cutoff、白名单、评分控制、预算台账、半流/取消、报告。直接导入现有helper不抽取，增加组件工具schema/description与产品漂移检查。
 5. 单独校准及费用表获准后，三模型按交错顺序各跑 **6道独立 P dev＋6个 S dev（每 M 一例）×一次=36 主运行**，另每模型最多一次 continuity smoke。各角色/双judge调用都占总额/子预算。R pilot 需另有来源/端点许可和明确矩阵/预算。保存全部失败/不可用及 provider/harness/timeout/capacity/unsupported/incomplete 分类。pilot 不调候选；仅修 harness 缺陷，另 run ID，保留首失败。
-6. 交 Master pilot＋可审阅冻结表：确切 ID/split 曝光、角色/模型快照/参数、judge/controls、重复数、G1/G2整数、费用/次数、真实整理退出/负载、#125资源接口及 R/时间缺项。确认前不进入资格测试或候选调参。
+6. 交 Master pilot＋可审阅冻结表：确切 ID/split 曝光、角色/模型快照/参数、judge/controls、重复数、G1/G2整数、费用/次数、真实整理退出/负载、#125资源接口及 R/时间缺项。确认前不进入资格测试或候选调参。冻结须包含独立RC/DEP及#122/#125/#126责任决定；RC不能满足正式G1/G2/G3。
 7. 实施验证：针对性协议/泄漏/效果/恢复 correctness，`npm run check`、`npm run docs:check`、`npm run verify`、必需 Linux PG18/full suite 与 macOS benchmark CI。收费 online opt-in、不成为 CI 凭据依赖；实测 pilot 另附。harness-only 的原生 TUI/agile 同域改动 NOT_APPLICABLE，不称已测；产品变更超出行为保留 helper 则重新计划/补受影响回归。
-8. 已停止、归属核验测试 facility 走现有本地 tar.gz→已挂载 NAS→逐文件读回 hash/size→receipt→释放本地流程。目标 `/Volumes/share/Files/HDD2/ELIZA/ELIZA_BAK/secretary-test-bak`，挂载缺失拒绝。完整首失败/证据保留；独立 API 凭据、活动/未知/混合根、敏捷数据排除。R 的 NAS 保留/访问需授权；本地只留小型脱敏索引。
+8. 已停止、归属核验测试 facility 走现有本地 tar.gz→已挂载 NAS→逐文件读回 hash/size→receipt→释放本地流程。目标 `/Volumes/share/Files/HDD2/ELIZA/ELIZA_BAK/secretary-test-bak`，挂载缺失拒绝。完整首失败/证据保留；独立 API 凭据、活动/未知/混合根、敏捷数据排除。R的NAS保留/访问需授权，包内oracle的接收者及实际NAS访问写入曝光日志；本地只留小型脱敏索引。
 
 ## 7. 验收与复核记录
 
@@ -161,7 +173,7 @@ UNRESOLVED只用于断言层，不增加公共报告第七状态：
 | A121-04 | P 原历史/官方评分区分；S 真闭环/整 episode 评分；R 独立可溯源或明确待办 |
 | A121-05 | 正负控制能拒坏事实/效果、接正确改写；未决不 PASS；完整分母/首失败跨重跑重评保留 |
 | A121-06 | 真实模型重启恢复及按状态拒绝完成；checkpoint 分支不冒充独立重复 |
-| A121-07 | pilot＋Master 调参前冻结；#125资源责任保留；R/许可/预算待办不称全完成 |
+| A121-07 | pilot含DEP smoke＋Master调参前独立RC/DEP样本/语义/资源冻结及#122/#125责任；RC不满足#126gate；DEP覆盖/R/许可/预算待办不称全完成 |
 | A121-08 | 必需 correctness/CI、归档回执/说明；同 Claude 会话复核实施精确 HEAD；Master 另授合并 |
 
-R1为CHANGES_REQUIRED（五阻断、九组补充），reviewer独立检查源码/包/公开文档，未跑测试/验证live。R2采纳B1缩小容量和退出可达、B2忠实工具循环、B3专用模型描述、B4全状态矩阵及仅闭环、B5跨进程campaign账本并保留产品retry/output；其余要求均落实。仅澄清oracle位置：留在已忽略的自有facility控制器区域，非源码指纹/工具根，不需checkout外数据根。本地独立registry/query/output核对与R1一致。同会话 https://claude.ai/chat/f3b54c6d-d2d9-4268-bfc3-c60e79eae0d5 ，R2待复核。本轮仅计划文档校验，runtime/CI/pilot NOT_TESTED。原请求/回复/截图在忽略目录 `.local/reviews/issue121/`。计划及空问卷无个人数据；Master 选择先问卷，未回不是同意。review PASS 仅代表可交 Master 决策，不是实施许可或记忆验收。
+R1为CHANGES_REQUIRED（五阻断、九组补充），reviewer独立检查源码/包/公开文档，未跑测试/验证live。R2采纳B1缩小容量和退出可达、B2忠实工具循环、B3专用模型描述、B4全状态矩阵及仅闭环、B5跨进程campaign账本并保留产品retry/output；其余要求均落实。仅澄清oracle位置：留在已忽略的自有facility控制器区域，非源码指纹/工具根，不需checkout外数据根。本地独立registry/query/output核对与R1一致。同会话 https://claude.ai/chat/f3b54c6d-d2d9-4268-bfc3-c60e79eae0d5 ，R2为CHANGES_REQUIRED，首轮五阻断全解决，仅余RC成绩可能进入正式G1/G2。R3独立RC/DEP门槛、profile及Master待确认责任，新增DEP smoke并保留部署缺口。六组非阻断均采纳：真实prompt离线容量推算、加权校准预算、静止/remember=null、运行时fault ID、审批到facility注册及开放campaign禁止归档、subcase/P prompt hash/NAS曝光。另澄清全容量crop非永远不可能，只是短序列未证明；DEP成本实测，不预断更低。R3待复核。本轮仅计划文档校验，runtime/CI/pilot NOT_TESTED。原请求/回复/截图在忽略目录 `.local/reviews/issue121/`。计划及空问卷无个人数据；Master 选择先问卷，未回不是同意。review PASS 仅代表可交 Master 决策，不是实施许可或记忆验收。
