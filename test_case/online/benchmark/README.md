@@ -12,20 +12,21 @@
 
 ## 精确命令
 
-从仓库根目录执行。可选 `--root <repo/.local/benchmark/子目录>` 需在每次操作中保持一致。
+从仓库根目录执行。创建命令必须显式指定独立子目录，不能使用混合总根；所有后续操作保持相同 `--root`。每次新测试选择新的 UUID 子目录，普通完整套件约产生 1 GB 数据，用完按下文归档。示例中的 BENCHMARK_ROOT 是本次测试专用变量：
 
 ```sh
-npm run benchmark -- self-check
-npm run benchmark -- run
-npm run benchmark -- status --run <run-id>
-npm run benchmark -- stop --run <run-id>
-npm run benchmark -- start --run <run-id>
-npm run benchmark -- checkpoint --run <run-id>
-npm run benchmark -- restore --run <source-run-id> --checkpoint <checkpoint-id>
-npm run benchmark -- recover --run <interrupted-run-id>
-npm run benchmark -- seal --run <run-id>
-npm run benchmark -- clean --run <run-id>
-npm run benchmark -- report --run <report-id>
+BENCHMARK_ROOT="$PWD/.local/benchmark/tests/$(uuidgen | tr '[:upper:]' '[:lower:]')"
+npm run benchmark -- self-check --root "$BENCHMARK_ROOT"
+npm run benchmark -- run --root "$BENCHMARK_ROOT"
+npm run benchmark -- status --run <run-id> --root "$BENCHMARK_ROOT"
+npm run benchmark -- stop --run <run-id> --root "$BENCHMARK_ROOT"
+npm run benchmark -- start --run <run-id> --root "$BENCHMARK_ROOT"
+npm run benchmark -- checkpoint --run <run-id> --root "$BENCHMARK_ROOT"
+npm run benchmark -- restore --run <source-run-id> --checkpoint <checkpoint-id> --root "$BENCHMARK_ROOT"
+npm run benchmark -- recover --run <interrupted-run-id> --root "$BENCHMARK_ROOT"
+npm run benchmark -- seal --run <run-id> --root "$BENCHMARK_ROOT"
+npm run benchmark -- clean --run <run-id> --root "$BENCHMARK_ROOT"
+npm run benchmark -- report --run <report-id> --root "$BENCHMARK_ROOT"
 ```
 
 `run` 返回不含口令的 run_id / lineage / state / evidence。如需配置，先在 `<root>/configs/` 手工保存私有 JSON，再传 `run --config <file>`，精确格式：
@@ -61,7 +62,7 @@ npm run benchmark -- report --run <report-id>
 
 ## 用后归档
 
-Master 指定后续测试数据统一保存在 `/Volumes/share/Files/HDD2/ELIZA/ELIZA_BAK/secretary-test-bak`。每次采用独立子目录（例如 `--root <repo>/.local/benchmark/tests/<uuid>`）；完成后先停止并 seal 各 run，再运行：
+Master 指定后续测试数据统一保存在 `/Volumes/share/Files/HDD2/ELIZA/ELIZA_BAK/secretary-test-bak`。创建命令强制采用独立子目录（例如 `--root <repo>/.local/benchmark/tests/<uuid>`）；完成后先停止并 seal 各 run，再运行：
 
 ```sh
 npm run benchmark -- archive --root <exact-facility-root>

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   copyTree,
@@ -269,3 +270,29 @@ test(
     );
   },
 );
+
+test("creation CLI refuses missing or mixed-root destinations before writing a facility", () => {
+  const root = path.join(repository, ".local/benchmark"),
+    marker = path.join(root, "facility.json");
+  const before = fs.existsSync(marker) ? fs.readFileSync(marker) : undefined;
+  for (const command of ["run", "self-check"])
+    for (const args of [[], ["--root", root]]) {
+      const result = spawnSync(
+        process.execPath,
+        [
+          "--import",
+          "tsx",
+          path.join(repository, "test_case/online/benchmark/cli.ts"),
+          command,
+          ...args,
+        ],
+        { cwd: repository, encoding: "utf8" },
+      );
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /BENCHMARK_EXPLICIT_FACILITY_ROOT_REQUIRED/);
+      assert.deepEqual(
+        fs.existsSync(marker) ? fs.readFileSync(marker) : undefined,
+        before,
+      );
+    }
+});

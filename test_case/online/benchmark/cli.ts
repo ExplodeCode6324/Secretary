@@ -33,6 +33,11 @@ async function main() {
   const root = options["--root"]
     ? path.resolve(options["--root"])
     : path.join(repository, ".local/benchmark");
+  if (["run", "self-check"].includes(command))
+    requireThat(
+      options["--root"] && root !== path.join(repository, ".local/benchmark"),
+      "BENCHMARK_EXPLICIT_FACILITY_ROOT_REQUIRED",
+    );
   deploymentGuard(repository, root);
   if (command === "archive") {
     requireThat(
