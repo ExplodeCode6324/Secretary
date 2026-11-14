@@ -183,6 +183,18 @@ test(
         assert.throws(() => inventory(r.active), /SYMLINK/);
         fs.unlinkSync(path.join(r.active, "escape"));
         fs.rmSync(outside, { recursive: true });
+        const lineage = r.lineage;
+        r.lineage = "../../foreign";
+        d.save(r);
+        assert.throws(() => d.raw(r.id), /INVALID_RUN_ID/);
+        r.lineage = lineage;
+        d.save(r);
+        const evidence = r.evidence;
+        r.evidence = path.dirname(root);
+        d.save(r);
+        await assert.rejects(() => d.recover(r.id), /REGISTRY_PATH/);
+        r.evidence = evidence;
+        d.save(r);
         const savedDirectory = r.database.directory;
         r.database.directory = path.dirname(savedDirectory);
         d.save(r);

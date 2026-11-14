@@ -181,7 +181,38 @@ export class Domains {
     writeJSON(this.record(run.id), run);
   }
   raw(id: string): Run {
-    return readJSON(this.record(id));
+    const run: Run = readJSON(this.record(id));
+    requireThat(run.id === id, "REGISTRY_ID_MISMATCH");
+    validID(run.lineage);
+    requireThat(
+      [
+        "CREATING",
+        "STOPPED",
+        "STARTING",
+        "RUNNING",
+        "RESTORING",
+        "RETIRED",
+        "CLEANED",
+        "INCOMPLETE",
+      ].includes(run.state),
+      "INVALID_RUN_STATE",
+    );
+    const expected =
+      run.state === "RETIRED"
+        ? path.join(this.root, "retired", id)
+        : run.state === "CLEANED"
+          ? path.join(this.root, "cleaned", id, "active")
+          : path.join(this.root, "slots", run.lineage, "active");
+    requireThat(
+      run.active === expected &&
+        run.evidence === path.join(this.root, "evidence", id) &&
+        run.database.directory === path.join(this.root, "pg", id, "data"),
+      "REGISTRY_PATH_MISMATCH",
+    );
+    noLinks(run.active);
+    noLinks(run.evidence);
+    noLinks(run.database.directory);
+    return run;
   }
   load(id: string) {
     const run = this.raw(id);
