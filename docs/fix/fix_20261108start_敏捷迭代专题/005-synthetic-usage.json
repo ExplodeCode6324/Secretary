@@ -1,0 +1,250 @@
+{
+  "format": "secretary-usage-report-v1",
+  "as_of": "2026-11-15T00:00:00.000Z",
+  "generated_at": "2026-11-13T23:02:36.342Z",
+  "selection": {
+    "from": null,
+    "to": "2026-11-15T00:00:00.000Z",
+    "timezone": "Asia/Hong_Kong",
+    "task": null,
+    "execution": null,
+    "interval": "[from,to); omitted to includes capture timestamp"
+  },
+  "attempts": 1,
+  "states": {
+    "RESPONSE_SAVED": 1
+  },
+  "response_presence": {
+    "RESPONSE_SAVED:true": 1
+  },
+  "saved_successes": 1,
+  "usage": {
+    "input": {
+      "sum": 12,
+      "known": 1,
+      "missing": 0,
+      "recorded_zero": 0
+    },
+    "output": {
+      "sum": 3,
+      "known": 1,
+      "missing": 0,
+      "recorded_zero": 0
+    },
+    "cacheRead": {
+      "sum": 0,
+      "known": 1,
+      "missing": 0,
+      "recorded_zero": 1
+    },
+    "cacheWrite": {
+      "sum": null,
+      "known": 0,
+      "missing": 1,
+      "recorded_zero": 0
+    },
+    "totalTokens": {
+      "sum": null,
+      "known": 0,
+      "missing": 1,
+      "recorded_zero": 0
+    }
+  },
+  "usage_by_state": {
+    "RESPONSE_SAVED": {
+      "input": {
+        "sum": 12,
+        "known": 1,
+        "missing": 0,
+        "recorded_zero": 0
+      },
+      "output": {
+        "sum": 3,
+        "known": 1,
+        "missing": 0,
+        "recorded_zero": 0
+      },
+      "cacheRead": {
+        "sum": 0,
+        "known": 1,
+        "missing": 0,
+        "recorded_zero": 1
+      },
+      "cacheWrite": {
+        "sum": null,
+        "known": 0,
+        "missing": 1,
+        "recorded_zero": 0
+      },
+      "totalTokens": {
+        "sum": null,
+        "known": 0,
+        "missing": 1,
+        "recorded_zero": 0
+      }
+    }
+  },
+  "identity_unavailable_calls": 0,
+  "recorded_started_attempts": 1,
+  "payload_prepared_count": 0,
+  "physical_sends": {
+    "availability": "unavailable",
+    "reason": "No durable network-send evidence; IN_FLIGHT and payload precede fetch"
+  },
+  "estimated_cost": {
+    "availability": "unavailable",
+    "reason": "No source/version-qualified price metadata"
+  },
+  "usage_provenance": "Recorded SDK/provider values; absent values unknown; zero does not prove free usage; not context occupancy",
+  "logical_calls": 1,
+  "logical_groups_intersecting_window": 1,
+  "partial_window_groups": 0,
+  "anomalous_multiple_success_groups": 0,
+  "unclassified_time_calls": 0,
+  "groups": [
+    {
+      "day": "2026-11-14",
+      "task_id": null,
+      "execution_id": null,
+      "role": "MAIN",
+      "model": "fixture",
+      "provider": "synthetic",
+      "attempts": 1,
+      "states": {
+        "RESPONSE_SAVED": 1
+      },
+      "response_presence": {
+        "RESPONSE_SAVED:true": 1
+      },
+      "saved_successes": 1,
+      "usage": {
+        "input": {
+          "sum": 12,
+          "known": 1,
+          "missing": 0,
+          "recorded_zero": 0
+        },
+        "output": {
+          "sum": 3,
+          "known": 1,
+          "missing": 0,
+          "recorded_zero": 0
+        },
+        "cacheRead": {
+          "sum": 0,
+          "known": 1,
+          "missing": 0,
+          "recorded_zero": 1
+        },
+        "cacheWrite": {
+          "sum": null,
+          "known": 0,
+          "missing": 1,
+          "recorded_zero": 0
+        },
+        "totalTokens": {
+          "sum": null,
+          "known": 0,
+          "missing": 1,
+          "recorded_zero": 0
+        }
+      },
+      "usage_by_state": {
+        "RESPONSE_SAVED": {
+          "input": {
+            "sum": 12,
+            "known": 1,
+            "missing": 0,
+            "recorded_zero": 0
+          },
+          "output": {
+            "sum": 3,
+            "known": 1,
+            "missing": 0,
+            "recorded_zero": 0
+          },
+          "cacheRead": {
+            "sum": 0,
+            "known": 1,
+            "missing": 0,
+            "recorded_zero": 1
+          },
+          "cacheWrite": {
+            "sum": null,
+            "known": 0,
+            "missing": 1,
+            "recorded_zero": 0
+          },
+          "totalTokens": {
+            "sum": null,
+            "known": 0,
+            "missing": 1,
+            "recorded_zero": 0
+          }
+        }
+      }
+    }
+  ],
+  "group_count": 1,
+  "groups_truncated": false,
+  "authorization": {
+    "requests": 0,
+    "states": {},
+    "completed_wait_known": 0,
+    "completed_wait_ms": 0,
+    "pending_past_expiry": 0,
+    "expiry_is_inferred_not_decision": true,
+    "remembered_rule_creations": 0,
+    "rule_uses": {},
+    "repeated_groups": [],
+    "repeated_group_count": 0,
+    "repeated_groups_truncated": false,
+    "sample": [],
+    "sample_truncated": false
+  },
+  "reconciliation_sample": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "identity_unavailable": false,
+      "at": 1794614400000,
+      "time_source": "started_at",
+      "day": "2026-11-14",
+      "state": "RESPONSE_SAVED",
+      "started": true,
+      "response_present": true,
+      "role": "MAIN",
+      "model": "fixture",
+      "provider": "synthetic",
+      "task": null,
+      "execution": null,
+      "usage": {
+        "input": 12,
+        "output": 3,
+        "cacheRead": 0,
+        "cacheWrite": null,
+        "totalTokens": null
+      }
+    }
+  ],
+  "read": {
+    "journal_bytes": 1387,
+    "cas_read_bytes": 2341,
+    "mutations": 2,
+    "sequence": 1,
+    "digest": "57c065670863613bb1c717867f6519b1eb372d9cc036ceae5f590f493d68d371",
+    "elapsed_ms": 198,
+    "limits": {
+      "journal": 67108864,
+      "record": 67108864,
+      "cas": 268435456,
+      "mutations": 100000,
+      "milliseconds": 30000,
+      "details": 200
+    },
+    "complete": true,
+    "validation": "static framing/schema/references/revisions; not Core business replay",
+    "quarantines": [],
+    "noncanonical_objects": []
+  },
+  "sample_notice": "Wholly synthetic; not agile usage or a billing estimate"
+}
