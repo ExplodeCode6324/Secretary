@@ -13,3 +13,5 @@ PostgreSQL scenarios register through [helpers/postgres.ts](../../../../test_cas
 Node reports pass/fail/skip/todo totals. AUD14’s Context-field semantics TODO is tracked by #24. Historical UI and load probes live in [historical/offline](../../../../test_case/historical/offline/README.md); old browser helpers in runtime/helpers require their original version.
 
 See the [test guide](../../operations.md#development-checks) for targeted commands, database cleanup, and suite coverage.
+
+The isolated benchmark infrastructure cases also require the complete PostgreSQL 18 server tools (including initdb, pg_ctl, pg_dump, and pg_restore). They create their own clusters, do not read SECRETARY_TEST_DATABASE_URL, and do not skip when that variable is absent. See the [isolated test environment](../../../../test_case/online/benchmark/README.md) for installation and execution.

@@ -1,6 +1,6 @@
 # 运行手册
 
-原生客户端的启动、键位和验证见[终端运行与验证](tui/run-and-test.md)。以下命令管理独立 Core；退出 TUI 不会停止 Core。
+原生客户端的启动、键位和验证见[终端运行与验证](tui/run-and-test.md)。退出 TUI 不会停止 Core。根目录 npm 启停命令目前路由敏捷实例；敏捷入口见[本地部署说明](agile-attention/README.md)，隔离测试使用[benchmark 环境基础](../test_case/online/benchmark/README.md)。以下通用 Core 示例直接调用 Core CLI，不能对敏捷数据域执行。
 
 从仓库根目录执行命令。需要 Node.js ≥22.19、npm、Python 3 和固定 Pi 子模块；World uses the journal; PostgreSQL provides log search and one-time legacy import.
 
@@ -9,10 +9,10 @@
 ```sh
 git submodule update --init --recursive
 npm ci
-npm start
-npm run core -- status
-npm run core -- attach
-npm run stop
+node --import tsx src/pi_secretary/src/core-cli.ts start
+node --import tsx src/pi_secretary/src/core-cli.ts status
+node --import tsx src/pi_secretary/src/core-cli.ts attach
+node --import tsx src/pi_secretary/src/core-cli.ts stop
 ```
 
 默认 fixture 模型、数据目录 `.demo-data`。`start` 启动后台 Core 或连接已有实例；`status`、`attach` 读取已有实例，无实例时退出 1，`stop` 无实例时退出 0。[core-cli](../src/pi_secretary/src/core-cli.ts) 只管理生命周期，业务操作使用 [CoreClient](../src/pi_secretary/src/core-client.ts) 或 [API v1](api/v1/README.md)。
@@ -24,12 +24,12 @@ npm run stop
 [start-live](../src/pi_secretary/scripts/start-live.ts) wrapper 从凭据 JSON 读取 main/task 两个密钥，固定使用 deepseek provider：
 
 ```sh
-npm run start:live
-SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run core -- status
-SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live npm run stop
+node --import tsx src/pi_secretary/scripts/start-live.ts
+SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live node --import tsx src/pi_secretary/src/core-cli.ts status
+SECRETARY_MODE=live SECRETARY_DATA=.demo-data/interactive-live node --import tsx src/pi_secretary/src/core-cli.ts stop
 ```
 
-wrapper 默认凭据 `.demo-data/deepseek-credentials.json`、数据 `.demo-data/interactive-live`，主模型 deepseek-flash、任务模型 deepseek-flash；角色模型环境变量可覆盖名称。直接 `SECRETARY_MODE=live npm start` 使用环境中的角色配置，可选择其他 provider。
+wrapper 默认凭据 `.demo-data/deepseek-credentials.json`、数据 `.demo-data/interactive-live`，主模型 deepseek-flash、任务模型 deepseek-flash；角色模型环境变量可覆盖名称。直接 `SECRETARY_MODE=live node --import tsx src/pi_secretary/src/core-cli.ts start` 使用环境中的角色配置，可选择其他 provider。
 
 升级后，手动配置的 `opencode` 和 `opencode-go` 会在 live 模式报 `RETIRED_LIVE_PROVIDER`。使用 wrapper 时，请在 `.demo-data/deepseek-credentials.json` 配置官方 DeepSeek 凭据；旧的 `.demo-data/live-credentials.json` 和 OpenCode 密钥已停用。已有 `.demo-data/interactive-live` 数据域下次通过 wrapper 启动时，Main 和 Task 默认都使用 `deepseek-flash`。
 

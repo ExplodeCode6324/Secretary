@@ -16,3 +16,11 @@ xcuserdata/
 # Persistent agile instance: never commit private data or credentials.
 /data/
 /.local/
+
+# Checkout-local agent/deployment instructions and Finder launchers.
+# Shared reference material belongs under docs/agile-attention/.
+/agents.md
+/AGENTS.md
+/敏捷实例使用说明.md
+/启动Secretary.command
+/停止Secretary.command

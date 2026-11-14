@@ -66,3 +66,7 @@ Early activity/streaming browser-driving scripts were retired in PR3b; reproduce
 Reports retain source hashes, configuration scope, request counts, first-run failures, and later independent runs. SDK catalog costs are estimates; missing usage is marked separately. Raw requests, responses, and credentials stay private. Public summaries are in the [API validation record](../../../api/v1/verification.md), which preserves actual 2026-10-10 results.
 
 The default API script supports `--memory-settings-only`; `--retry-compaction-from` copies the synthetic Store from a specified failed directory of this script into a new directory and retries compaction. Set remaining budgets with SECRETARY_ONLINE_ATTEMPT_BUDGET and SECRETARY_ONLINE_TOTAL_MS on reruns, preserving the original failure. Scripts validate acceptable errors and parameters.
+
+## Isolated environment foundation
+
+The new [benchmark CLI](../../../../test_case/online/benchmark/README.md) currently runs only the #120 fixture protocol checks, with zero provider calls. It lives under online to support the later workload integration in #121. Do not mix it with the historical live scripts above, and do not point those scripts at the agile instance. See its entry-point guide for exact commands, PG18 requirements, restore limitations and the common report format.
