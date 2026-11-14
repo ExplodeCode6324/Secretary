@@ -69,12 +69,14 @@ app.store.commit = ((...args: Parameters<typeof commit>) => {
   if (op?.record_type === "Operation") {
     if (phase === "after-identity") process.kill(process.pid, "SIGKILL");
     fs.writeFileSync(
-      path.join(dir, "ready"),
+      path.join(dir, "ready.tmp"),
       JSON.stringify({
         process: op.process,
         cwd: path.join(dir, "workspaces", plan.id, "work"),
       }),
     );
+    // Publish only complete JSON to the parent polling for the ready file.
+    fs.renameSync(path.join(dir, "ready.tmp"), path.join(dir, "ready"));
   }
   return result;
 }) as typeof commit;
