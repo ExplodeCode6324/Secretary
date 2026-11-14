@@ -16,16 +16,15 @@ import type {
   PushDispatch,
 } from "../../../src/pi_secretary/src/contracts.ts";
 import { appendJSON, readJSON, requireThat, writeJSON } from "./io.ts";
-import { coreDSN } from "./postgres.ts";
-import { validateConfiguration, type Run } from "./domain.ts";
+import { validateConfiguration, type WorkerPermit } from "./domain.ts";
 
 process.umask(0o077);
 let permitted = false;
 process.once("disconnect", () => {
   if (!permitted) process.exit(2);
 });
-process.once("message", async (message: { run: Run }) => {
-  const run = message.run;
+process.once("message", async (message: { permit: WorkerPermit }) => {
+  const run = message.permit;
   try {
     requireThat(
       process.argv[2] === "--run" && process.argv[3] === run.id,
@@ -48,6 +47,21 @@ process.once("message", async (message: { run: Run }) => {
       ),
       "AMBIENT_CONFIGURATION",
     );
+    // Fixture mode has no provider/network workload; any fetch is a test defect.
+    globalThis.fetch = async (input) => {
+      const url = new URL(
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url,
+      );
+      appendJSON(path.join(run.evidence, "unexpected-network.jsonl"), {
+        origin: url.origin,
+      });
+      throw Error("FIXTURE_NETWORK_FORBIDDEN");
+    };
+    writeJSON(path.join(run.evidence, "worker-configuration.json"), run.config);
     let calls = 0,
       app: App;
     const stream: StreamFn = (m, c, o) => {
@@ -141,7 +155,7 @@ process.once("message", async (message: { run: Run }) => {
     app = await App.open(
       path.join(run.active, "core"),
       { model: fixtureModel, stream },
-      coreDSN(run.database),
+      run.core_dsn,
       {
         pushDelivery: async (_directory, target, _message, _signal) => {
           requireThat(
@@ -173,6 +187,7 @@ process.once("message", async (message: { run: Run }) => {
     app.authorization.finish = ((id, receipt, outcome) => {
       const operation = app.store.get<Operation>("Operation", id);
       if (
+        run.config.fault_injection === "write-after-fsync" &&
         operation.action.action === "file.write" &&
         operation.state === "DISPATCHED" &&
         app.store.read<any>(operation.action.parameters_ref).content ===
@@ -188,6 +203,16 @@ process.once("message", async (message: { run: Run }) => {
       return finish(id, receipt, outcome);
     }) as typeof app.authorization.finish;
     requireThat(app.world?.ready && app.world.configured, "WORLD_NOT_READY");
+    const role = (
+      await app.world.pool.query(
+        "SELECT current_user AS name, rolsuper FROM pg_roles WHERE rolname = current_user",
+      )
+    ).rows[0];
+    requireThat(
+      role?.name === "benchmark_core" && role.rolsuper === false,
+      "WORKER_DATABASE_PRIVILEGE",
+    );
+    writeJSON(path.join(run.evidence, "database-role.json"), role);
     let server: Awaited<ReturnType<typeof serveCore>>,
       stopping = false;
     const observe = () =>

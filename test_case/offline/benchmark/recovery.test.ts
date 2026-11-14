@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { Domains } from "../../online/benchmark/domain.ts";
+import { Domains, configuration } from "../../online/benchmark/domain.ts";
 import {
   repository,
   read,
@@ -259,7 +259,14 @@ test(
       await import("../../online/benchmark/io.ts");
     const root = path.join(repository, ".local/benchmark/tests", randomUUID());
     await ownedTest(root, async (d) => {
-      const r = await d.start((await d.create()).id);
+      const r = await d.start(
+        (
+          await d.create({
+            ...configuration,
+            fault_injection: "write-after-fsync",
+          })
+        ).id,
+      );
       const client = new CoreClient(r.endpoint!);
       await client.command("task-requests", {
         request_id: randomUUID(),
@@ -340,7 +347,7 @@ test(
         .sink(r)
         .flatMap((c) => c.dispatches.map((x: any) => x.id));
       assert(previous.length > 0);
-      const due = Date.now() + 4000;
+      const due = Date.now() + 10000;
       await client.command("task-requests", {
         request_id: randomUUID(),
         goal: "BENCHMARK_MISSED_AT",
@@ -481,5 +488,41 @@ test(
       await d.seal(r.id);
       await d.clean(r.id);
     });
+  },
+);
+
+test(
+  "ordinary uncertain-content writes cannot activate the opt-in crash barrier",
+  { timeout: 60000 },
+  async () => {
+    const { CoreClient } =
+      await import("../../../src/pi_secretary/src/core-client.ts");
+    const { until } = await import("../../online/benchmark/io.ts");
+    await ownedTest(
+      path.join(repository, ".local/benchmark/tests", randomUUID()),
+      async (d) => {
+        const r = await d.start((await d.create()).id);
+        await new CoreClient(r.endpoint!).command("task-requests", {
+          request_id: randomUUID(),
+          goal: "BENCHMARK_INTERRUPTED_WRITE",
+          acceptance: ["Complete normally without fault injection"],
+        });
+        await until(() =>
+          readJSON(path.join(r.evidence, "observed.json")).executions.some(
+            (e: any) => e.state === "SUCCEEDED",
+          ),
+        );
+        assert.equal(
+          fs.existsSync(path.join(r.evidence, "write-barrier.jsonl")),
+          false,
+        );
+        assert.equal(
+          readJSON(path.join(r.evidence, "worker-configuration.json"))
+            .fault_injection,
+          undefined,
+        );
+        await d.seal(r.id);
+      },
+    );
   },
 );

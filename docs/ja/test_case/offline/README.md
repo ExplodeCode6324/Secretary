@@ -13,3 +13,5 @@ PostgreSQL シナリオは [helpers/postgres.ts](../../../../test_case/offline/h
 Node は pass/fail/skip/todo を集計します。AUD14 の Context フィールド意味の TODO は #24 で追跡します。過去の UI・負荷プローブは [historical/offline](../../../../test_case/historical/offline/README.md) を参照し、runtime/helpers の旧ブラウザー補助スクリプトは元バージョンで使用します。
 
 対象別コマンド、DB のクリーンアップ、各スイートの対象範囲は[テストガイド](../../operations.md#開発時の検証)を参照してください。
+
+独立 benchmark 基盤のテストには PostgreSQL 18 の完全なサーバーツール（initdb、pg_ctl、pg_dump、pg_restore を含む）も必要です。専用クラスタを作成し、SECRETARY_TEST_DATABASE_URL を参照せず、この変数がなくてもスキップしません。インストールと実行方法は[独立テスト環境](../../../../test_case/online/benchmark/README.md)を参照してください。

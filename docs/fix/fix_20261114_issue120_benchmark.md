@@ -192,3 +192,14 @@ Master 补充要求同时落实：main/agile 本地 agents.md 内容分开；两
 完整检查、准确提交和同一 Claude 会话实施复核结论将随 PR 给 Master。按本次要求先实施复核、后提 PR/完成 CI，再交 Master 检查合并条件；代码冻结后的证据通过 PR 评论补充，不为状态文字反复改 HEAD。
 
 补充恢复约束：所有 registry 读取先验证 run/lineage UUID、状态和受管路径；RESTORING 对同 lineage 保留持久占用；恢复前拒绝 scope.import 等超范围 Operation；旧 checkpoint 不能回退源 run 在捕获后增长的 sink 账本。foreign-checkpoint 用例先确认 Core/PG 都停，再断言准确的 checkpoint 拒绝原因，避免用未停 PG 的前置失败冒充完整性证明。新增实际 post-checkpoint 推送回归，14 项专项通过，持久占用补充的 4 项定向回归通过。
+
+
+## R3 实现复核及修订
+
+Claude Opus 5.5 Extra 对 e64d2f3 返回 **CHANGES_REQUIRED**。其在 Ubuntu/PG18 独立运行当时的 13 项基础用例全部通过，类型/文档检查通过；完整套件的 8 项进程失败在基线也能复现，未认定为回归。Codex 在本机正常环境完成完整回归：**1266 PASS、0 FAIL、0 SKIP**；最终 HEAD 仍须通过 CI。较早错误沿用 benchmark 精简环境导致的普通套件失败日志保留。
+
+五项阻断意见全部采纳：B1 明确其它旧 checkout 的备份/更新/恢复迁移，main/agile 本地原件已有私有备份；B2 源 sink 在 checkpoint 后前进则拒绝回退，覆盖中断 handoff，并加入真实推送回归；B3 按 Master 新要求完整归档；B4 在源 Core/PG 确认停止后断言准确 CHECKPOINT_MISMATCH，恢复来源 restoredFrom 与当前 run 自己的最新 checkpoint 分开；B5 worker 只接收最小启动许可及非超级用户 Core DSN，实际查询 current_user/rolsuper 确认。
+
+其余意见：能力白名单并约束 file/shell 资源在规范工作区；崩溃注入必须显式配置且记录；导入索引非空才比较 xmin；fixture fetch 阻断；离线说明补充 PG18 服务端前提。残缺 journal 尾部仍保守拒绝。退休目录证据证明没有变更，不证明完全没有读取；旧索引用例证明缺失索引重建，不证明陈旧行替换，限制交 #121。AT 停止窗口延长到 10 秒，若环境错过则明确失败，不能报行为 PASS。
+
+Master 新存储要求覆盖后续测试数据的旧桌面归档位置：`/Volumes/share/Files/HDD2/ELIZA/ELIZA_BAK/secretary-test-bak`。已停止且归属明确的完整 facility 先在本地打成一个 tar.gz，再整包传输，仅附少量清单/回执/恢复说明；读取 NAS 包逐文件校验后才释放本机源。CLI 必须显式选择实例，核验外部挂载，默认 dry-run，拒绝活动、不完整、未知及混合根。首次失败完整保留。归档测试只用临时本地目标，实际 NAS 结果另记。不归档独立 API 凭据或敏捷持久数据；两份本地 agents.md 已记录策略。历史 issue114 混合凭据根继续排除自动归档。

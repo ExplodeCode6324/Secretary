@@ -9,6 +9,11 @@ import {
   repository,
   requireThat,
 } from "./io.ts";
+import {
+  archiveFacility,
+  archiveDestination,
+  assertArchiveTargetExternal,
+} from "./archive.ts";
 import { selfCheck } from "./self-check.ts";
 
 async function main() {
@@ -16,7 +21,9 @@ async function main() {
     options: Record<string, string> = {};
   for (let i = 0; i < args.length; i += 2) {
     requireThat(
-      ["--run", "--checkpoint", "--config", "--root"].includes(args[i]) &&
+      ["--run", "--checkpoint", "--config", "--root", "--apply"].includes(
+        args[i],
+      ) &&
         !!args[i + 1] &&
         !options[args[i]],
       "INVALID_ARGUMENTS",
@@ -27,6 +34,31 @@ async function main() {
     ? path.resolve(options["--root"])
     : path.join(repository, ".local/benchmark");
   deploymentGuard(repository, root);
+  if (command === "archive") {
+    requireThat(
+      options["--root"] &&
+        Object.keys(options).every((k) => ["--root", "--apply"].includes(k)),
+      "ARCHIVE_EXPLICIT_ROOT_REQUIRED",
+    );
+    requireThat(
+      options["--apply"] === undefined || options["--apply"] === "true",
+      "ARCHIVE_APPLY_MUST_BE_TRUE",
+    );
+    assertArchiveTargetExternal(root, archiveDestination);
+    const result = await archiveFacility(
+      root,
+      archiveDestination,
+      options["--apply"] === "true",
+    );
+    console.log(JSON.stringify(result, null, 2));
+    if (
+      result.status === "ARCHIVED" &&
+      (!result.source_removed || result.warnings?.length)
+    )
+      process.exitCode = 1;
+    return;
+  }
+  requireThat(!options["--apply"], "APPLY_ONLY_FOR_ARCHIVE");
   if (options["--config"]) {
     const file = path.resolve(options["--config"]);
     noLinks(file);
@@ -84,7 +116,7 @@ async function main() {
       else if (command === "clean") result = await d.clean(id);
       else
         throw Error(
-          "Use run|status|start|stop|checkpoint|restore|recover|seal|clean|report|self-check",
+          "Use run|status|start|stop|checkpoint|restore|recover|seal|clean|report|self-check|archive",
         );
     }
     // Never print tokens, passwords or DSNs from a private registry record.

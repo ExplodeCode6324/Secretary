@@ -18,6 +18,7 @@ import {
   Domains,
   validateConfiguration,
   configuration,
+  workerPermit,
 } from "../../online/benchmark/domain.ts";
 import {
   query,
@@ -169,6 +170,13 @@ test(
     const root = path.join(repository, ".local/benchmark/tests", randomUUID());
     await Domains.use(root, async (d) => {
       let r = await d.create();
+      const permit = workerPermit(r);
+      assert.equal(
+        JSON.stringify(permit).includes(r.database.adminPassword),
+        false,
+      );
+      assert.equal("database" in permit, false);
+      assert.equal(new URL(permit.core_dsn).username, "benchmark_core");
       try {
         const markerFile = path.join(r.active, "marker.json"),
           original = readJSON(markerFile);
@@ -212,6 +220,10 @@ test(
         );
         await query(r.database, "DROP DATABASE foreign_database");
         r = await d.start(r.id);
+        assert.deepEqual(
+          readJSON(path.join(r.evidence, "database-role.json")),
+          { name: "benchmark_core", rolsuper: false },
+        );
         const savedProcess = r.process;
         r.process = { ...savedProcess, token: randomUUID() };
         d.save(r);

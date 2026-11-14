@@ -13,3 +13,5 @@ Les scénarios PostgreSQL passent par [helpers/postgres.ts](../../../../test_cas
 Node totalise pass/fail/skip/todo. Le TODO sémantique des champs Context d’AUD14 est suivi par #24. Les anciennes sondes UI et de charge figurent dans [historical/offline](../../../../test_case/historical/offline/README.md) ; les anciens helpers navigateur runtime/helpers s’utilisent avec leur version d’origine.
 
 Voir le [guide de test](../../operations.md#vérifications-de-développement) pour les commandes ciblées, le nettoyage des bases et la couverture des suites.
+
+Les tests de l’infrastructure benchmark isolée nécessitent aussi tous les outils serveur PostgreSQL 18 (dont initdb, pg_ctl, pg_dump et pg_restore). Ils créent leurs propres clusters, ne lisent pas SECRETARY_TEST_DATABASE_URL et ne sont pas ignorés si cette variable est absente. Consultez l’[environnement de test isolé](../../../../test_case/online/benchmark/README.md) pour l’installation et l’exécution.

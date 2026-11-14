@@ -57,3 +57,19 @@ npm run benchmark -- report --run <report-id>
 [报告 schema](../../benchmarks/common/report.schema.json) 定义 correctness / memory 两个 track 和六种状态；[渲染/校验器](../../benchmarks/common/report.ts) 保留完整分母、首个失败、缺失用量 null 和证据类别。`self-check` 记录版本/配置/机器、耗时、最后 RSS 样本、文件字节、调用数及私有证据位置；RSS 不是精确峰值。源证据可能含测试内容和连接凭据，仅公开脱敏汇总。断电、任意时刻 PG 物理备份、敌对同用户 OS 沙箱和真实记忆质量均不在本次证据范围。
 
 后续功能逻辑变更测普通 correctness，记忆体系变更测 memory benchmark 并补相关普通回归；跨范围跑两类。具体真实模型矩阵为 GPT-6.1 Sol、DeepSeek Flash、GPT-6 Luna，Luna 失败可以作为能力边界记录，不能遗漏或伪造通过；模型 ID、路由、配置与缺失用量逐次固化，#121 才提供执行入口。
+
+
+## 用后归档
+
+Master 指定后续测试数据统一保存在 `/Volumes/share/Files/HDD2/ELIZA/ELIZA_BAK/secretary-test-bak`。每次采用独立子目录（例如 `--root <repo>/.local/benchmark/tests/<uuid>`）；完成后先停止并 seal 各 run，再运行：
+
+```sh
+npm run benchmark -- archive --root <exact-facility-root>
+npm run benchmark -- archive --root <exact-facility-root> --apply true
+```
+
+第一条只输出 dry-run 清单规模。第二条要求 NAS 已挂载在独立卷，核验每个已登记 run 的所有权、停止状态与 PG 身份，拒绝混合总根、活动/未知/不完整资源。先在本地把完整 facility（含 PG、CAS、工作区、报告、原始失败）打成一个 tar.gz，再传到日期/UUID 目录；只附加少量 manifest、receipt、恢复说明。读取 NAS 上的压缩包逐项核验内容/大小/权限，复查源未变并发布后，才移除对应本地 facility。失败保留源和诊断材料；不得以成功重跑覆盖失败。包内含私有测试凭据，保持访问受限，不提交 Git。独立 API 配置和敏捷持久数据不属于此归档。
+
+worker 仅接收 Core 的非超级用户连接凭据，启动时断言实际角色为 benchmark_core 且 rolsuper=false；管理员凭据留在控制器。默认 fixture 不启用崩溃注入，只有测试配置显式添加 `"fault_injection":"write-after-fsync"` 才在指定写入后发 SIGKILL。配置记录于每次私有证据。fixture 的 fetch 捕获器拒绝意外网络访问；这不是操作系统网络沙箱。
+
+恢复来源通过独立 restoredFrom 元数据记录，不冒充新 run 自己生成的最新 checkpoint。导入行必须非空才执行 xmin 保留断言。只读预检遇到残缺 journal 尾部直接拒绝（PARTIAL_JOURNAL）；这一边界比产品正常 journal 恢复更严格。退休目录当前验证写入前后不变，尚未独立证明完全没有读取；旧索引测试覆盖空索引重建，具体陈旧行替换场景留待后续。AT 用例为停止留出 10 秒；若机器未能赶上窗口则明确失败，不报业务行为通过。

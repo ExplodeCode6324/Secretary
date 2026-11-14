@@ -127,7 +127,7 @@ export function validateRestoredRecords(
             : processStatus(r.process)) === "STOPPED",
           "UNCONFIRMED_OPERATION_PROCESS",
         );
-      if (r.action.action === "file.write")
+      if (["file.write", "shell.run"].includes(r.action.action))
         requireThat(
           inside(work, r.action.resource) &&
             path.resolve(r.action.resource) === r.action.resource,

@@ -139,6 +139,12 @@ export async function selfCheck(root: string) {
       assert.equal(restored.active, a.active);
       assert.notEqual(restored.database.systemID, a.database.systemID);
       const imported = await indexEvidence(restored.database);
+      assert(
+        imported.documents.length > 0 && imported.chunks.length > 0,
+        "Imported index must be populated before preservation is checked",
+      );
+      assert.equal(restored.checkpoint, undefined);
+      assert.equal(restored.restoredFrom?.checkpoint_id, checkpoint);
       writeJSON(path.join(restored.evidence, "imported-index.json"), imported);
       const r = await domains.start(restored.id),
         rc = new CoreClient(r.endpoint!);
@@ -262,7 +268,7 @@ export async function selfCheck(root: string) {
       await stopDatabase(r.database);
       await assert.rejects(
         () => domains.restore(r.id, checkpoint),
-        /CHECKPOINT_MISMATCH|CHECKPOINT_SEAL_MISMATCH/,
+        /^Error: CHECKPOINT_MISMATCH$/,
       );
       pass(current, [
         "Foreign-source checkpoint cannot be attached as a fresh independent repeat",
@@ -333,6 +339,7 @@ export async function selfCheck(root: string) {
           lineage: actual.lineage,
           parent: actual.parent ?? null,
           checkpoint: actual.checkpoint ?? null,
+          restored_from: actual.restoredFrom ?? null,
           state: actual.state,
           private_evidence: actual.evidence,
           core_bytes: inventory(actual.active).reduce((n, f) => n + f.bytes, 0),

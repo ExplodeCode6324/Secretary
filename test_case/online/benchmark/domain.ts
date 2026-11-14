@@ -27,6 +27,7 @@ import {
   type FileEntry,
 } from "./io.ts";
 import {
+  coreDSN,
   controlID,
   createDatabase,
   dumpDatabase,
@@ -70,6 +71,11 @@ export type Run = {
   retired?: string;
   failure?: string;
   checkpointHash?: string;
+  restoredFrom?: {
+    run_id: string;
+    checkpoint_id: string;
+    checkpointHash: string;
+  };
 };
 export type Configuration = {
   version: 1;
@@ -77,6 +83,7 @@ export type Configuration = {
   track: "correctness";
   case_id: "infrastructure";
   seed: number;
+  fault_injection?: "write-after-fsync";
 };
 export const configuration: Configuration = {
   version: 1,
@@ -87,15 +94,35 @@ export const configuration: Configuration = {
 };
 export function validateConfiguration(config: Configuration) {
   requireThat(
-    JSON.stringify(Object.keys(config).sort()) ===
-      JSON.stringify(Object.keys(configuration).sort()) &&
+    JSON.stringify(
+      Object.keys(config)
+        .filter((key) => key !== "fault_injection")
+        .sort(),
+    ) === JSON.stringify(Object.keys(configuration).sort()) &&
       config.version === 1 &&
       config.mode === "fixture" &&
       config.track === "correctness" &&
       config.case_id === "infrastructure" &&
-      Number.isSafeInteger(config.seed),
+      Number.isSafeInteger(config.seed) &&
+      (config.fault_injection === undefined ||
+        config.fault_injection === "write-after-fsync"),
     "CONFIG_UNSUPPORTED_ISSUE121_OWNS_WORKLOADS",
   );
+}
+// The Core worker receives only its non-superuser DSN, never controller credentials.
+export type WorkerPermit = Pick<
+  Run,
+  "id" | "nonce" | "active" | "evidence" | "config"
+> & { core_dsn: string };
+export function workerPermit(run: Run): WorkerPermit {
+  return {
+    id: run.id,
+    nonce: run.nonce,
+    active: run.active,
+    evidence: run.evidence,
+    config: run.config,
+    core_dsn: coreDSN(run.database),
+  };
 }
 export function fingerprint() {
   const git = (...args: string[]) =>
@@ -370,7 +397,7 @@ export class Domains {
       requireThat(child.pid, "WORKER_NO_PID");
       run.process = processIdentity(child.pid, run.id);
       this.save(run);
-      child.send({ run }); // No Core opening before the durable ownership permit.
+      child.send({ permit: workerPermit(run) }); // No Core opening before the durable ownership permit.
       await until(
         () =>
           fs.existsSync(readyFile) ||
@@ -501,9 +528,9 @@ export class Domains {
     );
     validID(checkpoint);
     const cpDir = path.join(this.root, "checkpoints", checkpoint);
+    requireThat(old.checkpoint === checkpoint, "CHECKPOINT_MISMATCH");
     requireThat(
-      old.checkpoint === checkpoint &&
-        old.checkpointHash === sha(read(path.join(cpDir, "manifest.json"))),
+      old.checkpointHash === sha(read(path.join(cpDir, "manifest.json"))),
       "CHECKPOINT_SEAL_MISMATCH",
     );
     const cp = readJSON(path.join(cpDir, "manifest.json"));
@@ -532,8 +559,11 @@ export class Domains {
     );
     const run = await this.allocate(old.config, old.lineage);
     run.parent = id;
-    run.checkpoint = checkpoint;
-    run.checkpointHash = old.checkpointHash;
+    run.restoredFrom = {
+      run_id: id,
+      checkpoint_id: checkpoint,
+      checkpointHash: old.checkpointHash!,
+    };
     run.staging = path.join(
       this.root,
       "slots",
@@ -589,10 +619,19 @@ export class Domains {
         run.database.directory === path.join(this.root, "pg", id, "data"),
       "REGISTRY_PATH_MISMATCH",
     );
-    validID(run.checkpoint!);
-    const cpDir = path.join(this.root, "checkpoints", run.checkpoint!);
     requireThat(
-      sha(read(path.join(cpDir, "manifest.json"))) === run.checkpointHash,
+      run.restoredFrom?.run_id === run.parent,
+      "RESTORE_PROVENANCE_MISMATCH",
+    );
+    validID(run.restoredFrom!.checkpoint_id);
+    const cpDir = path.join(
+      this.root,
+      "checkpoints",
+      run.restoredFrom!.checkpoint_id,
+    );
+    requireThat(
+      sha(read(path.join(cpDir, "manifest.json"))) ===
+        run.restoredFrom!.checkpointHash,
       "CHECKPOINT_SEAL_MISMATCH",
     );
     const cp = readJSON(path.join(cpDir, "manifest.json"));
@@ -605,7 +644,7 @@ export class Domains {
     );
     const imported = readJSON(path.join(run.evidence, "restore-import.json"));
     requireThat(
-      imported.checkpoint === run.checkpoint &&
+      imported.checkpoint === run.restoredFrom!.checkpoint_id &&
         imported.dump === cp.dump &&
         sha(read(path.join(cpDir, "postgres.dump"))) === cp.dump,
       "RESTORE_IMPORT_INCOMPLETE",
