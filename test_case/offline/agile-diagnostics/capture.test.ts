@@ -467,3 +467,43 @@ test("nested TUI lock discovery tolerates Finder metadata but validates lock per
     f.cleanup();
   }
 });
+
+test("source archive excludes only live root data and local, retaining nested names", async () => {
+  const { sourceArchiveArgs, tree, digestFile } =
+    await import("../../../scripts/agile-diagnostics/capture-files.mjs");
+  const f = fixture();
+  try {
+    const root = path.join(f.root, "source");
+    for (const rel of ["data", ".local", "docs/data", "nested/.local"]) {
+      fs.mkdirSync(path.join(root, rel), { recursive: true });
+      fs.writeFileSync(path.join(root, rel, "keep.txt"), rel);
+    }
+    const entries = tree(root, ["data", ".local"]),
+      files = {};
+    for (const [rel, v] of Object.entries(entries))
+      if (v.kind === "file")
+        files[rel] = {
+          sha256: await digestFile(path.join(root, rel)),
+          bytes: v.stat[3],
+          mode: v.stat[2] & 0o777,
+        };
+    const manifest = path.join(f.root, "source-files.json"),
+      archive = path.join(f.root, "source.tar");
+    fs.writeFileSync(manifest, JSON.stringify({ tree: entries, files }));
+    await command("/usr/bin/tar", sourceArchiveArgs(root, archive), {
+      env: { ...process.env, COPYFILE_DISABLE: "1" },
+    });
+    const script = path.resolve("scripts/agile-diagnostics/verify-archive.py");
+    assert.match(
+      await command("/usr/bin/python3", [script, archive, manifest]),
+      /ARCHIVE_VERIFIED/,
+    );
+    const listing = await command("/usr/bin/tar", ["-tf", archive]);
+    assert(listing.includes("docs/data/keep.txt"));
+    assert(listing.includes("nested/.local/keep.txt"));
+    assert(!listing.split("\n").includes("./data/keep.txt"));
+    assert(!listing.split("\n").includes("./.local/keep.txt"));
+  } finally {
+    f.cleanup();
+  }
+});

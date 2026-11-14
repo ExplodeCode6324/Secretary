@@ -54,7 +54,7 @@ Keep newer live writes. Obtain separate authorization for the restore target and
 
 ## Checks and first-failure record
 
-Local file-only checks: `npm run check`, `npm run docs:check`, Node syntax for new mjs, Python compilation, and `node --import tsx --test test_case/offline/agile-diagnostics/*.test.ts`. The first runs exposed fixture issues: macOS `/var` alias, invalid synthetic Digest/UserInstructions/approval values and a message-envelope fixture placed in the wrong Context field. Fixtures were corrected to actual contracts; no production contract was relaxed. The pure suite currently has 65 tests covering aggregation/selection, invalid input/budgets/output paths, envelope references, phase failures/recovery ordering, idle gates, startup race classification and real OS lock exclusion on synthetic files.
+Local file-only checks: `npm run check`, `npm run docs:check`, Node syntax for new mjs, Python compilation, and `node --import tsx --test test_case/offline/agile-diagnostics/*.test.ts`. The first runs exposed fixture issues: macOS `/var` alias, invalid synthetic Digest/UserInstructions/approval values and a message-envelope fixture placed in the wrong Context field. Fixtures were corrected to actual contracts; no production contract was relaxed. The pure suite currently has 66 tests covering aggregation/selection, invalid input/budgets/output paths, envelope references, phase failures/recovery ordering, idle gates, startup race classification and real OS lock exclusion on synthetic files.
 
 CI additionally runs the full Linux suite and the macOS regression list. Real Store differential tests live separately in `test_case/offline/agile-diagnostics-ci/` and skip without `CI`; they never use the agile domain. The local suite does not simulate a real PostgreSQL failure or prove all macOS supervisor race interleavings. Full restore, real-model connectivity, native IME/UI and the memory benchmark remain NOT_TESTED. Exact executed capture/report results are recorded after CI and implementation review, not presumed here.
 
@@ -94,3 +94,16 @@ with open(control + "/capture.log", "xb") as log:
         cwd=tool, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log, start_new_session=True)
     print(child.pid)
 ```
+
+## Real capture finding: nested archive exclusions
+
+The first coordinated capture used tool `2e05a855`, after Claude PASS_PENDING_CI and green CI (macOS 666/666, Linux 1250 passed/2 skipped). The Core was confirmed stopped at 00:05:00.623 UTC on 14 November and recovered at 00:05:10.113 UTC; PostgreSQL stayed running, domain/session were preserved, and maintenance was removed. The frozen copy and logical dump completed. Static archive validation correctly refused publication: macOS bsdtar `--exclude=./data` also excluded nested `docs/data` and other names (486 missing members).
+
+The fix passes explicit root member operands, excluding only the immediate live `data` and `.local` roots. A real tar regression fixture retains `docs/data` and `nested/.local`. The failed archive remains retained. No second interruption is needed: `repair-source` requires a copied/recovered unpublished capture, unchanged original archive, exact original source tree and all original source file hashes, then creates a separately named archive and validates it against the original member/hash manifest. It never touches live business data or overwrites the failed archive. If source has changed, it refuses; do not silently substitute newer source.
+
+```sh
+node "$TOOL/scripts/agile-diagnostics/capture.mjs" repair-source --state "$CONTROL/phase.json" --expected-tool-sha "$REVIEWED_SHA"
+node "$TOOL/scripts/agile-diagnostics/capture.mjs" verify --state "$CONTROL/phase.json" --expected-tool-sha "$REVIEWED_SHA"
+```
+
+The capture `tool_sha` remains the original; `verification_tool_sha`, `source_archive`, and `source_archive_repair` identify the later verifier and selected repaired archive. Both archives remain hashed artifacts. Use manifest `source_archive` when preparing a separately authorized restore. Actual repair and final verification evidence follow in the PR; this section records the failure and repair contract, not presumed success.

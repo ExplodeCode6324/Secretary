@@ -131,3 +131,18 @@ export function assertSourceLinks(root, entries) {
         fail("UNMAPPED_SOURCE_LINK");
     }
 }
+
+/** Explicit top-level operands avoid bsdtar exclusions matching nested docs/data. */
+export function sourceArchiveArgs(root, destination) {
+  return [
+    "-cf",
+    destination,
+    "-C",
+    root,
+    ...fs
+      .readdirSync(root)
+      .sort()
+      .filter((name) => !["data", ".local"].includes(name))
+      .map((name) => "./" + name),
+  ];
+}

@@ -23,6 +23,7 @@ import {
   verifyFiles,
   verifyMetadata,
   assertSourceLinks,
+  sourceArchiveArgs,
 } from "./capture-files.mjs";
 import { captureFlow } from "./capture-state.mjs";
 import {
@@ -565,15 +566,7 @@ async function adapter(s, save) {
       );
       await command(
         "/usr/bin/tar",
-        [
-          "--exclude=./data",
-          "--exclude=./.local",
-          "-cf",
-          path.join(backup, "source.tar"),
-          "-C",
-          root,
-          ".",
-        ],
+        sourceArchiveArgs(root, path.join(backup, "source.tar")),
         { timeout: 120000, env: { ...environment(), COPYFILE_DISABLE: "1" } },
       );
       if (JSON.stringify(t) !== JSON.stringify(tree(root, ["data", ".local"])))
@@ -1109,15 +1102,16 @@ async function adapter(s, save) {
         verifyMetadata(path.join(backup, "instance", r), v.before);
       }
       if (
-        (await digestFile(path.join(backup, "source.tar"))) !==
-        s.source_archive_sha
+        (await digestFile(
+          path.join(backup, s.source_archive_file ?? "source.tar"),
+        )) !== s.source_archive_sha
       )
         fail("SOURCE_ARCHIVE_CHANGED");
       await command(
         PYTHON,
         [
           path.join(toolRoot, "scripts/agile-diagnostics/verify-archive.py"),
-          path.join(backup, "source.tar"),
+          path.join(backup, s.source_archive_file ?? "source.tar"),
           path.join(backup, "source-files.json"),
         ],
         { timeout: 120000 },
@@ -1151,6 +1145,7 @@ async function adapter(s, save) {
       const artifacts = {};
       for (const rel of [
         "source.tar",
+        ...(s.source_archive_file ? [s.source_archive_file] : []),
         "contracts.schema.json",
         "captured-files.json",
         "source-files.json",
@@ -1171,6 +1166,9 @@ async function adapter(s, save) {
         source_root: root,
         source_sha: s.preflight.source_sha,
         tool_sha: s.tool_sha,
+        verification_tool_sha: s.verification_tool_sha ?? s.tool_sha,
+        source_archive: s.source_archive_file ?? "source.tar",
+        source_archive_repair: s.source_archive_repair ?? null,
         session_id: s.preflight.gate.core.session_id,
         data_domain_id: s.preflight.gate.core.data_domain_id,
         schema_sha256: s.schema_sha,
@@ -1243,7 +1241,7 @@ export async function main(argv) {
     );
     return;
   }
-  if (["recover", "verify"].includes(o.command)) {
+  if (["recover", "verify", "repair-source"].includes(o.command)) {
     if (!o.state) fail("RECOVER_REQUIRES_STATE");
     const file = path.resolve(o.state);
     privateStat(file);
@@ -1257,11 +1255,71 @@ export async function main(argv) {
       privateJSON(file, s, { replace: true, max: 64 * 1024 ** 2 });
     try {
       const a = await adapter(s, save);
-      if (o.command === "verify") {
-        await reviewedTool(s.tool_sha);
+      if (["verify", "repair-source"].includes(o.command)) {
+        const verifier = o["expected-tool-sha"] ?? s.tool_sha;
+        await reviewedTool(verifier);
         if (!s.copied || !s.recovered) fail("VERIFY_REQUIRES_COPIED_RECOVERED");
-        await a.verify();
-        s.phase = "COMPLETE";
+        if (o.command === "repair-source") {
+          if (s.source_archive_file || s.source_archive_repair)
+            fail("SOURCE_ALREADY_REPAIRED");
+          if (
+            (await digestFile(path.join(s.backup, "source.tar"))) !==
+            s.source_archive_sha
+          )
+            fail("ORIGINAL_ARCHIVE_CHANGED");
+          if (fs.existsSync(path.join(s.backup, "manifest.json")))
+            fail("SOURCE_REPAIR_AFTER_PUBLICATION");
+          const before = readJSON(
+            path.join(s.backup, "source-files.json"),
+            64 * 1024 ** 2,
+          );
+          const assertTree = () => {
+            if (
+              JSON.stringify(tree(s.root, ["data", ".local"])) !==
+              JSON.stringify(before.tree)
+            )
+              fail("SOURCE_CHANGED_SINCE_CAPTURE");
+          };
+          assertTree();
+          await verifyFiles(s.root, before.files);
+          assertSourceLinks(s.root, before.tree);
+          const rel = "source-repaired-" + randomUUID() + ".tar";
+          const output = path.join(s.backup, rel);
+          await command("/usr/bin/tar", sourceArchiveArgs(s.root, output), {
+            timeout: 120000,
+            env: { ...environment(), COPYFILE_DISABLE: "1" },
+          });
+          assertTree();
+          await command(
+            PYTHON,
+            [
+              path.join(
+                toolRoot,
+                "scripts/agile-diagnostics/verify-archive.py",
+              ),
+              output,
+              path.join(s.backup, "source-files.json"),
+            ],
+            { timeout: 120000 },
+          );
+          s.source_archive_repair = {
+            at: iso(),
+            tool_sha: verifier,
+            original_file: "source.tar",
+            original_sha256: await digestFile(
+              path.join(s.backup, "source.tar"),
+            ),
+            reason: "bsdtar nested-name exclusion; original archive retained",
+            source_tree_unchanged: true,
+          };
+          s.source_archive_file = rel;
+          s.source_archive_sha = await digestFile(output);
+          s.phase = "SOURCE_REPAIRED";
+        } else {
+          s.verification_tool_sha = verifier;
+          await a.verify();
+          s.phase = "COMPLETE";
+        }
       } else {
         await a.recover();
         s.recovered = true;
