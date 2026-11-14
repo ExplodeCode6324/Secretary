@@ -207,3 +207,5 @@ Master 新存储要求覆盖后续测试数据的旧桌面归档位置：`/Volum
 末轮 CLI 检查发现：默认在混合总根创建会导致无法安全归档。创建命令现强制在任何写入前选择独立子目录；生命周期命令仍可显式检查/停止历史总根。说明统一使用同一个具名 root，子进程回归确认缺少 root 或指定总根时拒绝且不改变 facility marker，不自动迁移绝对路径。
 
 R4：59c1b80b 获 PASS_PENDING_CI；Claude 独立通过 Ubuntu/PG18 的 17/17 测试，确认五项阻断解决，十个测试实例全部可归档 dry-run。采纳补充：显式新建 root（ab20b983）、递归拒绝嵌套 facility/lock/postmaster、macOS F_NOCACHE 客户端读回及准确回执措辞、本地敏捷提交记入部署说明、套件磁盘开销及归档提示。真实模型按状态区分的 Operation 白名单留作 #121 准入条件。当前未合并，等待准确 HEAD 复核、CI 和 Master。
+
+90f58588 首轮 PR CI：macOS 684 PASS / 1 FAIL，在受控推送用例读取 observed.json 时失败。通过本地确定性的 open→原子 rename→fstat 重现 UNSAFE_FILE：合法替换后，已打开的旧 inode 的 nlink=0。harness 读取器现关闭该描述符并重新打开、校验规范 O_NOFOLLOW 路径，最多四次；仍拒绝硬链接（nlink>1）、非普通文件和符号链接，不读取已脱离路径的 inode。新增回归在修复前失败、修复后通过。原始 CI/本地失败日志保留，产品 Core 未改；后续提交需重新复核和 CI。

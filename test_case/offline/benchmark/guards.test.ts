@@ -296,3 +296,30 @@ test("creation CLI refuses missing or mixed-root destinations before writing a f
       );
     }
 });
+
+test("atomic evidence replacement retries the unlinked inode without accepting hardlinks", (t) => {
+  const root = temp(),
+    file = path.join(root, "observed.json"),
+    replacement = path.join(root, "replacement.json");
+  writeJSON(file, { generation: 1 });
+  writeJSON(replacement, { generation: 2 });
+  const open = fs.openSync.bind(fs);
+  let replaced = false;
+  t.mock.method(fs, "openSync", (p: any, flags: any, mode?: any) => {
+    const fd = open(p, flags, mode);
+    if (p === file && !replaced) {
+      replaced = true;
+      fs.renameSync(replacement, file); // Old open fd now has nlink=0.
+    }
+    return fd;
+  });
+  try {
+    assert.deepEqual(readJSON(file), { generation: 2 });
+    assert(replaced);
+    fs.linkSync(file, path.join(root, "hardlink"));
+    assert.throws(() => readJSON(file), /UNSAFE_FILE/);
+  } finally {
+    t.mock.restoreAll();
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

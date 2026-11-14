@@ -70,15 +70,21 @@ export function mkdir(p: string) {
   requireThat(fs.statSync(p).uid === process.getuid?.(), "FOREIGN_DIRECTORY");
 }
 export function read(p: string) {
-  noLinks(p);
-  const fd = fs.openSync(p, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
-  try {
-    const st = fs.fstatSync(fd);
-    requireThat(st.isFile() && st.nlink === 1, "UNSAFE_FILE");
-    return fs.readFileSync(fd);
-  } finally {
-    fs.closeSync(fd);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    noLinks(p);
+    const fd = fs.openSync(p, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+    try {
+      const st = fs.fstatSync(fd);
+      // writeJSON may atomically replace the pathname between open and fstat.
+      // Never consume the now-unlinked inode: reopen and revalidate the path.
+      if (st.isFile() && st.nlink === 0) continue;
+      requireThat(st.isFile() && st.nlink === 1, "UNSAFE_FILE");
+      return fs.readFileSync(fd);
+    } finally {
+      fs.closeSync(fd);
+    }
   }
+  throw Error("ATOMIC_READ_CONTENTION");
 }
 export function readJSON<T = any>(p: string): T {
   return JSON.parse(read(p).toString());
