@@ -28,6 +28,7 @@ import { auditEpisode } from "./evidence-audit.ts";
 import { lifecyclePilot } from "./lifecycle.ts";
 import { prepareRepository, repositoryPilot } from "./repository-replay.ts";
 import { worldPilot } from "./world-replay.ts";
+import { scoreDevelopment } from "./score.ts";
 
 async function main() {
   const [command, ...args] = process.argv.slice(2),
@@ -137,6 +138,10 @@ async function main() {
     return;
   }
   await Domains.use(root, async (d) => {
+    if (command === "memory-score") {
+      console.log(JSON.stringify(scoreDevelopment(d), null, 2));
+      return;
+    }
     if (command === "memory-repository-prepare") {
       requireThat(
         options["--source"] && options["--provenance"],
@@ -324,10 +329,6 @@ async function main() {
         requireThat(options["--verdict"], "GRADE_SUBMISSION_REQUIRED");
         const file = path.resolve(options["--verdict"]);
         noLinks(file);
-        requireThat(
-          inside(path.join(root, "oracles"), file),
-          "GRADE_SUBMISSION_OUTSIDE_FACILITY",
-        );
         console.log(
           JSON.stringify(importGradePacket(root, options["--run"], file)),
         );

@@ -226,6 +226,12 @@ export async function preparePublic(root: string) {
         sha(read(path.join(root, "inputs", "longmemeval-" + split + ".json"))),
       ]),
     ),
+    gold_sha256: Object.fromEntries(
+      ["dev", "smoke"].map((split) => [
+        split,
+        sha(read(path.join(dir, split + "-gold.json"))),
+      ]),
+    ),
     evaluator:
       "Official code pinned but NOT_EXECUTED; Claude-based grading is a separately labelled variant, not the official score",
   };

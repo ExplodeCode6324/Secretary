@@ -2,18 +2,15 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import { Domains, fingerprint } from "./domain.ts";
-import { createCampaign, closeCampaign, ledger } from "./campaign.ts";
+import { createCampaign, closeCampaign } from "./campaign.ts";
 import { durableTrace, quiet } from "./episodes.ts";
 import { auditEpisode } from "./evidence-audit.ts";
+import { runMatrix } from "./pilot-report.ts";
 import { appendJSON, readJSON, sha, writeJSON, requireThat } from "./io.ts";
 import { stopDatabase } from "./postgres.ts";
 import type { ModelID } from "./live-model.ts";
 import type { Episode } from "./scenarios.ts";
-import {
-  machine,
-  validateReport,
-  type Report,
-} from "../../benchmarks/common/report.ts";
+import { machine, type Report } from "../../benchmarks/common/report.ts";
 
 const project = "BENCHMARK-CEDAR-821",
   note = "GREEN-57; only this corrected code is current";
@@ -272,32 +269,29 @@ export async function worldPilot(
     ],
   };
   try {
-    for (const model of models) {
-      const r = await worldEpisode(d, model);
-      report.cases.push({
-        id: `${episode.id}:${model}:DEP`,
-        status: "INCOMPLETE",
-        evidence: [r.run.evidence],
-        reason:
-          r.failure ??
-          "Actual approval/restart trajectory captured; independent adjudication pending",
-      });
-      report.first_failure ??=
-        r.failure ??
-        (r.audit.audit.maintenance.first_failure
-          ? JSON.stringify(r.audit.audit.maintenance.first_failure)
-          : null);
-      report.finished_at = new Date().toISOString();
-      report.metrics.physical_provider_sends = ledger(d.root).entries.size;
-      report.evidence_classes = ledger(d.root).entries.size
-        ? ["REAL_MODEL", "REAL_PROCESS", "REAL_POSTGRES"]
-        : ["REAL_PROCESS"];
-      writeJSON(
-        path.join(d.root, "reports", report.run_id, "report.json"),
-        validateReport(report),
-      );
-    }
-    return report;
+    return await runMatrix(
+      d.root,
+      report,
+      models.map((model) => ({ id: `${episode.id}:${model}:DEP`, model })),
+      async (row) => {
+        const r = await worldEpisode(d, row.model);
+        return {
+          result: {
+            id: row.id,
+            status: "INCOMPLETE",
+            evidence: [r.run.evidence],
+            reason:
+              r.failure ??
+              "Actual approval/restart trajectory captured; independent adjudication pending",
+          },
+          first_failure:
+            r.failure ??
+            (r.audit.audit.maintenance.first_failure
+              ? JSON.stringify(r.audit.audit.maintenance.first_failure)
+              : null),
+        };
+      },
+    );
   } finally {
     await closeCampaign(d.root);
   }

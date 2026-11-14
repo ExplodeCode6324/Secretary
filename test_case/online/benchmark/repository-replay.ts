@@ -3,10 +3,11 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { Domains, type Run, fingerprint } from "./domain.ts";
 import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
-import { createCampaign, closeCampaign, ledger } from "./campaign.ts";
+import { createCampaign, closeCampaign } from "./campaign.ts";
 import { privateEpisodes } from "./private-replay.ts";
 import { runEpisode, quiet } from "./episodes.ts";
 import { capturedReads } from "./evidence-audit.ts";
+import { runMatrix } from "./pilot-report.ts";
 import {
   noLinks,
   read,
@@ -17,11 +18,7 @@ import {
   inside,
 } from "./io.ts";
 import type { ModelID } from "./live-model.ts";
-import {
-  machine,
-  validateReport,
-  type Report,
-} from "../../benchmarks/common/report.ts";
+import { machine, type Report } from "../../benchmarks/common/report.ts";
 
 export function validateRepositoryPin(pin: any, bytes: Buffer) {
   requireThat(
@@ -70,6 +67,7 @@ async function retrieve(
   run: Run,
   client: CoreClient,
   deadline: number,
+  materials: string[],
 ) {
   const source = readJSON(
     path.join(d.root, "oracles", "repository-source.json"),
@@ -81,6 +79,7 @@ async function retrieve(
   const receipt = await client.command("task-requests", {
     request_id,
     at: new Date(due).toISOString(),
+    materials,
     goal: "只读核对工作目录中的 repository-snapshot.md：找出与本轮用户进度反馈相关的历史状态和日期。该文件是较早提交的历史快照；不能覆盖 Master 随后明确的新反馈，也不能把快照未包含的新反馈说成已经写入仓库。引用实际读到的原文和日期。不要执行文件写入、shell、网络、World 修改或安排提醒。",
     constraints: [
       "Read only the staged snapshot",
@@ -129,35 +128,54 @@ async function retrieve(
     bytes: bytes.length,
     sha256: sha(bytes),
     read_only_mode: "0400; not an adversarial OS sandbox",
+    protocol: "repository-B-v2-explicit-prior-input-materials",
+    materials_sha256: materials.map((text) => sha(text)),
+    materials_scope:
+      "Only already-delivered pre-probe Master steps; no future probe or oracle",
   };
   writeJSON(path.join(run.evidence, "repository-stage.json"), staged);
-  let execution: any;
-  while (Date.now() < deadline) {
-    const o = readJSON(path.join(run.evidence, "observed.json"));
-    execution = o.executions.find(
-      (e: any) =>
-        e.task_id === task.id &&
-        ["SUCCEEDED", "FAILED", "CANCELLED", "EXPIRED"].includes(e.state),
-    );
-    if (execution) break;
-    if (o.authorizations.some((a: any) => a.state === "PENDING"))
-      throw Error("READONLY_REPOSITORY_REQUESTED_APPROVAL");
-    await new Promise((r) => setTimeout(r, 250));
+  writeJSON(path.join(run.evidence, "additional-evidence.json"), {
+    ...staged,
+    quiescent: false,
+    phase: "staged-before-execution",
+  });
+  let execution: any,
+    failure: string | null = null;
+  try {
+    while (Date.now() < deadline) {
+      const o = readJSON(path.join(run.evidence, "observed.json"));
+      execution = o.executions.find((e: any) => e.task_id === task.id);
+      if (execution) break;
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    requireThat(execution, "REPOSITORY_TASK_UNEXERCISED");
+    // The scheduled execution now exists. Normal deny-all policy handles pending
+    // approvals while draining; a proposal is not a reason to truncate evidence.
+    await quiet(run, client, deadline, 0);
+  } catch (error) {
+    failure =
+      error instanceof Error ? error.message : "REPOSITORY_RETRIEVAL_FAILED";
   }
-  requireThat(execution, "REPOSITORY_TASK_UNEXERCISED");
-  await quiet(run, client, deadline, 0);
+  execution = readJSON(
+    path.join(run.evidence, "observed.json"),
+  ).executions.find((e: any) => e.task_id === task.id);
   const reads = capturedReads(run, "repository-snapshot.md");
   const evidence = {
     ...staged,
-    execution_id: execution.id,
-    execution_state: execution.state,
+    execution_id: execution?.id ?? null,
+    execution_state: execution?.state ?? null,
     reads,
     after_sha256: sha(read(target)),
     original_repository_mutation:
       "No original checkout exposed; selected pinned bytes only",
     scope: "READONLY_REPOSITORY_RETRIEVAL_B; not retention A",
+    failure,
+    observed_at: new Date().toISOString(),
+    quiescent: failure === null,
   };
   writeJSON(path.join(run.evidence, "repository-retrieval.json"), evidence);
+  writeJSON(path.join(run.evidence, "additional-evidence.json"), evidence);
+  if (failure) throw Error(failure);
   requireThat(
     evidence.after_sha256 === staged.sha256,
     "REPOSITORY_SNAPSHOT_CHANGED",
@@ -175,7 +193,7 @@ export async function repositoryPilot(
   const base = privateEpisodes(d.root).find((e) => e.id === "R-study-dev");
   requireThat(base, "MATCHED_RETENTION_A_CASE_REQUIRED");
   const episode = structuredClone(base);
-  episode.id = "R-study-repository-b-dev";
+  episode.id = "R-study-repository-b-v2-dev";
   episode.source +=
     "; B adds a read-only task with a pinned pre-feedback repository snapshot before the same probe";
   episode.oracle.required.push(
@@ -211,39 +229,42 @@ export async function repositoryPilot(
     ],
   };
   try {
-    for (const model of models) {
-      const r = await runEpisode(
-        d,
-        episode,
-        model,
-        "DEP",
-        false,
-        (run, client, deadline) => retrieve(d, run, client, deadline),
-      );
-      report.cases.push({
-        id: `${episode.id}:${model}:DEP`,
-        status: "INCOMPLETE",
-        evidence: [r.run.evidence],
-        reason:
-          r.failure ??
-          "Repository retrieval evidence captured; semantic adjudication pending",
-      });
-      report.first_failure ??=
-        r.failure ??
-        (r.audit?.maintenance.first_failure
-          ? JSON.stringify(r.audit.maintenance.first_failure)
-          : null);
-      report.finished_at = new Date().toISOString();
-      report.metrics.physical_provider_sends = ledger(d.root).entries.size;
-      report.evidence_classes = ledger(d.root).entries.size
-        ? ["REAL_MODEL", "REAL_PROCESS", "REAL_POSTGRES"]
-        : ["REAL_PROCESS"];
-      writeJSON(
-        path.join(d.root, "reports", report.run_id, "report.json"),
-        validateReport(report),
-      );
-    }
-    return report;
+    const firstProbe = episode.steps.findIndex((step) => step.probe);
+    requireThat(firstProbe > 0, "REPOSITORY_PRIOR_INPUTS_REQUIRED");
+    const materials = episode.steps
+      .slice(0, firstProbe)
+      .map((step, index) => `Prior Master input ${index + 1}:\n${step.text}`);
+    return await runMatrix(
+      d.root,
+      report,
+      models.map((model) => ({ id: `${episode.id}:${model}:DEP`, model })),
+      async (row) => {
+        const r = await runEpisode(
+          d,
+          episode,
+          row.model,
+          "DEP",
+          false,
+          (run, client, deadline) =>
+            retrieve(d, run, client, deadline, materials),
+        );
+        return {
+          result: {
+            id: row.id,
+            status: "INCOMPLETE",
+            evidence: [r.run.evidence],
+            reason:
+              r.failure ??
+              "Repository retrieval evidence captured; semantic adjudication pending",
+          },
+          first_failure:
+            r.failure ??
+            (r.audit?.maintenance.first_failure
+              ? JSON.stringify(r.audit.maintenance.first_failure)
+              : null),
+        };
+      },
+    );
   } finally {
     await closeCampaign(d.root);
   }

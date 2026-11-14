@@ -32,12 +32,9 @@ import {
   read,
 } from "./io.ts";
 import type { ReaderInput } from "./dataset.ts";
-import { createCampaign, closeCampaign, ledger } from "./campaign.ts";
-import {
-  machine,
-  validateReport,
-  type Report,
-} from "../../benchmarks/common/report.ts";
+import { createCampaign, closeCampaign } from "./campaign.ts";
+import { runMatrix } from "./pilot-report.ts";
+import { machine, type Report } from "../../benchmarks/common/report.ts";
 
 export async function publicPilot(
   d: Domains,
@@ -54,6 +51,16 @@ export async function publicPilot(
     "PUBLIC_INPUT_CHANGED",
   );
   const inputs = readJSON<ReaderInput[]>(file);
+  const goldFile = path.join(
+    d.root,
+    "oracles",
+    "longmemeval",
+    `${split}-gold.json`,
+  );
+  requireThat(
+    manifest.gold_sha256?.[split] === sha(read(goldFile)),
+    "PUBLIC_GOLD_CHANGED",
+  );
   requireThat(
     inputs.length === (split === "dev" ? 6 : 50),
     "PUBLIC_DENOMINATOR_CHANGED",
@@ -85,40 +92,25 @@ export async function publicPilot(
     ],
   };
   try {
-    for (const input of inputs)
-      for (const model of models) {
-        try {
-          const result = await publicReader(d, input, model);
-          report.cases.push({
-            id: `${input.id}:${model}`,
+    return await runMatrix(
+      d.root,
+      report,
+      inputs.flatMap((input) =>
+        models.map((model) => ({ id: `${input.id}:${model}`, input, model })),
+      ),
+      async (row) => {
+        const result = await publicReader(d, row.input, row.model, split);
+        return {
+          result: {
+            id: row.id,
             status: "INCOMPLETE",
             evidence: [result.evidence],
             reason: result.error ?? "Independent semantic adjudication pending",
-          });
-          if (result.error && !report.first_failure)
-            report.first_failure = result.error;
-        } catch (error) {
-          const reason =
-            error instanceof Error ? error.message : "PUBLIC_READER_FAILED";
-          report.cases.push({
-            id: `${input.id}:${model}`,
-            status: "BLOCKED",
-            evidence: [],
-            reason,
-          });
-          report.first_failure ??= reason;
-        }
-        report.finished_at = new Date().toISOString();
-        report.metrics.physical_provider_sends = ledger(d.root).entries.size;
-        report.evidence_classes = ledger(d.root).entries.size
-          ? ["REAL_MODEL", "REAL_POSTGRES"]
-          : ["REAL_POSTGRES"];
-        writeJSON(
-          path.join(d.root, "reports", report.run_id, "report.json"),
-          validateReport(report),
-        );
-      }
-    return report;
+          },
+          first_failure: result.error,
+        };
+      },
+    );
   } finally {
     await closeCampaign(d.root);
   }
@@ -132,6 +124,7 @@ export async function publicReader(
   d: Domains,
   input: ReaderInput,
   modelID: ModelID,
+  split: "dev" | "smoke",
 ) {
   const run = await d.create(configuration),
     source = "benchmark-public:" + input.id;
@@ -144,6 +137,19 @@ export async function publicReader(
   let toolsUsed = 0,
     requests = 0;
   try {
+    writeJSON(path.join(run.evidence, "public-run.json"), {
+      version: "secretary-public-component-v1",
+      run_id: run.id,
+      question_id: input.id,
+      model: modelID,
+      split,
+      input_sha256: sha(JSON.stringify(input)),
+      manifest_sha256: sha(
+        read(path.join(d.root, "oracles/longmemeval/manifest.json")),
+      ),
+      scope: "COMPONENT_ONLY",
+      core_bootstrap: "fixture; reader calls are separately metered live calls",
+    });
     const key = credential(modelID),
       model = descriptor(modelID);
     app = await App.open(

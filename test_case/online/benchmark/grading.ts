@@ -2,7 +2,16 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { modelIDs } from "./live-model.ts";
-import { readJSON, requireThat, sha, writeJSON } from "./io.ts";
+import {
+  readJSON,
+  read,
+  noLinks,
+  inside,
+  repository,
+  requireThat,
+  sha,
+  writeJSON,
+} from "./io.ts";
 import type { auditEpisode } from "./evidence-audit.ts";
 import type { Episode } from "./scenarios.ts";
 
@@ -270,7 +279,42 @@ export function validateVerdicts(packet: any, submission: any) {
   return submission;
 }
 export function importGradePacket(root: string, run: string, file: string) {
-  const raw = readJSON(file);
+  requireThat(/^[a-f0-9-]{36}$/.test(run), "INVALID_GRADE_RUN");
+  noLinks(file);
+  requireThat(
+    inside(path.join(root, "oracles"), file) ||
+      inside(path.join(repository, ".local/reviews"), file),
+    "GRADE_SUBMISSION_OUTSIDE_APPROVED_SOURCE",
+  );
+  const stat = fs.statSync(file);
+  requireThat(
+    stat.isFile() &&
+      stat.nlink === 1 &&
+      stat.uid === process.getuid?.() &&
+      (stat.mode & 0o077) === 0 &&
+      stat.size > 0 &&
+      stat.size <= 1_000_000,
+    "GRADE_SUBMISSION_FILE_INVALID",
+  );
+  const sourceBytes = read(file),
+    sourceFileHash = sha(sourceBytes);
+  let raw: any;
+  try {
+    raw = JSON.parse(sourceBytes.toString());
+  } catch {
+    throw Error("INVALID_GRADE_SUBMISSION_JSON");
+  }
+  requireThat(
+    raw &&
+      typeof raw === "object" &&
+      ![
+        "received_at",
+        "qualification",
+        "source_sha256",
+        "source_file_sha256",
+      ].some((k) => k in raw),
+    "GRADE_SUBMISSION_RESERVED_METADATA",
+  );
   const candidates = ["-sealed.json", "-sealed-v2.json"]
     .map((s) => path.join(root, "oracles", run + s))
     .filter((f) => fs.existsSync(f))
@@ -289,6 +333,7 @@ export function importGradePacket(root: string, run: string, file: string) {
     received_at: new Date().toISOString(),
     qualification: "PENDING_CONTROL_AND_HUMAN_REVIEW",
     source_sha256: sha(JSON.stringify(submission)),
+    source_file_sha256: sourceFileHash,
   });
   return { path: dest, qualification: "PENDING_CONTROL_AND_HUMAN_REVIEW" };
 }

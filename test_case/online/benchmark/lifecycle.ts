@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import { Domains, fingerprint, type Run } from "./domain.ts";
-import { createCampaign, closeCampaign, ledger } from "./campaign.ts";
+import { createCampaign, closeCampaign } from "./campaign.ts";
 import { type ModelID } from "./live-model.ts";
 import {
   appendJSON,
@@ -13,16 +13,14 @@ import {
   sha,
   writeJSON,
   processStatus,
+  until,
 } from "./io.ts";
 import { stopDatabase } from "./postgres.ts";
 import { durableTrace, quiet } from "./episodes.ts";
 import { auditEpisode, capturedReads } from "./evidence-audit.ts";
+import { runMatrix } from "./pilot-report.ts";
 import type { Episode } from "./scenarios.ts";
-import {
-  machine,
-  validateReport,
-  type Report,
-} from "../../benchmarks/common/report.ts";
+import { machine, type Report } from "../../benchmarks/common/report.ts";
 
 const target = "delivery-note.txt";
 const content = "ORCHARD-219\nPending delivery; do not mark sent.\n";
@@ -158,6 +156,12 @@ async function interruption(d: Domains, model: ModelID) {
     }
     requireThat(fs.existsSync(marker), "MATCHING_POST_FSYNC_FAULT_UNEXERCISED");
     const fault = readJSON(marker);
+    // The marker precedes SIGKILL. Yield until the OS positively confirms exit;
+    // a live/zombie identity mismatch is not permission to assume it stopped.
+    await until(
+      () => !!live.process && processStatus(live.process) === "STOPPED",
+      8000,
+    );
     await d.stop(live.id);
     const before = auditEpisode(d.load(live.id));
     const checkpoint = await d.checkpoint(live.id);
@@ -342,28 +346,30 @@ export async function lifecyclePilot(
     ],
   };
   try {
-    for (const model of models) {
-      const r = await interruption(d, model);
-      report.cases.push({
-        id: `${episode.id}:${model}:DEP`,
-        status: "INCOMPLETE",
-        evidence: [r.run.evidence],
-        reason:
-          r.failure ??
-          "Lifecycle captured; independent semantic and effect adjudication pending",
-      });
-      report.first_failure ??= r.failure;
-      report.finished_at = new Date().toISOString();
-      report.metrics.physical_provider_sends = ledger(d.root).entries.size;
-      report.evidence_classes = ledger(d.root).entries.size
-        ? ["REAL_MODEL", "REAL_PROCESS", "REAL_POSTGRES"]
-        : ["REAL_PROCESS"];
-      writeJSON(
-        path.join(d.root, "reports", report.run_id, "report.json"),
-        validateReport(report),
-      );
-    }
-    return report;
+    return await runMatrix(
+      d.root,
+      report,
+      models.map((model) => ({ id: `${episode.id}:${model}:DEP`, model })),
+      async (row) => {
+        const r = await interruption(d, row.model);
+        const provenMismatch = [
+          "REQUESTED_ARTIFACT_MISMATCH",
+          "CONTINUATION_CHANGED_ARTIFACT",
+          "PHYSICAL_WRITE_COUNT_MISMATCH",
+        ].includes(r.failure ?? "");
+        return {
+          result: {
+            id: row.id,
+            status: provenMismatch ? "FAIL" : "INCOMPLETE",
+            evidence: [r.run.evidence],
+            reason:
+              r.failure ??
+              "Lifecycle captured; independent semantic and effect adjudication pending",
+          },
+          first_failure: r.failure,
+        };
+      },
+    );
   } finally {
     await closeCampaign(d.root);
   }

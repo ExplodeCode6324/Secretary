@@ -53,6 +53,7 @@ npm run benchmark -- memory-world --root <new-owned-root> --approval <approved-i
 npm run benchmark -- memory-audit --root <stopped-root> --run <run-id>
 npm run benchmark -- memory-grade-export --root <stopped-root> --run <run-id>
 npm run benchmark -- memory-grade-import --root <stopped-root> --run <run-id> --verdict <private-verdict.json>
+npm run benchmark -- memory-score --root <stopped-root>
 ```
 
 `memory-prepare` 下载并固定公共 LongMemEval 来源；`memory-public --subset dev|smoke` 只评估检索组件，不伪造 Core 对话导入。来源下载失败时保留诊断，不报告公共数据集已执行。`memory-private-prepare` 只接受脱敏/已获授权的重建开发场景和匹配来源哈希；它不建立未见样本。仓库 B 从较早的固定提交复制一个只读资料文件到已初始化的独立 Task 目录，保留真实 read 工具结果，原仓库未暴露给被测模型。A 与 B 分开报告。
@@ -60,6 +61,12 @@ npm run benchmark -- memory-grade-import --root <stopped-root> --run <run-id> --
 `memory-lifecycle` 在真实模型提出的独立工作目录写入 fsync 后注入一次 SIGKILL，使用正常 checkpoint/restore 和 `verify-write` 对账，再接续同一 Task 的新执行；对账不计为第二次写入。当前该场景尚不能单独证明多个不同 Task 的意图连续性。`memory-world` 先拒绝实际请求，再仅允许明确给定的合成实体与备注批次，重启后检查。未提出所需动作、工具证据缺失和错误效果都保留，不能用零效果推导通过。
 
 审计只读核验已停止 run 的 journal/CAS、操作参数/凭据、首轮失败历史及 probe 的实际发送上下文。V2 补充评分分别保留首答、提醒后、持久记忆、权限/效果、冷检索和正向 World 覆盖；旧 V1 分母和结果不覆盖。每批新评分使用新上下文和本版控制题，已暴露数据的补评分标为 exploratory。维护任务完成与回答正确分别报告；未完成或 opaque provider context 不得冒充冷记忆证明。
+
+所有 pilot 在派发前写出完整计划矩阵；当前行先记 INCOMPLETE，尚未运行的行保留 NOT_TESTED。创建、停止或封存异常会停止后续派发，保留首个失败及完整分母。仓库 B-v2 向 Task 明确传入已经送达的 probe 前材料；不传未来问题或 oracle。B-v1 未传材料、遇审批即退出的首轮证据保留，不能将其缺口算成记忆质量。
+
+评分导入只接受本 facility 的 `oracles/` 或本 checkout 的 `.local/reviews/` 下私有、归属明确的常规文件，保留原文件和规范 JSON 双哈希。`memory-score` 只做描述统计：不同评分版本分别列出，重复回执不扩大分母，同一 run 的冲突复评分标为待裁决，checkpoint 后继不算独立重复。它同时列出维护失败、driver 失败和未评分 run；`NO_ASSERTION_FAILURE` 仅表示选定断言没有 FAIL，不表示整轮无错误。S1/S2、重复根因、控制题及最终容忍门槛仍需复核，命令不生成合格结论。
+
+V1/早期 V2 控制题编号曾透露正反例类别；保留历史答对结果，但不作为可靠盲评校准。V2b 使用不带答案含义的编号及稳定混排，需要重新独立校准。公共 P 的描述统计只计算实际取得内容的来源会话召回；只有 ID 的列表不算读取，命中任意片段不等于找到答案。官方准确率保留 NOT_TESTED；授权 Claude 变体也须固定并检查上游提示/parser、独立校准后再评分，检索指标不能替代语义准确率。P 的 Core bootstrap 使用 fixture，独立 reader 才发真实且计账的模型请求，两者不混淆。
 
 ## 数据与恢复
 

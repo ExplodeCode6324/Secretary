@@ -3,7 +3,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import { Domains, fingerprint, type Run } from "./domain.ts";
-import { createCampaign, closeCampaign, ledger } from "./campaign.ts";
+import { createCampaign, closeCampaign } from "./campaign.ts";
 import { modelIDs, type ModelID, type Profile } from "./live-model.ts";
 import { syntheticEpisodes, type Episode } from "./scenarios.ts";
 import {
@@ -18,11 +18,8 @@ import { stopDatabase } from "./postgres.ts";
 import { snapshot } from "./snapshot.ts";
 import { privateEpisodes } from "./private-replay.ts";
 import { auditEpisode } from "./evidence-audit.ts";
-import {
-  machine,
-  validateReport,
-  type Report,
-} from "../../benchmarks/common/report.ts";
+import { runMatrix } from "./pilot-report.ts";
+import { machine, type Report } from "../../benchmarks/common/report.ts";
 
 const observed = (run: Run): any =>
   readJSON(path.join(run.evidence, "observed.json"));
@@ -229,6 +226,9 @@ export async function runEpisode(
       at: new Date().toISOString(),
       reason: failure,
     });
+    const partial = path.join(live.evidence, "additional-evidence.json");
+    if (additionalEvidence === null && fs.existsSync(partial))
+      additionalEvidence = readJSON(partial);
   } finally {
     await d.stop(live.id);
     await stopDatabase(live.database);
@@ -283,7 +283,6 @@ export async function pilot(
   selected: ModelID[] = [...modelIDs],
   profiles?: Profile[],
 ) {
-  await createCampaign(d.root, approvalID, null);
   const report: Report = {
     schema: "secretary-test-report-v1",
     run_id: randomUUID(),
@@ -330,47 +329,53 @@ export async function pilot(
     );
     e.steps.find((s) => s.probe)!.restart_before = true;
   }
+  const matrix = episodes.flatMap((episode) =>
+    selected.flatMap((model) =>
+      (
+        profiles ??
+        (subset === "smoke"
+          ? (["DEP", "RC"] as const)
+          : subset === "private"
+            ? (["DEP"] as const)
+            : (["RC"] as const))
+      ).map((profile) => ({
+        id: `${episode.id}:${model}:${profile}`,
+        episode,
+        model,
+        profile,
+      })),
+    ),
+  );
+  await createCampaign(d.root, approvalID, null);
   try {
-    for (const episode of episodes)
-      for (const model of selected)
-        for (const profile of profiles ??
-          (subset === "smoke"
-            ? (["DEP", "RC"] as const)
-            : subset === "private"
-              ? (["DEP"] as const)
-              : (["RC"] as const))) {
-          const result = await runEpisode(d, episode, model, profile, true);
-          report.cases.push({
-            id: `${episode.id}:${model}:${profile}`,
-            status: result.failure?.startsWith("PRODUCT_")
-              ? "FAIL"
-              : result.failure && !result.failure.includes("DEADLINE")
-                ? "BLOCKED"
-                : "INCOMPLETE",
-            evidence: [result.run.evidence],
-            reason:
-              result.failure ??
-              (result.audit?.maintenance.status === "INCOMPLETE"
-                ? "Memory maintenance/extraction incomplete; see immutable audit and retained failure history"
-                : "Semantic adjudication pending; no quality PASS inferred from completion"),
-          });
-          if (result.failure && !report.first_failure)
-            report.first_failure = result.failure;
-          if (!report.first_failure && result.audit?.maintenance.first_failure)
-            report.first_failure = JSON.stringify(
-              result.audit.maintenance.first_failure,
-            );
-          report.finished_at = new Date().toISOString();
-          report.metrics.physical_provider_sends = ledger(d.root).entries.size;
-          report.evidence_classes = ledger(d.root).entries.size
-            ? ["REAL_MODEL", "REAL_PROCESS", "REAL_POSTGRES"]
-            : ["REAL_PROCESS"];
-          writeJSON(
-            path.join(d.root, "reports", report.run_id, "report.json"),
-            validateReport(report),
-          );
-        }
-    return report;
+    return await runMatrix(d.root, report, matrix, async (row) => {
+      const result = await runEpisode(
+        d,
+        row.episode,
+        row.model,
+        row.profile,
+        true,
+      );
+      return {
+        result: {
+          id: row.id,
+          status: result.failure?.startsWith("PRODUCT_")
+            ? "FAIL"
+            : "INCOMPLETE",
+          evidence: [result.run.evidence],
+          reason:
+            result.failure ??
+            (result.audit?.maintenance.status === "INCOMPLETE"
+              ? "Memory maintenance/extraction incomplete; see immutable audit and retained failure history"
+              : "Semantic adjudication pending; no quality PASS inferred from completion"),
+        },
+        first_failure:
+          result.failure ??
+          (result.audit?.maintenance.first_failure
+            ? JSON.stringify(result.audit.maintenance.first_failure)
+            : null),
+      };
+    });
   } finally {
     await closeCampaign(d.root);
   }

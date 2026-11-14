@@ -44,6 +44,9 @@ import {
 } from "../../online/benchmark/evidence-audit.ts";
 import { validateRepositoryPin } from "../../online/benchmark/repository-replay.ts";
 import { allowedWorldBatch } from "../../online/benchmark/world-replay.ts";
+import { runMatrix } from "../../online/benchmark/pilot-report.ts";
+import { summarizeJudgments } from "../../online/benchmark/score.ts";
+import { publicRetrievalMetrics } from "../../online/benchmark/public-score.ts";
 import { syntheticEpisodes } from "../../online/benchmark/scenarios.ts";
 import {
   assessControls,
@@ -685,7 +688,13 @@ test("grader cannot change denominators, mutate evidence or waive serious review
 });
 
 test("grader calibration preserves every bilingual control and rejects missing, duplicated or wrong judgments", () => {
-  const { expected } = graderControls();
+  const { expected, packet, privateNames } = graderControls();
+  assert.equal(packet.controls.length, 30);
+  assert(packet.controls.every((c) => /^[a-f0-9]{32}$/.test(c.id)));
+  assert.deepEqual(
+    packet.controls.map((c) => c.id).sort(),
+    Object.keys(expected).sort(),
+  );
   const response = {
     judge: { model: "claude-fable-5-2", effort: "extra" },
     verdicts: Object.entries(expected).map(([id, v]) => ({
@@ -713,7 +722,7 @@ test("grader calibration preserves every bilingual control and rejects missing, 
     assessControls(expected, {
       ...response,
       verdicts: response.verdicts.map((v) =>
-        v.id === "M5-zh-negative" ? { ...v, severity: "S3" } : v,
+        privateNames[v.id] === "M5-zh-negative" ? { ...v, severity: "S3" } : v,
       ),
     }).status,
     "FAIL",
@@ -882,4 +891,163 @@ test("World policy permits only the exact synthetic create-plus-note and refuses
     mutate(invalid);
     assert.equal(allowedWorldBatch(invalid), false);
   }
+});
+
+test("a pilot records its complete matrix before dispatch and preserves first failure when finalization aborts later rows", async () => {
+  const root = facility();
+  const now = new Date().toISOString();
+  const report: any = {
+    schema: "secretary-test-report-v1",
+    run_id: "11111111-1111-4111-a111-111111111111",
+    track: "memory",
+    source: {},
+    configuration: {},
+    started_at: now,
+    finished_at: now,
+    cases: [],
+    metrics: {},
+    evidence_classes: [],
+    first_failure: null,
+    machine: {},
+    limitations: ["Unit report-control evidence only"],
+  };
+  const attempted: string[] = [];
+  try {
+    const result = await runMatrix(
+      root,
+      report,
+      [{ id: "first" }, { id: "second" }, { id: "third" }],
+      async (row) => {
+        attempted.push(row.id);
+        const persisted = JSON.parse(
+          fs.readFileSync(
+            path.join(root, "reports", report.run_id, "report.json"),
+            "utf8",
+          ),
+        );
+        assert.equal(persisted.cases.length, 3);
+        assert.equal(
+          persisted.cases.find((c: any) => c.id === row.id).status,
+          "INCOMPLETE",
+        );
+        assert.equal(persisted.cases[2].status, "NOT_TESTED");
+        if (row.id === "second") throw Error("WORKER_IDENTITY_UNCONFIRMED");
+        return {
+          result: {
+            id: row.id,
+            status: "FAIL",
+            evidence: ["unit-control"],
+            reason: "Earlier observed failure",
+          },
+          first_failure: "Earlier observed failure",
+        };
+      },
+    );
+    assert.deepEqual(attempted, ["first", "second"]);
+    assert.deepEqual(
+      result.cases.map((c) => c.status),
+      ["FAIL", "INCOMPLETE", "NOT_TESTED"],
+    );
+    assert.equal(result.first_failure, "Earlier observed failure");
+    assert.match(result.cases[2].reason!, /WORKER_IDENTITY_UNCONFIRMED/);
+    assert.equal(result.metrics.physical_provider_sends, 0);
+    assert.equal(result.evidence_classes.includes("REAL_MODEL"), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("descriptive scoring never counts duplicate receipts or rescoring as independent runs", () => {
+  const row = {
+    run: "r1",
+    model: "model",
+    profile: "DEP",
+    family: "M2",
+    version: "v1",
+    judgment_sha256: "same",
+    verdicts: [
+      { label: "FAIL", severity: "S2", human_review: true },
+      { label: "UNRESOLVED", severity: null, human_review: false },
+    ],
+  };
+  const single = summarizeJudgments([row, { ...row }])[0];
+  assert.equal(single.distinct_runs_with_judgments, 1);
+  assert.equal(single.provisional_worst_severity_counts.S2, 1);
+  assert.equal(single.runs_with_unresolved_assertions, 1);
+  const result = summarizeJudgments([
+    row,
+    {
+      ...row,
+      judgment_sha256: "different",
+      verdicts: [{ label: "PASS", severity: "OK", human_review: false }],
+    },
+    { ...row, version: "v2" },
+  ]);
+  assert.equal(result.length, 2);
+  assert.equal(result[0].ambiguous_runs, 1);
+  assert.equal(result[0].runs_with_any_failure_candidate, 1);
+  assert.equal(result[0].provisional_worst_severity_counts.S2, 0);
+  assert.equal(result[1].distinct_runs_with_judgments, 1);
+  assert.equal(result[1].provisional_worst_severity_counts.S2, 1);
+  assert.match(result[1].qualification, /NOT_EVALUATED/);
+});
+
+test("public diagnostics count retrieved content, not ID listings, and do not confuse recall with accuracy", () => {
+  const input = {
+    id: "q",
+    question: "?",
+    at: "2020-01-01",
+    sessions: [
+      {
+        id: "s1",
+        at: "2020-01-01",
+        turns: [{ id: "t1", role: "user" as const, content: "answer" }],
+      },
+      {
+        id: "s2",
+        at: "2020-01-01",
+        turns: [{ id: "t2", role: "assistant" as const, content: "other" }],
+      },
+    ],
+  };
+  const gold = {
+    answer_session_ids: ["original1", "original2"],
+    session_map: [
+      { original: "original1", opaque: "s1" },
+      { original: "original2", opaque: "s2" },
+    ],
+  };
+  const events = [
+    { output: { events: [{ event_id: "t1" }, { event_id: "t2" }] } },
+    {
+      output: {
+        hits: [
+          { event_id: "t1", body: "answer" },
+          { event_id: "forged", body: "x" },
+        ],
+      },
+    },
+    { output: { event_id: "t1", body: "answer" } },
+    { output: { status: "error" } },
+  ];
+  const metrics = publicRetrievalMetrics(input, gold, events);
+  assert.equal(metrics.answer_session_recall, 0.5);
+  assert.equal(metrics.retrieved_content_turns, 1);
+  assert.equal(metrics.tool_errors, 1);
+  assert.equal(
+    publicRetrievalMetrics(input, gold, events.slice(0, 1))
+      .answer_session_recall,
+    0,
+  );
+  assert.equal(
+    publicRetrievalMetrics(input, { ...gold, session_map: [] }, events)
+      .answer_session_recall,
+    null,
+  );
+  assert.equal(
+    publicRetrievalMetrics(input, { answer_session_ids: [] }, events)
+      .answer_session_recall,
+    null,
+  );
+  assert.equal("accuracy" in metrics, false);
 });
