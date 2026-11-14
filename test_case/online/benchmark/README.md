@@ -74,3 +74,5 @@ npm run benchmark -- archive --root <exact-facility-root> --apply true
 worker 仅接收 Core 的非超级用户连接凭据，启动时断言实际角色为 benchmark_core 且 rolsuper=false；管理员凭据留在控制器。默认 fixture 不启用崩溃注入，只有测试配置显式添加 `"fault_injection":"write-after-fsync"` 才在指定写入后发 SIGKILL。配置记录于每次私有证据。fixture 的 fetch 捕获器拒绝意外网络访问；这不是操作系统网络沙箱。
 
 恢复来源通过独立 restoredFrom 元数据记录，不冒充新 run 自己生成的最新 checkpoint。导入行必须非空才执行 xmin 保留断言。只读预检遇到残缺 journal 尾部直接拒绝（PARTIAL_JOURNAL）；这一边界比产品正常 journal 恢复更严格。退休目录当前验证写入前后不变，尚未独立证明完全没有读取；旧索引测试覆盖空索引重建，具体陈旧行替换场景留待后续。AT 用例为停止留出 10 秒；若机器未能赶上窗口则明确失败，不报业务行为通过。
+
+归档的内容核验是 fsync 后的客户端读回；macOS 额外使用 F_NOCACHE，仍不声称验证了 NAS 断电持久性。receipt 明确记录验证方式。任意深度出现额外 facility.json/controller.lock 或 postmaster.pid 都拒绝，避免把嵌套活动实例当作报告/证据清理。普通本地套件完成后按上述命令逐个归档 `.local/benchmark/tests/` 的 facility；CI 使用一次性 runner，不要求连接 Master 的 NAS。#121 在引入真实模型前需扩展为按状态区分的 Operation 白名单，明确允许已结束的 world.change/被拒绝 shell 等合法记录；当前更严格的 fixture 限制不作真实 workload 可用性承诺。

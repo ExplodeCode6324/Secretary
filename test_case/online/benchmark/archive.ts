@@ -247,6 +247,15 @@ export async function archiveFacility(
     const d = new Domains(root),
       runs = ownedStoppedRuns(d),
       entries = inventory(root);
+    for (const entry of entries) {
+      const name = path.basename(entry.path);
+      requireThat(
+        !(name === "facility.json" && entry.path !== "facility.json") &&
+          !(name === "controller.lock" && entry.path !== "controller.lock") &&
+          name !== "postmaster.pid",
+        "ARCHIVE_NESTED_OR_ACTIVE_RESOURCE",
+      );
+    }
     const summary: ArchiveResult = {
       status: "DRY_RUN",
       source: root,
@@ -312,6 +321,10 @@ export async function archiveFacility(
         source_identity: sourceIdentity,
         archive_sha256: archiveHash,
         manifest_sha256: manifestHash,
+        verification:
+          process.platform === "darwin"
+            ? "CLIENT_READBACK_AFTER_FSYNC_F_NOCACHE"
+            : "CLIENT_READBACK_AFTER_FSYNC",
       };
       writeJSON(path.join(localStage, "receipt.json"), {
         ...receipt,

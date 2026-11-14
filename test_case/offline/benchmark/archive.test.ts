@@ -109,6 +109,22 @@ test(
         /UNSAFE_TREE_ENTRY/,
       );
       fs.unlinkSync(path.join(evidence, "hardlink"));
+      for (const name of [
+        "facility.json",
+        "controller.lock",
+        "postmaster.pid",
+      ]) {
+        const nested = path.join(evidence, "nested", name);
+        writeJSON(nested, {
+          synthetic: "nested resource must remain untouched",
+        });
+        await assert.rejects(
+          () => archiveFacility(root, target, true),
+          /NESTED_OR_ACTIVE_RESOURCE/,
+        );
+        assert(fs.existsSync(nested));
+        fs.unlinkSync(nested);
+      }
       const dry = await archiveFacility(root, target);
       assert.equal(dry.status, "DRY_RUN");
       assert(dry.bytes > 1_000_000);

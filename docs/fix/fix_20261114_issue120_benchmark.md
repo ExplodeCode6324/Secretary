@@ -205,3 +205,5 @@ Claude Opus 5.5 Extra 对 e64d2f3 返回 **CHANGES_REQUIRED**。其在 Ubuntu/PG
 Master 新存储要求覆盖后续测试数据的旧桌面归档位置：`/Volumes/share/Files/HDD2/ELIZA/ELIZA_BAK/secretary-test-bak`。已停止且归属明确的完整 facility 先在本地打成一个 tar.gz，再整包传输，仅附少量清单/回执/恢复说明；读取 NAS 包逐文件校验后才释放本机源。CLI 必须显式选择实例，核验外部挂载，默认 dry-run，拒绝活动、不完整、未知及混合根。首次失败完整保留。归档测试只用临时本地目标，实际 NAS 结果另记。不归档独立 API 凭据或敏捷持久数据；两份本地 agents.md 已记录策略。历史 issue114 混合凭据根继续排除自动归档。
 
 末轮 CLI 检查发现：默认在混合总根创建会导致无法安全归档。创建命令现强制在任何写入前选择独立子目录；生命周期命令仍可显式检查/停止历史总根。说明统一使用同一个具名 root，子进程回归确认缺少 root 或指定总根时拒绝且不改变 facility marker，不自动迁移绝对路径。
+
+R4：59c1b80b 获 PASS_PENDING_CI；Claude 独立通过 Ubuntu/PG18 的 17/17 测试，确认五项阻断解决，十个测试实例全部可归档 dry-run。采纳补充：显式新建 root（ab20b983）、递归拒绝嵌套 facility/lock/postmaster、macOS F_NOCACHE 客户端读回及准确回执措辞、本地敏捷提交记入部署说明、套件磁盘开销及归档提示。真实模型按状态区分的 Operation 白名单留作 #121 准入条件。当前未合并，等待准确 HEAD 复核、CI 和 Master。

@@ -2,6 +2,7 @@
 
 Never extracts, executes a checkpoint, follows a link, or starts PostgreSQL.
 """
+import fcntl
 import hashlib
 import json
 import os
@@ -16,12 +17,18 @@ def require(value, message):
         raise RuntimeError(message)
 
 
-def regular_fd(filename):
+def regular_fd(filename, uncached=False):
     fd = os.open(filename, os.O_RDONLY | os.O_NOFOLLOW)
     value = os.fstat(fd)
     if not stat.S_ISREG(value.st_mode) or value.st_nlink != 1:
         os.close(fd)
         raise RuntimeError("UNSAFE_ARCHIVE_FILE")
+    if uncached and sys.platform == "darwin":
+        try:
+            fcntl.fcntl(fd, 48, 1)  # F_NOCACHE, verified against the macOS SDK fcntl.h.
+        except BaseException:
+            os.close(fd)
+            raise
     return fd
 
 
@@ -87,7 +94,7 @@ def verify(value, filename):
     expected = {"facility/" + entry["path"]: entry for entry in value["entries"]}
     seen = set()
     root_seen = False
-    with os.fdopen(regular_fd(filename), "rb") as source:
+    with os.fdopen(regular_fd(filename, uncached=True), "rb") as source:
         with tarfile.open(fileobj=source, mode="r:gz") as archive:
             for info in archive:
                 require(info.name not in seen, "DUPLICATE_ARCHIVE_ENTRY")
@@ -120,6 +127,6 @@ if __name__ == "__main__":
     elif command != "verify":
         raise RuntimeError("INVALID_ARCHIVE_COMMAND")
     verify(value, archive_path)
-    with os.fdopen(regular_fd(archive_path), "rb") as stream:
+    with os.fdopen(regular_fd(archive_path, uncached=True), "rb") as stream:
         archive_bytes, archive_sha256 = digest_file(stream)
     print(json.dumps({"verified": True, "entries": len(value["entries"]), "archive_sha256": archive_sha256, "archive_bytes": archive_bytes}))
