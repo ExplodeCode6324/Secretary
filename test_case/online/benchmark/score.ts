@@ -5,6 +5,7 @@ import { assertCampaignClosed } from "./campaign.ts";
 import { validateVerdicts } from "./grading.ts";
 import { auditEpisode } from "./evidence-audit.ts";
 import { scorePublicComponents } from "./public-score.ts";
+import { scorePublicGrades } from "./public-grading.ts";
 import {
   readJSON,
   read,
@@ -187,6 +188,7 @@ export function scoreDevelopment(d: Domains) {
     run_coverage: coverage,
     judgment_history: receipts,
     public_components: scorePublicComponents(d.root, runs),
+    public_qa: scorePublicGrades(d.root),
     groups: summarizeJudgments(receipts),
     limitations: [
       "Provisional judge observations only; no approved tolerance gate or reliability claim",

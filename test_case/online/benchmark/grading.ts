@@ -280,6 +280,30 @@ export function validateVerdicts(packet: any, submission: any) {
 }
 export function importGradePacket(root: string, run: string, file: string) {
   requireThat(/^[a-f0-9-]{36}$/.test(run), "INVALID_GRADE_RUN");
+  const { raw, sourceFileHash } = readGradeSubmission(root, file);
+  const candidates = ["-sealed.json", "-sealed-v2.json"]
+    .map((s) => path.join(root, "oracles", run + s))
+    .filter((f) => fs.existsSync(f))
+    .map((f) => readJSON(f));
+  const matches = candidates.filter((p) => p.packet_id === raw.packet_id);
+  requireThat(matches.length === 1, "GRADE_IDENTITY_MISMATCH");
+  const submission = validateVerdicts(matches[0], raw);
+  const dest = path.join(
+    root,
+    "oracles",
+    run + "-verdict-" + randomUUID() + ".json",
+  );
+  requireThat(!fs.existsSync(dest), "GRADE_OUTPUT_EXISTS");
+  writeJSON(dest, {
+    ...submission,
+    received_at: new Date().toISOString(),
+    qualification: "PENDING_CONTROL_AND_HUMAN_REVIEW",
+    source_sha256: sha(JSON.stringify(submission)),
+    source_file_sha256: sourceFileHash,
+  });
+  return { path: dest, qualification: "PENDING_CONTROL_AND_HUMAN_REVIEW" };
+}
+export function readGradeSubmission(root: string, file: string) {
   noLinks(file);
   requireThat(
     inside(path.join(root, "oracles"), file) ||
@@ -315,25 +339,5 @@ export function importGradePacket(root: string, run: string, file: string) {
       ].some((k) => k in raw),
     "GRADE_SUBMISSION_RESERVED_METADATA",
   );
-  const candidates = ["-sealed.json", "-sealed-v2.json"]
-    .map((s) => path.join(root, "oracles", run + s))
-    .filter((f) => fs.existsSync(f))
-    .map((f) => readJSON(f));
-  const matches = candidates.filter((p) => p.packet_id === raw.packet_id);
-  requireThat(matches.length === 1, "GRADE_IDENTITY_MISMATCH");
-  const submission = validateVerdicts(matches[0], raw);
-  const dest = path.join(
-    root,
-    "oracles",
-    run + "-verdict-" + randomUUID() + ".json",
-  );
-  requireThat(!fs.existsSync(dest), "GRADE_OUTPUT_EXISTS");
-  writeJSON(dest, {
-    ...submission,
-    received_at: new Date().toISOString(),
-    qualification: "PENDING_CONTROL_AND_HUMAN_REVIEW",
-    source_sha256: sha(JSON.stringify(submission)),
-    source_file_sha256: sourceFileHash,
-  });
-  return { path: dest, qualification: "PENDING_CONTROL_AND_HUMAN_REVIEW" };
+  return { raw, sourceFileHash };
 }

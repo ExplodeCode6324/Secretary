@@ -24,6 +24,7 @@ import {
   readerInput,
   selectPublic,
   questionTypes,
+  partitionPublicInputs,
   type PublicQuestion,
 } from "../../online/benchmark/dataset.ts";
 import {
@@ -47,6 +48,17 @@ import { allowedWorldBatch } from "../../online/benchmark/world-replay.ts";
 import { runMatrix } from "../../online/benchmark/pilot-report.ts";
 import { summarizeJudgments } from "../../online/benchmark/score.ts";
 import { publicRetrievalMetrics } from "../../online/benchmark/public-score.ts";
+import {
+  publicPrompt,
+  publicControls,
+  publicTemplates,
+  validatePublicGrade,
+} from "../../online/benchmark/public-grading.ts";
+import {
+  readPublicBundle,
+  publicSourceFiles,
+  publicSourceURL,
+} from "../../online/benchmark/public-bundle.ts";
 import { syntheticEpisodes } from "../../online/benchmark/scenarios.ts";
 import {
   assessControls,
@@ -68,6 +80,68 @@ function facility(ceiling: number | null = null) {
   fs.mkdirSync(path.join(root, "evidence"), { mode: 0o700 });
   return root;
 }
+
+test("local public bundles bind every required file to official pinned URLs and reject mutation or path escape", () => {
+  const root = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "public-bundle-")),
+  );
+  try {
+    const dataset = "a".repeat(40),
+      repository = "b".repeat(40);
+    const files = publicSourceFiles.map((name) => {
+      const bytes = Buffer.from(
+        name.endsWith(".json") ? "[]" : "public control",
+      );
+      fs.writeFileSync(path.join(root, name), bytes);
+      return {
+        name,
+        path: name,
+        bytes: bytes.length,
+        sha256: sha(bytes),
+        url: publicSourceURL(name, dataset, repository),
+      };
+    });
+    const file = path.join(root, "bundle.json"),
+      manifest = {
+        version: 1,
+        dataset_commit: dataset,
+        repository_commit: repository,
+        files,
+      };
+    writeJSON(file, manifest);
+    assert.equal(readPublicBundle(file).files.length, 6);
+    for (const mutate of [
+      (m: any) => {
+        m.files[0].path = "../outside";
+      },
+      (m: any) => {
+        m.files[0].url = "https://example.invalid/data";
+      },
+      (m: any) => {
+        m.files[0].sha256 = "0".repeat(64);
+      },
+      (m: any) => {
+        m.files.pop();
+      },
+      (m: any) => {
+        m.dataset_commit = "main";
+      },
+    ]) {
+      const bad = structuredClone(manifest);
+      mutate(bad);
+      writeJSON(file, bad);
+      assert.throws(() => readPublicBundle(file), /PUBLIC_BUNDLE_/);
+    }
+    writeJSON(file, manifest);
+    fs.writeFileSync(path.join(root, files[0].path), "changed");
+    assert.throws(
+      () => readPublicBundle(file),
+      /PUBLIC_BUNDLE_CONTENT_CHANGED/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("private replay intake refuses hidden exposure changes, undeclared fields and malformed reminders", () => {
   const e: any = {
@@ -108,6 +182,98 @@ const detail = {
   request_sha256: "a".repeat(64),
   reserved_usd: 1,
 };
+test("public time conflicts retain the selected denominator without changing or filtering source history", () => {
+  const valid: PublicQuestion = {
+    question_id: "a",
+    question_type: "temporal-reasoning",
+    question: "When?",
+    question_date: "2023/06/28 22:12",
+    answer: "control",
+    haystack_dates: ["2023/06/28 21:00"],
+    haystack_sessions: [[{ role: "user", content: "original" }]],
+  };
+  const future = {
+    ...valid,
+    question_id: "b",
+    haystack_dates: ["2023/06/28 23:00"],
+  };
+  const before = JSON.stringify([valid, future]);
+  const result = partitionPublicInputs([valid, future]);
+  assert.equal(result.inputs.length, 1);
+  assert.equal(result.blocked.length, 1);
+  assert.equal(result.blocked[0].reason, "PUBLIC_FUTURE_SESSION");
+  assert.equal(result.inputs[0].sessions[0].turns[0].content, "original");
+  assert.equal(JSON.stringify([valid, future]), before);
+  assert.throws(() => readerInput(future), /PUBLIC_FUTURE_SESSION/);
+});
+test("public judge variant preserves literal slots, fails closed on scorer drift and cannot grade an unexecuted answer", () => {
+  const templates = Array.from(
+    { length: 5 },
+    (_, i) => `type${i}: {} / {} / {}`,
+  );
+  assert.equal(
+    publicPrompt(
+      templates,
+      "temporal-reasoning",
+      "literal {}",
+      18,
+      "19",
+      false,
+    ),
+    "type1: literal {} / 18 / 19",
+  );
+  assert.throws(
+    () => publicTemplates(Buffer.from("arbitrary downloaded Python")),
+    /SCORER_REVIEW_REQUIRED/,
+  );
+  const c = publicControls(templates);
+  assert.equal(c.controls.length, 15);
+  assert.ok(c.controls.every((x) => /^[a-f0-9]{32}$/.test(x.id)));
+  const payload = {
+    questions: [
+      { id: "completed", gradable: true },
+      { id: "interrupted", gradable: false },
+    ],
+  };
+  const packet = {
+    packet_id: "unit",
+    payload_sha256: sha(JSON.stringify(payload)),
+    payload,
+  };
+  const submission = {
+    packet_id: packet.packet_id,
+    payload_sha256: packet.payload_sha256,
+    judge: { model: "Fable 5.2", effort: "Extra" },
+    controls: Object.entries(c.expected).map(([id, label]) => ({
+      id,
+      label,
+      rationale: "control",
+    })),
+    verdicts: [
+      { id: "completed", label: "yes", rationale: "answer" },
+      { id: "interrupted", label: "unresolved", rationale: "missing output" },
+    ],
+  };
+  assert.equal(
+    validatePublicGrade(packet, c.expected, submission).status,
+    "PASS",
+  );
+  const forged = structuredClone(submission);
+  forged.verdicts[1].label = "yes";
+  assert.throws(
+    () => validatePublicGrade(packet, c.expected, forged),
+    /INVALID_RUN_SCORED/,
+  );
+  const omitted = structuredClone(submission);
+  omitted.verdicts.pop();
+  assert.throws(
+    () => validatePublicGrade(packet, c.expected, omitted),
+    /DENOMINATOR/,
+  );
+  const wrong = structuredClone(submission);
+  wrong.controls[0].label = wrong.controls[0].label === "yes" ? "no" : "yes";
+  assert.equal(validatePublicGrade(packet, c.expected, wrong).status, "FAIL");
+});
 test("physical accounting serializes concurrent senders and retains crash reservations", async () => {
   const root = facility(3);
   try {

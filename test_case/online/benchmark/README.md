@@ -54,9 +54,19 @@ npm run benchmark -- memory-audit --root <stopped-root> --run <run-id>
 npm run benchmark -- memory-grade-export --root <stopped-root> --run <run-id>
 npm run benchmark -- memory-grade-import --root <stopped-root> --run <run-id> --verdict <private-verdict.json>
 npm run benchmark -- memory-score --root <stopped-root>
+npm run benchmark -- memory-prepare --root <new-owned-root> --source <verified-public-source-bundle.json>
+npm run benchmark -- memory-public --root <prepared-root> --approval <approved-id> --subset dev
+npm run benchmark -- memory-public-grade-export --root <stopped-public-root>
+npm run benchmark -- memory-public-grade-import --root <stopped-public-root> --verdict <private-verdict.json>
 ```
 
 `memory-prepare` 下载并固定公共 LongMemEval 来源；`memory-public --subset dev|smoke` 只评估检索组件，不伪造 Core 对话导入。来源下载失败时保留诊断，不报告公共数据集已执行。`memory-private-prepare` 只接受脱敏/已获授权的重建开发场景和匹配来源哈希；它不建立未见样本。仓库 B 从较早的固定提交复制一个只读资料文件到已初始化的独立 Task 目录，保留真实 read 工具结果，原仓库未暴露给被测模型。A 与 B 分开报告。
+
+`memory-prepare --source` 接受经操作者核验的公开来源包：JSON 包含 `version:1`、`dataset_commit`、`repository_commit` 及六个 `files` 项（`name/path/bytes/sha256/url`）。仅允许两个固定官方仓库的精确 commit URL，文件路径必须留在包目录内；逐项核验大小、哈希后原样复制，不执行下载的 Python。来源下载过程及独立核验记录另行保留；本地哈希检查不能自行证明网络来源。未提供 `--source` 时仍走原官方 HTTPS 下载。
+
+固定题目如违反已声明的时间截止约束，整题保留为 BLOCKED，不改日期、不删除部分会话，也不换成更容易的题。manifest 同时保存完整选题、可执行输入和阻塞项。公共报告始终保留 6/50 题乘模型数的计划分母。当前固定数据中有 1 道 dev、6 道 smoke 出现晚于 question_date 的同日会话；这表示适配约束未满足，不能直接宣称上游数据错误或模型失败。
+
+公共 QA 变体从已检查的上游 scorer 哈希读取五个字面模板，保留包括时间题 off-by-one 在内的原判定说明；源码变化即要求重新审阅。每批使用独立 Claude Fable 5.2 Extra、15 个不带答案提示的正负控制和严格 JSON 标签，解析变化与 judge 变化都明确标为变体。缺失/中断答案必须 unresolved；控制失败仍保留原判断，但不进入准确计数。`memory-score` 按模型/分片/题型报告每个完整复评分，不选最好一轮；阻塞题仍见计划报告，官方分数始终单独标识。
 
 `memory-lifecycle` 在真实模型提出的独立工作目录写入 fsync 后注入一次 SIGKILL，使用正常 checkpoint/restore 和 `verify-write` 对账，再接续同一 Task 的新执行；对账不计为第二次写入。当前该场景尚不能单独证明多个不同 Task 的意图连续性。`memory-world` 先拒绝实际请求，再仅允许明确给定的合成实体与备注批次，重启后检查。未提出所需动作、工具证据缺失和错误效果都保留，不能用零效果推导通过。
 

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { mkdir, read, readJSON, requireThat, sha, writeJSON } from "./io.ts";
+import { importPublicBundle } from "./public-bundle.ts";
 
 export const questionTypes = [
   "single-session-user",
@@ -115,6 +116,26 @@ export function readerInput(q: PublicQuestion): ReaderInput {
     }),
   };
 }
+export function partitionPublicInputs(items: PublicQuestion[]) {
+  const inputs: ReaderInput[] = [],
+    blocked: { id: string; reason: string }[] = [];
+  for (const item of items) {
+    try {
+      inputs.push(readerInput(item));
+    } catch (error) {
+      const reason =
+        error instanceof Error ? error.message : "PUBLIC_INPUT_INVALID";
+      if (
+        !/^PUBLIC_(FUTURE_SESSION|DATE_INVALID|QUESTION_INVALID|TURN_INVALID)$/.test(
+          reason,
+        )
+      )
+        throw error;
+      blocked.push({ id: opaque(item.question_id), reason });
+    }
+  }
+  return { inputs, blocked };
+}
 async function download(url: string, file: string, maximum: number) {
   requireThat(!fs.existsSync(file), "DATASET_FILE_EXISTS");
   const response = await fetch(url, { signal: AbortSignal.timeout(300000) });
@@ -134,61 +155,76 @@ async function download(url: string, file: string, maximum: number) {
   }
   return { url, bytes: size, sha256: sha(read(file)), path: file };
 }
-export async function preparePublic(root: string) {
+export async function preparePublic(root: string, sourceBundle?: string) {
   const dir = path.join(root, "oracles", "longmemeval");
-  const hf = (await (
-    await fetch(
-      "https://huggingface.co/api/datasets/xiaowu0162/longmemeval-cleaned",
-      { signal: AbortSignal.timeout(30000) },
-    )
-  ).json()) as any;
-  const gh = (await (
-    await fetch(
-      "https://api.github.com/repos/xiaowu0162/LongMemEval/commits/main",
-      {
-        headers: { "User-Agent": "secretary-benchmark" },
-        signal: AbortSignal.timeout(30000),
-      },
-    )
-  ).json()) as any;
-  requireThat(
-    /^[a-f0-9]{40}$/.test(hf.sha) && /^[a-f0-9]{40}$/.test(gh.sha),
-    "DATASET_PIN_UNAVAILABLE",
-  );
-  const files = [];
-  for (const name of [
-    "longmemeval_s_cleaned.json",
-    "longmemeval_oracle.json",
-    "README.md",
-  ])
-    files.push(
-      await download(
-        `https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/${hf.sha}/${name}`,
-        path.join(dir, name),
-        350_000_000,
-      ),
+  const imported = sourceBundle ? importPublicBundle(sourceBundle, dir) : null;
+  let hf: any, gh: any;
+  const files: { url: string; bytes: number; sha256: string; path: string }[] =
+    [];
+  if (imported) {
+    hf = { sha: imported.dataset_commit };
+    gh = { sha: imported.repository_commit };
+    files.push(...imported.files);
+  } else {
+    hf = (await (
+      await fetch(
+        "https://huggingface.co/api/datasets/xiaowu0162/longmemeval-cleaned",
+        { signal: AbortSignal.timeout(30000) },
+      )
+    ).json()) as any;
+    gh = (await (
+      await fetch(
+        "https://api.github.com/repos/xiaowu0162/LongMemEval/commits/main",
+        {
+          headers: { "User-Agent": "secretary-benchmark" },
+          signal: AbortSignal.timeout(30000),
+        },
+      )
+    ).json()) as any;
+    requireThat(
+      /^[a-f0-9]{40}$/.test(hf.sha) && /^[a-f0-9]{40}$/.test(gh.sha),
+      "DATASET_PIN_UNAVAILABLE",
     );
-  for (const name of [
-    "LICENSE",
-    "src/evaluation/evaluate_qa.py",
-    "src/evaluation/print_qa_metrics.py",
-  ])
-    files.push(
-      await download(
-        `https://raw.githubusercontent.com/xiaowu0162/LongMemEval/${gh.sha}/${name}`,
-        path.join(dir, path.basename(name)),
-        1_000_000,
-      ),
-    );
+    for (const name of [
+      "longmemeval_s_cleaned.json",
+      "longmemeval_oracle.json",
+      "README.md",
+    ])
+      files.push(
+        await download(
+          `https://huggingface.co/datasets/xiaowu0162/longmemeval-cleaned/resolve/${hf.sha}/${name}`,
+          path.join(dir, name),
+          350_000_000,
+        ),
+      );
+    for (const name of [
+      "LICENSE",
+      "src/evaluation/evaluate_qa.py",
+      "src/evaluation/print_qa_metrics.py",
+    ])
+      files.push(
+        await download(
+          `https://raw.githubusercontent.com/xiaowu0162/LongMemEval/${gh.sha}/${name}`,
+          path.join(dir, path.basename(name)),
+          1_000_000,
+        ),
+      );
+  }
   const all = readJSON<PublicQuestion[]>(
     path.join(dir, "longmemeval_s_cleaned.json"),
   );
   const selected = selectPublic(all);
+  const partitions = Object.fromEntries(
+    Object.entries(selected).map(([split, items]) => [
+      split,
+      partitionPublicInputs(items),
+    ]),
+  );
   for (const [split, items] of Object.entries(selected)) {
     writeJSON(
       path.join(dir, split + "-gold.json"),
       items.map((q) => ({
-        id: readerInput(q).id,
+        id: opaque(q.question_id),
         question_id: q.question_id,
         question_type: q.question_type,
         answer: q.answer,
@@ -198,14 +234,14 @@ export async function preparePublic(root: string) {
         session_map: Array.isArray(q.haystack_session_ids)
           ? q.haystack_session_ids.map((id, index) => ({
               original: id,
-              opaque: readerInput(q).sessions[index].id,
+              opaque: opaque(q.question_id + ":session:" + index),
             }))
           : [],
       })),
     );
     writeJSON(
       path.join(root, "inputs", "longmemeval-" + split + ".json"),
-      items.map(readerInput),
+      partitions[split].inputs,
     );
   }
   const manifest = {
@@ -213,6 +249,10 @@ export async function preparePublic(root: string) {
     dataset: "longmemeval_s_cleaned",
     hf_commit: hf.sha,
     repository_commit: gh.sha,
+    source_bundle_sha256: imported?.bundle_sha256 ?? null,
+    origin_verification: imported
+      ? "Controller-approved official download bundle; local hashes/pins verified, transport provenance retained separately"
+      : "Direct official HTTPS download",
     files,
     license: "MIT",
     selection:
@@ -220,6 +260,15 @@ export async function preparePublic(root: string) {
     time_interpretation: "Source wall-clock timestamps interpreted as UTC",
     dev: selected.dev.map((q) => q.question_id),
     smoke: selected.smoke.map((q) => q.question_id),
+    selected_inputs: Object.fromEntries(
+      Object.entries(selected).map(([split, rows]) => [
+        split,
+        rows.map((q) => opaque(q.question_id)),
+      ]),
+    ),
+    blocked_inputs: Object.fromEntries(
+      Object.entries(partitions).map(([split, p]) => [split, p.blocked]),
+    ),
     inputs_sha256: Object.fromEntries(
       ["dev", "smoke"].map((split) => [
         split,
@@ -239,6 +288,9 @@ export async function preparePublic(root: string) {
   return {
     dev: selected.dev.length,
     smoke: selected.smoke.length,
+    blocked: Object.fromEntries(
+      Object.entries(partitions).map(([split, p]) => [split, p.blocked.length]),
+    ),
     dataset_sha256: files[0].sha256,
   };
 }

@@ -29,6 +29,7 @@ import { lifecyclePilot } from "./lifecycle.ts";
 import { prepareRepository, repositoryPilot } from "./repository-replay.ts";
 import { worldPilot } from "./world-replay.ts";
 import { scoreDevelopment } from "./score.ts";
+import { exportPublicGrades, importPublicGrades } from "./public-grading.ts";
 
 async function main() {
   const [command, ...args] = process.argv.slice(2),
@@ -138,6 +139,19 @@ async function main() {
     return;
   }
   await Domains.use(root, async (d) => {
+    if (command === "memory-public-grade-export") {
+      console.log(JSON.stringify(exportPublicGrades(d)));
+      return;
+    }
+    if (command === "memory-public-grade-import") {
+      requireThat(options["--verdict"], "GRADE_SUBMISSION_REQUIRED");
+      console.log(
+        JSON.stringify(
+          importPublicGrades(d, path.resolve(options["--verdict"])),
+        ),
+      );
+      return;
+    }
     if (command === "memory-score") {
       console.log(JSON.stringify(scoreDevelopment(d), null, 2));
       return;
@@ -338,7 +352,14 @@ async function main() {
     if (command === "memory-prepare") {
       const run = await d.create();
       await stopDatabase(run.database);
-      console.log(JSON.stringify(await preparePublic(root)));
+      console.log(
+        JSON.stringify(
+          await preparePublic(
+            root,
+            options["--source"] ? path.resolve(options["--source"]) : undefined,
+          ),
+        ),
+      );
       return;
     }
     if (command === "memory-probe") {

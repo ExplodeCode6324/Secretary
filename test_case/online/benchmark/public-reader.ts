@@ -51,6 +51,11 @@ export async function publicPilot(
     "PUBLIC_INPUT_CHANGED",
   );
   const inputs = readJSON<ReaderInput[]>(file);
+  const selected = manifest.selected_inputs?.[split] as string[],
+    blocked = manifest.blocked_inputs?.[split] as {
+      id: string;
+      reason: string;
+    }[];
   const goldFile = path.join(
     d.root,
     "oracles",
@@ -62,7 +67,14 @@ export async function publicPilot(
     "PUBLIC_GOLD_CHANGED",
   );
   requireThat(
-    inputs.length === (split === "dev" ? 6 : 50),
+    Array.isArray(selected) &&
+      Array.isArray(blocked) &&
+      selected.length === (split === "dev" ? 6 : 50) &&
+      new Set(selected).size === selected.length &&
+      inputs.length + blocked.length === selected.length &&
+      new Set([...inputs, ...blocked].map((x) => x.id)).size ===
+        selected.length &&
+      [...inputs, ...blocked].every((x) => selected.includes(x.id)),
     "PUBLIC_DENOMINATOR_CHANGED",
   );
   await createCampaign(d.root, approvalID, null);
@@ -83,7 +95,7 @@ export async function publicPilot(
     cases: [],
     evidence_classes: [],
     metrics: {},
-    first_failure: null,
+    first_failure: blocked[0]?.reason ?? null,
     machine: machine(),
     limitations: [
       "Component retrieval only; not imported Core history or end-to-end memory",
@@ -95,10 +107,27 @@ export async function publicPilot(
     return await runMatrix(
       d.root,
       report,
-      inputs.flatMap((input) =>
-        models.map((model) => ({ id: `${input.id}:${model}`, input, model })),
+      selected.flatMap((id) =>
+        models.map((model) => ({
+          id: `${id}:${model}`,
+          input: inputs.find((x) => x.id === id),
+          blocked: blocked.find((x) => x.id === id),
+          model,
+        })),
       ),
       async (row) => {
+        if (!row.input)
+          return {
+            result: {
+              id: row.id,
+              status: "BLOCKED",
+              evidence: [
+                path.join(d.root, "oracles/longmemeval/manifest.json"),
+              ],
+              reason: row.blocked!.reason,
+            },
+            first_failure: row.blocked!.reason,
+          };
         const result = await publicReader(d, row.input, row.model, split);
         return {
           result: {
