@@ -83,7 +83,10 @@ export async function selfCheck(root: string) {
       runs.push(b);
       assert.equal(observe(b).inputs, 0);
       assert.equal(observe(b).executions.length, 0);
-      assert.notEqual(a.endpoint!.token, b.endpoint!.token);
+      assert(
+        a.endpoint!.token !== b.endpoint!.token,
+        "Independent runs reused an API token",
+      );
       assert.notEqual(a.database.systemID, b.database.systemID);
       assert.notEqual(a.active, b.active);
       assert.equal(
@@ -140,7 +143,10 @@ export async function selfCheck(root: string) {
       const r = await domains.start(restored.id),
         rc = new CoreClient(r.endpoint!);
       assert.equal(r.endpoint!.data_domain_id, a.endpoint!.data_domain_id);
-      assert.notEqual(r.endpoint!.token, a.endpoint!.token);
+      assert(
+        r.endpoint!.token !== a.endpoint!.token,
+        "Restore reused an API token",
+      );
       assert.equal(observe(r).session_id, oldSession);
       await until(
         async () =>
@@ -253,9 +259,10 @@ export async function selfCheck(root: string) {
       ]);
       current = "checkpoint-integrity";
       await domains.stop(r.id);
+      await stopDatabase(r.database);
       await assert.rejects(
         () => domains.restore(r.id, checkpoint),
-        /SOURCE_NOT_STOPPED|CHECKPOINT_MISMATCH|CHECKPOINT_SEAL_MISMATCH/,
+        /CHECKPOINT_MISMATCH|CHECKPOINT_SEAL_MISMATCH/,
       );
       pass(current, [
         "Foreign-source checkpoint cannot be attached as a fresh independent repeat",

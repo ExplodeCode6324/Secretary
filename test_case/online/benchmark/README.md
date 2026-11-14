@@ -42,7 +42,7 @@ npm run benchmark -- report --run <report-id>
 
 `stop` 仅停止 Core，保留 PG 以便检查；`checkpoint` 停止 Core、校验 journal/CAS/绑定/进程/推送账本、复制完整状态（包括空目录）、执行 pg_dump，最后停止 PG，写完整 manifest。临时文件、发现端点、owner.lock、凭据不进入可恢复状态。校验失败保留全部材料，无隐式 clean。
 
-`restore` 真正执行 pg_restore，使用新的 PG 集群和凭据、进程身份、nonce、目录 inode；逻辑 session/domain/task/request 不变。因为 Shared 绑定保存绝对路径，同一 lineage 必须回到 **原规范 pathname**：旧目录移动至 `retired/`，新 staging 晋升到 `slots/<lineage>/active`。禁止同时启动旧 incarnation 或从退休目录启动，不能任意迁移路径。checkpoint 分支不算统计独立重复。
+`restore` 真正执行 pg_restore，使用新的 PG 集群和凭据、进程身份、nonce、目录 inode；逻辑 session/domain/task/request 不变。因为 Shared 绑定保存绝对路径，同一 lineage 必须回到 **原规范 pathname**：旧目录移动至 `retired/`，新 staging 晋升到 `slots/<lineage>/active`。未完成的 RESTORING 持久占用该 lineage，旧实例 start/checkpoint/clean 或第二次 restore 均拒绝，只能核验后 recover。禁止同时启动旧 incarnation 或从退休目录启动，不能任意迁移路径。checkpoint 分支不算统计独立重复。源 run 在 checkpoint 后若又产生已记录的 sink 效果，旧 checkpoint 拒绝恢复；不能回退投递账本隐藏后续效果。该检查也覆盖中断后的 handoff。
 
 `recover` 只在导入凭据、checkpoint seal、文件/hash、归属和旧进程状态一致时完成中断的 handoff，或补完已移动但未提交的 clean tombstone；不完整创建/导入保持隔离等待检查，绝不猜测清理。查看私有 runs/evidence/PG 日志，确认旧进程与数据归属再处置；不得手工修改 registry 使未知资源通过。Core 的未知效果需正常 API `verify-write` 或人工对账，不自动重做。
 
@@ -52,7 +52,7 @@ npm run benchmark -- report --run <report-id>
 
 `self-check` 通过真实 Core/PG 执行独立运行、PID 重启/API 幂等、完整备份恢复/原 Shared 任务接续、导入行 xmin 不变、工具越界拒绝和证据保留清理。输出私有 `reports/<report-id>/report.json` 与由其渲染的 Markdown；后续重跑创建新报告，保留首次失败。
 
-`npm test` / `npm run verify` 另运行 [离线基础测试](../../offline/benchmark/)，包括控制器切换/清理中断、真实 SIGKILL 的文件写入后对账、受控推送与错过/新建 AT 任务、所有权和危险恢复拒绝。fixture push sink 记录调用、dispatch/batch/attempt，不进行去重；真实推送服务未测试。现有 Core 的推送仍为 at-least-once；SENDING 或 sink/store 不一致 checkpoint 拒绝。
+`npm test` / `npm run verify` 另运行 [离线基础测试](../../offline/benchmark/)，包括控制器切换/清理中断、真实 SIGKILL 的文件写入后对账、受控推送与错过/新建 AT 任务、所有权和危险恢复拒绝。fixture push sink 记录调用、dispatch/batch/attempt，不进行去重；真实推送服务未测试。现有 Core 的推送仍为 at-least-once；SENDING 或 sink/store 不一致 checkpoint 拒绝。恢复前的 Operation 能力白名单只允许工作区 file.write 与 builtin:readonly-shell，scope.import 等可能在 App.open 自动执行的操作一律拒绝。
 
 [报告 schema](../../benchmarks/common/report.schema.json) 定义 correctness / memory 两个 track 和六种状态；[渲染/校验器](../../benchmarks/common/report.ts) 保留完整分母、首个失败、缺失用量 null 和证据类别。`self-check` 记录版本/配置/机器、耗时、最后 RSS 样本、文件字节、调用数及私有证据位置；RSS 不是精确峰值。源证据可能含测试内容和连接凭据，仅公开脱敏汇总。断电、任意时刻 PG 物理备份、敌对同用户 OS 沙箱和真实记忆质量均不在本次证据范围。
 

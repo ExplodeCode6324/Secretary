@@ -245,6 +245,19 @@ export class Domains {
     );
     return run;
   }
+  private assertLineageAvailable(run: Run, except?: string) {
+    for (const name of fs
+      .readdirSync(path.join(this.root, "runs"))
+      .filter((name) => name.endsWith(".json"))) {
+      const candidate = this.raw(name.slice(0, -5));
+      requireThat(
+        candidate.id === except ||
+          candidate.lineage !== run.lineage ||
+          candidate.state !== "RESTORING",
+        "LINEAGE_RESTORE_INCOMPLETE",
+      );
+    }
+  }
   private async allocate(
     config: Configuration,
     lineage: string = randomUUID(),
@@ -313,6 +326,7 @@ export class Domains {
   }
   async start(id: string) {
     const run = this.load(id);
+    this.assertLineageAvailable(run);
     requireThat(run.state === "STOPPED", "RUN_NOT_STOPPED");
     requireThat(
       JSON.stringify(run.frozen) === JSON.stringify(fingerprint()),
@@ -443,6 +457,7 @@ export class Domains {
       : [];
   }
   async checkpoint(id: string) {
+    this.assertLineageAvailable(this.load(id));
     const run = await this.stop(id);
     const state = restorePreflight(
       path.join(run.active, "core"),
@@ -477,6 +492,7 @@ export class Domains {
   }
   async restore(id: string, checkpoint: string) {
     const old = this.load(id);
+    this.assertLineageAvailable(old);
     requireThat(
       old.state === "STOPPED" &&
         (!old.process || processStatus(old.process) === "STOPPED") &&
@@ -504,6 +520,10 @@ export class Domains {
         JSON.stringify(inventory(path.join(cpDir, "state"))) ===
           JSON.stringify(cp.entries),
       "CHECKPOINT_CORRUPT",
+    );
+    requireThat(
+      JSON.stringify(this.sink(old)) === JSON.stringify(cp.sink),
+      "SINK_ADVANCED_AFTER_CHECKPOINT",
     );
     restorePreflight(
       path.join(cpDir, "state/core"),
@@ -552,6 +572,7 @@ export class Domains {
   }
   async finishRestore(id: string) {
     const run = this.raw(id);
+    this.assertLineageAvailable(run, id);
     requireThat(
       run.state === "RESTORING" && run.parent && run.staging && run.retired,
       "NO_HANDOFF",
@@ -603,6 +624,10 @@ export class Domains {
     if (!pgRunning(run.database)) startDatabase(run.database);
     await verifyDatabase(run.database);
     const old = this.raw(run.parent);
+    requireThat(
+      JSON.stringify(this.sink(old)) === JSON.stringify(cp.sink),
+      "SINK_ADVANCED_AFTER_CHECKPOINT",
+    );
     if (
       fs.existsSync(run.active) &&
       readJSON(path.join(run.active, "marker.json")).id === old.id
@@ -663,6 +688,7 @@ export class Domains {
   }
   async clean(id: string) {
     const run = this.load(id);
+    this.assertLineageAvailable(run);
     requireThat(run.state === "STOPPED", "CLEAN_REQUIRES_STOPPED");
     requireThat(
       !run.process || processStatus(run.process) === "STOPPED",

@@ -47,6 +47,21 @@ test("restore preflight rejects uncertain effects and every external capability 
   refuses({ record_type: "AuthorizationRule" }, /AUTHORIZATION/);
   refuses(
     {
+      record_type: "Operation",
+      action: { action: "scope.import", resource: "scope/import/id" },
+    },
+    /UNSUPPORTED_OPERATION_CAPABILITY/,
+  );
+  refuses(
+    {
+      record_type: "Operation",
+      action: { action: "shell.run", resource: work },
+      rule_id: null,
+    },
+    /UNSUPPORTED_OPERATION_CAPABILITY/,
+  );
+  refuses(
+    {
       record_type: "Execution",
       workspace_binding: { kind: "NONE", root_path: work + "-other/task" },
     },
@@ -185,6 +200,20 @@ for (const phase of ["before-retire", "after-retire", "after-promote"] as const)
           .map((f) => readJSON(path.join(root, "runs", f)))
           .find((r) => r.state === "RESTORING");
         assert(pending);
+        if (phase === "before-retire") {
+          await assert.rejects(
+            () => d.start(source.id),
+            /LINEAGE_RESTORE_INCOMPLETE/,
+          );
+          await assert.rejects(
+            () => d.restore(source.id, checkpoint),
+            /LINEAGE_RESTORE_INCOMPLETE/,
+          );
+          await assert.rejects(
+            () => d.clean(source.id),
+            /LINEAGE_RESTORE_INCOMPLETE/,
+          );
+        }
         const imported = path.join(pending.evidence, "restore-import.json"),
           original = readJSON(imported);
         writeJSON(imported, { ...original, dump: "forged" });
@@ -401,6 +430,56 @@ test(
       });
       await d.seal(live.id);
       await d.clean(live.id);
+    });
+  },
+);
+
+test(
+  "a checkpoint cannot roll back acknowledged sink effects produced after capture",
+  { timeout: 90000 },
+  async () => {
+    const { CoreClient } =
+      await import("../../../src/pi_secretary/src/core-client.ts");
+    const { until } = await import("../../online/benchmark/io.ts");
+    const root = path.join(repository, ".local/benchmark/tests", randomUUID());
+    await ownedTest(root, async (d) => {
+      const r = await d.start((await d.create()).id),
+        client = new CoreClient(r.endpoint!);
+      await client.command("push-targets", {
+        request_id: randomUUID(),
+        name: "Private checkpoint sink",
+        kind: "MACOS_NOTIFICATION",
+        endpoint: null,
+        enabled: true,
+        quiet_hours: null,
+      });
+      await client.command("messages", {
+        request_id: randomUUID(),
+        text: "BENCHMARK_NOTIFY before",
+      });
+      await until(() =>
+        readJSON(path.join(r.evidence, "observed.json")).pushes.some(
+          (p: any) => p.state === "DISPATCHED",
+        ),
+      );
+      const cp = await d.checkpoint(r.id),
+        before = d.sink(r).length;
+      const resumed = await d.start(r.id);
+      await new CoreClient(resumed.endpoint!).command("messages", {
+        request_id: randomUUID(),
+        text: "BENCHMARK_NOTIFY after",
+      });
+      await until(() => d.sink(resumed).length > before);
+      await d.stop(r.id);
+      await stopDatabase(r.database);
+      await assert.rejects(
+        () => d.restore(r.id, cp),
+        /SINK_ADVANCED_AFTER_CHECKPOINT/,
+      );
+      assert.equal(d.load(r.id).state, "STOPPED");
+      assert.equal(fs.readdirSync(path.join(root, "runs")).length, 1);
+      await d.seal(r.id);
+      await d.clean(r.id);
     });
   },
 );

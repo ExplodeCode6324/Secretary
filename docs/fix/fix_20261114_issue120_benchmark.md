@@ -190,3 +190,5 @@ Master 在计划复核后明确 #120 只建设环境基础。当前 CLI 拒绝 l
 Master 补充要求同时落实：main/agile 本地 agents.md 内容分开；两边本地 agent、敏捷使用说明、Finder 启停命令停止当前 Git 索引跟踪且保留磁盘原件，共享模板放 docs/agile-attention。三模型比较要求写入本地说明，Luna 不强制通过；两份指定凭据私有复制、0700/0600、不入 Git。额外获准的最小连通性探针不属于 benchmark 的零 provider fixture 结果。
 
 完整检查、准确提交和同一 Claude 会话实施复核结论将随 PR 给 Master。按本次要求先实施复核、后提 PR/完成 CI，再交 Master 检查合并条件；代码冻结后的证据通过 PR 评论补充，不为状态文字反复改 HEAD。
+
+补充恢复约束：所有 registry 读取先验证 run/lineage UUID、状态和受管路径；RESTORING 对同 lineage 保留持久占用；恢复前拒绝 scope.import 等超范围 Operation；旧 checkpoint 不能回退源 run 在捕获后增长的 sink 账本。foreign-checkpoint 用例先确认 Core/PG 都停，再断言准确的 checkpoint 拒绝原因，避免用未停 PG 的前置失败冒充完整性证明。新增实际 post-checkpoint 推送回归，14 项专项通过，持久占用补充的 4 项定向回归通过。

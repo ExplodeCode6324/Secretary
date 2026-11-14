@@ -137,6 +137,12 @@ export function validateRestoredRecords(
         !["program.run"].includes(r.action.action),
         "PROGRAM_UNSUPPORTED",
       );
+      requireThat(
+        r.action.action === "file.write" ||
+          (r.action.action === "shell.run" &&
+            r.rule_id === "builtin:readonly-shell"),
+        "UNSUPPORTED_OPERATION_CAPABILITY",
+      );
     }
     if (r.record_type === "PushTarget")
       requireThat(
