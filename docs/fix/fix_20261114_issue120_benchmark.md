@@ -1,5 +1,9 @@
 # Issue #120：隔离 benchmark 基础与可复用验证
 
+
+> **实施授权与范围更新 / 2026-11-14**：Master 已确认开始实施，并明确 #120 主要构建测试环境基础，具体 benchmark 内容留到 #121。本节优先于以下 R2 计划中的旧状态和在线 smoke 要求。M120-01、真实 provider 计费/传输台账、语义 oracle 与 workload 评分移交 #121；本次不调用真实模型、不复用敏捷凭据，不宣称记忆验收通过。保留独立 PG/Core、恢复/中断/受控副作用协议及统一报告基础。两个具名历史归档候选随计划获准，仍须执行前复查。实现完成后先由同一 Claude 会话复核，再提 main PR、完成 CI，交 Master 检查合并条件，未经该最终检查不自动合并。
+
+
 R2 · 2026-11-14（Asia/Hong_Kong）。**Claude 计划复核 PASS，待 Master 确认实施。**已纳入 R2 非阻断实施注意项，尚未开始实现。
 
 - 总路线：[issue #119](https://github.com/ExplodeCode6324/Secretary/issues/119)。首项：[issue #120 / MB-01A](https://github.com/ExplodeCode6324/Secretary/issues/120)。
@@ -168,3 +172,21 @@ R2：**PASS**，于 2026-11-14 18:46（香港时间）在同一[Claude 会话](h
 6. 文档统一说明：plural `benchmarks/common` 为共同合同，singular `online/offline/reports/benchmark` 为本 runner 分轨入口。
 
 以上是 PASS 后对 reviewer 非阻断要求的落实，不代表运行验收。英文请求/原文回复/截图放 `.local/reviews/issue120/`。文档链接/本地化及 diff 检查通过；运行测试和 CI 为 NOT_TESTED。待 Master 确认实施（含归档两项），之后 PR/CI/实施复核完成再单独确认合并；获准合并后核对 main CI。
+
+## 10. 实施范围与证据（2026-11-14）
+
+Master 在计划复核后明确 #120 只建设环境基础。当前 CLI 拒绝 live/memory 配置；M120-01、provider 发送台账、语义数据集/oracle/评分和真实 workload loader 交 #121。上方 R2 原文是复核历史，不表示未来能力已经交付。准确命令见 [benchmark README](../../test_case/online/benchmark/README.md)。
+
+已实现独立规范路径/PG18 集群、私有 registry 和环境隔离、IPC 放行的真实 Core 子进程、journal/CAS/权限/副作用恢复前检查、真实 dump/import、三阶段目录交接恢复、可逆 clean，以及 JSON schema 校验的统一报告。生产 Core 未改动。
+
+协议验证覆盖独立域、真实 PID 重启/API 幂等、原 Shared 任务继续且退休源不变、导入行 xmin 不变、失效索引从 journal 重建、真实 SIGKILL 后已写文件的 verify-write 对账、受控推送、错过 AT 暂停与就绪后 AT 执行、三种读取越界及隐藏 canary 不进入 fixture 上下文。目录交接和清理中断按阶段注入；破坏 marker/路径/数据库/进程身份、备份、证据 seal 和 sink 一致性均拒绝。
+
+边界：不完整创建/导入保留并隔离，不能自动修复；不是 OS 沙箱或真实恶意模型验收。任意 shell/PROGRAM 与真实传输未开放。SENDING 推送在同 run 重启和恢复都拒绝，本次不声称完成独立的中断推送重试资格验证；产品仍是 at-least-once。RSS 是最后采样，不是精确峰值。fixture 的实际 provider 发送为零、usage 为 null。断电、穷尽 kill 点与物理 TUI 未验证，记忆性能无通过结论。
+
+首次失败原样保留：进程 start identity 的 UTC/本地时区差异；备份遗漏空工作区目录；把异步 verify-write 回执误当最终结果；通过不存在的 goal 字段查 TaskPlan；越界用例接续使用旧 parent。分别修正为统一 UTC、保留目录条目、观察持久操作状态、按实际 AT trigger 查询、使用最新父执行。均为 harness 修正，未改写为产品或记忆缺陷，重跑使用新证据域。
+
+归档执行：issue112 的 12 文件/114511 字节完整复制核验后移动原件，两份保留；issue114 的 6642 文件候选因内容含凭据整体留原位。详情见 [归档索引](../../test_case/reports/benchmark/README.md)。
+
+Master 补充要求同时落实：main/agile 本地 agents.md 内容分开；两边本地 agent、敏捷使用说明、Finder 启停命令停止当前 Git 索引跟踪且保留磁盘原件，共享模板放 docs/agile-attention。三模型比较要求写入本地说明，Luna 不强制通过；两份指定凭据私有复制、0700/0600、不入 Git。额外获准的最小连通性探针不属于 benchmark 的零 provider fixture 结果。
+
+完整检查、准确提交和同一 Claude 会话实施复核结论将随 PR 给 Master。按本次要求先实施复核、后提 PR/完成 CI，再交 Master 检查合并条件；代码冻结后的证据通过 PR 评论补充，不为状态文字反复改 HEAD。

@@ -62,3 +62,7 @@ continuity 场景最多 24 次请求、15 分钟，单请求 90 秒、8192 输�
 报告保存源码散列、配置范围、请求计数、首轮失败和后续独立运行。SDK 目录费用作为估算记录，缺失 usage 单独标注。原始请求、响应和凭据保持在私密目录，公开汇总见[API 验证记录](../../docs/api/v1/verification.md)。该记录保存 2026-10-10 的实际结果。
 
 默认 API 脚本支持 `--memory-settings-only`；`--retry-compaction-from` 从本脚本指定失败目录复制合成 Store 到新目录后重试整理。再运行时通过 SECRETARY_ONLINE_ATTEMPT_BUDGET、SECRETARY_ONLINE_TOTAL_MS 设置剩余预算，保留原失败记录。具体可接受的错误和参数由脚本校验。
+
+## 独立环境基础
+
+新的 [benchmark CLI](benchmark/README.md) 目前仅运行 #120 的零 provider fixture 协议验证，位置在 online 下用于 #121 后续工作负载接入。不要与上面的历史 live 脚本混用，也不要把历史脚本指向敏捷实例。详细命令、PG18 要求、恢复限制和统一报告见该入口说明。

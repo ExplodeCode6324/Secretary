@@ -66,3 +66,7 @@ Les anciens scripts de pilotage navigateur activity/streaming ont été retirés
 Les rapports gardent hachages des sources, périmètre de configuration, compteurs, échecs initiaux et exécutions indépendantes suivantes. Les coûts du catalogue SDK sont estimatifs ; l’usage manquant est signalé séparément. Requêtes, réponses brutes et identifiants restent privés. Les résumés publics figurent dans le [rapport de validation API](../../../api/v1/verification.md), qui conserve les résultats réels du 2026-10-10.
 
 Le script API par défaut accepte `--memory-settings-only` ; `--retry-compaction-from` copie le Store synthétique depuis un répertoire d’échec défini de ce script vers un nouveau répertoire et réessaie le compactage. Définissez les budgets restants avec SECRETARY_ONLINE_ATTEMPT_BUDGET et SECRETARY_ONLINE_TOTAL_MS lors des reprises, en gardant l’échec initial. Les scripts valident erreurs et paramètres acceptables.
+
+## Socle de l’environnement isolé
+
+La nouvelle [CLI benchmark](../../../../test_case/online/benchmark/README.md) n’exécute actuellement que les vérifications de protocole par fixtures de #120, sans aucun appel à un fournisseur. Elle se trouve sous online pour permettre l’intégration ultérieure des charges de travail de #121. Ne pas la mélanger avec les anciens scripts live ci-dessus, ni diriger ces scripts vers l’instance agile. Son guide d’entrée décrit les commandes exactes, les exigences PG18, les limites de restauration et le format commun des rapports.

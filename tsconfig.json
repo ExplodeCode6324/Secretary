@@ -13,7 +13,8 @@
   "include": [
     "src/pi_secretary/src/**/*.ts",
     "src/pi_secretary/scripts/*.ts",
-    "test_case/online/*.ts",
+    "test_case/online/**/*.ts",
+    "test_case/benchmarks/common/**/*.ts",
     "test_case/offline/**/*.ts"
   ]
 }

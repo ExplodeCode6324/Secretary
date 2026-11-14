@@ -1,5 +1,9 @@
 # Issue #120 — owned benchmark foundation and reusable verification
 
+
+> **Implementation approval and scope update / 2026-11-14:** Master approved implementation and explicitly restricted #120 to testing-environment foundations; concrete benchmark content belongs to #121. This update supersedes stale approval status and online-smoke requirements in the preserved R2 plan below. M120-01, real-provider metering/transport ledgers, semantic oracles and workload scoring move to #121. No real model call, agile credential reuse or memory-qualification claim is made here. Retain owned PG/Core, restore/interruption/controlled-effect protocols and the common reporting foundation. The two named archival candidates were approved with the plan, subject to fresh checks. Master requests implementation review in the same Claude conversation before opening the main PR, then CI and Master's final inspection before merge.
+
+
 Revision R2 · 2026-11-14 (Asia/Hong_Kong). **Claude plan review PASS; awaiting Master's implementation approval.** Nonblocking R2 implementation notes are incorporated below; no implementation has begun.
 
 - Parent: https://github.com/ExplodeCode6324/Secretary/issues/119
@@ -185,3 +189,21 @@ All six nonblocking implementation-review notes are accepted:
 6. Document naming once: plural `benchmarks/common` for shared contracts; singular `online/offline/reports/benchmark` for this runner's track-specific entries.
 
 These notes refine the approved plan and must be checked during implementation review; they do not confer runtime acceptance. Raw prompt/response and screenshots are private at `.local/reviews/issue120/`. Documentation links/localization and diff checks passed; runtime tests/CI remain NOT_TESTED. Master still approves implementation (including the two archival rows) and later separately authorizes merge; after any authorized merge verify main CI.
+
+## 10. Implemented scope and evidence (2026-11-14)
+
+Master's post-review instruction makes environment construction the #120 deliverable. The CLI now rejects live/memory workload configurations; M120-01, provider-send accounting, semantic datasets/oracles/scoring and a live case loader are #121 work. The full R2 text above is preserved as review history, not an assertion that those future facilities shipped.
+
+Implemented: owned canonical lineage slots and fresh PG18 clusters/roles; private registry/evidence and sanitized worker/tool environment; a real IPC-gated Core child; canonical-path restoration with journal/CAS and capability preflight, actual dump/import and trusted checkpoint seal; recoverable three-stage handoff and reversible clean; JSON-schema-validated common report and Markdown renderer; exact CLI/readme; Linux/macOS actual PG testing. No product Core implementation changed.
+
+Protocol evidence includes independent domains, genuine stopped/new PID, request receipts/conflict, original Shared task continuation with retired directory untouched, imported document/chunk xmin unchanged, stale index rebuilt from journal, real SIGKILL after file fsync/before operation result and restored verify-write, counted local push, missed AT paused/no execution versus ready-time AT execution, and parent/absolute/symlink reads with hidden canary absent from captured fixture contexts. Refusal cases cover ownership/markers/paths/hardlinks, foreign DB, wrong process token, unsealed evidence, corrupt dump, unsafe records and sink/Store disagreement; interrupted retire/promote/clean boundaries are injected in the controller.
+
+Limits: partial creation/import is retained and quarantined, not automatically repaired. This is an available-tool boundary, not an OS sandbox. Unsafe shell/PROGRAM/live transport requests are unsupported rather than a live hostile-agent qualification. The no-duplicate restore route also refuses an ambiguous same-run SENDING push; no independent interrupted-push retry qualification is claimed. Product push semantics remain at-least-once. The report samples last observed RSS, not precise peak RSS; provider usage is unavailable/null, physical provider sends are zero for this fixture. Controller power-loss durability, exhaustive kill points and native TUI acceptance remain untested. These limits are explicit for implementation review and do not redefine memory acceptance.
+
+First failures retained privately: UTC-versus-local process start identity mismatch, missing empty workspace directory in checkpoint inventory, API receipt incorrectly treated as the completed verify-write result, TaskPlan trigger incorrectly selected by an absent goal property, and stale parent ID in continuation-based escape tests. Fixes changed the harness to use one UTC process environment, preserve empty directory entries, observe durable operation state, select AT by its recorded trigger and use the latest parent execution. None was silently marked as product regression or memory failure. Each rerun gets a new report/evidence domain.
+
+Historical archive: issue112's 12 files / 114511 bytes were copied and verified, then the inactive original moved to the same dated archive; both are retained. issue114's entire 6642-file candidate remains in place because the renewed content scan found credentials. No broad data cleanup occurred.
+
+Master also requested local instructions/launchers be private to each checkout. Root agents.md, the agile usage note and two Finder launchers are untracked while local originals remain; shared templates live in docs/agile-attention. Main and agile local instructions differ and require future GPT-6.1 Sol / DeepSeek Flash / GPT-6 Luna comparisons (Luna need not pass). Existing supplied test credentials were copied privately with 0700/0600 permissions; no secret enters Git. A separately authorized minimal connectivity probe is not part of the benchmark or its zero-provider fixture claim.
+
+Implementation review will use this scope update, exact commit and current verification evidence in the same Opus 5.5 Extra conversation. The branch is pushed before review; Master requested PR creation after review, then CI and final inspection. Review/CI results for a frozen SHA can be posted as PR evidence without changing the reviewed code.
