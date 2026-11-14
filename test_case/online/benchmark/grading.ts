@@ -33,6 +33,15 @@ export type Verdict = {
   rationale: string;
   human_review: boolean;
 };
+/** Explicit aliases observed in the verified browser, not fuzzy model matching.
+ * This validates the submitted identifier; browser receipt proves the actual selection.
+ */
+export function approvedJudge(judge: any) {
+  return (
+    ["Fable 5.2", "claude-fable-5-2"].includes(judge?.model) &&
+    ["Extra", "extra"].includes(judge?.effort)
+  );
+}
 export function blind(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(blind);
   if (value && typeof value === "object")
@@ -48,6 +57,9 @@ export function blind(value: unknown): unknown {
               "baseUrl",
               "cost",
               "usage",
+              "thinking",
+              "thinkingSignature",
+              "textSignature",
             ].includes(key),
         )
         .map(([key, item]) => [key, blind(item)]),
@@ -64,10 +76,40 @@ export function exportGradePacket(root: string, run: string) {
   const original = readJSON(
     path.join(root, "oracles", run + "-grade-packet.json"),
   );
+  // Transcript and effect records are sufficient for answer adjudication. Request
+  // contexts remain in the sealed source artifact; their omission means this
+  // packet alone cannot establish cold-context absence or complete effect proof.
+  const excluded = new Set([
+    "Context",
+    "ModelCall",
+    "MainPromptSnapshot",
+    "ApiCommand",
+    "Input",
+  ]);
+  const sourceTrace = original.trace;
+  const evidence = {
+    ...original,
+    model_blinded: true,
+    trace: sourceTrace
+      ? {
+          ...sourceTrace,
+          records: sourceTrace.records.filter(
+            (r: any) => !excluded.has(r.record_type),
+          ),
+          events: sourceTrace.events.filter(
+            (e: any) => e.event_type !== "input.accepted",
+          ),
+        }
+      : null,
+    source_artifact_sha256: sha(JSON.stringify(original)),
+    omitted: [...excluded],
+    coverage:
+      "Semantic transcript projection only. Do not establish cold retrieval or absence of all effects from this projection. References are not decoded receipts.",
+  };
   const payload = {
     version: "secretary-sealed-grading-v1",
     rubric,
-    evidence: blind(original),
+    evidence: blind(evidence),
     assertions: original.assertions.map((a: any) => ({
       assertion_id: a.id,
       required: a.required,
@@ -75,6 +117,18 @@ export function exportGradePacket(root: string, run: string) {
       prerequisite: a.reason,
     })),
   };
+  const dest = path.join(root, "oracles", run + "-sealed.json");
+  if (fs.existsSync(dest)) {
+    const existing = readJSON(dest);
+    requireThat(
+      existing.payload_sha256 === sha(JSON.stringify(payload)),
+      "GRADE_PACKET_ALREADY_FROZEN",
+    );
+    return {
+      packet_id: existing.packet_id,
+      payload_sha256: existing.payload_sha256,
+    };
+  }
   const packet = {
     packet_id: randomUUID(),
     payload_sha256: sha(JSON.stringify(payload)),
@@ -87,7 +141,7 @@ export function exportGradePacket(root: string, run: string) {
     control_requirement:
       "Use a fresh grading context with the frozen rubric. Controls must pass before these results can qualify. Do not use the implementation-review conversation as the grading context.",
   };
-  writeJSON(path.join(root, "oracles", run + "-sealed.json"), packet);
+  writeJSON(dest, packet);
   return { packet_id: packet.packet_id, payload_sha256: packet.payload_sha256 };
 }
 export function validateVerdicts(packet: any, submission: any) {
@@ -98,8 +152,8 @@ export function validateVerdicts(packet: any, submission: any) {
   requireThat(
     submission.packet_id === packet.packet_id &&
       submission.payload_sha256 === packet.payload_sha256 &&
-      submission.judge?.model === packet.expected_judge.model &&
-      submission.judge?.effort === packet.expected_judge.effort,
+      approvedJudge(packet.expected_judge) &&
+      approvedJudge(submission.judge),
     "GRADE_IDENTITY_MISMATCH",
   );
   const expected = packet.payload.assertions.map((a: any) => a.assertion_id);
@@ -133,6 +187,12 @@ export function validateVerdicts(packet: any, submission: any) {
     requireThat(
       v.label !== "FAIL" || (v.severity !== null && v.severity !== "OK"),
       "GRADE_CONSEQUENCE_REQUIRED",
+    );
+    requireThat(
+      (v.label !== "PASS" || v.severity === "OK") &&
+        (v.label !== "UNRESOLVED" || v.severity === null) &&
+        typeof v.human_review === "boolean",
+      "GRADE_LABEL_SEVERITY_CONFLICT",
     );
   }
   return submission;

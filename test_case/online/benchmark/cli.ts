@@ -22,6 +22,8 @@ import { pilot } from "./episodes.ts";
 import { modelIDs, type ModelID } from "./live-model.ts";
 import { exportGradePacket, importGradePacket } from "./grading.ts";
 import { replaySummaryCapacity } from "./capacity.ts";
+import { preparePrivate } from "./private-replay.ts";
+import { publicPilot } from "./public-reader.ts";
 
 async function main() {
   const [command, ...args] = process.argv.slice(2),
@@ -39,6 +41,8 @@ async function main() {
         "--models",
         "--verdict",
         "--profiles",
+        "--source",
+        "--provenance",
       ].includes(args[i]) &&
         !!args[i + 1] &&
         !options[args[i]],
@@ -56,6 +60,8 @@ async function main() {
       "memory-probe",
       "memory-prepare",
       "memory-pilot",
+      "memory-private-prepare",
+      "memory-public",
     ].includes(command)
   )
     requireThat(
@@ -123,6 +129,22 @@ async function main() {
     return;
   }
   await Domains.use(root, async (d) => {
+    if (command === "memory-private-prepare") {
+      requireThat(
+        options["--source"] && options["--provenance"],
+        "PRIVATE_SOURCE_AND_PROVENANCE_REQUIRED",
+      );
+      console.log(
+        JSON.stringify(
+          await preparePrivate(
+            d,
+            path.resolve(options["--source"]),
+            path.resolve(options["--provenance"]),
+          ),
+        ),
+      );
+      return;
+    }
     if (command === "memory-capacity-replay") {
       requireThat(options["--run"], "RUN_ID_REQUIRED");
       console.log(
@@ -134,11 +156,16 @@ async function main() {
       );
       return;
     }
-    if (command === "memory-pilot") {
+    if (command === "memory-pilot" || command === "memory-public") {
       requireThat(options["--approval"], "CAMPAIGN_APPROVAL_ID_REQUIRED");
-      const subset = options["--subset"] ?? "smoke";
+      const subset =
+        options["--subset"] ?? (command === "memory-public" ? "dev" : "smoke");
       requireThat(
-        subset === "smoke" || subset === "synthetic",
+        command === "memory-public"
+          ? subset === "dev" || subset === "smoke"
+          : subset === "smoke" ||
+              subset === "synthetic" ||
+              subset === "private",
         "UNKNOWN_PILOT_SUBSET",
       );
       const models = (options["--models"]?.split(",") ?? [
@@ -149,6 +176,34 @@ async function main() {
           new Set(models).size === models.length &&
           models.every((m) => modelIDs.includes(m)),
         "MODEL_NOT_APPROVED",
+      );
+      if (command === "memory-public") {
+        requireThat(
+          subset === "dev" || subset === "smoke",
+          "PUBLIC_SPLIT_INVALID",
+        );
+        const report = await publicPilot(
+          d,
+          options["--approval"],
+          subset,
+          models,
+        );
+        console.log(
+          JSON.stringify(
+            {
+              report_id: report.run_id,
+              cases: report.cases,
+              first_failure: report.first_failure,
+            },
+            null,
+            2,
+          ),
+        );
+        return;
+      }
+      requireThat(
+        subset === "smoke" || subset === "synthetic" || subset === "private",
+        "UNKNOWN_PILOT_SUBSET",
       );
       const profiles = options["--profiles"]?.split(",") as
         ("RC" | "DEP")[] | undefined;

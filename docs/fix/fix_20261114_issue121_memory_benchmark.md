@@ -6,9 +6,9 @@ Master 在 R3 后确认实施，并明确允许复用本 checkout 现有 OpenAI/
 
 两份已提供场景有重叠，归为已曝光开发/回归来源，不构成独立 held-out。材料中的历史邮件、提醒、委派请求只是测试数据，不是当前执行授权。填写答案及原始材料保持私有、未跟踪，仅模拟效果和符合截止时间的选定片段可进入被测模型。Master 已允许按现有流程归档 NAS。
 
-Master 追加要求 Claude 复核实际容错标准：六类问题都严重，但一律零错误不现实。R4 建议待回；旧 critical-zero 和 5/6 数值保留为历史提案，不视为已确认验收门槛。实现分别记录断言、后果、复发、分母及曝光状态，不把这些与某个门槛绑死。Pilot 只描述观察结果，正式资格验收/调优前仍由 Master 确认冻结表。目前没有已核实的同口径行业平均错误率。
+Master 追加要求 Claude 复核实际容错标准：六类问题都严重，但一律零错误不现实。R4 建议已收到，见本文末；旧 critical-zero 和 5/6 数值保留为历史提案，不视为已确认验收门槛。实现分别记录断言、后果、复发、分母及曝光状态，不把这些与某个门槛绑死。Pilot 只描述观察结果，正式资格验收/调优前仍由 Master 确认冻结表。目前没有已核实的同口径行业平均错误率。
 
-状态：R3 已获浏览器 Claude Opus 5.5 Extra **PASS**，待Master确认；实施 NOT_STARTED。复核后先交 Master 确认，之后才能实施。pilot 后冻结实验表是第二次独立决定。[English](fix_20261114_issue121_memory_benchmark.en.md)。
+状态：R3 已获浏览器 Claude Opus 5.5 Extra **PASS**，Master 已确认实施；实施 IN_PROGRESS。pilot 后冻结实验表是第二次独立决定；最终复核采用 Master 指定的 Fable 5.2 Extra。尚未完成实现终审、正式资格验收或合并。[English](fix_20261114_issue121_memory_benchmark.en.md)。
 
 仓库 https://github.com/ExplodeCode6324/Secretary ；[#121](https://github.com/ExplodeCode6324/Secretary/issues/121)，总路线 [#119](https://github.com/ExplodeCode6324/Secretary/issues/119)。main 基线 `6f3cd06327144d48960926af4ef90bbb24578bfd`（#133/#120 已合并）；分支 `codex/issue121-memory-benchmark-plan`。本轮不合并 agile、不部署、不实施生产记忆修复。
 
@@ -195,3 +195,7 @@ R1为CHANGES_REQUIRED（五阻断、九组补充），reviewer独立检查源码
 实现阶段提交 a838f091 的首轮 DeepSeek smoke 暴露两点：RC 65536 带真实来源引用时出现 SUMMARY_FIXED_INPUT_CAPACITY_BLOCKED，原离线预测漏算来源引用，现已补正。只读重放真实失败计划确认三个模型描述符在 65536 均阻塞，98304 可规划、两分段；统一调整已交 Master，等待回复，不把未答复视为准许继续 RC 校准。DEP 完成八条消息但驱动在后台维护中停止，留下 CORE_STOPPING，保留为测试驱动未完成证据，不算记忆维护性能。已改为等待维护、抽取及请求全部静止；修订 smoke 使用计划中的十四条语义输入并重启。后续重跑新增记录，不替代首轮。
 
 公共语料准备在本机访问 Hugging Face 时发生 TLS 连接失败，Node fetch 与有界 curl 错误已保留，未修改全局网络。私有仓库 T0 提交及必要文件已只读核验，具体标识和内容保持未跟踪。
+
+独立新会话中的 Fable 5.2 Extra 对 26 个中英文控制案例给出与预先封存标签、严重度完全一致的结果。首次导入因其返回 API 模型标识和小写 effort 被精确字符串校验拒绝；保留首拒收后仅增补明确名称别名，未修改预期答案。该结果仅证明评委控制集校准，不证明被测系统质量。评分包哈希与分母不可变，模型声明不替代浏览器选择凭据；不能用 PASS 搭配错误严重度，不能用 UNRESOLVED 隐去已确认失败。
+
+修正后的 DEP smoke 中 Sol/Luna 完成 14 条输入、维护提交及重启，语义评分待独立 Claude；DeepSeek 因运行中开发文件改变源码指纹而在重启被 FROZEN_SOURCE_CHANGED 拦截，此为操作安排导致的 harness 失败，完整保留。后续先固定代码再整段运行。新增真实场景摘要回放导入与公共组件 runner 入口，来源哈希校验、曝光标记和逐次调用记账复用原设施；尚未以这些入口宣称公共/真实场景验收。真实仓库检索 B、完整生命周期及冷上下文证明仍待完成。新增检查通过 10 项 harness 测试，其中三模型适配器经真实本机 HTTP/SSE 回环传输验证，仍不作为真实模型性能证据。

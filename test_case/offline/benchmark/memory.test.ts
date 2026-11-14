@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { createServer, type Server } from "node:http";
 import { normalizeContext } from "@earendil-works/pi-ai/utils/transcript";
 import { roleModel } from "../../../src/pi_secretary/src/model.ts";
 import {
@@ -31,6 +32,11 @@ import {
 } from "../../online/benchmark/snapshot.ts";
 import { blind, validateVerdicts } from "../../online/benchmark/grading.ts";
 import { sha } from "../../online/benchmark/io.ts";
+import { validatePrivateEpisodes } from "../../online/benchmark/private-replay.ts";
+import {
+  assessControls,
+  graderControls,
+} from "../../online/benchmark/grader-controls.ts";
 
 function facility(ceiling: number | null = null) {
   const root = fs.realpathSync(
@@ -47,6 +53,40 @@ function facility(ceiling: number | null = null) {
   fs.mkdirSync(path.join(root, "evidence"), { mode: 0o700 });
   return root;
 }
+
+test("private replay intake refuses hidden exposure changes, undeclared fields and malformed reminders", () => {
+  const e: any = {
+    id: "R-control-dev",
+    family: "M2",
+    exposure: "dev-exposed",
+    source: "Reconstructed control summary",
+    requires_cold: false,
+    steps: [
+      { text: "A changed to B." },
+      { text: "Which value?", probe: true },
+      { text: "Check the source once.", probe: true, reminder: true },
+    ],
+    oracle: {
+      required: ["B"],
+      forbidden: ["A"],
+      forbidden_effects: ["No writes"],
+    },
+  };
+  validatePrivateEpisodes([e]);
+  assert.throws(
+    () => validatePrivateEpisodes([{ ...e, exposure: "held-out" }]),
+    /EPISODE_INVALID/,
+  );
+  assert.throws(
+    () => validatePrivateEpisodes([{ ...e, api_key: "not-a-real-key" }]),
+    /EPISODE_INVALID/,
+  );
+  assert.throws(() => validatePrivateEpisodes([e, e]), /DUPLICATE/);
+  assert.throws(
+    () => validatePrivateEpisodes([{ ...e, steps: e.steps.slice(0, 2) }]),
+    /STEPS_INVALID/,
+  );
+});
 const detail = {
   model: "deepseek-flash",
   run: "unit",
@@ -176,6 +216,7 @@ test("all exact model descriptors traverse the product adapter and physical-send
       model = descriptor(id),
       evidence = path.join(root, "evidence");
     const bodies: any[] = [];
+    let server: Server | undefined;
     try {
       globalThis.fetch = meteredFetch(
         {
@@ -260,11 +301,34 @@ test("all exact model descriptors traverse the product adapter and physical-send
                     },
                   },
                 ];
-          return new Response(
-            data.map((d) => "data: " + JSON.stringify(d) + "\n\n").join("") +
-              "data: [DONE]\n\n",
-            { headers: { "content-type": "text/event-stream" } },
+          // Exercise real HTTP framing and streamed SDK parsing, but route only
+          // this injected unit-test transport to loopback. Production still
+          // rejects loopback endpoints and redirects before reserving a send.
+          server = createServer(async (incoming, outgoing) => {
+            const chunks = [];
+            for await (const chunk of incoming) chunks.push(chunk);
+            assert.deepEqual(
+              JSON.parse(Buffer.concat(chunks).toString()),
+              bodies.at(-1),
+            );
+            outgoing.writeHead(200, { "content-type": "text/event-stream" });
+            for (const event of data) {
+              const line = "data: " + JSON.stringify(event) + "\n\n";
+              outgoing.write(line.slice(0, 7));
+              outgoing.write(line.slice(7));
+            }
+            outgoing.end("data: [DONE]\n\n");
+          });
+          await new Promise<void>((resolve) =>
+            server!.listen(0, "127.0.0.1", resolve),
           );
+          const address = server.address();
+          assert(address && typeof address === "object");
+          return native(`http://127.0.0.1:${address.port}`, {
+            method: "POST",
+            body: JSON.stringify(bodies.at(-1)),
+            headers: { "content-type": "application/json" },
+          });
         },
       );
       const config = roleModel(model, "synthetic-key");
@@ -284,6 +348,10 @@ test("all exact model descriptors traverse the product adapter and physical-send
       assert.equal([...ledger(root).entries.values()][0].settled, true);
     } finally {
       globalThis.fetch = native;
+      if (server)
+        await new Promise<void>((resolve, reject) =>
+          server!.close((error) => (error ? reject(error) : resolve())),
+        );
       fs.rmSync(root, { recursive: true });
     }
   }
@@ -434,6 +502,26 @@ test("grader cannot change denominators, mutate evidence or waive serious review
     ],
   };
   validateVerdicts(packet, verdict);
+  validateVerdicts(packet, {
+    ...verdict,
+    judge: { model: "claude-fable-5-2", effort: "extra" },
+  });
+  assert.throws(
+    () =>
+      validateVerdicts(packet, {
+        ...verdict,
+        judge: { model: "claude-fable-5-2", effort: "medium" },
+      }),
+    /IDENTITY/,
+  );
+  assert.throws(
+    () =>
+      validateVerdicts(packet, {
+        ...verdict,
+        verdicts: [{ ...verdict.verdicts[0], label: "PASS" }],
+      }),
+    /LABEL_SEVERITY/,
+  );
   assert.throws(
     () => validateVerdicts(packet, { ...verdict, verdicts: [] }),
     /DENOMINATOR/,
@@ -456,5 +544,41 @@ test("grader cannot change denominators, mutate evidence or waive serious review
       nested: { provider: "deepseek", text: "gpt-6.1-sol says no" },
     }),
     { nested: { text: "[BLINDED_SUT] says no" } },
+  );
+});
+
+test("grader calibration preserves every bilingual control and rejects missing, duplicated or wrong judgments", () => {
+  const { expected } = graderControls();
+  const response = {
+    judge: { model: "claude-fable-5-2", effort: "extra" },
+    verdicts: Object.entries(expected).map(([id, v]) => ({
+      id,
+      ...(v as object),
+      rationale: "Control evidence assessed.",
+    })),
+  };
+  assert.equal(assessControls(expected, response).status, "PASS");
+  assert.equal(
+    assessControls(expected, {
+      ...response,
+      verdicts: response.verdicts.slice(1),
+    }).status,
+    "FAIL",
+  );
+  assert.equal(
+    assessControls(expected, {
+      ...response,
+      verdicts: [...response.verdicts.slice(1), response.verdicts[1]],
+    }).status,
+    "FAIL",
+  );
+  assert.equal(
+    assessControls(expected, {
+      ...response,
+      verdicts: response.verdicts.map((v) =>
+        v.id === "M5-zh-negative" ? { ...v, severity: "S3" } : v,
+      ),
+    }).status,
+    "FAIL",
   );
 });

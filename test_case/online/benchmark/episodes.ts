@@ -16,6 +16,7 @@ import {
 } from "./io.ts";
 import { stopDatabase } from "./postgres.ts";
 import { snapshot } from "./snapshot.ts";
+import { privateEpisodes } from "./private-replay.ts";
 import {
   machine,
   validateReport,
@@ -232,7 +233,7 @@ export async function runEpisode(
   ];
   writeJSON(path.join(d.root, "oracles", run.id + "-grade-packet.json"), {
     version: "secretary-memory-grade-v1",
-    model_blinded: true,
+    model_blinded: false,
     episode,
     evidence_run: run.id,
     trace,
@@ -249,7 +250,7 @@ export async function runEpisode(
 export async function pilot(
   d: Domains,
   approvalID: string,
-  subset: "smoke" | "synthetic",
+  subset: "smoke" | "synthetic" | "private",
   selected: ModelID[] = [...modelIDs],
   profiles?: Profile[],
 ) {
@@ -280,9 +281,14 @@ export async function pilot(
     first_failure: null,
     machine: machine(),
   };
-  const all = syntheticEpisodes();
+  const all =
+    subset === "private" ? privateEpisodes(d.root) : syntheticEpisodes();
   const episodes =
-    subset === "smoke" ? [all[0]] : all.filter((e) => e.id.endsWith("-1"));
+    subset === "private"
+      ? all
+      : subset === "smoke"
+        ? [all[0]]
+        : all.filter((e) => e.id.endsWith("-1"));
   if (subset === "smoke") {
     const e = episodes[0];
     const probe = e.steps.findIndex((s) => s.probe);
@@ -299,7 +305,11 @@ export async function pilot(
     for (const episode of episodes)
       for (const model of selected)
         for (const profile of profiles ??
-          (subset === "smoke" ? (["DEP", "RC"] as const) : (["RC"] as const))) {
+          (subset === "smoke"
+            ? (["DEP", "RC"] as const)
+            : subset === "private"
+              ? (["DEP"] as const)
+              : (["RC"] as const))) {
           const result = await runEpisode(d, episode, model, profile, true);
           report.cases.push({
             id: `${episode.id}:${model}:${profile}`,

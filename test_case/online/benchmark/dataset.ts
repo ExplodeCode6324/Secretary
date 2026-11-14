@@ -194,6 +194,13 @@ export async function preparePublic(root: string) {
         answer: q.answer,
         question: q.question,
         split,
+        answer_session_ids: q.answer_session_ids ?? [],
+        session_map: Array.isArray(q.haystack_session_ids)
+          ? q.haystack_session_ids.map((id, index) => ({
+              original: id,
+              opaque: readerInput(q).sessions[index].id,
+            }))
+          : [],
       })),
     );
     writeJSON(
@@ -213,6 +220,12 @@ export async function preparePublic(root: string) {
     time_interpretation: "Source wall-clock timestamps interpreted as UTC",
     dev: selected.dev.map((q) => q.question_id),
     smoke: selected.smoke.map((q) => q.question_id),
+    inputs_sha256: Object.fromEntries(
+      ["dev", "smoke"].map((split) => [
+        split,
+        sha(read(path.join(root, "inputs", "longmemeval-" + split + ".json"))),
+      ]),
+    ),
     evaluator:
       "Official code pinned but NOT_EXECUTED; Claude-based grading is a separately labelled variant, not the official score",
   };
