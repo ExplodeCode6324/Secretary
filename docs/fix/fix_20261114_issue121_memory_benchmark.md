@@ -1,6 +1,6 @@
 # #121 真实模型记忆 benchmark：数据、工作负载与评分计划
 
-状态：R3 修订版，待浏览器 Claude Opus 5.5 Extra 复核；实施 NOT_STARTED。复核后先交 Master 确认，之后才能实施。pilot 后冻结实验表是第二次独立决定。[English](fix_20261114_issue121_memory_benchmark.en.md)。
+状态：R3 已获浏览器 Claude Opus 5.5 Extra **PASS**，待Master确认；实施 NOT_STARTED。复核后先交 Master 确认，之后才能实施。pilot 后冻结实验表是第二次独立决定。[English](fix_20261114_issue121_memory_benchmark.en.md)。
 
 仓库 https://github.com/ExplodeCode6324/Secretary ；[#121](https://github.com/ExplodeCode6324/Secretary/issues/121)，总路线 [#119](https://github.com/ExplodeCode6324/Secretary/issues/119)。main 基线 `6f3cd06327144d48960926af4ef90bbb24578bfd`（#133/#120 已合并）；分支 `codex/issue121-memory-benchmark-plan`。本轮不合并 agile、不部署、不实施生产记忆修复。
 
@@ -119,9 +119,9 @@ G2：事实/限制、拒答、证据使用、检索、维护分别报告。P gol
 
 评分对照至少 12 个手工冻结合成样例（每M一正一负，含中英文正确改写/负例），并有成对丢义务、陈旧纠正、错误来源、虚假完成、冗长错误、正确改写、非法 JSON、judge 注入。要求确定性对照和关键负例全部正确拒绝、正例接受，非法输出未决；对真实效果做正负变异。对照失败则受影响评分无效，保留后只在 dev 修复。
 
-pilot 后待 Master 冻结的建议：缩小容量S held-out 12×3新域重复×3模型=**108 episode runs**。Sol、DeepSeek各自要求RC全部计划必测运行有效；RC-G1全重复零关键违例；RC-G2每M类两个 episode×三次中至少 **5/6 整体成功**，且必要预声明边界subcase全部观察到。必要断言未决/不支持阻断资格，不缩分母。Luna同诊断workload/评分、完整报失败，其失败不阻断对照报告交付；未达同标准不报诊断PASS。放行只归#126和Master。P 50×3×3=450新域题次（不称统计独立），仅参考。R 拟四 episode（2 dev/2 held-out），held-out 2×3×3=18次；Sol/DeepSeek 每个保留 episode 3/3 且零关键违例，按 Master 实际优先级冻结。P/S/R 和模型不混总分。
+pilot 后待 Master 冻结的建议：缩小容量S held-out 12×3新域重复×3模型=**108 episode runs**。Sol、DeepSeek各自要求RC全部计划必测运行有效；RC-G1全重复零关键违例；RC-G2每M类两个 episode×三次中至少 **5/6 整体成功**，且必要预声明边界subcase全部观察到。必要断言未决/不支持阻断RC诊断结果，不缩分母。Luna同诊断workload/评分、完整报失败，其失败不阻断对照报告交付；未达同标准不报诊断PASS。放行只归#126和Master。P 50×3×3=450新域题次（不称统计独立），仅参考。R 拟四 episode（2 dev/2 held-out），held-out 2×3×3=18次；Sol/DeepSeek 每个保留 episode 3/3 且零关键违例，按 Master 实际优先级冻结。P/S/R 和模型不混总分。
 
-小样本仅支持有界诊断证据。pilot 可支持调整题数/分支/整数阈值，但候选调参前须 Master 确认，保留旧建议/旧结果。30模拟日、10k存储单位和完整容量是 #125 待确认范围；十二 S 场景不证明它们。G3 的语义、延迟/启动/恢复、内存、积压和成本边界与 #125 协同冻结；#121 实测报告不宣称 G3。#126 保留 G4 与放行权。
+小样本仅支持有界诊断证据。pilot可支持调整题数/预声明subcase/整数阈值，但候选调参前须 Master 确认，保留旧建议/旧结果。30模拟日、10k存储单位和完整容量是 #125 待确认范围；十二 S 场景不证明它们。G3 的语义、延迟/启动/恢复、内存、积压和成本边界与 #125 协同冻结；#121 实测报告不宣称 G3。#126 保留 G4 与放行权。
 
 ### 独立部署容量（DEP）协议与放行交接
 
@@ -158,8 +158,8 @@ UNRESOLVED只用于断言层，不增加公共报告第七状态：
 2. 按§2加凭据安全的真实stream与facility-campaign物理台账：attempt/logical call/role/request hash/时间/返回模型/status/usage/不确定性；发送进程先锁内fsync预留再发、后记完成，说明崩溃歧义；原产品重试和角色输出限额保留。私有捕获 effective payload/工具结果，不含 header/秘密。每次 SDK/HTTP 请求、维护/提取/评分和重试分计；发送前容量拒绝另计。拒非批准 origin/redirect；fixture 保持零发送。
 3. live 前完成状态恢复拒绝和 oracle canary。合成事实→真实整理退出→真重启/恢复→续接的 continuity smoke，观测角色/效果；提取/退出失败保留，不用 fixture 替代。
 4. 实现 P 组件 loader/scorer、S dev 驱动/oracle/grader；R 只准备问卷与许可。离线正负验证来源、选题、cutoff、白名单、评分控制、预算台账、半流/取消、报告。直接导入现有helper不抽取，增加组件工具schema/description与产品漂移检查。
-5. 单独校准及费用表获准后，三模型按交错顺序各跑 **6道独立 P dev＋6个 S dev（每 M 一例）×一次=36 主运行**，另每模型最多一次 continuity smoke。各角色/双judge调用都占总额/子预算。R pilot 需另有来源/端点许可和明确矩阵/预算。保存全部失败/不可用及 provider/harness/timeout/capacity/unsupported/incomplete 分类。pilot 不调候选；仅修 harness 缺陷，另 run ID，保留首失败。
-6. 交 Master pilot＋可审阅冻结表：确切 ID/split 曝光、角色/模型快照/参数、judge/controls、重复数、G1/G2整数、费用/次数、真实整理退出/负载、#125资源接口及 R/时间缺项。确认前不进入资格测试或候选调参。冻结须包含独立RC/DEP及#122/#125/#126责任决定；RC不能满足正式G1/G2/G3。
+5. 单独校准及费用表获准后，三模型按交错顺序各跑 **6道独立 P dev＋6个 S dev（每 M 一例）×一次=36 主运行**，另每模型最多一个RC及一个DEP continuity smoke（共最多6个）；已完成RC校准smoke复用不重跑。各角色/双judge调用都占总额/子预算。R pilot 需另有来源/端点许可和明确矩阵/预算。保存全部失败/不可用及 provider/harness/timeout/capacity/unsupported/incomplete 分类。pilot 不调候选；仅修 harness 缺陷，另 run ID，保留首失败。
+6. 交 Master pilot＋可审阅冻结表：确切 ID/split 曝光、角色/模型快照/参数、judge/controls、重复数、G1/G2整数、费用/次数、真实整理退出/负载、#125资源接口及 R/时间缺项。确认前不进入资格测试或候选调参。冻结须包含独立RC/DEP、根据smoke/离线planner逐subcase预测的DEP覆盖（含预计NOT_TESTED）及#122/#125/#126责任决定。Master确认后、执行前将分工及RC不替代DEP的规则写回#122/#125/#126，避免只看issue者误继承RC PASS；RC不能满足正式G1/G2/G3。
 7. 实施验证：针对性协议/泄漏/效果/恢复 correctness，`npm run check`、`npm run docs:check`、`npm run verify`、必需 Linux PG18/full suite 与 macOS benchmark CI。收费 online opt-in、不成为 CI 凭据依赖；实测 pilot 另附。harness-only 的原生 TUI/agile 同域改动 NOT_APPLICABLE，不称已测；产品变更超出行为保留 helper 则重新计划/补受影响回归。
 8. 已停止、归属核验测试 facility 走现有本地 tar.gz→已挂载 NAS→逐文件读回 hash/size→receipt→释放本地流程。目标 `/Volumes/share/Files/HDD2/ELIZA/ELIZA_BAK/secretary-test-bak`，挂载缺失拒绝。完整首失败/证据保留；独立 API 凭据、活动/未知/混合根、敏捷数据排除。R的NAS保留/访问需授权，包内oracle的接收者及实际NAS访问写入曝光日志；本地只留小型脱敏索引。
 
@@ -176,4 +176,4 @@ UNRESOLVED只用于断言层，不增加公共报告第七状态：
 | A121-07 | pilot含DEP smoke＋Master调参前独立RC/DEP样本/语义/资源冻结及#122/#125责任；RC不满足#126gate；DEP覆盖/R/许可/预算待办不称全完成 |
 | A121-08 | 必需 correctness/CI、归档回执/说明；同 Claude 会话复核实施精确 HEAD；Master 另授合并 |
 
-R1为CHANGES_REQUIRED（五阻断、九组补充），reviewer独立检查源码/包/公开文档，未跑测试/验证live。R2采纳B1缩小容量和退出可达、B2忠实工具循环、B3专用模型描述、B4全状态矩阵及仅闭环、B5跨进程campaign账本并保留产品retry/output；其余要求均落实。仅澄清oracle位置：留在已忽略的自有facility控制器区域，非源码指纹/工具根，不需checkout外数据根。本地独立registry/query/output核对与R1一致。同会话 https://claude.ai/chat/f3b54c6d-d2d9-4268-bfc3-c60e79eae0d5 ，R2为CHANGES_REQUIRED，首轮五阻断全解决，仅余RC成绩可能进入正式G1/G2。R3独立RC/DEP门槛、profile及Master待确认责任，新增DEP smoke并保留部署缺口。六组非阻断均采纳：真实prompt离线容量推算、加权校准预算、静止/remember=null、运行时fault ID、审批到facility注册及开放campaign禁止归档、subcase/P prompt hash/NAS曝光。另澄清全容量crop非永远不可能，只是短序列未证明；DEP成本实测，不预断更低。R3待复核。本轮仅计划文档校验，runtime/CI/pilot NOT_TESTED。原请求/回复/截图在忽略目录 `.local/reviews/issue121/`。计划及空问卷无个人数据；Master 选择先问卷，未回不是同意。review PASS 仅代表可交 Master 决策，不是实施许可或记忆验收。
+R1为CHANGES_REQUIRED（五阻断、九组补充），reviewer独立检查源码/包/公开文档，未跑测试/验证live。R2采纳B1缩小容量和退出可达、B2忠实工具循环、B3专用模型描述、B4全状态矩阵及仅闭环、B5跨进程campaign账本并保留产品retry/output；其余要求均落实。仅澄清oracle位置：留在已忽略的自有facility控制器区域，非源码指纹/工具根，不需checkout外数据根。本地独立registry/query/output核对与R1一致。同会话 https://claude.ai/chat/f3b54c6d-d2d9-4268-bfc3-c60e79eae0d5 ，R2为CHANGES_REQUIRED，首轮五阻断全解决，仅余RC成绩可能进入正式G1/G2。R3独立RC/DEP门槛、profile及Master待确认责任，新增DEP smoke并保留部署缺口。六组非阻断均采纳：真实prompt离线容量推算、加权校准预算、静止/remember=null、运行时fault ID、审批到facility注册及开放campaign禁止归档、subcase/P prompt hash/NAS曝光。另澄清全容量crop非永远不可能，只是短序列未证明；DEP成本实测，不预断更低。R3 **PASS**，2026-11-14 22:59香港时间读到。reviewer以提交的R3全文对比远程R2/基线源码；抓取时R3提交尚不可见。本地逐字节核验全文等于 `47f93d45da223459c0cd600a39f1e26527a3a4eb` 英文文件；reviewer未比较中文、未跑测试，中英一致性由Codex维护。三个明确非阻断文字修正已落实：RC/DEP smoke数量一致、RC诊断/subcase措辞、Master确认后写回跨issue分工；并采纳可选DEP覆盖预测。上述指定文字修正无需第四轮，未来实施精确HEAD仍交同reviewer。计划PASS不等于实施授权或运行验收。本轮仅计划文档校验，runtime/CI/pilot NOT_TESTED。原请求/回复/截图在忽略目录 `.local/reviews/issue121/`。计划及空问卷无个人数据；Master 选择先问卷，未回不是同意。review PASS 仅代表可交 Master 决策，不是实施许可或记忆验收。
