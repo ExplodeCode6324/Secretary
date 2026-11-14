@@ -6,6 +6,7 @@
 
 | Issue | 计划 | 状态 |
 | --- | --- | --- |
+| agile 005 | [实施计划](fix_20261108start_敏捷迭代专题/005-实施计划.md) · [English](fix_20261108start_敏捷迭代专题/005-implementation-plan.en.md) · [操作与验证](fix_20261108start_敏捷迭代专题/005-操作与验证.md) · [提示词盘点](fix_20261108start_敏捷迭代专题/005-提示词盘点.md) | Master 已批准；实现、CI 与同一 Claude 会话终审进行中 |
 | #111 | [World / Scope 总计划（中文）](fix_20261112_issue111_world_model_scope.md) · [English](fix_20261112_issue111_world_model_scope.en.md) · [交接与历史档案](evidence/issue111-world-model-scope/README.md) | 完整 R5 总计划；子项分别维护执行计划；系列真实记忆验收留待全部完成后在 agile 进行 |
 | #112 | [World 实施计划（中文）](fix_20261112_issue112_world.md) · [English](fix_20261112_issue112_world.en.md) · [验收记录](evidence/issue112-world/acceptance.md) | [PR #115](https://github.com/ExplodeCode6324/Secretary/pull/115) 已合并；隔离后端验证与 main CI 通过；系列真实验收后置 |
 | #113 | [Scope 导入执行计划（中文）](fix_20261112_issue113_scope.md) · [English](fix_20261112_issue113_scope.en.md) | 待实施；精确授权、原子 Scope 创建及独立环境报告轮次 |

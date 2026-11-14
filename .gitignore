@@ -12,3 +12,7 @@ coverage/
 # Native macOS build products and per-user Xcode state
 .build/
 xcuserdata/
+
+# Persistent agile instance: never commit private data or credentials.
+/data/
+/.local/

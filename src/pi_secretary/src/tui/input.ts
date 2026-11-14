@@ -1,3 +1,4 @@
+import { style, theme } from "./theme.ts";
 import {
   parseGuide,
   guideArgument,
@@ -400,15 +401,15 @@ export function commandCompletion(
     shouldTriggerFileCompletion: () => false,
   };
 }
-export const color = (n: string) => (s: string) => `\x1b[${n}m${s}\x1b[0m`;
+export const color = style;
 export const editorTheme = {
-  borderColor: color("90"),
+  borderColor: theme.rule,
   selectList: {
-    selectedPrefix: color("96"),
-    selectedText: color("96"),
-    description: color("90"),
-    scrollInfo: color("90"),
-    noMatch: color("90"),
+    selectedPrefix: theme.selected,
+    selectedText: theme.selected,
+    description: theme.hint,
+    scrollInfo: theme.hint,
+    noMatch: theme.hint,
   },
 };
 export class DraftEditor extends Editor {

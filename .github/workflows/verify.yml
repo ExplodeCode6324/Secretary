@@ -44,6 +44,10 @@ jobs:
         with:
           python-version: "3.x"
       - run: npm ci
+      - name: Standalone diagnostic script syntax
+        run: |
+          for script in scripts/agile-diagnostics/*.mjs; do node --check "$script"; done
+          python3 -m py_compile scripts/agile-diagnostics/*.py
       - name: Record verification environment
         run: |
           git rev-parse HEAD
@@ -71,9 +75,13 @@ jobs:
         with:
           python-version: "3.x"
       - run: npm ci
+      - name: Standalone diagnostic script syntax
+        run: |
+          for script in scripts/agile-diagnostics/*.mjs; do node --check "$script"; done
+          python3 -m py_compile scripts/agile-diagnostics/*.py
       - name: Core process recovery, push transports and message projections
         # PostgreSQL history/provenance runs in the Linux full suite above.
-        run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts test_case/offline/issue19/store-ownership.test.ts test_case/offline/issue24/transport.test.ts test_case/offline/issue80/*.test.ts test_case/offline/issue82/*.test.ts test_case/offline/issue91/*.test.ts test_case/offline/issue83/*.test.ts test_case/offline/issue92/*.test.ts test_case/offline/issue93/*.test.ts test_case/offline/issue94/*.test.ts test_case/offline/issue103/*.test.ts test_case/offline/issue104/*.test.ts test_case/offline/issue105/*.test.ts test_case/offline/issue106/*.test.ts test_case/offline/issue81/{api,import,input,provider,recovery,withdrawal-provider}.test.ts test_case/offline/issue112/{world,api,recall,snapshot,review-r1}.test.ts test_case/offline/issue113/*.test.ts test_case/offline/issue114/*.test.ts
+        run: npx tsx --test --test-concurrency=1 test_case/offline/runtime/process-lifecycle.test.ts test_case/offline/issue18/*.test.ts test_case/offline/issue22/*.test.ts test_case/offline/issue19/store-ownership.test.ts test_case/offline/issue24/transport.test.ts test_case/offline/issue80/*.test.ts test_case/offline/issue82/*.test.ts test_case/offline/issue91/*.test.ts test_case/offline/issue83/*.test.ts test_case/offline/issue92/*.test.ts test_case/offline/issue93/*.test.ts test_case/offline/issue94/*.test.ts test_case/offline/issue103/*.test.ts test_case/offline/issue104/*.test.ts test_case/offline/issue105/*.test.ts test_case/offline/issue106/*.test.ts test_case/offline/tui-visual/*.test.ts test_case/offline/issue81/{api,import,input,provider,recovery,withdrawal-provider}.test.ts test_case/offline/issue112/{world,api,recall,snapshot,review-r1}.test.ts test_case/offline/issue113/*.test.ts test_case/offline/issue114/*.test.ts test_case/offline/agile-diagnostics/*.test.ts test_case/offline/agile-diagnostics-ci/*.test.ts
 
   verify:
     name: verify
