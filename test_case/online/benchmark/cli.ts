@@ -21,6 +21,7 @@ import { stopDatabase } from "./postgres.ts";
 import { pilot } from "./episodes.ts";
 import { modelIDs, type ModelID } from "./live-model.ts";
 import { exportGradePacket, importGradePacket } from "./grading.ts";
+import { replaySummaryCapacity } from "./capacity.ts";
 
 async function main() {
   const [command, ...args] = process.argv.slice(2),
@@ -37,6 +38,7 @@ async function main() {
         "--subset",
         "--models",
         "--verdict",
+        "--profiles",
       ].includes(args[i]) &&
         !!args[i + 1] &&
         !options[args[i]],
@@ -121,6 +123,17 @@ async function main() {
     return;
   }
   await Domains.use(root, async (d) => {
+    if (command === "memory-capacity-replay") {
+      requireThat(options["--run"], "RUN_ID_REQUIRED");
+      console.log(
+        JSON.stringify(
+          replaySummaryCapacity(d.load(options["--run"])),
+          null,
+          2,
+        ),
+      );
+      return;
+    }
     if (command === "memory-pilot") {
       requireThat(options["--approval"], "CAMPAIGN_APPROVAL_ID_REQUIRED");
       const subset = options["--subset"] ?? "smoke";
@@ -137,7 +150,22 @@ async function main() {
           models.every((m) => modelIDs.includes(m)),
         "MODEL_NOT_APPROVED",
       );
-      const report = await pilot(d, options["--approval"], subset, models);
+      const profiles = options["--profiles"]?.split(",") as
+        ("RC" | "DEP")[] | undefined;
+      requireThat(
+        !profiles ||
+          (profiles.length > 0 &&
+            new Set(profiles).size === profiles.length &&
+            profiles.every((p) => ["RC", "DEP"].includes(p))),
+        "UNKNOWN_PROFILE",
+      );
+      const report = await pilot(
+        d,
+        options["--approval"],
+        subset,
+        models,
+        profiles,
+      );
       console.log(
         JSON.stringify(
           {

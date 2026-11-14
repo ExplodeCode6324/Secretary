@@ -213,15 +213,29 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
         (run.config.mode === "fixture"
           ? app.store.read<any>(operation.action.parameters_ref).content ===
             "uncertain"
-          : path.basename(operation.action.resource) ===
-              run.config.fault_path &&
+          : !!operation.scope.execution_id &&
+            path.relative(
+              app.store.get<Execution>(
+                "Execution",
+                operation.scope.execution_id,
+              ).workspace_binding!.root_path,
+              operation.action.resource,
+            ) === run.config.fault_path &&
             !fs.existsSync(
-              path.join(run.live!.facility, "campaign", "fault-consumed.json"),
+              path.join(
+                run.live!.facility,
+                "campaign",
+                `fault-${run.lineage}.json`,
+              ),
             ))
       ) {
         if (run.config.mode === "live")
           writeJSON(
-            path.join(run.live!.facility, "campaign", "fault-consumed.json"),
+            path.join(
+              run.live!.facility,
+              "campaign",
+              `fault-${run.lineage}.json`,
+            ),
             {
               operation_id: id,
               run: run.id,
@@ -268,6 +282,7 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
               input_records: app.store.all("Input"),
               calls: app.store.all("ModelCall"),
               compactions: app.store.all("CompactionJob"),
+              extractions: app.store.all("MemoryExtractionJob"),
               consciousness: app.store.all("Consciousness"),
               authorizations: app.store.all("AuthorizationRequest"),
               world_commands: app.store.all("WorldCommand"),

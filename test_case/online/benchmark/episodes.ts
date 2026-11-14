@@ -31,6 +31,8 @@ async function quiet(
   inputs: number,
 ) {
   const decided = new Set<string>();
+  let quietSequence: number | null = null,
+    quietSince = 0;
   while (Date.now() < deadline) {
     const o = observed(run);
     for (const session of o.sessions ?? [])
@@ -68,9 +70,25 @@ async function quiet(
       o.sessions?.every((s: any) => s.state === "IDLE") &&
       !(o.executions ?? []).some((e: any) =>
         ["RUNNING", "READY", "DISPATCHING", "WAIT_AUTH"].includes(e.state),
+      ) &&
+      !(o.compactions ?? []).some((j: any) =>
+        ["QUEUED", "SUMMARIZING", "VALIDATING"].includes(j.state),
+      ) &&
+      !(o.extractions ?? []).some((j: any) =>
+        ["QUEUED", "RUNNING"].includes(j.state),
+      ) &&
+      !(o.calls ?? []).some((c: any) =>
+        ["PREPARED", "IN_FLIGHT"].includes(c.state),
       )
-    )
-      return o;
+    ) {
+      if (quietSequence !== o.sequence) {
+        quietSequence = o.sequence;
+        quietSince = Date.now();
+      } else if (Date.now() - quietSince >= 1500) return o;
+    } else {
+      quietSequence = null;
+      quietSince = 0;
+    }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
   throw Error("EPISODE_DEADLINE");
@@ -233,6 +251,7 @@ export async function pilot(
   approvalID: string,
   subset: "smoke" | "synthetic",
   selected: ModelID[] = [...modelIDs],
+  profiles?: Profile[],
 ) {
   await createCampaign(d.root, approvalID, null);
   const report: Report = {
@@ -264,12 +283,23 @@ export async function pilot(
   const all = syntheticEpisodes();
   const episodes =
     subset === "smoke" ? [all[0]] : all.filter((e) => e.id.endsWith("-1"));
+  if (subset === "smoke") {
+    const e = episodes[0];
+    const probe = e.steps.findIndex((s) => s.probe);
+    e.steps.splice(
+      probe,
+      0,
+      ...Array.from({ length: 6 }, (_, i) => ({
+        text: `无关阅读记录 ${i + 1}：今天整理了一个普通索引条目，没有新增待办、授权或事实更新。`,
+      })),
+    );
+    e.steps.find((s) => s.probe)!.restart_before = true;
+  }
   try {
     for (const episode of episodes)
       for (const model of selected)
-        for (const profile of subset === "smoke"
-          ? (["DEP", "RC"] as const)
-          : (["RC"] as const)) {
+        for (const profile of profiles ??
+          (subset === "smoke" ? (["DEP", "RC"] as const) : (["RC"] as const))) {
           const result = await runEpisode(d, episode, model, profile, true);
           report.cases.push({
             id: `${episode.id}:${model}:${profile}`,

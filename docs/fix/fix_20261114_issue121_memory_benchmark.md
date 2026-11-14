@@ -185,3 +185,13 @@ UNRESOLVED只用于断言层，不增加公共报告第七状态：
 | A121-08 | 必需 correctness/CI、归档回执/说明；同 Claude 会话复核实施精确 HEAD；Master 另授合并 |
 
 R1为CHANGES_REQUIRED（五阻断、九组补充），reviewer独立检查源码/包/公开文档，未跑测试/验证live。R2采纳B1缩小容量和退出可达、B2忠实工具循环、B3专用模型描述、B4全状态矩阵及仅闭环、B5跨进程campaign账本并保留产品retry/output；其余要求均落实。仅澄清oracle位置：留在已忽略的自有facility控制器区域，非源码指纹/工具根，不需checkout外数据根。本地独立registry/query/output核对与R1一致。同会话 https://claude.ai/chat/f3b54c6d-d2d9-4268-bfc3-c60e79eae0d5 ，R2为CHANGES_REQUIRED，首轮五阻断全解决，仅余RC成绩可能进入正式G1/G2。R3独立RC/DEP门槛、profile及Master待确认责任，新增DEP smoke并保留部署缺口。六组非阻断均采纳：真实prompt离线容量推算、加权校准预算、静止/remember=null、运行时fault ID、审批到facility注册及开放campaign禁止归档、subcase/P prompt hash/NAS曝光。另澄清全容量crop非永远不可能，只是短序列未证明；DEP成本实测，不预断更低。R3 **PASS**，2026-11-14 22:59香港时间读到。reviewer以提交的R3全文对比远程R2/基线源码；抓取时R3提交尚不可见。本地逐字节核验全文等于 `47f93d45da223459c0cd600a39f1e26527a3a4eb` 英文文件；reviewer未比较中文、未跑测试，中英一致性由Codex维护。三个明确非阻断文字修正已落实：RC/DEP smoke数量一致、RC诊断/subcase措辞、Master确认后写回跨issue分工；并采纳可选DEP覆盖预测。上述指定文字修正无需第四轮，未来实施精确HEAD仍交同reviewer。计划PASS不等于实施授权或运行验收。本轮仅计划文档校验，runtime/CI/pilot NOT_TESTED。原请求/回复/截图在忽略目录 `.local/reviews/issue121/`。计划及空问卷无个人数据；Master 选择先问卷，未回不是同意。review PASS 仅代表可交 Master 决策，不是实施许可或记忆验收。
+
+## R4 建议与首轮实现证据（2026-11-15 香港时间）
+
+同一浏览器会话中，Fable 5.2 Extra 已复核使用者容错问题。提出 S1/S2/S3/S4 后果分级及候选次数预算：实际越权等持久违规零次；严重错误 36 次运行最多 2 次、每类最多 1 次，复发及权威误认单独为零；严重与可恢复错误合计每类六次最多一次；额外提醒负担每类六次最多两次。这些仅是待确认产品目标，不是已批准门槛。可容忍次数不能把断言 FAIL 改为 PASS；合理不确定不算错误。固定对抗集不能推断总体错误率，人工选题也不天然独立。Codex 不照搬 reviewer“pilot 不报成败”的表述：单项及已观察产品失败继续标 FAIL，整体资格验收待确认；缺失前提不能抹去已证实失败。#126 硬门槛修改仍在 pilot 后交 Master。
+
+三个精确 API ID 的发现及小请求全部成功，仅证明连接。初始八项 harness 测试和原 benchmark 回归共 27 项通过；首次重复结算测试失败已修复，原日志保留。
+
+实现阶段提交 a838f091 的首轮 DeepSeek smoke 暴露两点：RC 65536 带真实来源引用时出现 SUMMARY_FIXED_INPUT_CAPACITY_BLOCKED，原离线预测漏算来源引用，现已补正。只读重放真实失败计划确认三个模型描述符在 65536 均阻塞，98304 可规划、两分段；统一调整已交 Master，等待回复，不把未答复视为准许继续 RC 校准。DEP 完成八条消息但驱动在后台维护中停止，留下 CORE_STOPPING，保留为测试驱动未完成证据，不算记忆维护性能。已改为等待维护、抽取及请求全部静止；修订 smoke 使用计划中的十四条语义输入并重启。后续重跑新增记录，不替代首轮。
+
+公共语料准备在本机访问 Hugging Face 时发生 TLS 连接失败，Node fetch 与有界 curl 错误已保留，未修改全局网络。私有仓库 T0 提交及必要文件已只读核验，具体标识和内容保持未跟踪。
