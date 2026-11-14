@@ -76,7 +76,8 @@ export function maintenanceEvidence(
         state: r.state,
         validation_errors: r.validation_errors ?? [],
         error: r.error ?? null,
-        next_retry_at: r.next_retry_at ?? null,
+        next_attempt_at: r.next_attempt_at ?? null,
+        retry_at: r.retry_at ?? null,
       })),
   );
   const jobs = records.filter((r) =>

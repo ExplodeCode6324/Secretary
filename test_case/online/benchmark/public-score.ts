@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { publicAnswerDisposition } from "./public-reader.ts";
 import path from "node:path";
 import type { ReaderInput } from "./dataset.ts";
 import type { Run } from "./domain.ts";
@@ -23,7 +24,8 @@ export function publicRetrievalMetrics(
       output,
     ];
     for (const body of bodies) {
-      if (typeof body?.body !== "string" || !body.body.length) continue;
+      const text = body?.snippet ?? body?.body;
+      if (typeof text !== "string" || !text.length) continue;
       const session = turnSessions.get(body.event_id);
       if (session) {
         seen.add(session);
@@ -113,7 +115,15 @@ export function scorePublicComponents(root: string, runs: Run[]) {
       model: meta.model,
       split: meta.split,
       question_id: meta.question_id,
-      stratum: gold.question_id.endsWith("_abs")
+      adapter_version: meta.version,
+      adapter_limitations:
+        meta.version === "secretary-public-component-v1"
+          ? [
+              "Historical full-chunk search hits exceed product snippet; not a faithful retrieval baseline",
+            ]
+          : [],
+      answer_disposition: publicAnswerDisposition(output?.answer, firstFailure),
+      stratum: gold.question_id.includes("_abs")
         ? "abstention"
         : gold.question_type,
       scope: "COMPONENT_ONLY",

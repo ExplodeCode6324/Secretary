@@ -71,6 +71,8 @@ export function summarizeJudgments(rows: any[]) {
         r.verdicts.some((v: any) => v.human_review),
       ).length,
       qualification: "NOT_EVALUATED_PENDING_FREEZE_CONTROLS_AND_HUMAN_REVIEW",
+      no_assertion_failure_meaning:
+        "No graded assertion failed; not a whole-trajectory PASS and may include missing coverage",
     };
   });
 }
@@ -114,7 +116,7 @@ export function scoreDevelopment(d: Domains) {
     }
     const original = readJSON(originalPath);
     const audit = run.state === "CLEANED" ? null : auditEpisode(run).audit;
-    const packets = ["-sealed.json", "-sealed-v2.json"]
+    const packets = ["-sealed.json", "-sealed-v2.json", "-sealed-v3.json"]
       .map((s) => path.join(d.root, "oracles", run.id + s))
       .filter((f) => fs.existsSync(f))
       .map((f) => readJSON(f));

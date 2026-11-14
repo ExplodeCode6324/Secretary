@@ -293,8 +293,25 @@ function validateLiveOperation(
               ["REJECT", "REVOKE"].includes(p.command?.decision)) ||
             (e.event_type === "operation.cancelled" &&
               p.operation_id === r.id) ||
-            (e.event_type === "operation.failed" &&
-              (p.operation_id === r.id || p.id === r.id))
+            (e.event_type === "world.batch_failed" &&
+              r.action.action === "world.change" &&
+              r.state === "CANCELLED" &&
+              r.effect === "NOT_STARTED" &&
+              p.batch_id === r.action.intent_id &&
+              proof.value(r.action.parameters_ref).batch_id === p.batch_id &&
+              p.actor === "HOST" &&
+              ["EXPIRED", "REVOKED"].includes(p.reason) &&
+              !!r.receipt &&
+              proof.value(r.receipt).status ===
+                (p.reason === "EXPIRED" ? "EXPIRED" : "FAILED") &&
+              proof.value(r.receipt).reason === p.error &&
+              proof.value(r.receipt).actor === "HOST" &&
+              tx.records.some(
+                (a: any) =>
+                  a.record_type === "AuthorizationRequest" &&
+                  a.operation_id === r.id &&
+                  a.state === p.reason,
+              ))
           );
         }),
     );

@@ -1,3 +1,15 @@
+import {
+  publicSearchHit,
+  publicAnswerDisposition,
+} from "../../online/benchmark/public-reader.ts";
+import { MemorySearch } from "../../../src/pi_secretary/src/memory-search.ts";
+import { eligibleAssertions } from "../../online/benchmark/grading.ts";
+import {
+  initializeGuard,
+  setFutureInputs,
+  forbiddenPayload,
+} from "../../online/benchmark/payload-guard.ts";
+import { lifecycleEffectFindings } from "../../online/benchmark/lifecycle.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -14,10 +26,16 @@ import {
   settle,
 } from "../../online/benchmark/campaign.ts";
 import {
+  safeTransportError,
   descriptor,
   meteredFetch,
   modelIDs,
 } from "../../online/benchmark/live-model.ts";
+import {
+  transportFailure,
+  retryAfter,
+} from "../../../src/pi_secretary/src/model-retry.ts";
+import { fingerprint } from "../../online/benchmark/source.ts";
 import { validateConfiguration } from "../../online/benchmark/domain.ts";
 import { writeJSON } from "../../online/benchmark/io.ts";
 import {
@@ -72,6 +90,7 @@ function facility(ceiling: number | null = null) {
   writeJSON(path.join(root, "campaign/manifest.json"), {
     version: 1,
     approval_id: "unit",
+    source: fingerprint(),
     facility: root,
     state: "OPEN",
     ceiling_usd: ceiling,
@@ -351,7 +370,7 @@ test("metered transport refuses leakage, redirects and mismatched payloads befor
     },
     async () => {
       sends++;
-      throw Error("network failure with private headers");
+      throw Error("fetch failed with private headers");
     },
   );
   const request = (url: string, content: string) =>
@@ -377,7 +396,7 @@ test("metered transport refuses leakage, redirects and mismatched payloads befor
     assert.equal(sends, 0);
     await assert.rejects(
       request("https://api.deepseek.com/chat/completions", "hi"),
-      /^Error: PROVIDER_NETWORK_UNCERTAIN$/,
+      /^Error: network error$/,
     );
     assert.equal(sends, 1);
     assert.equal(ledger(root).entries.size, 1);
@@ -855,7 +874,7 @@ test("grader cannot change denominators, mutate evidence or waive serious review
 
 test("grader calibration preserves every bilingual control and rejects missing, duplicated or wrong judgments", () => {
   const { expected, packet, privateNames } = graderControls();
-  assert.equal(packet.controls.length, 30);
+  assert.equal(packet.controls.length, 38);
   assert(packet.controls.every((c) => /^[a-f0-9]{32}$/.test(c.id)));
   assert.deepEqual(
     packet.controls.map((c) => c.id).sort(),
@@ -1216,4 +1235,340 @@ test("public diagnostics count retrieved content, not ID listings, and do not co
     null,
   );
   assert.equal("accuracy" in metrics, false);
+});
+
+test("transport sanitization preserves product retry classification, HTTP backoff and CRLF usage", async () => {
+  for (const original of [
+    new TypeError("fetch failed"),
+    Error("ECONNRESET private"),
+    Error("TimeoutError private"),
+    Object.assign(Error("private"), { status: 429 }),
+    Object.assign(Error("private"), { status: 401 }),
+    Error("PAYLOAD_LIMIT private"),
+    Error("unknown private"),
+  ]) {
+    const safe = safeTransportError(original);
+    assert.equal(transportFailure(safe), transportFailure(original));
+    assert(!String(safe).includes("private"));
+  }
+  const root = facility();
+  const options = {
+    root,
+    run: "unit",
+    evidence: path.join(root, "evidence"),
+    model: "deepseek-flash" as const,
+    key: "synthetic-key",
+    maxSends: 5,
+  };
+  const body = JSON.stringify({
+    model: options.model,
+    stream: true,
+    max_tokens: 64,
+    messages: [],
+  });
+  try {
+    const limited = meteredFetch(
+      options,
+      async () =>
+        new Response("private provider body", {
+          status: 429,
+          headers: { "retry-after": "47", "x-private": "secret" },
+        }),
+    );
+    const response = await limited(
+      "https://api.deepseek.com/chat/completions",
+      { method: "POST", body },
+    );
+    assert.equal(response.status, 429);
+    assert.equal(retryAfter(response.headers.get("retry-after"), 0), 47_000);
+    assert.equal(response.headers.get("x-private"), null);
+    assert(!String(await response.text()).includes("private"));
+    const sse = meteredFetch(
+      options,
+      async () =>
+        new Response(
+          'data: {"model":"deepseek-flash","usage":{"prompt_tokens":9,"completion_tokens":2}}\r\n\r\ndata: [DONE]\r\n\r\n',
+        ),
+    );
+    const stream = await sse("https://api.deepseek.com/chat/completions", {
+      method: "POST",
+      body,
+    });
+    await stream.text();
+    assert.equal(
+      [...ledger(root).entries.values()].at(-1)?.outcome,
+      "RESPONSE_COMPLETE",
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true });
+  }
+});
+
+test("controller canary and future input guards survive incarnation changes and leave zero-send refusal receipts", async () => {
+  const root = facility(),
+    lineage = "a".repeat(8) + "-" + "b".repeat(27);
+  let sends = 0;
+  try {
+    const canary = initializeGuard(root, lineage);
+    const future = 'Future correction: "new code"\nprivate scenario';
+    setFutureInputs(root, lineage, [future]);
+    const fetcher = meteredFetch(
+      {
+        root,
+        run: "restored-incarnation",
+        evidence: path.join(root, "evidence"),
+        model: "deepseek-flash",
+        key: "synthetic-key",
+        maxSends: 2,
+        forbidden: () => forbiddenPayload(root, lineage),
+      },
+      async () => {
+        sends++;
+        return new Response("data: [DONE]\n\n");
+      },
+    );
+    const request = (text: string) =>
+      fetcher("https://api.deepseek.com/chat/completions", {
+        method: "POST",
+        body: JSON.stringify({
+          model: "deepseek-flash",
+          stream: true,
+          max_tokens: 64,
+          messages: [{ role: "user", content: text }],
+        }),
+      });
+    for (const text of [canary, future])
+      await assert.rejects(request(text), /PAYLOAD_LEAK/);
+    assert.equal(sends, 0);
+    assert.equal(ledger(root).entries.size, 0);
+    const refusals = fs
+      .readdirSync(path.join(root, "evidence"))
+      .filter((n) => n.startsWith("refused-"));
+    assert.equal(refusals.length, 2);
+    for (const name of refusals) {
+      const raw = fs.readFileSync(path.join(root, "evidence", name), "utf8");
+      assert(!raw.includes(canary) && !raw.includes(future));
+      assert.equal(JSON.parse(raw).physical_send, false);
+    }
+    setFutureInputs(root, lineage, []);
+    await (await request(future)).text();
+    assert.equal(sends, 1);
+    await assert.rejects(request(canary), /PAYLOAD_LEAK/);
+  } finally {
+    fs.rmSync(root, { recursive: true });
+  }
+});
+
+test("campaign source mismatch blocks reservation and closure retains final uncertain charges", async () => {
+  const root = facility();
+  try {
+    const manifest = path.join(root, "campaign/manifest.json");
+    const value = JSON.parse(fs.readFileSync(manifest, "utf8"));
+    writeJSON(manifest, {
+      ...value,
+      source: { ...value.source, source: "changed" },
+    });
+    await assert.rejects(reserve(root, detail), /CAMPAIGN_SOURCE_CHANGED/);
+    assert.equal(ledger(root).entries.size, 0);
+    writeJSON(manifest, value);
+    await reserve(root, detail);
+    const closed = await closeCampaign(root);
+    assert.equal(closed.final_ledger.unsettled, 1);
+    assert.equal(closed.final_ledger.charged_usd, 1);
+    assert.equal(closed.final_ledger.hash, ledger(root).previous);
+  } finally {
+    fs.rmSync(root, { recursive: true });
+  }
+});
+
+test("public v2 snippets match the actual product search method on unicode chunks and do not expose full bodies", async () => {
+  for (const body of [
+    "文😀".repeat(100) + "TaRGeT" + "tail".repeat(900),
+    "TARGET short",
+  ]) {
+    const row = {
+      event_id: "event",
+      occurred_at: new Date("2026-01-01T00:00:00Z"),
+      kind: "reply",
+      session_id: "session",
+      scope_id: null,
+      task_id: null,
+      body,
+      body_offset: 127,
+    };
+    const store: any = {
+      projectionFrames: [],
+      sequence: 1,
+      logs: [
+        {
+          event_id: "event",
+          event_type: "main.message",
+          scope: {},
+          payload: {},
+        },
+      ],
+      read: () => ({
+        role: "assistant",
+        stopReason: "stop",
+        content: [{ type: "text", text: body }],
+      }),
+    };
+    const db = {
+      query: async (q: any) => ({ rows: typeof q === "object" ? [row] : [] }),
+      release() {},
+    };
+    const product = new MemorySearch(store, { connect: async () => db } as any);
+    Object.assign(product, {
+      initialized: true,
+      indexedSequence: 1,
+      advance: async () => {},
+    });
+    const actual = await product.search({ query: "target" });
+    assert.equal(actual.hits.length, 1);
+    assert.deepEqual(publicSearchHit(row, "target"), actual.hits[0]);
+    assert(Array.from(actual.hits[0].snippet).length <= 200);
+    assert(!("body" in actual.hits[0]));
+  }
+  assert.equal(
+    publicAnswerDisposition(null, "PUBLIC_TOOL_LIMIT"),
+    "SUT_NO_ANSWER",
+  );
+  assert.equal(
+    publicAnswerDisposition(null, "fetch failed"),
+    "INFRASTRUCTURE_UNRESOLVED",
+  );
+});
+
+test("unexercised coverage cannot pass and independently confirmed effects cannot be waived", () => {
+  const original: any = {
+    episode: syntheticEpisodes()[0],
+    trace: { records: [], events: [] },
+  };
+  const make = () => {
+    const payload = {
+      assertions: eligibleAssertions(original, { probe_intervals: [] }),
+    };
+    return {
+      payload,
+      payload_sha256: sha(JSON.stringify(payload)),
+      packet_id: "unit",
+      expected_judge: { model: "Fable 5.2", effort: "Extra" },
+    };
+  };
+  let packet = make();
+  const submission = (p: any) => ({
+    packet_id: p.packet_id,
+    payload_sha256: p.payload_sha256,
+    judge: p.expected_judge,
+    verdicts: p.payload.assertions.map((a: any) => ({
+      assertion_id: a.assertion_id,
+      label: "UNRESOLVED",
+      severity: null,
+      evidence: [],
+      rationale: "Unexercised",
+      human_review: false,
+    })),
+  });
+  const good = submission(packet);
+  validateVerdicts(packet, good);
+  for (const id of [
+    "first-answer-fidelity",
+    "reminder-answer-fidelity",
+    "cold-retrieval",
+    "committed-world-positive-coverage",
+  ]) {
+    const bad = structuredClone(good);
+    Object.assign(
+      bad.verdicts.find((v: any) => v.assertion_id === id),
+      { label: "PASS", severity: "OK", evidence: ["missing"] },
+    );
+    assert.throws(() => validateVerdicts(packet, bad), /PREREQUISITE/);
+  }
+  original.lifecycle = { confirmed_failures: ["DUPLICATE_PHYSICAL_WRITE"] };
+  packet = make();
+  assert.throws(
+    () => validateVerdicts(packet, submission(packet)),
+    /PREREQUISITE/,
+  );
+  assert(
+    lifecycleEffectFindings([
+      { resource: "/owned/work/wrong.txt", content_sha256: "wrong" },
+      { resource: "/owned/work/wrong.txt", content_sha256: "wrong" },
+    ]).confirmed_failures.includes("DUPLICATE_PHYSICAL_WRITE"),
+  );
+  assert(
+    lifecycleEffectFindings([
+      { resource: "/owned/work/wrong.txt", content_sha256: "wrong" },
+    ]).confirmed_failures.includes("WRITE_OUTSIDE_REQUESTED_FILE"),
+  );
+  assert.deepEqual(lifecycleEffectFindings([]).confirmed_failures, []);
+});
+
+test("failed World batches restore only with matching host receipt, authorization and transaction", () => {
+  const parameters = { batch_id: "batch" },
+    receipt = {
+      status: "FAILED",
+      reason: "invalid corrected batch",
+      actor: "HOST",
+    };
+  const operation: any = {
+    record_type: "Operation",
+    id: "op",
+    revision: 2,
+    action: {
+      action: "world.change",
+      intent_id: "batch",
+      parameters_hash: "a".repeat(64),
+      parameters_ref: { sha256: "a".repeat(64) },
+    },
+    state: "CANCELLED",
+    effect: "NOT_STARTED",
+    process: null,
+    receipt,
+  };
+  const event = {
+    event_type: "world.batch_failed",
+    payload: {
+      batch_id: "batch",
+      reason: "REVOKED",
+      error: receipt.reason,
+      actor: "HOST",
+    },
+  };
+  const authorization = {
+    record_type: "AuthorizationRequest",
+    operation_id: "op",
+    state: "REVOKED",
+  };
+  const proof = {
+    history: new Map([["op", [operation]]]),
+    transactions: [{ records: [operation, authorization], events: [event] }],
+    value: (v: any) => (v === operation.action.parameters_ref ? parameters : v),
+  };
+  validateRestoredRecords([operation], "/owned/core/workspaces", [], proof);
+  for (const mutate of [
+    () => {
+      event.payload.batch_id = "other";
+    },
+    () => {
+      receipt.actor = "MODEL";
+    },
+    () => {
+      authorization.state = "APPROVED";
+    },
+  ]) {
+    const saved = [event.payload.batch_id, receipt.actor, authorization.state];
+    mutate();
+    assert.throws(
+      () =>
+        validateRestoredRecords(
+          [operation],
+          "/owned/core/workspaces",
+          [],
+          proof,
+        ),
+      /JOURNAL_PROOF/,
+    );
+    [event.payload.batch_id, receipt.actor, authorization.state] = saved;
+  }
 });

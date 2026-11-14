@@ -50,13 +50,13 @@ export function selectPublic(all: PublicQuestion[]) {
     smoke: PublicQuestion[] = [];
   for (const type of questionTypes) {
     const group = ordered.filter(
-      (q) => q.question_type === type && !q.question_id.endsWith("_abs"),
+      (q) => q.question_type === type && !q.question_id.includes("_abs"),
     );
     requireThat(group.length >= 8, "PUBLIC_STRATUM_TOO_SMALL");
     dev.push(group[0]);
     smoke.push(...group.slice(1, 8));
   }
-  const abstention = ordered.filter((q) => q.question_id.endsWith("_abs"));
+  const abstention = ordered.filter((q) => q.question_id.includes("_abs"));
   requireThat(abstention.length >= 8, "PUBLIC_ABSTENTION_TOO_SMALL");
   smoke.push(...abstention.slice(0, 8));
   return { dev, smoke };

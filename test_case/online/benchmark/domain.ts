@@ -1,7 +1,9 @@
+import { initializeGuard, forbiddenPayload } from "./payload-guard.ts";
+import { fingerprint } from "./source.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { execFileSync, fork } from "node:child_process";
+import { fork } from "node:child_process";
 import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import type { CoreEndpoint } from "../../../src/pi_secretary/src/api-v1.ts";
 
@@ -46,7 +48,11 @@ import {
   type LiveConfiguration,
 } from "./memory-config.ts";
 import { credential } from "./live-model.ts";
-import { assertCampaignClosed, loadCampaign } from "./campaign.ts";
+import {
+  assertCampaignClosed,
+  assertCampaignSource,
+  closeCampaign,
+} from "./campaign.ts";
 
 export type Run = {
   version: 1;
@@ -134,56 +140,7 @@ export function workerPermit(run: Run): WorkerPermit {
     core_dsn: coreDSN(run.database),
   };
 }
-export function fingerprint() {
-  const git = (...args: string[]) =>
-    execFileSync("git", ["-C", repository, ...args], {
-      encoding: "utf8",
-    }).trim();
-  requireThat(
-    git("-C", "src/pi_resource", "status", "--porcelain") === "",
-    "SUBMODULE_MUST_BE_CLEAN",
-  );
-  const files = git(
-    "ls-files",
-    "--cached",
-    "--others",
-    "--exclude-standard",
-    "src",
-    "test_case/online/benchmark",
-    "test_case/benchmarks/common",
-    "package.json",
-    "package-lock.json",
-  )
-    .split("\n")
-    .filter(Boolean)
-    .sort();
-  const hashes = files
-    .filter(
-      (p) =>
-        fs.existsSync(path.join(repository, p)) &&
-        fs.statSync(path.join(repository, p)).isFile(),
-    )
-    .map((p) => [p, sha(read(path.join(repository, p)))]);
-  return {
-    head: git("rev-parse", "HEAD"),
-    tree: git("rev-parse", "HEAD^{tree}"),
-    dirty: sha(
-      git(
-        "diff",
-        "HEAD",
-        "--",
-        "src",
-        "test_case",
-        "package.json",
-        "package-lock.json",
-      ),
-    ),
-    source: sha(JSON.stringify(hashes)),
-    lockfile: sha(read(path.join(repository, "package-lock.json"))),
-    submodules: git("submodule", "status"),
-    node: process.version,
-  };
-}
+export { fingerprint } from "./source.ts";
 export const excluded = new Set([
   "marker.json",
   "tmp",
@@ -209,6 +166,31 @@ export class Domains {
       requireThat(readJSON(file).repository === repository, "FOREIGN_FACILITY");
       return fn(new Domains(root));
     });
+  }
+  /** Recovery close is available only under Domains.use's controller lease. */
+  async closeStoppedCampaign() {
+    const directory = path.join(this.root, "runs");
+    for (const file of fs.existsSync(directory)
+      ? fs.readdirSync(directory)
+      : []) {
+      requireThat(/^[a-f0-9-]{36}\.json$/.test(file), "UNKNOWN_RUN_RECORD");
+      const run = this.raw(file.slice(0, -5));
+      requireThat(
+        ["STOPPED", "RETIRED", "CLEANED"].includes(run.state),
+        "CAMPAIGN_RUN_NOT_STOPPED",
+      );
+      if (run.state !== "CLEANED") this.load(run.id);
+      requireThat(
+        !run.process || processStatus(run.process) === "STOPPED",
+        "CAMPAIGN_WORKER_NOT_STOPPED",
+      );
+      requireThat(
+        controlID(run.database) === run.database.systemID,
+        "PG_OWNERSHIP_MISMATCH",
+      );
+      requireThat(!pgRunning(run.database), "CAMPAIGN_DATABASE_NOT_STOPPED");
+    }
+    return closeCampaign(this.root);
   }
   private record(id: string) {
     validID(id);
@@ -300,6 +282,8 @@ export class Domains {
     lineage: string = randomUUID(),
   ) {
     validateConfiguration(config);
+    if (fs.existsSync(path.join(this.root, "campaign/manifest.json")))
+      assertCampaignSource(this.root);
     const id = randomUUID();
     const run: Run = {
       version: 1,
@@ -343,6 +327,7 @@ export class Domains {
     try {
       requireThat(!fs.existsSync(run.active), "SLOT_EXISTS");
       this.mark(run);
+      if (config.mode === "live") initializeGuard(this.root, run.lineage);
       this.save(run);
       await this.preparePG(run);
       run.state = "STOPPED";
@@ -367,8 +352,10 @@ export class Domains {
       run.config.mode === "live"
         ? { key: credential(run.config.model), facility: this.root }
         : undefined;
-    if (live)
-      requireThat(loadCampaign(this.root).state === "OPEN", "CAMPAIGN_CLOSED");
+    if (live) {
+      assertCampaignSource(this.root);
+      forbiddenPayload(this.root, run.lineage);
+    }
     this.assertLineageAvailable(run);
     requireThat(run.state === "STOPPED", "RUN_NOT_STOPPED");
     requireThat(

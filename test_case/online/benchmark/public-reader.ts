@@ -1,3 +1,4 @@
+import { initializeGuard, forbiddenPayload } from "./payload-guard.ts";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { contentText } from "@earendil-works/pi-ai";
@@ -32,7 +33,7 @@ import {
   read,
 } from "./io.ts";
 import type { ReaderInput } from "./dataset.ts";
-import { createCampaign, closeCampaign } from "./campaign.ts";
+import { createCampaign } from "./campaign.ts";
 import { runMatrix } from "./pilot-report.ts";
 import { machine, type Report } from "../../benchmarks/common/report.ts";
 
@@ -77,7 +78,6 @@ export async function publicPilot(
       [...inputs, ...blocked].every((x) => selected.includes(x.id)),
     "PUBLIC_DENOMINATOR_CHANGED",
   );
-  await createCampaign(d.root, approvalID, null);
   const report: Report = {
     schema: "secretary-test-report-v1",
     run_id: randomUUID(),
@@ -103,6 +103,7 @@ export async function publicPilot(
       "Semantic grading pending; completed calls do not imply quality PASS",
     ],
   };
+  await createCampaign(d.root, approvalID, null);
   try {
     return await runMatrix(
       d.root,
@@ -141,8 +142,38 @@ export async function publicPilot(
       },
     );
   } finally {
-    await closeCampaign(d.root);
+    await d.closeStoppedCampaign();
   }
+}
+
+/** Adapter v2 mirrors the product's bounded search-hit surface; drift-tested against MemorySearch.search. */
+export function publicSearchHit(row: any, query: string) {
+  const chars = Array.from(row.body as string);
+  const at = (row.body as string)
+    .toLocaleLowerCase()
+    .indexOf(query.toLocaleLowerCase());
+  const start = Math.max(
+    0,
+    at < 0 ? 0 : Array.from((row.body as string).slice(0, at)).length - 50,
+  );
+  return {
+    event_id: row.event_id,
+    occurred_at: new Date(row.occurred_at).toISOString(),
+    kind: row.kind,
+    session_id: row.session_id,
+    scope_id: row.scope_id,
+    task_id: row.task_id,
+    snippet: chars.slice(start, start + 200).join(""),
+    offset: row.body_offset + start,
+  };
+}
+export function publicAnswerDisposition(answer: unknown, error: unknown) {
+  if (typeof error === "string" && /PUBLIC_(TOOL|REQUEST)_LIMIT/.test(error))
+    return "SUT_NO_ANSWER";
+  if (error) return "INFRASTRUCTURE_UNRESOLVED";
+  return typeof answer === "string" && answer.trim()
+    ? "ANSWERED"
+    : "SUT_NO_ANSWER";
 }
 
 export const readerSystem =
@@ -166,8 +197,12 @@ export async function publicReader(
   let toolsUsed = 0,
     requests = 0;
   try {
+    const privateCanary = initializeGuard(d.root, run.lineage);
+    writeJSON(path.join(d.root, "oracles", run.id + "-canary.json"), {
+      private_canary: privateCanary,
+    });
     writeJSON(path.join(run.evidence, "public-run.json"), {
-      version: "secretary-public-component-v1",
+      version: "secretary-public-component-v2",
       run_id: run.id,
       question_id: input.id,
       model: modelID,
@@ -269,15 +304,7 @@ export async function publicReader(
             output = {
               status: "ready",
               partial: false,
-              hits: rows.map((r) => ({
-                event_id: r.event_id,
-                occurred_at: r.occurred_at,
-                kind: r.kind,
-                body: r.body,
-                body_offset: r.body_offset,
-                body_hash: r.body_hash,
-                session_id: r.session_id,
-              })),
+              hits: rows.map((r) => publicSearchHit(r, args.query)),
             };
           } else {
             requireThat(args.source === "log", "PUBLIC_WORLD_UNSUPPORTED");
@@ -342,6 +369,7 @@ export async function publicReader(
       },
     }));
     writeJSON(path.join(run.evidence, "adapter.json"), {
+      version: "public-source-adapter-v2-snippet-200",
       system: readerSystem,
       system_sha256: sha(readerSystem),
       tools: declarations.map((t) => ({
@@ -364,6 +392,7 @@ export async function publicReader(
         model: modelID,
         key,
         maxSends: 9,
+        forbidden: () => forbiddenPayload(d.root, run.lineage),
       },
       native,
     );
@@ -414,7 +443,10 @@ export async function publicReader(
       evidence_class: "REAL_MODEL_COMPONENT",
       semantic_grade: "PENDING_CLAUDE_VARIANT_NOT_OFFICIAL",
     };
-    writeJSON(path.join(run.evidence, "public-output.json"), output);
+    writeJSON(path.join(run.evidence, "public-output.json"), {
+      ...output,
+      disposition: publicAnswerDisposition(output.answer, output.error),
+    });
     return { run_id: run.id, evidence: run.evidence, error: output.error };
   } catch (error) {
     const reason =

@@ -1,3 +1,4 @@
+import { createCampaign, reserve } from "../../online/benchmark/campaign.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -526,3 +527,43 @@ test(
     );
   },
 );
+
+test("crashed campaign can close only after every owned worker and database is stopped", async () => {
+  const root = path.join(repository, ".local/benchmark/tests", randomUUID());
+  await ownedTest(root, async (d) => {
+    const approval = "fixture-recovery-" + randomUUID();
+    await createCampaign(root, approval, null);
+    const run = await d.create(configuration);
+    await reserve(root, {
+      model: "fixture",
+      run: run.id,
+      request_sha256: "a".repeat(64),
+      reserved_usd: 1,
+    });
+    await assert.rejects(d.closeStoppedCampaign(), /DATABASE_NOT_STOPPED/);
+    await d.start(run.id);
+    await assert.rejects(d.closeStoppedCampaign(), /RUN_NOT_STOPPED/);
+    await d.stop(run.id);
+    await stopDatabase(run.database);
+    const closed = await d.closeStoppedCampaign();
+    assert.equal(closed.state, "CLOSED");
+    assert.equal(closed.final_ledger.unsettled, 1);
+    const registration: any = readJSON(
+      path.join(
+        repository,
+        ".local/benchmark/.campaign-registry",
+        approval + ".json",
+      ),
+    );
+    assert.deepEqual(registration.final_ledger, closed.final_ledger);
+    await assert.rejects(
+      reserve(root, {
+        model: "fixture",
+        run: run.id,
+        request_sha256: "b".repeat(64),
+        reserved_usd: 1,
+      }),
+      /CAMPAIGN_CLOSED/,
+    );
+  });
+});

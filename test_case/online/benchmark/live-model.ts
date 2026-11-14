@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { AsyncLocalStorage } from "node:async_hooks";
+import { randomUUID } from "node:crypto";
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { getModel } from "@earendil-works/pi-ai/compat";
 import {
@@ -17,6 +18,19 @@ import {
   writeJSON,
 } from "./io.ts";
 import { reserve, settle } from "./campaign.ts";
+import { transportFailure } from "../../../src/pi_secretary/src/model-retry.ts";
+
+/** Preserve the product's retry class without retaining provider error text. */
+export function safeTransportError(error: unknown) {
+  const kind = transportFailure(error);
+  return Error(
+    kind === "TRANSIENT"
+      ? "network error"
+      : kind === "PERMANENT"
+        ? "authentication failed"
+        : "PROVIDER_LOCAL_FAILURE",
+  );
+}
 
 export const modelIDs = [
   "gpt-6.1-sol",
@@ -143,7 +157,7 @@ export function meteredFetch(
     model: ModelID;
     key: string;
     maxSends: number;
-    forbidden?: string[];
+    forbidden?: string[] | (() => string[]);
   },
   transport: typeof fetch = globalThis.fetch,
 ): typeof fetch {
@@ -154,139 +168,195 @@ export function meteredFetch(
     (model.api === "openai-responses" ? "/v1/responses" : "/chat/completions");
   let sends = 0;
   return async (input, init) => {
-    const request = new Request(input, init);
-    requireThat(
-      request.url === endpoint && request.method === "POST",
-      "PROVIDER_ENDPOINT_NOT_APPROVED",
-    );
-    const body = await request.clone().text();
-    requireThat(
-      ![options.key, ...(options.forbidden ?? [])]
-        .filter(Boolean)
-        .some((secret) => body.includes(secret)),
-      "PROVIDER_PAYLOAD_LEAK",
-    );
-    const payload = JSON.parse(body);
-    requireThat(
-      payload.model === options.model && payload.stream === true,
-      "PROVIDER_MODEL_PROTOCOL_MISMATCH",
-    );
-    requireThat(++sends <= options.maxSends, "EPISODE_SEND_LIMIT");
-    const maxOutput =
-      payload.max_output_tokens ??
-      payload.max_completion_tokens ??
-      payload.max_tokens;
-    requireThat(
-      Number.isSafeInteger(maxOutput) &&
-        maxOutput > 0 &&
-        maxOutput <= model.maxTokens,
-      "PROVIDER_OUTPUT_CAP_MISSING",
-    );
-    const worst =
-      (Buffer.byteLength(body) * model.cost.input +
-        maxOutput * model.cost.output) /
-      1e6;
-    const id = await reserve(
-      options.root,
-      {
-        model: options.model,
-        run: options.run,
-        episode: options.episode ?? options.run,
-        request_sha256: sha(body),
-        reserved_usd: worst,
-      },
-      options.maxSends,
-    );
-    writeJSON(path.join(options.evidence, `send-${id}.json`), {
-      id,
-      attribution: attribution.getStore() ?? { role: "component-or-probe" },
-      payload,
-      at: new Date().toISOString(),
-    });
-    let response: Response;
+    let phase = "PROVIDER_REQUEST_INVALID",
+      bodyHash: string | null = null;
     try {
-      response = await transport(new Request(request, { redirect: "error" }));
-    } catch {
-      await settle(options.root, id, "NETWORK_UNCERTAIN", null, null);
-      // Never propagate a provider exception that might contain request headers.
-      throw Error("PROVIDER_NETWORK_UNCERTAIN");
-    }
-    appendJSON(path.join(options.evidence, "http.jsonl"), {
-      id,
-      status: response.status,
-      at: new Date().toISOString(),
-    });
-    if (!response.ok || !response.body) {
-      await settle(options.root, id, `HTTP_${response.status}`, null, null);
-      // Error bodies can echo input/headers; SDK only needs the category and status.
+      const request = new Request(input, init);
+      phase = "PROVIDER_ENDPOINT_NOT_APPROVED";
+      requireThat(
+        request.url === endpoint && request.method === "POST",
+        "PROVIDER_ENDPOINT_NOT_APPROVED",
+      );
+      const body = await request.clone().text();
+      bodyHash = sha(body);
+      phase = "PROVIDER_PAYLOAD_LEAK";
+      const forbidden =
+        typeof options.forbidden === "function"
+          ? options.forbidden()
+          : (options.forbidden ?? []);
+      requireThat(
+        ![options.key, ...forbidden]
+          .filter(Boolean)
+          .some(
+            (secret) =>
+              body.includes(secret) ||
+              body.includes(JSON.stringify(secret).slice(1, -1)),
+          ),
+        "PROVIDER_PAYLOAD_LEAK",
+      );
+      phase = "PROVIDER_REQUEST_INVALID";
+      const payload = JSON.parse(body);
+      phase = "PROVIDER_MODEL_PROTOCOL_MISMATCH";
+      requireThat(
+        payload.model === options.model && payload.stream === true,
+        "PROVIDER_MODEL_PROTOCOL_MISMATCH",
+      );
+      phase = "EPISODE_SEND_LIMIT";
+      requireThat(++sends <= options.maxSends, "EPISODE_SEND_LIMIT");
+      const maxOutput =
+        payload.max_output_tokens ??
+        payload.max_completion_tokens ??
+        payload.max_tokens;
+      phase = "PROVIDER_OUTPUT_CAP_MISSING";
+      requireThat(
+        Number.isSafeInteger(maxOutput) &&
+          maxOutput > 0 &&
+          maxOutput <= model.maxTokens,
+        "PROVIDER_OUTPUT_CAP_MISSING",
+      );
+      const worst =
+        (Buffer.byteLength(body) * model.cost.input +
+          maxOutput * model.cost.output) /
+        1e6;
+      phase = "CAMPAIGN_RESERVATION_REFUSED";
+      const id = await reserve(
+        options.root,
+        {
+          model: options.model,
+          run: options.run,
+          episode: options.episode ?? options.run,
+          request_sha256: sha(body),
+          reserved_usd: worst,
+        },
+        options.maxSends,
+      );
+      phase = "SENT_OR_RESERVED";
+      writeJSON(path.join(options.evidence, `send-${id}.json`), {
+        id,
+        attribution: attribution.getStore() ?? { role: "component-or-probe" },
+        payload,
+        at: new Date().toISOString(),
+      });
+      let response: Response;
+      try {
+        response = await transport(new Request(request, { redirect: "error" }));
+      } catch (error) {
+        await settle(options.root, id, "NETWORK_UNCERTAIN", null, null);
+        // Never propagate a provider exception that might contain request headers.
+        throw safeTransportError(error);
+      }
+      appendJSON(path.join(options.evidence, "http.jsonl"), {
+        id,
+        status: response.status,
+        at: new Date().toISOString(),
+      });
+      if (!response.ok || !response.body) {
+        await settle(options.root, id, `HTTP_${response.status}`, null, null);
+        // Error bodies can echo input/headers; SDK only needs the category and status.
+        return new Response(
+          JSON.stringify({
+            error: {
+              message: `HTTP_${response.status}`,
+              type: "benchmark_provider_error",
+            },
+          }),
+          {
+            status: response.status >= 400 ? response.status : 502,
+            headers: {
+              "content-type": "application/json",
+              ...(response.headers.get("retry-after")
+                ? { "retry-after": response.headers.get("retry-after")! }
+                : {}),
+            },
+          },
+        );
+      }
+      const reader = response.body.getReader(),
+        decoder = new TextDecoder();
+      let pending = "",
+        usage: unknown = null,
+        returnedModel: string | null = null,
+        done = false;
+      const observe = (chunk: Uint8Array) => {
+        const text = decoder.decode(chunk, { stream: true });
+        requireThat(!text.includes(options.key), "CREDENTIAL_RESPONSE_LEAK");
+        pending += text;
+        requireThat(
+          pending.length < 8 * 1024 * 1024,
+          "PROVIDER_FRAME_TOO_LARGE",
+        );
+        const lines = pending.split("\n");
+        pending = lines.pop()!;
+        for (const rawLine of lines) {
+          const line = rawLine.endsWith("\r") ? rawLine.slice(0, -1) : rawLine;
+          if (line.startsWith("data: ") && line !== "data: [DONE]") {
+            const data = JSON.parse(line.slice(6));
+            usage = data.usage ?? data.response?.usage ?? usage;
+            returnedModel = data.model ?? data.response?.model ?? returnedModel;
+          }
+        }
+      };
+      const finish = async (outcome: string) => {
+        if (done) return;
+        done = true;
+        await settle(
+          options.root,
+          id,
+          outcome,
+          { provider: usage, returned_model: returnedModel },
+          usageCost(model, usage),
+        );
+      };
       return new Response(
-        JSON.stringify({
-          error: {
-            message: `HTTP_${response.status}`,
-            type: "benchmark_provider_error",
+        new ReadableStream<Uint8Array>({
+          async pull(controller) {
+            try {
+              const chunk = await reader.read();
+              if (chunk.done) {
+                await finish("RESPONSE_COMPLETE");
+                controller.close();
+              } else {
+                observe(chunk.value);
+                controller.enqueue(chunk.value);
+              }
+            } catch (error) {
+              await finish("STREAM_UNCERTAIN");
+              await reader.cancel().catch(() => {});
+              controller.error(safeTransportError(error));
+            }
+          },
+          async cancel() {
+            try {
+              await reader.cancel();
+            } finally {
+              await finish("CANCELLED_UNCERTAIN");
+            }
           },
         }),
-        {
-          status: response.status >= 400 ? response.status : 502,
-          headers: { "content-type": "application/json" },
-        },
+        { status: response.status, headers: response.headers },
       );
+    } catch (error) {
+      if (phase !== "SENT_OR_RESERVED") {
+        const known = [
+          "CAMPAIGN_CLOSED",
+          "CAMPAIGN_SOURCE_CHANGED",
+          "EPISODE_SEND_LIMIT",
+          "CAMPAIGN_BUDGET_EXHAUSTED",
+        ];
+        const reason =
+          error instanceof Error && known.includes(error.message)
+            ? error.message
+            : phase;
+        writeJSON(path.join(options.evidence, `refused-${randomUUID()}.json`), {
+          at: new Date().toISOString(),
+          phase: "BEFORE_PROVIDER_SEND",
+          reason,
+          request_sha256: bodyHash,
+          physical_send: false,
+        });
+        throw Error(reason);
+      }
+      throw error;
     }
-    const reader = response.body.getReader(),
-      decoder = new TextDecoder();
-    let pending = "",
-      usage: unknown = null,
-      returnedModel: string | null = null,
-      done = false;
-    const observe = (chunk: Uint8Array) => {
-      const text = decoder.decode(chunk, { stream: true });
-      requireThat(!text.includes(options.key), "CREDENTIAL_RESPONSE_LEAK");
-      pending += text;
-      requireThat(pending.length < 8 * 1024 * 1024, "PROVIDER_FRAME_TOO_LARGE");
-      const lines = pending.split("\n");
-      pending = lines.pop()!;
-      for (const line of lines)
-        if (line.startsWith("data: ") && line !== "data: [DONE]") {
-          const data = JSON.parse(line.slice(6));
-          usage = data.usage ?? data.response?.usage ?? usage;
-          returnedModel = data.model ?? data.response?.model ?? returnedModel;
-        }
-    };
-    const finish = async (outcome: string) => {
-      if (done) return;
-      done = true;
-      await settle(
-        options.root,
-        id,
-        outcome,
-        { provider: usage, returned_model: returnedModel },
-        usageCost(model, usage),
-      );
-    };
-    return new Response(
-      new ReadableStream<Uint8Array>({
-        async pull(controller) {
-          try {
-            const chunk = await reader.read();
-            if (chunk.done) {
-              await finish("RESPONSE_COMPLETE");
-              controller.close();
-            } else {
-              observe(chunk.value);
-              controller.enqueue(chunk.value);
-            }
-          } catch {
-            await finish("STREAM_UNCERTAIN");
-            await reader.cancel().catch(() => {});
-            controller.error(Error("PROVIDER_STREAM_UNCERTAIN"));
-          }
-        },
-        async cancel() {
-          await reader.cancel();
-          await finish("CANCELLED_UNCERTAIN");
-        },
-      }),
-      { status: response.status, headers: response.headers },
-    );
   };
 }

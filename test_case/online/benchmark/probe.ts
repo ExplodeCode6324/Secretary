@@ -8,17 +8,18 @@ import {
   modelIDs,
 } from "./live-model.ts";
 import { Domains, configuration } from "./domain.ts";
-import { createCampaign, closeCampaign } from "./campaign.ts";
+import { createCampaign } from "./campaign.ts";
 import { writeJSON } from "./io.ts";
 import { stopDatabase } from "./postgres.ts";
 
 /** Connectivity evidence only. This deliberately has no memory PASS assertion. */
 export async function probeModels(d: Domains, approvalID: string) {
   await createCampaign(d.root, approvalID, null);
-  const run = await d.create(configuration),
-    transport = globalThis.fetch;
+  let run: Awaited<ReturnType<Domains["create"]>> | undefined;
+  const transport = globalThis.fetch;
   const results: Record<string, unknown>[] = [];
   try {
+    run = await d.create(configuration);
     for (const id of modelIDs) {
       const model = descriptor(id),
         key = credential(id);
@@ -101,7 +102,10 @@ export async function probeModels(d: Domains, approvalID: string) {
     return { run_id: run.id, results, evidence: run.evidence };
   } finally {
     globalThis.fetch = transport;
-    await stopDatabase(run.database);
-    await closeCampaign(d.root);
+    try {
+      if (run) await stopDatabase(run.database);
+    } finally {
+      await d.closeStoppedCampaign();
+    }
   }
 }

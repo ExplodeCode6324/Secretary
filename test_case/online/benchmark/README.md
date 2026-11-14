@@ -117,3 +117,11 @@ worker 仅接收 Core 的非超级用户连接凭据，启动时断言实际角�
 恢复来源通过独立 restoredFrom 元数据记录，不冒充新 run 自己生成的最新 checkpoint。导入行必须非空才执行 xmin 保留断言。只读预检遇到残缺 journal 尾部直接拒绝（PARTIAL_JOURNAL）；这一边界比产品正常 journal 恢复更严格。退休目录当前验证写入前后不变，尚未独立证明完全没有读取；旧索引测试覆盖空索引重建，具体陈旧行替换场景留待后续。AT 用例为停止留出 10 秒；若机器未能赶上窗口则明确失败，不报业务行为通过。
 
 归档的内容核验是 fsync 后的客户端读回；macOS 额外使用 F_NOCACHE，仍不声称验证了 NAS 断电持久性。receipt 明确记录验证方式。任意深度出现额外 facility.json/controller.lock 或 postmaster.pid 都拒绝，避免把嵌套活动实例当作报告/证据清理。普通本地套件完成后按上述命令逐个归档 `.local/benchmark/tests/` 的 facility；CI 使用一次性 runner，不要求连接 Master 的 NAS。live 恢复已使用按状态区分的 Operation 核验；成功 World 必须有同批次提交凭据和 journal，终结拒绝必须有未派发证明，未知文件效果只能在独立目录内正常对账。
+
+## R6 后的协议修订（v3 评分 / v2 公共适配器）
+
+新导出的 S/R 包使用 v3；旧包及评分不覆盖。V3 的 38 个控制包含 UNRESOLVED、S4、合理澄清和长轨迹注入错误，旧校准不能代替。模型名遮蔽不等于完全盲评，provider 格式仍可辨认。宿主覆盖限制允许标签；未执行正向 World/冷检索不能 PASS，已确定的错误效果不能用未知覆盖消除。
+
+公共 v2 搜索只返回产品式 200 字符 snippet/offset，v1 整块命中结果只作历史参考。明确工具/请求超限与空答为 SUT_NO_ANSWER，按错误计；基础设施未知保持 unresolved。公共 QA v2 与历史 v1 分别保存，不混算最好结果。
+
+源码在整个 campaign 内固定；创建/启动/发送均检查。控制器崩溃后可运行 `npm run benchmark -- memory-campaign-close --root <exact-facility-root>`，仅在全部归属可核验的 worker/PG 已停止时关闭，保留 orphan 预留与最终费用/ledger 哈希，不重新派发。正常关闭也更新持久批准登记表。发送保护读取 checkpoint 外的 lineage canary/未来输入表；拒绝产生无正文的私有回执。现有错误率门槛继续等待 Master 冻结；本工具不宣布发布合格。

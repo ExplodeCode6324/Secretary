@@ -139,6 +139,14 @@ async function main() {
     return;
   }
   await Domains.use(root, async (d) => {
+    if (command === "memory-campaign-close") {
+      requireThat(
+        options["--root"] && Object.keys(options).every((k) => k === "--root"),
+        "CAMPAIGN_CLOSE_EXPLICIT_ROOT_REQUIRED",
+      );
+      console.log(JSON.stringify(await d.closeStoppedCampaign()));
+      return;
+    }
     if (command === "memory-public-grade-export") {
       console.log(JSON.stringify(exportPublicGrades(d)));
       return;

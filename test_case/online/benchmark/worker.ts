@@ -1,3 +1,4 @@
+import { forbiddenPayload } from "./payload-guard.ts";
 // Owned fixture/live entry. A detached sender owns its durable campaign accounting.
 import fs from "node:fs";
 import path from "node:path";
@@ -61,6 +62,7 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
         model: run.config.model,
         key: run.live.key,
         maxSends: run.config.max_sends,
+        forbidden: () => forbiddenPayload(run.live!.facility, run.lineage),
       });
     } else
       globalThis.fetch = async (input) => {
@@ -300,12 +302,10 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
           ? {
               sessions: app.store.all("Session"),
               input_records: app.store.all("Input"),
-              input_events: app.store
-                .events("input.accepted")
-                .map((event) => ({
-                  event_id: event.event_id,
-                  input_id: app.store.read<any>(event.payload).id,
-                })),
+              input_events: app.store.events("input.accepted").map((event) => ({
+                event_id: event.event_id,
+                input_id: app.store.read<any>(event.payload).id,
+              })),
               calls: app.store.all("ModelCall"),
               compactions: app.store.all("CompactionJob"),
               extractions: app.store.all("MemoryExtractionJob"),

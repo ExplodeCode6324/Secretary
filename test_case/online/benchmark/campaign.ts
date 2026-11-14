@@ -1,3 +1,4 @@
+import { fingerprint } from "./source.ts";
 // Durable accounting belongs to each sender, not to the short-lived CLI or a checkpoint.
 import fs from "node:fs";
 import path from "node:path";
@@ -20,6 +21,7 @@ export type Campaign = {
   state: "OPEN" | "CLOSED";
   ceiling_usd: number | null;
   created_at: string;
+  source?: ReturnType<typeof fingerprint>;
 };
 export type Attempt = {
   id: string;
@@ -63,6 +65,7 @@ export function loadCampaign(root: string): Campaign {
   const c = readJSON(path.join(directory(root), "manifest.json")) as Campaign;
   requireThat(
     c.version === 1 &&
+      /^[a-zA-Z0-9_-]{1,100}$/.test(c.approval_id) &&
       c.facility === root &&
       ["OPEN", "CLOSED"].includes(c.state),
     "CAMPAIGN_INVALID",
@@ -159,6 +162,7 @@ export async function createCampaign(
     ceiling === null || (Number.isFinite(ceiling) && ceiling > 0),
     "CAMPAIGN_INVALID_CEILING",
   );
+  const source = fingerprint();
   // A new facility cannot reset the same approval's ceiling.
   const registry = path.join(repository, ".local/benchmark/.campaign-registry");
   return locked(registry, async () => {
@@ -173,6 +177,7 @@ export async function createCampaign(
     );
     const c: Campaign = {
       version: 1,
+      source,
       approval_id: approvalID,
       facility: root,
       state: "OPEN",
@@ -185,13 +190,22 @@ export async function createCampaign(
     return c;
   });
 }
+export function assertCampaignSource(root: string) {
+  const c = loadCampaign(root);
+  requireThat(c.state === "OPEN", "CAMPAIGN_CLOSED");
+  requireThat(
+    c.source && JSON.stringify(c.source) === JSON.stringify(fingerprint()),
+    "CAMPAIGN_SOURCE_CHANGED",
+  );
+  return c;
+}
 export async function reserve(
   root: string,
   details: Omit<Attempt, "id" | "at" | "pid">,
   maxSends?: number,
 ) {
   return locked(directory(root), async () => {
-    const campaign = loadCampaign(root),
+    const campaign = assertCampaignSource(root),
       current = ledger(root);
     requireThat(campaign.state === "OPEN", "CAMPAIGN_CLOSED");
     if (maxSends !== undefined)
@@ -249,12 +263,38 @@ export async function settle(
 export async function closeCampaign(root: string) {
   return locked(directory(root), async () => {
     const c = loadCampaign(root);
-    // Unresolved reservations are retained at full cost; closing never removes them.
-    ledger(root);
-    writeJSON(path.join(directory(root), "manifest.json"), {
+    // Never discard orphan reservations: uncertain sends remain charged at full cost.
+    const current = ledger(root);
+    const closed = {
       ...c,
       state: "CLOSED",
-    });
+      closed_at: new Date().toISOString(),
+      final_ledger: {
+        hash: current.previous,
+        sequence: current.sequence,
+        attempts: current.entries.size,
+        unsettled: [...current.entries.values()].filter((e) => !e.settled)
+          .length,
+        charged_usd: current.charged_usd,
+      },
+    };
+    const registry = path.join(
+      repository,
+      ".local/benchmark/.campaign-registry",
+    );
+    const registration = path.join(registry, c.approval_id + ".json");
+    if (fs.existsSync(registration))
+      await locked(registry, async () => {
+        const registered = readJSON(registration);
+        requireThat(
+          registered.facility === root &&
+            registered.approval_id === c.approval_id,
+          "CAMPAIGN_REGISTRY_MISMATCH",
+        );
+        writeJSON(registration, closed);
+      });
+    writeJSON(path.join(directory(root), "manifest.json"), closed);
+    return closed;
   });
 }
 export function assertCampaignClosed(root: string) {
