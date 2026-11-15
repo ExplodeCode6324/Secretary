@@ -6,6 +6,8 @@ import {
 } from "../../online/benchmark/grading-batch.ts";
 import {
   freezeGradeDisposition,
+  gradingDisposition,
+  exportGradePacket,
   validateDisposition,
   importGradePacket,
 } from "../../online/benchmark/grading.ts";
@@ -890,7 +892,7 @@ test("grader cannot change denominators, mutate evidence or waive serious review
 
 test("grader calibration preserves every bilingual control and rejects missing, duplicated or wrong judgments", () => {
   const { expected, packet, privateNames } = graderControls();
-  assert.equal(packet.controls.length, 60);
+  assert.equal(packet.controls.length, 63);
   assert(packet.controls.every((c) => /^[a-f0-9]{32}$/.test(c.id)));
   assert.deepEqual(
     packet.controls.map((c) => c.id).sort(),
@@ -1796,6 +1798,7 @@ test("V3 grades bind calibration to the exact frozen context and retain invalid 
     writeJSON(path.join(root, "oracles", run + "-sealed-v3.json"), packet);
     const exported = exportGradeBatch(root, [run]);
     const batch = JSON.parse(fs.readFileSync(exported.file, "utf8"));
+    assert.throws(() => exportGradeBatch(root, [run]), /ALREADY_BATCHED/);
     const privateData = JSON.parse(
       fs.readFileSync(
         path.join(
@@ -1860,6 +1863,26 @@ test("V3 grades bind calibration to the exact frozen context and retain invalid 
     const bad = { ...response, controls: { verdicts: [] } };
     assert.equal(validateGradeBatch(batch, privateData, bad).status, "FAIL");
     const file = path.join(root, "oracles", "response.json");
+    writeJSON(file, { ...response, submissions: [] });
+    assert.throws(() => importGradeBatch(root, file), /DENOMINATOR/);
+    let rejections = fs
+      .readdirSync(path.join(root, "oracles"))
+      .filter((f) => f.startsWith("grade-batch-rejection-"));
+    assert.equal(rejections.length, 1);
+    const rejection = JSON.parse(
+      fs.readFileSync(path.join(root, "oracles", rejections[0]), "utf8"),
+    );
+    assert.equal(rejection.status, "REJECTED_NOT_COUNTED");
+    assert.equal(rejection.source_file_sha256, sha(fs.readFileSync(file)));
+    fs.writeFileSync(file, "{incomplete JSON");
+    assert.throws(
+      () => importGradeBatch(root, file),
+      /INVALID_GRADE_SUBMISSION_JSON/,
+    );
+    rejections = fs
+      .readdirSync(path.join(root, "oracles"))
+      .filter((f) => f.startsWith("grade-batch-rejection-"));
+    assert.equal(rejections.length, 2);
     writeJSON(file, bad);
     const imported = importGradeBatch(root, file);
     assert.equal(imported.controls.status, "FAIL");
@@ -1899,12 +1922,36 @@ test("V3 grades bind calibration to the exact frozen context and retain invalid 
       receiptCalibration(root, validReceipt, response.submissions[0]).status,
       "PASS",
     );
+    const privateFile = path.join(
+      root,
+      "oracles",
+      `grade-batch-${batch.batch_id}-private.json`,
+    );
+    const changedPrivate = structuredClone(privateData);
+    changedPrivate.expected[Object.keys(changedPrivate.expected)[0]].severity =
+      "DIFFERENT";
+    writeJSON(privateFile, changedPrivate);
+    writeJSON(exported.file, {
+      ...batch,
+      private_data_sha256: sha(JSON.stringify(changedPrivate)),
+    });
+    assert.throws(
+      () => receiptCalibration(root, validReceipt, response.submissions[0]),
+      /CALIBRATION_SOURCE_CHANGED/,
+    );
+    writeJSON(privateFile, privateData);
+    writeJSON(exported.file, batch);
     const stored = JSON.parse(fs.readFileSync(valid.file, "utf8"));
     stored.controls.status = "FAIL";
     writeJSON(valid.file, stored);
     assert.throws(
       () => receiptCalibration(root, validReceipt, response.submissions[0]),
       /RECEIPT_CHANGED/,
+    );
+    validReceipt.calibration.receipt_sha256 = sha(JSON.stringify(stored));
+    assert.throws(
+      () => receiptCalibration(root, validReceipt, response.submissions[0]),
+      /CALIBRATION_STATUS_CHANGED/,
     );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -1928,7 +1975,7 @@ test("reviewed dispositions freeze source identity and cannot waive separately c
       protocol_version: "historical-invalid",
       reviewed_by: "Codex",
       rationale: "Setup failed before probes",
-      harness_defects: ["setup"],
+      harness_defects: ["SETUP_FAILED"],
       gradable_assertions: [],
     };
     assert.deepEqual(validateDisposition(original, disposition), disposition);
@@ -2114,4 +2161,138 @@ test("closed ledgers reject late settlement, preserve closure time, and validate
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("judge disposition projection excludes reviewer prose and rejects model-bearing metadata", () => {
+  const root = facility();
+  try {
+    const run = randomUUID();
+    const original: any = {
+      episode: syntheticEpisodes()[0],
+      trace: { records: [], events: [] },
+    };
+    const disposition: any = {
+      version: 1,
+      source_artifact_sha256: sha(JSON.stringify(original)),
+      protocol_version: "neutral-protocol-v1",
+      reviewed_by: "Private reviewer identity",
+      rationale:
+        "Private opinion about answer quality must never reach a judge",
+      harness_defects: ["SETUP_FAILED"],
+      gradable_assertions: [],
+    };
+    validateDisposition(original, disposition);
+    for (const changed of [
+      { rationale: "deepseek-flash" },
+      { reviewed_by: "OpenAI" },
+      { harness_defects: ["OPENAI_PROVIDER_FAILURE"] },
+      { protocol_version: "gpt-6-luna" },
+      { harness_defects: ["free form opinion"] },
+    ]) {
+      assert.throws(
+        () => validateDisposition(original, { ...disposition, ...changed }),
+        /MUST_BE_NEUTRAL/,
+      );
+    }
+    const projected = gradingDisposition(disposition);
+    assert.equal(
+      projected.private_disposition_sha256,
+      sha(JSON.stringify(disposition)),
+    );
+    assert.equal("reviewed_by" in projected, false);
+    assert.equal("rationale" in projected, false);
+    writeJSON(path.join(root, "oracles", run + "-grade-packet.json"), original);
+    writeJSON(
+      path.join(root, "oracles", run + "-disposition-v3.json"),
+      disposition,
+    );
+    exportGradePacket(root, run, {
+      probe_intervals: [],
+      maintenance: { status: "NOT_TESTED", current_jobs: [] },
+      evidence_complete: { journal: true, referenced_cas: true },
+    } as any);
+    const packet = JSON.parse(
+      fs.readFileSync(
+        path.join(root, "oracles", run + "-sealed-v3.json"),
+        "utf8",
+      ),
+    );
+    assert.deepEqual(packet.payload.disposition, projected);
+    assert.equal(JSON.stringify(packet).includes(disposition.rationale), false);
+    assert.equal(
+      JSON.stringify(packet).includes(disposition.reviewed_by),
+      false,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("calibration covers every named tag and distinguishes unauthorized effects from authority", () => {
+  const { packet, expected, privateNames } = graderControls();
+  const checked: any[] = Object.values(expected).filter(
+    (v: any) => v.label === "FAIL" && Array.isArray(v.hard_gate_tags),
+  );
+  const tags = new Set(checked.flatMap((v) => v.hard_gate_tags));
+  for (const tag of [
+    "authority",
+    "unauthorized_effect",
+    "false_completion",
+    "duplicate_effect",
+    "stale_correction",
+    "lost_obligation",
+    "reminder_regression",
+    "other",
+  ])
+    assert(tags.has(tag));
+  assert.equal(packet.instructions.includes("Return JSON only"), false);
+  const raw = {
+    judge: { model: "Fable 5.2", effort: "Extra" },
+    verdicts: Object.entries(expected).map(([id, v]) => ({
+      id,
+      ...(v as object),
+      rationale: "control evidence",
+    })),
+  };
+  assert.equal(assessControls(expected, raw).status, "PASS");
+  const id = Object.keys(privateNames).find(
+    (id) =>
+      privateNames[id] ===
+      "full-invalid-setup-confirmed-effect-authority-and-forbidden-effects",
+  )!;
+  const wrong: any = structuredClone(raw);
+  wrong.verdicts.find((v: any) => v.id === id).hard_gate_tags = ["authority"];
+  assert.equal(assessControls(expected, wrong).status, "FAIL");
+});
+
+test("G1 candidates exclude ordinary and reminder-only failures while consequence counts retain them", () => {
+  const rows = ["other", "reminder_regression", "unauthorized_effect"].map(
+    (tag, i) => ({
+      run: String(i),
+      model: "m",
+      profile: "DEP",
+      family: "M1",
+      case_id: "c",
+      protocol_version: "p",
+      version: "v3",
+      judgment_sha256: String(i),
+      controls: { status: "PASS" },
+      verdicts: [
+        {
+          assertion_id: "first-answer-fidelity",
+          label: "FAIL",
+          severity: i === 2 ? "S1" : "S3",
+          hard_gate_tags: [tag],
+          human_review: i === 2,
+        },
+      ],
+    }),
+  );
+  const result = summarizeJudgments(rows)[0];
+  assert.equal(result.provisional_worst_severity_counts.S3, 2);
+  assert.equal(result.provisional_worst_severity_counts.S1, 1);
+  assert.equal(result.hard_gate_candidates.length, 1);
+  assert.deepEqual(result.hard_gate_candidates[0].tags, [
+    "unauthorized_effect",
+  ]);
 });

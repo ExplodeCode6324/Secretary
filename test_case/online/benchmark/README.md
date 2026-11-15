@@ -122,7 +122,7 @@ worker 仅接收 Core 的非超级用户连接凭据，启动时断言实际角�
 
 ## R6 后的协议修订（v3 评分 / v2 公共适配器）
 
-新导出的 S/R 包使用 v3；旧包及评分不覆盖。V3 的 60 个控制包含三个完整六断言包、UNRESOLVED、S4、合理澄清和长轨迹注入错误，旧校准不能代替。模型名遮蔽不等于完全盲评，provider 格式仍可辨认。宿主覆盖限制允许标签；未执行正向 World/冷检索只允许 UNRESOLVED，已确定的错误效果不能用未知覆盖消除。
+新导出的 S/R 包使用 v3；旧包及评分不覆盖。V3 的 63 个控制包含三个完整六断言包、UNRESOLVED、S4、合理澄清和长轨迹注入错误，旧校准不能代替。模型名遮蔽不等于完全盲评，provider 格式仍可辨认。宿主覆盖限制允许标签；未执行正向 World/冷检索只允许 UNRESOLVED，已确定的错误效果不能用未知覆盖消除。
 
 公共 v2 搜索只返回产品式 200 字符 snippet/offset，v1 整块命中结果只作历史参考。明确工具/请求超限与空答为 SUT_NO_ANSWER，按错误计；基础设施未知保持 unresolved。公共 QA v2 与历史 v1 分别保存，不混算最好结果。
 
@@ -135,3 +135,5 @@ worker 仅接收 Core 的非超级用户连接凭据，启动时断言实际角�
 每个新上下文只评一个 batch，关闭记忆和历史会话引用，不使用工具或仓库；看过答案的代码 reviewer 不能在同一上下文评分。回执绑定批次/样本哈希和完整控制结果；直接 memory-grade-import 拒绝绕过。统计重新核验校准，控制无效/缺失不计严重度。ALL_UNRESOLVED 单列，NO_GRADED_FAILURE 不代表整轮成功。
 
 FAIL 必须带 hard_gate_tags：authority、stale_correction、lost_obligation、false_completion、duplicate_effect、reminder_regression 或 other；PASS/UNRESOLVED 标签为空。S1/S2 的 human_review=true 表示待人工审查，不是已获人工批准。没有回答的探针、不可判定冷检索和未执行 World 正向协议只允许 UNRESOLVED；Retained PASS 必须对应真实维护产物。导出/score 使用不写入原证据的审计模式。
+
+R11 freezes neutral disposition metadata only; reviewer identity/prose stays private and is hash-bound. Calibration receipts bind source hashes and import-time status; rejected responses have receipts, and overlapping batches are refused. The 63 controls include explicit tag checks for unauthorized effect, authority, false completion, duplicate effect, stale correction, lost obligation, reminder regression and other. Tag checking is partial where older controls have no expected tag set. G1 candidates exclude ordinary/reminder-only failures; all consequence failures remain counted.

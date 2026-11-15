@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import {
   approvedJudge,
   readGradeSubmission,
+  readGradeSubmissionBytes,
   validateVerdicts,
 } from "./grading.ts";
 import { graderControls, assessControls } from "./grader-controls.ts";
@@ -46,6 +47,15 @@ export function exportGradeBatch(root: string, runs: string[]) {
     ) && new Set(packets.map((p) => p.packet_id)).size === packets.length,
     "GRADE_BATCH_PACKET_INVALID",
   );
+  for (const file of fs.readdirSync(path.join(root, "oracles"))) {
+    const match = /^grade-batch-([a-f0-9-]{36})\.json$/.exec(file);
+    if (!match) continue;
+    const prior = loadBatch(root, match[1]);
+    requireThat(
+      !prior.privateData.mapping.some((m: any) => runs.includes(m.run)),
+      "GRADE_RUN_ALREADY_BATCHED",
+    );
+  }
   const control = graderControls();
   const privateData = {
     expected: control.expected,
@@ -144,49 +154,74 @@ export function validateGradeBatch(
 }
 export function importGradeBatch(root: string, file: string) {
   stopped(root);
-  const { raw, sourceFileHash } = readGradeSubmission(root, file);
-  const { batch, privateData } = loadBatch(root, raw.batch_id);
-  const controls = validateGradeBatch(batch, privateData, raw);
-  const receipt = {
-    submission: raw,
-    controls,
-    received_at: new Date().toISOString(),
-    source_sha256: sha(JSON.stringify(raw)),
-    source_file_sha256: sourceFileHash,
-    qualification:
-      controls.status === "PASS"
-        ? "ADVISORY_PENDING_HUMAN_REVIEW"
-        : "CONTROL_INVALID_EXCLUDED_FROM_COUNTS",
-  };
-  const receiptName = `grade-batch-receipt-${randomUUID()}.json`,
-    dir = path.join(root, "oracles");
-  writeJSON(path.join(dir, receiptName), receipt);
-  const imports = raw.submissions.map((submission: any) => {
-    const mapping = privateData.mapping.find(
-      (m: any) => m.packet_id === submission.packet_id,
-    );
-    requireThat(mapping, "GRADE_BATCH_MAPPING_MISSING");
-    const dest = path.join(dir, `${mapping.run}-verdict-${randomUUID()}.json`);
-    writeJSON(dest, {
-      ...submission,
-      received_at: receipt.received_at,
-      qualification: receipt.qualification,
-      source_sha256: sha(JSON.stringify(submission)),
+  try {
+    const { raw, sourceFileHash } = readGradeSubmission(root, file);
+    const { batch, privateData } = loadBatch(root, raw.batch_id);
+    const controls = validateGradeBatch(batch, privateData, raw);
+    const receipt = {
+      submission: raw,
+      batch_payload_sha256: batch.payload_sha256,
+      private_data_sha256: batch.private_data_sha256,
+      controls,
+      received_at: new Date().toISOString(),
+      source_sha256: sha(JSON.stringify(raw)),
       source_file_sha256: sourceFileHash,
-      calibration: {
-        batch_id: batch.batch_id,
-        receipt_file: receiptName,
-        receipt_sha256: sha(JSON.stringify(receipt)),
-      },
+      qualification:
+        controls.status === "PASS"
+          ? "ADVISORY_PENDING_HUMAN_REVIEW"
+          : "CONTROL_INVALID_EXCLUDED_FROM_COUNTS",
+    };
+    const receiptName = `grade-batch-receipt-${randomUUID()}.json`,
+      dir = path.join(root, "oracles");
+    writeJSON(path.join(dir, receiptName), receipt);
+    const imports = raw.submissions.map((submission: any) => {
+      const mapping = privateData.mapping.find(
+        (m: any) => m.packet_id === submission.packet_id,
+      );
+      requireThat(mapping, "GRADE_BATCH_MAPPING_MISSING");
+      const dest = path.join(
+        dir,
+        `${mapping.run}-verdict-${randomUUID()}.json`,
+      );
+      writeJSON(dest, {
+        ...submission,
+        received_at: receipt.received_at,
+        qualification: receipt.qualification,
+        source_sha256: sha(JSON.stringify(submission)),
+        source_file_sha256: sourceFileHash,
+        calibration: {
+          batch_id: batch.batch_id,
+          receipt_file: receiptName,
+          receipt_sha256: sha(JSON.stringify(receipt)),
+        },
+      });
+      return { run: mapping.run, file: dest };
     });
-    return { run: mapping.run, file: dest };
-  });
-  return {
-    file: path.join(dir, receiptName),
-    controls,
-    imports,
-    qualification: receipt.qualification,
-  };
+    return {
+      file: path.join(dir, receiptName),
+      controls,
+      imports,
+      qualification: receipt.qualification,
+    };
+  } catch (error) {
+    let sourceHash: string | null = null;
+    try {
+      sourceHash = sha(readGradeSubmissionBytes(root, file));
+    } catch {
+      /* invalid or unavailable input remains untrusted */
+    }
+    writeJSON(
+      path.join(root, "oracles", `grade-batch-rejection-${randomUUID()}.json`),
+      {
+        status: "REJECTED_NOT_COUNTED",
+        received_at: new Date().toISOString(),
+        source_file: path.basename(file),
+        source_file_sha256: sourceHash,
+        error: error instanceof Error ? error.message : "GRADE_IMPORT_REJECTED",
+      },
+    );
+    throw error;
+  }
 }
 /** Recompute calibration at read time; an echoed PASS flag is never trusted. */
 export function receiptCalibration(
@@ -219,5 +254,15 @@ export function receiptCalibration(
     ),
     "GRADE_BATCH_RECEIPT_SAMPLE_MISMATCH",
   );
-  return validateGradeBatch(batch, privateData, stored.submission);
+  requireThat(
+    stored.batch_payload_sha256 === batch.payload_sha256 &&
+      stored.private_data_sha256 === batch.private_data_sha256,
+    "GRADE_BATCH_CALIBRATION_SOURCE_CHANGED",
+  );
+  const controls = validateGradeBatch(batch, privateData, stored.submission);
+  requireThat(
+    JSON.stringify(controls) === JSON.stringify(stored.controls),
+    "GRADE_BATCH_CALIBRATION_STATUS_CHANGED",
+  );
+  return controls;
 }

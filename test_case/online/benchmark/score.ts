@@ -17,6 +17,14 @@ import {
 } from "./io.ts";
 
 const severityOrder = ["S1", "S2", "S3", "S4"];
+const g1Tags = new Set([
+  "authority",
+  "unauthorized_effect",
+  "stale_correction",
+  "lost_obligation",
+  "false_completion",
+  "duplicate_effect",
+]);
 /** Rescores are not fresh runs. Ambiguous repeated judgments never increase N. */
 export function summarizeJudgments(rows: any[]) {
   const groups = new Map<string, any>();
@@ -142,7 +150,11 @@ export function summarizeJudgments(rows: any[]) {
       })),
       hard_gate_candidates: unambiguous.flatMap((r: any) =>
         r.verdicts
-          .filter((v: any) => v.label === "FAIL")
+          .filter(
+            (v: any) =>
+              v.label === "FAIL" &&
+              v.hard_gate_tags?.some((tag: string) => g1Tags.has(tag)),
+          )
           .map((v: any) => ({
             run: r.run,
             assertion_id: v.assertion_id,
