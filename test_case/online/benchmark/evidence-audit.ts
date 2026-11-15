@@ -104,7 +104,7 @@ export function maintenanceEvidence(
 }
 
 /** Read-only reconstruction. Never open Store or advance recovery just to inspect a run. */
-export function auditEpisode(run: Run) {
+export function auditEpisode(run: Run, persist = true) {
   requireThat(
     ["STOPPED", "RETIRED"].includes(run.state) &&
       (!run.process || processStatus(run.process) === "STOPPED"),
@@ -192,6 +192,6 @@ export function auditEpisode(run: Run) {
     run.evidence,
     "audit-" + sha(JSON.stringify(audit)) + ".json",
   );
-  if (!fs.existsSync(file)) writeJSON(file, audit);
-  return { file, audit };
+  if (persist && !fs.existsSync(file)) writeJSON(file, audit);
+  return { file, audit, persisted: fs.existsSync(file) };
 }

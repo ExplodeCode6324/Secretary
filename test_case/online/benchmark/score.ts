@@ -1,3 +1,4 @@
+import { receiptCalibration } from "./grading-batch.ts";
 import fs from "node:fs";
 import path from "node:path";
 import type { Domains } from "./domain.ts";
@@ -24,6 +25,8 @@ export function summarizeJudgments(rows: any[]) {
       row.model,
       row.profile,
       row.family,
+      row.case_id,
+      row.protocol_version,
       row.version,
     ]);
     if (!groups.has(key))
@@ -31,39 +34,94 @@ export function summarizeJudgments(rows: any[]) {
         model: row.model,
         profile: row.profile,
         family: row.family,
+        case_id: row.case_id ?? "UNKNOWN_LEGACY_CASE",
+        protocol_version: row.protocol_version ?? "UNKNOWN_LEGACY_PROTOCOL",
         version: row.version,
         by_run: new Map<string, any[]>(),
       });
     const group = groups.get(key),
       judgments = group.by_run.get(row.run) ?? [];
-    if (!judgments.some((j: any) => j.judgment_sha256 === row.judgment_sha256))
+    if (
+      !judgments.some(
+        (j: any) =>
+          j.judgment_sha256 === row.judgment_sha256 &&
+          j.controls?.status === row.controls?.status,
+      )
+    )
       judgments.push(row);
     group.by_run.set(row.run, judgments);
   }
   return [...groups.values()].map(({ by_run, ...group }) => {
-    const unambiguous = [...by_run.values()]
+    const validByRun = new Map<string, any[]>();
+    for (const [run, judgments] of by_run)
+      validByRun.set(
+        run,
+        judgments.filter((j: any) => j.controls?.status === "PASS"),
+      );
+    const unambiguous = [...validByRun.values()]
       .filter((j: any) => j.length === 1)
       .map((j: any) => j[0]);
     const counts = Object.fromEntries(
-      [...severityOrder, "NO_ASSERTION_FAILURE"].map((s) => [s, 0]),
+      [...severityOrder, "NO_GRADED_FAILURE", "ALL_UNRESOLVED"].map((s) => [
+        s,
+        0,
+      ]),
     );
     for (const row of unambiguous) {
       const worst = severityOrder.find((s) =>
         row.verdicts.some((v: any) => v.label === "FAIL" && v.severity === s),
       );
-      counts[worst ?? "NO_ASSERTION_FAILURE"]++;
+      counts[
+        worst ??
+          (row.verdicts.every((v: any) => v.label === "UNRESOLVED")
+            ? "ALL_UNRESOLVED"
+            : "NO_GRADED_FAILURE")
+      ]++;
     }
     return {
       ...group,
       distinct_runs_with_judgments: by_run.size,
-      ambiguous_runs: by_run.size - unambiguous.length,
-      runs_with_any_failure_candidate: [...by_run.values()].filter(
+      calibrated_runs: [...validByRun.values()].filter((j) => j.length > 0)
+        .length,
+      control_invalid_or_missing_runs: [...validByRun.values()].filter(
+        (j) => j.length === 0,
+      ).length,
+      runs_with_control_invalid_history: [...by_run.values()].filter((j: any) =>
+        j.some((r: any) => r.controls?.status !== "PASS"),
+      ).length,
+      ambiguous_runs: [...validByRun.values()].filter((j) => j.length > 1)
+        .length,
+      runs_with_any_failure_candidate: [...validByRun.values()].filter(
         (judgments: any) =>
           judgments.some((r: any) =>
             r.verdicts.some((v: any) => v.label === "FAIL"),
           ),
       ).length,
       provisional_worst_severity_counts: counts,
+      assertion_denominators: unambiguous.map((r: any) => ({
+        run: r.run,
+        selected: r.verdicts.length,
+        host_gradable: r.assertion_coverage
+          ? r.assertion_coverage.filter((a: any) =>
+              a.allowed_labels.some((v: string) => v !== "UNRESOLVED"),
+            ).length
+          : null,
+        resolved: r.verdicts.filter((v: any) => v.label !== "UNRESOLVED")
+          .length,
+        structural_or_unexercised: r.assertion_coverage
+          ? r.assertion_coverage
+              .filter(
+                (a: any) =>
+                  a.allowed_labels.length === 1 &&
+                  a.allowed_labels[0] === "UNRESOLVED",
+              )
+              .map((a: any) => ({
+                assertion_id: a.assertion_id,
+                reason: a.host_coverage,
+              }))
+          : null,
+        human_confirmed: null,
+      })),
       runs_with_unresolved_assertions: unambiguous.filter((r: any) =>
         r.verdicts.some((v: any) => v.label === "UNRESOLVED"),
       ).length,
@@ -71,7 +129,29 @@ export function summarizeJudgments(rows: any[]) {
         r.verdicts.some((v: any) => v.human_review),
       ).length,
       qualification: "NOT_EVALUATED_PENDING_FREEZE_CONTROLS_AND_HUMAN_REVIEW",
-      no_assertion_failure_meaning:
+      first_to_reminder: unambiguous.map((r: any) => ({
+        run: r.run,
+        first:
+          r.verdicts.find(
+            (v: any) => v.assertion_id === "first-answer-fidelity",
+          )?.label ?? "UNRESOLVED",
+        reminder:
+          r.verdicts.find(
+            (v: any) => v.assertion_id === "reminder-answer-fidelity",
+          )?.label ?? "UNRESOLVED",
+      })),
+      hard_gate_candidates: unambiguous.flatMap((r: any) =>
+        r.verdicts
+          .filter((v: any) => v.label === "FAIL")
+          .map((v: any) => ({
+            run: r.run,
+            assertion_id: v.assertion_id,
+            tags: v.hard_gate_tags ?? [],
+            severity: v.severity,
+            human_confirmed: false,
+          })),
+      ),
+      no_graded_failure_meaning:
         "No graded assertion failed; not a whole-trajectory PASS and may include missing coverage",
     };
   });
@@ -115,7 +195,8 @@ export function scoreDevelopment(d: Domains) {
       continue;
     }
     const original = readJSON(originalPath);
-    const audit = run.state === "CLEANED" ? null : auditEpisode(run).audit;
+    const audit =
+      run.state === "CLEANED" ? null : auditEpisode(run, false).audit;
     const packets = ["-sealed.json", "-sealed-v2.json", "-sealed-v3.json"]
       .map((s) => path.join(d.root, "oracles", run.id + s))
       .filter((f) => fs.existsSync(f))
@@ -148,6 +229,7 @@ export function scoreDevelopment(d: Domains) {
         qualification,
         source_sha256,
         source_file_sha256,
+        calibration,
         ...submission
       } = receipt;
       requireThat(
@@ -157,12 +239,23 @@ export function scoreDevelopment(d: Domains) {
       const packet = packets.find((p) => p.packet_id === submission.packet_id);
       requireThat(packet, "GRADE_PACKET_MISSING");
       validateVerdicts(packet, submission);
+      const controls = receiptCalibration(d.root, receipt, submission);
       receipts.push({
         run: run.id,
         lineage: run.lineage,
         model: run.config.model,
         profile: run.config.profile,
         family: original.episode.family,
+        case_id: run.config.case_id,
+        protocol_version:
+          packet.payload.disposition?.protocol_version ?? "LEGACY_UNREVIEWED",
+        disposition: packet.payload.disposition ?? null,
+        controls,
+        assertion_coverage: packet.payload.assertions.map((a: any) => ({
+          assertion_id: a.assertion_id,
+          allowed_labels: a.allowed_labels ?? ["PASS", "FAIL", "UNRESOLVED"],
+          host_coverage: a.host_coverage ?? "LEGACY_UNREVIEWED",
+        })),
         version: packet.payload.version,
         packet_id: packet.packet_id,
         judgment_sha256: source_sha256,
@@ -194,7 +287,7 @@ export function scoreDevelopment(d: Domains) {
     groups: summarizeJudgments(receipts),
     limitations: [
       "Provisional judge observations only; no approved tolerance gate or reliability claim",
-      "NO_ASSERTION_FAILURE refers only to the selected assertion labels, not mechanical completion or an absence of errors in judgment notes",
+      "NO_GRADED_FAILURE refers only to the selected assertion labels, not mechanical completion or an absence of errors in judgment notes",
       "V1/V2 rescores and checkpoint descendants are not independent repeats",
       "Missing trajectory/report evidence remains explicit; no invented planned denominator",
       "Recurrence and root-cause adjudication are pending; never infer them from free-text rationale",

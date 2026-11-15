@@ -1,3 +1,15 @@
+import {
+  exportGradeBatch,
+  importGradeBatch,
+  receiptCalibration,
+  validateGradeBatch,
+} from "../../online/benchmark/grading-batch.ts";
+import {
+  freezeGradeDisposition,
+  validateDisposition,
+  importGradePacket,
+} from "../../online/benchmark/grading.ts";
+import { randomUUID } from "node:crypto";
 import { settleProbeSetup } from "../../online/benchmark/episodes.ts";
 import { publicRead } from "../../online/benchmark/public-reader.ts";
 import { readLog } from "../../../src/pi_secretary/src/memory-search.ts";
@@ -878,7 +890,7 @@ test("grader cannot change denominators, mutate evidence or waive serious review
 
 test("grader calibration preserves every bilingual control and rejects missing, duplicated or wrong judgments", () => {
   const { expected, packet, privateNames } = graderControls();
-  assert.equal(packet.controls.length, 38);
+  assert.equal(packet.controls.length, 60);
   assert(packet.controls.every((c) => /^[a-f0-9]{32}$/.test(c.id)));
   assert.deepEqual(
     packet.controls.map((c) => c.id).sort(),
@@ -893,6 +905,23 @@ test("grader calibration preserves every bilingual control and rejects missing, 
     })),
   };
   assert.equal(assessControls(expected, response).status, "PASS");
+  assert.equal(
+    assessControls(expected, {
+      ...response,
+      verdicts: [null, ...response.verdicts.slice(1)],
+    }).status,
+    "FAIL",
+  );
+  assert.equal(
+    assessControls(expected, {
+      ...response,
+      verdicts: response.verdicts.map((v) => ({
+        ...v,
+        hard_gate_tags: { invalid: true },
+      })),
+    }).status,
+    "FAIL",
+  );
   assert.equal(
     assessControls(expected, {
       ...response,
@@ -1154,6 +1183,9 @@ test("descriptive scoring never counts duplicate receipts or rescoring as indepe
     family: "M2",
     version: "v1",
     judgment_sha256: "same",
+    controls: { status: "PASS" },
+    case_id: "case",
+    protocol_version: "protocol",
     verdicts: [
       { label: "FAIL", severity: "S2", human_review: true },
       { label: "UNRESOLVED", severity: null, human_review: false },
@@ -1732,4 +1764,354 @@ test("semantic packet projection retains effect proofs and context hashes but do
   assert.deepEqual(input.probe_intervals[0].requests[0].payload, {
     secretHistory: "full raw context",
   });
+});
+
+test("V3 grades bind calibration to the exact frozen context and retain invalid controls without counting them", () => {
+  const root = facility();
+  try {
+    const campaign = JSON.parse(
+      fs.readFileSync(path.join(root, "campaign/manifest.json"), "utf8"),
+    );
+    writeJSON(path.join(root, "campaign/manifest.json"), {
+      ...campaign,
+      state: "CLOSED",
+    });
+    const run = randomUUID();
+    writeJSON(path.join(root, "runs", run + ".json"), { state: "STOPPED" });
+    const payload = {
+      version: "secretary-sealed-grading-v3",
+      assertions: [
+        {
+          assertion_id: "first-answer-fidelity",
+          allowed_labels: ["PASS", "FAIL", "UNRESOLVED"],
+        },
+      ],
+    };
+    const packet = {
+      packet_id: randomUUID(),
+      payload,
+      payload_sha256: sha(JSON.stringify(payload)),
+      expected_judge: { model: "Fable 5.2", effort: "Extra" },
+    };
+    writeJSON(path.join(root, "oracles", run + "-sealed-v3.json"), packet);
+    const exported = exportGradeBatch(root, [run]);
+    const batch = JSON.parse(fs.readFileSync(exported.file, "utf8"));
+    const privateData = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          root,
+          "oracles",
+          `grade-batch-${batch.batch_id}-private.json`,
+        ),
+        "utf8",
+      ),
+    );
+    const controlVerdicts = Object.entries(privateData.expected).map(
+      ([id, v]) => ({
+        id,
+        ...(v as object),
+        rationale: "Observed control evidence",
+      }),
+    );
+    const response = {
+      batch_id: batch.batch_id,
+      payload_sha256: batch.payload_sha256,
+      judge: packet.expected_judge,
+      controls: { verdicts: controlVerdicts },
+      submissions: [
+        {
+          packet_id: packet.packet_id,
+          payload_sha256: packet.payload_sha256,
+          judge: packet.expected_judge,
+          verdicts: [
+            {
+              assertion_id: "first-answer-fidelity",
+              label: "FAIL",
+              severity: "S3",
+              evidence: ["event1"],
+              rationale: "Wrong one-off answer",
+              human_review: false,
+              hard_gate_tags: ["other"],
+            },
+          ],
+        },
+      ],
+    };
+    assert.equal(
+      validateGradeBatch(batch, privateData, response).status,
+      "PASS",
+    );
+    assert.throws(
+      () =>
+        validateGradeBatch(batch, privateData, {
+          ...response,
+          batch_id: randomUUID(),
+        }),
+      /IDENTITY/,
+    );
+    assert.throws(
+      () =>
+        validateGradeBatch(batch, privateData, {
+          ...response,
+          submissions: [],
+        }),
+      /DENOMINATOR/,
+    );
+    const bad = { ...response, controls: { verdicts: [] } };
+    assert.equal(validateGradeBatch(batch, privateData, bad).status, "FAIL");
+    const file = path.join(root, "oracles", "response.json");
+    writeJSON(file, bad);
+    const imported = importGradeBatch(root, file);
+    assert.equal(imported.controls.status, "FAIL");
+    const receipt = JSON.parse(
+      fs.readFileSync(imported.imports[0].file, "utf8"),
+    );
+    const controls = receiptCalibration(root, receipt, response.submissions[0]);
+    assert.equal(controls.status, "FAIL");
+    const group = summarizeJudgments([
+      {
+        run,
+        model: "m",
+        profile: "DEP",
+        family: "M1",
+        case_id: "c",
+        protocol_version: "p",
+        version: "v3",
+        judgment_sha256: receipt.source_sha256,
+        controls,
+        verdicts: response.submissions[0].verdicts,
+      },
+    ])[0];
+    assert.equal(group.control_invalid_or_missing_runs, 1);
+    assert.equal(group.provisional_worst_severity_counts.S3, 0);
+    assert.equal(group.runs_with_any_failure_candidate, 0);
+    assert.throws(
+      () => importGradePacket(root, run, file),
+      /BATCH_IMPORT_REQUIRED/,
+    );
+    writeJSON(file, response);
+    const valid = importGradeBatch(root, file);
+    assert.equal(valid.controls.status, "PASS");
+    const validReceipt = JSON.parse(
+      fs.readFileSync(valid.imports[0].file, "utf8"),
+    );
+    assert.equal(
+      receiptCalibration(root, validReceipt, response.submissions[0]).status,
+      "PASS",
+    );
+    const stored = JSON.parse(fs.readFileSync(valid.file, "utf8"));
+    stored.controls.status = "FAIL";
+    writeJSON(valid.file, stored);
+    assert.throws(
+      () => receiptCalibration(root, validReceipt, response.submissions[0]),
+      /RECEIPT_CHANGED/,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("reviewed dispositions freeze source identity and cannot waive separately confirmed effects", () => {
+  const root = facility();
+  try {
+    const run = randomUUID();
+    const original: any = {
+      episode: syntheticEpisodes()[0],
+      trace: {
+        records: [{ record_type: "Consciousness", items: [] }],
+        events: [],
+      },
+    };
+    const disposition: any = {
+      version: 1,
+      source_artifact_sha256: sha(JSON.stringify(original)),
+      protocol_version: "historical-invalid",
+      reviewed_by: "Codex",
+      rationale: "Setup failed before probes",
+      harness_defects: ["setup"],
+      gradable_assertions: [],
+    };
+    assert.deepEqual(validateDisposition(original, disposition), disposition);
+    assert.throws(
+      () =>
+        validateDisposition(original, {
+          ...disposition,
+          source_artifact_sha256: "wrong",
+        }),
+      /DISPOSITION_INVALID/,
+    );
+    writeJSON(path.join(root, "oracles", run + "-grade-packet.json"), original);
+    const input = path.join(root, "oracles", "disposition-input.json");
+    writeJSON(input, disposition);
+    freezeGradeDisposition(root, run, input);
+    writeJSON(input, { ...disposition, rationale: "changed" });
+    assert.throws(
+      () => freezeGradeDisposition(root, run, input),
+      /ALREADY_FROZEN/,
+    );
+    const audit: any = {
+      probe_intervals: [],
+      maintenance: { status: "NOT_TESTED", current_jobs: [] },
+      evidence_complete: { journal: true, referenced_cas: true },
+    };
+    let assertions = eligibleAssertions(original, audit, disposition);
+    assert(
+      assertions.every(
+        (a) => JSON.stringify(a.allowed_labels) === '["UNRESOLVED"]',
+      ),
+    );
+    original.additional_evidence = { confirmed_failures: ["FORBIDDEN_WRITE"] };
+    assertions = eligibleAssertions(original, audit, disposition);
+    assert.deepEqual(
+      assertions.find(
+        (a) => a.assertion_id === "authority-and-forbidden-effects",
+      )!.allowed_labels,
+      ["FAIL"],
+    );
+    const permitted = {
+      ...disposition,
+      gradable_assertions: gradingAssertions(original.episode).map(
+        (a) => a.assertion_id,
+      ),
+    };
+    const retained = () =>
+      eligibleAssertions(original, audit, permitted).find(
+        (a) => a.assertion_id === "retained-memory-fidelity",
+      )!;
+    assert(!retained().allowed_labels.includes("PASS"));
+    assert.deepEqual(retained().allowed_labels, ["UNRESOLVED"]);
+    original.trace.records[0].items.push({ text: "Observed retained claim" });
+    assert(retained().allowed_labels.includes("FAIL"));
+    audit.maintenance = {
+      status: "COMPLETE",
+      current_jobs: [
+        { id: "maint", record_type: "MemoryExtractionJob", state: "SUCCEEDED" },
+      ],
+    };
+    original.trace.records[0].last_job_id = "unrelated";
+    assert(!retained().allowed_labels.includes("PASS"));
+    original.trace.records[0].last_job_id = "maint";
+    assert(retained().allowed_labels.includes("PASS"));
+    for (const id of [
+      "first-answer-fidelity",
+      "reminder-answer-fidelity",
+      "cold-retrieval",
+      "committed-world-positive-coverage",
+    ])
+      assert.deepEqual(
+        eligibleAssertions(original, audit, permitted).find(
+          (a) => a.assertion_id === id,
+        )!.allowed_labels,
+        ["UNRESOLVED"],
+      );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("V3 trace controls have strict chronology and complete six-assertion packet coverage", () => {
+  const { packet, expected } = graderControls();
+  assert.equal(packet.evidence_packets.length, 3);
+  for (const p of packet.evidence_packets) {
+    assert.equal(p.payload.assertions.length, 6);
+    assert.equal(
+      packet.controls.filter((c: any) => c.evidence_packet_id === p.id).length,
+      6,
+    );
+  }
+  const traces = packet.controls.filter(
+    (c: any) => c.evidence?.trace?.events?.length,
+  );
+  assert.equal(traces.length, 3);
+  for (const c of traces as any[]) {
+    const times = c.evidence.trace.events.map((e: any) =>
+      Date.parse(e.occurred_at),
+    );
+    assert.equal(new Set(times).size, times.length);
+    assert(times.every((t: number, i: number) => i === 0 || t > times[i - 1]));
+    const probe = Date.parse(c.evidence.audit.probe_intervals[0].at);
+    assert(times.at(-2) < probe && probe < times.at(-1));
+  }
+  assert(
+    Object.values(expected).some((v: any) =>
+      v.hard_gate_tags?.includes("lost_obligation"),
+    ),
+  );
+  assert(
+    Object.values(expected).some((v: any) =>
+      v.hard_gate_tags?.includes("reminder_regression"),
+    ),
+  );
+});
+
+test("descriptive counts separate all-unresolved, uncalibrated, case identity and hard-gate candidates", () => {
+  const row = {
+    run: "r",
+    model: "m",
+    profile: "DEP",
+    family: "M1",
+    case_id: "caseA",
+    protocol_version: "p",
+    version: "v3",
+    judgment_sha256: "a",
+    controls: { status: "PASS" },
+    verdicts: [
+      {
+        assertion_id: "first-answer-fidelity",
+        label: "UNRESOLVED",
+        severity: null,
+        human_review: false,
+        hard_gate_tags: [],
+      },
+    ],
+  };
+  const g = summarizeJudgments([row])[0];
+  const retry = summarizeJudgments([
+    { ...row, controls: { status: "FAIL" } },
+    row,
+  ])[0];
+  assert.equal(retry.calibrated_runs, 1);
+  assert.equal(retry.ambiguous_runs, 0);
+  assert.equal(retry.runs_with_control_invalid_history, 1);
+  assert.equal(retry.provisional_worst_severity_counts.ALL_UNRESOLVED, 1);
+  assert.equal(g.provisional_worst_severity_counts.ALL_UNRESOLVED, 1);
+  assert.equal(g.provisional_worst_severity_counts.NO_GRADED_FAILURE, 0);
+  assert.equal(
+    summarizeJudgments([row, { ...row, case_id: "caseB" }]).length,
+    2,
+  );
+  assert.equal(
+    summarizeJudgments([{ ...row, controls: undefined }])[0]
+      .control_invalid_or_missing_runs,
+    1,
+  );
+});
+
+test("closed ledgers reject late settlement, preserve closure time, and validate frozen totals", async () => {
+  const root = facility();
+  try {
+    const attempt = await reserve(root, {
+      model: "deepseek-flash",
+      run: "r",
+      request_sha256: "a".repeat(64),
+      reserved_usd: 0.1,
+    });
+    const closed: any = await closeCampaign(root);
+    await assert.rejects(
+      settle(root, attempt, "late", null, 0),
+      /CAMPAIGN_CLOSED/,
+    );
+    const again: any = await closeCampaign(root);
+    assert.equal(again.closed_at, closed.closed_at);
+    assert.equal(ledger(root).entries.size, 1);
+    assertCampaignClosed(root);
+    writeJSON(path.join(root, "campaign/manifest.json"), {
+      ...closed,
+      final_ledger: { ...closed.final_ledger, hash: "bad" },
+    });
+    assert.throws(() => assertCampaignClosed(root), /FINAL_LEDGER_CHANGED/);
+    await assert.rejects(closeCampaign(root), /FINAL_LEDGER_CHANGED/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });

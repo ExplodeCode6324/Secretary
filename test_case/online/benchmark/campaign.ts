@@ -14,6 +14,13 @@ import {
   writeJSON,
 } from "./io.ts";
 
+type FinalLedger = {
+  hash: string;
+  sequence: number;
+  attempts: number;
+  unsettled: number;
+  charged_usd: number;
+};
 export type Campaign = {
   version: 1;
   approval_id: string;
@@ -22,6 +29,13 @@ export type Campaign = {
   ceiling_usd: number | null;
   created_at: string;
   source?: ReturnType<typeof fingerprint>;
+  closed_at?: string;
+  final_ledger?: FinalLedger;
+};
+type ClosedCampaign = Campaign & {
+  state: "CLOSED";
+  closed_at: string;
+  final_ledger: FinalLedger;
 };
 export type Attempt = {
   id: string;
@@ -244,6 +258,7 @@ export async function settle(
   actualUSD: number | null,
 ) {
   return locked(directory(root), async () => {
+    requireThat(loadCampaign(root).state === "OPEN", "CAMPAIGN_CLOSED");
     const item = ledger(root).entries.get(id);
     requireThat(item && !item.settled, "CAMPAIGN_INVALID_SETTLEMENT");
     requireThat(
@@ -260,14 +275,23 @@ export async function settle(
     });
   });
 }
-export async function closeCampaign(root: string) {
+export async function closeCampaign(root: string): Promise<ClosedCampaign> {
   return locked(directory(root), async () => {
     const c = loadCampaign(root);
+    if (c.state === "CLOSED" && c.final_ledger) {
+      assertCampaignClosed(root);
+      requireThat(
+        typeof c.closed_at === "string" &&
+          Number.isFinite(Date.parse(c.closed_at)),
+        "CAMPAIGN_CLOSURE_INVALID",
+      );
+      return c as ClosedCampaign;
+    }
     // Never discard orphan reservations: uncertain sends remain charged at full cost.
     const current = ledger(root);
     const closed = {
       ...c,
-      state: "CLOSED",
+      state: "CLOSED" as const,
       closed_at: new Date().toISOString(),
       final_ledger: {
         hash: current.previous,
@@ -299,7 +323,19 @@ export async function closeCampaign(root: string) {
 }
 export function assertCampaignClosed(root: string) {
   if (fs.existsSync(path.join(directory(root), "manifest.json"))) {
-    requireThat(loadCampaign(root).state === "CLOSED", "CAMPAIGN_OPEN");
-    ledger(root);
+    const c = loadCampaign(root);
+    requireThat(c.state === "CLOSED", "CAMPAIGN_OPEN");
+    const current = ledger(root),
+      final = c.final_ledger;
+    if (final)
+      requireThat(
+        final.hash === current.previous &&
+          final.sequence === current.sequence &&
+          final.attempts === current.entries.size &&
+          final.charged_usd === current.charged_usd &&
+          final.unsettled ===
+            [...current.entries.values()].filter((e) => !e.settled).length,
+        "CAMPAIGN_FINAL_LEDGER_CHANGED",
+      );
   }
 }

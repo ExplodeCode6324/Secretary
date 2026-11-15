@@ -51,8 +51,10 @@ npm run benchmark -- memory-repository --root <same-root> --approval <approved-i
 npm run benchmark -- memory-lifecycle --root <new-owned-root> --approval <approved-id>
 npm run benchmark -- memory-world --root <new-owned-root> --approval <approved-id>
 npm run benchmark -- memory-audit --root <stopped-root> --run <run-id>
+npm run benchmark -- memory-grade-disposition --root <stopped-root> --run <run-id> --verdict <reviewed-disposition.json>
 npm run benchmark -- memory-grade-export --root <stopped-root> --run <run-id>
-npm run benchmark -- memory-grade-import --root <stopped-root> --run <run-id> --verdict <private-verdict.json>
+npm run benchmark -- memory-grade-batch-export --root <stopped-root> --source <private-run-list.json>
+npm run benchmark -- memory-grade-batch-import --root <stopped-root> --verdict <private-batch-response.json>
 npm run benchmark -- memory-score --root <stopped-root>
 npm run benchmark -- memory-prepare --root <new-owned-root> --source <verified-public-source-bundle.json>
 npm run benchmark -- memory-public --root <prepared-root> --approval <approved-id> --subset dev
@@ -74,7 +76,7 @@ npm run benchmark -- memory-public-grade-import --root <stopped-public-root> --v
 
 所有 pilot 在派发前写出完整计划矩阵；当前行先记 INCOMPLETE，尚未运行的行保留 NOT_TESTED。创建、停止或封存异常会停止后续派发，保留首个失败及完整分母。仓库 B-v2 向 Task 明确传入已经送达的 probe 前材料；不传未来问题或 oracle。B-v1 未传材料、遇审批即退出的首轮证据保留，不能将其缺口算成记忆质量。
 
-评分导入只接受本 facility 的 `oracles/` 或本 checkout 的 `.local/reviews/` 下私有、归属明确的常规文件，保留原文件和规范 JSON 双哈希。`memory-score` 只做描述统计：不同评分版本分别列出，重复回执不扩大分母，同一 run 的冲突复评分标为待裁决，checkpoint 后继不算独立重复。它同时列出维护失败、driver 失败和未评分 run；`NO_ASSERTION_FAILURE` 仅表示选定断言没有 FAIL，不表示整轮无错误。S1/S2、重复根因、控制题及最终容忍门槛仍需复核，命令不生成合格结论。
+评分导入只接受本 facility 的 `oracles/` 或本 checkout 的 `.local/reviews/` 下私有、归属明确的常规文件，保留原文件和规范 JSON 双哈希。`memory-score` 只做描述统计：不同评分版本分别列出，重复回执不扩大分母，同一 run 的冲突复评分标为待裁决，checkpoint 后继不算独立重复。它同时列出维护失败、driver 失败和未评分 run；`NO_GRADED_FAILURE` 仅表示选定断言没有 FAIL，不表示整轮无错误。S1/S2、重复根因、控制题及最终容忍门槛仍需复核，命令不生成合格结论。
 
 V1/早期 V2 控制题编号曾透露正反例类别；保留历史答对结果，但不作为可靠盲评校准。V2b 使用不带答案含义的编号及稳定混排，需要重新独立校准。公共 P 的描述统计只计算实际取得内容的来源会话召回；只有 ID 的列表不算读取，命中任意片段不等于找到答案。官方准确率保留 NOT_TESTED；授权 Claude 变体也须固定并检查上游提示/parser、独立校准后再评分，检索指标不能替代语义准确率。P 的 Core bootstrap 使用 fixture，独立 reader 才发真实且计账的模型请求，两者不混淆。
 
@@ -120,8 +122,16 @@ worker 仅接收 Core 的非超级用户连接凭据，启动时断言实际角�
 
 ## R6 后的协议修订（v3 评分 / v2 公共适配器）
 
-新导出的 S/R 包使用 v3；旧包及评分不覆盖。V3 的 38 个控制包含 UNRESOLVED、S4、合理澄清和长轨迹注入错误，旧校准不能代替。模型名遮蔽不等于完全盲评，provider 格式仍可辨认。宿主覆盖限制允许标签；未执行正向 World/冷检索不能 PASS，已确定的错误效果不能用未知覆盖消除。
+新导出的 S/R 包使用 v3；旧包及评分不覆盖。V3 的 60 个控制包含三个完整六断言包、UNRESOLVED、S4、合理澄清和长轨迹注入错误，旧校准不能代替。模型名遮蔽不等于完全盲评，provider 格式仍可辨认。宿主覆盖限制允许标签；未执行正向 World/冷检索只允许 UNRESOLVED，已确定的错误效果不能用未知覆盖消除。
 
 公共 v2 搜索只返回产品式 200 字符 snippet/offset，v1 整块命中结果只作历史参考。明确工具/请求超限与空答为 SUT_NO_ANSWER，按错误计；基础设施未知保持 unresolved。公共 QA v2 与历史 v1 分别保存，不混算最好结果。
 
 源码在整个 campaign 内固定；创建/启动/发送均检查。控制器崩溃后可运行 `npm run benchmark -- memory-campaign-close --root <exact-facility-root>`，仅在全部归属可核验的 worker/PG 已停止时关闭，保留 orphan 预留与最终费用/ledger 哈希，不重新派发。正常关闭也更新持久批准登记表。发送保护读取 checkpoint 外的 lineage canary/未来输入表；拒绝产生无正文的私有回执。现有错误率门槛继续等待 Master 冻结；本工具不宣布发布合格。
+
+## R9 后的批次校准与逐轨迹处置
+
+首次 V3 导出前提交私有 disposition：version=1、原始 grade-packet 的规范 JSON SHA256（source_artifact_sha256）、protocol_version、reviewed_by、rationale、harness_defects、gradable_assertions。说明哪些断言受历史 harness 缺陷影响，与来源一同冻结，不能消除独立确认的错误效果。批次清单为私有 JSON {"runs":["<run-id>"]}，只含本 facility 已停止的 run。导出包含固定 ID、控制和样本全文；private expected/mapping 禁止发送给 grader。
+
+每个新上下文只评一个 batch，关闭记忆和历史会话引用，不使用工具或仓库；看过答案的代码 reviewer 不能在同一上下文评分。回执绑定批次/样本哈希和完整控制结果；直接 memory-grade-import 拒绝绕过。统计重新核验校准，控制无效/缺失不计严重度。ALL_UNRESOLVED 单列，NO_GRADED_FAILURE 不代表整轮成功。
+
+FAIL 必须带 hard_gate_tags：authority、stale_correction、lost_obligation、false_completion、duplicate_effect、reminder_regression 或 other；PASS/UNRESOLVED 标签为空。S1/S2 的 human_review=true 表示待人工审查，不是已获人工批准。没有回答的探针、不可判定冷检索和未执行 World 正向协议只允许 UNRESOLVED；Retained PASS 必须对应真实维护产物。导出/score 使用不写入原证据的审计模式。

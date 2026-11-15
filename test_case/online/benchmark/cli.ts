@@ -1,3 +1,4 @@
+import { exportGradeBatch, importGradeBatch } from "./grading-batch.ts";
 import { markdown } from "../../benchmarks/common/report.ts";
 import path from "node:path";
 import { Domains, configuration } from "./domain.ts";
@@ -20,7 +21,12 @@ import { preparePublic } from "./dataset.ts";
 import { stopDatabase } from "./postgres.ts";
 import { pilot } from "./episodes.ts";
 import { modelIDs, type ModelID } from "./live-model.ts";
-import { exportGradePacket, importGradePacket } from "./grading.ts";
+import {
+  readGradeSubmission,
+  freezeGradeDisposition,
+  exportGradePacket,
+  importGradePacket,
+} from "./grading.ts";
 import { replaySummaryCapacity } from "./capacity.ts";
 import { preparePrivate } from "./private-replay.ts";
 import { publicPilot } from "./public-reader.ts";
@@ -331,6 +337,42 @@ async function main() {
       );
       return;
     }
+    if (command === "memory-grade-disposition") {
+      requireThat(
+        options["--run"] && options["--verdict"],
+        "GRADE_DISPOSITION_ARGUMENTS_REQUIRED",
+      );
+      d.load(options["--run"]);
+      console.log(
+        JSON.stringify(
+          freezeGradeDisposition(
+            root,
+            options["--run"],
+            path.resolve(options["--verdict"]),
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-grade-batch-export") {
+      requireThat(options["--source"], "GRADE_BATCH_SOURCE_REQUIRED");
+      const file = path.resolve(options["--source"]);
+      noLinks(file);
+      const { raw } = readGradeSubmission(root, file);
+      requireThat(Array.isArray(raw.runs), "GRADE_BATCH_RUNS_INVALID");
+      for (const run of raw.runs) d.load(run);
+      console.log(JSON.stringify(exportGradeBatch(root, raw.runs)));
+      return;
+    }
+    if (command === "memory-grade-batch-import") {
+      requireThat(options["--verdict"], "GRADE_BATCH_RESPONSE_REQUIRED");
+      console.log(
+        JSON.stringify(
+          importGradeBatch(root, path.resolve(options["--verdict"])),
+        ),
+      );
+      return;
+    }
     if (
       command === "memory-grade-export" ||
       command === "memory-grade-import"
@@ -343,7 +385,7 @@ async function main() {
             exportGradePacket(
               root,
               options["--run"],
-              auditEpisode(d.load(options["--run"])).audit,
+              auditEpisode(d.load(options["--run"]), false).audit,
             ),
           ),
         );
