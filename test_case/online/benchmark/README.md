@@ -1,5 +1,7 @@
 # 独立 benchmark（#120 基础 / #121 真实记忆开发）
 
+当前评分默认已统一为 Opus 5.5 Extra，见[操作与重放说明](OPUS-GRADING.md) / [English](OPUS-GRADING.en.md)。本 issue 交付 benchmark 流程和证据链，人工性能资格与阈值不阻塞工具交付。下方旧迁移段落保留历史范围。
+
 同一入口管理可重建的 Core / PostgreSQL 环境。默认仍为 **fixture / correctness / infrastructure v1**，零次真实模型调用；显式 `memory-*` 命令可执行已授权的真实模型开发场景。程序检查通过不代表记忆质量通过，开发样本不冒充未见样本；错误容忍门槛仍待 Master 冻结。
 
 ## 前提与边界

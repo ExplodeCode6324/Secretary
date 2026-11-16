@@ -1,9 +1,15 @@
+import { commitGradeFiles, gradeJSONBytes } from "./grading-transaction.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { Domains } from "./domain.ts";
 import { assertCampaignClosed } from "./campaign.ts";
-import { approvedJudge, blind, readGradeSubmission } from "./grading.ts";
+import {
+  approvedJudge,
+  judgeMatchesPolicy,
+  blind,
+  readGradeSubmission,
+} from "./grading.ts";
 import {
   read,
   readJSON,
@@ -227,9 +233,9 @@ export function exportPublicGrades(d: Domains) {
     };
   });
   const payload = {
-    version: "secretary-public-qa-claude-variant-v2",
+    version: "secretary-public-qa-opus-variant-v1",
     upstream_scorer_sha256: supportedPublicScorer,
-    judge: { model: "Fable 5.2", effort: "Extra" },
+    judge: { model: "Opus 5.5", effort: "Extra" },
     scope:
       "Public component adapter; changed judge and strict JSON parser; NOT the official score",
     instructions:
@@ -237,7 +243,7 @@ export function exportPublicGrades(d: Domains) {
     controls: controls.controls,
     questions,
   };
-  const file = path.join(d.root, "oracles/public-qa-sealed-v2.json");
+  const file = path.join(d.root, "oracles/public-qa-sealed-opus-v1.json");
   if (fs.existsSync(file)) {
     const old = readJSON(file);
     requireThat(
@@ -257,11 +263,16 @@ export function exportPublicGrades(d: Domains) {
     private_data_sha256: sha(JSON.stringify(privateData)),
     payload,
   };
-  writeJSON(
-    path.join(d.root, "oracles/public-qa-private-v2.json"),
-    privateData,
-  );
-  writeJSON(file, packet);
+  commitGradeFiles(d.root, d.assertControllerLease(), "PUBLIC_OPUS_EXPORT", [
+    {
+      name: "oracles/public-qa-private-opus-v1.json",
+      content: gradeJSONBytes(privateData),
+    },
+    {
+      name: "oracles/public-qa-sealed-opus-v1.json",
+      content: gradeJSONBytes(packet),
+    },
+  ]);
   return {
     file,
     packet_id: packet.packet_id,
@@ -277,7 +288,11 @@ export function validatePublicGrade(
     packet.payload_sha256 === sha(JSON.stringify(packet.payload)) &&
       packet.packet_id === submission.packet_id &&
       packet.payload_sha256 === submission.payload_sha256 &&
-      approvedJudge(submission.judge),
+      (packet.payload.version === "secretary-public-qa-opus-variant-v1"
+        ? judgeMatchesPolicy(submission.judge, "opus-5.5-extra-migration-v1") &&
+          packet.payload.judge.model === "Opus 5.5" &&
+          packet.payload.judge.effort === "Extra"
+        : approvedJudge(submission.judge)),
     "PUBLIC_GRADE_IDENTITY_MISMATCH",
   );
   const check = (rows: any, ids: string[]) => {
@@ -327,6 +342,19 @@ export function importPublicGrades(d: Domains, file: string) {
   );
   requireThat(matches.length === 1, "PUBLIC_GRADE_IDENTITY_MISMATCH");
   const { packet, privateData } = matches[0];
+  requireThat(
+    packet.payload.version === "secretary-public-qa-opus-variant-v1",
+    "PUBLIC_LEGACY_READ_ONLY",
+  );
+  for (const name of fs
+    .readdirSync(path.join(d.root, "oracles"))
+    .filter((n) => /^public-qa-verdict-[a-f0-9-]{36}\.json$/.test(n)))
+    requireThat(
+      readJSON(path.join(d.root, "oracles", name)).submission?.packet_id !==
+        raw.packet_id,
+      "PUBLIC_GRADE_ALREADY_IMPORTED",
+    );
+
   const controls = validatePublicGrade(
     packet,
     privateData.expected_controls,
@@ -336,14 +364,20 @@ export function importPublicGrades(d: Domains, file: string) {
     d.root,
     "oracles/public-qa-verdict-" + randomUUID() + ".json",
   );
-  writeJSON(dest, {
+  const receipt = {
     submission: raw,
     controls,
     received_at: new Date().toISOString(),
     source_file_sha256: sourceFileHash,
     source_sha256: sha(JSON.stringify(raw)),
     qualification: "ADVISORY_PUBLIC_VARIANT_NOT_RELEASE_GATE",
-  });
+  };
+  commitGradeFiles(d.root, d.assertControllerLease(), "PUBLIC_OPUS_IMPORT", [
+    {
+      name: "oracles/" + path.basename(dest),
+      content: gradeJSONBytes(receipt),
+    },
+  ]);
   return {
     file: dest,
     controls,
@@ -352,7 +386,7 @@ export function importPublicGrades(d: Domains, file: string) {
 }
 function publicGradePackets(root: string) {
   const dir = path.join(root, "oracles");
-  return ["v1", "v2"]
+  return ["v1", "v2", "opus-v1"]
     .filter((v) => fs.existsSync(path.join(dir, `public-qa-sealed-${v}.json`)))
     .map((v) => {
       const packet = readJSON(path.join(dir, `public-qa-sealed-${v}.json`));
@@ -421,6 +455,7 @@ export function scorePublicGrades(root: string) {
     }
     judgments.push({
       version: packet.payload.version,
+      judge: packet.payload.judge,
       source_sha256: receipt.source_sha256,
       receipt_file: name,
       controls,

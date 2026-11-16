@@ -361,7 +361,7 @@ export function migrationAttemptCoverage(root: string, batch: any) {
     consumed_not_sent: consumed,
   };
 }
-function evidenceOutputs(root: string, prefix: string, evidence: any) {
+export function evidenceOutputs(root: string, prefix: string, evidence: any) {
   requireThat(
     evidence && Array.isArray(evidence.files) && evidence.files.length > 0,
     "GRADE_UI_EVIDENCE_REQUIRED",
@@ -518,7 +518,7 @@ export function recordMigrationSend(
   return value;
 }
 /** Preserve response identity across quarantine, not merely at live paths. */
-function attemptResponseJournals(root: string, prefix: string) {
+export function attemptResponseJournals(root: string, prefix: string) {
   const names = new Set(
     ["original.txt", "terminal.json", "outcome.json"].map(
       (n) => prefix + "/" + n,

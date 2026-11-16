@@ -1,6 +1,21 @@
+import {
+  buildAssessment,
+  planFreshAssessment,
+  exportAssessment,
+  reserveAssessment,
+  sendAssessment,
+  importAssessment,
+  assessmentNoResponse,
+} from "./assessment.ts";
+import {
+  createAssessmentReplayManifest,
+  replayAssessment,
+} from "./assessment-report.ts";
+import { writeJSON } from "./io.ts";
 import fs from "node:fs";
 import { sha } from "./io.ts";
 import {
+  gradeJSONBytes,
   incompleteGradePreparation,
   readOwnedGradeFile,
   gradeUUID,
@@ -18,7 +33,7 @@ import {
   recordMigrationNoResponse,
   importMigrationResponse,
 } from "./grading-attempt.ts";
-import { exportGradeBatch, importGradeBatch } from "./grading-batch.ts";
+import { importGradeBatch } from "./grading-batch.ts";
 import { markdown } from "../../benchmarks/common/report.ts";
 import path from "node:path";
 import { Domains, configuration } from "./domain.ts";
@@ -169,6 +184,7 @@ async function main() {
     return;
   }
   if (
+    command.startsWith("memory-assessment-") ||
     command.startsWith("memory-judge-") ||
     command.startsWith("memory-grade-batch-") ||
     command === "memory-score"
@@ -178,6 +194,18 @@ async function main() {
     requireThat(options[key], "GRADE_ARGUMENT_REQUIRED");
     return readGradeSubmission(root, path.resolve(options[key])).raw;
   };
+  if (command === "memory-assessment-replay") {
+    const manifest = input("--source"),
+      locations = input("--config");
+    console.log(
+      JSON.stringify(
+        replayAssessment(manifest, locations, options["--sha256"]),
+        null,
+        2,
+      ),
+    );
+    return;
+  }
   if (command === "memory-judge-ready") {
     const source = input("--source"),
       proof = input("--approval");
@@ -187,6 +215,169 @@ async function main() {
     return;
   }
   await Domains.use(root, async (d) => {
+    if (command === "memory-assessment-plan") {
+      const source = input("--source");
+      const plan = planFreshAssessment(
+        root,
+        source.runs,
+        source.cohort,
+        source.anchor_relative,
+      );
+      const id = plan.worklist.new_batches[0].assessment_id;
+      const file = path.join(
+        repository,
+        ".local/reviews",
+        `assessment-source-${id}.json`,
+      );
+      requireThat(!fs.existsSync(file), "ASSESSMENT_PLAN_ALREADY_EXISTS");
+      writeJSON(file, plan);
+      console.log(
+        JSON.stringify({
+          file,
+          assessment_id: id,
+          worklist_sha256: sha(gradeJSONBytes(plan.worklist)),
+        }),
+      );
+      return;
+    }
+    if (command === "memory-assessment-prepare") {
+      const source = input("--source");
+      const prepared = buildAssessment(
+        root,
+        source.worklist,
+        source.history,
+        options["--batch"],
+        source.anchor_relative,
+      );
+      // Only the private preparation artifact contains mappings/control keys.
+      const destination = path.join(
+        repository,
+        ".local/reviews",
+        `assessment-preparation-${options["--batch"]}.json`,
+      );
+      requireThat(
+        !fs.existsSync(destination),
+        "ASSESSMENT_PREPARATION_ALREADY_EXISTS",
+      );
+      writeJSON(destination, {
+        record: prepared.record,
+        privateData: prepared.privateData,
+        preparation_sha256: prepared.preparation_sha256,
+      });
+      console.log(
+        JSON.stringify({
+          file: destination,
+          record_sha256: sha(gradeJSONBytes(prepared.record)),
+          request_sha256: prepared.record.request_sha256,
+          preparation_sha256: prepared.preparation_sha256,
+        }),
+      );
+      return;
+    }
+    if (
+      command === "memory-assessment-export" ||
+      command === "memory-grade-batch-export"
+    ) {
+      const source = input("--source");
+      console.log(
+        JSON.stringify(
+          exportAssessment(
+            root,
+            d.assertControllerLease(),
+            source.worklist,
+            source.history,
+            options["--batch"],
+            source.anchor_relative,
+            undefined,
+            input("--approval"),
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-assessment-reserve") {
+      console.log(
+        JSON.stringify(
+          reserveAssessment(
+            root,
+            d.assertControllerLease(),
+            options["--batch"],
+            input("--source"),
+            input("--approval"),
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-assessment-send") {
+      console.log(
+        JSON.stringify(
+          sendAssessment(
+            root,
+            d.assertControllerLease(),
+            options["--batch"],
+            options["--attempt"],
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-assessment-no-response") {
+      console.log(
+        JSON.stringify(
+          assessmentNoResponse(
+            root,
+            d.assertControllerLease(),
+            options["--batch"],
+            options["--attempt"],
+            input("--source"),
+          ),
+        ),
+      );
+      return;
+    }
+    if (
+      command === "memory-assessment-import" ||
+      command === "memory-grade-batch-import"
+    ) {
+      requireThat(
+        options["--verdict"] && options["--batch"] && options["--attempt"],
+        "ASSESSMENT_IMPORT_ARGUMENTS_REQUIRED",
+      );
+      console.log(
+        JSON.stringify(
+          importAssessment(
+            root,
+            d.assertControllerLease(),
+            options["--batch"],
+            options["--attempt"],
+            path.resolve(options["--verdict"]),
+            input("--source"),
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-assessment-snapshot") {
+      const source = input("--source");
+      const manifest = createAssessmentReplayManifest(
+        source.worklist,
+        source.locations,
+      );
+      const destination = path.join(
+        repository,
+        ".local/reviews",
+        `assessment-replay-${sha(gradeJSONBytes(manifest))}.json`,
+      );
+      if (!fs.existsSync(destination)) writeJSON(destination, manifest);
+      console.log(
+        JSON.stringify({
+          file: destination,
+          sha256: sha(gradeJSONBytes(manifest)),
+        }),
+      );
+      return;
+    }
     if (command === "memory-judge-export") {
       const proof = input("--approval");
       assertReviewedMigrationHead(proof);
@@ -503,33 +694,6 @@ async function main() {
       );
       return;
     }
-    if (command === "memory-grade-batch-export") {
-      requireThat(options["--source"], "GRADE_BATCH_SOURCE_REQUIRED");
-      const file = path.resolve(options["--source"]);
-      noLinks(file);
-      const { raw } = readGradeSubmission(root, file);
-      requireThat(Array.isArray(raw.runs), "GRADE_BATCH_RUNS_INVALID");
-      for (const run of raw.runs) d.load(run);
-      console.log(
-        JSON.stringify(
-          exportGradeBatch(root, raw.runs, d.assertControllerLease()),
-        ),
-      );
-      return;
-    }
-    if (command === "memory-grade-batch-import") {
-      requireThat(options["--verdict"], "GRADE_BATCH_RESPONSE_REQUIRED");
-      console.log(
-        JSON.stringify(
-          importGradeBatch(
-            root,
-            path.resolve(options["--verdict"]),
-            d.assertControllerLease(),
-          ),
-        ),
-      );
-      return;
-    }
     if (
       command === "memory-grade-export" ||
       command === "memory-grade-import"
@@ -538,22 +702,17 @@ async function main() {
       d.load(options["--run"]);
       if (command === "memory-grade-export")
         console.log(
-          JSON.stringify(
-            exportGradePacket(
+          JSON.stringify({
+            source_packet: exportGradePacket(
               root,
               options["--run"],
               auditEpisode(d.load(options["--run"]), false).audit,
             ),
-          ),
+            sendable: false,
+            next: "memory-assessment-prepare then memory-grade-batch-export",
+          }),
         );
-      else {
-        requireThat(options["--verdict"], "GRADE_SUBMISSION_REQUIRED");
-        const file = path.resolve(options["--verdict"]);
-        noLinks(file);
-        console.log(
-          JSON.stringify(importGradePacket(root, options["--run"], file)),
-        );
-      }
+      else throw new Error("USE_OPUS_ASSESSMENT_IMPORT_WITH_BATCH_AND_ATTEMPT");
       return;
     }
     if (command === "memory-prepare") {
