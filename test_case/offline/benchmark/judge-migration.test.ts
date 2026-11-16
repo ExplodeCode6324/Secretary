@@ -1571,3 +1571,189 @@ test("unmarked historical receipt chains retain canonical Fable provenance befor
     assert.equal(report.judgment_history[0].judge_policy, "fable-5.2-extra-v3");
   });
 });
+
+test("quarantined response capture binds exact bytes and never permits a no-response retry", async () => {
+  const f = await exportedCohort();
+  const { reconcileGradeTransaction } =
+    await import("../../online/benchmark/grading-transaction.ts");
+  for (const i of [0, 1]) {
+    const a = await reserved(f, i),
+      root = f.parents[i].root,
+      response = responseFor(root, a.child_batch_id, f.anchor),
+      link = fs.linkSync;
+    let failed = false;
+    fs.linkSync = ((...args: Parameters<typeof fs.linkSync>) => {
+      const capture = String(args[1]).includes("/" + a.attempt_id + "/");
+      if (!failed && capture && i === 0) {
+        failed = true;
+        throw Error("FIXTURE_CAPTURE_BEFORE_PROMOTION");
+      }
+      link(...args);
+      if (!failed && capture && String(args[1]).endsWith("/original.txt")) {
+        failed = true;
+        throw Error("FIXTURE_CAPTURE_AFTER_ORIGINAL");
+      }
+    }) as typeof fs.linkSync;
+    try {
+      await assert.rejects(submit(f, i, a, response), /FIXTURE_CAPTURE_/);
+    } finally {
+      fs.linkSync = link;
+    }
+    const pending = fs
+      .readdirSync(path.join(root, "oracles/.grading-transactions"))
+      .find(
+        (id) =>
+          !fs.existsSync(path.join(root, `oracles/grading-commit-${id}.json`)),
+      )!;
+    const q = await lease(root, async (c) =>
+      reconcileGradeTransaction(
+        root,
+        c,
+        pending,
+        sha(
+          fs.readFileSync(
+            path.join(
+              root,
+              "oracles/.grading-transactions",
+              pending,
+              "prepare.json",
+            ),
+          ),
+        ),
+      ),
+    );
+    const changed = structuredClone(response);
+    changed.submissions[0].notes.push("different candidate response");
+    await assert.rejects(
+      submit(f, i, a, changed),
+      /GRADE_EXACT_RESPONSE_REIMPORT_REQUIRED/,
+    );
+    await lease(root, async (c) =>
+      assert.throws(
+        () =>
+          recordMigrationNoResponse(
+            root,
+            c,
+            a.attempt_id,
+            {
+              confirmed_no_response: true,
+              in_flight: false,
+              failure_kind: "CONFIRMED_TRANSPORT_NO_RESPONSE",
+              reason: "Synthetic no text claim",
+              files: [path.join(f.review, "ui.json")],
+            },
+            f.anchor,
+          ),
+        /GRADE_ATTEMPT_RESPONSE_ALREADY_RECORDED/,
+      ),
+    );
+    // A local quarantine record cannot be substituted for the preserved journal.
+    const qFile = path.join(
+        root,
+        "oracles/.grading-quarantine",
+        q.quarantine_id,
+        "reconciliation.json",
+      ),
+      before = fs.readFileSync(qFile),
+      bad = JSON.parse(before.toString());
+    bad.original.operation = "changed";
+    writeJSON(qFile, bad);
+    await assert.rejects(
+      submit(f, i, a, response),
+      /GRADE_RESPONSE_RECONCILIATION_INVALID/,
+    );
+    fs.writeFileSync(qFile, before);
+    const qJournal = path.join(
+        root,
+        "oracles/.grading-quarantine",
+        q.quarantine_id,
+        "transaction/prepare.json",
+      ),
+      journalBytes = fs.readFileSync(qJournal),
+      omitted = JSON.parse(journalBytes.toString());
+    omitted.files = [];
+    writeJSON(qJournal, omitted);
+    await assert.rejects(
+      submit(f, i, a, response),
+      /GRADE_RESPONSE_RECONCILIATION_INVALID/,
+    );
+    fs.writeFileSync(qJournal, journalBytes);
+    assert.equal(
+      (await submit(f, i, a, response)).status,
+      "ADVISORY_PENDING_HUMAN_REVIEW",
+    );
+    assert.equal(
+      migrationAttemptCoverage(
+        root,
+        loadGradeBatch(root, a.child_batch_id, f.anchor).batch,
+      ).reservations,
+      1,
+    );
+    await assert.rejects(reserved(f, i), /NOT_PERMITTED/);
+  }
+});
+
+test("journal-less CLI inspection supports reconciliation and conservatively blocks a later no-response claim", async () => {
+  const f = await exportedCohort(),
+    root = f.roots[0],
+    a = await reserved(f, 0),
+    id = randomUUID();
+  fs.mkdirSync(path.join(root, "oracles/.grading-transactions", id));
+  const { spawnSync } = await import("node:child_process"),
+    {
+      reconcileGradeTransaction,
+      incompleteGradePreparation,
+      assertPlannedGradeBaseline,
+    } = await import("../../online/benchmark/grading-transaction.ts");
+  const p = spawnSync(
+    process.execPath,
+    [
+      "--import",
+      "tsx",
+      path.join(repository, "test_case/online/benchmark/cli.ts"),
+      "memory-judge-inspect",
+      "--root",
+      root,
+      "--transaction",
+      id,
+    ],
+    { encoding: "utf8" },
+  );
+  assert.equal(p.status, 0, p.stderr);
+  const inspection = JSON.parse(p.stdout);
+  assert.equal(inspection.kind, "INCOMPLETE_PREPARATION");
+  assert.equal(inspection.sha256, incompleteGradePreparation(root, id).sha256);
+  await lease(root, async (c) =>
+    reconcileGradeTransaction(root, c, id, inspection.sha256),
+  );
+  await lease(root, async (c) =>
+    assert.throws(
+      () =>
+        recordMigrationNoResponse(
+          root,
+          c,
+          a.attempt_id,
+          {
+            confirmed_no_response: true,
+            in_flight: false,
+            failure_kind: "CONFIRMED_TRANSPORT_NO_RESPONSE",
+            reason: "Synthetic no text claim",
+            files: [path.join(f.review, "ui.json")],
+          },
+          f.anchor,
+        ),
+      /GRADE_NO_RESPONSE_UNBOUND_QUARANTINE/,
+    ),
+  );
+  const inventory = structuredClone(f.bundle.history_inventory);
+  inventory.files.push(
+    inventory.files.find(
+      (x: any) =>
+        x.facility_nonce === f.bundle.manifest.entries[0].facility_nonce,
+    )!,
+  );
+  assert.throws(
+    () => assertPlannedGradeBaseline(root, inventory),
+    /GRADE_BASELINE_DUPLICATE/,
+  );
+});

@@ -517,6 +517,77 @@ export function recordMigrationSend(
   ]);
   return value;
 }
+/** Preserve response identity across quarantine, not merely at live paths. */
+function attemptResponseJournals(root: string, prefix: string) {
+  const names = new Set(
+    ["original.txt", "terminal.json", "outcome.json"].map(
+      (n) => prefix + "/" + n,
+    ),
+  );
+  const files: Array<{ name: string; bytes: number; sha256: string }> = [];
+  const unboundQuarantines: number[] = [];
+  const scan = (base: string, quarantined: boolean) => {
+    const dir = path.join(root, base);
+    if (!fs.existsSync(dir)) return;
+    for (const id of fs.readdirSync(dir)) {
+      requireThat(gradeUUID(id), "GRADE_RESPONSE_JOURNAL_INVALID");
+      const name =
+        base + "/" + id + (quarantined ? "/transaction" : "") + "/prepare.json";
+      let reconciliation: any;
+      if (quarantined) {
+        reconciliation = readOwnedGradeJSON(
+          root,
+          base + "/" + id + "/reconciliation.json",
+        );
+        requireThat(
+          reconciliation.quarantine_id === id &&
+            reconciliation.action === "QUARANTINE_ONLY_NO_MODEL_RETRY",
+          "GRADE_RESPONSE_RECONCILIATION_INVALID",
+        );
+        if (reconciliation.original === null) {
+          const at = Date.parse(reconciliation.at);
+          requireThat(
+            !fs.existsSync(path.join(root, name)) &&
+              Number.isFinite(at) &&
+              reconciliation.incomplete_preparation?.transaction_id ===
+                reconciliation.transaction_id,
+            "GRADE_RESPONSE_RECONCILIATION_INVALID",
+          );
+          unboundQuarantines.push(at);
+          continue;
+        }
+      }
+      const journal = readOwnedGradeJSON(root, name);
+      if (quarantined)
+        requireThat(
+          reconciliation.transaction_id === journal.transaction_id &&
+            JSON.stringify(reconciliation.original) === JSON.stringify(journal),
+          "GRADE_RESPONSE_RECONCILIATION_INVALID",
+        );
+      const matched = (journal.files ?? []).filter((f: any) =>
+        names.has(f.name),
+      );
+      if (!matched.length) continue;
+      requireThat(
+        journal.version === "secretary-grading-commit-v1" &&
+          gradeUUID(journal.transaction_id),
+        "GRADE_RESPONSE_JOURNAL_INVALID",
+      );
+      for (const f of matched) {
+        requireThat(
+          Number.isInteger(f.bytes) &&
+            f.bytes >= 0 &&
+            /^[a-f0-9]{64}$/.test(f.sha256),
+          "GRADE_RESPONSE_JOURNAL_INVALID",
+        );
+        files.push(f);
+      }
+    }
+  };
+  scan("oracles/.grading-transactions", false);
+  scan("oracles/.grading-quarantine", true);
+  return { files, unboundQuarantines };
+}
 /** A confirmed transport failure with no model text is not an invented response. */
 export function recordMigrationNoResponse(
   root: string,
@@ -549,6 +620,19 @@ export function recordMigrationNoResponse(
       typeof observation.reason === "string" &&
       observation.reason.trim(),
     "GRADE_NO_RESPONSE_UNCONFIRMED",
+  );
+  const recorded = attemptResponseJournals(root, prefix);
+  requireThat(
+    recorded.files.length === 0,
+    "GRADE_ATTEMPT_RESPONSE_ALREADY_RECORDED",
+  );
+  const sentAt = Date.parse(
+    readOwnedGradeJSON(root, prefix + "/send-intent.json").at,
+  );
+  requireThat(
+    Number.isFinite(sentAt) &&
+      !recorded.unboundQuarantines.some((at) => at >= sentAt),
+    "GRADE_NO_RESPONSE_UNBOUND_QUARANTINE",
   );
   const evidence = evidenceOutputs(root, prefix + "/no-response", observation);
   const outcome = {
@@ -651,6 +735,12 @@ export function importMigrationResponse(
     hash = sha(bytes),
     normalized = normalizeMigrationResponse(bytes.toString());
   const originalName = prefix + "/original.txt";
+  const recorded = attemptResponseJournals(root, prefix);
+  for (const previous of recorded.files.filter((f) => f.name === originalName))
+    requireThat(
+      previous.bytes === bytes.length && previous.sha256 === hash,
+      "GRADE_EXACT_RESPONSE_REIMPORT_REQUIRED",
+    );
   if (fs.existsSync(path.join(root, originalName)))
     requireThat(
       readOwnedGradeFile(root, originalName).equals(bytes),

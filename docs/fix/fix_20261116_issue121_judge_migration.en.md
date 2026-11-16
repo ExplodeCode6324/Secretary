@@ -56,6 +56,10 @@ Fixture facilities may be archived only after stopped ownership checks and verif
 - R16: CHANGES_REQUIRED (narrow) on attempt binding, exhaustive outcomes, lease liveness and new-file marker coverage; bilingual parity inspected.
 - R17: CHANGES_REQUIRED (one ordering blocker) on real export before review; earlier findings resolved in substance. Required attempt/fence/record clarifications accepted in R18. All rounds are supplied-material inspection, not independent execution. No implementation or migrated grading has occurred.
 
+- R18: PASS for technical plan execution readiness and bilingual parity; inspection only.
+- R19: CHANGES_REQUIRED on first-export preflight, resumable readiness and attempt recovery. All findings addressed in R20.
+- R20: CHANGES_REQUIRED on one quarantined-response capture identity gap; all R19 blockers and N1–N8 closed. Addressed in R21 below; implementation review remains pending.
+
 ## R16 normative appendix — resolves R15 B1–B4 and R1–R7
 
 This appendix is part of the execution contract and overrides ambiguous wording above. R15 inspected only the supplied English plan/source; it did not verify CI, execute tests, recompute hashes or inspect Chinese parity. R16 receives both complete language versions, this disposition and the missing relevant source. No source implementation or migrated scoring has occurred.
@@ -181,3 +185,12 @@ A verified quarantined reservation with no committed reservation/send intent or 
 UI evidence has its own owned-file reader with a 16 MB bound and case-insensitive screenshot extensions. Test anchor injection no longer bypasses reviewed-HEAD/clean-tree verification; tests supply a separate execution-state reader. Readiness remains bound to the reviewed clean commit: subsequent source commits require a newly reviewed execution context, not an implicit ready-record rewrite. The anchor's frozen identities remain unchanged. Synthetic review fixtures live outside the issue's historical evidence ledger.
 
 Eighteen focused migration tests passed after retaining the first R20 test failure: its noncanonical-parent fixture originally triggered the earlier committed-file integrity guard; the corrected fixture models a markless historical parent and verifies the intended prepublication error. Added checks preserve legacy calibration source/status tamper diagnostics and canonical Fable provenance before and after migration, verify owner/mode rejection, and require committed late-parent rejection evidence. Real stopped-run copy replay, exact deterministic export comparison, full verification, exact-HEAD CI and reviewer approval remain prerequisites to production export/dispatch; fixture PASS alone grants none of them.
+
+
+## R21 exact-response binding across quarantine
+
+R20 C1 is accepted. Attempt recovery now inspects live and quarantined journals for the attempt's original response, terminal and outcome files. Quarantined journals must match their reconciliation record. Every previous capture binds the exact original byte length and SHA256 before any re-import publication, even when the live original was removed by reconciliation. A no-response claim is refused if any capture, terminal or outcome journal exists. Tests interrupt capture before first promotion and after the original file link, reject changed bytes and no-response, verify quarantine record integrity, and accept exact-byte re-import without another reservation.
+
+The prepublication baseline scan rejects duplicate names. `memory-judge-inspect --root <root> --transaction <id>` exposes a read-only preparation digest (normal journal or the constructed incomplete-preparation snapshot), so journal-less reconciliation stays within the benchmark CLI. A journal-less quarantine at or after an attempt's send-intent conservatively blocks no-response, even if its origin cannot be assigned to that attempt. An interruption before any durable capture journal remains unable to establish a machine-verifiable response identity; the operator must preserve and reuse the original browser Copy file, pause on uncertainty, and never substitute or resample. This residual is not a retry entitlement. No derivation or anchor bytes change.
+
+R20's frozen local full verification passed: 1,331 tests, 1,304 passed, 27 existing conditional skips, zero failures. Linux CI run 43883464641 was cancelled with the explicit annotation "The job has exceeded the maximum execution time of 20m0s"; macOS passed. Its log and annotation are retained. R21 raises only the Linux job timeout to 30 minutes to accommodate the full suite and PG18 setup. No required job, test, assertion or gate is removed. Exact R21 HEAD full verification and both required CI jobs remain mandatory before export.

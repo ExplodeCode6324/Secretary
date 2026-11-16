@@ -1,3 +1,10 @@
+import fs from "node:fs";
+import { sha } from "./io.ts";
+import {
+  incompleteGradePreparation,
+  readOwnedGradeFile,
+  gradeUUID,
+} from "./grading-transaction.ts";
 import { exportJudgeMigration } from "./grading-migration-store.ts";
 import {
   requireExistingGradeFacility,
@@ -253,6 +260,24 @@ async function main() {
           ),
         ),
       );
+      return;
+    }
+    if (command === "memory-judge-inspect") {
+      const id = options["--transaction"];
+      requireThat(gradeUUID(id), "GRADE_RECONCILE_INVALID");
+      const name = `oracles/.grading-transactions/${id}/prepare.json`;
+      const result = fs.existsSync(path.join(root, name))
+        ? {
+            transaction_id: id,
+            kind: "PREPARED",
+            sha256: sha(readOwnedGradeFile(root, name)),
+          }
+        : {
+            transaction_id: id,
+            kind: "INCOMPLETE_PREPARATION",
+            ...incompleteGradePreparation(root, id),
+          };
+      console.log(JSON.stringify(result));
       return;
     }
     if (command === "memory-judge-reconcile") {

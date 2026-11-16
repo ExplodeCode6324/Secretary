@@ -214,6 +214,13 @@ export function assertPlannedGradeBaseline(root: string, inventory: any) {
       )
       .map((f: any) => f.relative),
   );
+  requireThat(
+    names.size ===
+      inventory.files.filter(
+        (f: any) => f.namespace === "facility" && f.facility_nonce === nonce,
+      ).length,
+    "GRADE_BASELINE_DUPLICATE",
+  );
   requireThat(names.has("facility.json"), "GRADE_BASELINE_FACILITY_MISSING");
   for (const name of fileList(root, "oracles")) {
     if (
