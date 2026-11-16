@@ -1,4 +1,9 @@
-import { approvedJudge, rubric, gradingAssertions } from "./grading.ts";
+import {
+  judgeMatchesPolicy,
+  type GradingJudgePolicy,
+  rubric,
+  gradingAssertions,
+} from "./grading.ts";
 import { sha } from "./io.ts";
 
 /** Hand-authored calibration controls, unrelated to held-out episodes. Never sent to a SUT. */
@@ -614,10 +619,14 @@ export function graderControls() {
     sha256: sha(JSON.stringify(packet)),
   };
 }
-export function assessControls(expected: Record<string, any>, response: any) {
+export function assessControls(
+  expected: Record<string, any>,
+  response: any,
+  policy: GradingJudgePolicy,
+) {
   const verdicts = Array.isArray(response?.verdicts) ? response.verdicts : [];
   const valid =
-    approvedJudge(response?.judge) &&
+    judgeMatchesPolicy(response?.judge, policy) &&
     verdicts.length === Object.keys(expected).length &&
     verdicts.every((v: any) => v && typeof v === "object") &&
     new Set(verdicts.map((v: any) => v?.id)).size === verdicts.length;

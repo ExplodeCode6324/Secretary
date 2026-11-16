@@ -2,7 +2,7 @@ import {
   exportGradeBatch,
   importGradeBatch,
   receiptCalibration,
-  validateGradeBatch,
+  validateGradeBatch as validateGradeBatchWithPolicy,
 } from "../../online/benchmark/grading-batch.ts";
 import {
   freezeGradeDisposition,
@@ -55,7 +55,7 @@ import {
 } from "../../../src/pi_secretary/src/model-retry.ts";
 import { fingerprint } from "../../online/benchmark/source.ts";
 import { validateConfiguration } from "../../online/benchmark/domain.ts";
-import { writeJSON } from "../../online/benchmark/io.ts";
+import { writeJSON, lease, repository } from "../../online/benchmark/io.ts";
 import {
   readerInput,
   selectPublic,
@@ -69,7 +69,7 @@ import {
 } from "../../online/benchmark/snapshot.ts";
 import {
   blind,
-  validateVerdicts,
+  validateVerdicts as validateVerdictsWithPolicy,
   gradingAssertions,
 } from "../../online/benchmark/grading.ts";
 import { sha } from "../../online/benchmark/io.ts";
@@ -97,9 +97,17 @@ import {
 } from "../../online/benchmark/public-bundle.ts";
 import { syntheticEpisodes } from "../../online/benchmark/scenarios.ts";
 import {
-  assessControls,
+  assessControls as assessControlsWithPolicy,
   graderControls,
 } from "../../online/benchmark/grader-controls.ts";
+
+// Historical tests explicitly exercise the unchanged legacy judge contract.
+const validateVerdicts = (packet: any, response: any) =>
+  validateVerdictsWithPolicy(packet, response, "fable-5.2-extra-v3");
+const validateGradeBatch = (batch: any, data: any, response: any) =>
+  validateGradeBatchWithPolicy(batch, data, response, "fable-5.2-extra-v3");
+const assessControls = (expected: any, response: any) =>
+  assessControlsWithPolicy(expected, response, "fable-5.2-extra-v3");
 
 function facility(ceiling: number | null = null) {
   const root = fs.realpathSync(
@@ -1768,191 +1776,206 @@ test("semantic packet projection retains effect proofs and context hashes but do
   });
 });
 
-test("V3 grades bind calibration to the exact frozen context and retain invalid controls without counting them", () => {
+test("V3 grades bind calibration to the exact frozen context and retain invalid controls without counting them", async () => {
   const root = facility();
+  writeJSON(path.join(root, "facility.json"), {
+    version: 1,
+    repository,
+    nonce: randomUUID(),
+  });
   try {
-    const campaign = JSON.parse(
-      fs.readFileSync(path.join(root, "campaign/manifest.json"), "utf8"),
-    );
-    writeJSON(path.join(root, "campaign/manifest.json"), {
-      ...campaign,
-      state: "CLOSED",
-    });
-    const run = randomUUID();
-    writeJSON(path.join(root, "runs", run + ".json"), { state: "STOPPED" });
-    const payload = {
-      version: "secretary-sealed-grading-v3",
-      assertions: [
-        {
-          assertion_id: "first-answer-fidelity",
-          allowed_labels: ["PASS", "FAIL", "UNRESOLVED"],
-        },
-      ],
-    };
-    const packet = {
-      packet_id: randomUUID(),
-      payload,
-      payload_sha256: sha(JSON.stringify(payload)),
-      expected_judge: { model: "Fable 5.2", effort: "Extra" },
-    };
-    writeJSON(path.join(root, "oracles", run + "-sealed-v3.json"), packet);
-    const exported = exportGradeBatch(root, [run]);
-    const batch = JSON.parse(fs.readFileSync(exported.file, "utf8"));
-    assert.throws(() => exportGradeBatch(root, [run]), /ALREADY_BATCHED/);
-    const privateData = JSON.parse(
-      fs.readFileSync(
-        path.join(
-          root,
-          "oracles",
-          `grade-batch-${batch.batch_id}-private.json`,
+    await lease(root, async (context) => {
+      const campaign = JSON.parse(
+        fs.readFileSync(path.join(root, "campaign/manifest.json"), "utf8"),
+      );
+      writeJSON(path.join(root, "campaign/manifest.json"), {
+        ...campaign,
+        state: "CLOSED",
+      });
+      const run = randomUUID();
+      writeJSON(path.join(root, "runs", run + ".json"), { state: "STOPPED" });
+      const payload = {
+        version: "secretary-sealed-grading-v3",
+        assertions: [
+          {
+            assertion_id: "first-answer-fidelity",
+            allowed_labels: ["PASS", "FAIL", "UNRESOLVED"],
+          },
+        ],
+      };
+      const packet = {
+        packet_id: randomUUID(),
+        payload,
+        payload_sha256: sha(JSON.stringify(payload)),
+        expected_judge: { model: "Fable 5.2", effort: "Extra" },
+      };
+      writeJSON(path.join(root, "oracles", run + "-sealed-v3.json"), packet);
+      const exported = exportGradeBatch(root, [run], context);
+      const batch = JSON.parse(fs.readFileSync(exported.file, "utf8"));
+      assert.throws(
+        () => exportGradeBatch(root, [run], context),
+        /ALREADY_BATCHED/,
+      );
+      const privateData = JSON.parse(
+        fs.readFileSync(
+          path.join(
+            root,
+            "oracles",
+            `grade-batch-${batch.batch_id}-private.json`,
+          ),
+          "utf8",
         ),
-        "utf8",
-      ),
-    );
-    const controlVerdicts = Object.entries(privateData.expected).map(
-      ([id, v]) => ({
-        id,
-        ...(v as object),
-        rationale: "Observed control evidence",
-      }),
-    );
-    const response = {
-      batch_id: batch.batch_id,
-      payload_sha256: batch.payload_sha256,
-      judge: packet.expected_judge,
-      controls: { verdicts: controlVerdicts },
-      submissions: [
+      );
+      const controlVerdicts = Object.entries(privateData.expected).map(
+        ([id, v]) => ({
+          id,
+          ...(v as object),
+          rationale: "Observed control evidence",
+        }),
+      );
+      const response = {
+        batch_id: batch.batch_id,
+        payload_sha256: batch.payload_sha256,
+        judge: packet.expected_judge,
+        controls: { verdicts: controlVerdicts },
+        submissions: [
+          {
+            packet_id: packet.packet_id,
+            payload_sha256: packet.payload_sha256,
+            judge: packet.expected_judge,
+            verdicts: [
+              {
+                assertion_id: "first-answer-fidelity",
+                label: "FAIL",
+                severity: "S3",
+                evidence: ["event1"],
+                rationale: "Wrong one-off answer",
+                human_review: false,
+                hard_gate_tags: ["other"],
+              },
+            ],
+          },
+        ],
+      };
+      assert.equal(
+        validateGradeBatch(batch, privateData, response).status,
+        "PASS",
+      );
+      assert.throws(
+        () =>
+          validateGradeBatch(batch, privateData, {
+            ...response,
+            batch_id: randomUUID(),
+          }),
+        /IDENTITY/,
+      );
+      assert.throws(
+        () =>
+          validateGradeBatch(batch, privateData, {
+            ...response,
+            submissions: [],
+          }),
+        /DENOMINATOR/,
+      );
+      const bad = { ...response, controls: { verdicts: [] } };
+      assert.equal(validateGradeBatch(batch, privateData, bad).status, "FAIL");
+      const file = path.join(root, "oracles", "response.json");
+      writeJSON(file, { ...response, submissions: [] });
+      assert.throws(() => importGradeBatch(root, file, context), /DENOMINATOR/);
+      let rejections = fs
+        .readdirSync(path.join(root, "oracles"))
+        .filter((f) => f.startsWith("grade-batch-rejection-"));
+      assert.equal(rejections.length, 1);
+      const rejection = JSON.parse(
+        fs.readFileSync(path.join(root, "oracles", rejections[0]), "utf8"),
+      );
+      assert.equal(rejection.status, "REJECTED_NOT_COUNTED");
+      assert.equal(rejection.source_file_sha256, sha(fs.readFileSync(file)));
+      fs.writeFileSync(file, "{incomplete JSON");
+      assert.throws(
+        () => importGradeBatch(root, file, context),
+        /INVALID_GRADE_SUBMISSION_JSON/,
+      );
+      rejections = fs
+        .readdirSync(path.join(root, "oracles"))
+        .filter((f) => f.startsWith("grade-batch-rejection-"));
+      assert.equal(rejections.length, 2);
+      writeJSON(file, bad);
+      const imported = importGradeBatch(root, file, context);
+      assert.equal(imported.controls.status, "FAIL");
+      const receipt = JSON.parse(
+        fs.readFileSync(imported.imports[0].file, "utf8"),
+      );
+      const controls = receiptCalibration(
+        root,
+        receipt,
+        response.submissions[0],
+      );
+      assert.equal(controls.status, "FAIL");
+      const group = summarizeJudgments([
         {
-          packet_id: packet.packet_id,
-          payload_sha256: packet.payload_sha256,
-          judge: packet.expected_judge,
-          verdicts: [
-            {
-              assertion_id: "first-answer-fidelity",
-              label: "FAIL",
-              severity: "S3",
-              evidence: ["event1"],
-              rationale: "Wrong one-off answer",
-              human_review: false,
-              hard_gate_tags: ["other"],
-            },
-          ],
+          run,
+          model: "m",
+          profile: "DEP",
+          family: "M1",
+          case_id: "c",
+          protocol_version: "p",
+          version: "v3",
+          judgment_sha256: receipt.source_sha256,
+          controls,
+          verdicts: response.submissions[0].verdicts,
         },
-      ],
-    };
-    assert.equal(
-      validateGradeBatch(batch, privateData, response).status,
-      "PASS",
-    );
-    assert.throws(
-      () =>
-        validateGradeBatch(batch, privateData, {
-          ...response,
-          batch_id: randomUUID(),
-        }),
-      /IDENTITY/,
-    );
-    assert.throws(
-      () =>
-        validateGradeBatch(batch, privateData, {
-          ...response,
-          submissions: [],
-        }),
-      /DENOMINATOR/,
-    );
-    const bad = { ...response, controls: { verdicts: [] } };
-    assert.equal(validateGradeBatch(batch, privateData, bad).status, "FAIL");
-    const file = path.join(root, "oracles", "response.json");
-    writeJSON(file, { ...response, submissions: [] });
-    assert.throws(() => importGradeBatch(root, file), /DENOMINATOR/);
-    let rejections = fs
-      .readdirSync(path.join(root, "oracles"))
-      .filter((f) => f.startsWith("grade-batch-rejection-"));
-    assert.equal(rejections.length, 1);
-    const rejection = JSON.parse(
-      fs.readFileSync(path.join(root, "oracles", rejections[0]), "utf8"),
-    );
-    assert.equal(rejection.status, "REJECTED_NOT_COUNTED");
-    assert.equal(rejection.source_file_sha256, sha(fs.readFileSync(file)));
-    fs.writeFileSync(file, "{incomplete JSON");
-    assert.throws(
-      () => importGradeBatch(root, file),
-      /INVALID_GRADE_SUBMISSION_JSON/,
-    );
-    rejections = fs
-      .readdirSync(path.join(root, "oracles"))
-      .filter((f) => f.startsWith("grade-batch-rejection-"));
-    assert.equal(rejections.length, 2);
-    writeJSON(file, bad);
-    const imported = importGradeBatch(root, file);
-    assert.equal(imported.controls.status, "FAIL");
-    const receipt = JSON.parse(
-      fs.readFileSync(imported.imports[0].file, "utf8"),
-    );
-    const controls = receiptCalibration(root, receipt, response.submissions[0]);
-    assert.equal(controls.status, "FAIL");
-    const group = summarizeJudgments([
-      {
-        run,
-        model: "m",
-        profile: "DEP",
-        family: "M1",
-        case_id: "c",
-        protocol_version: "p",
-        version: "v3",
-        judgment_sha256: receipt.source_sha256,
-        controls,
-        verdicts: response.submissions[0].verdicts,
-      },
-    ])[0];
-    assert.equal(group.control_invalid_or_missing_runs, 1);
-    assert.equal(group.provisional_worst_severity_counts.S3, 0);
-    assert.equal(group.runs_with_any_failure_candidate, 0);
-    assert.throws(
-      () => importGradePacket(root, run, file),
-      /BATCH_IMPORT_REQUIRED/,
-    );
-    writeJSON(file, response);
-    const valid = importGradeBatch(root, file);
-    assert.equal(valid.controls.status, "PASS");
-    const validReceipt = JSON.parse(
-      fs.readFileSync(valid.imports[0].file, "utf8"),
-    );
-    assert.equal(
-      receiptCalibration(root, validReceipt, response.submissions[0]).status,
-      "PASS",
-    );
-    const privateFile = path.join(
-      root,
-      "oracles",
-      `grade-batch-${batch.batch_id}-private.json`,
-    );
-    const changedPrivate = structuredClone(privateData);
-    changedPrivate.expected[Object.keys(changedPrivate.expected)[0]].severity =
-      "DIFFERENT";
-    writeJSON(privateFile, changedPrivate);
-    writeJSON(exported.file, {
-      ...batch,
-      private_data_sha256: sha(JSON.stringify(changedPrivate)),
+      ])[0];
+      assert.equal(group.control_invalid_or_missing_runs, 1);
+      assert.equal(group.provisional_worst_severity_counts.S3, 0);
+      assert.equal(group.runs_with_any_failure_candidate, 0);
+      assert.throws(
+        () => importGradePacket(root, run, file),
+        /BATCH_IMPORT_REQUIRED/,
+      );
+      writeJSON(file, response);
+      const valid = importGradeBatch(root, file, context);
+      assert.equal(valid.controls.status, "PASS");
+      const validReceipt = JSON.parse(
+        fs.readFileSync(valid.imports[0].file, "utf8"),
+      );
+      assert.equal(
+        receiptCalibration(root, validReceipt, response.submissions[0]).status,
+        "PASS",
+      );
+      const privateFile = path.join(
+        root,
+        "oracles",
+        `grade-batch-${batch.batch_id}-private.json`,
+      );
+      const changedPrivate = structuredClone(privateData);
+      changedPrivate.expected[
+        Object.keys(changedPrivate.expected)[0]
+      ].severity = "DIFFERENT";
+      writeJSON(privateFile, changedPrivate);
+      writeJSON(exported.file, {
+        ...batch,
+        private_data_sha256: sha(JSON.stringify(changedPrivate)),
+      });
+      assert.throws(
+        () => receiptCalibration(root, validReceipt, response.submissions[0]),
+        /COMMITTED_FILE_CHANGED/,
+      );
+      writeJSON(privateFile, privateData);
+      writeJSON(exported.file, batch);
+      const stored = JSON.parse(fs.readFileSync(valid.file, "utf8"));
+      stored.controls.status = "FAIL";
+      writeJSON(valid.file, stored);
+      assert.throws(
+        () => receiptCalibration(root, validReceipt, response.submissions[0]),
+        /RECEIPT_CHANGED/,
+      );
+      validReceipt.calibration.receipt_sha256 = sha(JSON.stringify(stored));
+      assert.throws(
+        () => receiptCalibration(root, validReceipt, response.submissions[0]),
+        /COMMITTED_FILE_CHANGED/,
+      );
     });
-    assert.throws(
-      () => receiptCalibration(root, validReceipt, response.submissions[0]),
-      /CALIBRATION_SOURCE_CHANGED/,
-    );
-    writeJSON(privateFile, privateData);
-    writeJSON(exported.file, batch);
-    const stored = JSON.parse(fs.readFileSync(valid.file, "utf8"));
-    stored.controls.status = "FAIL";
-    writeJSON(valid.file, stored);
-    assert.throws(
-      () => receiptCalibration(root, validReceipt, response.submissions[0]),
-      /RECEIPT_CHANGED/,
-    );
-    validReceipt.calibration.receipt_sha256 = sha(JSON.stringify(stored));
-    assert.throws(
-      () => receiptCalibration(root, validReceipt, response.submissions[0]),
-      /CALIBRATION_STATUS_CHANGED/,
-    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

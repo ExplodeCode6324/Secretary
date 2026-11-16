@@ -1,0 +1,13 @@
+{
+  "version": "secretary-judge-migration-anchor-v1",
+  "manifest_sha256": "f26027f20eb7e2c372bbc8c087bb4f227e5e0d5210bc72ed74f2cdbb850052a0",
+  "child_payload_sha256": [
+    "21502850d9f1616ad6784b0765f80e0cd349466ba1016586b1590eaeae45ab2d",
+    "4bc9bab6a18496f12eefea9f8785c52f718cabb7ccb00b84d0ff08e3bcb38161",
+    "0221c6293c89b8d391f545e810638bcb4ca3d7f9e849fd84aef98dd10566da2f",
+    "c5540860f84b3c495880f517d7e5a2d1c4e6e531fe0470bf956e00c8be8b73bd",
+    "fed1757e1be2a56d40f80028c0e2d5de5343f55781b580bdcb71f3e20579f578",
+    "b3e8f94c3fcaef37bfe9e212eb1c058c4b626a358bb7941ed5dbdf0ab0718139"
+  ],
+  "history_inventory_sha256": "42976fb330b25ff00460aaefd80867c783c09e2152c4af012476fae6f41cbbd2"
+}

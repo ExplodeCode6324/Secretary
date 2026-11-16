@@ -1,33 +1,42 @@
-import { assertCampaignClosed } from "./campaign.ts";
+import { validateMigrationReceiptBinding } from "./grading-attempt.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import {
-  approvedJudge,
+  judgeMatchesPolicy,
+  type GradingJudgePolicy,
   readGradeSubmission,
   readGradeSubmissionBytes,
   validateVerdicts,
 } from "./grading.ts";
 import { graderControls, assessControls } from "./grader-controls.ts";
+import {
+  batchJudgePolicy,
+  assertNoReservedGradeMetadata,
+  migrationPolicy,
+} from "./grading-migration.ts";
+import {
+  loadGradeBatch as loadBatch,
+  assertGradingStopped as stopped,
+  supersededGradeParent,
+} from "./grading-migration-store.ts";
+import {
+  commitGradeFiles,
+  gradeJSONBytes,
+  assertGradeStore,
+} from "./grading-transaction.ts";
+import { assertLease, type LeaseContext } from "./io.ts";
 import { readJSON, requireThat, sha, writeJSON, processStatus } from "./io.ts";
 
 const uuid = (v: unknown): v is string =>
   typeof v === "string" && /^[a-f0-9-]{36}$/.test(v);
-function stopped(root: string) {
-  assertCampaignClosed(root);
-  for (const file of fs
-    .readdirSync(path.join(root, "runs"))
-    .filter((n) => /^[a-f0-9-]{36}\.json$/.test(n))) {
-    const run = readJSON(path.join(root, "runs", file));
-    requireThat(
-      ["STOPPED", "RETIRED", "CLEANED"].includes(run.state) &&
-        (!run.process || processStatus(run.process) === "STOPPED"),
-      "GRADE_BATCH_REQUIRES_STOPPED_RUNS",
-    );
-  }
-}
 /** One frozen context contains its controls and every sample it will adjudicate. */
-export function exportGradeBatch(root: string, runs: string[]) {
+export function exportGradeBatch(
+  root: string,
+  runs: string[],
+  context: LeaseContext,
+) {
+  assertLease(context, root);
   stopped(root);
   requireThat(
     Array.isArray(runs) &&
@@ -76,55 +85,35 @@ export function exportGradeBatch(root: string, runs: string[]) {
   };
   const dir = path.join(root, "oracles"),
     file = path.join(dir, `grade-batch-${batch.batch_id}.json`);
-  writeJSON(
-    path.join(dir, `grade-batch-${batch.batch_id}-private.json`),
-    privateData,
-  );
-  writeJSON(file, batch);
+  commitGradeFiles(root, context, "LEGACY_BATCH_EXPORT", [
+    {
+      name: `oracles/grade-batch-${batch.batch_id}-private.json`,
+      content: gradeJSONBytes(privateData),
+    },
+    {
+      name: `oracles/grade-batch-${batch.batch_id}.json`,
+      content: gradeJSONBytes(batch),
+    },
+  ]);
   return {
     file,
     batch_id: batch.batch_id,
     payload_sha256: batch.payload_sha256,
   };
 }
-function loadBatch(root: string, id: string) {
-  requireThat(uuid(id), "GRADE_BATCH_ID_INVALID");
-  const batch = readJSON(path.join(root, "oracles", `grade-batch-${id}.json`));
-  const privateData = readJSON(
-    path.join(root, "oracles", `grade-batch-${id}-private.json`),
-  );
-  requireThat(
-    batch.batch_id === id &&
-      batch.payload_sha256 === sha(JSON.stringify(batch.payload)) &&
-      batch.private_data_sha256 === sha(JSON.stringify(privateData)),
-    "GRADE_BATCH_CHANGED",
-  );
-  for (const m of privateData.mapping) {
-    requireThat(uuid(m.run), "GRADE_BATCH_RUNS_INVALID");
-    const current = readJSON(
-      path.join(root, "oracles", m.run + "-sealed-v3.json"),
-    );
-    const frozen = batch.payload.packets.find(
-      (p: any) => p.packet_id === m.packet_id,
-    );
-    requireThat(
-      frozen && sha(JSON.stringify(current)) === sha(JSON.stringify(frozen)),
-      "GRADE_BATCH_SOURCE_CHANGED",
-    );
-  }
-  return { batch, privateData };
-}
 export function validateGradeBatch(
   batch: any,
   privateData: any,
   response: any,
+  policy: GradingJudgePolicy,
 ) {
   requireThat(
-    batch.payload_sha256 === sha(JSON.stringify(batch.payload)) &&
+    policy === batchJudgePolicy(batch) &&
+      batch.payload_sha256 === sha(JSON.stringify(batch.payload)) &&
       batch.private_data_sha256 === sha(JSON.stringify(privateData)) &&
       response.batch_id === batch.batch_id &&
       response.payload_sha256 === batch.payload_sha256 &&
-      approvedJudge(response.judge),
+      judgeMatchesPolicy(response.judge, policy),
     "GRADE_BATCH_IDENTITY_MISMATCH",
   );
   const packets = batch.payload.packets;
@@ -145,19 +134,43 @@ export function validateGradeBatch(
         submission.judge?.effort === response.judge.effort,
       "GRADE_BATCH_SAMPLE_MISMATCH",
     );
-    validateVerdicts(packet, submission);
+    validateVerdicts(packet, submission, policy);
   }
-  return assessControls(privateData.expected, {
-    ...response.controls,
-    judge: response.judge,
-  });
+  return assessControls(
+    privateData.expected,
+    {
+      ...response.controls,
+      judge: response.judge,
+    },
+    policy,
+  );
 }
-export function importGradeBatch(root: string, file: string) {
+export function importGradeBatch(
+  root: string,
+  file: string,
+  context: LeaseContext,
+) {
+  assertLease(context, root);
+  assertGradeStore(root);
   stopped(root);
   try {
     const { raw, sourceFileHash } = readGradeSubmission(root, file);
-    const { batch, privateData } = loadBatch(root, raw.batch_id);
-    const controls = validateGradeBatch(batch, privateData, raw);
+    const { batch, privateData, policy } = loadBatch(root, raw.batch_id);
+    requireThat(
+      policy === "fable-5.2-extra-v3",
+      "GRADE_MIGRATION_ATTEMPT_REQUIRED",
+    );
+    requireThat(
+      !supersededGradeParent(root, raw.batch_id),
+      "GRADE_PARENT_SUPERSEDED",
+    );
+    assertNoReservedGradeMetadata(raw);
+    const controls = validateGradeBatch(
+      batch,
+      privateData,
+      raw,
+      "fable-5.2-extra-v3",
+    );
     const receipt = {
       submission: raw,
       batch_payload_sha256: batch.payload_sha256,
@@ -173,7 +186,9 @@ export function importGradeBatch(root: string, file: string) {
     };
     const receiptName = `grade-batch-receipt-${randomUUID()}.json`,
       dir = path.join(root, "oracles");
-    writeJSON(path.join(dir, receiptName), receipt);
+    const outputs = [
+      { name: "oracles/" + receiptName, content: gradeJSONBytes(receipt) },
+    ];
     const imports = raw.submissions.map((submission: any) => {
       const mapping = privateData.mapping.find(
         (m: any) => m.packet_id === submission.packet_id,
@@ -183,20 +198,24 @@ export function importGradeBatch(root: string, file: string) {
         dir,
         `${mapping.run}-verdict-${randomUUID()}.json`,
       );
-      writeJSON(dest, {
-        ...submission,
-        received_at: receipt.received_at,
-        qualification: receipt.qualification,
-        source_sha256: sha(JSON.stringify(submission)),
-        source_file_sha256: sourceFileHash,
-        calibration: {
-          batch_id: batch.batch_id,
-          receipt_file: receiptName,
-          receipt_sha256: sha(JSON.stringify(receipt)),
-        },
+      outputs.push({
+        name: "oracles/" + path.basename(dest),
+        content: gradeJSONBytes({
+          ...submission,
+          received_at: receipt.received_at,
+          qualification: receipt.qualification,
+          source_sha256: sha(JSON.stringify(submission)),
+          source_file_sha256: sourceFileHash,
+          calibration: {
+            batch_id: batch.batch_id,
+            receipt_file: receiptName,
+            receipt_sha256: sha(JSON.stringify(receipt)),
+          },
+        }),
       });
       return { run: mapping.run, file: dest };
     });
+    commitGradeFiles(root, context, "LEGACY_BATCH_IMPORT", outputs);
     return {
       file: path.join(dir, receiptName),
       controls,
@@ -210,16 +229,19 @@ export function importGradeBatch(root: string, file: string) {
     } catch {
       /* invalid or unavailable input remains untrusted */
     }
-    writeJSON(
-      path.join(root, "oracles", `grade-batch-rejection-${randomUUID()}.json`),
+    commitGradeFiles(root, context, "LEGACY_BATCH_REJECTION", [
       {
-        status: "REJECTED_NOT_COUNTED",
-        received_at: new Date().toISOString(),
-        source_file: path.basename(file),
-        source_file_sha256: sourceHash,
-        error: error instanceof Error ? error.message : "GRADE_IMPORT_REJECTED",
+        name: `oracles/grade-batch-rejection-${randomUUID()}.json`,
+        content: gradeJSONBytes({
+          status: "REJECTED_NOT_COUNTED",
+          received_at: new Date().toISOString(),
+          source_file: path.basename(file),
+          source_file_sha256: sourceHash,
+          error:
+            error instanceof Error ? error.message : "GRADE_IMPORT_REJECTED",
+        }),
       },
-    );
+    ]);
     throw error;
   }
 }
@@ -228,6 +250,7 @@ export function receiptCalibration(
   root: string,
   receipt: any,
   submission: any,
+  trustedAnchor?: any,
 ) {
   if (!receipt.calibration)
     return {
@@ -247,7 +270,11 @@ export function receiptCalibration(
       stored.submission.batch_id === c.batch_id,
     "GRADE_BATCH_RECEIPT_CHANGED",
   );
-  const { batch, privateData } = loadBatch(root, c.batch_id);
+  const { batch, privateData, policy } = loadBatch(
+    root,
+    c.batch_id,
+    trustedAnchor,
+  );
   requireThat(
     stored.submission.submissions.some(
       (s: any) => sha(JSON.stringify(s)) === sha(JSON.stringify(submission)),
@@ -259,10 +286,65 @@ export function receiptCalibration(
       stored.private_data_sha256 === batch.private_data_sha256,
     "GRADE_BATCH_CALIBRATION_SOURCE_CHANGED",
   );
-  const controls = validateGradeBatch(batch, privateData, stored.submission);
+  if (policy === migrationPolicy)
+    validateMigrationReceiptBinding(root, stored, undefined, trustedAnchor);
+  const controls = validateGradeBatch(
+    batch,
+    privateData,
+    stored.submission,
+    policy,
+  );
   requireThat(
     JSON.stringify(controls) === JSON.stringify(stored.controls),
     "GRADE_BATCH_CALIBRATION_STATUS_CHANGED",
   );
   return controls;
+}
+
+/** Resolve identity from the local chain before validating the sample. */
+export function resolveGradeReceipt(
+  root: string,
+  receipt: any,
+  submission: any,
+  legacyPackets: any[],
+  trustedAnchor?: any,
+) {
+  assertGradeStore(root);
+  if (!receipt.calibration) {
+    requireThat(
+      submission.judge?.model !== "Opus 5.5",
+      "GRADE_MIGRATION_CALIBRATION_REQUIRED",
+    );
+    const packet = legacyPackets.find(
+      (p) => p.packet_id === submission.packet_id,
+    );
+    requireThat(packet, "GRADE_PACKET_MISSING");
+    validateVerdicts(packet, submission, "fable-5.2-extra-v3");
+    return {
+      packet,
+      controls: receiptCalibration(root, receipt, submission),
+      judge_stratum: "UNKNOWN",
+      judge_policy: "UNKNOWN",
+      grading_envelope_version: "UNKNOWN",
+    };
+  }
+  const { batch, policy } = loadBatch(
+    root,
+    receipt.calibration.batch_id,
+    trustedAnchor,
+  );
+  const packet = batch.payload.packets.find(
+    (p: any) => p.packet_id === submission.packet_id,
+  );
+  requireThat(packet, "GRADE_PACKET_MISSING");
+  validateVerdicts(packet, submission, policy);
+  const controls = receiptCalibration(root, receipt, submission, trustedAnchor);
+  return {
+    packet,
+    controls,
+    judge_stratum:
+      policy === migrationPolicy ? "Opus 5.5 / Extra" : "Fable 5.2 / Extra",
+    judge_policy: policy,
+    grading_envelope_version: batch.payload.version,
+  };
 }

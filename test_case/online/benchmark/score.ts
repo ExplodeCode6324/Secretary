@@ -1,9 +1,14 @@
-import { receiptCalibration } from "./grading-batch.ts";
+import { assertGradeStore, readOwnedGradeJSON } from "./grading-transaction.ts";
+import {
+  migrationAttemptCoverage,
+  validateMigrationReceiptBinding,
+} from "./grading-attempt.ts";
+import { loadGradeBatch } from "./grading-migration-store.ts";
+import { resolveGradeReceipt } from "./grading-batch.ts";
 import fs from "node:fs";
 import path from "node:path";
 import type { Domains } from "./domain.ts";
 import { assertCampaignClosed } from "./campaign.ts";
-import { validateVerdicts } from "./grading.ts";
 import { auditEpisode } from "./evidence-audit.ts";
 import { scorePublicComponents } from "./public-score.ts";
 import { scorePublicGrades } from "./public-grading.ts";
@@ -36,6 +41,9 @@ export function summarizeJudgments(rows: any[]) {
       row.case_id,
       row.protocol_version,
       row.version,
+      row.judge_stratum ?? "UNKNOWN",
+      row.judge_policy ?? "UNKNOWN",
+      row.grading_envelope_version ?? "UNKNOWN",
     ]);
     if (!groups.has(key))
       groups.set(key, {
@@ -45,6 +53,9 @@ export function summarizeJudgments(rows: any[]) {
         case_id: row.case_id ?? "UNKNOWN_LEGACY_CASE",
         protocol_version: row.protocol_version ?? "UNKNOWN_LEGACY_PROTOCOL",
         version: row.version,
+        judge_stratum: row.judge_stratum ?? "UNKNOWN",
+        judge_policy: row.judge_policy ?? "UNKNOWN",
+        grading_envelope_version: row.grading_envelope_version ?? "UNKNOWN",
         by_run: new Map<string, any[]>(),
       });
     const group = groups.get(key),
@@ -169,7 +180,9 @@ export function summarizeJudgments(rows: any[]) {
   });
 }
 
-export function scoreDevelopment(d: Domains) {
+export function scoreDevelopment(d: Domains, trustedAnchor?: any) {
+  d.assertControllerLease();
+  assertGradeStore(d.root);
   assertCampaignClosed(d.root);
   const runs = fs
     .readdirSync(path.join(d.root, "runs"))
@@ -248,10 +261,26 @@ export function scoreDevelopment(d: Domains) {
         source_sha256 === sha(JSON.stringify(submission)),
         "GRADE_RECEIPT_CHANGED",
       );
-      const packet = packets.find((p) => p.packet_id === submission.packet_id);
-      requireThat(packet, "GRADE_PACKET_MISSING");
-      validateVerdicts(packet, submission);
-      const controls = receiptCalibration(d.root, receipt, submission);
+      const {
+        packet,
+        controls,
+        judge_stratum,
+        judge_policy,
+        grading_envelope_version,
+      } = resolveGradeReceipt(
+        d.root,
+        receipt,
+        submission,
+        packets,
+        trustedAnchor,
+      );
+      if (judge_policy === "opus-5.5-extra-migration-v1") {
+        const stored = readOwnedGradeJSON(
+          d.root,
+          "oracles/" + receipt.calibration.receipt_file,
+        );
+        validateMigrationReceiptBinding(d.root, stored, name, trustedAnchor);
+      }
       receipts.push({
         run: run.id,
         lineage: run.lineage,
@@ -263,6 +292,9 @@ export function scoreDevelopment(d: Domains) {
           packet.payload.disposition?.protocol_version ?? "LEGACY_UNREVIEWED",
         disposition: packet.payload.disposition ?? null,
         controls,
+        judge_stratum,
+        judge_policy,
+        grading_envelope_version,
         assertion_coverage: packet.payload.assertions.map((a: any) => ({
           assertion_id: a.assertion_id,
           allowed_labels: a.allowed_labels ?? ["PASS", "FAIL", "UNRESOLVED"],
@@ -279,6 +311,28 @@ export function scoreDevelopment(d: Domains) {
       });
     }
   }
+  for (const name of oracleFiles.filter((n) =>
+    /^grade-batch-[a-f0-9-]{36}\.json$/.test(n),
+  )) {
+    const value = readOwnedGradeJSON(d.root, "oracles/" + name);
+    if (!value.migration) continue;
+    const { batch, privateData } = loadGradeBatch(
+      d.root,
+      value.batch_id,
+      trustedAnchor,
+    );
+    const state = migrationAttemptCoverage(d.root, batch);
+    for (const m of privateData.mapping) {
+      const row = coverage.find((r) => r.run === m.run);
+      if (row)
+        Object.assign(row, {
+          status: state.status,
+          judge_attempt_reservations: state.reservations,
+          child_batch_id: batch.batch_id,
+          judge_policy: "opus-5.5-extra-migration-v1",
+        });
+    }
+  }
   const planned = fs
     .readdirSync(path.join(d.root, "reports"))
     .filter((n) => /^[a-f0-9-]{36}$/.test(n))
@@ -290,7 +344,7 @@ export function scoreDevelopment(d: Domains) {
       cases: readJSON(f).cases,
     }));
   const result = {
-    version: "secretary-memory-descriptive-score-v1",
+    version: "secretary-memory-descriptive-score-v2-judge-strata",
     planned_reports: planned,
     run_coverage: coverage,
     judgment_history: receipts,
@@ -298,6 +352,7 @@ export function scoreDevelopment(d: Domains) {
     public_qa: scorePublicGrades(d.root),
     groups: summarizeJudgments(receipts),
     limitations: [
+      "Mixed-judge totals describe coverage only; no pooled quality, ranking or judge equivalence",
       "Provisional judge observations only; no approved tolerance gate or reliability claim",
       "NO_GRADED_FAILURE refers only to the selected assertion labels, not mechanical completion or an absence of errors in judgment notes",
       "V1/V2 rescores and checkpoint descendants are not independent repeats",
@@ -311,6 +366,8 @@ export function scoreDevelopment(d: Domains) {
     "reports",
     "score-" + sha(JSON.stringify(result)) + ".json",
   );
+  d.assertControllerLease();
+  assertGradeStore(d.root);
   if (!fs.existsSync(file)) writeJSON(file, result);
   return {
     file,

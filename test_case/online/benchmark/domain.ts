@@ -13,6 +13,8 @@ import {
   deploymentGuard,
   inventory,
   lease,
+  assertLease,
+  type LeaseContext,
   mkdir,
   noLinks,
   processIdentity,
@@ -156,15 +158,22 @@ const identity = (p: string) => {
   return `${s.dev}:${s.ino}`;
 };
 export class Domains {
-  constructor(readonly root: string) {}
+  constructor(
+    readonly root: string,
+    readonly leaseContext?: LeaseContext,
+  ) {}
+  assertControllerLease() {
+    assertLease(this.leaseContext, this.root);
+    return this.leaseContext;
+  }
   static async use<T>(root: string, fn: (d: Domains) => Promise<T>) {
     deploymentGuard(repository, root);
-    return lease(root, async () => {
+    return lease(root, async (context) => {
       const file = path.join(root, "facility.json");
       if (!fs.existsSync(file))
         writeJSON(file, { version: 1, repository, nonce: randomUUID() });
       requireThat(readJSON(file).repository === repository, "FOREIGN_FACILITY");
-      return fn(new Domains(root));
+      return fn(new Domains(root, context));
     });
   }
   /** Recovery close is available only under Domains.use's controller lease. */

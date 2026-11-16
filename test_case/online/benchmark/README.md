@@ -137,3 +137,15 @@ worker 仅接收 Core 的非超级用户连接凭据，启动时断言实际角�
 FAIL 必须带 hard_gate_tags：authority、stale_correction、lost_obligation、false_completion、duplicate_effect、reminder_regression 或 other；PASS/UNRESOLVED 标签为空。S1/S2 的 human_review=true 表示待人工审查，不是已获人工批准。没有回答的探针、不可判定冷检索和未执行 World 正向协议只允许 UNRESOLVED；Retained PASS 必须对应真实维护产物。导出/score 使用不写入原证据的审计模式。
 
 R11 freezes neutral disposition metadata only; reviewer identity/prose stays private and is hash-bound. Calibration receipts bind source hashes and import-time status; rejected responses have receipts, and overlapping batches are refused. The 63 controls include explicit tag checks for unauthorized effect, authority, false completion, duplicate effect, stale correction, lost obligation, reminder regression and other. Tag checking is partial where older controls have no expected tag set. G1 candidates exclude ordinary/reminder-only failures; all consequence failures remain counted.
+
+## #121 单独版本的 Opus 评分员迁移
+
+[中英文迁移计划](../../../docs/fix/fix_20261116_issue121_judge_migration.md)仅覆盖原来未发送的第 10–15 批。原冻结 v3、前九批与 Fable 身份校验保持原义；新子批次使用 `opus-5.5-extra-migration-v1`，不是 v4 重标。导出、尝试记录、导入、计分均持有原 controller lease；新文件先暂存并核验全部哈希，最后发布提交标记。部分写入或丢失标记会拒绝读取，不能直接重跑覆盖。
+
+所有命令都必须指定已有、已停止且归属确认的 `--root`。`memory-judge-export --source <private-bundle> --batch <child-id> --approval <review-CI-proof>` 只接受固定六批清单与仓库中的不透明哈希锚；先推送锚与实现，通过准确 HEAD 的复核/CI，再对真实设施导出。`memory-judge-ready --source <roots-json> --approval <proof>` 分别加锁检查三个设施的六批并写入一致的就绪快照。每次发送前仍重新检查本设施；跨设施快照不是原子事务。
+
+`memory-judge-reserve --batch <child-id> --source <UI-evidence-json>` 在发送前永久预留次数，保存 Opus 5.5 / Extra、Manual、Incognito 的界面证据。`memory-judge-send --attempt <id>` 写发送意图后，操作者在独立浏览器上下文中上传准确请求与固定 wrapper。`memory-judge-import --attempt <id> --verdict <original-copy-file> --source <extraction-observation-json>` 保存原始 Copy、唯一允许的外层围栏/空白处理及证据；响应不能自行选择要导入的批次。原始响应不完整或无效 JSON 的机械重试最多三次；身份、数量、语义或校准失败暂停，不重抽样。预留后未发送也不退还次数。
+
+`memory-judge-reconcile --transaction <id> --sha256 <reviewed-prepare-hash>` 只隔离未提交事务，不重发、不自动修复或提升为成功。隔离保留原始字节及尝试消费记录；导出只可重用原子批次 ID，响应只能原文件重导入。所有未知状态先诊断。
+
+`memory-score` 新报告版本为 `secretary-memory-descriptive-score-v2-judge-strata`，评分员、策略和批次版本均从本地校准链推导。Fable/Opus 分层，混合总数只能表达覆盖，不能合并质量指标、比较评分员或宣布合格。旧报告不覆盖，人工判断仍待 Master。

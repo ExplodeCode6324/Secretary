@@ -84,6 +84,24 @@ export function approvedJudge(judge: any) {
     ["Extra", "extra"].includes(judge?.effort)
   );
 }
+export type GradingJudgePolicy =
+  "fable-5.2-extra-v3" | "opus-5.5-extra-migration-v1";
+/** Legacy aliases stay legacy-only. A response cannot choose this policy. */
+export function judgeMatchesPolicy(
+  judge: any,
+  policy: GradingJudgePolicy,
+  packet = false,
+) {
+  if (policy === "fable-5.2-extra-v3") return approvedJudge(judge);
+  return (
+    policy === "opus-5.5-extra-migration-v1" &&
+    judge?.model === "Opus 5.5" &&
+    judge?.effort === "Extra" &&
+    (!packet || judge?.provider === "Claude browser") &&
+    Object.keys(judge).sort().join(",") ===
+      (packet ? "effort,model,provider" : "effort,model")
+  );
+}
 export function blind(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(blind);
   if (value && typeof value === "object")
@@ -502,7 +520,11 @@ export function exportGradePacket(
   writeJSON(dest, packet);
   return { packet_id: packet.packet_id, payload_sha256: packet.payload_sha256 };
 }
-export function validateVerdicts(packet: any, submission: any) {
+export function validateVerdicts(
+  packet: any,
+  submission: any,
+  policy: GradingJudgePolicy,
+) {
   requireThat(
     packet.payload_sha256 === sha(JSON.stringify(packet.payload)),
     "GRADE_PACKET_CHANGED",
@@ -510,8 +532,8 @@ export function validateVerdicts(packet: any, submission: any) {
   requireThat(
     submission.packet_id === packet.packet_id &&
       submission.payload_sha256 === packet.payload_sha256 &&
-      approvedJudge(packet.expected_judge) &&
-      approvedJudge(submission.judge),
+      judgeMatchesPolicy(packet.expected_judge, policy, true) &&
+      judgeMatchesPolicy(submission.judge, policy),
     "GRADE_IDENTITY_MISMATCH",
   );
   const expected = packet.payload.assertions.map((a: any) => a.assertion_id);

@@ -254,9 +254,30 @@ export function binary(name: string): string {
   }
   throw Error("MISSING_BINARY_" + name);
 }
+export type LeaseContext = Readonly<{
+  root: string;
+  lockName: string;
+  holderPid: number;
+  assertActive: () => void;
+}>;
+const issuedLeases = new WeakSet<LeaseContext>();
+export function assertLease(
+  context: LeaseContext | undefined,
+  root: string,
+  lockName = "controller.lock",
+): asserts context is LeaseContext {
+  requireThat(
+    context &&
+      issuedLeases.has(context) &&
+      context.root === root &&
+      context.lockName === lockName,
+    "CONTROLLER_LEASE_REQUIRED",
+  );
+  context.assertActive();
+}
 export async function lease<T>(
   root: string,
-  fn: () => Promise<T>,
+  fn: (context: LeaseContext) => Promise<T>,
   lockName = "controller.lock",
 ): Promise<T> {
   requireThat(/^[a-z-]+\.lock$/.test(lockName), "INVALID_LOCK_NAME");
@@ -272,6 +293,10 @@ export async function lease<T>(
   const exit = new Promise<void>((resolve) =>
     child.once("close", () => resolve()),
   );
+  let active = true;
+  child.once("exit", () => {
+    active = false;
+  });
   await new Promise<void>((resolve, reject) => {
     let ready = false;
     child.stdout.once("data", (data) => {
@@ -283,9 +308,48 @@ export async function lease<T>(
       if (!ready) reject(Error("CONTROLLER_BUSY"));
     });
   });
+  const context: LeaseContext = Object.freeze({
+    root,
+    lockName,
+    holderPid: child.pid!,
+    assertActive() {
+      let present = false;
+      try {
+        process.kill(child.pid!, 0);
+        // Synchronous publication can delay Node's exit event. A killed holder
+        // may remain a zombie until this turn yields, so kill(pid, 0) alone is
+        // insufficient to prove that it still owns flock.
+        const state = execFileSync(
+          "/bin/ps",
+          ["-o", "stat=", "-p", String(child.pid)],
+          {
+            encoding: "utf8",
+            timeout: 2000,
+            stdio: ["ignore", "pipe", "ignore"],
+          },
+        ).trim();
+        present = !!state && !/^[ZX]/.test(state);
+      } catch {
+        /* lost */
+      }
+      // The OS-held lease belongs to the Python child, not this Node process.
+      // Publication still has a residual check-to-filesystem window; grading
+      // additionally uses no-overwrite destinations and durable transactions.
+      requireThat(
+        active &&
+          present &&
+          child.exitCode === null &&
+          child.signalCode === null,
+        "CONTROLLER_LEASE_LOST",
+      );
+    },
+  });
+  issuedLeases.add(context);
   try {
-    return await fn();
+    context.assertActive();
+    return await fn(context);
   } finally {
+    active = false;
     child.stdin.end();
     await exit;
   }

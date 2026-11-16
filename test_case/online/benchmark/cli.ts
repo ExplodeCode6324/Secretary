@@ -1,3 +1,15 @@
+import { exportJudgeMigration } from "./grading-migration-store.ts";
+import {
+  requireExistingGradeFacility,
+  reconcileGradeTransaction,
+} from "./grading-transaction.ts";
+import {
+  assertReviewedMigrationHead,
+  prepareMigrationReady,
+  reserveMigrationAttempt,
+  recordMigrationSend,
+  importMigrationResponse,
+} from "./grading-attempt.ts";
 import { exportGradeBatch, importGradeBatch } from "./grading-batch.ts";
 import { markdown } from "../../benchmarks/common/report.ts";
 import path from "node:path";
@@ -43,6 +55,10 @@ async function main() {
   for (let i = 0; i < args.length; i += 2) {
     requireThat(
       [
+        "--batch",
+        "--attempt",
+        "--transaction",
+        "--sha256",
         "--run",
         "--checkpoint",
         "--config",
@@ -144,7 +160,101 @@ async function main() {
     );
     return;
   }
+  if (
+    command.startsWith("memory-judge-") ||
+    command.startsWith("memory-grade-batch-") ||
+    command === "memory-score"
+  )
+    requireExistingGradeFacility(root);
+  const input = (key: string) => {
+    requireThat(options[key], "GRADE_ARGUMENT_REQUIRED");
+    return readGradeSubmission(root, path.resolve(options[key])).raw;
+  };
+  if (command === "memory-judge-ready") {
+    const source = input("--source"),
+      proof = input("--approval");
+    console.log(
+      JSON.stringify(await prepareMigrationReady(source.roots, proof)),
+    );
+    return;
+  }
   await Domains.use(root, async (d) => {
+    if (command === "memory-judge-export") {
+      const proof = input("--approval");
+      assertReviewedMigrationHead(proof);
+      const expected = proof.export_preparation_sha256?.[options["--batch"]];
+      requireThat(
+        typeof expected === "string" && /^[0-9a-f]{64}$/.test(expected),
+        "MIGRATION_COPY_COMPARISON_REQUIRED",
+      );
+      console.log(
+        JSON.stringify(
+          exportJudgeMigration(
+            root,
+            d.assertControllerLease(),
+            input("--source"),
+            options["--batch"],
+            undefined,
+            expected,
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-judge-reserve") {
+      console.log(
+        JSON.stringify(
+          reserveMigrationAttempt(
+            root,
+            d.assertControllerLease(),
+            options["--batch"],
+            input("--source"),
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-judge-send") {
+      console.log(
+        JSON.stringify(
+          recordMigrationSend(
+            root,
+            d.assertControllerLease(),
+            options["--attempt"],
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-judge-import") {
+      requireThat(options["--verdict"], "GRADE_SUBMISSION_REQUIRED");
+      console.log(
+        JSON.stringify(
+          importMigrationResponse(
+            root,
+            d.assertControllerLease(),
+            options["--attempt"],
+            path.resolve(options["--verdict"]),
+            input("--source"),
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-judge-reconcile") {
+      console.log(
+        JSON.stringify(
+          reconcileGradeTransaction(
+            root,
+            d.assertControllerLease(),
+            options["--transaction"],
+            options["--sha256"],
+          ),
+        ),
+      );
+      return;
+    }
+
     if (command === "memory-campaign-close") {
       requireThat(
         options["--root"] && Object.keys(options).every((k) => k === "--root"),
@@ -361,14 +471,22 @@ async function main() {
       const { raw } = readGradeSubmission(root, file);
       requireThat(Array.isArray(raw.runs), "GRADE_BATCH_RUNS_INVALID");
       for (const run of raw.runs) d.load(run);
-      console.log(JSON.stringify(exportGradeBatch(root, raw.runs)));
+      console.log(
+        JSON.stringify(
+          exportGradeBatch(root, raw.runs, d.assertControllerLease()),
+        ),
+      );
       return;
     }
     if (command === "memory-grade-batch-import") {
       requireThat(options["--verdict"], "GRADE_BATCH_RESPONSE_REQUIRED");
       console.log(
         JSON.stringify(
-          importGradeBatch(root, path.resolve(options["--verdict"])),
+          importGradeBatch(
+            root,
+            path.resolve(options["--verdict"]),
+            d.assertControllerLease(),
+          ),
         ),
       );
       return;
