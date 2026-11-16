@@ -18,6 +18,7 @@ import { resolveGradeReceipt } from "./grading-batch.ts";
 import { validateMigrationReceiptBinding } from "./grading-attempt.ts";
 import {
   assessmentDirectory,
+  loadAssessment,
   readAssessmentResult,
   validateAssessmentWorklist,
   verifyAssessmentFiles,
@@ -65,10 +66,55 @@ function rootsMap(locations: any[]) {
   }
   return map;
 }
+/** The post-grading snapshot cannot replace the pre-grading history anchor. */
+function verifyAnchoredHistory(
+  worklist: any,
+  roots: Map<string, string>,
+  anchor?: any,
+) {
+  const worklistHash = sha(gradeJSONBytes(worklist));
+  let history: any;
+  let historyHash: string | undefined;
+  for (const spec of worklist.new_batches) {
+    const root = roots.get(spec.facility_nonce);
+    requireThat(root, "ASSESSMENT_REPLAY_ROOT_MISSING");
+    const p = loadAssessment(root, spec.assessment_id, anchor);
+    requireThat(
+      p.record.worklist_sha256 === worklistHash,
+      "ASSESSMENT_REPLAY_WORKLIST_CHANGED",
+    );
+    const candidate = readOwnedGradeJSON(root, p.prefix + "/history.json");
+    const candidateHash = sha(gradeJSONBytes(candidate));
+    requireThat(
+      candidateHash === p.record.history_sha256 &&
+        (historyHash === undefined || historyHash === candidateHash),
+      "ASSESSMENT_REPLAY_HISTORY_CHANGED",
+    );
+    history = candidate;
+    historyHash = candidateHash;
+  }
+  requireThat(
+    history && Array.isArray(history.files),
+    "ASSESSMENT_HISTORY_MISSING",
+  );
+  for (const [nonce, root] of roots) {
+    const files = history.files.filter((f: any) => f.facility_nonce === nonce);
+    requireThat(
+      files.some((f: any) => f.relative === "facility.json"),
+      "ASSESSMENT_HISTORY_MISSING",
+    );
+    verifyAssessmentFiles(root, files);
+  }
+  requireThat(
+    history.files.every((f: any) => roots.has(f.facility_nonce)),
+    "ASSESSMENT_REPLAY_ROOT_MISSING",
+  );
+}
 /** This inventory is private. It contains no file contents or credential values. */
 export function createAssessmentReplayManifest(
   worklist: any,
   locations: any[],
+  assessmentAnchor?: any,
 ) {
   validateAssessmentWorklist(worklist);
   const roots = rootsMap(locations);
@@ -77,6 +123,7 @@ export function createAssessmentReplayManifest(
       roots.size,
     "ASSESSMENT_ROOT_SET_MISMATCH",
   );
+  verifyAnchoredHistory(worklist, roots, assessmentAnchor);
   const codeNames = execFileSync(
     "git",
     [
@@ -169,6 +216,7 @@ export function replayAssessment(
     );
     verifyAssessmentFiles(root, f.files);
   }
+  verifyAnchoredHistory(worklist, roots, anchors?.assessment);
   const cache = new Map<string, ReturnType<typeof readAssessmentResult>>(),
     rows: any[] = [];
   for (const row of worklist.rows) {

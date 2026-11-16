@@ -14,6 +14,7 @@ import { gradeJSONBytes } from "../../online/benchmark/grading-transaction.ts";
 import {
   legacyGradeBatchPayload,
   exportGradeBatch,
+  importGradeBatch,
 } from "../../online/benchmark/grading-batch.ts";
 import {
   deriveMigrationPayload,
@@ -295,7 +296,7 @@ test("Opus fresh export never publishes a Fable batch and exactly matches the fr
       .some((n) => /^grade-batch-/.test(n)),
     false,
   );
-  assert.equal(f.p.request.includes('"model": "Fable 5.2"'), false);
+  assert.equal(f.p.request.includes("Fable"), false);
   assert.equal(
     JSON.stringify(f.p.record.batch.payload.packets[0].payload),
     JSON.stringify(f.packet.payload),
@@ -327,7 +328,7 @@ test("accepted Opus inputs replay deterministically, preserve raw fences and can
   await assert.rejects(submit(f, a, response(f)), /IMPORT_NOT_PERMITTED/);
   await assert.rejects(reserved(f), /ATTEMPT_NOT_PERMITTED/);
   const locations = [{ facility_nonce: f.nonce, root: f.root }],
-    manifest = createAssessmentReplayManifest(f.worklist, locations);
+    manifest = createAssessmentReplayManifest(f.worklist, locations, f.anchor);
   const first = replayAssessment(manifest, locations, h(manifest), {
     assessment: f.anchor,
   });
@@ -392,7 +393,11 @@ test("control, identity and schema failures are terminal and stay unassessed wit
     );
     await assert.rejects(reserved(f), /ATTEMPT_NOT_PERMITTED/);
     const locations = [{ facility_nonce: f.nonce, root: f.root }],
-      manifest = createAssessmentReplayManifest(f.worklist, locations),
+      manifest = createAssessmentReplayManifest(
+        f.worklist,
+        locations,
+        f.anchor,
+      ),
       report = replayAssessment(manifest, locations, h(manifest), {
         assessment: f.anchor,
       });
@@ -614,4 +619,158 @@ test("accepted raw-response or receipt tampering is detected before report use",
     () => readAssessmentResult(f.root, f.id, f.anchor),
     /COMMITTED_FILE_CHANGED/,
   );
+});
+
+test("accepted Fable parent reassessment preserves its mapping and rejects duplicate accepted parents", async () => {
+  const f = fixture();
+  const result = await lease(f.root, async (c) =>
+    exportGradeBatch(f.root, [f.run], c),
+  );
+  const parent = JSON.parse(fs.readFileSync(result.file, "utf8"));
+  const raw = response(f);
+  raw.batch_id = parent.batch_id;
+  raw.payload_sha256 = parent.payload_sha256;
+  raw.judge = { model: "Fable 5.2", effort: "Extra" };
+  for (const s of raw.submissions) s.judge = raw.judge;
+  const file = path.join(f.review, "legacy.json");
+  writeJSON(file, raw);
+  await lease(f.root, async (c) => importGradeBatch(f.root, file, c));
+  const w: any = structuredClone(f.worklist);
+  w.new_batches[0].parent_batch_id = parent.batch_id;
+  const p = buildAssessment(f.root, w, f.history, f.id, f.anchorRelative);
+  assert.equal(p.record.mode, "HISTORICAL_FABLE_REASSESSMENT");
+  assert.equal(p.request, f.p.request);
+  const mapping = structuredClone(w);
+  const otherRun = randomUUID();
+  for (const [dir, suffix] of [
+    ["runs", ".json"],
+    ["oracles", "-grade-packet.json"],
+    ["oracles", "-sealed-v3.json"],
+  ]) {
+    fs.copyFileSync(
+      path.join(f.root, dir, f.run + suffix),
+      path.join(f.root, dir, otherRun + suffix),
+    );
+  }
+  mapping.rows[0].run = otherRun;
+  mapping.new_batches[0].runs = [otherRun];
+  assert.throws(
+    () => buildAssessment(f.root, mapping, f.history, f.id, f.anchorRelative),
+    /PARENT_MAPPING_CHANGED/,
+  );
+  await lease(f.root, async (c) => importGradeBatch(f.root, file, c));
+  assert.throws(
+    () => buildAssessment(f.root, w, f.history, f.id, f.anchorRelative),
+    /ACCEPTED_FABLE_PARENT_REQUIRED/,
+  );
+});
+
+test("replay rejects rehashed cohort changes and missing selections", async () => {
+  const f = fixture();
+  const missing = structuredClone(f.worklist);
+  missing.rows.push({
+    ...missing.rows[0],
+    run: randomUUID(),
+    selection: { kind: "ASSESSMENT", assessment_id: randomUUID() },
+  });
+  assert.throws(
+    () => validateAssessmentWorklist(missing),
+    /ASSESSMENT_SELECTION_MISSING/,
+  );
+  await exported(f);
+  const locations = [{ facility_nonce: f.nonce, root: f.root }];
+  const manifest = createAssessmentReplayManifest(
+    f.worklist,
+    locations,
+    f.anchor,
+  );
+  const changed = structuredClone(f.worklist);
+  changed.rows[0].metadata.cohort = "DIFFERENT_COHORT";
+  assert.throws(
+    () => createAssessmentReplayManifest(changed, locations, f.anchor),
+    /REPLAY_WORKLIST_CHANGED/,
+  );
+  manifest.worklist = changed;
+  manifest.worklist_sha256 = h(changed);
+  assert.throws(
+    () =>
+      replayAssessment(manifest, locations, h(manifest), {
+        assessment: f.anchor,
+      }),
+    /REPLAY_WORKLIST_CHANGED/,
+  );
+});
+
+test("real CLI snapshots and replays a fixture and restored copy with identical report hashes", async () => {
+  const f = fixture();
+  // The CLI has no anchor/proof injection flags. Supply an isolated on-disk fixture anchor.
+  f.anchorRelative = `docs/fix/evidence/assessment-cli-fixture-${f.id}.json`;
+  f.p = buildAssessment(f.root, f.worklist, f.history, f.id, f.anchorRelative);
+  f.anchor.entries = [
+    {
+      assessment_id: f.id,
+      record_sha256: h(f.p.record),
+      request_sha256: f.p.record.request_sha256,
+      preparation_sha256: f.p.preparation_sha256,
+    },
+  ];
+  const anchorFile = path.join(repository, f.anchorRelative);
+  writeJSON(anchorFile, f.anchor);
+  try {
+    await exported(f);
+    const a = await reserved(f);
+    await submit(f, a, response(f));
+    const restored = path.join(
+      repository,
+      ".local/benchmark",
+      "assessment-cli-restored-" + f.id,
+    );
+    fs.cpSync(f.root, restored, {
+      recursive: true,
+      force: false,
+      errorOnExist: true,
+    });
+    const cli = (command: string, root: string, args: string[]) =>
+      JSON.parse(
+        execFileSync(
+          process.execPath,
+          [
+            "--import",
+            "tsx",
+            "test_case/online/benchmark/cli.ts",
+            command,
+            "--root",
+            root,
+            ...args,
+          ],
+          { cwd: repository, encoding: "utf8", timeout: 60000 },
+        ),
+      );
+    const reports = [];
+    for (const [i, root] of [f.root, restored].entries()) {
+      const locations = [{ facility_nonce: f.nonce, root }];
+      const source = path.join(f.review, `cli-source-${i}.json`),
+        loc = path.join(f.review, `cli-locations-${i}.json`);
+      writeJSON(source, { worklist: f.worklist, locations });
+      writeJSON(loc, locations);
+      const snapshot = cli("memory-assessment-snapshot", root, [
+        "--source",
+        source,
+      ]);
+      const report = cli("memory-assessment-replay", root, [
+        "--source",
+        snapshot.file,
+        "--sha256",
+        snapshot.sha256,
+        "--locations",
+        loc,
+      ]);
+      assert.equal(report.report_sha256, h(report.report));
+      assert.equal(report.report.coverage_only.assessed, 1);
+      reports.push(report);
+    }
+    assert.deepEqual(reports[0], reports[1]);
+  } finally {
+    fs.unlinkSync(anchorFile); // Only this test's uniquely named temporary anchor.
+  }
 });

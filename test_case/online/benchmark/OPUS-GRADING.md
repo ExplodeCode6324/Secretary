@@ -42,7 +42,7 @@ npm run benchmark -- memory-assessment-import --root <facility> --batch <id> --a
 
 ```sh
 npm run benchmark -- memory-assessment-snapshot --root <facility> --source <snapshot-source.json>
-npm run benchmark -- memory-assessment-replay --root <facility> --source <返回manifest> --sha256 <返回哈希> --config <locations.json>
+npm run benchmark -- memory-assessment-replay --root <facility> --source <返回manifest> --sha256 <返回哈希> --locations <locations.json>
 ```
 
 先校验全部输入哈希和精确文件集合，再计算并在返回前再次检查；校验代码 HEAD/文件哈希及新旧两类完整回执链。输出不含当前时间，相同输入重放内容哈希相同。新增回执须新建 snapshot，不替换旧 manifest。移动副本只改独立 locations 文件，原 manifest 和结果不变。重放不需浏览器、凭据、网络或模型请求。输入为私有材料，交付后继续保留；归档释放原件前先恢复已逐文件校验的 tar，并证明恢复副本可重放。
@@ -52,3 +52,7 @@ npm run benchmark -- memory-assessment-replay --root <facility> --source <返回
 保留测量限制：外部效果部分可观测；本 pilot World 缺 host marker、冻结正路径覆盖 0/3；冷上下文缺失；开发集暴露、小样本相关和盲测不完整。`5b45b761`、`d0de3a9b` 的私有 `r11-shell-constraint-casebook.json` 保留独立 no-shell/效果凭据，评分员声称动作获准不能覆盖它们。此流程不批准阈值、RC98304、新 SUT、v4、合并或部署。
 
 公共 QA 未来默认独立 `secretary-public-qa-opus-variant-v1`，保留固定上游模板/parser及旧变体分层，使用前必须通过自己的 QA 控制。本交付真实 Opus QA 为 **NOT_EXERCISED / NOT_CALIBRATED**，官方公开准确率仍 NOT_TESTED；记忆控制不能替代公共 QA 校准，不与历史 Fable 变体合并。
+
+回放还会逐一验证所有设施的评分前历史锚点，包括只包含迁移评分的设施，并将所选 worklist 与每个 assessment 记录绑定。CLI 返回 `{report,report_sha256}`。回放前检出清单的准确 `code_head`；归档时保留经过验证的 Git bundle，避免后续 squash 合并导致该提交丢失。设施标记绑定仓库绝对路径，因此恢复 checkout 时使用原路径。代码哈希描述捕获的 benchmark 源码，HEAD 本身不证明其他 tracked 文件干净；交付回放使用干净 tracked checkout。
+
+导入前核对响应的 `batch_id`：误导入其他批次文件会导致终止。已预留但未发送的尝试没有释放入口，应及时发送或保留暂停状态。原始捕获未知的隔离事务会暂停该设施所有 assessment。重新分组需要对防重叠规则做经过复核的代码修订。确认重启后，现有进程探针返回 STOPPED；归属不明仍会阻止修改。

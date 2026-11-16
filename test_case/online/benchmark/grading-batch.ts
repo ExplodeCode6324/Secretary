@@ -41,6 +41,7 @@ export function legacyGradeBatchPayload(packets: any[]) {
   };
 }
 /** One frozen context contains its controls and every sample it will adjudicate. */
+/** Historical fixture/compatibility API only; new CLI grading uses Opus assessment. */
 export function exportGradeBatch(
   root: string,
   runs: string[],

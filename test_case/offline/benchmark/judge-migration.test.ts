@@ -46,9 +46,15 @@ async function parentFixture(count = 1, existingRoot?: string) {
   for (let i = 0; i < count; i++) {
     const run = randomUUID();
     runs.push(run);
-    writeJSON(path.join(root, "runs", run + ".json"), { state: "STOPPED" });
+    writeJSON(path.join(root, "runs", run + ".json"), {
+      id: run,
+      lineage: run,
+      state: "STOPPED",
+      config: { model: "fixture", profile: "DEP", case_id: "fixture" },
+    });
     const payload = {
       version: "secretary-sealed-grading-v3",
+      disposition: { protocol_version: "fixture-v3" },
       assertions: [
         {
           assertion_id: "first-answer-fidelity",
@@ -1756,4 +1762,215 @@ test("journal-less CLI inspection supports reconciliation and conservatively blo
     () => assertPlannedGradeBaseline(root, inventory),
     /GRADE_BASELINE_DUPLICATE/,
   );
+});
+
+import {
+  buildAssessment,
+  exportAssessment,
+  worklistVersion,
+} from "../../online/benchmark/assessment.ts";
+import {
+  createAssessmentReplayManifest,
+  replayAssessment,
+} from "../../online/benchmark/assessment-report.ts";
+
+test("selected report reuses Opus migration chains, rejects mixed judges and binds every facility's anchored history", async () => {
+  const f = await exportedCohort();
+  const selected: any[] = [];
+  const hashFile = (root: string, name: string) =>
+    sha(fs.readFileSync(path.join(root, name)));
+  const hash = (v: any) => sha(gradeJSONBytes(v));
+  const makeRow = (
+    p: Awaited<ReturnType<typeof parentFixture>>,
+    run: string,
+    selection: any,
+  ) => {
+    const packet = readOwnedGradeJSON(p.root, `oracles/${run}-sealed-v3.json`);
+    return {
+      facility_nonce: readOwnedGradeJSON(p.root, "facility.json").nonce,
+      run,
+      packet_id: packet.packet_id,
+      packet_file_sha256: hashFile(p.root, `oracles/${run}-sealed-v3.json`),
+      source_file_sha256: hashFile(p.root, `oracles/${run}-grade-packet.json`),
+      run_file_sha256: hashFile(p.root, `runs/${run}.json`),
+      metadata: {
+        lineage: run,
+        model: "fixture",
+        profile: "DEP",
+        case_id: "fixture",
+        family: "fixture",
+        cohort: "FIXTURE",
+        protocol_version: "fixture-v3",
+      },
+      selection,
+    };
+  };
+  for (let i = 0; i < 6; i++) {
+    const child = f.bundle.manifest.entries[i].child_batch_id;
+    const a = await reserved(f, i);
+    assert.equal(
+      (await submit(f, i, a, responseFor(f.parents[i].root, child, f.anchor)))
+        .status,
+      "ADVISORY_PENDING_HUMAN_REVIEW",
+    );
+    for (const run of f.parents[i].runs) {
+      const file = fs
+        .readdirSync(path.join(f.parents[i].root, "oracles"))
+        .find((n) => n.startsWith(run + "-verdict-"))!;
+      const receipt_file = "oracles/" + file;
+      selected.push(
+        makeRow(f.parents[i], run, {
+          kind: "MIGRATION",
+          receipt_file,
+          receipt_sha256: hashFile(f.parents[i].root, receipt_file),
+        }),
+      );
+    }
+  }
+  const legacy = await parentFixture();
+  const legacyRaw = responseFor(legacy.root, legacy.parent.batch_id, undefined);
+  legacyRaw.judge = { model: "Fable 5.2", effort: "Extra" };
+  for (const s of legacyRaw.submissions) s.judge = legacyRaw.judge;
+  const legacyFile = path.join(f.review, "legacy-replay.json");
+  writeJSON(legacyFile, legacyRaw);
+  const legacyImport = await lease(legacy.root, async (c) =>
+    importGradeBatch(legacy.root, legacyFile, c),
+  );
+  const oldReceipt = "oracles/" + path.basename(legacyImport.imports[0].file);
+  const markerFile = path.join(f.roots[0], "reports/history-fixture.txt");
+  fs.writeFileSync(markerFile, "anchored migration-only facility history", {
+    mode: 0o600,
+  });
+
+  // Each intentionally invalid selection is frozen before export, so its rejection
+  // exercises the receipt reader, independently of the worklist-binding guard.
+  for (const variant of ["valid", "hash", "wrong-run", "fable"]) {
+    const fresh = await parentFixture(),
+      id = randomUUID();
+    const nonce = readOwnedGradeJSON(fresh.root, "facility.json").nonce;
+    const rows = structuredClone(selected);
+    if (variant === "hash") rows[0].selection.receipt_sha256 = "0".repeat(64);
+    if (variant === "wrong-run") rows[0].selection = rows[1].selection;
+    if (variant === "fable")
+      rows.push(
+        makeRow(legacy, legacy.run, {
+          kind: "MIGRATION",
+          receipt_file: oldReceipt,
+          receipt_sha256: hashFile(legacy.root, oldReceipt),
+        }),
+      );
+    const worklist = {
+      version: worklistVersion,
+      cohort_id: randomUUID(),
+      new_batches: [
+        { assessment_id: id, facility_nonce: nonce, runs: fresh.runs },
+      ],
+      rows: [
+        ...rows,
+        makeRow(fresh, fresh.run, { kind: "ASSESSMENT", assessment_id: id }),
+      ],
+    };
+    const roots = [
+      ...f.roots,
+      ...(variant === "fable" ? [legacy.root] : []),
+      fresh.root,
+    ];
+    const locations = roots.map((root) => ({
+      root,
+      facility_nonce: readOwnedGradeJSON(root, "facility.json").nonce,
+    }));
+    const history = {
+      files: locations.flatMap((l) =>
+        allFiles(l.root)
+          .filter(
+            (n) =>
+              n === "facility.json" ||
+              n.startsWith("oracles/") ||
+              n.startsWith("reports/"),
+          )
+          .map((relative) => ({
+            facility_nonce: l.facility_nonce,
+            relative,
+            bytes: fs.statSync(path.join(l.root, relative)).size,
+            sha256: hashFile(l.root, relative),
+          })),
+      ),
+    };
+    const anchorRelative = "docs/fix/evidence/mixed-replay-fixture.json";
+    const p = buildAssessment(
+      fresh.root,
+      worklist,
+      history,
+      id,
+      anchorRelative,
+    );
+    const anchor = {
+      version: "secretary-opus-assessment-anchor-v1",
+      worklist_sha256: hash(worklist),
+      history_sha256: hash(history),
+      entries: [
+        {
+          assessment_id: id,
+          record_sha256: hash(p.record),
+          request_sha256: p.record.request_sha256,
+          preparation_sha256: p.preparation_sha256,
+        },
+      ],
+    };
+    await lease(fresh.root, async (c) =>
+      exportAssessment(
+        fresh.root,
+        c,
+        worklist,
+        history,
+        id,
+        anchorRelative,
+        anchor,
+        { ...fixtureProof, version: "secretary-assessment-execution-proof-v1" },
+        fixtureExecution(),
+      ),
+    );
+    const manifest = createAssessmentReplayManifest(
+      worklist,
+      locations,
+      anchor,
+    );
+    const replay = (m = manifest) =>
+      replayAssessment(m, locations, hash(m), {
+        assessment: anchor,
+        migration: f.anchor,
+      });
+    if (variant !== "valid") {
+      assert.throws(
+        () => replay(),
+        variant === "hash"
+          ? /ASSESSMENT_RECEIPT_CHANGED/
+          : variant === "wrong-run"
+            ? /ASSESSMENT_RECEIPT_RUN_MISMATCH/
+            : /ASSESSMENT_OPUS_RECEIPT_REQUIRED/,
+      );
+      continue;
+    }
+    assert.equal(replay().coverage_only.assessed, 9);
+    const missing = structuredClone(worklist);
+    missing.rows.splice(0, 1);
+    assert.throws(
+      () => createAssessmentReplayManifest(missing, locations, anchor),
+      /REPLAY_WORKLIST_CHANGED/,
+    );
+    const original = fs.readFileSync(markerFile);
+    fs.writeFileSync(markerFile, "changed after the pre-grading anchor");
+    assert.throws(
+      () => createAssessmentReplayManifest(worklist, locations, anchor),
+      /ASSESSMENT_SOURCE_CHANGED/,
+    );
+    const changed = structuredClone(manifest);
+    const entry = changed.facilities
+      .find((r: any) => r.facility_nonce === locations[0].facility_nonce)!
+      .files.find((r: any) => r.relative === "reports/history-fixture.txt")!;
+    entry.sha256 = hashFile(f.roots[0], entry.relative);
+    entry.bytes = fs.statSync(markerFile).size;
+    assert.throws(() => replay(changed), /ASSESSMENT_SOURCE_CHANGED/);
+    fs.writeFileSync(markerFile, original);
+  }
 });

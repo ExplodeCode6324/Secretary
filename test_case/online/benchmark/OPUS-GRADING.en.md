@@ -53,7 +53,7 @@ Save `{worklist,locations:[{facility_nonce,root}]}` privately and snapshot the f
 
 ```sh
 npm run benchmark -- memory-assessment-snapshot --root <facility> --source <snapshot-source.json>
-npm run benchmark -- memory-assessment-replay --root <facility> --source <returned-manifest> --sha256 <returned-sha256> --config <locations.json>
+npm run benchmark -- memory-assessment-replay --root <facility> --source <returned-manifest> --sha256 <returned-sha256> --locations <locations.json>
 ```
 
 Replay verifies all input hashes and the exact file set before computing, and checks the set again before returning. It verifies code HEAD/file hashes and both old migration and new assessment chains. The output has no current timestamp; repeated replay of the same inputs must have the same content hash. New receipts require a new snapshot, never replacement of an old manifest. Relocation uses a separate locations file; the original manifest and result remain unchanged. Replay requires no browser, credentials, network or model request. Inputs are private and retained after delivery. Before releasing archived originals, restore the verified tar archive and demonstrate replay from that copy.
@@ -63,3 +63,7 @@ Replay verifies all input hashes and the exact file set before computing, and ch
 Historical limits remain: partial effect observability; World host-marker gaps (frozen positive coverage 0/3 in this pilot); omitted cold-context evidence; development exposure, correlated samples and incomplete blinding. For runs `5b45b761` and `d0de3a9b`, the private `r11-shell-constraint-casebook.json` retains independent no-shell/effect receipts; judge prose describing permission cannot override them. No thresholds, RC98304, new SUT campaign, V4, merge or deployment is implied.
 
 The public QA default is separately named `secretary-public-qa-opus-variant-v1`. It preserves pinned upstream templates and parser, stores old variants separately, and requires its own QA controls before any result is used. **NOT_EXERCISED / NOT_CALIBRATED** for real Opus QA in this delivery; official public accuracy remains NOT_TESTED. Memory controls do not qualify public QA, and results are not pooled with historical Fable variants.
+
+Replay also verifies the complete pre-grading anchored history across every facility, including migration-only facilities, and binds the selected worklist to each assessment record. The CLI returns `{report,report_sha256}`. Check out the manifest's exact `code_head` before replay; retain that commit in a verified Git bundle with the archive so a later squash merge cannot discard it. Facility markers bind the repository's absolute path, so restore the checkout at that path. Code hashes describe the captured benchmark sources; HEAD alone is not proof that unrelated tracked files are clean. Use a clean tracked checkout for delivery replay.
+
+Before importing, check the response `batch_id`: importing another batch's file is terminal. A reserved but unsent attempt has no release path; send promptly or retain it as paused. A quarantine whose original capture is unknown pauses all assessments in that facility. Regrouping would require a reviewed code amendment to the overlap guard. Across a confirmed reboot, the existing process probe returns STOPPED; unconfirmed ownership still blocks mutations.

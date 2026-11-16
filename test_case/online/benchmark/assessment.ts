@@ -767,8 +767,9 @@ export function readAssessmentResult(root: string, id: string, anchor?: any) {
   );
   const commits = assertGradeStore(root);
   requireThat(
-    commits.get(p.prefix + "/accepted.json") ===
-      commits.get(a.base + "/outcome.json"),
+    !!commits.get(p.prefix + "/accepted.json")?.transaction_id &&
+      commits.get(p.prefix + "/accepted.json")?.transaction_id ===
+        commits.get(a.base + "/outcome.json")?.transaction_id,
     "ASSESSMENT_IMPORT_COMMIT_MISSING",
   );
   const controls = validateGradeBatch(

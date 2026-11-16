@@ -85,6 +85,7 @@ async function main() {
         "--run",
         "--checkpoint",
         "--config",
+        "--locations",
         "--root",
         "--apply",
         "--approval",
@@ -196,10 +197,11 @@ async function main() {
   };
   if (command === "memory-assessment-replay") {
     const manifest = input("--source"),
-      locations = input("--config");
+      locations = input("--locations");
+    const report = replayAssessment(manifest, locations, options["--sha256"]);
     console.log(
       JSON.stringify(
-        replayAssessment(manifest, locations, options["--sha256"]),
+        { report, report_sha256: sha(gradeJSONBytes(report)) },
         null,
         2,
       ),
