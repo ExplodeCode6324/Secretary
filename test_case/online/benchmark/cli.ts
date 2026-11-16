@@ -8,6 +8,7 @@ import {
   prepareMigrationReady,
   reserveMigrationAttempt,
   recordMigrationSend,
+  recordMigrationNoResponse,
   importMigrationResponse,
 } from "./grading-attempt.ts";
 import { exportGradeBatch, importGradeBatch } from "./grading-batch.ts";
@@ -221,6 +222,19 @@ async function main() {
             root,
             d.assertControllerLease(),
             options["--attempt"],
+          ),
+        ),
+      );
+      return;
+    }
+    if (command === "memory-judge-no-response") {
+      console.log(
+        JSON.stringify(
+          recordMigrationNoResponse(
+            root,
+            d.assertControllerLease(),
+            options["--attempt"],
+            input("--source"),
           ),
         ),
       );

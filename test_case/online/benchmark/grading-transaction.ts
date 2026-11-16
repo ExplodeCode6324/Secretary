@@ -203,6 +203,31 @@ export function assertGradeStore(root: string) {
   return commits;
 }
 
+/** Apply the future baseline-membership rule before a first export can publish it. */
+export function assertPlannedGradeBaseline(root: string, inventory: any) {
+  const commits = assertGradeStore(root),
+    nonce = requireExistingGradeFacility(root).nonce;
+  const names = new Set(
+    inventory.files
+      .filter(
+        (f: any) => f.namespace === "facility" && f.facility_nonce === nonce,
+      )
+      .map((f: any) => f.relative),
+  );
+  requireThat(names.has("facility.json"), "GRADE_BASELINE_FACILITY_MISSING");
+  for (const name of fileList(root, "oracles")) {
+    if (
+      name.startsWith("oracles/.grading-") ||
+      name.startsWith("oracles/grading-commit-")
+    )
+      continue;
+    requireThat(
+      names.has(name) || commits.has(name),
+      "GRADE_UNMARKED_NEW_FILE",
+    );
+  }
+}
+
 /** Publish immutable files. prepare is durable before any live pathname exists. */
 export function commitGradeFiles(
   root: string,
@@ -323,6 +348,50 @@ export function commitGradeFiles(
   };
 }
 
+export function incompleteGradePreparation(root: string, id: string) {
+  requireThat(gradeUUID(id), "GRADE_RECONCILE_INVALID");
+  const relative = `oracles/.grading-transactions/${id}`,
+    dir = gradePath(root, relative);
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  requireThat(
+    entries.every(
+      (e) => e.isFile() && /^prepare\.json\.tmp-[a-f0-9-]{36}$/.test(e.name),
+    ),
+    "GRADE_RECONCILE_MISSING_JOURNAL_UNSAFE",
+  );
+  const snapshot = {
+    version: "secretary-grading-incomplete-preparation-v1",
+    transaction_id: id,
+    files: entries
+      .map((e) => {
+        const b = readOwnedGradeFile(root, relative + "/" + e.name);
+        return { name: e.name, bytes: b.length, sha256: sha(b) };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)),
+  };
+  return { snapshot, sha256: sha(gradeJSONBytes(snapshot)) };
+}
+function reconciliationResult(root: string, id: string, quarantineID: string) {
+  const remaining = transactionNames(root).filter(
+    (tx) =>
+      !fs.existsSync(path.join(root, `oracles/grading-commit-${tx}.json`)),
+  );
+  let storeError: string | null = null;
+  try {
+    assertGradeStore(root);
+  } catch (e) {
+    storeError = e instanceof Error ? e.message : "GRADE_STORE_BLOCKED";
+  }
+  return {
+    quarantine_id: quarantineID,
+    transaction_id: id,
+    status: "QUARANTINED_NOT_RETRIED",
+    store_status: storeError ? "BLOCKED" : "READABLE",
+    remaining_pending_ids: remaining,
+    store_error: storeError,
+  };
+}
+
 /** Only uncommitted local operations can be quarantined; original evidence stays. */
 export function reconcileGradeTransaction(
   root: string,
@@ -337,6 +406,37 @@ export function reconcileGradeTransaction(
       !fs.existsSync(path.join(root, "oracles", `grading-commit-${id}.json`)),
     "GRADE_RECONCILE_COMMITTED_OR_INVALID",
   );
+  if (
+    !fs.existsSync(
+      gradePath(root, `oracles/.grading-transactions/${id}/prepare.json`),
+    )
+  ) {
+    const inspected = incompleteGradePreparation(root, id);
+    requireThat(
+      inspected.sha256 === expectedPrepareHash,
+      "GRADE_RECONCILE_UNREVIEWED",
+    );
+    const quarantineID = randomUUID(),
+      q = gradePath(root, `oracles/.grading-quarantine/${quarantineID}`);
+    mkdir(q);
+    writeJSON(path.join(q, "reconciliation.json"), {
+      version: "secretary-grading-reconciliation-v1",
+      transaction_id: id,
+      quarantine_id: quarantineID,
+      original: null,
+      incomplete_preparation: inspected.snapshot,
+      at: new Date().toISOString(),
+      action: "QUARANTINE_ONLY_NO_MODEL_RETRY",
+    });
+    assertLease(context, root);
+    fs.renameSync(
+      path.join(root, "oracles/.grading-transactions", id),
+      path.join(q, "transaction"),
+    );
+    syncDir(path.join(root, "oracles/.grading-transactions"));
+    syncDir(q);
+    return reconciliationResult(root, id, quarantineID);
+  }
   const preparation = readOwnedGradeFile(
     root,
     `oracles/.grading-transactions/${id}/prepare.json`,
@@ -436,10 +536,5 @@ export function reconcileGradeTransaction(
   );
   syncDir(path.join(root, "oracles/.grading-transactions"));
   syncDir(q);
-  assertGradeStore(root);
-  return {
-    quarantine_id: quarantineID,
-    transaction_id: id,
-    status: "QUARANTINED_NOT_RETRIED",
-  };
+  return reconciliationResult(root, id, quarantineID);
 }

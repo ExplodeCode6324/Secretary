@@ -18,6 +18,7 @@ import {
 } from "./grading-migration.ts";
 import {
   assertGradeStore,
+  assertPlannedGradeBaseline,
   commitGradeFiles,
   gradeJSONBytes,
   gradePath,
@@ -325,6 +326,7 @@ export function exportJudgeMigration(
   assertGradingStopped(root);
   assertGradeStore(root);
   verifyMigrationInventories(root, bundle);
+  assertPlannedGradeBaseline(root, bundle.history_inventory);
   validateMigrationAnchor(
     bundle.manifest,
     trustedAnchor ?? readTrackedMigrationAnchor(),
@@ -336,6 +338,22 @@ export function exportJudgeMigration(
     "MIGRATION_FACILITY_MISMATCH",
   );
   const parent = loadGradeBatch(root, entry.parent_batch_id, trustedAnchor);
+  requireThat(
+    sha(
+      readOwnedGradeFile(
+        root,
+        `oracles/grade-batch-${entry.parent_batch_id}.json`,
+      ),
+    ) === entry.parent_file_sha256 &&
+      sha(
+        readOwnedGradeFile(
+          root,
+          `oracles/grade-batch-${entry.parent_batch_id}-private.json`,
+        ),
+      ) === entry.parent_private_file_sha256,
+    "MIGRATION_PARENT_FILE_CHANGED",
+  );
+
   requireThat(
     !supersededGradeParent(root, entry.parent_batch_id),
     "MIGRATION_PARENT_ALREADY_RESERVED",

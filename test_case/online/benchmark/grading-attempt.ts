@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
   assertLease,
+  deploymentGuard,
+  inside,
   lease,
   type LeaseContext,
   repository,
@@ -49,14 +51,30 @@ const attemptPrefix = (batch: any) =>
 
 /** Actual exports/dispatch require recorded exact-HEAD review and CI. This is an
  * operator attestation, not a claim that local strings verify GitHub or Claude. */
-export function assertReviewedMigrationHead(proof: any) {
-  const head = execFileSync("git", ["rev-parse", "HEAD"], {
-    cwd: repository,
-    encoding: "utf8",
-  }).trim();
+export type MigrationExecutionState = {
+  head: string;
+  tracked_tree_clean: boolean;
+};
+export function readMigrationExecutionState(): MigrationExecutionState {
+  return {
+    head: execFileSync("git", ["rev-parse", "HEAD"], {
+      cwd: repository,
+      encoding: "utf8",
+    }).trim(),
+    tracked_tree_clean: !execFileSync(
+      "git",
+      ["status", "--porcelain", "--untracked-files=no"],
+      { cwd: repository, encoding: "utf8" },
+    ).trim(),
+  };
+}
+export function assertReviewedMigrationHead(
+  proof: any,
+  observed = readMigrationExecutionState(),
+) {
   requireThat(
     proof?.version === "secretary-migration-execution-approval-v1" &&
-      proof.head === head &&
+      proof.head === observed.head &&
       proof.review_status === "PASS" &&
       proof.ci_status === "PASS" &&
       typeof proof.review_sha256 === "string" &&
@@ -68,13 +86,10 @@ export function assertReviewedMigrationHead(proof: any) {
     "MIGRATION_REVIEWED_HEAD_REQUIRED",
   );
   requireThat(
-    !execFileSync("git", ["status", "--porcelain", "--untracked-files=no"], {
-      cwd: repository,
-      encoding: "utf8",
-    }).trim(),
+    observed.tracked_tree_clean,
     "MIGRATION_TRACKED_WORKTREE_CHANGED",
   );
-  return head;
+  return observed.head;
 }
 
 /** No nested facility locks: all six exports are checked one facility at a time,
@@ -83,8 +98,9 @@ export async function prepareMigrationReady(
   roots: string[],
   proof: any,
   trustedAnchor?: any,
+  inspectExecution = readMigrationExecutionState,
 ) {
-  const head = trustedAnchor ? proof.head : assertReviewedMigrationHead(proof);
+  const head = assertReviewedMigrationHead(proof, inspectExecution());
   requireThat(
     roots.length === 3 && new Set(roots).size === 3,
     "MIGRATION_READY_ROOTS_INVALID",
@@ -92,6 +108,7 @@ export async function prepareMigrationReady(
   const rows: any[] = [];
   let manifest: any;
   for (const root of roots) {
+    deploymentGuard(repository, root);
     requireExistingGradeFacility(root);
     await lease(root, async (context) => {
       assertGradingStopped(root);
@@ -160,9 +177,29 @@ export async function prepareMigrationReady(
         (r) => r.facility_nonce === requireExistingGradeFacility(root).nonce,
       ))
         loadGradeBatch(root, r.child_batch_id, trustedAnchor);
-      commitGradeFiles(root, context, "MIGRATION_READY", [
-        jsonOutput(migrationDirectory(manifest) + "/ready.json", ready),
-      ]);
+      const name = migrationDirectory(manifest) + "/ready.json";
+      if (fs.existsSync(path.join(root, name)))
+        requireThat(
+          readOwnedGradeFile(root, name).equals(gradeJSONBytes(ready)),
+          "MIGRATION_READY_CHANGED",
+        );
+      else
+        commitGradeFiles(root, context, "MIGRATION_READY", [
+          jsonOutput(name, ready),
+        ]);
+    });
+  for (const root of roots)
+    await lease(root, async (context) => {
+      assertGradingStopped(root);
+      assertGradeStore(root);
+      assertLease(context, root);
+      requireThat(
+        readOwnedGradeFile(
+          root,
+          migrationDirectory(manifest) + "/ready.json",
+        ).equals(gradeJSONBytes(ready)),
+        "MIGRATION_READY_CHANGED",
+      );
     });
   return ready;
 }
@@ -171,6 +208,10 @@ function verifyReady(root: string, batch: any, trustedAnchor?: any) {
     root,
     batch.migration.manifest_file,
     trustedAnchor,
+  );
+  requireThat(
+    fs.existsSync(path.join(root, migrationDirectory(manifest), "ready.json")),
+    "MIGRATION_READY_MISSING",
   );
   const ready = readOwnedGradeJSON(
     root,
@@ -205,9 +246,9 @@ function verifyReady(root: string, batch: any, trustedAnchor?: any) {
   return { ready, row };
 }
 /** Quarantining an interrupted reservation never refunds its ordinal. */
-function reservedIDs(root: string, batch: any) {
+function reservedRecords(root: string, batch: any) {
   const prefix = attemptPrefix(batch),
-    ids = new Set<string>();
+    records = new Map<string, { ordinal: number; quarantined: boolean }>();
   const walk = (dir: string) => {
     if (!fs.existsSync(dir)) return;
     for (const item of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -215,55 +256,109 @@ function reservedIDs(root: string, batch: any) {
       const file = path.join(dir, item.name);
       if (item.isDirectory()) walk(file);
       else if (item.name === "prepare.json") {
-        const p = readOwnedGradeJSON(root, path.relative(root, file));
+        const relative = path.relative(root, file),
+          p = readOwnedGradeJSON(root, relative);
         for (const f of p.files ?? []) {
           const suffix = f.name.startsWith(prefix + "/")
             ? f.name.slice(prefix.length + 1)
             : "";
           if (
-            suffix.endsWith("/reservation.json") &&
-            gradeUUID(suffix.split("/")[0])
+            !suffix.endsWith("/reservation.json") ||
+            !gradeUUID(suffix.split("/")[0])
           )
-            ids.add(suffix.split("/")[0]);
+            continue;
+          const id = suffix.split("/")[0],
+            meta = p.parent_child;
+          requireThat(
+            p.operation === "MIGRATION_ATTEMPT_RESERVATION" &&
+              meta?.attempt_id === id &&
+              meta.child_batch_id === batch.batch_id &&
+              Number.isInteger(meta.ordinal) &&
+              meta.ordinal >= 1 &&
+              meta.ordinal <= 3,
+            "GRADE_RESERVATION_JOURNAL_INVALID",
+          );
+          const q =
+            /^oracles\/\.grading-quarantine\/([a-f0-9-]{36})\/transaction\/prepare\.json$/.exec(
+              relative,
+            );
+          if (q) {
+            const receipt = readOwnedGradeJSON(
+              root,
+              `oracles/.grading-quarantine/${q[1]}/reconciliation.json`,
+            );
+            requireThat(
+              receipt.transaction_id === p.transaction_id &&
+                JSON.stringify(receipt.original) === JSON.stringify(p) &&
+                receipt.action === "QUARANTINE_ONLY_NO_MODEL_RETRY",
+              "GRADE_RESERVATION_RECONCILIATION_INVALID",
+            );
+          }
+          requireThat(!records.has(id), "GRADE_RESERVATION_DUPLICATE");
+          records.set(id, { ordinal: meta.ordinal, quarantined: !!q });
         }
       }
     }
   };
   walk(path.join(root, "oracles/.grading-transactions"));
   walk(path.join(root, "oracles/.grading-quarantine"));
-  return [...ids];
+  return records;
 }
 export function migrationAttemptCoverage(root: string, batch: any) {
   const prefix = attemptPrefix(batch),
-    ids = reservedIDs(root, batch);
-  if (!ids.length) return { status: "NOT_SENT", reservations: 0 };
-  const records = ids.map((id) => {
-    const reservation = `${prefix}/${id}/reservation.json`,
-      outcome = `${prefix}/${id}/outcome.json`;
-    return {
-      id,
-      reservation: fs.existsSync(path.join(root, reservation))
-        ? readOwnedGradeJSON(root, reservation)
-        : null,
-      outcome: fs.existsSync(path.join(root, outcome))
-        ? readOwnedGradeJSON(root, outcome)
-        : null,
-    };
-  });
-  if (records.some((r) => !r.reservation || !r.outcome))
-    return { status: "ATTEMPT_OUTCOME_UNCERTAIN", reservations: ids.length };
-  records.sort((a, b) => a.reservation.ordinal - b.reservation.ordinal);
+    reserved = reservedRecords(root, batch);
+  if (!reserved.size)
+    return { status: "NOT_SENT", reservations: 0, consumed_not_sent: 0 };
+  let consumed = 0;
+  const records = [...reserved]
+    .map(([id, meta]) => {
+      const name = `${prefix}/${id}/reservation.json`,
+        out = `${prefix}/${id}/outcome.json`;
+      const reservation = fs.existsSync(path.join(root, name))
+        ? readOwnedGradeJSON(root, name)
+        : null;
+      if (!reservation && meta.quarantined) {
+        requireThat(
+          !fs.existsSync(path.join(root, prefix, id, "send-intent.json")) &&
+            !fs.existsSync(path.join(root, prefix, id, "original.txt")),
+          "GRADE_RECONCILED_RESERVATION_WAS_SENT",
+        );
+        consumed++;
+        return { ordinal: meta.ordinal, status: "RECONCILED_NOT_SENT" };
+      }
+      requireThat(
+        !reservation || reservation.ordinal === meta.ordinal,
+        "GRADE_ATTEMPT_ORDINAL_INVALID",
+      );
+      return {
+        ordinal: meta.ordinal,
+        status:
+          reservation && fs.existsSync(path.join(root, out))
+            ? readOwnedGradeJSON(root, out).status
+            : "ATTEMPT_OUTCOME_UNCERTAIN",
+      };
+    })
+    .sort((a, b) => a.ordinal - b.ordinal);
   requireThat(
-    records.every((r, i) => r.reservation.ordinal === i + 1),
+    records.every((r, i) => r.ordinal === i + 1),
     "GRADE_ATTEMPT_ORDINAL_INVALID",
   );
-  const latest = records.at(-1)!;
+  if (records.some((r) => r.status === "ATTEMPT_OUTCOME_UNCERTAIN"))
+    return {
+      status: "ATTEMPT_OUTCOME_UNCERTAIN",
+      reservations: reserved.size,
+      consumed_not_sent: consumed,
+    };
+  const last = records.at(-1)!.status,
+    retry = ["RETRY_ELIGIBLE", "RECONCILED_NOT_SENT"].includes(last);
   return {
-    status:
-      latest.outcome.status === "RETRY_ELIGIBLE" && ids.length >= 3
+    status: retry
+      ? reserved.size >= 3
         ? "ATTEMPTS_EXHAUSTED_PAUSED"
-        : latest.outcome.status,
-    reservations: ids.length,
+        : "RETRY_ELIGIBLE"
+      : last,
+    reservations: reserved.size,
+    consumed_not_sent: consumed,
   };
 }
 function evidenceOutputs(root: string, prefix: string, evidence: any) {
@@ -274,10 +369,19 @@ function evidenceOutputs(root: string, prefix: string, evidence: any) {
   const outputs: GradeOutput[] = [],
     references: any[] = [];
   for (let i = 0; i < evidence.files.length; i++) {
-    const b = readGradeSubmissionBytes(root, path.resolve(evidence.files[i]));
+    const source = path.resolve(evidence.files[i]);
+    const base = inside(path.join(root, "oracles"), source)
+      ? root
+      : path.join(repository, ".local/reviews");
+    requireThat(inside(base, source), "GRADE_EVIDENCE_OUTSIDE_APPROVED_SOURCE");
+    const b = readOwnedGradeFile(base, path.relative(base, source));
+    requireThat(
+      b.length > 0 && b.length <= 16_000_000,
+      "GRADE_EVIDENCE_SIZE_INVALID",
+    );
     const name = `${prefix}/evidence-${i}${path.extname(evidence.files[i])}`;
     requireThat(
-      /\.(json|txt|png|jpg|jpeg)$/.test(name),
+      /\.(json|txt|png|jpg|jpeg)$/i.test(name),
       "GRADE_EVIDENCE_TYPE_INVALID",
     );
     outputs.push({ name, content: b });
@@ -291,13 +395,14 @@ export function reserveMigrationAttempt(
   childID: string,
   ui: any,
   trustedAnchor?: any,
+  inspectExecution = readMigrationExecutionState,
 ) {
   assertLease(context, root);
   assertGradingStopped(root);
   const { batch, policy } = loadGradeBatch(root, childID, trustedAnchor);
   requireThat(policy === migrationPolicy, "GRADE_CHILD_REQUIRED");
   const { ready, row } = verifyReady(root, batch, trustedAnchor);
-  if (!trustedAnchor) assertReviewedMigrationHead(ready.proof);
+  assertReviewedMigrationHead(ready.proof, inspectExecution());
   const coverage = migrationAttemptCoverage(root, batch);
   requireThat(
     ["NOT_SENT", "RETRY_ELIGIBLE"].includes(coverage.status) &&
@@ -336,10 +441,16 @@ export function reserveMigrationAttempt(
     },
     prepared_at: new Date().toISOString(),
   };
-  commitGradeFiles(root, context, "MIGRATION_ATTEMPT_RESERVATION", [
-    ...evidence.outputs,
-    jsonOutput(prefix + "/reservation.json", reservation),
-  ]);
+  commitGradeFiles(
+    root,
+    context,
+    "MIGRATION_ATTEMPT_RESERVATION",
+    [
+      ...evidence.outputs,
+      jsonOutput(prefix + "/reservation.json", reservation),
+    ],
+    { attempt_id: id, child_batch_id: childID, ordinal: reservation.ordinal },
+  );
   return reservation;
 }
 function loadAttempt(root: string, attemptID: string, trustedAnchor?: any) {
@@ -378,6 +489,7 @@ export function recordMigrationSend(
   context: LeaseContext,
   attemptID: string,
   trustedAnchor?: any,
+  inspectExecution = readMigrationExecutionState,
 ) {
   assertLease(context, root);
   assertGradingStopped(root);
@@ -387,7 +499,7 @@ export function recordMigrationSend(
     trustedAnchor,
   );
   const { ready } = verifyReady(root, batch, trustedAnchor);
-  if (!trustedAnchor) assertReviewedMigrationHead(ready.proof);
+  assertReviewedMigrationHead(ready.proof, inspectExecution());
   requireThat(
     !fs.existsSync(path.join(root, prefix, "original.txt")),
     "GRADE_ATTEMPT_ALREADY_RESPONDED",
@@ -405,6 +517,61 @@ export function recordMigrationSend(
   ]);
   return value;
 }
+/** A confirmed transport failure with no model text is not an invented response. */
+export function recordMigrationNoResponse(
+  root: string,
+  context: LeaseContext,
+  attemptID: string,
+  observation: any,
+  trustedAnchor?: any,
+) {
+  assertLease(context, root);
+  assertGradingStopped(root);
+  const { batch, prefix, reservation } = loadAttempt(
+    root,
+    attemptID,
+    trustedAnchor,
+  );
+  requireThat(
+    fs.existsSync(path.join(root, prefix, "send-intent.json")),
+    "GRADE_SEND_INTENT_MISSING",
+  );
+  requireThat(
+    !["original.txt", "terminal.json", "outcome.json"].some((n) =>
+      fs.existsSync(path.join(root, prefix, n)),
+    ),
+    "GRADE_ATTEMPT_ALREADY_RESPONDED",
+  );
+  requireThat(
+    observation?.confirmed_no_response === true &&
+      observation.in_flight === false &&
+      observation.failure_kind === "CONFIRMED_TRANSPORT_NO_RESPONSE" &&
+      typeof observation.reason === "string" &&
+      observation.reason.trim(),
+    "GRADE_NO_RESPONSE_UNCONFIRMED",
+  );
+  const evidence = evidenceOutputs(root, prefix + "/no-response", observation);
+  const outcome = {
+    version: "secretary-judge-migration-outcome-v1",
+    attempt_id: attemptID,
+    child_batch_id: batch.batch_id,
+    source_file_sha256: null,
+    status:
+      reservation.ordinal >= 3 ? "ATTEMPTS_EXHAUSTED_PAUSED" : "RETRY_ELIGIBLE",
+    error: "CONFIRMED_TRANSPORT_NO_RESPONSE",
+    evidence: evidence.references,
+    reason: observation.reason,
+    confirmed_no_response: true,
+    in_flight: false,
+    at: new Date().toISOString(),
+  };
+  commitGradeFiles(root, context, "MIGRATION_NO_RESPONSE", [
+    ...evidence.outputs,
+    jsonOutput(prefix + "/outcome.json", outcome),
+  ]);
+  return outcome;
+}
+
 /** Identity and denominators are checked before any semantic/rubric decision. */
 export function validateMigrationIdentity(batch: any, raw: any) {
   requireThat(
@@ -573,22 +740,26 @@ export function importMigrationResponse(
   } catch (e) {
     return outcome("TERMINAL_REJECTED_NOT_COUNTED", errorName(e));
   }
-  for (const name of fs.readdirSync(path.join(root, "oracles"))) {
-    requireThat(
-      !privateData.mapping.some((m: any) =>
-        name.startsWith(m.run + "-verdict-"),
-      ),
-      "GRADE_RUN_ALREADY_GRADED",
-    );
-    if (/^grade-batch-receipt-[a-f0-9-]{36}\.json$/.test(name)) {
-      const r = readOwnedGradeJSON(root, "oracles/" + name);
+  try {
+    for (const name of fs.readdirSync(path.join(root, "oracles"))) {
       requireThat(
-        ![batch.batch_id, batch.migration.parent_batch_id].includes(
-          r.submission?.batch_id,
+        !privateData.mapping.some((m: any) =>
+          name.startsWith(m.run + "-verdict-"),
         ),
-        "GRADE_BATCH_ALREADY_IMPORTED",
+        "GRADE_RUN_ALREADY_GRADED",
       );
+      if (/^grade-batch-receipt-[a-f0-9-]{36}\.json$/.test(name)) {
+        const r = readOwnedGradeJSON(root, "oracles/" + name);
+        requireThat(
+          ![batch.batch_id, batch.migration.parent_batch_id].includes(
+            r.submission?.batch_id,
+          ),
+          "GRADE_BATCH_ALREADY_IMPORTED",
+        );
+      }
     }
+  } catch (e) {
+    return outcome("TERMINAL_REJECTED_NOT_COUNTED", errorName(e));
   }
   const status =
     controls.status === "PASS"
