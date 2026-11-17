@@ -12,7 +12,8 @@ jobs:
   core:
     name: Core (Linux)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Full correctness suite plus PG18 setup exceeded 20 minutes in run 43883464641.
+    timeout-minutes: 30
     env:
       CI: "true"
       SECRETARY_TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/secretary_test_admin

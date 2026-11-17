@@ -23,6 +23,7 @@ import {
   type FileEntry,
 } from "./io.ts";
 import { controlID, pgRunning } from "./postgres.ts";
+import { assertCampaignClosed } from "./campaign.ts";
 
 export const archiveDestination =
   "/Volumes/share/Files/HDD2/ELIZA/ELIZA_BAK/secretary-test-bak";
@@ -84,6 +85,7 @@ function childNames(root: string, name: string) {
   return fs.readdirSync(dir).sort();
 }
 function ownedStoppedRuns(d: Domains): Run[] {
+  assertCampaignClosed(d.root);
   const allowed = new Set([
     "facility.json",
     "controller.lock",
@@ -96,6 +98,9 @@ function ownedStoppedRuns(d: Domains): Run[] {
     "checkpoints",
     "reports",
     "configs",
+    "campaign",
+    "inputs",
+    "oracles",
   ]);
   for (const name of fs.readdirSync(d.root))
     requireThat(

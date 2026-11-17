@@ -1,7 +1,9 @@
+import { initializeGuard, forbiddenPayload } from "./payload-guard.ts";
+import { fingerprint } from "./source.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-import { execFileSync, fork } from "node:child_process";
+import { fork } from "node:child_process";
 import { CoreClient } from "../../../src/pi_secretary/src/core-client.ts";
 import type { CoreEndpoint } from "../../../src/pi_secretary/src/api-v1.ts";
 
@@ -11,6 +13,8 @@ import {
   deploymentGuard,
   inventory,
   lease,
+  assertLease,
+  type LeaseContext,
   mkdir,
   noLinks,
   processIdentity,
@@ -41,6 +45,16 @@ import {
   type Database,
 } from "./postgres.ts";
 import { restorePreflight } from "./snapshot.ts";
+import {
+  validateLiveConfiguration,
+  type LiveConfiguration,
+} from "./memory-config.ts";
+import { credential } from "./live-model.ts";
+import {
+  assertCampaignClosed,
+  assertCampaignSource,
+  closeCampaign,
+} from "./campaign.ts";
 
 export type Run = {
   version: 1;
@@ -77,14 +91,16 @@ export type Run = {
     checkpointHash: string;
   };
 };
-export type Configuration = {
-  version: 1;
-  mode: "fixture";
-  track: "correctness";
-  case_id: "infrastructure";
-  seed: number;
-  fault_injection?: "write-after-fsync";
-};
+export type Configuration =
+  | LiveConfiguration
+  | {
+      version: 1;
+      mode: "fixture";
+      track: "correctness";
+      case_id: "infrastructure";
+      seed: number;
+      fault_injection?: "write-after-fsync";
+    };
 export const configuration: Configuration = {
   version: 1,
   mode: "fixture",
@@ -93,6 +109,7 @@ export const configuration: Configuration = {
   seed: 120,
 };
 export function validateConfiguration(config: Configuration) {
+  if (config.mode === "live") return validateLiveConfiguration(config);
   requireThat(
     JSON.stringify(
       Object.keys(config)
@@ -112,11 +129,12 @@ export function validateConfiguration(config: Configuration) {
 // The Core worker receives only its non-superuser DSN, never controller credentials.
 export type WorkerPermit = Pick<
   Run,
-  "id" | "nonce" | "active" | "evidence" | "config"
-> & { core_dsn: string };
+  "id" | "lineage" | "nonce" | "active" | "evidence" | "config"
+> & { core_dsn: string; live?: { key: string; facility: string } };
 export function workerPermit(run: Run): WorkerPermit {
   return {
     id: run.id,
+    lineage: run.lineage,
     nonce: run.nonce,
     active: run.active,
     evidence: run.evidence,
@@ -124,56 +142,7 @@ export function workerPermit(run: Run): WorkerPermit {
     core_dsn: coreDSN(run.database),
   };
 }
-export function fingerprint() {
-  const git = (...args: string[]) =>
-    execFileSync("git", ["-C", repository, ...args], {
-      encoding: "utf8",
-    }).trim();
-  requireThat(
-    git("-C", "src/pi_resource", "status", "--porcelain") === "",
-    "SUBMODULE_MUST_BE_CLEAN",
-  );
-  const files = git(
-    "ls-files",
-    "--cached",
-    "--others",
-    "--exclude-standard",
-    "src",
-    "test_case/online/benchmark",
-    "test_case/benchmarks/common",
-    "package.json",
-    "package-lock.json",
-  )
-    .split("\n")
-    .filter(Boolean)
-    .sort();
-  const hashes = files
-    .filter(
-      (p) =>
-        fs.existsSync(path.join(repository, p)) &&
-        fs.statSync(path.join(repository, p)).isFile(),
-    )
-    .map((p) => [p, sha(read(path.join(repository, p)))]);
-  return {
-    head: git("rev-parse", "HEAD"),
-    tree: git("rev-parse", "HEAD^{tree}"),
-    dirty: sha(
-      git(
-        "diff",
-        "HEAD",
-        "--",
-        "src",
-        "test_case",
-        "package.json",
-        "package-lock.json",
-      ),
-    ),
-    source: sha(JSON.stringify(hashes)),
-    lockfile: sha(read(path.join(repository, "package-lock.json"))),
-    submodules: git("submodule", "status"),
-    node: process.version,
-  };
-}
+export { fingerprint } from "./source.ts";
 export const excluded = new Set([
   "marker.json",
   "tmp",
@@ -189,16 +158,48 @@ const identity = (p: string) => {
   return `${s.dev}:${s.ino}`;
 };
 export class Domains {
-  constructor(readonly root: string) {}
+  constructor(
+    readonly root: string,
+    readonly leaseContext?: LeaseContext,
+  ) {}
+  assertControllerLease() {
+    assertLease(this.leaseContext, this.root);
+    return this.leaseContext;
+  }
   static async use<T>(root: string, fn: (d: Domains) => Promise<T>) {
     deploymentGuard(repository, root);
-    return lease(root, async () => {
+    return lease(root, async (context) => {
       const file = path.join(root, "facility.json");
       if (!fs.existsSync(file))
         writeJSON(file, { version: 1, repository, nonce: randomUUID() });
       requireThat(readJSON(file).repository === repository, "FOREIGN_FACILITY");
-      return fn(new Domains(root));
+      return fn(new Domains(root, context));
     });
+  }
+  /** Recovery close is available only under Domains.use's controller lease. */
+  async closeStoppedCampaign() {
+    const directory = path.join(this.root, "runs");
+    for (const file of fs.existsSync(directory)
+      ? fs.readdirSync(directory)
+      : []) {
+      requireThat(/^[a-f0-9-]{36}\.json$/.test(file), "UNKNOWN_RUN_RECORD");
+      const run = this.raw(file.slice(0, -5));
+      requireThat(
+        ["STOPPED", "RETIRED", "CLEANED"].includes(run.state),
+        "CAMPAIGN_RUN_NOT_STOPPED",
+      );
+      if (run.state !== "CLEANED") this.load(run.id);
+      requireThat(
+        !run.process || processStatus(run.process) === "STOPPED",
+        "CAMPAIGN_WORKER_NOT_STOPPED",
+      );
+      requireThat(
+        controlID(run.database) === run.database.systemID,
+        "PG_OWNERSHIP_MISMATCH",
+      );
+      requireThat(!pgRunning(run.database), "CAMPAIGN_DATABASE_NOT_STOPPED");
+    }
+    return closeCampaign(this.root);
   }
   private record(id: string) {
     validID(id);
@@ -290,6 +291,8 @@ export class Domains {
     lineage: string = randomUUID(),
   ) {
     validateConfiguration(config);
+    if (fs.existsSync(path.join(this.root, "campaign/manifest.json")))
+      assertCampaignSource(this.root);
     const id = randomUUID();
     const run: Run = {
       version: 1,
@@ -333,6 +336,7 @@ export class Domains {
     try {
       requireThat(!fs.existsSync(run.active), "SLOT_EXISTS");
       this.mark(run);
+      if (config.mode === "live") initializeGuard(this.root, run.lineage);
       this.save(run);
       await this.preparePG(run);
       run.state = "STOPPED";
@@ -353,6 +357,14 @@ export class Domains {
   }
   async start(id: string) {
     const run = this.load(id);
+    const live =
+      run.config.mode === "live"
+        ? { key: credential(run.config.model), facility: this.root }
+        : undefined;
+    if (live) {
+      assertCampaignSource(this.root);
+      forbiddenPayload(this.root, run.lineage);
+    }
     this.assertLineageAvailable(run);
     requireThat(run.state === "STOPPED", "RUN_NOT_STOPPED");
     requireThat(
@@ -364,6 +376,7 @@ export class Domains {
         path.join(run.active, "core"),
         path.join(run.active, "core"),
         this.sink(run),
+        run.config.mode === "live",
       );
     if (!pgRunning(run.database)) startDatabase(run.database);
     await verifyDatabase(run.database);
@@ -397,7 +410,9 @@ export class Domains {
       requireThat(child.pid, "WORKER_NO_PID");
       run.process = processIdentity(child.pid, run.id);
       this.save(run);
-      child.send({ permit: workerPermit(run) }); // No Core opening before the durable ownership permit.
+      child.send({
+        permit: { ...workerPermit(run), ...(live ? { live } : {}) },
+      }); // Secrets only cross transient IPC; never enter the registry.
       await until(
         () =>
           fs.existsSync(readyFile) ||
@@ -490,6 +505,7 @@ export class Domains {
       path.join(run.active, "core"),
       path.join(run.active, "core"),
       this.sink(run),
+      run.config.mode === "live",
     );
     const cp = randomUUID(),
       dir = path.join(this.root, "checkpoints", cp);
@@ -556,6 +572,7 @@ export class Domains {
       path.join(cpDir, "state/core"),
       path.join(old.active, "core"),
       cp.sink,
+      old.config.mode === "live",
     );
     const run = await this.allocate(old.config, old.lineage);
     run.parent = id;
@@ -659,6 +676,7 @@ export class Domains {
       path.join(staged, "core"),
       path.join(run.active, "core"),
       this.sink(run),
+      run.config.mode === "live",
     );
     if (!pgRunning(run.database)) startDatabase(run.database);
     await verifyDatabase(run.database);
@@ -726,6 +744,7 @@ export class Domains {
     return run;
   }
   async clean(id: string) {
+    assertCampaignClosed(this.root);
     const run = this.load(id);
     this.assertLineageAvailable(run);
     requireThat(run.state === "STOPPED", "CLEAN_REQUIRES_STOPPED");

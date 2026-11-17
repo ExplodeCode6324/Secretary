@@ -1,4 +1,5 @@
-// Infrastructure-only entry. Real model workloads/credentials are deliberately deferred to #121.
+import { forbiddenPayload } from "./payload-guard.ts";
+// Owned fixture/live entry. A detached sender owns its durable campaign accounting.
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -15,8 +16,11 @@ import type {
   Operation,
   PushDispatch,
 } from "../../../src/pi_secretary/src/contracts.ts";
-import { appendJSON, readJSON, requireThat, writeJSON } from "./io.ts";
+import { appendJSON, readJSON, requireThat, writeJSON, read } from "./io.ts";
+import { completedFileWrite } from "./effect-proof.ts";
 import { validateConfiguration, type WorkerPermit } from "./domain.ts";
+import { configureProfile, liveRoles, meteredFetch } from "./live-model.ts";
+import { capacityForecast } from "./capacity.ts";
 
 process.umask(0o077);
 let permitted = false;
@@ -47,20 +51,33 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
       ),
       "AMBIENT_CONFIGURATION",
     );
-    // Fixture mode has no provider/network workload; any fetch is a test defect.
-    globalThis.fetch = async (input) => {
-      const url = new URL(
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url,
-      );
-      appendJSON(path.join(run.evidence, "unexpected-network.jsonl"), {
-        origin: url.origin,
+    if (run.config.mode === "live") {
+      requireThat(run.live?.key && run.live.facility, "LIVE_PERMIT_REQUIRED");
+      configureProfile(run.config.profile);
+      globalThis.fetch = meteredFetch({
+        root: run.live.facility,
+        run: run.id,
+        episode: run.lineage,
+        evidence: run.evidence,
+        model: run.config.model,
+        key: run.live.key,
+        maxSends: run.config.max_sends,
+        forbidden: () => forbiddenPayload(run.live!.facility, run.lineage),
       });
-      throw Error("FIXTURE_NETWORK_FORBIDDEN");
-    };
+    } else
+      globalThis.fetch = async (input) => {
+        const url = new URL(
+          typeof input === "string"
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input.url,
+        );
+        appendJSON(path.join(run.evidence, "unexpected-network.jsonl"), {
+          origin: url.origin,
+        });
+        throw Error("FIXTURE_NETWORK_FORBIDDEN");
+      };
     writeJSON(path.join(run.evidence, "worker-configuration.json"), run.config);
     let calls = 0,
       app: App;
@@ -154,7 +171,9 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
     };
     app = await App.open(
       path.join(run.active, "core"),
-      { model: fixtureModel, stream },
+      run.config.mode === "live"
+        ? liveRoles(run.config.model, run.live!.key, run.evidence)
+        : { model: fixtureModel, stream },
       run.core_dsn,
       {
         pushDelivery: async (_directory, target, _message, _signal) => {
@@ -182,17 +201,70 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
         },
       },
     );
-    // Fixture-only crash barrier: real write and fsync have completed, durable result has not.
+    // Real write and fsync have completed; the durable result has not. Live targeting is path-based.
+    writeJSON(
+      path.join(run.evidence, "capacity-forecast.json"),
+      capacityForecast(app),
+    );
     const finish = app.authorization.finish.bind(app.authorization);
     app.authorization.finish = ((id, receipt, outcome) => {
       const operation = app.store.get<Operation>("Operation", id);
+      const proof = receipt as any;
+      // applyWrite's successful return includes both result and CAS evidence.
+      // Its UNKNOWN error path also calls finish while DISPATCHED; it is not a
+      // completed write. verifyWrite is RESULT_UNKNOWN and is reconciliation.
+      const completedWrite = completedFileWrite(
+        operation,
+        receipt,
+        outcome,
+        () => read(operation.action.resource),
+        () => app.store.bytes(proof.evidence),
+      );
+      if (completedWrite && run.config.mode === "live")
+        appendJSON(path.join(run.evidence, "completed-file-writes.jsonl"), {
+          at: new Date().toISOString(),
+          operation_id: id,
+          execution_id: operation.scope.execution_id,
+          resource: operation.action.resource,
+          content_sha256: proof.evidence.sha256,
+          bytes: proof.evidence.bytes,
+        });
       if (
         run.config.fault_injection === "write-after-fsync" &&
-        operation.action.action === "file.write" &&
-        operation.state === "DISPATCHED" &&
-        app.store.read<any>(operation.action.parameters_ref).content ===
-          "uncertain"
+        completedWrite &&
+        (run.config.mode === "fixture"
+          ? app.store.read<any>(operation.action.parameters_ref).content ===
+            "uncertain"
+          : !!operation.scope.execution_id &&
+            path.relative(
+              app.store.get<Execution>(
+                "Execution",
+                operation.scope.execution_id,
+              ).workspace_binding!.root_path,
+              operation.action.resource,
+            ) === run.config.fault_path &&
+            !fs.existsSync(
+              path.join(
+                run.live!.facility,
+                "campaign",
+                `fault-${run.lineage}.json`,
+              ),
+            ))
       ) {
+        if (run.config.mode === "live")
+          writeJSON(
+            path.join(
+              run.live!.facility,
+              "campaign",
+              `fault-${run.lineage}.json`,
+            ),
+            {
+              operation_id: id,
+              run: run.id,
+              at: new Date().toISOString(),
+              resource: operation.action.resource,
+            },
+          );
         appendJSON(path.join(run.evidence, "write-barrier.jsonl"), {
           operation_id: id,
           resource: operation.action.resource,
@@ -226,6 +298,22 @@ process.once("message", async (message: { permit: WorkerPermit }) => {
         pushes: app.store.all("PushDispatch"),
         tasks: app.store.all("TaskPlan"),
         model_calls: calls,
+        ...(run.config.mode === "live"
+          ? {
+              sessions: app.store.all("Session"),
+              input_records: app.store.all("Input"),
+              input_events: app.store.events("input.accepted").map((event) => ({
+                event_id: event.event_id,
+                input_id: app.store.read<any>(event.payload).id,
+              })),
+              calls: app.store.all("ModelCall"),
+              compactions: app.store.all("CompactionJob"),
+              extractions: app.store.all("MemoryExtractionJob"),
+              consciousness: app.store.all("Consciousness"),
+              authorizations: app.store.all("AuthorizationRequest"),
+              world_commands: app.store.all("WorldCommand"),
+            }
+          : {}),
         rss: process.memoryUsage().rss,
       });
     const timer = setInterval(observe, 200);
