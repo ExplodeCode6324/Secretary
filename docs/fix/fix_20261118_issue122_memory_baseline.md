@@ -1,6 +1,6 @@
 # Issue #122：记忆闭环基线与证据复用
 
-状态：R1 CHANGES_REQUIRED 后第二版，待复核及 Master 批准阶段 A；阶段 B 的真实运行另有冻结/预算关卡。日期：2026-11-18（香港时间）。[完整英文计划](fix_20261118_issue122_memory_baseline.en.md)。
+状态：R2 PASS，Master 已于 2026-11-18 批准阶段 A 及验收第 5 项修订，六项实施条件全部采纳；阶段 B 的真实运行另有冻结/预算关卡。日期：2026-11-18（香港时间）。[完整英文计划](fix_20261118_issue122_memory_baseline.en.md)。
 
 仓库 https://github.com/ExplodeCode6324/Secretary ，[Issue #122](https://github.com/ExplodeCode6324/Secretary/issues/122)，总跟踪 [#119](https://github.com/ExplodeCode6324/Secretary/issues/119)。基线 `873b66f4b906ff53a62476ff5dd1466649c427f7`，GitHub compare API 已确认与远端 main 相同。分支 `codex/issue122-memory-baseline`。Git HTTPS fetch 首次因 HTTP/2 传输错误失败；基线由独立 API 比较确认。
 
@@ -127,4 +127,28 @@ C16 运行前交 Master 两个选择：**建议离线可行后批准全模型统
 
 ## 7. 复核记录
 
-R1 CHANGES_REQUIRED：B1 采用现有一次恢复替代方案，不做多分支；B2 增容量预检与 Master 的 RC 覆盖/继续等待选择；B3 增 lane/模型独立预算、固定顺序和 judge 上限；B4 拟好中英验收修订待 Master；B5 增 30 行 case 账本及全部失败线索；B6 把原件检查放在 pilot 冻结前并替换重复 C12；B7 增 C05-W、restart_observed 投影测试及期限；B8 运行前固定路由/分类。九条非阻断建议均已纳入。R1 未运行测试/读取私有归档或 CI 日志；issue 原文由 Codex 提供，公开代码/证据由 reviewer 独立核验。R2 待复核。#122 计划阶段未实施、未新增 SUT 调用、未恢复归档、未调参、未合并或部署。
+R1 CHANGES_REQUIRED：B1 采用现有一次恢复替代方案，不做多分支；B2 增容量预检与 Master 的 RC 覆盖/继续等待选择；B3 增 lane/模型独立预算、固定顺序和 judge 上限；B4 拟好中英验收修订待 Master；B5 增 30 行 case 账本及全部失败线索；B6 把原件检查放在 pilot 冻结前并替换重复 C12；B7 增 C05-W、restart_observed 投影测试及期限；B8 运行前固定路由/分类。九条非阻断建议均已纳入。R1 未运行测试/读取私有归档或 CI 日志；issue 原文由 Codex 提供，公开代码/证据由 reviewer 独立核验。R2 在 af7077d 返回 PASS，八项阻断全部解决。Master 于 2026-11-18 批准阶段 A 及验收修订；以下六项实施条件须在 B0/B 冻结前核验。计划阶段未实施或新增 SUT 调用；阶段 A 现已授权，live、预算和合并仍另行确认。
+
+
+### 阶段 A 采纳的 R2 六项条件
+
+1. A/B 均为重启后探针；checkpoint 及每次探针前无到期/运行中的维护、提取及在途模型请求。可能合法创建 Task/效果的探针固定放 B。
+2. 普通维护须为覆盖 B 已处理事件、已提交且非 CONTEXT_COMPACTION 的 job。到期分 NOT_TRIGGERED（附会话/设置）、RUNNING_AT_CAP、FAILED_RETRY_PENDING（附 next_attempt_at）、FAILED_TERMINAL；仅后两项是维护失败，取代第 4 节笼统超时措辞。B0 纳入真实 idle/turn/age 触发与 cooldown；固定源码中 critical feedback 可绕过普通间隔。
+3. scope.import/DIRECTORY 对所有 start/checkpoint/restore 路径均为 HARNESS_EXCLUDED，不是产品 UNSUPPORTED，也不只限制 checkpoint 配对。C13 导入笔记以文件哈希/read 回执与 Task 解读分别归属。
+4. C12a 不能证明第 4.4 节任一元素（含归档不可用），C12b 即为必补项；C16 明记原域直接重启或 checkpoint restore。
+5. 仅检查所需归档并记录访问；PG dump 只离线读取，不启动服务器。合成中断/World 与私有失败线索分开，私有原文不进 Claude/Git/CI。
+6. 冻结 lane 的 USD/reservation 上限，不将 160 次满窗口请求当预算界限，也不保证完成。B0 用实际序列化字节，并核验包含 reasoning 的计费输出上界；否则预留已核验最大值，无可靠界限不派发。审核中的费用示例不作为冻结价格。
+
+
+## 8. 阶段 A 实施证据
+
+离线实现位于独立仓库 [secretary-benchmark PR #1](https://github.com/ExplodeCode6324/secretary-benchmark/pull/1)，初始提交 `7c66d66c59f774dbe468ed584c6befa6e8a66733`；Secretary 只读固定为上述基线。[实施合同](https://github.com/ExplodeCode6324/secretary-benchmark/blob/codex/issue122-memory-baseline/test_case/online/benchmark/ISSUE122.md) 逐项映射 R2 六项条件，并列出 live driver 与冻结尚需完成的工作。Secretary 产品行为和部署配置未改动。
+
+独立仓库本地完整检查 112/112 通过；12 项新增测试包含真实隔离 PostgreSQL checkpoint/一次 restore 行为和 fixture Task 读取笔记路线。Fixture 预检将 34 个开发场景展开为 204 个模型/配置预测单元，provider 发送次数为零。预测只证明规划结果，不证明实际线上请求字节、语义缺席、模型在线可用性或完成成本保证。
+
+只读核验三个必要的 #121 NAS 包，逐文件哈希与大小通过；未启动历史 SUT/controller/PG。合成生命周期证据保留同一操作对账及一次物理写入观测，但缺少独立持久化的旧进程退出见证，故 **C12b 仍为必做项**。Private-A 仅保留完整性元数据；历史标签、首次失败、其他复用边界及未复查行的 report-only 状态均保留。脱敏引用见[来源核验报告](https://github.com/ExplodeCode6324/secretary-benchmark/blob/codex/issue122-memory-baseline/evidence/issue122-reuse-audit.json)。
+
+私有证据保留首次失败：初始基线套件运行时并发编写导致一次源码指纹失败、fixture schema 的 TypeScript 类型标注错误、首轮配对测试遗漏 payload guard 初始化。修正后冻结代码完整套件通过。最终准确 HEAD 复核、CI 及归档回执追加到 PR，避免只改状态而反复提交。这些离线结果不构成真实运行、预算、RC 选择、完整矩阵或合并授权。
+
+
+R3 查阅独立仓库准确提交后，要求四项离线修正：配对探针前须覆盖全部已处理输入且 Consciousness 修订/覆盖一致；RC98304 继承 RC 的 recent-input 2/0.05 配置；场景使用路线专属时间线、确定性无关活动和等待，将 oracle/测试机制文字移出 SUT 输入；补齐 STALE、PARTIAL/在途效果及预算边界测试，超预留结算须持久化并停止后续发送。这些修正均属阶段 A。上文 112 项测试是初版证据，替换证据及最终复核须绑定修正后的 HEAD。Core 未改运行时代码的完整检查为 1,319 通过、27 跳过、零失败，中英文文档检查亦通过。验收第 5 条已按 Master 批准文本更新到 issue。
