@@ -1,0 +1,66 @@
+{
+  "schema": "issue122-c16-candidate-selection-v1",
+  "decision_date_hkt": "2026-11-21",
+  "scope": "C16 candidate for issue 122 only; not DEP qualification",
+  "status": "CANDIDATE_NOT_DISPATCHED",
+  "profile": "RC98304_CANDIDATE",
+  "actual_inference_requests": 0,
+  "b0_report_sha256": "0a8b6acf24b449a5961987e3b82af17d0f5716edeff3639a0e651a2336af26a1",
+  "sut": "873b66f4b906ff53a62476ff5dd1466649c427f7",
+  "slots": [
+    {
+      "slot": 10,
+      "model": "deepseek-flash",
+      "input_sha256": "b168c74ec201d218840d89894bfc8a1dd53e97bd1f0b64eeb235435b34b87f2a",
+      "oracle_sha256": "445e9ef740dad7ea8d7b2625d4e161be19ab5996606443dca9883e7dc24e0d19",
+      "timeline_sha256": "07351d6bff4e8bdd40f13348b1cff892835cad8c71acc62bca7ddcdf67ec7662",
+      "policy_sha256": "eb290d8eca599e8e558d978e78d1b77005151e3deaa36c1e250bb6946f2408c0",
+      "main_window": 98304,
+      "task_window": 98304,
+      "recent_inputs": {
+        "count": 2,
+        "ratio": 0.05
+      },
+      "estimated_filler_turns": 60,
+      "minimum_ordinary_commits": 2,
+      "dep_status": "FILLER_ALONE_REACHES_REQUEST_CAP",
+      "dep_estimated_filler_turns": 186
+    },
+    {
+      "slot": 11,
+      "model": "gpt-6-luna",
+      "input_sha256": "b168c74ec201d218840d89894bfc8a1dd53e97bd1f0b64eeb235435b34b87f2a",
+      "oracle_sha256": "445e9ef740dad7ea8d7b2625d4e161be19ab5996606443dca9883e7dc24e0d19",
+      "timeline_sha256": "07351d6bff4e8bdd40f13348b1cff892835cad8c71acc62bca7ddcdf67ec7662",
+      "policy_sha256": "92d4aaec21c60020cfd98a0fcb8e344cb0595b28d894264f5b243bd775afd81d",
+      "main_window": 98304,
+      "task_window": 98304,
+      "recent_inputs": {
+        "count": 2,
+        "ratio": 0.05
+      },
+      "estimated_filler_turns": 60,
+      "minimum_ordinary_commits": 2,
+      "dep_status": "FILLER_ALONE_REACHES_REQUEST_CAP",
+      "dep_estimated_filler_turns": 186
+    },
+    {
+      "slot": 12,
+      "model": "gpt-6.2-sol",
+      "input_sha256": "b168c74ec201d218840d89894bfc8a1dd53e97bd1f0b64eeb235435b34b87f2a",
+      "oracle_sha256": "445e9ef740dad7ea8d7b2625d4e161be19ab5996606443dca9883e7dc24e0d19",
+      "timeline_sha256": "07351d6bff4e8bdd40f13348b1cff892835cad8c71acc62bca7ddcdf67ec7662",
+      "policy_sha256": "1460d7f3ef5ccaa4e7750bf6adde226e789e417a9ad29072152d747f5003a7f4",
+      "main_window": 98304,
+      "task_window": 98304,
+      "recent_inputs": {
+        "count": 2,
+        "ratio": 0.05
+      },
+      "estimated_filler_turns": 60,
+      "minimum_ordinary_commits": 2,
+      "dep_status": "FILLER_ALONE_REACHES_REQUEST_CAP",
+      "dep_estimated_filler_turns": 186
+    }
+  ]
+}
