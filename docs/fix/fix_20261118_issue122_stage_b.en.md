@@ -69,7 +69,7 @@ For both controls the serialized body and frozen input band must fit 272,000 tok
 
 R12 passed the accounting implementation plan. At preparation, check the available B0 C05-W Main body for each model against its wire limits and record the observed size, digest and output cap for each slot. Future Main and Task body sizes remain unknown. A serialized body over its limit closes that lane as INCOMPLETE before reservation. A provider-reported physical overrun stops the campaign. If the provider omits the optional write-lifetime breakdown, the default-price assumption rests on the guard on the serialized request. Reject explicit cache breakpoints in message content as well as top-level cache overrides.
 
-## Operator decision of 23 November 2026
+## Master’s source decision of 23 November 2026
 
 For the two OpenAI controls, use the evidence files supplied by Claude. If Dots is reachable, request assistance. If original downloads remain unavailable, the operator accepts the available captures. Preserve the exact bytes and provenance of each accepted evidence file. At freeze, each lane boundary and campaign end, verify the entire accepted file by SHA-256. Distinguish integrity of that file from a fresh observation of the provider's publication. Keep the original online verification path for DeepSeek and existing dossiers. Validate all model, price, cache and reasoning facts against the designated source roles. Keep returned identity, cost accounting, stop conditions, nine authorized slots and the three C16 deferrals as previously reviewed. Record ambiguity of the serving backend when only the requested alias is returned. Test source substitution, tampering, missing files and attribution.
 
@@ -78,3 +78,5 @@ The selected files came from a separate Claude Opus 5.5 Extra incognito session 
 Every required fact has an itemized CONFIRMED, CONFLICT or UNOBSERVED disposition. A conflict or an unobserved required fact blocks the freeze for Master’s decision. The operator cannot substitute or edit values. Capture age must be within 24 hours at freeze and at the first physical send of the campaign. The existing 12-hour campaign clock then applies.
 
 R17 plan readiness passed after the capture selection, independent evidence conflicts and the first-send deadline were resolved. The independent verification receipt is pinned at `ddbabe153a23849efd36d1aeff4a8edd95154b7f7ada6ead77c439d2894d9f99`.
+
+The supplemental 922,000 input limit for Luna was observed in the official Markdown reader. Its original HTTP bytes are unavailable. The admitted short-context ceiling is 272,000. A CAPTURE_FILE_INTEGRITY event identifies a failure of the local evidence check. Behavioral grades are presented per slot and model. The overall summary aggregates cost and disposition counts.
