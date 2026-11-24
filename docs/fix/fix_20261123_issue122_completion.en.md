@@ -82,3 +82,14 @@ Retain both original paid batches. Prepare a separately identified prospective C
 Master approved all six partitions. Run three fresh C16 trajectories and the remaining 89 lineages, with at most 10,620 physical workload sends and US$8,197.144704 reserved (forecast US$85.79). Use one fresh calibration per partition and at most 99 candidate sends in total, including the archived C04, on the same official Hermes DeepSeek Flash/max reader, within US$21.823488. Bind each freeze to the decision, exact runner, 24-hour pricing and the original recipe matrix. Retain the initial C04 grading history. Its v2 bridge grades the original trace once, after calibration. Operators have already seen its workload answer.
 
 The C16 series `c16-recovery-1` links three distinct attempt identities to the three original slots. Keep each original INCOMPLETE with first failure and cost. Show the recovery attempts in their own table, qualifying each lane by series. Use recovery results for future same-model architecture comparisons. C16 completion requires one adjudicable outcome per recovery repeat, reporting failures as measured. A second harness failure stays incomplete and receives no additional attempt. The primary matrix retains 93 lineages and 99 observations. Charge all physical attempts. Validate the model and context provenance of one and two pending proposals through native tool use, restart, probe, coverage and adjudication. Run both full offline branches and exact-head CI before live dispatch.
+
+Each full-size offline variant goes through normal dispatch with one or two pending native proposals. The v2 C04 amendment supersedes paragraph 68 for future scoring and uses the first recovery partition's fresh 28-control pass. Bind the key, packet, rubric, transport and receipt to that freeze. A failed calibration leaves its candidates unassessed. A packet above the frozen limit stays unsent. Keep each incomplete recovery outcome open at the merge gate. Preserve the present C12b restart and C02/C05 checkpoint/restore admission, including the existing C05-W exact approval. A pending World proposal outside C16 can terminate those runs with an explicit harness reason. It does not count as product failure or satisfy missing evidence. A source refresh before any send replaces its partition allocation. A spent or unrun trajectory receives no additional attempt within this series.
+
+| Partition | Lineages | Calls | Lane seconds | Peak workload USD | Candidates | Peak reader USD |
+|---|---:|---:|---:|---:|---:|---:|
+| 2 | 3 | 1827 | 36270 | 1410.1867584 | 4 | 0.9338880 |
+| 3 | 3 | 2223 | 43047 | 1715.8430016 | 3 | 0.7176192 |
+| 4 | 2 | 1504 | 29200 | 1160.8762368 | 4 | 0.9338880 |
+| 5 | 27 | 2213 | 42109 | 1708.1244096 | 31 | 6.7731456 |
+| 6 | 28 | 1781 | 42904 | 1374.6812352 | 28 | 6.1243392 |
+| 7 | 29 | 1072 | 24476 | 827.4330624 | 29 | 6.3406080 |
