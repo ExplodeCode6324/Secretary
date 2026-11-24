@@ -48,3 +48,9 @@ Validate program correctness locally and in exact-head CI, run the approved real
 R37 fixed both SUT gitlinks and the evidence required for each C16 outcome. R38 required a conclusive original-reference loss to be recorded as a retention failure. R39 passed the resulting plan at `80776ad49242a9e1124928517e2dc69598ec260d`. Master approved implementation and offline verification. Live dispatch and blind scoring require approval of the concrete freeze.
 
 The three historical Flash workload lanes recorded 41 attempts. All 40 completed SDK response objects in the archive lacked a retained system fingerprint. The archived objects cannot establish whether the original provider frames contained one. Use the publication-window identity class for those results.
+
+## Reader amendment after the first dispatch
+
+Master approved local Hermes operated by an independent subagent, using the official DeepSeek account with `deepseek-flash`, `thinking.type=enabled` and `reasoning_effort=max`. Calibration and candidate assessment use the same model, provider and effort in separate fresh sessions with tools disabled. Retain the requested and returned model, effective effort, token usage, response digest and rubric version for each batch. Future freezes must bind these settings before dispatch. Disclose the shared model family between workload and reader when reporting results.
+
+The first C04 ran under the original workload freeze. Retain its trajectory, original report and unsent Opus reservation. A separately authorized amendment binds the original freeze and trial report, controls, private key digest and new reader. Two OpenCode Go requests yielded no assessment. The first official-account calibration and candidate are limited to one request each and US$0.08 in total. Release the candidate only after all controls match. Cross-batch reporting must compare effective reader identities and rubrics.
