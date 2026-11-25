@@ -194,3 +194,17 @@ R67 approved implementation and offline rehearsals. Master fixed the new repeat-
 Master added the two eligible archived C06-resident-B observations at former slots 98 and 99 for one new blind assessment each after proof of zero original sends. Slot 97 remains spent. This adds no workload. The supplement now allows at most one fresh eligible calibration and four candidates, of which two require new workloads. At the prior Go peak tariff the reader ceiling is US$0.933888 equivalent. Preserve all original slot outcomes. Master approved carrying the full US$0.2162688 unsettled slot 97 reservation across all Go windows in the same account. The earlier P6 US$0.4763883 uncertain settlement is recorded as settled in the local window ledger, with its amount ageing out per window. Its actual charge remains unknown.
 
 Use one observation of the complete live C12b sequence to witness the conditional requirement, while reporting all three earlier incomplete trials. The requirement specifies the evidence chain and no minimum successful repeat count. The new task binds the workspace's ordinary native write policy, and the supplement must verify the task, path and content. A wrong-shell request receives its own measured terminal category. The new execution path will record the barrier and the same operation's pre-ack history, old exit, new start, UNKNOWN reconciliation, verified workspace and CAS bytes, and physical effect count. [C12b acceptance](https://github.com/ExplodeCode6324/Secretary/issues/122#issuecomment-6955141574)
+
+## November 26 measured supplement and outstanding gates
+
+Master released freeze `fa647e16b20f30f7f66ffb93ec62a7044f2764ccd74297f29931cc560b7cf60a` with an irreversible stop for an incomplete or uncertain transmission. Go returned 96 complete responses for C16. Workload request 97 had no HTTP receipt and settled as `NETWORK_UNCERTAIN`. The scoped hold closed the two-lane dispatch. The post-stop authenticated usage check returned HTTP 200. All original first failures remain recorded.
+
+| Required evidence | Final result under this authorization |
+|---|---|
+| C16 three adjudicable repeats | Go position 1 is fixed as UNRESOLVED. It recorded two maintenance cycles but sealed zero physical observations. The official-route maintenance failures at positions 2 and 3 remain decisive. Coverage is 2/3. |
+| C12b live conditional recovery witness | UNRUN, zero sends. The physical same-operation write/exit/UNKNOWN/verification chain remains open. |
+| Independent Hermes reader | Local preparation stopped at `TARGETED_PHYSICAL_RUN`; the workload hold also blocks binding. Calibration and all four candidate positions have zero launches and no grade. The two archived C06 observations remain unassessed. |
+
+Known Go list usage was US$0.14001463 equivalent with zero reported cash on those 96 responses. The new uncertain workload reservation is US$0.4754877 equivalent; its actual charge is unknown. The frozen accounting rule gives US$0.615502344 including that reservation. The old **reader** slot 97 remains a separate US$0.2162688 reservation. Reader expenditure in the supplement was zero.
+
+Both stopped evidence packages were verified on NAS. The published supplement and reproducible effective assertion table retain all 99 historical observations and keep official and Go outcomes separate. Both live gates remain open. The approved series is closed and cannot send again. [Benchmark PR and evidence](https://github.com/ExplodeCode6324/secretary-benchmark/pull/2)
