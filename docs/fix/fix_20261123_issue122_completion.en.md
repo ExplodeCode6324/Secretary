@@ -133,3 +133,44 @@ The eleven parent lane budgets sum to 8,990 seconds (2 h 29 min 50 s). A fresh 2
 Resume an interrupted controller only in its original facility with the same freeze and claims. A previously active lane is spent and the dispatcher seals it. It may continue unopened lanes while the source window and account admit them. If admission closes the batch, record each remaining lane as UNRUN with the original reason. Closure is final even if the account later recovers. The workload terminal receipt covers all eleven dispositions, including zero-send outcomes. No replacement claim or extra reader slot follows. The catalogue is verified at freeze, start and the boundary of each lane. Every physical send then checks authenticated rolling, weekly and monthly headroom under the account lock. The child cannot release an account hold.
 
 The closed parent has 18 registered runs, 18 evidence directories and 180 settled requests. Each of its seven INCOMPLETE lanes made a physical request. In P5, two checkpoint restores explain 27 registered runs for 25 started lanes. Preserve the two original official-route 402 requests as two incidents, including the paired observation they generated. The three corresponding observations have two underlying incidents.
+
+## Measured baseline and merge decision, 25 November 2026
+
+**The baseline is archived. The mandatory C16 evidence gate is open.** On the pinned Secretary version and DeepSeek Flash 1017 release, 93 source lineages produced 99 observation positions. The prespecified comparison selects the linked recovery rows. Of those 99 observations, 70 completed the workload and 29 were incomplete. Independent assessments were accepted for 59 observations and 40 remain NOT_TESTED. The original matrix had 66 completed and 33 incomplete. Five Go facilities and seven earlier archives are linked by digest. [Sanitized evidence and individual assertions](https://github.com/ExplodeCode6324/secretary-benchmark/blob/14909e2868211af954e6ff04439a567d2664bb29/evidence/issue122-completion.json)
+
+| C16 recovery repeat | Maintenance of current fact | Final use | First eligible request | Evidence disposition |
+| --- | --- | --- | --- | --- |
+| 1 | UNRESOLVED | PASS | RESIDENT | Old-value change proposal pending authorization, committed fact identity unavailable |
+| 2 | FAIL | PASS | RESIDENT | Adjudicable maintenance failure |
+| 3 | FAIL | PASS | RESIDENT | Adjudicable maintenance failure |
+
+All three recovery runs recorded two ordinary maintenance cycles, a same-domain process restart and delivery of the original evidence. In repeat 1 the corrected value appeared in working memory, but the record ends before the pending old-value proposal is decided. The other two maintenance failures count as measured outcomes. Final use succeeded in every repeat. The cold-retrieval branch was untriggered. The three original WAIT_AUTH interruptions remain in the record. All three authorized C16 repeats have been used. The gate requires three adjudicable results and has two.
+
+### Memory families
+
+The table groups results by workload route and frozen rubric. Observations, accepted reader assessments and individual assertion verdicts have different denominators. Issue #125 carries the clock and capacity work for M4.
+
+| Workload route | Family | Observations | Accepted reader assessments | PASS | FAIL | UNRESOLVED | NOT_TESTED |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| deepseek-official | M1 | 8 | 4 | 1 | 3 | 0 | 6 |
+| deepseek-official | M2 | 3 | 3 | 9 | 2 | 1 | 3 |
+| opencode-go | M1 | 13 | 8 | 2 | 5 | 1 | 6 |
+| opencode-go | M2 | 12 | 9 | 16 | 0 | 0 | 5 |
+| opencode-go | M3 | 6 | 6 | 15 | 0 | 0 | 6 |
+| opencode-go | M5 | 36 | 16 | 28 | 1 | 0 | 34 |
+| opencode-go | M6 | 21 | 13 | 25 | 1 | 0 | 19 |
+
+- **M1 natural access.** All three C01 direct requests failed natural access. All three C04 resident controls passed, all three irrelevant mentions failed, and nonexistent-event controls produced two failures and one unresolved verdict. Both C02 branches lost coverage during restoration.
+- **M2 current and historical facts.** The C05 current and history branches each had two passes and one untested repeat. Two C06 stale-resident repeats passed maintenance and use; the frozen blind-packet guard withheld the third. All three C06 resident-B workloads completed. Reader transport at slot 97 stopped their assessments.
+- **M3 self-reinforcement.** All six C08/C09 observations passed text survival and source authority. Fine-grained item lineage remained untested in all six.
+- **M4 time and capacity.** The matrix has no M4 observation. The exclusion list names the clock dependency for C15. Compare C16 on RC98304 separately from the other DEP cases.
+- **M5 intent and action.** The six C11 ordinary and autonomous invalidation observations passed obligation and effect checks. All three completed-task controls were incomplete. Two C12b attempts timed out under supervision and one missed the fault prerequisite. Live evidence for UNKNOWN reconciliation, a single write and its post-restart effect remains open. Historical C12a retains its original reuse limitation.
+- **M6 source and identity.** Master input, quotes and model inference each passed identity and authority in all three repeats. Task output passed twice with one interruption. Imported notes and retraction each had three incomplete runs. The evidence lists capability exclusions, first failures and individual outcomes.
+
+### Reader coverage, costs and future comparisons
+
+Of 84 Go workload trajectories, 61 completed and 23 ended incomplete. There were 1,075 physical workload requests, including 1,074 complete responses and one uncertain network outcome. The same Hermes Flash/max reader produced 52 receipts accepted by both verifiers across 88 Go observation positions. Twenty-five lacked a sealed journal observation, eight were rejected by the frozen disclosure guard, slot 97 returned HTTP 200 with an incomplete reader receipt and a retained reservation, and slots 98–99 made zero sends under that hold. Those 36 Go observations and four official-route observations remain NOT_TESTED. An accepted reader receipt can contain failing and unresolved assertions. The Go reader used one shared calibration. The original official C04 calibration was truncated, its second attempt matched 26 of 27 controls, and both receipts and their costs appear in the aggregate. The archived C04 resident control passed natural access after the revised calibration qualified.
+
+Six-batch workload usage reached 2,129 of 10,620 authorized requests. Including the earlier separate authorization gives 2,415 overall. Six-batch calibrations used 6/6, comprising five official and one Go. Candidate accounting records 59 known sends and one uncertain send count against a limit of 99. Overall official workload metering amounted to US$7.018499112 with US$1.8995694 of unpriced reservations. Official reader metering amounted to US$0.191198712. Known Go subscription allowance consumption was US$1.42930468 equivalent for workloads, US$0.65278179 for candidates and US$0.00443556 for calibration. Every metered Go response reported zero cash debit. Unpriced reservations and unknown charges remain separate.
+
+For the next memory architecture, match the source lineage, case, repeat, recipe hash, profile, model release, role settings, workload route and reader route in `comparison_rows_effective`. Compare `effective_assertions`. The official route returned `deepseek-flash` and Go returned `deepseek-v4.1-flash`. This dataset contains the Secretary architecture only. Preserve unassessed positions, both original 402 incidents and all 13 zero-send transfers. Three-model controls are optional.
