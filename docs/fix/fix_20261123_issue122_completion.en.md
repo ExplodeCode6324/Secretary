@@ -197,7 +197,7 @@ Use one observation of the complete live C12b sequence to witness the conditiona
 
 ## November 26 measured supplement and outstanding gates
 
-Master released freeze `fa647e16b20f30f7f66ffb93ec62a7044f2764ccd74297f29931cc560b7cf60a` with an irreversible stop for an incomplete or uncertain transmission. Go returned 96 complete responses for C16. Workload request 97 had no HTTP receipt and settled as `NETWORK_UNCERTAIN`. The scoped hold closed the two-lane dispatch. The post-stop authenticated usage check returned HTTP 200. All original first failures remain recorded.
+Master released freeze `fa647e16b20f30f7f66ffb93ec62a7044f2764ccd74297f29931cc560b7cf60a` with an irreversible stop for an incomplete or uncertain transmission. Go returned 96 complete responses for C16. Workload request 97 had no HTTP receipt and settled as `NETWORK_UNCERTAIN`. The scoped hold closed the two-lane dispatch. The post-stop authenticated usage check returned HTTP 200. On November 25 UTC request 97 settled at 18:43:03.180. The session was still RUNNING at revision 347. Revision 348 first recorded RECOVERY_BLOCKED at 18:43:08.440, committed at 18:43:08.455 (transaction 1363). The transport cause remains unknown. All original first failures remain recorded.
 
 | Required evidence | Final result under this authorization |
 |---|---|
@@ -206,5 +206,7 @@ Master released freeze `fa647e16b20f30f7f66ffb93ec62a7044f2764ccd74297f29931cc56
 | Independent Hermes reader | Local preparation stopped at `TARGETED_PHYSICAL_RUN`; the workload hold also blocks binding. Calibration and all four candidate positions have zero launches and no grade. The two archived C06 observations remain unassessed. |
 
 Known Go list usage was US$0.14001463 equivalent with zero reported cash on those 96 responses. The new uncertain workload reservation is US$0.4754877 equivalent; its actual charge is unknown. The frozen accounting rule gives US$0.615502344 including that reservation. The old **reader** slot 97 remains a separate US$0.2162688 reservation. Reader expenditure in the supplement was zero.
+
+The historical and effective assertion tables each cover 189 positions. The historical counts (96 PASS, 12 FAIL, 2 UNRESOLVED, 79 NOT_TESTED) become 93, 12, 1 and 83 respectively when the unassessed Go repeat replaces three passes and one unresolved C16 assertion. The current C12b reporter requires a complete PASS chain. Before any future C12b dispatch, Master would need to decide whether a complete chain measuring FAIL can also satisfy the witness requirement.
 
 Both stopped evidence packages were verified on NAS. The published supplement and reproducible effective assertion table retain all 99 historical observations and keep official and Go outcomes separate. Both live gates remain open. The approved series is closed and cannot send again. [Benchmark PR and evidence](https://github.com/ExplodeCode6324/secretary-benchmark/pull/2)
