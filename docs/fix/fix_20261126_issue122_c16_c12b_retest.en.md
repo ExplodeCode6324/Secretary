@@ -63,6 +63,6 @@ Record each extra C16 restart relative to both maintenance commits, the planned 
 
 A fully received failed calibration closes semantic scoring for this series. Refresh only a passed calibration that expired. Reconcile uncertain transport before another send. Enforce exactly one fully received result for each graded candidate in public replay. Preserve independent mechanical evidence.
 
-Retain partial evidence for started lanes when a confirmed Secretary system failure ends the series. Add public CI fixtures and run exact-head PG18 rehearsals, verified archive readback and another Claude review before presenting a new freeze.
+Retain partial evidence for started lanes when a confirmed Secretary system failure ends the series. Add public CI fixtures and run exact-head PG18 rehearsals, verified archive readback and another Claude review before dispatching the new freeze.
 
 Master authorized dispatch after offline verification and Claude review. Reconcile the two results and check remaining issue 122 blockers after dispatch.
