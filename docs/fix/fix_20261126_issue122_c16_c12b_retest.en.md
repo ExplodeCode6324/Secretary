@@ -52,3 +52,17 @@ Across six verified Go workload archives, the 1,170 completed responses took 15.
 The workload therefore reserves 60 s before each model send and requires at least 65 s before each quota read. Transient metadata failures receive the approved number of immediate rechecks, each bounded at 5 s. The harness serializes C12b sends. Competing requests also wait after the task response is saved and before its bound native write. The final freeze must specify whether exhaustion before any model send also stops the next lane. The reader retains its own publication and calibration validity windows.
 
 The implementation review also requires both lanes, recovery and sealed-lane export to run through the real worker and an isolated simulated Go account. These are offline protocol observations. The published live matrix requires actual receipts under the new approved freeze.
+
+## R78 execution decision
+
+Bind re-entry to the specific failed call or checkpoint. Preserve functional failures, distinguish product blocks from attributable infrastructure outages, park persistent infrastructure failures with backoff, and keep independent lanes progressing. Record waits separately from actual trajectories. Do not impose an aggregate time, request, quota or cash cutoff.
+
+Record every served-identity change, quarantine differing responses and pause the affected lane. Resume on the pinned identity from the same checkpoint only when a differing answer has not affected product state. Otherwise mark the affected judgments unresolved and retain independent evidence and measured failures.
+
+Record each extra C16 restart relative to both maintenance commits, the planned restart and the observation points. Mark only continuity assertions affected by an extra restart in the critical window unresolved. Keep the preassigned repeat and the other evidence.
+
+A fully received failed calibration closes semantic scoring for this series. Refresh only a passed calibration that expired. Reconcile uncertain transport before another send. Enforce exactly one fully received result for each graded candidate in public replay. Preserve independent mechanical evidence.
+
+Retain partial evidence for started lanes when a confirmed Secretary system failure ends the series. Add public CI fixtures and run exact-head PG18 rehearsals, verified archive readback and another Claude review before presenting a new freeze.
+
+Master authorized dispatch after offline verification and Claude review. Reconcile the two results and check remaining issue 122 blockers after dispatch.
