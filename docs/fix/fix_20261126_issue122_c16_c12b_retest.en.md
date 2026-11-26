@@ -66,3 +66,10 @@ A fully received failed calibration closes semantic scoring for this series. Ref
 Retain partial evidence for started lanes when a confirmed Secretary system failure ends the series. Add public CI fixtures and run exact-head PG18 rehearsals, verified archive readback and another Claude review before dispatching the new freeze.
 
 Master authorized dispatch after offline verification and Claude review. Reconcile the two results and check remaining issue 122 blockers after dispatch.
+
+## R79 approved dispatch and evidence rules
+
+- If a blind request was sent and neither the original response nor a supplier determination is available, publish the completed independent case and mark the missing position unresolved. Preserve its original request, usage and unknown charges. Append later attributable evidence as a revision, retaining the original publication. After partial publication that position accepts original evidence only.
+- A complete HTTP reply that ends at the output limit or has invalid grading syntax consumes the position. Its semantic assessment remains unresolved. If this occurs during calibration, close semantic grading for this round and report mechanical observations independently.
+- Wait for proven transient database or process infrastructure faults. Verify ownership, stopped processes, sealed evidence, the data domain and database state before resuming the same trial. An unverifiable owner or state leaves that case unresolved while independent work continues. Only a confirmed Secretary system failure stops the series.
+- Master approved these rules. Complete the corresponding offline regression, exact-head CI and Claude review, dispatch both cases directly, record forecast and actual usage, integrate the results with their original cohort and audit the remaining #122 blockers.
