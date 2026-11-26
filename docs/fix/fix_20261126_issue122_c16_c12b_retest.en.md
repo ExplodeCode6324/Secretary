@@ -56,3 +56,11 @@ R73 archive follow-up before freeze: bind request 97 to session, purpose, failur
 R74 PASS for decision brief and offline implementation. Before freezing the chosen policy, exercise A or B with offline fault injection, including a successful recheck followed by a new call, exhausted deadline and zero-send refusal as applicable. Verify deferred admissions do not reach their own call deadlines near the C12b barrier.
 
 Master approved offline implementation with policy A, at most two bounded zero-send metadata rechecks, and a raw effects FAIL with the witness unresolved when UNKNOWN reconciliation is absent. Dispatch awaits separate approval of the concrete freeze.
+
+## Freeze conditions after implementation review R75
+
+Across six verified Go workload archives, the 1,170 completed responses took 15.169 s at P95, 23.901 s at P99 and at most 46.709 s from reservation through settlement. The longest request served compaction and took 47.683 s across the entire product call. The maximum over the 96 complete R71 responses was 26.949 s. Request 97 used the main model for compaction and ended uncertain. The subsequent local refusal applied to a new MAIN call in the same session. Each retained its original first attempt.
+
+The workload therefore reserves 60 s before each model send and requires at least 65 s before each quota read. Transient metadata failures receive the approved number of immediate rechecks, each bounded at 5 s. The harness serializes C12b sends. Competing requests also wait after the task response is saved and before its bound native write. The final freeze must specify whether exhaustion before any model send also stops the next lane. The reader retains its own publication and calibration validity windows.
+
+The implementation review also requires both lanes, recovery and sealed-lane export to run through the real worker and an isolated simulated Go account. These are offline protocol observations. The published live matrix requires actual receipts under the new approved freeze.
