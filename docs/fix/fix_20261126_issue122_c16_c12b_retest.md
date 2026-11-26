@@ -72,8 +72,10 @@ Master 已授权离线验证和 Claude 复核通过后直接派发两案，完�
 
 ### R79 实测与 #122 阻塞复查（2026-11-26）
 
-冻结 `4f24dd26` 在 benchmark `a15268d` 上派发。C12b 实测一次写入、旧进程退出、同域恢复、同一操作进入 UNKNOWN 并核对最终内容。独立读者校准匹配 28 项，副作用与义务两项均 PASS，见证门槛关闭。C16 在第 50 个输入后由 Secretary 记录 CAPACITY_BLOCKED（输入 85,270，允许 85,196，输出预留 4,096 tokens），未取得最终观测。新结果占 repeat 1，裁定 UNRESOLVED；repeat 2、3 保留原始维护 FAIL。当前原批次仅剩 C16 的 3/3 可裁定门槛，实得 2/3。C06 候选 98、99 仍未评分，属于可选项。
+冻结 `4f24dd26` 在 benchmark `a15268d` 上派发。操作方回读归档确认 C12b 实测一次写入、旧进程退出、同域恢复、同一操作进入 UNKNOWN 并核对最终内容。独立读者校准匹配 28 项，副作用与义务两项均 PASS，见证门槛关闭。C16 在第 50 个输入后由 Secretary 记录 CAPACITY_BLOCKED（输入保守估算 85,270，允许 85,196，输出预留 4,096 tokens），未取得最终观测。新结果占 repeat 1，裁定 UNRESOLVED；repeat 2、3 保留原始维护 FAIL。当前原批次仅剩 C16 的 3/3 可裁定门槛，实得 2/3。C06 候选 98、99 仍未评分，属于可选项。
 
-本轮工作负载和读者分别发送 78 与 2 次请求，合计标价等值 US$0.18664258，实报现金 US$0。旧请求 97 的扣费仍未知。常规导出可重建三张表，原 99 条观测、189 个断言位置全部保留。补测后的断言数为 PASS 95、FAIL 12、UNRESOLVED 1、NOT_TESTED 81。完整证据已在 NAS 校验，独立读者结果已从归档离线复算。 [结果和归档摘要](https://github.com/ExplodeCode6324/secretary-benchmark/blob/82893f8/test_case/online/benchmark/ISSUE122.md)
+覆盖表唯一的 UNRESOLVED 断言来自历史 C04-nonexistent repeat 2 的 natural_access。C16 repeat 1 的五项断言均为 NOT_TESTED。
+
+本轮工作负载和读者分别发送 78 与 2 次请求，合计标价等值 US$0.18664258，实报现金 US$0。旧请求 97 的扣费仍未知。常规导出可重建三张表，原 99 条观测、189 个断言位置全部保留。补测后的断言数为 PASS 95、FAIL 12、UNRESOLVED 1、NOT_TESTED 81。完整证据已在 NAS 校验，独立读者结果已从归档离线复算。 [结果和归档摘要](https://github.com/ExplodeCode6324/secretary-benchmark/blob/46eb58f/test_case/online/benchmark/ISSUE122.md)
 
 #122 的后续批次仍有测试数据依赖清点及清理、一份配置驱动全流程与离线重评、原生 ProkBot 与普通 pi（或干净 Hermes）的真实基线及兼容性对照。三组同底座研究属于可选增强。 [Issue #122](https://github.com/ExplodeCode6324/Secretary/issues/122)
