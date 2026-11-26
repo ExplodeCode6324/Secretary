@@ -40,4 +40,8 @@
 - 操作者机器在任何真实发送前，用本次目标相同的隔离配置、UID 与挂载执行拒读探针。先证明宿主能读取探针，目标能读自己的对照文件，再验证目标直接和经别名读取私有探针均失败。只向目标挂载 SUT 及运行依赖，整个 benchmark 检出不可见。隔离失效或不支持的平台拒绝实发。每种宣称支持的宿主及隔离组合在 CI 重做拒读检查。若目标和裁判共用供应商账号，须从共享窗口原子预留剩余裁判额度，工作负载无法占用，两者均入账。
 - 每次 CI 从公开证据重算覆盖表 b96a85cb…，另保留四个历史产物的私有发布核验。本轮采纳真实投喂、裁判判别力、正式结果选择和实机隔离意见；依据源码纠正初审对 28 个对照构成的表述。
 
+## 复核状态
+
+Claude Opus 5.5 Extra 第二轮给出 PASS，同意提交 Master 确认实施。复核者从合并后的源码确认了 28 项校准的构成，首轮四项意见均已关闭。当前完成架构方案复核，待 Master 确认实施。
+
 [Core issue #122](https://github.com/ExplodeCode6324/Secretary/issues/122) · [已合并 benchmark PR #2](https://github.com/ExplodeCode6324/secretary-benchmark/pull/2) · [历史重放摘要](evidence/issue122-data-cleanup.md)

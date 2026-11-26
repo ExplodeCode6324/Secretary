@@ -38,4 +38,8 @@ Keep target tools and filesystem access scoped to their own workspace. Same-user
 - Run the denied-read probe inside the very target isolation profile, UID and mounts on the operator host, before sending any live request. Prove the hosted sentinel exists and is readable to the controller but inaccessible to the target directly and through an alias; assert the target can read its own fixture. Mount only SUT/runtime files, never the full harness checkout alongside the target. Refuse live operation on failed isolation or unsupported platforms. Repeat the denial tests in CI for every advertised host/backend combination. When provider accounts are shared, atomically hold the remaining judge allowance against workload sends; include both uses in the account window.
 - CI regenerates the public coverage digest b96a85cb… on every change, alongside the private four-output release check. The first review prompted a stronger live exercise, specific judge controls, authoritative selection, and actual-host isolation. The code corrects the reviewer's original description of the 28 controls.
 
+## Review status
+
+Claude Opus 5.5 Extra R2 gave PASS for submission to Master. It confirmed the composition of the 28 controls from the merged source and closed all four R1 findings. This is architecture-plan readiness. Implementation awaits Master’s confirmation.
+
 [Core issue #122](https://github.com/ExplodeCode6324/Secretary/issues/122) · [Merged benchmark PR #2](https://github.com/ExplodeCode6324/secretary-benchmark/pull/2) · [Historical replay digests](evidence/issue122-data-cleanup.md)
