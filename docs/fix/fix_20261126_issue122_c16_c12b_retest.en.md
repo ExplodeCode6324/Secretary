@@ -1,47 +1,35 @@
 # #122 independent C12b and C16 retest plan
 
-2026-11-26 Hong Kong time. Master has decided both adjudication rules. Claude Opus 5.5 Extra R74 passed the plan for policy decisions and offline implementation. Concrete freeze approval is pending. [Issue #122](https://github.com/ExplodeCode6324/Secretary/issues/122) · [Core #136](https://github.com/ExplodeCode6324/Secretary/pull/136) · [Benchmark #2](https://github.com/ExplodeCode6324/secretary-benchmark/pull/2)
+## Approved implementation plan; live freeze approval pending
 
-## Independence and order
+Master has decided that only a confirmed Secretary system failure stops the series. Harness, provider, quota, cost and independent reader incidents enter recovery. Prior permanent stops, request budgets, Go spending limits and the zero-cash rule describe historical series. R74–R76 reviewed earlier plans and code.
 
-Both cases can be rerun independently, once each from a fresh isolated benchmark data domain. Run **C12b, then C16**. In the previous series, C16 workload request 97 became transport-uncertain and C12b had zero sends. Seal each workload independently. Run C12b workload, C16 workload, the shared calibration if any candidate qualifies, C16 candidate, then C12b candidate, skipping ineligible candidates. C12b’s effects witness is mechanical. Its reader grades obligation. A fully received semantic calibration failure closes candidate scoring. Incomplete reader transport permanently stops remaining sends.
+| Observation | Continuation and evidence |
+| --- | --- |
+| Queue timeout, quota-read failure or admission refusal before or after reservation, with confirmed zero sends | Record the refusal point and call identity and release its reservation. Resume the case when available and advance the other independent case while waiting. |
+| Interrupted transport, uncertain send or unconfirmed charge | Preserve the request ID, first error and outstanding amount. Reconcile product logs, ledgers and physical effects and resume from verified state. Reconcile an unknown write before any further write. Keep unresolved work pending while independent work advances. |
+| Actual provider refusal or reader interruption | Respect provider retry timing. Resume the affected step when available. Seal completed workloads and resume independent grading with the same blind packet. Calibration still requires 28/28. |
+| Functional FAIL or confirmed Secretary system failure | Retain a functional FAIL and continue. Seal evidence and stop the series only upon verified attribution of a system failure to Secretary. Unknown causes remain unresolved. The planned C12b worker exit is part of the experiment. |
 
-The existing `stage-c-targeted-policy.ts` pins the closed series, order, approval digests and account exception. The existing `targeted-reader-workload.ts` requires a physical run, and the exporter binds four prior supplement positions. The new offline path must close, grade and append each lane independently and export a sealed first lane even if the second is interrupted. Give each lane its own claim under a shared Go account, budget and stop rule across workload and grading.
+## Execution and usage
+
+Run C12b first, then C16. Each occupies one preregistered repeat 1. Link every recovery attempt to that position and preserve all trajectories. Pin model, recipe, permissions, call deadlines and grading criteria. The workload uses OpenCode Go DeepSeek Flash at low for main and task; independent Hermes uses max. Verify the served release and endpoint before freezing. Pin SUT `873b66f4b906ff53a62476ff5dd1466649c427f7` and Pi `16787ad5b2dc748047f314ca1bfe7708f30f54f3`.
+
+Before freezing, estimate requests, tokens, duration, subscription usage and cost per model for workload and grading, stating rates, assumptions and ranges. Record actual sends, retries, tokens, provider usage and cash charges. Mark missing receipts unknown for later reconciliation. Report estimates alongside actuals and variance. Quota percentages, cumulative requests, cost, cash debits and forecast overruns do not trigger a budget stop or further spending approval. Preserve the separate historical books for workload request 97 and reader slot 97.
 
 ## Evidence
 
 - **C12b repeat 1, DEP, seed 643644539.** Reuse the native-write recipe through the normal Task, tool and permission entry points. The live model must initiate the native write of exactly five bytes, `alpha`, to the predetermined isolated `continuity.txt` path. Bind task, execution, request, path and bytes. Record shell selection, mismatched path or bytes, and missing fault prerequisites as observed outcomes. Bind the fault barrier to the fsynced physical write and same DISPATCHED operation without acceptance receipt. Verify old process exit, new PID in the same data domain, the same operation entering RESULT_UNKNOWN, verify-write reconciliation, workspace and CAS content, actual physical write count, and the post-restart operation and effect history. Missing required links leave the gate unresolved. Preserve any decided negative observations.
 - **C16 candidate for repeat 1, RC98304, seed 851137952.** Reuse the 64-input recipe, normal maintenance and restart method. Capture two advancing ordinary maintenance commits, effective item identities and provenance, pending stale proposal state, old process exit and a new PID in the same domain. Verify original context exit in actual requests before and after restart, first eligible request, original reference read and final use. List pending proposals separately and judge changes that actually took effect before the first eligible request. The blind packet records measurement, truncation, opacity and evidence IDs for each surface. COLD requires four complete auditable surfaces, RESIDENT requires affirmative request evidence of the current fact, and insufficient evidence yields OPAQUE. Adjudicate maintenance, visibility, retrieval and use separately. An evidence-complete live FAIL counts as adjudicable.
 
-## Proposed freeze and stop rule
+## Implementation, validation and approvals
 
-| Stage | Request maximum | Time limit | Go-equivalent USD maximum |
-| --- | ---: | ---: | ---: |
-| C12b | 25 | 668 seconds | Shared workload ceiling |
-| C16 | 609 | 12,090 seconds | Shared workload ceiling |
-| Workload total | 634 | 12,758 lane seconds, plus separately frozen grading and launch headroom | 5.0000000 |
-| Hermes | One 28-item calibration and at most two candidates, one send per packet | Within 24 hours of successful calibration and within source validity | 0.5013504 |
-| Total | 637 | Subject to the new freeze | 5.5013504, zero cash authorization |
+1. Update workload, account admission, reader and exports. Remove budget, quota and cost stops. Retain per-call accounting, concurrency controls, effects reconciliation and source validation. Record each incident's exact cause, time, call, ledger state, continuation point and outcome.
+2. Exercise queue waits, quota/provider unavailability, refusal before and after reservation, uncertain responses, reader recovery and confirmed product system failure using isolated accounts and real workers with offline transport. Verify same-case resumption, independent progress, independent regrading, no duplicate writes, first FAIL preservation, forecast overrun with continued execution and a stop on confirmed system failure. Run full checks and CI, obtain review in the original Claude conversation, and present the new freeze digest.
+3. Dispatch after Master approves the concrete freeze. Append both results to the original report and PRs. Preserve R71's 99 observations, 189 assertion positions and C16 repeat 2 and 3 FAILs. The new C16 observation occupies repeat 1. A complete C12b chain with a measured FAIL counts as a witness and retains its functional FAIL. Keep any FAIL measured before interruption and leave an incomplete witness unresolved. Verify the NAS archive by readback and report gates and actual usage. Merging requires separate authorization.
+4. After sealing the original baseline, schedule the issue's data cleanup, configurable evaluation tooling and native ProkBot and plain pi or clean Hermes comparisons.
 
-Proposed caps reuse the previous workload allowance and reader rate bounds, with 0.0688128 plus two times 0.2162688 for grading. Enforce request and spend caps independently. Recompute against current catalog, peak prices, input size and output bound including reasoning. A changed served release or exceeded ceiling goes back to Master. C06 slots 98 and 99 remain historically ungraded.
-
-Target the same OpenCode Go DeepSeek V4.1 Flash release. Verify actual model ID, published release and endpoint at freeze time against `deepseek-v4.1-flash` and `deepseek/deepseek-v4.1-flash-1017`. Secretary main and task are low. Independent local Hermes uses the same Go model at max, one shared blinded calibration requiring 28/28, and dual receipts for each accepted candidate. Pin SUT `873b66f4b906ff53a62476ff5dd1466649c427f7` and Pi `16787ad5b2dc748047f314ca1bfe7708f30f54f3`. Freeze the exact runner commit, recipe and input digests, blind packet and rubric digests, calibration and reader versions, model and quota sources, expiry, runtime admission and accounting digests. Check all three authenticated quota windows (rolling five-hour, weekly and monthly) before each send with worst-case cost and unsettled reserves, including reader sends.
-
-Recommend permanently stopping all remaining sends for the new series on the first incomplete response, uncertain transport or inability to verify Go billing and zero cash. Preserve the first error, sends, completed evidence, unrun cases and maximum reservation. Preserve the prior account hold and closed freeze `fa647e16…`. Track old workload request 97 at 0.4754877 and old scoring slot 97 at 0.2162688 separately, with a combined upper bound of 0.6917565 Go equivalent. Reconcile both records against the account book and obtain approval of any outstanding carry. The historical HTTP 200 proves metadata access at that time. Bind a one-time new series claim to the new approval digest and preserve closure of old requests and slots.
-
-## Append results and validate
-
-Append the new series to the existing #122 PRs and benchmark report, linking the parent freeze, original positions, lane terminals, assertions, routes, first failures, accounting and archive digests. Preserve the 99 observation positions, 189 assertion cells and reproducible R71 effective table. Project only the preregistered C16 repeat 1 and C12b repeat 1 positions into the new series view. Preserve the official-route C16 repeat 2 and 3 FAILs and historical 2/3, with Go reported separately. Link all three historical C12b interruptions and the old series' zero-send record. Publish the raw negative outcome, trial terminal and gate decision. Archive stopped isolated data to NAS, verify files on readback and publish sanitized evidence.
-
-Reuse positive and negative offline controls. Test independent lanes, reversed order, a second-lane interruption after the first seals, account stop, zero sends for ineligible candidates, freeze binding and per-lane export. Cover C12b success, shell, wrong path, wrong bytes, duplicate write and measured FAIL followed by interruption. Cover C16 provenance conflicts and incomplete visibility surfaces. Exercise normal entry points with real workers and scripted models, preserving first failures. Have the original Claude session review exact revisions and freeze conditions before submitting the concrete freeze for Master's explicit approval. After the run and PR updates, verify CI on current heads and obtain review in the same session. Merge is a separate Master decision.
-
-## Master decisions and outstanding freeze approval
-
-1. **C16 repeat 1 placement.** Master decided to preregister the new observation as the effective repeat 1 and use its final state, including FAIL, missing evidence or unresolved after zero sends. Retain the historical R71 view.
-2. **C12b witness and interruption.** Master decided to count an evidence-complete FAIL from a completed trial as an adjudicable live witness, retaining FAIL for functional acceptance and returning the merge disposition to Master. A measured FAIL followed by trial interruption keeps its raw FAIL and evidence, the terminal becomes INCOMPLETE and the gate stays unresolved. The current aggregator requires a complete PASS chain. Apply the new rule to the new series and verify reproduction of the historical view.
-3. **Execution and accounting.** At final freeze approval, confirm C12b first, the two workload and reader limits, zero cash authorization, the series-wide stop rule and any unsettled old reservation carry. Record plan decisions separately from approval of the concrete freeze.
-
-## R72 review disposition
+## Historical R72–R74 decisions
 
 The merge gate reads a new view layered on R71 effective. The new decision supersedes the R67 repeat-1 selection in that view. Use one series claim with one subordinate claim per lane. Prove old tables byte-identical and validate exact permitted cell changes. Old workload 97 was settled locally as uncertain at the upper bound and ages out by usage window. Old reader slot 97 remains unsettled and carried. Bind both accounting records, avoid double counting, and preserve historical uncertainty.
 
@@ -57,7 +45,7 @@ R74 PASS for decision brief and offline implementation. Before freezing the chos
 
 Master approved offline implementation with policy A, at most two bounded zero-send metadata rechecks, and a raw effects FAIL with the witness unresolved when UNKNOWN reconciliation is absent. Dispatch awaits separate approval of the concrete freeze.
 
-## Freeze conditions after implementation review R75
+## Historical R75 freeze conditions
 
 Across six verified Go workload archives, the 1,170 completed responses took 15.169 s at P95, 23.901 s at P99 and at most 46.709 s from reservation through settlement. The longest request served compaction and took 47.683 s across the entire product call. The maximum over the 96 complete R71 responses was 26.949 s. Request 97 used the main model for compaction and ended uncertain. The subsequent local refusal applied to a new MAIN call in the same session. Each retained its original first attempt.
 
