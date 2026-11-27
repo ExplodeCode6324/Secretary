@@ -31,7 +31,9 @@
 
 共 9 个私有 NAS 包。739,037 个普通文件共 24,672,679,184 字节，压缩包合计 3,493,104,630 字节。前者是包内文件的逻辑大小。停止态根按所有者、运行记录及登记状态检查。Master 单独授权将中断现场按原状封存，该包保留 OPEN 和 RESTORING。每包先在本机创建，再逐成员从 NAS 读取并与源大小和 SHA-256 核对。首次盘点因测试目录含指向实例的符号链接而停止；后续只封存并核对链接本身。私有 RESTORE.md 记录源码版本、路径映射、校验和恢复步骤。
 
-[benchmark PR #3](https://github.com/ExplodeCode6324/secretary-benchmark/pull/3) 以已审提交 `2e08c94` 合入 main，合并提交 `f5ac0d0` 的 [11 项 CI](https://github.com/ExplodeCode6324/secretary-benchmark/actions/runs/45994925191) 全部通过。配套的 [Secretary PR #138](https://github.com/ExplodeCode6324/Secretary/pull/138) 在首轮审查中修正了英文 v2 规则的章节归属、历史参考译文和中文同模型诊断重评的表述。已按独立操作员动作记录核对原评 684.099 秒、重评 684.648 秒。修订提交为 `0b943548`。
+[benchmark PR #3](https://github.com/ExplodeCode6324/secretary-benchmark/pull/3) 以已审提交 `2e08c94` 合入 main，合并提交 `f5ac0d0` 的 [11 项 CI](https://github.com/ExplodeCode6324/secretary-benchmark/actions/runs/45994925191) 全部通过。配套的 [Secretary PR #138](https://github.com/ExplodeCode6324/Secretary/pull/138) 在首轮审查中修正了英文 v2 规则的章节归属、历史参考译文和中文同模型诊断重评的表述。已按独立操作员动作记录核对原评 684.099 秒、重评 684.648 秒。第二轮 Claude 复核在修订提交 `0b943548` 关闭三项问题。[该提交的三项检查](https://github.com/ExplodeCode6324/Secretary/actions/runs/45998105857) 通过后，PR 合入 main 的 `ebcb4b40`。[合并后 CI 回执](https://github.com/ExplodeCode6324/Secretary/actions/runs/46001114095)
+
+已释放全部 12 个检出和已封存的历史协调目录。释放后重新列举工作区顶层，隐藏目录为零。两个仓库的 worktree 登记均无这些路径。
 
 ## 复核结论
 
