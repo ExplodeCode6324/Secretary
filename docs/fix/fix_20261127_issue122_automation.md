@@ -45,3 +45,11 @@
 Claude Opus 5.5 Extra 第二轮给出 PASS，同意提交 Master 确认实施。复核者从合并后的源码确认了 28 项校准的构成，首轮四项意见均已关闭。Master 于 11 月 27 日确认实施，由同一名未参与实现的独立子 Agent 从干净检出开始按操作者说明、指定版本与获准配置运行。每轮报告列出主动操作、命令、起止时间、分项耗时、实际验证结果、证据及作者介入。保留首失败，由作者修复工具或说明，再由该子 Agent 独立复验。全流程独立跑通后提交 Master 终审。报告明确子 Agent 操作证据与真人实际使用的覆盖边界。
 
 [Core issue #122](https://github.com/ExplodeCode6324/Secretary/issues/122) · [已合并 benchmark PR #2](https://github.com/ExplodeCode6324/secretary-benchmark/pull/2) · [历史重放摘要](evidence/issue122-data-cleanup.md)
+
+## 实施复核与验收记录
+
+benchmark PR #2 以已审核的提交合并后，追加工作第二项在 benchmark PR #3 实施。第一次实现复核发现 Linux 的隔离范围、供应商异常后的按请求对账和发送路径的测试覆盖有缺口。修订版将真实运行限定在通过本机验证的 macOS 配置，保留每次返回的 HTTP 状态和原始响应，支持按原预留及证据摘要追加全额保留处置。校准、分角色额度、计费来源、服务身份、连接中断、错误响应和两个独立禁用开关均有离线回归。
+
+独立验收首轮遇到递归下载中断，保留首次错误。手册增加浅克隆与经提交核验的本地镜像用法。第二轮在两份干净检出上用时约 81 秒，完成 Secretary、模拟的原生工作模型传输、Hermes 原生评分传输预演、跨检出重评、双禁用重放。两份报告逐字节一致。已从 NAS 重建四份历史产物并核对原摘要。真实验收使用单独冻结的公开 C04-resident；未决费用、原始失败和独立验收时间线都进入私有记录。最终证据按 benchmark PR 的实际提交补充。
+
+[benchmark PR #3](https://github.com/ExplodeCode6324/secretary-benchmark/pull/3)
