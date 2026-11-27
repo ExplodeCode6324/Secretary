@@ -134,3 +134,9 @@ Derive event-specific operation changes from the cumulative series snapshot by I
 An unmet REQUIRED, EXCLUSIVE or ANY_OF(k) unit always incurs its missing severity, whether its labels are ABSENT or CONTRADICTED; a CONTRADICTED label also triggers its contradiction severity, and the group contributes the maximum. For REQUIRED and EXCLUSIVE facts, the contradiction severity may not be ignore.
 
 A presence probe is satisfied only by an assertion that has the expected status and whose quote contains that anchor and no other designated anchor for the same answer; any assertion containing the anchor with the excluded status breaks an absence probe.
+
+## First independent atomic singleton registration
+
+Master approved the three public questions and final R3 instructions. One non-implementer agent sealed the synthetic suite at 17:05:50 HKT before seeing any v2 judge output. Its 16 items contain 28 atomic labels, 16 abstention judgements, 23 presence probes and five absence probes. There was no second labeller. The file has 20,661 bytes, SHA-256 e0a6ee8dcc671506a1452c01e514f82f166260ef28223fefb5586218c0180c8b.
+
+Measure on 456afb9e8e1f621cb66f538f362fca98dd208a23 after exact-source review and CI. Configuration freeze 644f0d33a28a029b92c309e935f32bbc923d3c5d723a87136ee98c95b9567b41, operator registration digest 21e6d920d99793a17366ec9398114da97273f8d6e6bf67d0b394a74409c9d716. Singleton packets with one attempt each. Sixteen qualification and three formal packets per grade, followed by at most one target-disabled diagnostic after successful admission. Up to 38 judge and 48 work requests, 900 seconds per request, record-only billing. Preserve the first failure and actual coverage.
