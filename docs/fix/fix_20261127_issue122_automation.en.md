@@ -40,6 +40,6 @@ Keep target tools and filesystem access scoped to their own workspace. Same-user
 
 ## Review status
 
-Claude Opus 5.5 Extra R2 gave PASS for submission to Master. It confirmed the composition of the 28 controls from the merged source and closed all four R1 findings. This is architecture-plan readiness. Implementation awaits Master’s confirmation.
+Claude Opus 5.5 Extra R2 gave PASS for submission to Master. It confirmed the composition of the 28 controls from the merged source and closed all four R1 findings. This is architecture-plan readiness. Master authorized implementation on November 27 and designated one independent subagent as the acceptance operator. The same non-author starts each verification round in a clean checkout with only operator documentation, the candidate revision and authorized configuration. Its report records actions initiated, commands, start/end times, elapsed time per stage, actual results, evidence and any author intervention. Preserve the first failure, fix the tool or instructions, then repeat independently. Only a completed end-to-end round is submitted to Master for final review. Identify automated operator evidence explicitly; human execution, if absent, remains untested.
 
 [Core issue #122](https://github.com/ExplodeCode6324/Secretary/issues/122) · [Merged benchmark PR #2](https://github.com/ExplodeCode6324/secretary-benchmark/pull/2) · [Historical replay digests](evidence/issue122-data-cleanup.md)
