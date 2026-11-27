@@ -4,7 +4,7 @@
 
 ## 构建记录
 
-以 Secretary main 的 PR #137 为开发基线，核对既有 secretary-pr-fix、agile 000/002/005 和两个 checkout 的现行说明。将计划、修复、敏捷部署边界和独立复核程序拆入四份工作流。Master 随后明确根目录规范与流程全部入 Git；据此采用单一大写 AGENTS.md，并取消原拟定的本机专用入口与 Codex 回退配置。项目 skill 仅负责转到对应流程。工作站原有的同名 Codex skill 已留存私有备份，现也指向仓库规范。
+以 Secretary main 的 PR #137 为开发基线，核对既有 secretary-pr-fix、agile 000/002/005 和两个 checkout 的现行说明。将计划、修复、敏捷部署边界和独立复核程序拆入四份工作流。Master 随后明确根目录规范与流程全部入 Git；据此采用单一大写 AGENTS.md，并取消原拟定的本机专用入口与 Codex 回退配置。初版的项目与工作站 skill 曾转到对应流程。Master 在检查期间决定撤下两个入口，后续直接从 AGENTS.md 读取四份工作流。旧版本留存在私有历史备份中。
 
 每轮沿用原中英文文件名或敏捷专题编号。方案、构建经过、测试证据、复核结论可在同一记录分节，公开材料只含脱敏结果。首次失败、私有原始材料及完整校验回执由私有归档保存。
 
@@ -16,6 +16,8 @@
 | 项目文档检查 | 两个 checkout 均运行 `npm run docs:check`，链接及本地化检查通过。开发侧检查 743 份 Markdown、7,319 处链接，敏捷侧 718 份、7,256 处。 |
 | 工具入口 | Codex 0.153.4 的 `codex debug prompt-input` 输出包含本项目 AGENTS.md 与项目 skill。Antigravity CLI 1.5.18 启动时显示未登录，登录后的技能发现和实际构建记为 NOT_TESTED。 |
 | 测试范围 | 产品程序与记忆机制均无改动。记忆性能测试 NOT_APPLICABLE。此次没有派发原生系统或评分模型请求。 |
+
+移除 skill 后再次运行两边的 `npm run docs:check`，均通过。开发和敏捷检出的 AGENTS.md 与四份工作流逐字节一致。新启动的 Codex 读取根规范，技能清单中已无旧入口。
 
 ## 工作区清理与证据保留
 

@@ -11,7 +11,7 @@
 
 每一轮在 [docs/fix](docs/fix/README.md) 留下方案、构建记录、测试证据与复核结论。测试范围按程序正确性和记忆体系性能选择，跨两类的变更两者都测。保留首次失败与缺失证据。发布前检查正文、差异、附件、路径及标识，私有数据和凭据留在对应私有位置。
 
-本文件与 `workflows/` 由 Git 跟踪。开发检出和敏捷实例使用相同版本的规范。按本轮任务及目标环境选择流程。Codex 和 Antigravity CLI 都可以从本文件进入；显式调用 [secretary-pr-fix](.agents/skills/secretary-pr-fix/SKILL.md) 时读取同一套流程。
+本文件与 `workflows/` 由 Git 跟踪。开发检出和敏捷实例使用相同版本的规范。按本轮任务及目标环境选择流程。Codex、Antigravity CLI 和其他构建工具均从上表进入对应工作流。
 
 ## 工程边界
 
