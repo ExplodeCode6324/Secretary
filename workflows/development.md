@@ -8,11 +8,11 @@
    Master 在任务开始前明确指定采用“调度 agent + 编码 agent”时，按以下分工执行。例如，可由 Codex 调度，其他 CLI agent 编码。
 
    - 调度 agent 按计划分派工作包，可并行的包同时开展，互斥的包错开执行，有依赖的包在前置交付就绪后开始。
-   - 编码 agent 在一个独立 session 中完成一个工作包，提交该包的实现和测试证据。下一个工作包使用新 session。
+   - 编码 agent 在一个独立 session 中完成一个工作包，向调度 agent 交付该包的实现和测试证据。下一个工作包使用新 session。
    - 调度 agent 检查各包的实际改动和测试证据，按计划逐包验收，并验证各包合在一起后能从正常入口工作。
 
 5. 从正常入口验证。功能逻辑运行 correctness，记忆机制运行 memory benchmark 和相关 correctness 回归。跨范围两者都运行；文档变更检查链接、命令、配置入口与项目文档检查。必需 CI 照常运行，范围外记 NOT_APPLICABLE，应测缺证记 NOT_TESTED。
-6. 推送任务分支、创建或更新 PR，按[复核与验收](review.md)交付。合并后核对目标分支 CI。释放专用 checkout 前核实本地修改、子模块、忽略文件和证据归属。
+6. 本轮全部工作包完成并通过整体验证后，推送任务分支、创建或更新 PR。采用调度模式时，由调度 agent 提交 PR，并将当前 HEAD 和验证证据交给独立 reviewer。独立 reviewer 复核该 HEAD，通过后交 Master 终审确认，再按[复核与验收](review.md)办理合并。合并后核对目标分支 CI。释放专用 checkout 前核实本地修改、子模块、忽略文件和证据归属。
 
 ## 隔离 benchmark
 
